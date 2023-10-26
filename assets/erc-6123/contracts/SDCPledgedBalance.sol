@@ -150,13 +150,12 @@ contract SDCPledgedBalance is SDC {
 
     function _processAfterTransfer(bool success) internal{
         if(success){
-            tradeState = TradeState.Settled;
             emit TradeSettled();
-            if (tradeState == TradeState.Terminated){
+            if (tradeState == TradeState.Terminated || tradeState == mutuallyTerminated){
                 tradeState = TradeState.Inactive;
             }
-            if (mutuallyTerminated){
-                tradeState = TradeState.Inactive;
+            else{
+                tradeState = TradeState.Settled;
             }
         }
         else{ // TRANSFER HAS FAILED
