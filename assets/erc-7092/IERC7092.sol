@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 /**
 * @title ERC-7092 Financial Bonds tandard
+* This interface implements only functions that are REQUIRED for the ERC7092 standard.
+* OPTIONAL and INTEROPERABLE functions may be added to allow further functionalities and interoperability of bonds
 */
 interface IERC7092 {
     /**
@@ -17,25 +19,15 @@ interface IERC7092 {
 
     /**
     * @notice Returns the bond symbol
+    *         It is RECOMMENDED to represent the symbol as a combination of the issuer Issuer'shorter name and the maturity date
+    *         Ex: If a company named Green Energy issues bonds that will mature on october 25, 2030, the bond symbol could be `GE30` or `GE2030` or `GE102530`
     */
     function symbol() external view returns(string memory);
-
-    /**
-    * @notice Returns the number of decimals the bond uses - e.g `10`, means to divide the token amount by `10000000000`
-    *
-    * OPTIONAL
-    */
-    function decimals() external view returns(uint8);
 
     /**
     * @notice Returns the bond currency. This is the contract address of the token used to pay and return the bond principal
     */
     function currency() external view returns(address);
-
-    /**
-    * @notice Returns the copoun currency. This is the contract address of the token used to pay coupons. It can be same as the the one used for the principal
-    */
-    function currencyOfCoupon() external view returns(address);
 
     /**
     * @notice Returns the bond denominiation. This is the minimum amount in which the Bonds may be issued. It must be expressend in unit of the principal currency
@@ -45,8 +37,6 @@ interface IERC7092 {
 
     /**
     * @notice Returns the issue volume (total debt amount). It is RECOMMENDED to express the issue volume in denomination unit.
-    *         ex: if denomination = $1,000, and the total debt is $5,000,000
-    *         then, issueVolume() = $5,000, 000 / $1,000 = 5,000 bonds
     */
     function issueVolume() external view returns(uint256);
 
@@ -58,15 +48,19 @@ interface IERC7092 {
     function couponRate() external view returns(uint256);
 
     /**
-    * @notice Returns the coupon type
-    *         ex: 0: Zero coupon, 1: Fixed Rate, 2: Floating Rate, etc...
-    */
-    function couponType() external view returns(uint256);
-
-    /**
     * @notice Returns the coupon frequency, i.e. the number of times coupons are paid in a year.
+    *
+    * OPTIONAL - interfaces and other contracts MUST NOT expect these values to be present. The method is used to improve usability.
     */
     function couponFrequency() external view returns(uint256);
+
+    /**
+    * @notice Returns the day count basis
+    *         For example, 0 can denote actual/actual, 1 can denote actual/360, and so on
+    *
+    * OPTIONAL - interfaces and other contracts MUST NOT expect these values to be present. The method is used to improve usability.
+    */
+    function dayCountBasis() external view returns(uint8);
 
     /**
     * @notice Returns the date when bonds were issued to investors. This is a Unix Timestamp like the one returned by block.timestamp
@@ -80,15 +74,7 @@ interface IERC7092 {
     function maturityDate() external view returns(uint256);
 
     /**
-    * @notice Returns the day count basis
-    *         Ex: 0: actual/actual, 1: actual/360, etc...
-    */
-    function dayCountBasis() external view returns(uint256);
-
-    /**
-    * @notice Returns the principal of an account. It is RECOMMENDED to express the principal in denomination unit.
-    *         Ex: if denomination = $1,000, and the user has invested $5,000
-    *             then principalOf(_account) = 5,000/1,000 = 5
+    * @notice Returns the principal of an account. It is RECOMMENDED to express the principal in the bond currency unit (USDC, DAI, etc...)
     * @param _account account address
     */
     function principalOf(address _account) external view returns(uint256);
@@ -99,88 +85,54 @@ interface IERC7092 {
     * @param _owner the bondholder address
     * @param _spender the address that has been authorized by the bondholder
     */
-    function approval(address _owner, address _spender) external view returns(uint256);
+    function allowance(address _owner, address _spender) external view returns(uint256);
 
     /**
-    * @notice Authorizes `_spender` account to manage `_amount`of their bonds
+    * @notice Authorizes `_spender` account to manage `_amount`of their bond tokens
     * @param _spender the address to be authorized by the bondholder
-    * @param _amount amount of bond to approve. _amount MUST be a multiple of denomination
+    * @param _amount amount of bond tokens to approve
     */
-    function approve(address _spender, uint256 _amount) external;
-
-    /**
-    * @notice Authorizes the `_spender` account to manage all their bonds
-    * @param _spender the address to be authorized by the bondholder
-    */
-    function approveAll(address _spender) external;
+    function approve(address _spender, uint256 _amount) external returns(bool);
 
     /**
     * @notice Lowers the allowance of `_spender` by `_amount`
     * @param _spender the address to be authorized by the bondholder
-    * @param _amount amount of bond to remove approval; _amount MUST be a multiple of denomination
+    * @param _amount amount of bond tokens to remove from allowance
     */
-    function decreaseAllowance(address _spender, uint256 _amount) external;
+    function decreaseAllowance(address _spender, uint256 _amount) external returns(bool);
 
     /**
-    * @notice Removes the allowance for `_spender`
-    * @param _spender the address to remove the authorization by from
-    */
-    function decreaseAllowanceForAll(address _spender) external;
-
-    /**
-    * @notice Moves `_amount` bonds to address `_to`
+    * @notice Moves `_amount` bonds to address `_to`. This methods also allows to attach data to the token that is being transferred
     * @param _to the address to send the bonds to
-    * @param _amount amount of bond to transfer. _amount MUST be a multiple of denomination
+    * @param _amount amount of bond tokens to transfer
     * @param _data additional information provided by the token holder
     */
-    function transfer(address _to, uint256 _amount, bytes calldata _data) external;
-
-    /**
-    * @notice Moves all bonds to address `_to`
-    * @param _to the address to send the bonds to
-    * @param _data additional information provided by the token holder
-    */
-    function transferAll(address _to, bytes calldata _data) external;
+    function transfer(address _to, uint256 _amount, bytes calldata _data) external returns(bool);
 
     /**
     * @notice Moves `_amount` bonds from an account that has authorized the caller through the approve function
+    *         This methods also allows to attach data to the token that is being transferred
     * @param _from the bondholder address
     * @param _to the address to transfer bonds to
-    * @param _amount amount of bond to transfer. _amount MUST be a multiple of denomination
+    * @param _amount amount of bond tokens to transfer.
     * @param _data additional information provided by the token holder
     */
-    function transferFrom(address _from, address _to, uint256 _amount, bytes calldata _data) external;
+    function transferFrom(address _from, address _to, uint256 _amount, bytes calldata _data) external returns(bool);
 
     /**
-    * @notice Moves all bonds from `_from` to `_to`. The caller must have been authorized through the approve function
-    * @param _from the bondholder address
-    * @param _to the address to transfer bonds to
-    * @param _data additional information provided by the token holder
-    */
-    function transferAllFrom(address _from, address _to, bytes calldata _data) external;
-
-    /**
-    * @notice MUST be emitted when bonds are transferred
+    * @notice MUST be emitted when bond tokens are transferred, issued or redeemed, except during contract creation
     * @param _from the account that owns bonds
     * @param _to the account that receives the bond
-    * @param _amount the amount of bonds to be transferred
-    * @param _data additional information provided by the token holder
+    * @param _amount amount of bond tokens to be transferred
     */
-    event Transferred(address _from, address _to, uint256 _amount, bytes _data);
+    event Transfer(address _from, address _to, uint256 _amount);
 
     /**
-    * @notice MUST be emitted when an account is approved
-    * @param _owner the bonds owner
+    * @notice MUST be emitted when an account is approved or when the allowance is decreased
+    * @param _owner bond token's owner
     * @param _spender the account to be allowed to spend bonds
-    * @param _amount the amount allowed by _owner to be spent by _spender.
+    * @param _amount amount of bond tokens allowed by _owner to be spent by `_spender`
+    *        Or amount of bond tokens to decrease allowance from `_spender`
     */
-    event Approved(address _owner, address _spender, uint256 _amount);
-
-    /**
-    * @notice MUST be emmitted when the `_owner` decreases allowance from `_sepnder` by quantity `_amount`
-    * @param _owner the bonds owner
-    * @param _spender the account that has been allowed to spend bonds
-    * @param _amount the amount of tokens to disapprove
-    */
-    event AllowanceDecreased(address _owner, address _spender, uint256 _amount);
+    event Approval(address _owner, address _spender, uint256 _amount);
 }
