@@ -111,11 +111,13 @@ jobs:
       - name: Checkout EIP Repository
         uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
 
-      - uses: ethereum/eipw-action@b8de7ea9ad5cb842301e63898afb996c451c18cf
+      - uses: ethereum/eipw-action@6858f56d1d9e5cbe49a0afd85150669f6983ed20
         id: eipw
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          unchecked: 1, 5069, 5757
+          unchecked: 1
+          path: ERCS/
+          options-file: config/eipw.toml
 
   markdownlint:
     name: Markdown Linter
