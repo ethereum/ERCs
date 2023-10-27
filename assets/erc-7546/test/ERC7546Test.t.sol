@@ -5,8 +5,8 @@ import {Test, console2} from "forge-std/Test.sol";
 
 import {Dictionary} from "../src/dictionary/Dictionary.sol";
 import {IDictionary} from "../src/dictionary/IDictionary.sol";
-import {ERC0000Proxy} from "../src/proxy/ERC0000Proxy.sol";
-import {ERC0000Utils} from "../src/proxy/ERC0000Utils.sol";
+import {ERC7546Proxy} from "../src/proxy/ERC7546Proxy.sol";
+import {ERC7546Utils} from "../src/proxy/ERC7546Utils.sol";
 
 /// @dev Library version has been tested with version 5.0.0.
 import {StorageSlot} from "openzeppelin-contracts/contracts/utils/StorageSlot.sol";
@@ -23,7 +23,7 @@ contract DictionaryHarness is Dictionary {
 /**
     @title A Test Contract to verify Dictionary and Proxy compliance with specifications with forge-std/Test
  */
-contract ERC0000Test is Test {
+contract ERC7546Test is Test {
     /// @dev Due to a bug in Solidity, we are redefining the events from the external interface file that cannot be read.
     event ImplementationUpgraded(bytes4 indexed functionSelector, address indexed implementation);
     event AdminChanged(address previousAdmin, address newAdmin);
@@ -34,7 +34,7 @@ contract ERC0000Test is Test {
 
     function setUp() public {
         dictionary = address(new Dictionary(admin));
-        proxy = address(new ERC0000Proxy(address(dictionary), bytes("")));
+        proxy = address(new ERC7546Proxy(address(dictionary), bytes("")));
     }
 
     /**
@@ -164,21 +164,21 @@ contract ERC0000Test is Test {
         }
 
         vm.expectEmit();
-        emit ERC0000Utils.DictionaryUpgraded(_fuzz_dictionary);
-        address _proxy = address(new ERC0000Proxy(_fuzz_dictionary, bytes("")));
+        emit ERC7546Utils.DictionaryUpgraded(_fuzz_dictionary);
+        address _proxy = address(new ERC7546Proxy(_fuzz_dictionary, bytes("")));
         assertEq(
-            address(uint160(uint256(vm.load(_proxy, ERC0000Utils.DICTIONARY_SLOT)))),
+            address(uint160(uint256(vm.load(_proxy, ERC7546Utils.DICTIONARY_SLOT)))),
             _fuzz_dictionary
         );
     }
-    function test_Proxy_Revert_constructor_seteDictionary_withEmptyDictionary(address _fuzz_dictionary) public {
+    function test_Proxy_Revert_constructor_setDictionary_withEmptyDictionary(address _fuzz_dictionary) public {
         vm.assume(
             _isNotTestContracts(_fuzz_dictionary) &&
             _fuzz_dictionary != address(dictionary) &&
             _fuzz_dictionary != address(proxy)
         );
-        vm.expectRevert(abi.encodeWithSelector(ERC0000Utils.ERC0000InvalidDictionary.selector, _fuzz_dictionary));
-        new ERC0000Proxy(_fuzz_dictionary, bytes(""));
+        vm.expectRevert(abi.encodeWithSelector(ERC7546Utils.ERC7546InvalidDictionary.selector, _fuzz_dictionary));
+        new ERC7546Proxy(_fuzz_dictionary, bytes(""));
     }
 
     /**

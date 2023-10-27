@@ -9,9 +9,9 @@ import {ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/ERC1967/ERC19
 import {IDictionary} from "../dictionary/IDictionary.sol";
 
 /**
-    @dev This ERC0000 helper constant & methods
+    @dev This ERC7546 helper constant & methods
  */
-library ERC0000Utils {
+library ERC7546Utils {
     /// @dev Due to a bug in Solidity lang, errors and events cannot be externalized.
     /// After the language is fixed, these items will be moved to the Interface file.
     /**
@@ -23,7 +23,7 @@ library ERC0000Utils {
     /**
     * @dev The `dictionary` of the proxy is invalid.
      */
-    error ERC0000InvalidDictionary(address dictionary);
+    error ERC7546InvalidDictionary(address dictionary);
 
     /**
      * @notice Specification 4
@@ -46,7 +46,7 @@ library ERC0000Utils {
      */
     function _setDictionary(address newDictionary) private {
         if (newDictionary.code.length == 0) {
-            revert ERC0000InvalidDictionary(newDictionary);
+            revert ERC7546InvalidDictionary(newDictionary);
         }
         StorageSlot.getAddressSlot(DICTIONARY_SLOT).value = newDictionary;
     }
@@ -57,7 +57,7 @@ library ERC0000Utils {
      * This function is payable only if the setup call is performed, otherwise `msg.value` is rejected
      * to avoid stuck value in the contract.
      *
-     * Emits an {IERC0000-DictionaryUpgraded} event.
+     * Emits an {IERC7546-DictionaryUpgraded} event.
      */
     function upgradeDictionaryToAndCall(address newDictionary, bytes memory data) internal {
         _setDictionary(newDictionary);
