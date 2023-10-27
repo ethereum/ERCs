@@ -22,7 +22,7 @@ For Ethereum implementers, EIPs are a convenient way to track the progress of th
 There are three types of EIP:
 
 - A **Standards Track EIP** describes any change that affects most or all Ethereum implementations, such as—a change to the network protocol, a change in block or transaction validity rules, proposed application standards/conventions, or any change or addition that affects the interoperability of applications using Ethereum. Standards Track EIPs consist of three parts—a design document, an implementation, and (if warranted) an update to the [formal specification](https://github.com/ethereum/yellowpaper). Furthermore, Standards Track EIPs can be broken down into the following categories:
-  - **Core**: improvements requiring a consensus fork (e.g. [EIP-5](./eip-5.md), [EIP-101](./erc-101.md)), as well as changes that are not necessarily consensus critical but may be relevant to [“core dev” discussions](https://github.com/ethereum/pm) (for example, [EIP-90], and the miner/node strategy changes 2, 3, and 4 of [EIP-86](./erc-86.md)).
+  - **Core**: improvements requiring a consensus fork (e.g. [EIP-5](./eip-5.md), [EIP-101](https://eips.ethereum.org/EIPS/eip-101)), as well as changes that are not necessarily consensus critical but may be relevant to [“core dev” discussions](https://github.com/ethereum/pm) (for example, [EIP-90], and the miner/node strategy changes 2, 3, and 4 of [EIP-86](https://eips.ethereum.org/EIPS/eip-86)).
   - **Networking**: includes improvements around [devp2p](https://github.com/ethereum/devp2p/blob/readme-spec-links/rlpx.md) ([EIP-8](./eip-8.md)) and [Light Ethereum Subprotocol](https://ethereum.org/en/developers/docs/nodes-and-clients/#light-node), as well as proposed improvements to network protocol specifications of [whisper](https://github.com/ethereum/go-ethereum/issues/16013#issuecomment-364639309) and [swarm](https://github.com/ethereum/go-ethereum/pull/2959).
   - **Interface**: includes improvements around language-level standards like method names ([EIP-6](./eip-6.md)) and [contract ABIs](https://docs.soliditylang.org/en/develop/abi-spec.html).
   - **ERC**: application-level standards and conventions, including contract standards such as token standards ([ERC-20](./erc-20.md)), name registries ([ERC-137](./erc-137.md)), URI schemes, library/package formats, and wallet formats.
@@ -196,7 +196,7 @@ A `requires` dependency is created when the current EIP cannot be understood or 
 
 Other than the specific exceptions listed below, links to external resources **SHOULD NOT** be included. External resources may disappear, move, or change unexpectedly.
 
-The process governing permitted external resources is described in [EIP-5757](./erc-5757.md).
+The process governing permitted external resources is described in [EIP-5757](https://eips.ethereum.org/EIPS/eip-5757).
 
 ### Execution Client Specifications
 
@@ -449,7 +449,7 @@ Emeritus EIP editors are
 - Nick Savers (@nicksavers)
 - Vitalik Buterin (@vbuterin)
 
-If you would like to become an EIP editor, please check [EIP-5069](./erc-5069.md).
+If you would like to become an EIP editor, please check [EIP-5069](https://eips.ethereum.org/EIPS/eip-5069).
 
 ## EIP Editor Responsibilities
 
