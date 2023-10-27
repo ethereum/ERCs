@@ -46,7 +46,7 @@ contract ERC7546Test is Test {
      *            the same function selector as the one registered for the implementation
      *    (2) MUST implement `getImplementation(bytes4 functionSelector)`
      *    (3) SHOULD store an admin account address with rights to modify the mapping
-     *      (3.1) and SHOULD notidy changes to the admin address through events
+     *      (3.1) and SHOULD notify changes to the admin address through events
      *    (4) is RECOMMENDED to implement
      *      (4.1) `supportsInterface(bytes4 interfaceID)` as defined in ERC-165
      *      (4.2) `supportsInterfaces()` to return a list of registered interfaceIDs
