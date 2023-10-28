@@ -71,7 +71,7 @@ These calls generally result in a "rough consensus" around what EIPs should be i
 
 The following is the standardization process for all EIPs in all tracks:
 
-![EIP Status Diagram](../assets/eip-1/EIP-process-update.jpg)
+![EIP Status Diagram](../assets/erc-1/EIP-process-update.jpg)
 
 **Idea** - An idea that is pre-draft. This is not tracked within the EIP Repository.
 
