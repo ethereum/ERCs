@@ -48,21 +48,6 @@ interface IERC7092 {
     function couponRate() external view returns(uint256);
 
     /**
-    * @notice Returns the coupon frequency, i.e. the number of times coupons are paid in a year.
-    *
-    * OPTIONAL - interfaces and other contracts MUST NOT expect these values to be present. The method is used to improve usability.
-    */
-    function couponFrequency() external view returns(uint256);
-
-    /**
-    * @notice Returns the day count basis
-    *         For example, 0 can denote actual/actual, 1 can denote actual/360, and so on
-    *
-    * OPTIONAL - interfaces and other contracts MUST NOT expect these values to be present. The method is used to improve usability.
-    */
-    function dayCountBasis() external view returns(uint8);
-
-    /**
     * @notice Returns the date when bonds were issued to investors. This is a Unix Timestamp like the one returned by block.timestamp
     */
     function issueDate() external view returns(uint256);
@@ -135,7 +120,7 @@ interface IERC7092 {
     *
     * OPTIONAL - interfaces and other contracts MUST NOT expect this function to be present. The method is used to decrease token allowance.
     */
-    function batchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount) external;
+    function batchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount) external returns(bool);
 
     /**
     * @notice Transfers multiple bonds with amounts specified in the array `_amount` to the corresponding accounts in the array `_to`, with the option to attach additional data
