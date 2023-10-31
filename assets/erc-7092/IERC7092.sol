@@ -178,7 +178,7 @@ interface IERC7092 {
 
     /**
     * @notice MUST be emitted when multiple bond tokens are transferred, issued or redeemed, with the exception being during contract creation
-    * @param _from array of bondholder accounts
+    * @param _from array of bondholders accounts
     * @param _to array of accounts to transfer bonds to
     * @param _amount array of amounts of bond tokens to be transferred
     *
