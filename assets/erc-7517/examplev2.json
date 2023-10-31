@@ -1,0 +1,53 @@
+[
+// not allow generative AI training
+{
+  "miningPreference": {
+    "dataMining": {
+      "use": "allowed"
+    },
+    "aiInference": {
+      "use": "allowed"
+    },
+    "aiTrainingWithAuthorship": {
+      "use": "allowed"
+    },
+    "aiGenerativeTraining": {
+      "use": "notAllowed"
+    }
+  }
+}
+,
+// only for AI inference
+{
+  "miningPreference": {
+    "aiInference": {
+      "use": "allowed"
+    },
+    "aiTraining": {
+      "use": "notAllowed"
+    },
+    "aiGenerativeTraining": {
+      "use": "notAllowed"
+    }
+  }
+}
+,
+// allow generative AI training if mentioning authorship and follow license
+{
+  "miningPreference": {
+    "dataMining": {
+      "use": "allowed"
+    },
+    "aiInference": {
+      "use": "allowed"
+    },
+    "aiTrainingWithAuthorship": {
+      "use": "allowed"
+    },
+    "aiGenerativeTrainingWithAuthorship": {
+      "use": "constrained",
+      "constraint_info": "Under the license: CC-BY-4.0"
+    }
+  }
+}
+]

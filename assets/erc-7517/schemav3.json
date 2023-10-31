@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "dataMining": {
+      "type": "string",
+      "enum": ["allowed", "notAllowed", "constrained"]
+    },
+    "aiInference": {
+      "type": "string",
+      "enum": ["allowed", "notAllowed", "constrained"]
+    },
+    "aiTraining": {
+      "type": "string",
+      "enum": ["allowed", "notAllowed", "constrained"]
+    },
+    "aiGenerativeTraining": {
+      "type": "string",
+      "enum": ["allowed", "notAllowed", "constrained"]
+    },
+    "aiTrainingWithAuthorship": {
+      "type": "string",
+      "enum": ["allowed", "notAllowed", "constrained"]
+    },
+    "aiGenerativeTrainingWithAuthorship": {
+      "type": "string",
+      "enum": ["allowed", "notAllowed", "constrained"]
+    }
+  },
+  "additionalProperties": true
+}

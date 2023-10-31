@@ -1,0 +1,28 @@
+[
+// not allow generative AI training
+{
+    "miningPreference": {
+        "allowed": [ "dataMining", "aiTrainingWithAuthorship", "aiInference" ],
+        "contrained": [],
+        "notAllowed": [ "aiGenerativeTraining" ]
+    }
+}
+,
+// only for AI inference
+{
+    "miningPreference": {
+        "allowed": [ "aiInference" ],
+        "contrained": [],
+        "notAllowed": [ "aiTraining", "aiGenerativeTraining" ]
+    }
+}
+,
+// allow generative AI training if mentioning authorship and follow license
+{
+    "miningPreference": {
+        "allowed": [ "dataMining", "aiTrainingWithAuthorship", "aiInference" ],
+        "contrained": [ "aiGenerativeTrainingWithAuthorship" ],
+        "notAllowed": []
+    }
+}
+]

@@ -1,0 +1,18 @@
+{
+    "type": "object",
+    "properties": {
+        "allowed": {
+            "enum": [ "dataMining", "aiTraining", "aiTrainingWithAuthorship", "aiGenerativeTraining", "aiGenerativeTrainingWithAuthorship", "aiInference" ],
+            "description": "The asset may be used for training an AI/ML model or mined for its data (or both)."
+        },
+        "constrainted": {
+            "enum": [ "dataMining", "aiTraining", "aiTrainingWithAuthorship", "aiGenerativeTraining", "aiGenerativeTrainingWithAuthorship", "aiInference" ],
+            "description": "The asset may be used for training an AI/ML model or mined for its data (or both) followed the license."
+        },
+        "notAllowed": {
+            "enum": [ "dataMining", "aiTraining", "aiTrainingWithAuthorship", "aiGenerativeTraining", "aiGenerativeTrainingWithAuthorship", "aiInference" ],
+            "description": "The asset may not be used for training an AI/ML model or mined for its data (or both)."
+        }
+    },
+    "required": [ "allowed", "constrainted", "notAllowed" ]
+}
