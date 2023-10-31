@@ -1,0 +1,179 @@
+---
+title: Open IP Protocol
+description: Remix NFTs and generate new NFT derivative works
+author: Combo <combo@1combo.io>, Saitama (@saitama2009), CT29 <CT29@1combo.io>, Luigi <luigi@1combo.io>
+discussions-to: https://ethereum-magicians.org/t/draft-open-ip-protocol/16373
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-10-31
+requires: 165, 721
+---
+
+## Abstract
+
+This proposal aims to standardize how to remix multiple existing IPs and create a new IP in a decentralized way. It extends the [ERC-721](./erc-721.md) standard, enabling users to remix multiple existing NFTs and create a new NFT derivative work, while their relationships can be traced on the blockchain. 
+
+## Motivation
+
+The internet is flooded with fresh content every day. But with the traditional IP infrastructure, IP registration and licensing is a headache for digital creators. The rapid creation of content has eclipsed the slower pace of IP registration, leaving much of this content unprotected. This means digital creators can't fairly earn from their work's spread.  
+
+||Traditional IP Infrastructure|Open IP Infrastructure|
+|-|-|-|
+|IP Registration|Long waits, heaps of paperwork, and tedious back-and-forths.|An NFT represents intellectual property; the owner of the NFT holds the rights to the IP.|
+|IP Licensing|Lengthy discussions, legal jargon, and case-by-case agreements.|A one-stop global IP licensing market that supports various licensing agreements.|  
+
+With this backdrop, we're passionate about building an Open IP ecosystem tailored for today's digital creators. Here, with just a few clicks, creators can register, license, and monetize their content globally, without geographical or linguistic barriers. 
+
+## Specification
+
+The keywords “MUST,” “MUST NOT,” “REQUIRED,” “SHALL,” “SHALL NOT,” “SHOULD,” “SHOULD NOT,” “RECOMMENDED,” “MAY,” and “OPTIONAL” in this document are to be interpreted as described in RFC 2119.
+
+**Interface**
+
+This protocol standardizes how to remix multiple existing NFTs and create a new NFT derivative work (known as a combo), while their relationships can be traced on the blockchain. It contains three core modules, remix module, network module, and license module.
+
+### Remix Module
+
+This module extends ERC-721 standard and enables users to create a new NFT by remixing multiple existing NFTs, whether they’re ERC-721 or [ERC-1155](./erc-1155.md). 
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.10;
+
+interface IERC721X {
+    // Events
+
+    /// @dev Emits when a combo is minted.
+    /// @param owner The owner address of the newly minted combo
+    /// @param comboId The newly minted combo identifier
+    event ComboMinted(address indexed owner, uint256 indexed comboId);
+
+    // Structs
+
+    /// @param tokenAddress The NFT's collection address
+    /// @param tokenId The NFT identifier
+    struct Token {
+        address tokenAddress;
+        uint256 tokenId;
+    }
+
+    /// @param amount The number of NFTs used
+    /// @param licenseId Which license to be used to verify this component
+    struct Component {
+        Token token;
+        uint256 amount;
+        uint256 licenseId;
+    }
+
+    // Functions
+
+    /// @dev Mints a NFT by remixing multiple existing NFTs.
+    /// @param components The NFTs remixed to mint a combo
+    /// @param hash The hash representing the algorithm about how to generate the combo's metadata when remixing multiple existing NFTs.
+    function mint(
+        Component[] calldata components,
+        string calldata hash
+    ) external;
+
+    /// @dev Retrieve a combo's components.
+    function getComponents(
+        uint256 comboId
+    ) external view returns (Component[] memory);
+}
+```
+
+### License Module
+
+By default, users can only remix multiple NFTs they own to create new NFT derivative works. This module enables NFT holders to grant others permission to use their NFTs in the remixing process.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.10;
+
+import "./IERC721X.sol";
+
+interface ILicense {
+    /// @dev Verify the permission when minting a combo
+    /// @param user The minter
+    /// @param combo The new NFT to be minted by remixing multiple existing NFTs
+    /// @return components The multiple existing NFTs used to mint the new combo
+    function verify(
+        address user,
+        IERC721X.Token calldata combo,
+        IERC721X.Component[] calldata components
+    ) external returns (bool);
+}
+```
+
+### Network Module
+
+This module follows the singleton pattern and is used to track all relationships between the original NFTs and their NFT derivative works.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.10;
+
+import "./IERC721X.sol";
+
+interface INFTNetIndexer {
+    /// @dev Verify if the `child` was created by remixing the `parent` with other NFTs.
+    /// @param parent Any NFT
+    /// @param child Any NFT
+    function isParent(
+        IERC721X.Token calldata parent,
+        IERC721X.Token calldata child
+    ) external view returns (bool);
+
+    /// @dev Verify if `a` and `b` have common `parent`s
+    /// @param a Any NFT
+    /// @param b Any NFT
+    function isSibling(
+        IERC721X.Token calldata a,
+        IERC721X.Token calldata b
+    ) external view returns (bool, IERC721X.Token[] memory commonParents);
+
+    /// @dev Return all parents of a `token`
+    /// @param token Any NFT
+    /// @return parents All NFTs used to mint the `token`
+    function getParents(
+        IERC721X.Token calldata token
+    ) external view returns (IERC721X.Token[] memory parents);
+}
+```
+
+## Rationale
+
+The Open IP Protocol is built on the "1 premise, 2 extensions, 1 constant" principle.  
+
+The “1 premise” means that for any IP in the Open IP ecosystem, an NFT stands for that IP. So, if you have the NFT, you own the IP. That’s why the Open IP Protocol is designed as an extended protocol compatible with ERC-721.  
+
+The “2 extensions” refer to the diversification of IP licensing and remixing.  
+
+- IP licensing methods are diverse. For example, delegating an NFT to someone else is one type of licensing, setting a price for the number of usage rights is another type of licensing, and even pricing based on auction, AMM, or other pricing mechanisms can develop different licensing methods. Therefore, the license module is designed allowing various custom licensing methods.  
+
+- IP remixing rules are also diverse. When remixing multiple existing NFTs, whether to support ERC-1155, whether to limit the range of NFT selection, and whether the NFT is consumed after remixing, there is no standard. So, the remix module is designed to support custom remixing rules.  
+
+The “1 constant” is that the traceability information of IP licensing is public and immutable. No matter how users license or remix IPs, the relationship between the original and new IPs stays the same. 
+
+## Backwards Compatibility
+
+This proposal is fully backwards compatible with the existing ERC-721 standard, extending the standard with new functions that do not affect the core functionality.
+
+## Reference Implementation 
+
+An implementation of this EIP will be provided upon acceptance of the proposal.
+
+## Security Considerations
+
+This standard highlights several security concerns that need attention:  
+
+* **Ownership and Permissions**: Only the NFT owner or those granted by them should be allowed to remix NFTs into NFT derivative works. It's vital to have strict access controls to prevent unauthorized creations.  
+
+* **Reentrancy Risks**: Creating derivative works might require interacting with multiple external contracts, like the remix, license, and network modules. This could open the door to reentrancy attacks, so protective measures are necessary.  
+
+* **Gas Usage**: Remixing NFTs can be computation-heavy and involve many contract interactions, which might result in high gas fees. It's important to optimize these processes to keep costs down and maintain user-friendliness.  
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
