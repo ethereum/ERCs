@@ -112,12 +112,12 @@ interface IERC7092CrossChain {
 
     /**
     * @notice MUST be emitted when several bond tokens are transferred or redeemed in a cross-chain transaction
-    * @param _from the bond token's owner
+    * @param _from array of bondholders accounts
     * @param _to array of accounts that receive the bond
     * @param _amount array of amount of bond tokens to be transferred
     * @param _destinationChainID array of unique IDs that identify the destination Chain
     */
-    event CrossChainTransferBatch(address _from, address[] _to, uint256[] _amount, bytes32[] _destinationChainID);
+    event CrossChainTransferBatch(address[] _from, address[] _to, uint256[] _amount, bytes32[] _destinationChainID);
 
     /**
     * @notice MUST be emitted when an account is approved to spend the bondholder's tokens in a different chain than the current chain
