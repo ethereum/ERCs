@@ -119,7 +119,7 @@ contract ERC7092 is IERC7092, BondStorage {
         return true;
     }
 
-    function batchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount) external {
+    function batchDecreaseAllowance(address[] calldata _spender, uint256[] calldata _amount) external returns(bool) {
         address _owner = msg.sender;
 
         _decreaseAllowance(_owner, _spender, _amount);
@@ -128,7 +128,11 @@ contract ERC7092 is IERC7092, BondStorage {
     }
 
     function batchTransfer(address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data) external returns(bool) {
-        address _from = msg.sender;
+        address[] memory _from;
+
+        for(uint256 i = 0; i < _from.length; i++) {
+            _from[i] = msg.sender;
+        }
 
         _batchTransfer(_from, _to, _amount, _data);
 
@@ -136,11 +140,7 @@ contract ERC7092 is IERC7092, BondStorage {
     }
 
     function batchTransferFrom(address[] calldata _from, address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data) external returns(bool) {
-        address[] _spender;
-
-        for(uint256 i = 0; i < _from; i++) {
-            _spender.push(msg.sender);
-        }
+        address _spender;
 
         _batchSpendAllowance(_from, _spender, _amount);
 
@@ -285,9 +285,9 @@ contract ERC7092 is IERC7092, BondStorage {
         unchecked {
             _allowed[_from][_spender] = currentAllowance - _amount;
         }
-   }
+    }
 
-   function _batchApprove(address _owner, address[] calldata _spender, uint256[] calldata _amount) internal virtual {
+    function _batchApprove(address _owner, address[] calldata _spender, uint256[] calldata _amount) internal virtual  {
         require(_owner != address(0), "ERC7092: OWNER_ZERO_ADDRESS");
         require(block.timestamp < _bonds[bondISIN].maturityDate, "ERC7092: BONDS_MATURED");
         require(_spender.length == _amount.length, "ARRAY_LENGTHS_MISMATCH");
@@ -295,7 +295,7 @@ contract ERC7092 is IERC7092, BondStorage {
         uint256 _balance = _principals[_owner] / _bonds[bondISIN].denomination;
         uint256 _denomination = _bonds[bondISIN].denomination;
 
-        for(uint256 i = 0; i < _spender.data; i++) {
+        for(uint256 i = 0; i < _spender.length; i++) {
             require(_spender[i] != address(0), "ERC7092: SPENDER_ZERO_ADDRESS");
             require(_amount[i] > 0, "ERC7092: INVALID_AMOUNT");
             require(_balance >= _amount[i], "ERC7092: INSUFFICIENT_BALANCE");
@@ -306,17 +306,17 @@ contract ERC7092 is IERC7092, BondStorage {
             _allowed[_owner][_spender[i]]  = _approval + _amount[i];
         }
 
-        emit ApprovalBatch(_owner, address[] _spender, uint256[] _amount);
+        emit ApprovalBatch(_owner, _spender, _amount);
     }
 
-    function _decreaseAllowance(address _owner, address[] calldata _spender, uint256[] calldata _amount) internal virtual {
+    function _decreaseAllowance(address _owner, address[] calldata _spender, uint256[] calldata _amount) internal virtual {
         require(_owner != address(0), "ERC7092: OWNER_ZERO_ADDRESS");
         require(block.timestamp < _bonds[bondISIN].maturityDate, "ERC7092: BONDS_MATURED");
         require(_spender.length == _amount.length, "ARRAY_LENGTHS_MISMATCH");
 
         uint256 _denomination = _bonds[bondISIN].denomination;
 
-        for(uint256 i = 0; i < _spender.data; i++) {
+        for(uint256 i = 0; i < _spender.length; i++) {
             require(_spender[i] != address(0), "ERC7092: SPENDER_ZERO_ADDRESS");
             require(_amount[i] > 0, "ERC7092: INVALID_AMOUNT");
             require((_amount[i] * _denomination) % _denomination == 0, "ERC7092: INVALID_AMOUNT");
@@ -327,10 +327,10 @@ contract ERC7092 is IERC7092, BondStorage {
             _allowed[_owner][_spender[i]]  = _approval - _amount[i];
         }
 
-        emit ApprovalBatch(_owner, address[] _spender, uint256[] _amount);
+        emit ApprovalBatch(_owner, _spender, _amount);
     }
 
-    function _batchTransfer(address[] calldata _from, address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data) internal virtual {
+    function _batchTransfer(address[] memory _from, address[] calldata _to, uint256[] calldata _amount, bytes[] calldata _data) internal virtual {
         require(block.timestamp < _bonds[bondISIN].maturityDate, "ERC7092: BONDS_MATURED");
         require(_from.length == _to.length, "ARRAY_LENGTHS_MISMATCH");
 
@@ -364,7 +364,7 @@ contract ERC7092 is IERC7092, BondStorage {
         emit TransferBatch(_from, _to, _amount);
     }
 
-    function _batchSpendAllowance(address[] calldata _from, address _spender, uint256[] calldata _amount) internal virtual {
+    function _batchSpendAllowance(address[] calldata _from, address _spender, uint256[] calldata _amount) internal virtual {
         for(uint256 i = 0; i < _from.length; i++) {
             uint256 currentAllowance = _allowed[_from[i]][_spender];
             require(_amount[i] <= currentAllowance, "ERC7092: INSUFFICIENT_ALLOWANCE");
