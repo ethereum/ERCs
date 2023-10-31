@@ -362,7 +362,6 @@ contract ERC7092 is IERC7092, BondStorage {
         }
 
         emit TransferBatch(_from, _to, _amount);
-
     }
 
     function _batchSpendAllowance(address[] calldata _from, address _spender, uint256[] calldata _amount) internal virtual {
