@@ -8,8 +8,6 @@ contract BondStorage {
         string symbol;
         address currency;
         uint256 denomination;
-        uint256 couponFrequency;
-        uint8 dayCountBasis;
         uint256 issueVolume;
         uint256 couponRate;
         uint256 issueDate;
