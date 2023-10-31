@@ -178,13 +178,13 @@ interface IERC7092 {
 
     /**
     * @notice MUST be emitted when multiple bond tokens are transferred, issued or redeemed, with the exception being during contract creation
-    * @param _from bondholder account
+    * @param _from array of bondholder accounts
     * @param _to array of accounts to transfer bonds to
     * @param _amount array of amounts of bond tokens to be transferred
     *
     ** OPTIONAL - interfaces and other contracts MUST NOT expect this function to be present. MUST be emitted in `batchTransfer` and `batchTransferFrom` functions
     */
-    event TransferBatch(address _from, address[] _to, uint256[] _amount);
+    event TransferBatch(address[] _from, address[] _to, uint256[] _amount);
 
     /**
     * @notice MUST be emitted when multiple accounts are approved or when the allowance is decreased from multiple accounts
