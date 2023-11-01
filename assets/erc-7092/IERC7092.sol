@@ -150,7 +150,7 @@ interface IERC7092 {
     * @param _to the account that receives the bond
     * @param _amount amount of bond tokens to be transferred
     */
-    event Transfer(address _from, address _to, uint256 _amount);
+    event Transfer(address indexed _from, address indexed _to, uint256 _amount);
 
     /**
     * @notice MUST be emitted when an account is approved or when the allowance is decreased
@@ -159,7 +159,7 @@ interface IERC7092 {
     * @param _amount amount of bond tokens allowed by _owner to be spent by `_spender`
     *        Or amount of bond tokens to decrease allowance from `_spender`
     */
-    event Approval(address _owner, address _spender, uint256 _amount);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _amount);
 
     /**
     * @notice MUST be emitted when multiple bond tokens are transferred, issued or redeemed, with the exception being during contract creation
@@ -179,5 +179,5 @@ interface IERC7092 {
     *
     ** OPTIONAL - interfaces and other contracts MUST NOT expect this function to be present. MUST be emitted in `batchApprove` and `batchDecreaseAllowance` functions
     */
-    event ApprovalBatch(address _owner, address[] _spender, uint256[] _amount);
+    event ApprovalBatch(address indexed _owner, address[] _spender, uint256[] _amount);
 }
