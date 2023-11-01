@@ -21,15 +21,19 @@ jobs:
     runs-on: ubuntu-latest
     name: Trigger
     steps:
+      - name: Stop Bot Recursion
+        run: exit 1
+        if: (endsWith(github.event.sender.login, '-bot') || endsWith(github.event.sender.login, '[bot]')) && github.event.sender.login != 'renovate[bot]'
+          
       - name: Write PR Number - PR Target
         run: echo $PR_NUMBER > pr-number.txt
-        if: github.event_name == 'pull_request_target' && ((!endsWith(github.event.sender.login, '-bot') && !endsWith(github.event.sender.login, '[bot]')) || github.event.sender.login == 'renovate[bot]')
+        if: github.event_name == 'pull_request_target'
         env:
           PR_NUMBER: ${{ github.event.number }}
 
       - name: Write PR Number - PR Review
         run: echo $PR_NUMBER > pr-number.txt
-        if: github.event_name == 'pull_request_review' && !endsWith(github.event.sender.login, '-bot') && !endsWith(github.event.sender.login, '[bot]')
+        if: github.event_name == 'pull_request_review'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
 
