@@ -108,7 +108,7 @@ interface IERC7092CrossChain {
     * @param _amount amount of bond tokens to be transferred
     * @param _destinationChainID The unique ID that identifies the destination Chain
     */
-    event CrossChainTransfer(address _from, address _to, uint256 _amount, bytes32 _destinationChainID);
+    event CrossChainTransfer(address indexed _from, address indexed _to, uint256 _amount, bytes32 _destinationChainID);
 
     /**
     * @notice MUST be emitted when several bond tokens are transferred or redeemed in a cross-chain transaction
@@ -126,7 +126,7 @@ interface IERC7092CrossChain {
     * @param _amount amount of bond tokens allowed by `_owner` to be spent by `_spender`
     * @param _destinationChainID The unique ID that identifies the destination Chain
     */
-    event CrossChainApproval(address _owner, address _spender, uint256 _amount, bytes32 _destinationChainID);
+    event CrossChainApproval(address indexed _owner, address indexed _spender, uint256 _amount, bytes32 _destinationChainID);
 
     /**
     * @notice MUST be emitted when multiple accounts in the array `_spender` are approved or when the allowances of multiple accounts in the array `_spender` are reduced on the destination chain which MUST be different than the current chain
@@ -135,5 +135,5 @@ interface IERC7092CrossChain {
     * @param _amount array of amount of bond tokens allowed by _owner to be spent by _spender
     * @param _destinationChainID array of unique IDs that identify the destination Chain
     */
-    event CrossChainApprovalBatch(address _owner, address[] _spender, uint256[] _amount, bytes32[] _destinationChainID);
+    event CrossChainApprovalBatch(address indexed _owner, address[] _spender, uint256[] _amount, bytes32[] _destinationChainID);
 }
