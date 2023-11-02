@@ -1,0 +1,78 @@
+---
+title: Decentralized Embedding Registry  
+description: A standard to register embedding search service through a contract. 
+author: Crypti Talk <cryptitalk@cryptitalk.com> 
+discussions-to: TODO 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-11-02 
+---
+
+## Abstract
+
+By establishing a standardized RESTful API registration contract that handles requests for vectorized embeddings and responds with JSON-formatted output, any enrolled service provider can offer search or AI services, including conversational AI and completion tasks. This allows users to select their preferred knowledge source in a decentralized fashion.
+
+## Motivation
+
+The emergence of embedding technologies enables information providers to arrange their data semantically using vectors of size N and to facilitate information retrieval or question-answering by measuring vector distances. One limitation of Google Search or ChatGPT AI is that it serves as a singular source of information, constrained to providing answers based on its pre-indexed or trained data sets. Given that Google/OpenAI may not possess exhaustive datasets and that individuals may have varying contexts for their searches or questions, there's a significant need for a decentralized system. Such a system would allow for the registration of various search or AI services, empowering users to explore and select their preferred data sources to align with their specific informational contexts.
+
+## Specification
+
+### Service Registration Format
+
+```
+{
+  name: required string;
+  embedding_algorithm: required string;
+  embedding_endpoint: required url;
+  endpoint: required url;
+  vector_size: required int; 
+  topic: optional int[32]; 
+}
+```
+
+The registry would catalog the details of a service upon registration, including its name, the specific embedding algorithm it employs (which allows users to send only vectors to the server, maintaining privacy), and the embedding\_endpoint for users who require backend assistance to compute local embeddings. It would also record the endpoint, which is the service provider's URL for actual search or AI services, and the vector size, indicating the dimensions of the used vector. An optional field enables service providers to pre-calculate and list embeddings for certain topics, assisting users in refining their selection criteria.
+
+### Request
+
+#### Request to calculate embedding
+
+```
+{
+  "text": "<query content>"
+}
+```
+
+#### Request to search or chat
+
+```
+{
+  "embedding" : "[list of numbers]"
+  "type": "<search|chat|...>"
+}
+```
+
+### Response
+
+```
+[
+ {
+   "answer": "text"
+ },
+ ...
+]
+```
+
+## Rationale
+
+Comparable data and model services are offered by Hugging Face, but these operate on a centralized and controlled platform, which carries the risks of manipulation and monopoly. To safeguard human interests, there is a pressing need for a decentralized AI infrastructure.
+
+
+## Security Considerations
+
+This EIP does not address reputation management, potentially leading to security concerns with the registration of inauthentic or unverified services.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
