@@ -1,5 +1,5 @@
 ---
-eip: TODO
+eip: 7550
 title: Transient ERC-20 Approvals
 description: Transient ERC-20 approvals via function calls and EIP-712 secp256k1 signatures
 author: Joey Santoro (@joeysantoro), Moody Salem (@moodysalem)
