@@ -1,7 +1,7 @@
 ---
 title: Crypto Security Token Smart Contract Interface
 description: Smart contract interface standard for representing crypto securities 
-author: Lars Olsson <lars.olsson@cashlink.de>, Hagen Hübel <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>
+author: Lars Olsson <lars.olsson@cashlink.de>, Hagen Hübel (@itinance) <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>
 discussions-to: <URL>
 status: Draft
 type: Standards Track
