@@ -1,0 +1,271 @@
+---
+title: Crypto Security Token Smart Contract Interface
+description: Smart contract interface standard for representing crypto securities 
+author: Lars Olsson <lars.olsson@cashlink.de>, Hagen Hübel <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-09-05
+---
+
+## Abstract
+
+The compliant representation of securities on a distributed ledger network (“crypto securities”) remains one the most prominent use cases for distributed ledger systems. Up until recent developments such activities were not always fully recognized by local securities laws. This led to different views on what information and functionality they should provide. Germany, as one of the first countries in the world, has enhanced its legal framework to fully cover the issuance of securities in electronic form on a distributed ledger network. This standard aims to capture these legal requirements and use them as a framework to define a smart contract interface that enables interactions with crypto securities on-ledger. This standard is backed by the Federal Association of Crypto Registrars and a result of its task force for standardization.
+
+The interface is supposed to work on top of additional standards that cover the actual storage of ownership of shares of a security in the form of a token (e.g. ERC-20 or ERC-1155). While the scope of the underlying token standard is to provide an interface for transferring the crypto securities and retrieving individual holder balances, this standard provides the following additional functionality needed by wallet providers and exchanges to handle crypto securities:
+
+### Transfer compliance
+In the case of crypto securities the smart contract needs to check if a transfer of tokens is compliant. The specification therefore adds a `canTransfer()` and a `canTransferFrom()` function that can be used to check if a transfer would be successful given the current compliance rules.
+
+### Token supply management
+In the case of a crypto security the supply of tokens is managed by an operator. Operators are able to issue new tokens via the `issue()` function and they can destroy tokens from an account via the `destroyTokens()` function. The terminology used here intentionally differentiates between mint/burn as the technical process of creating and deleting tokens (not within the  scope of the standard) and issue/destroy as the legal process of crediting or removing a quantity of tokens from the balance of the holder.
+
+### Forced transfers
+As the result of a legal action, an operator of the crypto security needs to be able to force a transfer between accounts without requiring the consent of the sender. For this, the `forceTransferFrom()` function can be used. This function can also be used to recover tokens of an account where the private key has been lost.
+
+### Frozen tokens
+An operator of the security token is able to freeze the whole or a part of an account's token balance via the `freezeTokens()` function. As a result, these tokens cannot be transferred until unfrozen again by the operator using the `unfreezeTokens()` function. 
+
+### Pausing transfers
+The token provides ways for an operator to pause and unpause transfers via the `pause()` function.
+
+### Link to off-chain document
+A `paperContractHash` value is added to the smart contract's storage that is meant to be the SHA-256 hash digest integer value of the full binary of a PDF file representing all necessary  issuance documents.
+
+### Metadata JSON file
+A JSON file is stored in the `metaDataJSON` variable that describes metadata about the crypto security in the form of key-value pairs. These metadata shall describe the essential properties of the security in a machine-readable format. 
+
+
+## Motivation
+
+The compliant representation of securities on a distributed ledger network (“crypto securities”) remains one the most prominent use cases for distributed ledger systems. Up until recent developments such activities were not always fully recognized by local securities laws. This led to different views on what information and functionality they should provide. Germany, as one of the first countries in the world, has enhanced its legal framework to fully cover the issuance of securities in electronic form on a distributed ledger network.
+While standards like ERC-20 and ERC-1155 provide complete interfaces to interact with utility tokens, in order to represent securities in the form of a token more advanced features are necessary. This is caused by two main characteristics of crypto securities:
+
+* In contrast to utility tokens where transfers usually only require the sender to have a sufficient balance, for crypto securities more complex rules can apply that use other data to determine the validity of a transfer. In many cases, token holders with their respective addresses need to be eligible, for example, according to KYC/AML regulation or qualification of the investor to receive and hold tokens.
+* Crypto securities need a trusted operator that is granted certain permissions such as pausing transfers or managing the token supply. This trusted operator is sometimes even recognized by local securities laws and licensed by the authorities.
+
+This standard should facilitate the interaction of wallet software, exchanges as well as crypto security operators with different implementations of crypto securities. For wallets and exchanges, this eases the listing of crypto securities no matter who their issuer or operator is. It also makes sure that in case of an operator becoming unavailable, other operators can step in and take over control of the token, securing the rights of token holders.
+
+## Specification
+
+The following specification describes events and functions of a token smart contract representing a crypto security.
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### General
+Tokens MAY be received by externally owned accounts as well as smart contract accounts ("token holders"). An externally owned account or smart contract account MAY be granted special administrative permissions ("operator"). There MAY be more than one operator.
+
+### Functions
+#### activeBalanceOf
+This function MUST return the unfrozen balance of an account. This balance can be used by the token holder for transfers to other account addresses.
+
+```solidity
+function activeBalanceOf(address tokenHolder) external view returns (uint256);
+```
+
+#### frozenBalanceOf
+This function MUST return the frozen balance of an account. It MUST NOT be possible to transfer frozen tokens to other accounts. The implementation MAY provide other ways to transfer frozen tokens. If the sender's unfrozen ("active") balance is less than the amount to be transferred, the `canTransfer()` and `canTransferFrom()` MUST return `false`.
+
+```solidity
+function frozenBalanceOf(address tokenHolder) external view returns (uint256);
+```
+
+#### paused
+This function MUST return `true` if token transfers are paused and MUST return `false` otherwise. If this function returns `true`, it MUST NOT be possible to transfer tokens to other accounts and the `canTransfer()` and `canTransferFrom()` MUST return `false`.
+
+```solidity
+function paused() external view returns (bool);
+```
+
+#### paperContractHash
+This function MUST return the SHA-256 hash digest integer value of the issuance document PDF file. A paper contract hash with the value 0 has a special meaning: As long as it is 0, transfers cannot be unpaused.
+
+```solidity
+function paperContractHash() external view returns (uint256);
+```
+
+#### metaDataJSON
+This function MUST return a JSON object containing metadata about the crypto security in the form of key-value pairs. It MAY be empty.
+
+```solidity
+function metaDataJSON() external view returns (string);
+```
+
+#### canTransfer
+This function MUST return `true` if the message sender is able to transfer `amount` tokens to `to` respecting all compliance, investor eligibility and other implemented restrictions. Otherwise it MUST return `false`.
+
+```solidity
+function canTransfer(address to, uint256 amount) external view returns (bool);
+```
+
+#### canTransferFrom
+This function MUST return `true` if `from` is able to transfer `amount` tokens to `to` respecting all compliance, investor eligibility and other implemented restrictions. Otherwise it MUST return `false`.
+
+```solidity
+function canTransferFrom(address from, address to, uint256 amount) external view returns (bool);
+```
+    
+#### issue
+This function MUST increase the balance of  `to` by `amount` without decreasing the amount of tokens from any other holder. This function MUST throw if the sum of `amount` and the amount of already issued tokens is greater than the total supply. It MUST emit a `Transfer` as well as an `TokensIssued` event. Paused transfers MUST NOT prevent an issuance. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function issue(address to, uint256 amount, bytes calldata data) external;
+```
+
+#### destroyTokens
+This function MUST reduce the balance of `tokenHolder` by `amount` without increasing the amount of tokens of any other holder. It MUST emit a `TokensDestroyed` as well as a `Transfer` event. The `Transfer` event MUST contain `0x0` as the recipient account address. The function MUST throw if `tokenHolder`'s balance is less than `amount` (including frozen tokens). It MUST NOT be possible to destroy the supply. It MUST NOT be possible to issue destroyed tokens to other accounts. Paused transfers MUST NOT prevent destroying tokens. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function destroyTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+#### forceTransferFrom
+This function MUST transfer `amount` tokens to `to` without requiring the consent of `from`. The function MUST throw if `from`'s balance is less than `amount` (including frozen tokens). If the frozen balance of `from` is used for the transfer a `TokenUnfrozen` event must be emitted. The function MUST emit a `Transfer` event. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function forceTransferFrom(address from, address to, uint256 amount, bytes calldata data) external;
+```
+
+#### freezeTokens
+This function MUST freeze `amount` tokens of `tokenHolder`. Frozen tokens cannot be transferred to other accounts. The function MUST emit a `TokensFrozen` event. The function MUST throw if `tokenHolder`'s active balance is less than `amount` (excluding already frozen tokens). The `data` parameter MAY be used to further document the action.
+
+```solidity
+function freezeTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+#### unfreezeTokens
+This function MUST unfreeze `amount` tokens of `tokenHolder`. The function MUST emit a `TokensUnfrozen` event. The function MUST throw if `tokenHolder`'s frozen balance is less than `amount`. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function unfreezeTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+#### pauseTransfers
+If `_paused` is provided as `true` transfers MUST become paused. If `false` is provided, transfers MUST be unpaused. The function MUST throw if `true` is provided although transfers are already paused as well as if `false` is provided while transfers are already unpaused. The function MUST throw if `false` is provided while `paperContractHash` is `0`.
+
+```solidity
+function pauseTransfers(bool _paused) external;
+```
+
+#### setPaperContractHash
+This function MUST update the `paperContractHash` value. `_paperContractHash` MUST be the SHA-256 hash digest integer value of the issuance document PDF file. A paper contract hash with the value 0 has a special meaning: As long as it is 0, transfers cannot be unpaused.
+
+```solidity
+function setPaperContractHash(uint256 _paperContractHash) external;
+```
+
+#### setMetaDataJSON
+This function MUST update the `metaDataJSON` value. `_metaDataJSON` MUST be a JSON data structure containing metadata about the crypto security in the form of key-value pairs. It MAY be empty.
+
+```solidity
+function setMetaDataJSON(string calldata _metaDataJSON) external;
+```
+
+### Events
+#### TokensIssued
+This event MUST be triggered when new tokens are issued increasing the `totalSupply`. 
+
+```solidity
+event TokensIssued(address to, uint256 amount);
+```
+
+#### TokensDestroyed
+This event MUST be triggered when tokens are destroyed on an account.
+
+```solidity
+event TokensDestroyed(address tokenHolder, uint256 amount);
+```
+
+#### ForcedTransfer
+This event MUST be triggered on a successful call of the `forceTransferFrom()` function.
+
+```solidity
+event ForcedTransfer(address indexed from, address indexed to, uint256 amount)
+```
+
+#### TokensFrozen
+This event MUST be triggered if tokens are frozen for an account.
+
+```solidity
+event TokensFrozen(address indexed tokenHolder, uint256 amount);
+```
+
+#### TokensUnfrozen
+This event MUST be triggered if tokens are unfrozen for an account.
+
+```solidity
+event TokensUnfrozen(address indexed tokenHolder, uint256 amount);
+```
+
+#### SetPaperContractHash
+This event MUST be triggered when the `paperContractHash` value is updated.
+
+```solidity
+event SetPaperContractHash(uint256 paperContractHash);
+```
+
+#### SetMetaDataJSON
+This event MUST be triggered when the `metaDataJSON ` value is updated.
+
+```solidity
+event SetMetaDataJSON(string metaDataJSON);
+```
+
+### Interface
+```solidity
+interface IERCXXXX {
+	
+	// Events
+	event TokensIssued(address to, uint256 amount, bytes data);
+	event TokensDestroyed(address tokenHolder, uint256 amount, bytes data);
+	event ForcedTransfer(address indexed from, address indexed to, uint256 amount, bytes data);
+	event TokensFrozen(address indexed tokenHolder, uint256 amount, bytes data);
+	event TokensUnfrozen(address indexed tokenHolder, uint256 amount, bytes data);
+	event SetPaperContractHash(uint256 paperContractHash);
+	event SetMetaDataJSON(string metaDataJSON);
+	
+	// View functions
+	function activeBalanceOf(address tokenHolder) external view returns (uint256);
+	function frozenBalanceOf(address tokenHolder) external view returns (uint256);
+	function paused() external view returns (bool);
+	function paperContractHash() external view returns (uint256);
+	function metaDataJSON() external view returns (string);
+	function canTransfer(address to, uint256 amount) external view returns (bool);
+	function canTransferFrom(address from, address to, uint256 amount) external view returns (bool);
+	
+	// Operator functions
+	function issue(address to, uint256 amount, bytes calldata data) external;
+	function destroyTokens(address tokenHolder, uint256 amount,  bytes calldata data) external;
+	function forceTransferFrom(address from, address to, uint256 amount, bytes calldata data) external;
+	function freezeTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+	function unfreezeTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+	function pauseTransfers(bool _paused) external;
+	function setPaperContractHash(uint256 _paperContractHash) external;
+	function setMetaDataJSON(string calldata _metaDataJSON) external;
+}
+```
+
+
+## Rationale
+
+Usually, implementations for crypto security smart contract suites contain the following components:
+
+* The token smart contract itself in the form of an ERC-20 or ERC-1155 implementation
+* Permission management and authorization logic for operators
+* Logic to determine the compliance of a token transfer
+* Mechanisms to upgrade the token smart contract's logic
+
+This interface specification has been compiled from a wide range of different implementations and describes minimum requirements for the token smart contract representing the crypto security itself. It doesn't seem feasible to introduce a common standard for the other components as of now, because the implementations massively differ in this regard. It's up to the implementation to provide this functionality.
+
+## Security Considerations
+
+The standard specifications don't include requirements for permission management of operators. Implementations SHOULD make sure that the operator functions can only be executed with sufficient authorization. 
+
+In addition, to be able to fix security issues, the token smart contract's logic SHOULD be upgradable by the operator or another account with sufficient authorization.
+
+The specification puts a lot of trust into the operators because they can manage the token supply and even force transfer token amounts. Therefore, entities managing operator accounts must ensure that they use secure off-chain infrastructures to manage and interact with the smart contract implementation.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
