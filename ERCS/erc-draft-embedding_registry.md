@@ -1,4 +1,5 @@
 ---
+number: 7552
 title: Decentralized Embedding Registry  
 description: A standard to register embedding search service through a contract. 
 author: Crypti Talk <cryptitalk@cryptitalk.com> 
