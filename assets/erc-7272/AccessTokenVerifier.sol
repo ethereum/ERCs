@@ -77,8 +77,8 @@ contract AccessTokenVerifier is IAccessTokenVerifier {
         address signer = _retrieveSignerFromToken(token, v, r, s);
 
         // Verifies that the signer recovered from the token is a registered, active, expected
-        // issuer. How to register and manage signers onchain is likely out of scope in the context
-        // of EIP-7272.
+        // issuer. How to register and manage signers onchain is out of scope in the context
+        // of ERC-7272.
         return _isActiveIssuer[signer];
     }
 
