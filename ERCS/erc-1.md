@@ -3,7 +3,7 @@ erc: 1
 title: ERC Purpose and Guidelines
 status: draft
 type: Meta
-author: Joachim Lebrun (@Joachim-Lebrun), Emmanuel (Mawuko.eth)
+author: Joachim Lebrun (@Joachim-Lebrun), Emmanuel (Mawuko.eth), Joey Santoro (@joeysantoro)
 created: 2023-10-30
 ---
 
@@ -22,6 +22,10 @@ We intend ERCs to be the primary mechanisms for proposing new application-level 
 For developers and project teams working within the Ethereum space, ERCs provide a structured way to track the evolution and adoption of various application-level standards. Ideally, each project or library maintainer would list the ERCs that they have adopted or implemented. This would offer end users and other developers a convenient method to understand the compatibility and feature set of different projects, libraries, or applications within the Ethereum ecosystem.
 
 ## ERC Document
+
+It is highly recommended that a single ERC contain a single key proposal or new idea. The more focused the ERC, the more successful it tends to be. A change to one application doesn't require an ERC; a change that affects multiple applications, or defines a standard for multiple apps to use, does.
+
+An ERC must meet certain minimum criteria. It must be a clear and complete description of the proposed enhancement. The enhancement must represent a net improvement. The proposed implementation, if applicable, must be solid and must not complicate the application ecosystem unduly.
 
 ### What Belongs in a Successful ERC? (Structure)
 
@@ -62,6 +66,7 @@ Each ERC must begin with an [RFC 822](https://www.ietf.org/rfc/rfc822.txt) style
 | subcategory         | *One of `NFT`, `FT`, `SFT`,`SBT`,`RWA`,`Hardware Wallet`,`Software Wallet`, `UserOp`, or `Account Abstraction`* (Optional field; other values can be suggested in proposal and reviewed by ERC Editors) 
 | created             | *Date the ERC was created on*                                                                                                                                                                                                                                                                  |
 | requires            | *ERC number(s)* (Optional field, especially relevant for ERCs that inherit or extend functionality from other ERCs)                                                                                                                                                                           |
+| extends             | *ERC number(s)* (Required for ERCs that inherit or extend functionality from other ERCs, otherwise not included)                                                                                                                                                                           |
 | withdrawal-reason   | *A sentence explaining why the ERC was withdrawn.* (Optional field, only needed when status is `Withdrawn`)                                                                                                                                                                                   |
 
 Headers that permit lists must separate elements with commas.
@@ -106,7 +111,7 @@ The `category` header specifies the ERC's category. This is required for either 
 
 ### `subcategory` header
 
-The `subcategory` header specifies the ERC's category. This is optional for either Standards Track, Meta, or Informational ERCs.
+The `subcategory` header specifies the ERC's subcategory. This is optional.
 
 ### `created` header
 
@@ -117,6 +122,12 @@ The `created` header records the date that the ERC was assigned a number. Both h
 ERCs may have a `requires` header, indicating the ERC numbers that this ERC depends on. If such a dependency exists, this field is required.
 
 A `requires` dependency is created when the current ERC cannot be understood or implemented without a concept or technical element from another ERC. Merely mentioning another ERC does not necessarily create such a dependency. This is particularly relevant for ERCs that inherit or extend functionality from other ERCs.
+
+### `extends` header
+
+ERCs may inherit or extend functionality from other ERCs. This is a more strict subset of the `requires` relationship. If such a dependency exists, this field is required.
+
+An Extension is an ERC which completely implements another ERC and specifically expands upon the use case of that ERC with new functionality.
 
 ### ERC Taxonomy: Types, Categories, and Subcategories
 
@@ -132,7 +143,7 @@ Visual aide:
 ERC
   |__Type: Standards Track | Meta | Informational
         |__Category: Wallet | Token | Registry | Interface | Package Format | DAO | Metadata Schema
-              |__Subcategory: NFT | FT | SFT | SBT | RWA | Hardware Wallet | Software Wallet | UserOp | or | Account Abstraction
+              |__Subcategory: NFT | FT | SFT | SBT | RWA | Hardware Wallet | Software Wallet | UserOp | Account Abstraction
  
 ```
 
@@ -181,10 +192,12 @@ For now, we will suggest this initial set of Subcategories:
 | UserOp             | Proposals for User Operations in intent-driven applications such as CoW Swap, etc.                                                                                                                                                                       |
 | Account Abstraction | Proposals for account abstraction solutions and management of program-managed accounts (a.k.a. smart accounts) within Ethereum.                                                                                                                       |
 
+#### Extensions
+An ERC Extension adds functionality or specificity to an existing ERC. It is generally fully compatible at the interface level with the extended ERC.
 
-It is highly recommended that a single ERC contain a single key proposal or new idea. The more focused the ERC, the more successful it tends to be. A change to one application doesn't require an ERC; a change that affects multiple applications, or defines a standard for multiple apps to use, does.
+Any breaking changes or non-compliance at the implementation level MUST be fully specified and justified in the `Rationale`. An explicit `ERC-XXX Breaking Changes` sub-heading must be included in the `Specification` section for every extended ERC which has breaking changes. Omission of the Breaking Changes subheading MUST mean there are no breaking changes at the implementation specification level.
 
-An ERC must meet certain minimum criteria. It must be a clear and complete description of the proposed enhancement. The enhancement must represent a net improvement. The proposed implementation, if applicable, must be solid and must not complicate the application ecosystem unduly.
+An Extension SHOULD include the ERC number of the extended ERC in the `title` or `description` header (e.g. Non-transferrable ERC-721). 
 
 ## ERC Work Flow
 
