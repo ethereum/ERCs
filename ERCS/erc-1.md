@@ -3,7 +3,7 @@ erc: 1
 title: ERC Purpose and Guidelines
 status: draft
 type: Meta
-author: Joachim Lebrun (@Joachim-Lebrun), Emmanuel (Mawuko.eth)
+author: Joachim Lebrun (@Joachim-Lebrun), Emmanuel (Mawuko.eth), Joey Santoro (@joeysantoro)
 created: 2023-10-30
 ---
 
