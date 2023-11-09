@@ -1,3 +1,4 @@
+---
 ERC: XXXX
 eip: XXXX
 title: Shadow Logs Standard
@@ -6,6 +7,7 @@ type: Standards Track
 category: ERC
 status: Draft
 created: [creation date]
+---
 
 
 # Simple Summary
@@ -53,6 +55,7 @@ Standard API endpoints should be defined for:
 A discovery mechanism should be established to allow indexing services and block explorers to identify and index Shadow Logs.
 
 **Example Discovery Mechanism**
+
 A standard field in the contract's metadata (e.g., within the Solidity source code or the contract's JSON ABI) could specify the location and structure of Shadow Logs.
 
 ```json
@@ -67,6 +70,7 @@ A standard field in the contract's metadata (e.g., within the Solidity source co
     ]
   }
 }
+```
 
 ## Rationale
 The proposed standard for Shadow Logs aims to balance the need for rich on-chain data with the constraints of blockchain resource costs. By establishing a standard, we can ensure that Shadow Logs are emitted and accessed in a consistent manner, facilitating broader adoption and integration with existing tools.
