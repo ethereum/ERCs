@@ -1,7 +1,7 @@
 ---
 eip: x
 title: Single Sign-On for Account Discovery
-description: Discover addresses and smart accounts deployed using a signing key that is not the standard Ethereum secp256k1 curve.
+description: Discover accounts using a signing key that is not the standard Ethereum secp256k1 curve.
 author: Alexander Müller (@alexmmueller), Gregory Markou (@GregTheGreek), Willem Olding (@Wollum), Belma Gutlic (@morrigan), Marin Petrunić (@mpetrunic)
 discussions-to: https://ethereum-magicians.org/t/erc-xxxx-single-sign-on-for-account-discovery
 status: Draft
