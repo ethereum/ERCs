@@ -1,5 +1,5 @@
 ---
-eip: x
+eip: 7555
 title: Single Sign-On for Account Discovery
 description: Discover accounts using a signing key that is not the standard Ethereum secp256k1 curve.
 author: Alexander Müller (@alexmmueller), Gregory Markou (@GregTheGreek), Willem Olding (@Wollum), Belma Gutlic (@morrigan), Marin Petrunić (@mpetrunic)
