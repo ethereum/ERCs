@@ -40,7 +40,13 @@ interface IERC7390 {
         uint256 premium;
         uint256 exerciseWindowStart;
         uint256 exerciseWindowEnd;
-        bytes data;
+    }
+
+    struct OptionIssuance {
+        VanillaOptionData data;
+        address seller;
+        uint256 exercisedOptions;
+        uint256 soldOptions;
     }
 
     event Created(uint256 indexed id);
@@ -61,8 +67,9 @@ interface IERC7390 {
     function cancel(uint256 id) external;
 
     function updatePremium(uint256 id, uint256 amount) external;
-}
 
+    function issuance(uint256 id) external view returns (OptionIssuance memory);
+}
 ```
 
 ### State Variable Descriptions
@@ -217,6 +224,14 @@ function updatePremium(uint256 id, uint256 amount) external;
 Allows the seller to update the premium that option buyer will need to provide for buying the options. Note that the `amount` will be for the whole underlying amount, not only for the options that might still be available for purchase.
 
 *Emits `PremiumUpdated` event when the function call was handled successfully.*
+
+#### `issuance`
+
+```solidity
+function issuance(uint256 id) external view returns (OptionIssuance memory);
+```
+
+Returns all the key information for the option issuance with the given `id`.
 
 ### Events
 
