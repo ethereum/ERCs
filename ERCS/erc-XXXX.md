@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 7556
 title: Embedded Accounts as Smart Modules
 description: TODO
 author: Alexander Müller (@alexmmueller), Gregory Markou (@GregTheGreek)
