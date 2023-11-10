@@ -49,10 +49,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 An application looking to authenticate a user must navigate the user to a given provider's URI based on the `URI Request Syntax`. The application must implement a valid redirect URI for the callback in order to receive a valid response.
 
 #### Schema
-The signer type represents the specific curve used when generating the keypair. The following are a non-exhaustive list of possible keypair types.
+The signer type represents the specific curve used when generating the keypair. The following are a non-exhaustive list of possible keypair types:
 ```=
 type SIGNER_TYPE: string = "secp256k1" | "P256" | "BLS12-381";
 ```
+The `signer_key` should be returned in the [did:key](https://w3c-ccg.github.io/did-method-key/) format, as specified by the W3C.
 ##### Request
 ```=
  parameters:
@@ -71,9 +72,9 @@ type SIGNER_TYPE: string = "secp256k1" | "P256" | "BLS12-381";
 ```=
  parameters:
     - in: query
-      name: signer_uid
+      name: signer_key
       schema:
-        type: string
+        type: did:key
       description: The public key of the user.
   - in: query
       name: signer_type
@@ -97,7 +98,7 @@ https://<PROVIDER_URI>/?
 ##### URI Response Syntax
 ```=
 https://<YOUR_REDIRECT_URI>/?
-    signer_uid=<SIGNER_UUID>
+    signer_uid=<SIGNER_KEY>
     &type=<SIGNER_TYPE>
     &smart_account_address=<SMART_ACCOUNT_ADDRESS>
 ```
