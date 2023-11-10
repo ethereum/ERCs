@@ -12,7 +12,7 @@ requires: 4337
 ---
 
 ## Abstract
-This proposal establishes a standardized interface and functionality for applications to discover user addresses that may not be readily available from an EOA. Specifically discovering addresses and smart accounts that may have been deployed or configured using a signing key that is not the standard Ethereum secp256k1 curve. The objective is to ensure uniformity of address retrieval across applications, and domains.
+This proposal establishes a standardized interface and functionality for applications to discover user accounts besides the readily available EOA. Specifically discovering normal accounts and smart accounts that may have been deployed or configured using a signing key that is not the standard Ethereum secp256k1 curve. The objective is to ensure uniformity of address retrieval across applications, and domains.
 
 ## Motivation
 The recent progress in account abstraction has led to significantly increased flexibility enabling use cases such as multi-signature transactions, social recovery, contract/account whitelisting, session keys and much more. However, with increased flexibility there comes an increased complexity. One area of increased complexity is account fragmentation -both at the EOA and smart account level - following from the inability to correctly identify all existing addresses by a user. In this EIP we present a potential solution that aims to unify the discovery and handling of such accounts.
