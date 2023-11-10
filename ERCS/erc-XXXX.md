@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2023-11-10
-requires: 6900, xxxx
+requires: 6900, 7555
 ---
 
 ## Abstract
