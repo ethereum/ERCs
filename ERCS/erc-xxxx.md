@@ -51,7 +51,7 @@ An application looking to authenticate a user must navigate the user to a given 
 #### Schema
 The signer type represents the specific curve used when generating the keypair. The following are a non-exhaustive list of possible keypair types.
 ```=
-type SIGNER_TYPE: string = "secp256k1" | "passkey" | "P256" | "BLS12-381";
+type SIGNER_TYPE: string = "secp256k1" | "P256" | "BLS12-381";
 ```
 ##### Request
 ```=
