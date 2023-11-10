@@ -23,7 +23,7 @@ Secure hardware devices such as native passkeys, or yubikeys generate a unique k
 
 With the introduction of 4337, this problem is amplified. An application that wants its users to leverage 4337 (to abstract keys away, and generally imporve the onboarding experience) will not be able to detect if a user has an existing smart account deployed. This will lead to the developer (or third party service providing the onboarding experience) to deploy a smart account on behalf of the user at the given address scoped to the apps domain.
 
-Not being able to correctly identify exisitng addresses by a user will lead to account fragmentation. The fragmentation, as described early, exists because applications will identify them as a new user, and not one whom may already have an account. Leading to a single user having many unassosiated accounts, with assets scattered amognst them, and no way to unify them.
+Not being able to correctly identify existing accounts owned by a user will lead to account fragmentation. The fragmentation, as described early, exists because applications will identify them as a new user, and not one whom may already have an account. Leading to a single user having many unassociated accounts, with assets scattered amongst them, and no way to unify them.
 
 This standard aims to achieve:
 1. Standard way for applications to request a users signing address.
