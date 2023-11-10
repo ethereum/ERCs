@@ -1,0 +1,157 @@
+---
+eip: 7556
+title: Embedded Accounts as Smart Modules
+description: TODO
+author: Alexander Müller (@alexmmueller), Gregory Markou (@GregTheGreek)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-embedded-accounts-as-smart-modules
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-11-10
+requires: 6900, 7555
+---
+
+## Abstract
+This proposal extends [ERC-7555](./ERC-7555) to add a new request method allowing applications to register an embedded wallet as [ERC-6900](./ERC-6900) plugin.
+
+## Motivation
+Building off of [ERC-7555](./ERC-7555), we define a request that allows an application to register an embedded wallet against a users main smart wallet.
+
+The user experience of using a smart account has been dramitically improved with the inclusion of alternative signing methods (such as passkey), but have opened up a few poorer experiences. When an application needs a user to signoff on an a message, to be included via a paymaster, that user needs to access the original signing key that is the owner of the smart account. In a mobile setting, this could be very cumbersome, and include switching contexts (between windows, screens, or apps) in-order to achieve that. Many developers have opted for centalized solutions to manage all the key operations, or simply adding new credentials (such as embedded wallets) as an owner to the smart wallet.
+
+This poses many security concerns for an end user. If a user interacts with two mobile apps, both levereging embedded wallets, and both wallets are added to the smart wallet as owners, the possibility of funds being stolen is high. A malicious app could have an embedded wallet registered on a user wallet, and simply manually drain the account, since they can manipulate the user into signing a malicious payload, or the app simply has access to the private key.
+
+Leveraging ERC-6900, and ERC-xxxx a developer can make a request to register the plugin, passing along the embedded wallet and scoped permissions. 
+
+These permissions can be quite restrictive, only allowing the embedded wallet to spend a certain amount of a token, a certain amount per day or week, or only interact with certain addresses.
+
+This standard aims to achieve:
+1. Standard way for applications to register a plugin back to a known smart wallet.
+2. A way for embedded wallets to act as restrictive signers to an existing smart wallet.
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions
+- **Smart account** - An ERC-4337 compliant smart contract account that has a modular architecture.
+- **Domain** - A string of text acting as an identification to a server or wesbite (eg: `ethereum.org` or `ABCDE12345.com.example.app`).
+- **EOA** - Accounts that are controlled by private keys.
+- **Provider** - A third party service provider that is able to authenticate a user and produce a keypair for the user.
+
+### Register Plugin Redirect
+An application should make a redirect call to a given provider, with all the necessary parameters needed to register a plugin, per the method `installPlugin` defined in ERC-6900.
+
+As defined in ERC-6900, the `pluginInitData` parameters must include the embedded wallet `public_address` that is authorized to sign transaction on-behalf of the smart wallet. The format to which the `pluginInitData` is formatted does not matter, since the 6900 plugin should have that well defined, otherwise the transaciton will revert.
+
+#### Schema
+##### Request
+```=
+ parameters:
+    - in: query
+      name: redirect_uri
+      schema:
+        type: string
+      description: The uri that the provider should redirect back to.
+   - in: query
+      name: smart_account_address
+      schema:
+        type: string
+      description: The address of the smart account where the plugin is being registered against.
+   - in: query
+      name: chain_id
+      schema:
+        type: string
+      description: The chain_id of a given netowrk.
+    - in: query
+      name: plugin_address
+      schema:
+        type: string
+      description: The address of the ERC-6900 plugin.
+    - in: query
+      name: manifestHash
+      schema:
+        type: string
+      description: The hash of the plugin manifest.
+    - in: query
+      name: pluginInitData
+      schema:
+        type: string
+      description: The data to be decoded and used by the plugin to setup initial plugin data for the modular account. At a minimum this must include the embedded wallet's public address.
+    - in: query
+      name: dependencies
+      schema:
+        type: string
+      description: The dependencies of the plugin, as described in the manifest.
+    - in: query
+      name: injectedHooks
+      schema:
+        type: string
+      description: Optional hooks to be injected over permitted calls this plugin may make.
+```
+
+##### Response
+```=
+ parameters:
+    - in: query
+      name: result
+      schema:
+        type: boolean
+      description: Returns a true if the plugin was successfully registered.
+    - in: query
+      name: plugin_address
+      schema:
+        type: boolean
+      description: The address of the ERC-6900 plugin that was registered.
+    - in: query
+      name: smart_account_address
+      schema:
+        type: boolean
+      description: The address of the smart account where the plugin was registered.
+```
+
+#### Syntax
+##### URI Request Syntax
+```=
+https://<PROVIDER_URI>/
+    redirect_uri=<YOUR_REDIRECT_URI>
+    &smart_account_address=<USER_SMART_ACCOUNT>
+    &plugin_address=<PLUGIN_ADDRESS>
+    &manifest_hash=<MANIFEST_HASH>
+    &plugin_init_data<PLUGIN_INIT_DATA>
+    &dependencies=<DEPENDENCIES>
+    &injected_hooks=<INJECTED_HOOKS>
+```
+
+##### URI Response Syntax
+```=
+https://<YOUR_REDIRECT_URI>?
+    result=<RESULT_BOOLEAN>
+    &plugin_address=<PLUGIN_ADDRESS>
+    &smart_account_address=<SMART_ACCOUNT_ADDRESS>
+```
+
+## Rationale
+#### Application
+##### Initial Request
+An application must provide all relevant information that is required to successfully call `installPlugin` per ERC-6900, the `smart_account_address` and the `chain_id` are added to the request to ensure the plugin is install on the correct smart account. Using ERC-XXXX a developer would have already discovered the `smart_account_address` of a given user.
+
+##### Response from provider
+An application simply needs to check the result of the request, and act on it accordingly.
+
+#### Provider
+Upon parsing all the relevant data, it is the providers job to correctly attempt to install the plugin, if it fails do so, the interface should alert the user why it was not able to do so. If the plugin is already installed, the provider should simply return successfully.
+
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Reference Implementation
+// TODO
+
+## Security Considerations
+
+Needs discussion.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
