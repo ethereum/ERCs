@@ -54,6 +54,8 @@ The signer type represents the specific curve used when generating the keypair. 
 type SIGNER_TYPE: string = "secp256k1" | "P256" | "BLS12-381";
 ```
 The `signer_key` should be returned in the [did:key](https://w3c-ccg.github.io/did-method-key/) format, as specified by the W3C.
+The `smart_account_address` should be returned in the [CAIP-10](https://chainagnostic.org/CAIPs/caip-10) format.
+
 ##### Request
 ```=
  parameters:
@@ -74,18 +76,13 @@ The `signer_key` should be returned in the [did:key](https://w3c-ccg.github.io/d
     - in: query
       name: signer_key
       schema:
-        type: did:key
-      description: The public key of the user.
-  - in: query
-      name: signer_type
-      schema:
         type: string
-      description: The type of signer used, see SIGNER_TYPE.
+      description: The public key of the user, formatted using W3C definition of did:key
   - in: query
       name: smart_account_address
       schema:
         type: string
-      description: The on-chain address for a given smart account.
+      description: The on-chain address for a given smart account, formatted using CAIP-10
 ```
 
 #### Syntax
@@ -98,8 +95,7 @@ https://<PROVIDER_URI>/?
 ##### URI Response Syntax
 ```=
 https://<YOUR_REDIRECT_URI>/?
-    signer_uid=<SIGNER_KEY>
-    &type=<SIGNER_TYPE>
+    signer_key=<SIGNER_KEY>
     &smart_account_address=<SMART_ACCOUNT_ADDRESS>
 ```
 
