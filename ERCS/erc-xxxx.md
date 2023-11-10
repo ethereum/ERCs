@@ -1,0 +1,176 @@
+---
+eip: x
+title: Single Sign-On for Account Discovery
+description: Discover addresses and smart accounts deployed using a signing key that is not the standard Ethereum secp256k1 curve.
+author: Alexander Müller (@alexmmueller), Gregory Markou (@GregTheGreek), Willem Olding (@Wollum), Belma Gutlic (@morrigan), Marin Petrunić (@mpetrunic)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-single-sign-on-for-account-discovery
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-11-10
+requires: 4337
+---
+
+## Abstract
+This proposal establishes a standardized interface and functionality for applications to discover user addresses that may not be readily available from an EOA. Specifically discovering addresses and smart accounts that may have been deployed or configured using a signing key that is not the standard Ethereum secp256k1 curve. The objective is to ensure uniformity of address retrieval across applications, and domains.
+
+## Motivation
+The recent progress in account abstraction has led to significantly increased flexibility enabling use cases such as multi-signature transactions, social recovery, contract/account whitelisting, session keys and much more. However, with increased flexibility there comes an increased complexity. One area of increased complexity is account fragmentation -both at the EOA and smart account level - following from the inability to correctly identify all existing addresses by a user. In this EIP we present a potential solution that aims to unify the discovery and handling of such accounts.
+
+Prior to [ERC-4337](./eip-4337.md), the standard approach to interacting with a smart contract account required a valid signature from a keypair using secp256k1. Since ERC-4337, alternative signing options have become popular, such as passkey (eg: yubikey or native ios/android), which do not conform to the secp256k1 curve, and require a paymaster to submit the transaction on the users behalf. Since providers implement additional logic into the key generation process (shamir, mpc, etc) alternative signers have no uniform way for a user to produce the same account adresses, or smart account addresses across different applications. 
+
+Secure hardware devices such as native passkeys, or yubikeys generate a unique keypair per domain. The implication is for application developers that natively integrate authentication methods such as those, will never be able to recover a uniform keypair. Practically, if we have the following scenario where there are two applications: a mobile app (App A), and a web based application (App B). If both implement a solution such as passkey, App A and App B would recover two different keys. This poses a hurdle to the user who would expect to have the same address across services (much like they would using a hardware wallet, or other wallets).
+
+With the introduciton of 4337, this problem is amplified. An application that wants its users to leverage 4337 (to abstract keys away, and generally imporve the onboarding experience) will not be able to detect if a user has an existing smart account deployed. This will lead to the developer (or third party service providing the onboarding experience) to deploy a smart account onbehalf of the user at the given address scoped to the apps domain.
+
+Not being able to correctly identify exisitng addresses by a user will lead to account fragmentation. The fragmentation, as described early, exists because applications will identify them as a new user, and not one whom may already have an account. Leading to a single user having many unassosiated accounts, with assets scattered amognst them, and no way to unify them.
+
+This standard aims to achieve:
+1. Standard way for applications to request a users signing address.
+2. Standard way for applications to provide single sign-on (SSO) functionality for alternative signing methods.
+3. Standard way for applications to disclose smart accounts that have been created through their own service.
+
+This standard **does not** aim to achieve:
+1. How a user can sign messages across domains.
+2. How a provider generates a keypair for a user.
+3. How an application handles the user interface logic.
+
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions
+- **Smart account** - An ERC-4337 compliant smart contract account that has a modular architecture.
+- **Domain** - A string of text acting as an identification to a server or wesbite (eg: `ethereum.org` or `ABCDE12345.com.example.app`).
+- **EOA** - Accounts that are controlled by private keys.
+- **Provider** - A third party service provider that is able to authenticate a user and produce a keypair for the user.
+
+### Redirects
+An application looking to authenticate a user must navigate the user to a given provider's URI based on the `URI Request Syntax`. The application must implement a valid redirect URI for the callback in order to receive a valid response.
+
+#### Schema
+The signer type represents the specific curve used when generating the keypair. The following are a non-exhaustive list of possible keypair types.
+```=
+type SIGNER_TYPE: string = "secp256k1" | "passkey" | "P256" | "BLS12-381";
+```
+##### Request
+```=
+ parameters:
+    - in: query
+      name: redirect_uri
+      schema:
+        type: string
+      description: The uri that the provider should redirect back to.
+   - in: query
+      name: chain_id
+      schema:
+        type: string
+      description: The chain_id of a given netowrk.
+```
+##### Response
+```=
+ parameters:
+    - in: query
+      name: signer_uid
+      schema:
+        type: string
+      description: The public key of the user.
+  - in: query
+      name: signer_type
+      schema:
+        type: string
+      description: The type of signer used, see SIGNER_TYPE.
+  - in: query
+      name: smart_account_address
+      schema:
+        type: string
+      description: The on-chain address for a given smart account.
+```
+
+#### Syntax
+##### URI Request Syntax
+```=
+https://<PROVIDER_URI>/?
+    redirect_uri=<YOUR_REDIRECT_URI>
+    &chain_id=<CHAIN_ID>
+```
+##### URI Response Syntax
+```=
+https://<YOUR_REDIRECT_URI>/?
+    signer_uid=<SIGNER_UUID>
+    &type=<SIGNER_TYPE>
+    &smart_account_address=<SMART_ACCOUNT_ADDRESS>
+```
+
+## Rationale
+### Redirects
+Taking inspiration from how SSO functions in the web today. We implement a similar redirect pattern, consisting of a simple request/response.
+
+#### Application
+##### Initial Request
+An application would redirect a user to a specified provider, only passing along the callback url information. This is to ensure the providers website can remain stateless, and not rely on web requests.
+##### Response from provider
+When a user is redirected to the application, it can parse the response for a signer address, and assosiated smart account address.
+
+#### Provider
+Upon a user navigating to the provider website, the provider would parse the redirect url and authenticate the user. The authentication method does not matter, such that it can produce a valid public address, and recover any smart accounts that may have been deployed through the provider.
+
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Reference Implementation
+Using `location.replace()` vs `location.href` is up to the application to decide how they wish the experience to be handled.
+
+Sample URI Request
+```=
+https://eth-sso.ethereum.org/auth?redirect_uri=http://myapp.com/eth-sso/callback/&chain_id=1
+```
+Sample Response
+```=
+http://myapp.com/callback/?signer_uid=0xa...b&smart_account_address=0xb...c&signer_type=p256
+```
+
+Application logic
+```javascript=
+// https://myapp.com
+// User triggered authentication function
+function auth() {
+    window.location.replace("https://eth-sso.ethereum.org/auth?redirect_uri=myapp.com&chain_id=1/eth-sso/callback/");
+};
+
+// App level routing logic (generic router)
+route("/eth-sso/callback/", function() {
+    let params = (new URL(document.location)).searchParams;
+    let signerAddress = params.get("signer_uid");
+    let smartAccountAddress = params.get("smart_account_address");
+    let type = params.get("type");
+});
+```
+
+Provider Logic
+```javascript=
+// eg: https://eth-sso.ethereum.org/auth
+route("/eth-sso/callback/", function("/auth") {
+    let params = (new URL(document.location)).searchParams;
+    let redirectUrl = params.get("redirect_uri");
+    // Authenticate the user (eg: with passkeys)
+    let address = "...";
+    // Get smart account if available
+    let smartAccountAddress = getSmartAccount(address);
+    window.location.replace(`http://${redirectUrl}/?signer_uid=${address}&smart_account_address=${smartAccountAddress}`);
+});
+```
+
+## Security Considerations
+
+Needs discussion.
+- Is there a concern that a user can spoof another persons address, and that could be malicious? For example, circumventing the provider, and manually calling the redirect_url with a chosen address. A way around this would be having the user actually sign a challenge message, perhaps leveraging SIWE.
+
+The absence of wildcard support in the redirect URI is intended to protect users from nested open redirect vulnerabilities. Allowing wildcards could enable attackers to redirect users to different pages under the supported wildcard, creating a vulnerability to open redirects.[1]
+
+[1] https://cloudentity.com/developers/basics/oauth-framework/redirect-uris/#:~:text=To%20register%20a%20redirect%20URI,and%20with%20wildcards%20not%20permitted.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
