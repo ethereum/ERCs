@@ -3,7 +3,7 @@ erc: 1
 title: ERC Purpose and Guidelines
 status: draft
 type: Meta
-author: Joachim Lebrun (@Joachim-Lebrun), Emmanuel (Mawuko.eth), Joey Santoro (@joeysantoro)
+author: Joachim Lebrun (@Joachim-Lebrun), Emmanuel (Mawuko.eth), Joey Santoro (@joeysantoro), Adam Boudjemaa (@aboudjem)
 created: 2023-10-30
 ---
 
@@ -27,6 +27,20 @@ It is highly recommended that a single ERC contain a single key proposal or new 
 
 An ERC must meet certain minimum criteria. It must be a clear and complete description of the proposed enhancement. The enhancement must represent a net improvement. The proposed implementation, if applicable, must be solid and must not complicate the application ecosystem unduly.
 
+## ERC Dependency
+
+Authors MUST classify their ERC in the preamble, choosing from the following:
+
+Standalone: Indicates the ERC is self-contained and independent of existing ERCs.
+Dependent: Shows the ERC relies on, enhances, or extends one or more existing ERCs. Authors MUST specify the related ERC numbers.
+
+## Code Quality and Documentation Standards
+
+In ERCs containing code examples or reference implementations, authors SHOULD:
+
+- Follow Official Coding Style Guides: Adhere to recognized style guides for the programming language used, ensuring code clarity and consistency.
+- Include Comprehensive Documentation: Use standard documentation practices, such as NatSpec for Ethereum-related code, to facilitate understanding and usability.
+
 ### What Belongs in a Successful ERC? (Structure)
 
 Each ERC should have the following parts:
@@ -47,6 +61,16 @@ Each ERC should have the following parts:
 #### ERC Formats and Templates
 
 ERCs should be written in [markdown](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet) format. There is a [template](https://github.com/ethereum/ERCs/blob/master/erc-template.md) to follow.
+
+#### Content Guidelines
+
+In authoring an ERC, the following guidelines MUST be adhered to:
+- Technical Jargon: Authors SHOULD minimize the use of technical jargon to ensure the ERC is accessible to a broader audience.
+- Objective Language: The language in the ERC MUST remain objective. Promotional or biased language MUST NOT be used.
+- Relevance: Content in the ERC MUST be directly relevant to its purpose. Redundant or unrelated information MUST NOT be included.
+- External Links: The inclusion of external URLs and references MUST be limited to those permitted in the ERC's linking policy.
+- Present Focus: The ERC MUST focus on the current proposal. Speculative content or future plans MUST NOT be included.
+- Factual Basis: Content in the ERC MUST be based on facts and evidence. Personal opinions or anecdotes MUST NOT be used.
 
 #### ERC Header Preamble
 
@@ -191,6 +215,17 @@ For now, we will suggest this initial set of Subcategories:
 | Software Wallet    | Proposals for software-based wallet standards in Ethereum, addressing user interface, APIs, and other functionality of wallet apps.                                                                                                                    |
 | UserOp             | Proposals for User Operations in intent-driven applications such as CoW Swap, etc.                                                                                                                                                                       |
 | Account Abstraction | Proposals for account abstraction solutions and management of program-managed accounts (a.k.a. smart accounts) within Ethereum.                                                                                                                       |
+
+##### Management of Subcategories
+To ensure uniformity and ease of update, the list of subcategories for ERC SHALL be maintained in a separate, dedicated ERC. 
+
+This approach allows for:
+
+- Establishing consistent names and definitions for subcategories across all ERCs.
+- Facilitating the addition, modification, or removal of subcategories as the Ethereum ecosystem evolves, without the need to revise ERC-1.
+- Providing a single, authoritative source for all subcategory definitions, accessible to ERC authors and readers.
+
+Authors proposing new subcategories MUST submit their suggestions through a change proposal to this dedicated ERC. The ERC editors WILL review and decide on the inclusion of new subcategories.
 
 #### Extensions
 An ERC Extension adds functionality or specificity to an existing ERC. It is generally fully compatible at the interface level with the extended ERC.
@@ -465,13 +500,22 @@ References to other ERCs should follow the format `ERC-N` where `N` is the ERC n
 
 ## Auxiliary Files
 
-Images, diagrams and auxiliary files should be included in a subdirectory of the `assets` folder for that ERC as follows: `assets/erc-N` (where **N** is to be replaced with the ERC number). When linking to an image in the ERC, use relative links such as `../assets/erc-1/image.png`.
+The following rules MUST be adhered to regarding auxiliary files:
+
+- Auxiliary files, including images and diagrams, **MUST** be placed in a subdirectory named `assets/erc-N/image.png`, where **N** is the ERC number.
+- When referencing these files within the ERC, **MUST** use relative links (e.g., `../assets/erc-1/image.png``).
+- All auxiliary files **MUST** be optimized to minimize their size. This is essential to maintain the efficiency of the repository and ensure quick loading of pages.
 
 ## Transferring ERC Ownership
 
-It occasionally becomes necessary to transfer ownership of ERCs to a new champion. In general, we'd like to retain the original author as a co-author of the transferred ERC, but that's really up to the original author. A good reason to transfer ownership is because the original author no longer has the time or interest in updating it or following through with the ERC process, or has fallen off the face of the 'net (i.e. is unreachable or isn't responding to email). A bad reason to transfer ownership is because you don't agree with the direction of the ERC. We try to build consensus around an ERC, but if that's not possible, you can always submit a competing ERC.
+Ownership transfer of an ERC may be needed if the original author cannot continue their involvement. Valid reasons for transfer include the original author’s lack of time, loss of interest, or unresponsiveness. Disagreement with the ERC's direction is not a valid reason for transfer; in such cases, consider proposing an alternative ERC.
 
-If you are interested in assuming ownership of an ERC, send a message asking to take over, addressed to both the original author and the ERC editor. If the original author doesn't respond to the email in a timely manner, the ERC editor will make a unilateral decision (it's not like such decisions can't be reversed :)).
+To request ERC ownership transfer:
+
+- Contact both the original author and an ERC editor with your request.
+- If the original author is unresponsive, the ERC editor will decide on the transfer.
+
+The original author can choose to remain as a co-author or not. ERC editor decisions on ownership transfer can be revisited.
 
 ## ERC Editors
 
@@ -523,14 +567,14 @@ The editors don't pass judgment on ERCs. We merely do the administrative & edito
 
 The `title` field in the preamble:
 
-- Should not include the word "standard" or any variation thereof; and
+- Should not include the word "standard" or any variation thereof;
 - Should not include the ERC's number.
 
 ### Descriptions
 
 The `description` field in the preamble:
 
-- Should not include the word "standard" or any variation thereof; and
+- Should not include the word "standard" or any variation thereof.
 - Should not include the ERC's number.
 
 ### ERC numbers
