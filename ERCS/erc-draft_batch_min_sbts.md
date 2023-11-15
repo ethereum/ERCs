@@ -1,0 +1,81 @@
+---
+title: Batch Minimal Soulbound NFTs
+description: A minimal interface for soulbinding multiple EIP-721 NFTs
+author: Hans Bergren (@0xCLARITY)
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-11-15
+requires: 165, 721
+---
+
+## Abstract
+
+This proposal extends [ERC-721](./erc-721.md). It proposes a minimal interface to make both individual tokens and a contiguous range of tokenIds soulbound (locked).
+
+## Motivation
+
+Other existing soulbound / lockable standards emit events that only include a single `tokenId`. This makes it gas-prohibitive to batch lock or unlock all of the tokens in any contiguous range, including potentially locking/unlocking the entire 721 contract.
+
+This proposal captures the use-cases covered by existing proposals, yet also allows for batch operations around soulbinding/locking tokens.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Contract Interface
+
+The interface is defined as follows:
+
+```solidity
+// ERC165 interfaceId 0x42f0f3bf
+interface IERC_Draft_BATCH_MIN_SBTS {
+  /// @notice Emitted when the locking status for a token is changed to locked.
+  event Locked(uint256 _tokenId);
+
+  /// @notice Emitted when the locking status for a token is changed to unlocked.
+  event Unlocked(uint256 _tokenId);
+
+  /// @notice Emitted when the locking status for a range of tokens is changed to locked.
+  event BatchLocked(uint256 _fromTokenId, uint256 _toTokenId);
+
+  /// @notice Emitted when the locking status for a range of tokens is changed to unlocked.
+  event BatchUnlocked(uint256 _fromTokenId, uint256 _toTokenId);
+
+  /// @notice Returns the locking status of an Soulbound Token
+  /// @dev SBTs assigned to zero address are considered invalid, and queries
+  /// about them do throw.
+  /// @param tokenId The identifier for an SBT.
+  function locked(uint256 tokenId) external view returns (bool);
+
+  /// @notice Returns the locking status of an Soulbound Token.
+  /// @dev This function is only included to produce a unique ERC165 identifier.
+  /// It is OPTIONAL (and NOT RECOMMENDED) to implement this function.
+  function isLocked(uint256 tokenId) external view returns (bool);
+}
+```
+
+The Locked/Unlocked or BatchLocked/BatchUnlocked event MUST be emitted when the locking status of a token, or a consecutive range of tokens, is changed.
+
+It is assumed that all tokens start out unlocked, and no event emission is necessary to indicate that.
+
+The [ERC-165](./erc-165.md) interfaceId is `0x42f0f3bf`.
+
+## Rationale
+
+This standard optimizes gas consumption for bulk token operations in soulbound contracts.
+
+Using the `locked` function facilitates interoperability with other soulbound/lockable proposals.
+
+## Backwards Compatibility
+
+This proposal is fully backward compatible with [ERC-721](./erc-721.md).
+
+## Security Considerations
+
+There are no security considerations related directly to the implementation of this standard.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
