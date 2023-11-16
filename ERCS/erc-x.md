@@ -26,7 +26,7 @@ It aims to achieve the following goals:
 
 1. Keep the NFT contract simple, only need to be responsible for the transaction function
 2. approve and allowance functions are not managed by the NFT contract , approve and getApproved should be configured at the user level instead of controlled by the nft contract, increasing the user's more playability , while avoiding part of the ERC-721 contract risk.
-3. Remove the transferForm,safeTransferFrom function, and a better way to call the other party's nft assets is to access the other party's own contract instead of directly accessing the nft asset contract.
+3. Remove the safeTransferFrom function, and a better way to call the other party's nft assets is to access the other party's own contract instead of directly accessing the nft asset contract.
 4. Forward compatibility with ERC-721 means that all nft can be compatible with this proposal.
 
 ## Specification
@@ -81,11 +81,8 @@ interface IERCX {
      * @param from Address of the from
      * @param to Address of the to
      * @param tokenId The NFT to transfer
-     * @return success The bool value returns whether the transfer is successful
      */
-    function transferFrom(address from, address to, uint256 tokenId)
-        external
-        returns (bool success);
+    function transferFrom(address from, address to, uint256 tokenId) external;
 
 }
 ```
@@ -96,17 +93,15 @@ The purpose of the proposal is to add a simple nft for Ethereum smart contract w
 
 ****Examples****
 
-The third party calls the user's nft transaction ([ERC-721](./erc-721.md), transferForm), 
-
 Judges whether the receiving address is safe ([ERC-721](./erc-721.md), safeTransferForm), 
 
-permit extension for signed approvals ([ERC-2612](./erc-2612.md), permit),
+ERC-721 Consecutive Transfer Extension([ERC-2309](./erc-2309.md)),
 
-authorizes the distribution of the user's own assets (ERC-721, approve, allowance), 
+No Intermediary NFT Trading Protoco([ERC-6105](./erc-6105.md)),
 
-and adds the transfer hook function. ([ERC-777](./erc-777.md), hook)
+authorizes the distribution of the user's own assets (ERC-721, approve, allowance) and many proposals based on [ERC-721](./erc-721.md) extension
 
-The above work should be handled by the user's smart contract wallet, rather than the nft contract itself.
+The above work should be handled by the user's smart contract wallet or wallet pulgin, rather than the nft contract itself.
 
 ## Backwards Compatibility
 
@@ -128,9 +123,16 @@ import "../../math/SafeMath.sol";
  * @dev Implementation of the basic standard nft.
  */
 contract ERCX is IERCX {
-    using SafeMath for uint256;
 
-    mapping (address => uint256) private _balances;
+    // Token name
+    string private _name;
+
+    // Token symbol
+    string private _symbol;
+
+    mapping(uint256 tokenId => address) private _owners;
+
+    mapping(address owner => uint256) private _balances;
 
     uint256 private _totalSupply;
 
@@ -138,18 +140,63 @@ contract ERCX is IERCX {
         return _totalSupply;
     }
 
-    function balanceOf(address owner) external view returns (uint256) {
+    function balanceOf(address owner) public view  returns (uint256) {
+        require (owner != address(0));
+        
         return _balances[owner];
     }
 
-    function transfer(address to, uint256 value) external returns (bool) {
-        require(value <= _balances[msg.sender]);
-        require(to != address(0));
+    function ownerOf(uint256 tokenId) public view  returns (address) {
+        return _requireOwned(tokenId);
+    }
 
-        _balances[msg.sender] = _balances[msg.sender].sub(value);
-        _balances[to] = _balances[to].add(value);
-        emit Transfer(msg.sender, to, value);
-        return true;
+
+    function transferFrom(address from, address to, uint256 tokenId) public  {
+
+        require(from == msg.sender);
+
+        require (to != address(0) );
+
+        address previousOwner = _update(to, tokenId);
+
+        require(previousOwner == from);
+    }
+
+
+    function _ownerOf(uint256 tokenId) internal view virtual returns (address) {
+        return _owners[tokenId];
+    }
+
+    function _requireOwned(uint256 tokenId) internal view returns (address) {
+        address owner = _ownerOf(tokenId);
+        require(owner != address(0));
+            
+        return owner;
+    }
+
+    function _update(address to, uint256 tokenId) internal virtual returns (address) {
+        address from = _ownerOf(tokenId);
+
+        
+        // Execute the update
+        if (from != address(0)) {         
+
+            unchecked {
+                _balances[from] -= 1;
+            }
+        }
+
+        if (to != address(0)) {
+            unchecked {
+                _balances[to] += 1;
+            }
+        }
+
+        _owners[tokenId] = to;
+
+        emit Transfer(from, to, tokenId);
+
+        return from;
     }
 
 }
