@@ -37,6 +37,8 @@ message = "preamble header `description` should not contain `:`"
 [lints.preamble-refs-description]
 kind = "preamble-proposal-ref"
 name = "description"
+prefix = "erc-"
+suffix = ".md"
 
 [lints.preamble-enum-category]
 kind = "preamble-one-of"
@@ -95,6 +97,8 @@ names = [
 ]
 
 [lints.preamble-requires-status]
+prefix = "erc-"
+suffix = ".md"
 kind = "preamble-requires-status"
 requires = "requires"
 status = "status"
@@ -765,6 +769,8 @@ sections = [
 ]
 
 [lints.markdown-link-status]
+prefix = "erc-"
+suffix = ".md"
 kind = "markdown-link-status"
 status = "status"
 flow = [
@@ -878,6 +884,8 @@ message = "preamble header `discussions-to` should point to a thread on ethereum
 [lints.preamble-refs-title]
 kind = "preamble-proposal-ref"
 name = "title"
+prefix = "erc-"
+suffix = ".md"
 
 [lints.preamble-enum-status]
 kind = "preamble-one-of"
