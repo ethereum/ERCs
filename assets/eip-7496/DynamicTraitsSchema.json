@@ -75,23 +75,17 @@
                     "type": "boolean",
                     "description": "Whether the trait value being returned is signed. If this is not specified, it is assumed to be false."
                   },
-                  "bits": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 256,
-                    "description": "The number of bits that the trait value is returned with onchain. If this is not specified, it is assumed to be 256."
-                  },
                   "decimals": {
                     "type": "integer",
                     "description": "The number of decimal places that the trait value is returned with onchain. If this is not specified, it is assumed to be 0 (i.e. an integer value)."
                   },
                   "minValue": {
                     "type": "number",
-                    "description": "The minimum value that the trait value can be set to (inclusive). If this is not specified, it is assumed to be the minimum value of the `signed`, `bits` and `decimals`."
+                    "description": "The minimum value that the trait value can be set to (inclusive). If this is not specified, it is assumed to be the minimum value of the `signed` and `decimals`."
                   },
                   "maxValue": {
                     "type": "number",
-                    "description": "The maximum value that the trait value can be set to (inclusive). If this is not specified, it is assumed to be the maximum value of the `signed`, `bits` and `decimals`."
+                    "description": "The maximum value that the trait value can be set to (inclusive). If this is not specified, it is assumed to be the maximum value of the `signed` and `decimals`."
                   },
                   "valueMappings": {
                     "type": "object",
