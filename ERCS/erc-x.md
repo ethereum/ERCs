@@ -100,7 +100,7 @@ interface IERCX{
      * @param _operator Address of the operator
      * @param _approved Approved all nfts of one asset
      */
-    function nftApproveForOneAll(address _asset, address _operator, bool _approved) external;
+    function nftSetApprovalForOneAll(address _asset, address _operator, bool _approved) external;
 
 
      /**
@@ -110,7 +110,7 @@ interface IERCX{
      * @param _operator Address of the operator
      * @param _approved Approved all nfts
      */
-    function nftApproveForAllAll(address _operator, bool _approved) external;
+    function nftSetApprovalForAllAll(address _operator, bool _approved) external;
 
     /**
      * @notice read operator approved
@@ -130,7 +130,7 @@ interface IERCX{
      * @param _operator Address of the operator
      * @return _approved Whether to approved operator all nfts of this one asset
      */
-    function nftIsApproveForOneAll(address _asset, address _operator) 
+    function nftIsApprovedForOneAll(address _asset, address _operator) 
         external
         view
         returns (bool _approved);
@@ -140,7 +140,7 @@ interface IERCX{
      * @param _operator Address of the operator
      * @return _approved Whether to approved operator all nfts
      */
-    function nftIsApproveForAllAll(address _operator) 
+    function nftIsApprovedForAllAll(address _operator) 
         external
         view
         returns (bool _approved);
@@ -173,9 +173,9 @@ The proposal aims to achieve the following goals:
 
 3. The user wallet itself supports approve. Add nftApprove,  nftGetApproved, Used to approve specify one asset under the nft contract.
 
-4. add nftApprovalForOneAll, nftIsApprovedForOneAll, Used to approve specify all assets under the nft contract.
+4. add nftSetApprovalForOneAll, nftIsApprovedForOneAll, Used to approve specify all assets under the nft contract.
 
-5. add nftApprovalForAllAll functions, nftIsApprovedForAllAll, Used approve for assets under all nft contracts.
+5. add nftSetApprovalForAllAll, nftIsApprovedForAllAll, Used approve for assets under all nft contracts.
 
 6. The users can choose to add hook function before and after their nftTransfer to increase the user’s more playability
 
