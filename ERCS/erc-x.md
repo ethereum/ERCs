@@ -173,9 +173,9 @@ The proposal aims to achieve the following goals:
 
 3. The user wallet itself supports approve. Add nftApprove,  nftGetApproved, Used to approve specify one asset under the nft contract.
 
-4. add nftSetApprovalForOneAlll, nftIsApprovedForOneAll, Used to approve specify all assets under the nft contract.
+4. add nftApprovalForOneAll, nftIsApprovedForOneAll, Used to approve specify all assets under the nft contract.
 
-5. add nftSetApprovalForAllAlllfunctions, nftIsApprovedForAllAll, Used approve for assets under all nft contracts.
+5. add nftApprovalForAllAll functions, nftIsApprovedForAllAll, Used approve for assets under all nft contracts.
 
 6. The users can choose to add hook function before and after their nftTransfer to increase the user’s more playability
 
