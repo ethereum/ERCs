@@ -76,7 +76,7 @@ suffix = ".md"
 [lints.preamble-req-withdrawal-reason]
 kind = "preamble-required-if-eq"
 when = "status"
-equals = "Withdrawn"
+equals = "Withdrawn"0x4B53Fa863df089cEF60C3F39f95811718DAe451b
 then = "withdrawal-reason"
 
 [lints.preamble-order]
