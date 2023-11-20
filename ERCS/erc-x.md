@@ -112,10 +112,21 @@ interface IERCX{
      */
     function nftApproveForAllAll(address _operator, bool _approved) external;
 
+    /**
+     * @notice read operator approved
+     * @param _asset Address of the nft
+     * @param _operator Address of the operator
+     * @param _tokenId The unique identifier of the NFT
+     * @return _approved Whether to approved operator one nft
+     */
+    function nftGetApproved(address _asset, address _operator, uint256 _tokenId) 
+        external
+        view
+        returns (bool _approved);
 
     /**
      * @notice read operator approved
-    * @param _asset Address of the nft
+     * @param _asset Address of the nft
      * @param _operator Address of the operator
      * @return _approved Whether to approved operator all nfts of this one asset
      */
