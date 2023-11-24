@@ -1,6 +1,6 @@
 ---
-eip: x
-title: Contract wallet management nft
+eip: 7564
+title: Contract wallet management NFT
 description: Designed for all nft
 author: Xiang (@wenzhenxiang), Ben77 (@ben2077), Mingshi S. (@newnewsms)
 discussions-to: https://ethereum-magicians.org/t/erc-draft-contract-wallet-management-nft/16702
@@ -34,11 +34,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 // SPDX-License-Identifier: GPL-3.0
 
 
-/// @title ERC-X
-/// @dev See https://eips.ethereum.org/EIPS/eip-x
+/// @title ERC-7564
+/// @dev See https://eips.ethereum.org/EIPS/eip-7564
 pragma solidity ^0.8.20;
 
-interface IERCX{
+interface IERC7564{
 
     /**
      * @notice Used to notify listeners that owner has granted approval to the user to manage one nft.
