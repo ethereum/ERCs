@@ -178,7 +178,6 @@ describe("PerpetualContractNFTDemo", function () {
     const [owner] = await ethers.getSigners();
 
     const PerpetualContractNFTDemo = await ethers.getContractFactory("PerpetualContractNFTDemo");
-    // Set 5 minute (300,000) additional buffer
     const demo = await PerpetualContractNFTDemo.deploy("DemoNFT", "DNFT");
     await demo.waitForDeployment();
     expect(demo.target).to.be.properAddress;
@@ -231,8 +230,6 @@ contract PerpetualContractNFT is ERC4907, IPerpetualContractNFT {
         uint256 loanStartTime; // Timestamp when the loan starts
     }
 
-    uint256 private _bufferTime;
-    
     mapping(uint256 => LoanInfo) internal _loans;
 
     //Constructor to initialize the Perpetual Contract NFT contract with the given name and symbo
