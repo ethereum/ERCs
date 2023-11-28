@@ -3,7 +3,7 @@ eip: xxxx
 title: Multiplayer Onchain Game
 description: A solution that enables multiple players to play onchain game.
 author: Rickey (@HelloRickey)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/erc-proposal-multiplayer-onchain-game/16796
 status: Draft
 type: Standards Track
 category: ERC
