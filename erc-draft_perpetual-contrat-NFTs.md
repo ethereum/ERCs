@@ -1,13 +1,16 @@
 ---
-title: <ERC-XXXX: Perpetual Contract NFTs as Collateral for Liquidity Provision>
-description: A standard for representing locked financial assets as Non-Fungible Tokens (NFTs), enabling these NFTs to be used as collateral for borrowing funds in Decentralized Finance (DeFi). This ERC also integrates the concept of rentable NFTs (via ERC-4907) to facilitate liquidity provision.
+title: ERC-XXXX: Perpetual Contract NFTs as Collateral for Liquidity Provision
+description: >
+  A standard for representing locked financial assets as Non-Fungible Tokens (NFTs), 
+  enabling these NFTs to be used as collateral for borrowing funds in Decentralized Finance (DeFi). 
+  This ERC also integrates the concept of rentable NFTs (via ERC-4907) to facilitate liquidity provision.
 author: hyougnsung@keti.re.kr
-discussions-to: {Will be replaced after uploading to Fellowship of Ethereum Magicians (FEM) forum}
+discussions-to: Will be replaced after uploading to Fellowship of Ethereum Magicians (FEM) forum
 status: Draft
 type: Standards Track
 category: ERC
-created: date created on, 2023-11-27
-requires: 721, 4907
+created: 2023-11-27
+requires: [721, 4907]
 ---
 
 <!--
