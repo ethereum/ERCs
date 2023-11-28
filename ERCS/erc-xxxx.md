@@ -1,0 +1,191 @@
+---
+eip: xxxx
+title: Multiplayer Onchain Game
+description: A solution that enables multiple players to play onchain game.
+author: Rickey (@HelloRickey)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-11-28
+---
+
+## Abstract
+
+This proposal proposes a multiplayer onchain game (MOG) standard interface based on smart contracts, using room to match and group players, and using message to process actions between players. This allows one smart contract to handle multiple players playing games on the chain, preventing centralized servers from affecting the fairness of the game.
+
+## Motivation   
+
+Common multiplayer games are generally played on centralized servers. Players have no way of knowing whether there are forged data and cheating on the server. The owner of the game server can match players at will, modify scores and levels, and even close and pause the game. If the player's actions all occur on the chain, every message from the chain is proof of the player's instructions and actions, which further ensures the fairness of the game. The Multiplayer Onchain Game framework scales vertically by adding rooms to handle and accommodate multiple players. Write on-chain game logic with custom messages for horizontal expansion, allowing game developers to build multiplayer and fully on-chain games with smart contracts.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+The principle of Multiplayer Onchain Game is to use the same game logic to change the state of different groups of players. 
+
+It consists of two core parts:
+
+**Room**: A container for players, used to match and view connected players. The game can only be played after players join the room.
+
+**Message**: Actions between players, using messages to perform game behaviors and change the player's state in the room.
+
+![Multiplayer Onchain Game Flow Chart](../assets/eip-xxxx/MOGFlowChart.png)
+
+### Interfaces
+
+#### `IMOG.sol`
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity >=0.8.0;
+
+import "./Types.sol";
+
+interface IMOG {
+    /**
+     * Create a new room.
+     * @dev The entity MUST be assigned a unique Id.
+     * @return New room id.
+     */
+    function createRoom() external returns (uint256);
+
+    /**
+     * Get the total number of rooms that have been created.
+     * @return Total number of rooms.
+     */
+    function getRoomCount() external view returns (uint256);
+
+    /**
+     * Player joins room.
+     * @dev The member MUST be assigned a unique Id.
+     * @param _roomId is the id of the room.
+     * @return Member id.
+     */
+    function joinRoom(uint256 _roomId) external returns (uint256);
+
+    /**
+     * Get the id of a member in a room.
+     * @param _roomId is the id of the room.
+     * @param _member is the address of a member.
+     * @return Member id.
+     */
+    function getMemberId(uint256 _roomId, address _member)
+        external
+        view
+        returns (uint256);
+
+    /**
+     * Check if a member exists in the room.
+     * @param _roomId is the id of the room.
+     * @param _member is the address of a member.
+     * @return true exists, false does not exist.
+     */
+    function hasMember(uint256 _roomId, address _member)
+        external
+        view
+        returns (bool);
+
+    /**
+     * Get all room IDs joined by a member.
+     * @param _member is the address of a member.
+     * @return An array of room ids.
+     */
+    function getRoomIds(address _member)
+        external
+        view
+        returns (uint256[] memory);
+
+    /**
+     * Get the total number of members in a room.
+     * @param _roomId is the id of the room.
+     * @return Total members.
+     */
+    function getMemberCount(uint256 _roomId) external view returns (uint256);
+
+    /**
+     * A member sends a message to other members.
+     * @dev Define your game logic here and use the content in the message to handle the member's state. The message MUST be assigned a unique Id
+     * @param _roomId is the id of the room.
+     * @param _to is an array of other member ids.
+     * @param _message is the content of the message, encoded by abi.encode.
+     * @return Message id.
+     */
+    function sendMessage(
+        uint256 _roomId,
+        uint256[] memory _to,
+        bytes memory _message
+    ) external returns (uint256);
+
+    /**
+     * Get all messages received by a member in the room.
+     * @param _roomId is the id of the room.
+     * @param _memberId is the id of the member.
+     * @return An array of message ids.
+     */
+    function getMessageIds(uint256 _roomId, uint256 _memberId)
+        external
+        view
+        returns (uint256[] memory);
+
+    /**
+     * Get details of a message.
+     * @param _roomId is the id of the room.
+     * @param _messageId is the id of the message.
+     * @return The content of the message.
+     * @return Data type array of message content.
+     * @return Sender id.
+     * @return An array of receiver ids.
+     */
+    function getMessage(uint256 _roomId, uint256 _messageId)
+        external
+        view
+        returns (
+            bytes memory,
+            Types.Type[] memory,
+            uint256,
+            uint256[] memory
+        );
+}
+
+
+```
+
+### Library
+
+The library [`Types.sol`](../assets/eip-xxxx/Types.sol) contains an enumeration of Solidity types used in the above interfaces.
+
+## Rationale
+
+### Why are multiplayer onchain games room-based?
+
+Because the rooms are independent, each player will be assigned a new ID when entering a room. A new game round can be a room, a game task can be a room, and a game activity can be a room.
+
+### The player's state in the game.
+
+The game state refers to the player's data changes in the game, and `sendMessage` actually plays the role of a state converter. The proposal is very flexible, you can define some data inside the room (internal) or outside the room (global) according to the game logic.
+
+### How to initialize player data?
+
+You can initialize player data in `createRoom` or `joinRoom`.
+
+### How to check and handle player exits from the game?
+
+You can use `block.timestamp` or `block.number` to record the latest `sendMessage` time of a member. And add a message type to `sendMessage`. Other players can use this message type to complain that a member is offline and punish the member.
+
+### Appropriate game categories.
+
+This is a multiplayer on-chain game rather than a multiplayer real-time game standard. The game category depends on the network your contract is deployed on. Some layer 2 networks process blocks very quickly and can make some more real-time games. Generally, the network is more suitable for strategy, trading card, turn-based, chess, sandbox, and settlement.
+
+## Reference Implementation
+
+See [Multiplayer Onchain Game Example](../assets/eip-xxxx/MultiplayerOnchainGame.sol)
+
+## Security Considerations
+
+Needs discussion.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
+
