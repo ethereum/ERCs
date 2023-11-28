@@ -1,7 +1,6 @@
 ---
 title: <ERC-XXXX: Perpetual Contract NFTs as Collateral for Liquidity Provision>
 description: A standard for representing locked financial assets as Non-Fungible Tokens (NFTs), enabling these NFTs to be used as collateral for borrowing funds in Decentralized Finance (DeFi). This ERC also integrates the concept of rentable NFTs (via ERC-4907) to facilitate liquidity provision.
-
 author: hyougnsung@keti.re.kr
 discussions-to: {Will be replaced after uploading to Fellowship of Ethereum Magicians (FEM) forum}
 status: Draft
@@ -24,7 +23,7 @@ requires: 721, 4907
 -->
 
 ## Abstract
-This ERC proposes a mechanism where a person (referred to as the "Asset Owner") can collateralize NFTs that represent locked deposits or assets, to borrow funds against them. These NFTs represent the right to claim the underlying assets, along with any accrued benefits, after a predefined maturity period. For an academic article, please visit [IEEE Xplore](https://ieeexplore.ieee.org/document/9967987/.)
+This ERC proposes a mechanism where a person (referred to as the "Asset Owner") can collateralize NFTs that represent locked deposits or assets, to borrow funds against them. These NFTs represent the right to claim the underlying assets, along with any accrued benefits, after a predefined maturity period. For an academic article, please visit [IEEE Xplore](https://ieeexplore.ieee.org/document/9967987/).
 
 
 ## Motivation
@@ -46,35 +45,44 @@ Solidity interface.
 ```solidity
 interface IPerpetualContractNFT {
 
-    // Logged when an NFT is used as collateral for a loan
+    // Emitted when an NFT is collateralized for obtaining a loan
     event Collateralized(uint256 indexed tokenId, address indexed owner, uint256 loanAmount, uint256 interestRate, uint256 loanDuration);
 
-    // Logged when a loan against an NFT is repaid and the NFT is released from collateral
+    // Emitted when a loan secured by an NFT is fully repaid, releasing the NFT from collateral
     event LoanRepaid(uint256 indexed tokenId, address indexed owner);
 
-    // Logged when a loan defaults and the NFT is transferred to the lender
+    // Emitted when a loan defaults, resulting in the transfer of the NFT to the lender
     event Defaulted(uint256 indexed tokenId, address indexed lender);
 
-    // Allows an NFT owner to use their NFT as collateral to receive a loan
+    // Enables an NFT owner to collateralize their NFT in exchange for a loan
     // @param tokenId The NFT to be used as collateral
     // @param loanAmount The amount of funds to be borrowed
     // @param interestRate The interest rate for the loan
     // @param loanDuration The duration of the loan
-    function collateralize(uint256 tokenId, uint256 loanAmount, uint256 interestRate, uint256 loanDuration) external;
+    function collateralize(uint256 tokenId, uint256 loanAmount, uint256 interestRate, uint64 loanDuration) external;
 
-    // Allows an NFT owner to repay their loan and reclaim their NFT
+    // Enables a borrower to repay their loan and regain ownership of the collateralized NFT
     // @param tokenId The NFT that was used as collateral
-    function repayLoan(uint256 tokenId) external;
+    // @param repayAmount The amount of funds to be repaid
+    function repayLoan(uint256 tokenId, uint256 repayAmount) external;
 
     // Allows querying the loan terms for a given NFT
     // @param tokenId The NFT used as collateral
-    // @return loanAmount, interestRate, loanDuration, and loanDueDate
+    // @return loanAmount The amount of funds borrowed
+    // @return interestRate The interest rate for the loan
+    // @return loanDuration The duration of the loan
+    // @return loanDueDate The due date for the loan repayment
     function getLoanTerms(uint256 tokenId) external view returns (uint256 loanAmount, uint256 interestRate, uint256 loanDuration, uint256 loanDueDate);
 
     // Allows querying the current owner of the NFT
     // @param tokenId The NFT in question
     // @return The address of the current owner
     function currentOwner(uint256 tokenId) external view returns (address);
+
+    // View the total amount required to repay the loan for a given NFT
+    // @param tokenId The NFT used as collateral
+    // @return The total amount required to repay the loan, including interest
+    function viewRepayAmount(uint256 tokenId) external view returns (uint256);
 }
 ```
 
@@ -107,31 +115,30 @@ Function `getLoanTerms`:
 Function `currentOwner`:
 - Implementation Suggestion: MAY be implemented as `external` `view`.
 - Usage: Enables querying the current owner of a specific NFT.
-  
+
+Function `viewRepayAmount`:
+- Implementation Suggestion: MAY be implemented as `external` `view`.
+- Usage: Enables querying the current repay amount of a specific NFT.
+- 
+This is what I write, but I think what you give me really reflect well what I want to propose. Please update what I write
+
 ## Rationale
-
-<!--
-  The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work, e.g. how the feature is supported in other languages.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
 ### Motivation 
-The design of this standard is motivated by the need to address specific challenges in the DeFi sector, particularly around the liquidity and management of assets locked as collateral. Traditional mechanisms in DeFi often require asset holders to lock up their assets for participation in lending, staking, or yield farming, resulting in a loss of liquidity. This standard aims to introduce a more flexible approach, allowing asset holders to retain some liquidity while their assets are locked, thereby enhancing the utility and appeal of DeFi products.
+The design of this standard is driven by the need to address specific challenges in the DeFi sector, particularly concerning the liquidity and management of assets locked as collateral. Traditional mechanisms in DeFi often require asset holders to lock up their assets for participation in activities such as lending, staking, or yield farming, which results in a loss of liquidity. This standard aims to introduce a more flexible approach, allowing asset holders to retain some liquidity while their assets are locked, thereby enhancing the utility and appeal of DeFi products.
 
 ### Design Decision
-- Dual-Role System (Owner and User/DeFi Platform): The standard introduces a distinct division between the NFT owner (the asset holder) and the user or DeFi platform utilizing the NFT as collateral. This clear distinction is intended to streamline rights and responsibilities, reducing potential disputes and enhancing transaction clarity.
+- Dual-Role System (Asset Owner and DeFi Platform/Contract): A clear division is established between the NFT owner (asset holder) and the DeFi platform or contract utilizing the NFT as collateral. This distintion simplifies the management of rights and responsibilities, enhancing clarity and reducing potential conflicts.
 
-- Automated Loan and Collateral Management: The integration of automated features for managing the terms and conditions of the collateralized NFT is a deliberate choice to minimize transaction costs and complexity, essential in the blockchain context where efficiency is paramount.
+- Enhancing Liquidity without Compromising Asset Locking Benefits: A key feature of this standard is enabling asset owners to use their NFTs, which represent locked assets, as collateral to secure loans. This approach allows asset owners to access liquidity without needing to withdraw their assets from pools or staking programs, thus preserving the associated benefits like interest accrual or voting rights.
 
-- DeFi Composability: The strategic emphasis on DeFi composability, particularly the integration between asset-locking and collateralizing services, is pivotal for this standard. This approach aims to streamline the adoption of the standard across diverse DeFi platforms and services. By fostering seamless connections within the DeFi ecosystem.
+- Automated Loan and Collateral Management: The integration of automated features for managing the terms and conditions of the collateralized NFT is a deliberate choice to minimize transaction costs and complexity.
+
+- DeFi Composability: The strategic emphasis on DeFi composability, particularly the integration between asset-locking and collateralizing services, is pivotal for this standard. This approach aims to streamline the adoption of the standard across diverse DeFi platforms and services, fostering seamless connections within the DeFi ecosystem.
 
 ### Alternate Designs and Related Work
 - Comparison with ERC-4907: While ERC-4907 also introduces a dual-role model for NFTs (owner and user), our standard focuses specifically on the use of NFTs for collateralization in financial transactions, diverging from ERC-4907’s rental-oriented approach.
 
-- Traditional Collateralization Mechanisms: The standard offers an alternative to traditional DeFi collateralization, which typically requires complete asset lock-up. It proposes a more dynamic model, allowing for continued liquidity and flexibility.
+- Improvement Over Traditional Collateralization Methods: Compared to traditional DeFi collateralization, which often requires complete asset lock-up, this standard proposes a more dynamic and flexible model that allows for continued liquidity access.
 
 
 ## Backwards Compatibility
@@ -139,37 +146,173 @@ The design of this standard is motivated by the need to address specific challen
 Fully compatible with ERC-721 and integrates with ERC-4907 for renting NFTs.
 
 ## Test Cases
+### Test contract
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-<!--
-  This section is optional for non-Core EIPs.
+import "./PerpetualContractNFT.sol";
 
-  The Test Cases section should include expected input/output pairs, but may include a succinct set of executable tests. It should not include project build files. No new requirements may be be introduced here (meaning an implementation following only the Specification section should pass all tests here.)
-  If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed
+contract PerpetualContractNFTDemo is PerpetualContractNFT {
 
-  TODO: Remove this comment before submitting
--->
+    constructor(string memory name, string memory symbol)
+        PerpetualContractNFT(name, symbol)
+    {         
+    }
+
+    function mint(uint256 tokenId, address to) public {
+        _mint(to, tokenId);
+    }
+}
+```
+
+## Test code
+```solidity
+import { expect } from "chai";
+import { ethers } from "hardhat";
+
+describe("PerpetualContractNFTDemo", function () {
+  it("should allow an owner to collateralize an NFT, rent it to a contract, and then have the owner repay the loan", async function () {
+    const [owner] = await ethers.getSigners();
+
+    const PerpetualContractNFTDemo = await ethers.getContractFactory("PerpetualContractNFTDemo");
+    // Set 5 minute (300,000) additional buffer
+    const demo = await PerpetualContractNFTDemo.deploy("DemoNFT", "DNFT");
+    await demo.waitForDeployment();
+    expect(demo.target).to.be.properAddress;
+
+    // Mint an NFT to the owner
+    await demo.mint(1, owner.address);
+
+    // Owner collateralizes the NFT for a loan
+    const loanAmount = ethers.parseUnits("1", "ether"); // 1 Ether in Wei. Use Wei to avoid precision error.
+    const interest = 5; // 5% interest
+    const expiration = Math.floor(new Date().getTime() / 1000) + 300; // Expire after 60 minutes (3600 seconds), convert it to seconds because `hours` in solidity converted to seconds
+    
+    await demo.connect(owner).collateralize(1, loanAmount, interest, expiration); // tokenId, loanAmount, interestRate, loanDuration
+
+    // Check current user of the NFT (should be the contract address)
+    expect(await demo.userOf(1)).to.equal(demo.target);
+
+    // Borrower repays the loan to release the NFT
+    const repayAmountWei = await demo.connect(owner).viewRepayAmount(1);
+    await demo.connect(owner).repayLoan(1, repayAmountWei);
+    
+    // Check if the NFT is returned to the original owner after the loan is repaid
+    expect(await demo.userOf(1)).to.equal("0x0000000000000000000000000000000000000000");
+  });
+});
+```
+
+Run in Terminal：
+```
+npx hardhat test
+```
 
 ## Reference Implementation
 
-<!--
-  This section is optional.
+```
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-  The Reference Implementation section should include a minimal implementation that assists in understanding or implementing this specification. It should not include project build files. The reference implementation is not a replacement for the Specification section, and the proposal should still be understandable without it.
-  If the reference implementation is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed.
+//import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "./IPerpetualContractNFT.sol";
+import "./ERC4907/ERC4907.sol";
 
-  TODO: Remove this comment before submitting
--->
+contract PerpetualContractNFT is ERC4907, IPerpetualContractNFT {
+    struct LoanInfo {
+        address borrower;   // Address that borrowed against the NFT
+        uint256 loanAmount; // Amount of funds borrowed
+        uint256 interestRate; // Interest rate for the loan
+        uint64 loanDuration; // Duration of the loan
+        uint256 loanStartTime; // Timestamp when the loan starts
+    }
+
+    uint256 private _bufferTime;
+    
+    mapping(uint256 => LoanInfo) internal _loans;
+
+    //Constructor to initialize the Perpetual Contract NFT contract with the given name and symbo
+    constructor(string memory name_, string memory symbol_)
+        ERC4907(name_, symbol_)
+    {}
+
+    function collateralize(uint256 tokenId, uint256 loanAmount, uint256 interestRate, uint64 loanDuration) public override {
+        require(ownerOf(tokenId) == msg.sender || isApprovedForAll(ownerOf(tokenId), msg.sender) || getApproved(tokenId) == msg.sender, "Not owner nor approved");
+
+        LoanInfo storage info = _loans[tokenId];
+        info.borrower = msg.sender;
+        info.loanAmount = loanAmount;
+        info.interestRate = interestRate;
+        info.loanDuration = loanDuration;
+        info.loanStartTime = block.timestamp;
+
+        setUser(tokenId, address(this), loanDuration);
+        emit Collateralized(tokenId, msg.sender, loanAmount, interestRate, loanDuration);
+
+        // Further logic can be implemented here to manage the lending of assets
+    }
+
+    function repayLoan(uint256 tokenId, uint256 repayAmount) public override {
+        require(_loans[tokenId].borrower == msg.sender, "Not the borrower.");
+
+        // Calculate the total amount due for repayment
+        uint256 totalDue = viewRepayAmount(tokenId);
+
+        // Check if the repayAmount is sufficient to cover at least a part of the total due amount
+        require(repayAmount <= totalDue, "Repay amount exceeds total due.");
+
+        // Calculate the remaining loan amount after repayment
+        _loans[tokenId].loanAmount = totalDue - repayAmount;
+
+        // Resets the user of the NFT to the default state if the entire loan amount is fully repaid
+        if(_loans[tokenId].loanAmount == 0) {
+            setUser(tokenId, address(0), 0);
+        }
+
+        emit LoanRepaid(tokenId, msg.sender);
+    }
+
+
+    function getLoanTerms(uint256 tokenId) public view override returns (uint256, uint256, uint256, uint256) {
+        LoanInfo storage info = _loans[tokenId];
+        return (info.loanAmount, info.interestRate, info.loanDuration, info.loanStartTime);
+    }
+
+    function currentOwner(uint256 tokenId) public view override returns (address) {
+        return ownerOf(tokenId);
+    }
+
+    function viewRepayAmount(uint256 tokenId) public view returns (uint256) {
+        if (_loans[tokenId].loanAmount == 0) {
+            // If the loan amount is zero, there is nothing to repay
+            return 0;
+        }
+
+        // The interest is calculated on an hourly basis, prorated based on the actual duration for which the loan was held.
+        // If the borrower repays before the loan duration ends, they are charged interest only for the time the loan was held.
+        // For example, if the annual interest rate is 5% and the borrower repays in half the loan term, they pay only 2.5% interest.
+        uint256 elapsed = block.timestamp > (_loans[tokenId].loanStartTime + _loans[tokenId].loanDuration) 
+                        ? _loans[tokenId].loanDuration  / 1 hours
+                        : (block.timestamp - _loans[tokenId].loanStartTime) / 1 hours;
+
+        // Round up
+        // Example: 15/4 = 3.75
+        // round((15 + 4 - 1)/4) = 4, round((15/4) = 3)
+        uint256 interest = ((_loans[tokenId].loanAmount * _loans[tokenId].interestRate / 100) * elapsed + (_loans[tokenId].loanDuration / 1 hours) - 1) / 
+                       (_loans[tokenId].loanDuration / 1 hours);
+
+        // Calculate the total amount due
+        uint256 totalDue = _loans[tokenId].loanAmount + interest;
+
+        return totalDue;
+    }
+
+    // Additional functions and logic to handle loan defaults, transfers, and other aspects of the NFT lifecycle
+}
+```
 
 ## Security Considerations
-
-<!--
-  All EIPs must contain a section that discusses the security implications/considerations relevant to the proposed change. Include information that might be important for security discussions, surfaces risks and can be used throughout the life cycle of the proposal. For example, include security-relevant design decisions, concerns, important discussions, implementation-specific guidance and pitfalls, an outline of threats and risks and how they are being addressed. EIP submissions missing the "Security Considerations" section will be rejected. An EIP cannot proceed to status "Final" without a Security Considerations discussion deemed sufficient by the reviewers.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
 Needs discussion.
 
 ## Copyright
