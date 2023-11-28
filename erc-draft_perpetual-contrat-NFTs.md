@@ -10,23 +10,12 @@ created: 2023-11-27
 requires: [721, 4907]
 ---
 
-<!--
-  READ EIP-1 (https://eips.ethereum.org/EIPS/eip-1) BEFORE USING THIS TEMPLATE!
-
-  This is the suggested template for new EIPs. After you have filled in the requisite fields, please delete these comments.
-
-  Note that an EIP number will be assigned by an editor. When opening a pull request to submit your EIP, please use an abbreviated title in the filename, `eip-draft_title_abbrev.md`.
-
-  The title should be 44 characters or less. It should not repeat the EIP number in title, irrespective of the category.
-
-  TODO: Remove this comment before submitting
--->
-
 ## Abstract
+
 This ERC proposes a mechanism where a person (referred to as the "Asset Owner") can collateralize NFTs that represent locked deposits or assets, to borrow funds against them. These NFTs represent the right to claim the underlying assets, along with any accrued benefits, after a predefined maturity period. For an academic article, please visit [IEEE Xplore](https://ieeexplore.ieee.org/document/9967987/).
 
-
 ## Motivation
+
 The rapidly evolving landscape of DeFi has introduced various mechanisms for asset locking, offering benefits like interest and voting rights. However, one of the significant challenges in this space is maintaining liquidity while these assets are locked. This ERC addresses this challenge by proposing a method to generate profit from locked assets using ERC-721 and ERC-4907.
 
 In DeFi services, such as Uniswap v3, liquidity providers contribute assets to pools and receive NFTs representing their stake. These NFTs denote the rights to the assets and the associated benefits, but they also lock the assets in the pool, often causing liquidity challenges for the providers. The current practice requires providers to withdraw their assets for urgent liquidity needs, adversely affecting the pool's liquidity and potentially increasing slippage during asset swaps.
@@ -36,10 +25,11 @@ Our proposal allows these NFTs, representing locked assets in liquidity pools, t
 The concept of perpetual contract NFTs, which we introduce, exploits the idea of perpetual futures contracts in the cryptocurrency derivatives market. These NFTs represent the rights to the perpetual contract and its collateral, enabling them to be used effectively as collateral for DeFi composability. The perpetual contract NFT offers a new form of NFT that enhances the utility of locked assets, providing a significant advantage in DeFi applications by offering liquidity while retaining the benefits of asset locking.
 
 ## Specification
+
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-
 ### Contract Interface
+
 Solidity interface.
 
 ```solidity
@@ -87,46 +77,55 @@ interface IPerpetualContractNFT {
 ```
 
 Event `Collateralized`:
+
 - Implementation Suggestion: MUST be emitted when the collateralize function is successfully executed.
 - Usage: Logs the event of an NFT being used as collateral for a loan, capturing essential details like the loan amount, interest rate, and loan duration.
 
-
 Event `LoanRepaid`:
+
 - Implementation Suggestion: MUST be emitted when the repayLoan function is successfully executed.
 - Usage: Logs the event of a loan being repaid and the corresponding NFT being released from collateral.
 
-
 Event `Defaulted`:
+
 - Implementation Suggestion: MUST be emitted in scenarios where the loan defaults and the NFT is transferred to the lender.
 - Usage: Used to log the event of a loan default and the transfer of the NFT to the lender.
 
 Function `collateralize`:
+
 - Implementation Suggestion: SHOULD be implemented as `external`.
 - Usage: Allows an NFT owner to collateralize their NFT to receive a loan.
 
 Function `repayLoan`:
+
 - Implementation Suggestion: SHOULD be implemented as `external`.
 - Usage: Enables an NFT owner to repay their loan and reclaim their NFT.
   
 Function `getLoanTerms`:
+
 - Implementation Suggestion: MAY be implemented as `external` `view`.
 - Usage: Allows querying the loan terms for a given NFT.
 
 Function `currentOwner`:
+
 - Implementation Suggestion: MAY be implemented as `external` `view`.
 - Usage: Enables querying the current owner of a specific NFT.
 
 Function `viewRepayAmount`:
+
 - Implementation Suggestion: MAY be implemented as `external` `view`.
 - Usage: Enables querying the current repay amount of a specific NFT.
-- 
+  
 This is what I write, but I think what you give me really reflect well what I want to propose. Please update what I write
 
 ## Rationale
-### Motivation 
+
+### Design Motivation
+
 The design of this standard is driven by the need to address specific challenges in the DeFi sector, particularly concerning the liquidity and management of assets locked as collateral. Traditional mechanisms in DeFi often require asset holders to lock up their assets for participation in activities such as lending, staking, or yield farming, which results in a loss of liquidity. This standard aims to introduce a more flexible approach, allowing asset holders to retain some liquidity while their assets are locked, thereby enhancing the utility and appeal of DeFi products.
 
 ### Design Decision
+
 - Dual-Role System (Asset Owner and DeFi Platform/Contract): A clear division is established between the NFT owner (asset holder) and the DeFi platform or contract utilizing the NFT as collateral. This distintion simplifies the management of rights and responsibilities, enhancing clarity and reducing potential conflicts.
 
 - Enhancing Liquidity without Compromising Asset Locking Benefits: A key feature of this standard is enabling asset owners to use their NFTs, which represent locked assets, as collateral to secure loans. This approach allows asset owners to access liquidity without needing to withdraw their assets from pools or staking programs, thus preserving the associated benefits like interest accrual or voting rights.
@@ -136,17 +135,19 @@ The design of this standard is driven by the need to address specific challenges
 - DeFi Composability: The strategic emphasis on DeFi composability, particularly the integration between asset-locking and collateralizing services, is pivotal for this standard. This approach aims to streamline the adoption of the standard across diverse DeFi platforms and services, fostering seamless connections within the DeFi ecosystem.
 
 ### Alternate Designs and Related Work
+
 - Comparison with ERC-4907: While ERC-4907 also introduces a dual-role model for NFTs (owner and user), our standard focuses specifically on the use of NFTs for collateralization in financial transactions, diverging from ERC-4907’s rental-oriented approach.
 
 - Improvement Over Traditional Collateralization Methods: Compared to traditional DeFi collateralization, which often requires complete asset lock-up, this standard proposes a more dynamic and flexible model that allows for continued liquidity access.
-
 
 ## Backwards Compatibility
 
 Fully compatible with ERC-721 and integrates with ERC-4907 for renting NFTs.
 
 ## Test Cases
+
 ### Test contract
+
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -167,6 +168,7 @@ contract PerpetualContractNFTDemo is PerpetualContractNFT {
 ```
 
 ## Test code
+
 ```solidity
 import { expect } from "chai";
 import { ethers } from "hardhat";
@@ -205,13 +207,14 @@ describe("PerpetualContractNFTDemo", function () {
 ```
 
 Run in Terminal：
-```
+
+```console
 npx hardhat test
 ```
 
 ## Reference Implementation
 
-```
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -313,8 +316,13 @@ contract PerpetualContractNFT is ERC4907, IPerpetualContractNFT {
 ```
 
 ## Security Considerations
+
 Needs discussion.
 
 ## Copyright
 
 Copyright and related rights waived via [CC0](../LICENSE.md).
+
+## Citation
+
+TBD
