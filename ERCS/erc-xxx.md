@@ -1,0 +1,321 @@
+---
+title: Crypto Security Token Smart Contract Interface
+description: Smart contract interface standard for representing crypto securities according to German Electronic Security Law (eWpG)
+author: Hagen Hübel <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-11-30
+---
+
+## Abstract
+This standard is an extension of [ERC-7551](https://github.com/ethereum/ERCs/pull/85). While ERC-7551 defines a compliant transfer, freezing of securities, enforced transfers by operators and machine readable properties of the issuance itself, this standard addresses the additional requirements according to the regulatory requirements of the German Electronic Security Act (GeSAct) in terms of confidentiality and transparency of the legal status of a security. 
+
+As no current approved standard is supporting the full set of demanded functionality, this standard shall, in combination with ERC-7551, enable the industry to build applications relying on a fully compliant On-Chain register for securities. 
+
+### Privacy of Balances
+The Smart Contract must check, if the wallet that is calling the report function, is eligible to get the Balance of a given wallet.  
+
+### Full descriptive Report of Balances
+The smart contract must provide a full set of properties along with the Balance as ruled out in the law
+
+### Support of different statuses of a security
+The smart contract must support different statuses of a security and enable transfer restrictions according to certain statuses. This is done by an approach based on ERC-1155.
+
+## Motivation
+
+The German Security Act aims to be agnostic to the technology that is used to build a Crypto Security Register according to its §16. Although EVM intentionally was designed to be public and permissionless on the level of the blockchain as well as on the level of smart contracts, the regulated market could benefit from the flexibility that come with smart contracts and the potentials that come with a potential combination of securities and utilities. 
+
+To overcome the monopole of the Central Securities Depository in traditional finance, there must be a reliable standard that is addressing the regulatory demands for a security. 
+Additionally, the implementation should embed as much regulation as possible into the smart contract to prevent the rise of siloed solutions developed by each regulated registrar. This is  enabling the different players in the market to integrate these securities in their trading platforms and exchanges independent from the regulated registrar that is managing them.
+
+Under these prerequisites, a security standard should not only address the restrictions based on KYC and AML rules but should also address the dimensions of privacy as well as transparency in terms of completeness of information about the properties and the legal status of a security. 
+
+This leads to the following requirements.
+
+## Requirements
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+Describes a standard interface for Security tokens issued on EVM compatible Blockchains that are compliant with GeSAct. 
+
+Requirements:
+
+- MUST distinguish between several statuses of the security
+- MUST restrict token transfers to specific parties and prevent - unauthorized transfers (already handled by ERC-7551)
+- MUST NOT permit the transfer or minting of tokens to wallets that are not authorized to receive them (already handled by ERC-7551)
+- MUST verify permissions for every token transfer (already handled by ERC-7551)
+- MUST enable designated operators to transfer or burn tokens on behalf of someone else if the appropriate permission has been granted (already handled by ERC-7551)
+- MUST use an external standardized access control layer, such as a registrar, that allows permissions to be shared across multiple tokens (already handled by ERC-7551)
+- MUST adhere to data protection laws
+- MUST NOT provide wallet balances to unauthorized parties
+- MUST ONLY provide wallet balances to parties with permission
+- MUST provide all legally required information about the security, along with the current balance
+- MUST provide a function to apply for permission to fetch a wallet's balance and emit an event for each application
+- SHOULD be compatible with commonly used token standards, such as ERC20, ERC1400, and ERC1155, but which support semi-fungible tokens and are capable of having a specific token ID (thus rather ERC-1155)
+- MUST enable designated operators with specific permissions to freeze tokens (already handled by ERC-7551)
+- MUST enable designated operators with specific permissions to unfreeze tokens (already handled by ERC-7551)
+- MUST allow operators to transfer or burn frozen tokens (already handled by ERC-7551)
+
+## Rationale
+
+The GeSAct outlines a set of regulations governing the issuance and treatment of Security Tokens in compliance with data protection laws. Current token standards enable anyone to access and query someone else's token balance, which is not compliant with data protection laws. Instead, only individuals with a legitimate interest should be allowed to access a wallet's balance. Such individuals may include the wallet owner themselves, a bank account manager, a registrar, or someone who has been granted permission by one of the aforementioned parties. 
+
+Therefore, to promote self-sovereign privacy, any token holder is given the ability to designate authorized representatives for specific actions.
+
+*DISCLAIMER: We are aware that balance privacy also needs adjustments at the level of the underlying EVM to prevent the computation of balances by analysing the transaction history. This EIP is addressing the level of the Smart Contract only.* 
+
+### Data protection and the “public permissionless blockchain”-dilemma
+At the time of writing, conventional public permissionless Blockchains like Ethereum, Avalanche or Polygon are not compliant with the requirements of GeSAct and data protection laws. 
+
+While it is possible to design a Smart Contract so that only a previously authenticated wallet is able to query the balance of a specific wallet, the public and permissionless nature of a Blockchain means that anyone can access and parse raw transactions to determine which actions have been taken.
+
+Therefore, this EIP only makes sense on a customized EVM blockchain that permits the hiding of transactions from the public, while also providing access to execute methods on a Smart Contract. This approach ensures that complete control over token management is solely handled via the underlying Smart Contract(s).
+
+## Specifications
+As we have explained above, none of the current ERC token standards are capable of meeting the requirements of the German Electronic Securities Act (GeSAct) regarding registration details and confidentiality. A standard is needed that conceptually integrates this regulation.
+
+Therefore, we suggest abandoning the compatibility with ERC-20 and instead introduce compatibility with the ERC-1155 standard. The ERC-1155 is a token standard that allows for the creation and management of multiple types of tokens within a single Smart-Contract. This is in contrast to earlier token standards like ERC-20 and ERC-721, which support only one type of token per Smart-Contract.
+
+With ERC-1155, various token types, including fungible tokens (e.g., cryptocurrencies, securities, assets) and non-fungible tokens (e.g., collectibles, artwork, other unique items), can be created in a single Smart-Contract instance. This also allows for more efficient token management and reduces transaction costs, as multiple tokens can be transferred in a single transaction.
+
+This standard, in conjunction with the underlying ERC-7551, will modify the ERC-1155 to ensure legal compliance. By default, the 'balanceOf' method will always return 0 (indicating zero balance) to fulfill data protection requirements. To facilitate compatibility with secondary markets, DEXes, and similar platforms, any token holder will be allowed to define the quantity of tokens they wish to be displayed by the 'balanceOf' method. This is provided that the displayed balance remains within the range of 0 <= displayed balance <= actual balance.
+
+To eventually comply with legal requirements according to §17.3, which aims for a register extract that describes the fundamental rights and properties of the security, this standard introduces the method “balanceReport” (described below).
+
+MUST be reverted, and additional methods MUST be added as described below:
+
+## Interface
+
+### Constants
+
+Token Legal Status:
+
+
+```solidity
+    /* collective registration for securities held by deposit banks or a custodian: */
+    uint256 public constant STATUS_COLLECTIVE = 0x01;
+
+```
+
+```solidity
+	/* individual registration for securities held by natural persons or legal entities and disposal power by the owner is not restricted in any way */
+    uint256 public constant STATUS_SINGLE_WITHOUT_RESTRICTIONS = 0x02;
+
+```
+
+```solidity
+	/* individual registration for securities held by natural persons or legal entities and disposal power by the owner is not restricted */
+    uint256 public constant STATUS_SINGLE_WITH_DISPOSAL_RESTRICTIONS = 0x03;
+```
+
+```solidity
+    /* individual registration for securities held by natural persons or legal entities that are burdened with third party rights */
+    uint256 public constant STATUS_SINGLE_THIRD_PARTY_RIGHTS = 0x04;
+```
+
+To comply with the law, when fetching the balance for a specific wallet, we not only have to return the balance value but also MUST provide all other required information as demanded by the law. This report is called a Balance Report.
+
+The Balance Report MUST include the following information and SHOULD be obtained through a single function call after obtaining the necessary permission
+
+### Structs
+
+```solidity
+struct BalanceReport {
+    // the corresponding wallet
+    address account;
+
+    // the current balance of the wallet
+    uint256 balance;
+
+    // the total supply of the emission (total of all token-id’s)
+    uint256 totalSupply;
+
+   // the name of the token
+    string name;
+
+    // the name of the issuer
+    string issuer;
+
+    // the denomination, e.g. 1000 means: 1 Token = 1.000 EUR
+    string denomination;
+}
+```
+
+### Enum
+
+In order to authorize representatives for certain actions, we need to define them in an Enum:
+
+
+```solidity
+    /** Authorized Action */
+    enum AuthorizedAction {
+        BALANCE_REPORT,
+        ALLOWANCE
+    }
+```
+
+### Functions
+
+In order to fetch issuer and token related data that do not require a balance-query, we need the following functions:
+
+```solidity
+function name() external view returns (string memory);
+
+function issuer() external view returns (string memory);
+
+function denomination() external view returns (string memory);
+```
+
+#### authorizeRepresentative
+A holder of tokens can delegate authority to representatives, empowering them to execute specific operations such as `balanceReport` and `transfer`, reminiscent of the **allowances** concept in ERC-20. Just like any other token holder, the representative must meet eligibility criteria to perform these actions, which necessitates having the appropriate permissions.
+
+```solidity
+function authorizeRepresentative(AuthorizedAction action, address representative) public;
+```
+
+#### balanceReport
+The balance according to §17.3 eWpG MUST be queried by accounts with a legitimate interest, and the Balance Report MUST contain all legally required information. Authorization will be done with an ECDSA signature provided along with the original message containing the necessary input parameters. This ensures that the function call is secured without state manipulation. 
+
+
+```solidity
+   function balanceReport(
+        AuthorizedAction action,
+        address account,
+        uint8 id,
+        bytes32 accessCode,
+        bytes calldata signature
+    ) external view returns (BalanceReport memory report);
+```
+
+#### balanceOf
+
+```solidity
+function balanceOf(address account, uint256 id) public view returns (uint256);
+```
+
+As already mentioned, the method balanceOf of ERC1155 returns per default 0. 
+Any token holder will be allowed to define the quantity of tokens they wish to be displayed by the 'balanceOf' method. This is provided that the displayed balance remains within the range of 0 <= displayed balance <= actual balance. 
+These methods to define an “allowed balance” are not part of this standard and up to registrar to define, how they want to provide such functionality.
+
+
+#### createPermissionForBalanceReport
+
+The `createPermissionForBalanceReport` method is employed to generate an authorization that enables the invocation of the balanceReport function for a specific token holder's account, designated as account, and a distinct tokenId. The tokenId represents the Token Legal Status (refer to the section titled “Constants” for more details).
+
+This method will invariably generate and return a corresponding signature, without consideration for the current legitimate interest involved. However, it's essential to note that the validation of the legitimate interest isn't bypassed entirely. Instead, this crucial validation step is deferred and carried out within the `balanceReport` function.
+
+Upon successful execution, this function yields a signature that can subsequently be input into the `balanceReport` function. It's essential to note that this signature MUST ONLY remain valid for a specific duration, such as 5 minutes, as determined by the registrar. When the signature is used in the `balanceReport` function, it will revert if the legitimate interest is no longer valid.
+
+
+```solidity
+   function createPermissionForBalanceReport(
+        address account,
+        uint8 tokenId
+    ) public view returns (bytes memory);
+```
+
+#### isAuthorizedRepresentativeFor
+This function evaluates whether a representative has been granted the authority to execute a specific action.
+
+```solidity
+function isAuthorizedRepresentativeFor(
+        AuthorizedAction action,  address representative, address tokenHolder
+    ) public view returns (bool)
+```
+
+#### issue
+Inherits from ERC-7551:
+
+This function MUST increase the balance of  `to` by `amount` without decreasing the amount of tokens from any other holder. This function MUST throw if the sum of `amount` and the amount of already issued tokens is greater than the total supply. It MUST emit a `Transfer` as well as an `TokensIssued` event. Paused transfers MUST NOT prevent an issuance. 
+
+The `data` parameter MUST contain the Token Legal Status (“Token-Id”) represented by STATUS_XXX-constants mentioned above.
+
+```solidity
+function issue(address to, uint256 amount, bytes calldata data) external;
+```
+
+#### destroyTokens
+Inherits from ERC-7551:
+
+This function MUST reduce the balance of `tokenHolder` by `amount` without increasing the amount of tokens of any other holder. It MUST emit a `TokensDestroyed` as well as a `Transfer` event. The `Transfer` event MUST contain `0x0` as the recipient account address. The function MUST throw if `tokenHolder`'s balance is less than `amount` (including frozen tokens). It MUST NOT be possible to destroy the supply. It MUST NOT be possible to issue destroyed tokens to other accounts. Paused transfers MUST NOT prevent destroying tokens. The `data` parameter MAY be used to further document the action.
+
+The `data` parameter MUST contain the Token Legal Status (“Token-Id”) represented by STATUS_XXX-constants mentioned above.
+
+```solidity
+function destroyTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+#### forceTransferFrom
+Inherits from ERC-7551:
+
+This function MUST transfer `amount` tokens to `to` without requiring the consent of `from`. The function MUST throw if `from`'s balance is less than `amount` (including frozen tokens). If the frozen balance of `from` is used for the transfer a `TokenUnfrozen` event must be emitted. The function MUST emit a `Transfer` event. The `data` parameter MAY be used to further document the action.
+
+The `data` parameter MUST contain the Token Legal Status (“Token-Id”) represented by STATUS_XXX-constants mentioned above.
+
+
+```solidity
+function forceTransferFrom(address from, address to, uint256 amount, bytes calldata data) external;
+```
+
+#### freezeTokens
+Inherits from ERC-7551:
+
+This function MUST freeze `amount` tokens of `tokenHolder`. Frozen tokens cannot be transferred to other accounts. The function MUST emit a `TokensFrozen` event. The function MUST throw if `tokenHolder`'s active balance is less than `amount` (excluding already frozen tokens). The `data` parameter MAY be used to further document the action.
+
+The `data` parameter MUST contain the Token Legal Status (“Token-Id”) represented by STATUS_XXX-constants mentioned above.
+
+```solidity
+function freezeTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+#### revokeRepresentative
+
+The `revokeRepresentative` function reverses the permissions previously granted to a representative by a token holder using the `authorizeRepresentative` function. It effectively removes the representative's authority to perform certain operations, such as `balanceReport` and `transfer`.
+
+The action of revoking a representative's authority ensures that the representative can no longer perform these tasks on behalf of the token holder. This functionality is critical in scenarios where the token holder wishes to regain full control over their operations or where a representative's duties are no longer required.
+
+
+#### unfreezeTokens
+Inherits from ERC-7551:
+
+This function MUST unfreeze `amount` tokens of `tokenHolder`. The function MUST emit a `TokensUnfrozen` event. The function MUST throw if `tokenHolder`'s frozen balance is less than `amount`. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function unfreezeTokens(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+### Events
+
+#### AuthorizedOperator
+This event MUST be emitted when a representative has been authorized.
+
+```solidity
+    event AuthorizedRepresentative(
+        AuthorizedAction action,
+        address indexed signer,
+        address indexed representative,
+        address indexed tokenHolder
+    );
+```
+
+### RevokedOperator
+This event MUST be emitted when a representative has been revoked from authorization.
+
+```solidity
+    event RevokedRepresentative(
+        AuthorizedAction action,
+        address indexed signer,
+        address indexed representative,
+        address indexed tokenHolder
+    );
+```
+
+## Backwards Compatibility
+
+This new token standard does not impose any backward compatibility.
+
+## Copyright
+
+Copyright and related rights waived via CC0.
