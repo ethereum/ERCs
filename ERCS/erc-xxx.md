@@ -15,10 +15,10 @@ This standard is an extension of [ERC-7551](https://github.com/ethereum/ERCs/pul
 As no current approved standard is supporting the full set of demanded functionality, this standard shall, in combination with ERC-7551, enable the industry to build applications relying on a fully compliant On-Chain register for securities. 
 
 ### Privacy of Balances
-The Smart Contract must check, if the wallet that is calling the report function, is eligible to get the Balance of a given wallet.  
+The Smart Contract must check, if the wallet that is calling the report function, is eligible to get the balance of a given wallet.  
 
 ### Full descriptive Report of Balances
-The smart contract must provide a full set of properties along with the Balance as ruled out in the law
+The smart contract must provide a full set of properties along with the balance as ruled out in the law
 
 ### Support of different statuses of a security
 The smart contract must support different statuses of a security and enable transfer restrictions according to certain statuses. This is done by an approach based on ERC-1155.
