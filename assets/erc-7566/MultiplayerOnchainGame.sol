@@ -59,7 +59,7 @@ contract MOG is IMOG{
         return RoomMembers[_roomId][_member];
     }
 
-    function sendMessage(uint256 _roomId,uint256[] memory _to,bytes memory _message) public virtual returns(uint256){
+    function sendMessage(uint256 _roomId,uint256[] memory _to,bytes memory _message,Types.Type[] memory _messageTypes) public virtual returns(uint256){
         require(_roomId<=roomIds);
         require(hasMember( _roomId, msg.sender));
         uint256 from = getMemberId( _roomId, msg.sender);
@@ -83,10 +83,7 @@ contract MOG is IMOG{
             }   
         }
 
-       Types.Type[] memory messageTypeArray = new Types.Type[](2);
-        messageTypeArray[0] = Types.Type.UINT256;
-        messageTypeArray[1] = Types.Type.UINT256;
-        Messages[_roomId][currentRoomMessageId]=Message(_roomId,_message,messageTypeArray,from,_to);
+        Messages[_roomId][currentRoomMessageId]=Message(_roomId,_message,_messageTypes,from,_to);
         RoomMessageIds[_roomId]=currentRoomMessageId+1;
         return currentRoomMessageId;
     }
