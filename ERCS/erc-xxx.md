@@ -1,6 +1,6 @@
 ---
-title: Crypto Security Token Smart Contract Interface
-description: Smart contract interface standard for representing crypto securities according to German Electronic Security Law (eWpG)
+title: Smart Contract Interface to implement confidentiality and legal status transparency to crypto security tokens
+description: Smart contract interface standard to additionally offer confidentiality and legal status transparency to crypto securities according to the German Electronic Security Act ([eWpG](https://www.gesetze-im-internet.de/ewpg/index.html))
 author: Hagen Hübel <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>
 discussions-to: <URL>
 status: Draft
@@ -10,25 +10,27 @@ created: 2023-11-30
 ---
 
 ## Abstract
-This standard is an extension of [ERC-7551](https://github.com/ethereum/ERCs/pull/85). While ERC-7551 defines a compliant transfer, freezing of securities, enforced transfers by operators and machine readable properties of the issuance itself, this standard addresses the additional requirements according to the regulatory requirements of the German Electronic Security Act (GeSAct) in terms of confidentiality and transparency of the legal status of a security. 
+This standard is an extension of [ERC-7551](https://github.com/ethereum/ERCs/pull/85). While ERC-7551 defines a compliant transfer, freezing of securities, enforced transfers by operators and machine readable properties of the issuance itself, this standard addresses the additional regulatory requirements according to the German Electronic Security Act (eWpG (link to ewpg)) in terms of confidentiality and transparency of the legal status of a security. 
 
-As no current approved standard is supporting the full set of demanded functionality, this standard shall, in combination with ERC-7551, enable the industry to build applications relying on a fully compliant On-Chain register for securities. 
+As no current approved standard is supporting the full set of demanded functionality, this standard shall, as an extension of ERC-7551, enable the industry to build applications relying on a fully compliant On-Chain register for securities. 
+
+Additionally to the requirements covered in ERC-7551, this standard seeks to fulfil:
 
 ### Privacy of Balances
-The Smart Contract must check, if the wallet that is calling the report function, is eligible to get the balance of a given wallet.  
+The Smart Contract must check, if the wallet that is calling the report function, is eligible to get the Balance of a given wallet.  
 
 ### Full descriptive Report of Balances
-The smart contract must provide a full set of properties along with the balance as ruled out in the law
+The smart contract must provide a full set of properties along with the Balance as ruled out in the law.
 
-### Support of different statuses of a security
+### Support of different legal statuses of a security
 The smart contract must support different statuses of a security and enable transfer restrictions according to certain statuses. This is done by an approach based on ERC-1155.
 
 ## Motivation
 
-The German Security Act aims to be agnostic to the technology that is used to build a Crypto Security Register according to its §16. Although EVM intentionally was designed to be public and permissionless on the level of the blockchain as well as on the level of smart contracts, the regulated market could benefit from the flexibility that come with smart contracts and the potentials that come with a potential combination of securities and utilities. 
+The German Electronic Security Act aims to be agnostic to the technology that is used to build a Crypto Security Register according to its §16. Although EVM intentionally was designed to be public and permissionless on the level of the blockchain as well as on the level of smart contracts, the regulated market could benefit from the flexibility that come with smart contracts and the potentials that come with a potential combination of securities and utilities. 
 
-To overcome the monopole of the Central Securities Depository in traditional finance, there must be a reliable standard that is addressing the regulatory demands for a security. 
-Additionally, the implementation should embed as much regulation as possible into the smart contract to prevent the rise of siloed solutions developed by each regulated registrar. This is  enabling the different players in the market to integrate these securities in their trading platforms and exchanges independent from the regulated registrar that is managing them.
+To overcome the monopole of the Central Securities Depository in traditional finance, there must be a reliable standard that is addressing the regulatory demands for a crypto securities. 
+Additionally, the implementation should embed as much regulation as possible into the smart contract to prevent the rise of siloed solutions developed by each regulated crypto registrar. This enables the different players in the market to integrate these securities in their trading platforms and exchanges independent from the regulated registrar that is managing them.
 
 Under these prerequisites, a security standard should not only address the restrictions based on KYC and AML rules but should also address the dimensions of privacy as well as transparency in terms of completeness of information about the properties and the legal status of a security. 
 
@@ -42,7 +44,7 @@ Describes a standard interface for Security tokens issued on EVM compatible Bloc
 
 Requirements:
 
-- MUST distinguish between several statuses of the security
+- MUST distinguish between several legal statuses of the security
 - MUST restrict token transfers to specific parties and prevent - unauthorized transfers (already handled by ERC-7551)
 - MUST NOT permit the transfer or minting of tokens to wallets that are not authorized to receive them (already handled by ERC-7551)
 - MUST verify permissions for every token transfer (already handled by ERC-7551)
@@ -50,7 +52,7 @@ Requirements:
 - MUST use an external standardized access control layer, such as a registrar, that allows permissions to be shared across multiple tokens (already handled by ERC-7551)
 - MUST adhere to data protection laws
 - MUST NOT provide wallet balances to unauthorized parties
-- MUST ONLY provide wallet balances to parties with permission
+- MUST ONLY provide wallet balances to authorized parties
 - MUST provide all legally required information about the security, along with the current balance
 - MUST provide a function to apply for permission to fetch a wallet's balance and emit an event for each application
 - SHOULD be compatible with commonly used token standards, such as ERC20, ERC1400, and ERC1155, but which support semi-fungible tokens and are capable of having a specific token ID (thus rather ERC-1155)
@@ -60,21 +62,21 @@ Requirements:
 
 ## Rationale
 
-The GeSAct outlines a set of regulations governing the issuance and treatment of Security Tokens in compliance with data protection laws. Current token standards enable anyone to access and query someone else's token balance, which is not compliant with data protection laws. Instead, only individuals with a legitimate interest should be allowed to access a wallet's balance. Such individuals may include the wallet owner themselves, a bank account manager, a registrar, or someone who has been granted permission by one of the aforementioned parties. 
+The eWpG outlines a set of regulations governing the issuance and treatment of Security Tokens in compliance with data protection laws. Current token standards enable anyone to access and query someone else's token balance, which is not compliant with data protection laws. Instead, only individuals with a legitimate interest should be allowed to access a wallet's balance. Such individuals may include the wallet owner themselves, a bank account manager, a registrar, or someone who has been granted permission by one of the aforementioned parties. 
 
 Therefore, to promote self-sovereign privacy, any token holder is given the ability to designate authorized representatives for specific actions.
 
 *DISCLAIMER: We are aware that balance privacy also needs adjustments at the level of the underlying EVM to prevent the computation of balances by analysing the transaction history. This EIP is addressing the level of the Smart Contract only.* 
 
 ### Data protection and the “public permissionless blockchain”-dilemma
-At the time of writing, conventional public permissionless Blockchains like Ethereum, Avalanche or Polygon are not compliant with the requirements of GeSAct and data protection laws. 
+At the time of writing, conventional public permissionless Blockchains like Ethereum, Avalanche or Polygon are not compliant with the requirements of eWpG and data protection laws. 
 
 While it is possible to design a Smart Contract so that only a previously authenticated wallet is able to query the balance of a specific wallet, the public and permissionless nature of a Blockchain means that anyone can access and parse raw transactions to determine which actions have been taken.
 
 Therefore, this EIP only makes sense on a customized EVM blockchain that permits the hiding of transactions from the public, while also providing access to execute methods on a Smart Contract. This approach ensures that complete control over token management is solely handled via the underlying Smart Contract(s).
 
 ## Specifications
-As we have explained above, none of the current ERC token standards are capable of meeting the requirements of the German Electronic Securities Act (GeSAct) regarding registration details and confidentiality. A standard is needed that conceptually integrates this regulation.
+As we have explained above, none of the current ERC token standards are capable of meeting the requirements of the German Electronic Securities Act (eWpG) regarding registration details and confidentiality. A standard is needed that conceptually integrates this regulation.
 
 Therefore, we suggest abandoning the compatibility with ERC-20 and instead introduce compatibility with the ERC-1155 standard. The ERC-1155 is a token standard that allows for the creation and management of multiple types of tokens within a single Smart-Contract. This is in contrast to earlier token standards like ERC-20 and ERC-721, which support only one type of token per Smart-Contract.
 
@@ -83,8 +85,6 @@ With ERC-1155, various token types, including fungible tokens (e.g., cryptocurre
 This standard, in conjunction with the underlying ERC-7551, will modify the ERC-1155 to ensure legal compliance. By default, the 'balanceOf' method will always return 0 (indicating zero balance) to fulfill data protection requirements. To facilitate compatibility with secondary markets, DEXes, and similar platforms, any token holder will be allowed to define the quantity of tokens they wish to be displayed by the 'balanceOf' method. This is provided that the displayed balance remains within the range of 0 <= displayed balance <= actual balance.
 
 To eventually comply with legal requirements according to §17.3, which aims for a register extract that describes the fundamental rights and properties of the security, this standard introduces the method “balanceReport” (described below).
-
-MUST be reverted, and additional methods MUST be added as described below:
 
 ## Interface
 
@@ -111,13 +111,14 @@ Token Legal Status:
 ```
 
 ```solidity
-    /* individual registration for securities held by natural persons or legal entities that are burdened with third party rights */
+    /* individual registration for securities held by natural persons or legal entities that can be burdened with third party rights */
     uint256 public constant STATUS_SINGLE_THIRD_PARTY_RIGHTS = 0x04;
 ```
 
 To comply with the law, when fetching the balance for a specific wallet, we not only have to return the balance value but also MUST provide all other required information as demanded by the law. This report is called a Balance Report.
 
-The Balance Report MUST include the following information and SHOULD be obtained through a single function call after obtaining the necessary permission
+The Balance Report MUST include the following information and SHOULD be obtained through a single function call after obtaining the necessary permission.
+
 
 ### Structs
 
@@ -169,7 +170,7 @@ function denomination() external view returns (string memory);
 ```
 
 #### authorizeRepresentative
-A holder of tokens can delegate authority to representatives, empowering them to execute specific operations such as `balanceReport` and `transfer`, reminiscent of the **allowances** concept in ERC-20. Just like any other token holder, the representative must meet eligibility criteria to perform these actions, which necessitates having the appropriate permissions.
+A holder of tokens can delegate authority to representatives, empowering them to execute specific operations such as `balanceReport` and `transfer`, reminiscent of the **allowances** concept in ERC-20. Just like any other token holder, the representative must meet eligibility criteria to perform these actions, which requires having the appropriate permissions.
 
 ```solidity
 function authorizeRepresentative(AuthorizedAction action, address representative) public;
@@ -197,8 +198,7 @@ function balanceOf(address account, uint256 id) public view returns (uint256);
 
 As already mentioned, the method balanceOf of ERC1155 returns per default 0. 
 Any token holder will be allowed to define the quantity of tokens they wish to be displayed by the 'balanceOf' method. This is provided that the displayed balance remains within the range of 0 <= displayed balance <= actual balance. 
-These methods to define an “allowed balance” are not part of this standard and up to registrar to define, how they want to provide such functionality.
-
+These methods to define an “allowed balance” are not part of this standard and up to the registrar to define, how they want to provide such functionality.
 
 #### createPermissionForBalanceReport
 
