@@ -10,7 +10,7 @@ created: 2023-11-30
 ---
 
 ## Abstract
-This standard is an extension of [ERC-7551](https://github.com/ethereum/ERCs/pull/85). While ERC-7551 defines a compliant transfer, freezing of securities, enforced transfers by operators and machine readable properties of the issuance itself, this standard addresses the additional regulatory requirements according to the German Electronic Security Act (eWpG (link to ewpg)) in terms of confidentiality and transparency of the legal status of a security. 
+This standard is an extension of [ERC-7551](https://github.com/ethereum/ERCs/pull/85). While ERC-7551 defines a compliant transfer, freezing of securities, enforced transfers by operators and machine readable properties of the issuance itself, this standard addresses the additional regulatory requirements according to the German Electronic Security Act ([eWpG](https://www.gesetze-im-internet.de/ewpg/index.html)) in terms of confidentiality and transparency of the legal status of a security. 
 
 As no current approved standard is supporting the full set of demanded functionality, this standard shall, as an extension of ERC-7551, enable the industry to build applications relying on a fully compliant On-Chain register for securities. 
 
