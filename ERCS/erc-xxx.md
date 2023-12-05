@@ -29,7 +29,7 @@ The smart contract must support different statuses of a security and enable tran
 
 The German Electronic Security Act aims to be agnostic to the technology that is used to build a Crypto Security Register according to its §16. Although EVM intentionally was designed to be public and permissionless on the level of the blockchain as well as on the level of smart contracts, the regulated market could benefit from the flexibility that come with smart contracts and the potentials that come with a potential combination of securities and utilities. 
 
-To overcome the monopole of the Central Securities Depository in traditional finance, there must be a reliable standard that is addressing the regulatory demands for a crypto securities. 
+To overcome the monopole of the Central Securities Depository in traditional finance, there must be a reliable standard that is addressing the regulatory demands for crypto securities. 
 Additionally, the implementation should embed as much regulation as possible into the smart contract to prevent the rise of siloed solutions developed by each regulated crypto registrar. This enables the different players in the market to integrate these securities in their trading platforms and exchanges independent from the regulated registrar that is managing them.
 
 Under these prerequisites, a security standard should not only address the restrictions based on KYC and AML rules but should also address the dimensions of privacy as well as transparency in terms of completeness of information about the properties and the legal status of a security. 
