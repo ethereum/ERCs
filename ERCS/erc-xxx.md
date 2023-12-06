@@ -2,7 +2,7 @@
 title: Smart Contract Interface to implement confidentiality and legal status transparency to crypto security tokens
 description: Smart contract interface standard to additionally offer confidentiality and legal status transparency to crypto securities according to the German Electronic Security Act ([eWpG](https://www.gesetze-im-internet.de/ewpg/index.html))
 author: Hagen Hübel (@itinance) <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/draft-erc-smart-contract-interface-to-implement-confidentiality-and-legal-status-transparency-to-crypto-security-tokens/17007
 status: Draft
 type: Standards Track
 category: ERC
