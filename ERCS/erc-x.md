@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: TODO
-requires: 20, 165, 4626
+requires: 20, 2771, 4626
 ---
 
 ## Abstract
@@ -27,9 +27,16 @@ There are use cases where multiple assets can be deposited to receive the same s
 
 The existing definitions from [ERC-4626](./eip-4626.md) apply.
 
+- [ERC-20](./eip-20.md) compliant Vault: Vault that implements the [ERC-20](./eip-20.md) specification including the optional metadata extension
+- [ERC-20](./eip-20.md) non-compliant Vault: Vault that do not implement the [ERC-20](./eip-20.md) specification
+
 ### Deviation from [ERC-4626](./eip-4626.md)
 
-ERC-x Vaults MAY implement [ERC-20](./eip-20.md) to represent shares. If an ERC-x Vault does implement [ERC-20](./eip-20.md), the `share` method SHOULD return the address of the Vault. If an ERC-x Vault does not implement [ERC-20](./eip-20.md), the `share` method SHOULD NOT return the address of the vault.
+ERC-x Vaults MAY implement [ERC-20](./eip-20.md) to represent shares.
+
+For [ERC-20](./eip-20.md) compliant Vaults, the `share` method SHOULD return the address of the Vault.
+
+For [ERC-20](./eip-20.md) non-compliant Vaults, the `share` method SHOULD NOT return the address of the Vault.
 
 ### Methods
 
@@ -48,30 +55,19 @@ The address of the underlying share received on deposit into the Vault.
       type: address
 ```
 
-### [ERC-165](./eip-165.md) support
-
-Smart contracts implementing this Vault standard MUST implement the [ERC-165](./eip-165.md) `supportsInterface` function.
-
-Vaults MUST return the constant value `true` if `TODO` is passed through the `interfaceID` argument.
-
 ## Rationale
 
 TODO
-### Mandated Support for [ERC-165](./eip-165.md)
 
-Implementing support for [ERC-165](./eip-165.md) is mandated because this enables differentiating [ERC-4626](./eip-4626.md) Vaults that use ERC-X from those that do not.
 
 ## Backwards Compatibility
 
 TODO
 
-## Reference Implementation
-
-TODO
-
 ## Security Considerations
 
-TODO
+Vaults that do not implement [ERC-20](./eip-20.md), where `share` does not return the address of the Vault, must take care with supporting a redeem flow where `owner` is not `msg.sender`, since the [ERC-20](./eip-20.md) approval flow does not by itself work if the Vault and share are separate contracts. It can work by setting up the Vault as a trusted forwarder of the share token, using [ERC-2771](./eip-2771.md).
+
 
 ## Copyright
 
