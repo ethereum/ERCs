@@ -30,19 +30,19 @@ The existing definitions from [ERC-4626](./eip-4626.md) apply.
 - [ERC-20](./eip-20.md) compliant Vault: Vault that implements the [ERC-20](./eip-20.md) specification including the optional metadata extension
 - [ERC-20](./eip-20.md) non-compliant Vault: Vault that do not implement the [ERC-20](./eip-20.md) specification
 
-### Deviation from [ERC-4626](./eip-4626.md)
+### [ERC-20](./eip-20.md) non-compliant Vaults
 
-ERC-x Vaults MAY implement [ERC-20](./eip-20.md) to represent shares.
-
-For [ERC-20](./eip-20.md) compliant Vaults, the `share` method SHOULD return the address of the Vault.
-
-For [ERC-20](./eip-20.md) non-compliant Vaults, the `share` method SHOULD NOT return the address of the Vault.
+ERC-x Vaults MAY implement [ERC-20](./eip-20.md) to represent shares. If they do not, there needs to be a separate share token contract, that is minted on entering the vault and burned on exiting the vault.
 
 ### Methods
 
 #### share
 
 The address of the underlying share received on deposit into the Vault.
+
+For [ERC-20](./eip-20.md) compliant Vaults, the `share` method SHOULD return the address of the Vault.
+
+For [ERC-20](./eip-20.md) non-compliant Vaults, the `share` method SHOULD NOT return the address of the Vault.
 
 ```yaml
 - name: share
@@ -58,6 +58,10 @@ The address of the underlying share received on deposit into the Vault.
 ## Rationale
 
 This standard is intentionally flexible to support both existing [ERC-4626](./eip-4626.md) Vaults easily by the introduction of a single new method, but also flexible to support new use cases by allowing separate share tokens.
+
+## Reference Implementation
+
+N/A
 
 ## Backwards Compatibility
 
