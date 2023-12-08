@@ -57,17 +57,15 @@ The address of the underlying share received on deposit into the Vault.
 
 ## Rationale
 
-TODO
-
+This standard is intentionally flexible to support both existing [ERC-4626](./eip-4626.md) Vaults easily by the introduction of a single new method, but also flexible to support new use cases by allowing separate share tokens.
 
 ## Backwards Compatibility
 
-TODO
+Existing [ERC-4626](./eip-4626.md) Vaults can be made compatible with ERC-x by adding a single `share` method that returns the address of the Vault.
 
 ## Security Considerations
 
-Vaults that do not implement [ERC-20](./eip-20.md), where `share` does not return the address of the Vault, must take care with supporting a redeem flow where `owner` is not `msg.sender`, since the [ERC-20](./eip-20.md) approval flow does not by itself work if the Vault and share are separate contracts. It can work by setting up the Vault as a trusted forwarder of the share token, using [ERC-2771](./eip-2771.md).
-
+[ERC-20](./eip-20.md) non-compliant Vaults must take care with supporting a redeem flow where `owner` is not `msg.sender`, since the [ERC-20](./eip-20.md) approval flow does not by itself work if the Vault and share are separate contracts. It can work by setting up the Vault as a Trusted Forwarder of the share token, using [ERC-2771](./eip-2771.md).
 
 ## Copyright
 
