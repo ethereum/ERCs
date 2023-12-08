@@ -3,7 +3,7 @@ eip: xxxx
 title: Contract-level metadata via `contractURI()`
 description: A standard for specifying contract-level metadata
 author: Ryan Ghods (@ryanio)
-discussions-to: https://ethereum-magicians.org/t/
+discussions-to: https://ethereum-magicians.org/t/erc-contract-level-metadata-via-contracturi/17157
 status: Draft
 type: Standards Track
 category: ERC
