@@ -23,7 +23,7 @@ pragma solidity >=0.7.0;
  * The asset in (re-)transfered to the address of the seller, if the
  * seller's key is presented.
  */
-interface IDvPAsset {
+interface IDeilveryWithKey {
 
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 

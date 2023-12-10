@@ -29,7 +29,7 @@ The concept may help to solve the challenge of delivery-versus-payment (DvP), es
 #### Smart Contract on the Asset Chain
 
 ```solidity
-interface IDvPAsset {
+interface IDeilveryWithKey {
     event AssetTransferIncepted(address initiator, uint id);
     event AssetTransferConfirmed(address confirmer, uint id);
     event AssetClaimed(uint id, string key);
@@ -43,7 +43,7 @@ interface IDvPAsset {
 #### Smart Contract on the Payment Chain
 
 ```solidity
-interface IDvPPayment {
+interface IPaymentAndDecrypt {
     event PaymentTransferIncepted(address initiator, uint id, int amount);
     event TransferKeyRequested(uint id, string encryptedKey);
     event TransferKeyReleased(uint id, bool success, string key);

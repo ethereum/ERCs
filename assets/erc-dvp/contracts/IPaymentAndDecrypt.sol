@@ -19,7 +19,7 @@ pragma solidity >=0.7.0;
  * Upon payment transfer a conditional decryption of one the encrypted keys
  * is performed.
  */
-interface IDvPPayment {
+interface IPaymentAndDecrypt {
 
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 
