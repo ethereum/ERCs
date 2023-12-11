@@ -1,5 +1,5 @@
 ---
-title: Conditional-upon-Tranfer-Decryption for Delivery-Versus-Payment
+title: Conditional-upon-Transfer-Decryption for Delivery-Versus-Payment
 description: A Proposal for a Lean and Functional Delivery versus Payment
 author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
 status: Draft
