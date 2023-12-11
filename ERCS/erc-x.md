@@ -28,11 +28,11 @@ There are use cases where multiple assets can be deposited to receive the same s
 The existing definitions from [ERC-4626](./eip-4626.md) apply.
 
 - [ERC-20](./eip-20.md) compliant Vault: Vault that implements the [ERC-20](./eip-20.md) specification including the optional metadata extension
-- [ERC-20](./eip-20.md) non-compliant Vault: Vault that do not implement the [ERC-20](./eip-20.md) specification
+- [ERC-20](./eip-20.md) non-compliant Vault: Vault that does not implement the [ERC-20](./eip-20.md) specification
 
 ### [ERC-20](./eip-20.md) non-compliant Vaults
 
-ERC-x Vaults MAY implement [ERC-20](./eip-20.md) to represent shares. If they do not, there needs to be a separate share token contract, that is minted on entering the vault and burned on exiting the vault.
+ERC-x Vaults MAY implement [ERC-20](./eip-20.md) to represent shares. If they do not, there needs to be a separate share token contract, that is minted on entering the Vault and burned on exiting the Vault.
 
 ### Methods
 
