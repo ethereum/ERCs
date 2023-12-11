@@ -19,9 +19,6 @@ New functionality includes multiple assets or entry points for the same share to
 
 This standard adds nomenclature for the different components of the base ERC-4626 standard, and adds a new `share` method to allow the [ERC-20](./eip-20.md) dependency to be externalized.
 
-* Multi-vault - Multiple assets/entry points for the same share token
-* Pipe - A converter from one token to another (unidirectional or bidirectional)
-* Alternative Vault - 
 
 ## Motivation
 
