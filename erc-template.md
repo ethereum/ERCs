@@ -1,4 +1,5 @@
 ---
+eip: 7574
 title: Authentication SBT using Credential
 description: verifying a User's DID/credential and issuing SBT
 author: Geunyoung Kim (@c1ick), JaeCheol Ryou <jcryou@home.cnu.ac.kr
