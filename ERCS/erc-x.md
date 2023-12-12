@@ -1,5 +1,5 @@
 ---
-eip: TODO
+eip: 7575
 title: Partial and Extended ERC-4626 Vaults
 description: Modular ERC-4626 Interface enabling Multi-Vault, Pipes, Partial and Alternative Vaults
 author: Jeroen Offerijns (@hieronx), Alina Sinelnikova (@ilinzweilin), Vikram Arun (@vikramarun), Joey Santoro (@joeysantoro), Farhaan Ali (@0xfarhaan)
@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: TODO
-requires: 20, 2771, 4626
+requires: 20, 165, 2771, 4626
 ---
 
 ## Abstract
@@ -42,7 +42,6 @@ The existing definitions from [ERC-4626](./eip-4626.md) apply.
 - Pipe: A converter from one token to another (unidirectional or bidirectional)
 - Entry Function: A Vault function which converts `asset` to `shares`. Either `deposit` or `mint` in ERC-4626
 - Exit Function: A Vault function which converts `shares` to `assets`. Either `withdraw` or `redeem` in ERC-4626
-- Alternative Vault: A Vault which implements a different exit/entry flow from ERC-4626
 - Partial Vault: A Vault which implements only one Entry or Exit function from ERC-4626
 
 First the standard defines a new `share` function which is useful for many configurable use cases, and then goes into detail on the requirements for different configurations.
@@ -72,17 +71,35 @@ MUST _NOT_ revert.
       type: address
 ```
 
+### `ERC7575MinimalVault` Interface
+The Minimal Vault Interface consists of the methods which are required for any `share` based Vault with a corresponding deposit `asset`. 
+
+It is defined as the following ERC-4626 methods (and `share` described above):
+- `asset`
+- `share`
+- `convertToAssets`
+- `convertToShares`
+- `totalAssets`
+
+### Partial Vault Interfaces
+A Partial Vault omits at least one of the ERC-4626 entry or exit functions.
+
+A Partial Vault MUST implement both the `preview*` and `max*` methods associated with any implemented entry/exit functions.
+
+Partial Vaults SHOULD prefer implementing `deposit` and `redeem` over `mint` and `withdraw`, respectively.
+
+A Partial Vault MAY implement none of the ERC-4626 entry or exit functions and instead use a bespoke entry/exit. In this case it still MUST implement `ERC7575MinimalVaultInterface`.
+
+This standard defines four modular interfaces beyond the Minimal Vault Interface:
+- `ERC7575DepositVault` - `deposit`, `previewDeposit`, `maxDeposit`
+- `ERC7575MintVault` - `mint`, `previewMint`, `maxMint`
+- `ERC7575RedeemVault` - `redeem`, `previewRedeem`, `maxRedeem`
+- `ERC7575WithdrawVault` - `withdraw`, `previewWithdraw`, `maxWithdraw`
+
 ### Multi-Vaults
 Multi-vaults share a single `share` token with multiple entry points denominated in different `asset` tokens.
 
 Multi-vaults MUST implement the `share` method on each entry point. The entry points SHOULD NOT be ERC-20.
-
-### Partial Vaults
-A Partial Vault implements only one of the entry or exit functions.
-
-A Partial Vault SHOULD implement both the `preview*` and `max*` methods associated with any implemented functions.
-
-Partial Vaults SHOULD prefer implementing `deposit` and `redeem` over `mint` and `withdraw`, respectively.
 
 ### Pipes
 Pipes convert between a single `asset` and `share` which are both ERC-20 tokens outside the Vault.
@@ -93,15 +110,17 @@ If the exchange rate is fixed, the Pipe SHOULD be a Partial Vault implementing o
 
 A unidirectional Pipe SHOULD implement only the entry function(s) `deposit` and/or `mint`.
 
-### Alternative Vaults
-Alternative Vaults do not implement any of the entry or exit functions of ERC-4626, nor their corresponding `preview*` and `max*` functions.
+### [ERC-165](./eip-165.md) support
 
-Alternative Vaults MUST implement the following ERC-4626 methods:
-- `asset`
-- `share`
-- `convertToAssets`
-- `convertToShares`
-- `totalAssets`
+Smart contracts implementing any of the above Vault interfaces MUST implement the [ERC-165](./eip-165.md) `supportsInterface` function.
+
+`ERC7575DepositVault` MUST return the constant value `true` if `TODO` is passed through the `interfaceID` argument.
+
+`ERC7575MintVault` MUST return the constant value `true` if `TODO` is passed through the `interfaceID` argument.
+
+`ERC7575RedeemVault` MUST return the constant value `true` if `TODO` is passed through the `interfaceID` argument.
+
+`ERC7575WithdrawVault` MUST return the constant value `true` if `TODO` is passed through the `interfaceID` argument.
 
 ## Rationale
 
