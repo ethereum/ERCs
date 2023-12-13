@@ -1,0 +1,275 @@
+---
+eip: Not Assigned
+title: Physical Asset Redemption
+description: Enables the holder of physical asset backed NFTs to verify authenticity and redeem the underlying physical assets.
+author: Lee Vidor (@V1d0r) <vidor@emergentx.org>, David Tan <david@emergentx.org>, Lee Smith <lee@emergentx.org>
+discussions-to: Not Assigned
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-08-01
+requires: 165, 721
+---
+  
+## Abstract
+
+The Physical Asset Redemption Standard (the “Standard”) is an extension of [ERC-721](./eip-721.md). The proposed standard implements additional functionality and information pertaining to the NFT’s underlying physical asset by capturing information that enables the holder of physical asset backed NFTs to verify authenticity and redeem the underlying physical assets. The Standard is primarily aimed at providing transparency by disclosing details of involved parties and provides opportunity to define and make easily available relevant legal relationship between NFT holder and the holder of the respective underlying physical asset.
+
+## Motivation
+
+The first wave of NFT use cases encompass predominately the representation of ownership of digital assets. In view of the anticipated trend to tokenize any real-world asset, it is to be expected that the use cases of NFTs will rapidly grow and expand around physical assets. The absence of standardized information pertaining the underlying physical asset paired with non-transparency of involved key parties, creates substantial risks for NFT holders and potential users which might, as a result, hinder mass adoption of NFTs that are used as ownership representation of a specific physical asset. 
+Addressing the said uncertainties and paving the way for mass adoption for a tokenized economy, the Physical Asset Redemption Standard requires that each minted token includes a defined number of key parameters enabling verification of authenticity and redemption of the underlying physical asset. Key information is: 
+
+* `[NFT ISSUER]` **Identification of individual or entity minting the NFT (Issuer):** [NAME], [UNIQUE IDENTIFICATION NUMBER] OR [NETWORK IDENTIFICATION]. 
+<br> *Comment: Identifying the NFT issuer allows the NFT holder to assess trustworthiness of the NFT issuer. A reputable NFT issuer will e.g. keep information on the legal owner of the physical asset prior to the minting of the underlying physical asset to satisfy any AML and KYC concerns. Ideally the NFT issuer is identified by a name but may also be identifiable via unique identification number or network ID that is issued by a service provider that stores relevant information about the NFT issuer.*
+
+* `[LEGAL OWNER OF UNDERLYING PHYSICAL ASSET]` **Identification of legal owner of underlying physical asset:** [NAME], [UNIQUE IDENTIFICATION NUMBER] OR [NETWORK ID]. 
+<br> *Comment: This information identifies the first point of contact for the physical redemption of the underlying physical asset and defines the contractual party to the NFT holder to legally enforce the rights conferred to the NFT holder. Same as with the NFT issuer’s identity, the legal owner is identified by a name but may also be identifiable via unique identification number or network ID that is issued by a service provider that stores relevant information about the legal owner.*
+
+* `[STORAGE LOCATION]` **Identification of storage location of underlying physical asset:** [PHYSICAL ADDRESS OR JURISDICTION]. 
+<br> *Comment: The storage location provides the NFT holder with a second point of contact for the physical redemption and could also be used to demonstrate adequate storage of a particular physical assets that require special storage conditions.*  
+
+* `[LEGAL CONTRACT]` **Type of legal relationship (with link to document IPFS):**
+<br> *Comment: This provides the NFT holder with the legal basis of the relationship between them and the legal owner of the underlying physical asset. Ideally the information is provided by embedding a link to the actual legal documentation. The more information is accessible via the NFT, the better the NFT holder is able to assess the legal risks associated with enforcement of physical redemption of the underlying physical asset.*
+
+* `[APPLICABLE LAW]` **Governing Law and Jurisdiction:** [JURISDICTION]
+<br> *Comment: This information allows the NFT holder to quick access the legal risk associated to the disclosed jurisdiction without the need of going through the entire legal documentation.*
+
+* `[DECLARED VALUE]` **Value of the underlying asset:** [VALUE] provides a value for the underlying physical asset. 
+<br> *Comment: The declared value provides an indication for the NFT holder regarding the underlying asset’s value and allows auxiliary services to tie certain functions to it. The declared value of the underlying physical asset does not necessarily represent the market value.*  
+
+## Specification
+
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY" and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+[ERC-721](./eip-721.md) compliant contracts MAY implement this EIP.
+
+`Properties` MUST be set before a token can be minted.
+
+The `tokenId` MUST be greater than 0.
+
+The `terms` parameter MUST be a link to a document that is stored on IPFS.
+
+When a token has no `properties` set mint reverts. 
+
+When a token has a valid properties, if the token burns, the properties MUST be deleted.
+
+
+### Contract Interface
+  
+```solidity
+pragma solidity ^0.8.21;
+
+/**
+ * @notice A struct containing data for redemption properties
+ * @param tokenId Set when properties are created
+ * @param tokenIssuer The network or entity minting the tokens
+ * @param legalOwner The legal owner of the physical asset
+ * @param storedLocation The physical storage location
+ * @param terms  Link to IPFS contract, agreement or terms
+ * @param jurisdiction The legal justification set out in the terms
+ * @param declaredValue The declared value at time of token minting
+ */
+struct Properties {
+    uint256 tokenId;
+    string tokenIssuer;
+    string assetHolder;
+    string storedLocation;
+    string terms;
+    string jurisdiction;
+    Amount declaredValue;
+}
+
+/**
+ * @notice A struct for amount values
+ * @param currency The currency of the amount
+ * @param value The value of the amount
+ */
+struct Amount {
+    string currency;
+    uint256 value;
+}
+
+/**
+ * @notice Interface for the PhysicalAssetRedemption contract
+ */
+interface IPhysicalAssetRedemption {
+    
+    /**
+     * @notice Emitted when properties are set
+     * @param properties The properties of the token
+     */
+    event PropertiesSet(Properties properties);
+    /**
+     * @notice Emitted when properties are removed
+     * @param properties The properties of the token
+     */
+    event PropertiesRemoved(Properties properties);
+
+    /**
+     * @notice function to get the properties of a token
+     * @param tokenId The token id of the minted token
+     */
+    function properties(
+        uint256 id
+    )
+        external
+        view
+        returns (
+            uint256 tokenId,
+            string memory tokenIssuer,
+            string memory assetHolder,
+            string memory storedLocation,
+            string memory terms,
+            string memory jurisdiction,
+            Amount memory declaredValue
+        );
+
+    /**
+     * @notice Properties required to be set when minting a token
+     * @param id The token id of the minted token
+     * @param tokenIssuer The network or entity minting the tokens
+     * @param assetHolder The legal owner of the physical asset
+     * @param storedLocation The physical storage location
+     * @param terms Link to IPFS contract, agreement or terms
+     * @param jurisdiction The legal justification set out in the terms
+     * @param declaredValueCurrency The declared value currency at time of token minting
+     * @param declaredValueAmount The declared value amount at time of token minting
+     */
+    function setProperties(
+        uint256 id,
+        string memory tokenIssuer,
+        string memory assetHolder,
+        string memory storedLocation,
+        string memory terms,
+        string memory jurisdiction,
+        string memory declaredValueCurrency,
+        uint256 declaredValueAmount
+    ) external;
+}
+```
+
+The `setProperties(uint256 id, string memory tokenIssuer, string memory assetHolder, string memory storedLocation, string memory terms, string memory jurisdiction, string memory declaredValueCurrency, uint256 declaredValueAmount)` function is called before minting a token.
+
+The `properties(uint256 id)` function MUST return the unique `properties` for a token.
+
+When `properties` are set, the `PropertiesSet(Properties properties)` event is emitted.
+
+When `properties` are removed, the `PropertiesRemoved(Properties properties)` event is emitted.
+
+
+## Rationale 
+
+The `tokenId` MUST be greater than 0 so the `properties` can be checked before minting.
+
+The mint function is overridden to check if the `properties` are set before minting.
+
+The `terms` parameter is a link to a document that is stored on IPFS. This is to ensure that the document is immutable and can be verified by the NFT holder.
+
+Contract level validation is not used on the properties as we believe the accuracy of the data declared is the responsibility of the token issuer. This builds trust in the token issuer and the token itself.
+
+
+## Backwards Compatibility
+
+This standard is compatible with ERC-721.
+
+## Reference Implementation
+
+An example of an ERC-721 that includes the Physical Asset Redemption:
+
+```solidity  
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "./IPhysicalAssetRedemption.sol";
+
+/**
+ * @title Physical Asset Redemption Contract
+ * @notice Contract for Physical Asset Redemption Standard
+ **/
+contract PhysicalAssetRedemption is IPhysicalAssetRedemption, ERC721 {
+    /**
+     * @notice Constructor for the PhysicalAssetRedemption contract
+     * @param _name The name of the token
+     * @param _symbol The symbol of the token
+     */
+    constructor(
+        string memory _name,
+        string memory _symbol
+    ) ERC721(_name, _symbol) {}
+
+    mapping(uint256 => Properties) public properties;
+
+    /**
+     * @notice Properties required to be set when minting a token
+     * @param id The token id of the initialized token. Should be greater than 0.
+     * @param tokenIssuer The network or entity minting the tokens
+     * @param assetHolder The legal owner of the physical asset
+     * @param storedLocation The physical storage location
+     * @param terms Link to IPFS contract, agreement or terms
+     * @param jurisdiction The legal justification set out in the terms
+     * @param declaredValueCurrency The declared value currency at time of token minting
+     * @param declaredValueAmount The declared value amount at time of token minting
+     */
+    function setProperties(
+        uint256 id,
+        string memory tokenIssuer,
+        string memory assetHolder,
+        string memory storedLocation,
+        string memory terms,
+        string memory jurisdiction,
+        string memory declaredValueCurrency,
+        uint256 declaredValueAmount
+    ) public {
+        require(id > 0, "Token id must be greater than 0");
+        properties[id] = Properties({
+            tokenId: id,
+            tokenIssuer: tokenIssuer,
+            assetHolder: assetHolder,
+            storedLocation: storedLocation,
+            terms: terms,
+            jurisdiction: jurisdiction,
+            declaredValue: Amount({
+                currency: declaredValueCurrency,
+                value: declaredValueAmount
+            })
+        });
+
+        emit PropertiesSet(properties[id]);
+    }
+
+    /**
+     * @notice internal function to remove the properties of a token
+     * @param _tokenId The token id of the minted token
+     */
+    function _removeProperties(uint256 _tokenId) internal {
+        delete properties[_tokenId];
+        emit PropertiesRemoved(properties[_tokenId]);
+    }
+
+    /**
+     * @notice override of the _safeMint function to check if properties are set
+     * @param to The address to mint the token to
+     * @param id The token id of the token to mint
+     */
+    function _safeMint(address to, uint256 id) internal virtual override {
+        require(properties[id].tokenId > 0, "Properties not initialized");
+        super._safeMint(to, id);
+    }
+
+    /**
+     * @notice override of the _burn function to remove properties
+     * @param id The token id of the minted token
+     */
+    function _burn(uint256 id) internal virtual override {
+        _removeProperties(id);
+        super._burn(id);
+    }
+}
+```
+
+## Security Considerations
+
+For further discussion.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
