@@ -33,16 +33,8 @@ We provide a cherrypicked list of possible points of contact between ERC-7208 (o
 
 **EIP-5560 (Redeemable NFTs)**: ERC-5560 and ERC-7208 complement each other's capability to tokenize real-world assets. ODCs can be used to manage the data and rules surrounding the redemption process of a physical asset represented by an NFT, including tracking the redemption status, ownership history, and other relevant metadata of the tokenized assets. By leveraging both standards together, digital tokens can not only represent ownership of physical assets but also provide a standardized and regulated mechanism for their redemption.
 
-**EIP-5633 (Composable Soulbound NFTs)**: 
+**EIP-5633 (Composable Soulbound NFTs)**: ERC-7208 ODCs can be utilized to manage the additional data and rules associated with ERC-5633 soulbound tokens, such as identity management, access and usage rights, and specific account associations.
 
-**ERC-6960 (Dual Layer Token Standard)**:
+**ERC-6960 (Dual Layer Token Standard)**: By implementing ERC-6960 as an ODC, the two-level classification system complements ERC-7208's focus on real-world asset tokenization. The `mainId` and `subId`` structure of ERC-6960 can be utilized to represent various layers of ownership and characteristics of a real-world asset within an ODC framework, providing more nuanced control and representation of assets. This synergy can enable more sophisticated management and fractionalization of assets, adhering to regulatory frameworks and custom management rules.
 
-**ERC-7540 (Asynchronous ERC-4626 Tokenized Vaults)**:
-
-**ERC-7558 (Minimal Lockable Range NFTs)**:
-
-**ERC-7562 (Account Abstraction Validation Scope Rules)**:
-
-**ERC-7564 (Contract wallet management NFT)**:
-
-**ERC-7574 (Authentication SBT using Credential)**:
+**ERC-7540 (Asynchronous ERC-4626 Tokenized Vaults)**: ERC-7540 vaults's are focused on asynchronous deposit and redemption. Integrating ERC-7540, either by Wrapping or by Property Manager, will complement ERC-7208's ODCs and facilitate more complex financial products. Comnplex DeFi products like undercollateralized loans, insurance products, or tokenized stocks often require operations to be handled in a non-instantaneous manner. However, the nature of these products requires adhering to regulatory compliance and identity management solutions. This can easily be achieved by integrating ODCs Identity Property Managers.
