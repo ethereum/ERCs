@@ -1,38 +1,48 @@
 
-# On-Chain Data Container ERC
-## Backwards Compatibility Analysis
+## Appendix: Compatibility Analysis
 
-**EIP-2309 (Consecutive batch minting)**: The ODC standard doesn't interfere with the batch minting process prescribed by EIP-2309. Instead, it offers an additional layer of customization for NFTs without affecting their creation process.
+We provide a cherrypicked list of possible points of contact between ERC-7208 (on-chain data container) and other tokenization standards and proposals.
 
-**EIP-2615 (Swap Orders)**: This standard does not disrupt the atomic swap functionality introduced by EIP-2615. ODCs may be involved in swap orders, with their properties intact.
+**ERC-1400 (Security Token Standard)**: In aggregate provides a suite of standard interfaces for issuing / redeeming security tokens, managing their ownership and transfer restrictions and providing transparency to token holders on how different subsets of their token balance behave with respect to transfer restrictions, rights and obligations. ODCs can enhance ERC-1400 by offering more dynamic and flexible data management. ODCs allow for the storage and modification of properties related to security tokens, such as compliance information or ownership details. This integration could lead to more efficient and transparent security token offerings. Additionally, hooks and triggers can be implemented within the logic of specific use-cases so that compliance with regulatory frameworks is achieved automatically.
 
-**EIP-2981 (Royalties)**: The EIP-2981 standard for royalties is preserved under this proposal. ODCs can have royalties specified as one of their properties, providing added flexibility.
+**EIP-2309 (Consecutive batch minting)**: ODCs are compatible with EIP-2309, allowing for the batch minting process to be enriched with additional data. ODCs could store information related to each batch, such as metadata or batch-specific attributes, without disrupting the minting process.
 
-**ERC-3643 (Permissioned Tokens)**: ERC-3643 proposal defines *Security Token interface* based on ERC-20 token standard with additional requirement for sender and receiver of the token to be approved by the token issuer. This interface relies on the *OnchainID* system to provide Identity information, process KYC and other credentials, providing that data on-chain for token holders for minting, burning, and recovery of assets. Compatibility with this interface can be implemented as an ODC **Property Manager**, with the added benefit of a more versatile on-chain identity management derived from alternative **Property Managers**.
+**EIP-2615 (Swap Orders)**: ODCs can work alongside EIP-2615, enhancing swap orders with additional data capabilities. Properties within ODCs can store terms, conditions, or other relevant data for swap orders, facilitating more complex and informed swap transactions. Additionally, Swap Orders can be bundled together by Wrapper Property Manager, generating bundles of orders to be interacted with together.
 
-**EIP-4626 (Tokenized Vaults)**: Tokenized Vaults inherit from ERC-20 and ERC-2612 for approvals via EIP-712 secp256k1 signatures. For use-cases where NFTs are involved, the current proposal for an ODC can be leveraged to separate the vault logic away from the storage.
+**EIP-2981 (Royalties)**: ODCs can complement EIP-2981 as a Property Manager by providing a flexible way to handle royalties. Properties in ODCs can store and manage royalty information dynamically within the data and metadata, allowing for more complex royalty structures that can change over time or based on certain conditions.
 
-**ERC-4885 (Fractional Ownership)**: ODCs can represent fractional ownership, offering compatibility with ERC-4885. Additional properties can define the conditions of fractional ownership.
+**ERC-3643 (Permissioned Tokens)**: ERC-3643 proposal defines *Security Token interface* based on ERC-20 token standard with additional requirement for sender and receiver of the token to be approved by the token issuer. This interface relies on the *OnchainID* system to provide Identity information, process KYC and other credentials, providing that data on-chain for token holders for minting, burning, and recovery of assets. Compatibility with this interface can be implemented as an ODC **Property Manager**, with the added benefit of a more versatile on-chain identity management derived from alternative **Property Managers**. Implementing ERC-3643 tokens as Property Managers could lead to more robust permissioned tokens. ODC Properties can store and manage permissions, enhancing the control and flexibility of permissioned tokens.
 
-**ERC-4886 (Provably Rare Tokens)**: The new standard doesn't disrupt the functionality of provably rare tokens, but offers an additional layer of customization by allowing the setting of specific properties.
+**ERC-4337 (Account Abstraction)**: ODCs can provide a standardized method to store and manage the complex data structures required by abstracted accounts. This can include user preferences, access control lists, recovery options, and other customizable account features. The mutable states of abstracted accounts can be efficiently handled using ODCs. This, in turn, improves the adaptability and security of abstracted accounts.
 
-**ERC-4907 (Shared Ownership)**: ODCs can represent shared ownership and are therefore compatible with ERC-4907. The proposed properties can provide additional controls for such tokens.
+**EIP-4626 (Tokenized Vaults)**: Tokenized Vaults inherit from ERC-20 and ERC-2612 for approvals via EIP-712 secp256k1 signatures. ODCs can enhance EIP-4626 by providing a more dynamic data layer for tokenized vaults. Properties in ODCs can store information about the assets in the vault, conditions for access, or other relevant data, enabling more nuanced interactions with tokenized vaults.
 
-**EIP-5050 (Interactive NFTs)**: The new standard compliments EIP-5050 by adding Properties, allowing for even richer interactions with NFTs.
+**ERC-4885 (Fractional Ownership)**: ODCs can improve ERC-4885 Fractional Ownership by providing a standardized way to manage and track metadata related to the life-cycle of the tokens. ODC Properties can store details about each fractional owner and their ownership percentage, making the management of fractional ownership more efficient, versatile and transparent.
 
-**EIP-5095 (Principal Tokens)**: ODCs would be fully compatible with EIP-5095, and additional properties could be implemented to further define the parameters of a loan.
+**ERC-4886 (Proxy Ownership Register)**: Combining the security features of ERC-4886 with the data management capabilities of ERC-7208 could open up new use cases by working together to provide a more comprehensive solution for user security and experience. For example, the proxy address in ERC-4886 could be used to interact with various dApps while maintaining the user’s settings and preferences stored in an ERC-7208 ODC. This synergy allows users to have a secure, consistent, and personalized experience across the Ethereum ecosystem. Moreover, ERC-4886 addresses the issue of user confidence when interacting with smart contracts, as it separates the interaction address from the asset storage address. When combined with ERC-7208, it can ensure that users feel safe interacting with various applications, knowing that their settings are stored securely in an ODC and their assets are safe in a different address.
 
-**EIP-5185 (Metadata Upgradeability)**: ODCs support metadata upgradeability. Their properties could serve as mutable metadata, making them compatible with EIP-5185.
+**ERC-4907 (Shared Ownership)**: The integration of ERC-4907 as a Property Manager with ERC-7208 ODC storage can enhance the rental experience by allowing for additional rental-related data directly on-chain, such as rental terms, user permissions, and other customizable settings which would be self-contained within **Properties** and therefore automatically updated as metadata. ERC-4907's rental mechanism complements ERC-7208's ability to manage mutable on-chain data. By combining these two, NFTs can not only be rented out for specific periods but also have their properties or states dynamically managed and updated during the rental period using ODCs. This combination enhances security and compliance in NFT transactions, particularly for Real World Asset Tokenization. Rental agreements, regulatory compliance, intelectual property and user rights can be embedded within ODCs to ensure that the NFT usage adheres to predefined rules.
 
-**EIP-5409 (ERC-1155 extension)**: The proposed ODC standard is compatible with the ERC-1155 extension proposed by EIP-5409 and can further enhance the utility of ERC-1155 tokens by allowing storage and modification of properties.
+**EIP-5050 (Interactive NFTs)**: The integration of ERC-7208 with ERC-5050 could potentially enable new forms of interactive applications, where the data stored via ODC can be utilized in interactive NFT environments governed by either native ERC-5050 or a Property Manager implementation of ERC-5050. This could open up innovative use cases, especially in areas like gaming, digital art, and decentralized identity, where the interplay of secure data storage and interactive token functionalities is crucial.
 
-**EIP-5505 (Asset-Backed NFTs)**: The proposed standard doesn't conflict with asset-backed NFTs and may provide additional controls or definitions for such tokens.
+**EIP-5095 (Principal Tokens)**: An ERC-5095 Property Manager implementation could potentially be used to represent specific financial states or obligations as part of a broader data container structure. This way, ERC-5095 tokens could be part of a larger ODC structure, representing a financial component within a multi-faceted on-chain agreement or asset. Compliance, Identity, and predefined rules can be included as part of the logic once it is abstracted away from the storage, which is of particular interest for use cases referrent to Realt World Asset tokenization.
 
-**EIP-5560 (Redeemable NFTs)**: ODCs can be redeemable and therefore compatible with EIP-5560. The properties associated with ODCs can provide additional control mechanisms for redeemable tokens.
+**EIP-5185 (Metadata Upgradeability)**: ODCs align well with EIP-5185's focus on metadata upgradeability. Properties in ODCs can be used to store and update metadata, allowing for more flexible and dynamic metadata management for tokens. However, the main benefit for implementing EIP-5185 as a Property Manager is the access to dynamically metadata upgradeability by tapping into the stored data within the ODC.
 
-**EIP-5633 (Composable Soulbound NFTs)**: ODCs can be composable and soulbound, thus compatible with EIP-5633. Furthermore, properties can provide further configuration for these types of tokens.
+**EIP-5505 (Asset-Backed NFTs)**: The Wrapper and Fractionalizer Property Managers within ERC-7208 ODCs can be used to ensure that the fractionalization adheres to relevant regulations and custom rules, providing a compliant and flexible framework for ERC-5505 tokens, if they are implemented as ODCs.
+
+**EIP-5560 (Redeemable NFTs)**: ERC-5560 and ERC-7208 complement each other's capability to tokenize real-world assets. ODCs can be used to manage the data and rules surrounding the redemption process of a physical asset represented by an NFT, including tracking the redemption status, ownership history, and other relevant metadata of the tokenized assets. By leveraging both standards together, digital tokens can not only represent ownership of physical assets but also provide a standardized and regulated mechanism for their redemption.
+
+**EIP-5633 (Composable Soulbound NFTs)**: 
 
 **ERC-6960 (Dual Layer Token Standard)**:
 
 **ERC-7540 (Asynchronous ERC-4626 Tokenized Vaults)**:
 
+**ERC-7558 (Minimal Lockable Range NFTs)**:
+
+**ERC-7562 (Account Abstraction Validation Scope Rules)**:
+
+**ERC-7564 (Contract wallet management NFT)**:
+
+**ERC-7574 (Authentication SBT using Credential)**:
