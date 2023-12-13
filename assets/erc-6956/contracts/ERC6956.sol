@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./IERC6956.sol";
 
-/** Used for several authorization mechansims, e.g. who can burn, who can set approval, ... 
+/** Used for several authorization mechanisms, e.g. who can burn, who can set approval, ... 
  * @dev Specifying the role in the ecosystem. Used in conjunction with IERC6956.Authorization
  */
 enum Role {
@@ -163,7 +163,7 @@ contract ERC6956 is
     }
 
     /**
-     * @dev A very simple function wich MUST return false, when `a` is not a maintainer
+     * @dev A very simple function which MUST return false, when `a` is not a maintainer
      *      When derived contracts extend ERC6956 contract, this function may be overridden
      *      e.g. by using AccessControl, onlyOwner or other common mechanisms
      * 
@@ -265,7 +265,7 @@ contract ERC6956 is
     /// @param to Beneficiary account address
     /// @param anchor The anchor (from Merkle tree)
     function _safeMint(address to, bytes32 anchor) internal virtual {
-        assert(tokenByAnchor[anchor] <= 0); // saftey for contract-internal errors
+        assert(tokenByAnchor[anchor] <= 0); // safety for contract-internal errors
         uint256 tokenId = _burnedTokensByAnchor[anchor];
 
         if(tokenId < 1) {
@@ -273,7 +273,7 @@ contract ERC6956 is
             tokenId = _tokenIdCounter.current();
         }
 
-        assert(anchorByToken[tokenId] <= 0); // saftey for contract-internal errors
+        assert(anchorByToken[tokenId] <= 0); // safety for contract-internal errors
         anchorByToken[tokenId] = anchor;
         tokenByAnchor[anchor] = tokenId;
         super._safeMint(to, tokenId);
@@ -429,7 +429,7 @@ contract ERC6956 is
             // Indicates general float-ability, i.e. whether anchors can be digitally dropped and released
 
             // OWNER and ASSET shall normally be in sync anyway, so this is reasonable default 
-            // authorization for approve and burn, as it mimicks ERC-721 behavior
+            // authorization for approve and burn, as it mimics ERC-721 behavior
             burnAuthorization = Authorization.OWNER_AND_ASSET;
             approveAuthorization = Authorization.OWNER_AND_ASSET;
     }
