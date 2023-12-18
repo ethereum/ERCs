@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   stale:
-    if: github.repository == 'ethereum/eips'
+    if: github.repository == 'ethereum/ercs'
     runs-on: ubuntu-latest
     name: Mark Stale Issues
     steps:
