@@ -1,7 +1,7 @@
 ---
 eip: 7390
-title: Vanilla Options
-description: An Interface for Vanilla Options
+title: Vanilla Option Standard
+description: A uniform interface streamlining the creation, management, and execution of vanilla options
 author: Ewan Humbert (@Xeway) <xeway@protonmail.com>, Lassi Maksimainen (@mlalma) <lassi.maksimainen@gmail.com>
 discussions-to: https://ethereum-magicians.org/t/erc-7390-vanilla-option-standard/15206
 status: Draft
