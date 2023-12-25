@@ -288,54 +288,52 @@ Emitted when seller updates the premium to `amount` for option issuance with giv
 #### Call Option
 
 Let's say Bob sells an **call** option that Alice wants to buy.\
-He gives the right to Alice to buy **8 LINK** tokens at **25 USDC** each between **14th of July 2023** and **16th of July 2023**.\
-For such a contract, he asks Alice to give him **10 DAI** as a premium.\
+He gives the right to Alice to buy **8 TokenA** tokens at **25 TokenB** each between **14th of July 2023** and **16th of July 2023**.\
+For such a contract, he asks Alice to give him **10 TokenC** as a premium.\
 
 To create the contract, he will give the following parameters:
 
 - `side`: **Call**
-- `underlyingToken`: **0x514910771AF9Ca656af840dff83E8264EcF986CA** *(LINK's address)*
-- `amount`: **8000000000000000000** *(8 \* 10^(LINK's decimals))*
-- `strikeToken`: **0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48** *(USDC's address)*
-- `strike`: **200000000** *(8 * 25 \* 10^(USDC's decimals))*
-- `premiumToken`: **0x6B175474E89094C44Da98b954EedeAC495271d0F** *(DAI's address)*
-- `premium`: **10000000000000000000** *(10 \* 10^(DAI's decimals))*
+- `underlyingToken`: **TokenA's address**
+- `amount`: **8 \* 10^(TokenA's decimals)**
+- `strikeToken`: **TokenB's address**
+- `strike`: **8 \* 25 \* 10^(TokenB's decimals)**
+- `premiumToken`: **TokenC's address**
+- `premium`: **10 \* 10^(TokenC's decimals)**
 - `exerciseWindowStart`: **1689292800** *(2023-07-14 timestamp)*
 - `exerciseWindowEnd`: **1689465600** *(2023-07-16 timestamp)*
-- `data`: **[]**
 
-Once the contract created, Bob has to transfer the collateral to the contract. This collateral corresponds to the tokens he will have to give Alice if she decides to exercise the option. For this option, he has to give as collateral 8 LINK. He does that by calling the function `approve(address spender, uint256 amount)` on the LINK's contract and as parameters the contract's address (`spender`) and for `amount`: **8000000000000000000**. Then Bob can execute `create` on the contract for issuing the options.
+Once the contract created, Bob has to transfer the collateral to the contract. This collateral corresponds to the tokens he will have to give Alice if she decides to exercise the option. For this option, he has to give as collateral 8 TokenA. He does that by calling the function `approve(address spender, uint256 amount)` on the TokenA's contract and as parameters the contract's address (`spender`) and for `amount`: **8 \* 10^(TokenA's decimals)**. Then Bob can execute `create` on the contract for issuing the options.
 
-Alice for its part, has to allow the spending of his 10 DAI by calling `approve(address spender, uint256 amount)` on the DAI's contract and give as parameters the contract's address (`spender`) and for `amount`: **10000000000000000000**. She can then execute `buy` on the contract in order to buy the option.
+Alice for its part, has to allow the spending of his 10 TokenC by calling `approve(address spender, uint256 amount)` on the TokenC's contract and give as parameters the contract's address (`spender`) and for `amount`: **10 \* 10^(TokenC's decimals)**. She can then execute `buy` on the contract in order to buy the option.
 
-We're on the 15th of July and Alice wants to exercise her options because 1 LINK is traded at 50 USDC! She needs to allow the contract to transfer **8 * 25000000** USDCs from her account to match the required strike funding. When she calls `exercise` on the contract, the contract will transfer the strike funding to Bob and the LINK tokens that Bob gave as collateral during `create` call to Alice.
+We're on the 15th of July and Alice wants to exercise her options because 1 TokenA is traded at 50 TokenB! She needs to allow the contract to transfer **8 \* 25 \* 10^(TokenB's decimals)** TokenBs from her account to match the required strike funding. When she calls `exercise` on the contract, the contract will transfer the strike funding to Bob and the TokenA tokens that Bob gave as collateral during `create` call to Alice.
 
-If she decides to sell the LINK tokens, she just made a profit of 8\*50 - 8\*25 = 200 USDC!
+If she decides to sell the TokenA tokens, she'd make a profit of 8\*50 - 8\*25 = 200 TokenB!
 
 #### Put Option
 
 Let's say Bob sells a put option to Alice.\
-He gives the right to Alice to sell **8 LINK** tokens at **25 USDC** each between **14th of July 2023** and **16th of July 2023**.\
-For such a contract, he asks Alice to give him **10 DAI** as a premium.\
+He gives the right to Alice to sell **8 TokenA** tokens at **25 TokenB** each between **14th of July 2023** and **16th of July 2023**.\
+For such a contract, he asks Alice to give him **10 TokenC** as a premium.\
 
 To create the contract, he will give the following parameters:
 
 - `side`: **Put**
-- `underlyingToken`: **0x514910771AF9Ca656af840dff83E8264EcF986CA** *(LINK's address)*
-- `amount`: **8000000000000000000** *(8 \* 10^(LINK's decimals))*
-- `strikeToken`: **0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48** *(USDC's address)*
-- `strike`: **200000000** *(8 \* 25 \* 10^(USDC's decimals))*
-- `premiumToken`: **0x6B175474E89094C44Da98b954EedeAC495271d0F** *(DAI's address)*
-- `premium`: **10000000000000000000** *(10 \* 10^(DAI's decimals))*
+- `underlyingToken`: **TokenA's address**
+- `amount`: **8 \* 10^(TokenA's decimals)**
+- `strikeToken`: **TokenB's address**
+- `strike`: **8 \* 25 \* 10^(TokenB's decimals)**
+- `premiumToken`: **TokenC's address**
+- `premium`: **10 \* 10^(TokenC's decimals)**
 - `exerciseWindowStart`: **1689292800** *(2023-07-14 timestamp)*
 - `exerciseWindowEnd`: **1689465600** *(2023-07-16 timestamp)*
-- `data`: **[]**
 
-Bob has to transfer collateral to the contract. This collateral corresponds to the funds he will have to give to Alice if she decides to exercise all the options. He has to give as collateral 200 USDC (8 \* 25) and does that by calling the function `approve(address spender, uint256 amount)` on the USDC's contract. As parameters he will give the contract's address (`spender`) and for `amount`: **200000000** *(`strike`\*`amount` / 10^(LINK's decimals))*. Then he can execute `create` on the contract for issuing the options.
+Bob has to transfer collateral to the contract. This collateral corresponds to the funds he will have to give to Alice if she decides to exercise all the options. He has to give as collateral 200 TokenB (8 \* 25) and does that by calling the function `approve(address spender, uint256 amount)` on the TokenB's contract. As parameters he will give the contract's address (`spender`) and for `amount`: **(`strike`\*`amount` / 10^(TokenA's decimals))**. Then he can execute `create` on the contract for issuing the options.
 
-Alice for her part has to allow the spending of **10 DAI** by calling `approve(address spender, uint256 amount)` on the DAI's contract, with as parameters the contract's address (`spender`) and for `amount`: **10000000000000000000**. Then, she can execute `buy` on the contract in order to buy all the options.
+Alice for her part has to allow the spending of **10 TokenC** by calling `approve(address spender, uint256 amount)` on the TokenC's contract, with as parameters the contract's address (`spender`) and for `amount`: **10 \* 10^(TokenC's decimals)**. Then, she can execute `buy` on the contract in order to buy all the options.
 
-We're on the 15th of July, and Alice wants to exercise her options because 1 LINK is traded at only 10 USDC! To exercise she has to approve the transferring of **8 LINK** tokens and call `exercise` on the contract. Bob receives 8 LINK tokens, and Alice 200 USDC (8 LINK \* 25 USDC). She just made a profit of 200 - 8\*10 = 120 USDC!
+We're on the 15th of July, and Alice wants to exercise her options because 1 TokenA is traded at only 10 TokenB! To exercise she has to approve the transferring of **8 TokenA** tokens and call `exercise` on the contract. Bob receives 8 TokenA tokens, and Alice 200 TokenB (8 TokenA \* 25 TokenB). She just made a profit of 200 - 8\*10 = 120 TokenB!
 
 #### Retrieve collateral
 
