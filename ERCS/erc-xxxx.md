@@ -56,6 +56,11 @@ interface IERCxxxx {
     function notionalAmount() external view returns(uint256);
 
     /**
+    *  @notice Returns the currency contract address of the national
+    */
+    function notionalCurrency() external view returns(address);
+
+    /**
     *  @notice Returns the frequency of interest payments
     */
     function frequency() external view returns(uint256);
@@ -75,6 +80,21 @@ interface IERCxxxx {
     *          Ex: 0: EURIBOR, 1: SOFR, 2: SONIA, 3: TONA, etc.
     */
     function benchmark() external view returns(uint256);
+
+    /**
+    *  @notice Returns true if an account is allowed to make payment of interest difference 
+    */
+    function isAllowedToMakePayment(address _account) external view returns(bool);
+
+    /**
+    *  @notice Allows an account to make payment of interest difference 
+    */
+    function allowToMakePayment(address _account) external returns(bool);
+
+    /**
+    *  @notice Pays the difference between the floating and fixed interests 
+    */
+    function pay() external returns(bool);
 }
 ```
 
