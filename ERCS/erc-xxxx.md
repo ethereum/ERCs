@@ -41,12 +41,16 @@ interface IERCxxxx {
     function floatingRatePayer() external view returns(address);
 
     /**
-    *  @notice Returns the fixed interest rate
+    *  @notice Returns the fixed interest rate. It is RECOMMENDED to express the interest rate in basis point unit
+    *          1 basis point = 0.01% = 0.0001
+    *          ex: if interest rate = 5%, then coupon() => 500 basis points
     */
     function fixedRate() external view returns(uint256);
 
     /**
-    *  @notice Returns the floating rate spread
+    *  @notice Returns the floating rate spread. It is RECOMMENDED to express the spread in basis point unit
+    *          1 basis point = 0.01% = 0.0001
+    *          ex: if interest rate = 5%, then coupon() => 500 basis points
     */
     function floatingRateSpread() external view returns(uint256);
 
