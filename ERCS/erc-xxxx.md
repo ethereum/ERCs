@@ -1,5 +1,5 @@
 ---
-title: Iterest Rate Swaps
+title: Interest Rate Swaps
 description: This interface defines a specification by which two parties enter a financial derivative contract to exchange interest rate cash flows over a specified period
 author: Samuel Gwlanold Edoumou (@Edoumou)
 discussions-to: https://ethereum-magicians.org/t/interest-rate-swaps/17777
