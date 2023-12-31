@@ -23,6 +23,61 @@ In progress...
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
+```solidity
+pragma solidity ^0.8.0;
+
+/**
+* @title ERC-xxxx Interest Rate Swaps
+*/
+interface IERCxxxx {
+    /**
+    *  @notice Returns the fixed rate payer. The party who aggreed to pay fixed interest
+    */
+    function fixedRatePayer() external view returns(address);
+
+    /**
+    *  @notice Returns the floating rate payer. The party who aggreed to pay floating interest
+    */
+    function floatingRatePayer() external view returns(address);
+
+    /**
+    *  @notice Returns the fixed interest rate
+    */
+    function fixedRate() external view returns(uint256);
+
+    /**
+    *  @notice Returns the floating rate spread
+    */
+    function floatingRateSpread() external view returns(uint256);
+
+    /**
+    *  @notice Returns the notional amount. This amount serves as the basis for calculating the interest payments, and may not be exchanged
+    */
+    function notionalAmount() external view returns(uint256);
+
+    /**
+    *  @notice Returns the frequency of interest payments
+    */
+    function frequency() external view returns(uint256);
+
+    /**
+    *  @notice Returns the starting date of the contract
+    */
+    function startingDate() external view returns(uint256);
+
+    /**
+    *  @notice Returns the maturity date of the swap contract
+    */
+    function maturityDate() external view returns(uint256);
+
+    /**
+    *  @notice Returns the benchmark rate used for the floating rate
+    *          Ex: 0: EURIBOR, 1: SOFR, 2: SONIA, 3: TONA, etc.
+    */
+    function benchmark() external view returns(uint256);
+}
+```
+
 ## Rationale
 
 In progress...
