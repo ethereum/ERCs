@@ -83,7 +83,7 @@ interface IERCxxxx {
     *  @notice Returns the benchmark rate used for the floating rate
     *          Ex: 0: EURIBOR, 1: SOFR, 2: SONIA, 3: TONA, etc.
     */
-    function benchmark() external view returns(uint256);
+    function benchmark() external view returns(uint8);
 
     /**
     *  @notice Returns true if an account is allowed to make payment of interest difference 
