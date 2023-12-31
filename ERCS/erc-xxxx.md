@@ -65,7 +65,7 @@ interface IERCxxxx {
     function notionalCurrency() external view returns(address);
 
     /**
-    *  @notice Returns the frequency of interest payments
+    *  @notice Returns the interest payment frequency
     */
     function frequency() external view returns(uint256);
 
