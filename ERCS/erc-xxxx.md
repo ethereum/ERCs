@@ -1,4 +1,5 @@
 ---
+eip: 7586
 title: Interest Rate Swaps
 description: This interface defines a specification by which two parties enter a financial derivative contract to exchange interest rate cash flows over a specified period
 author: Samuel Gwlanold Edoumou (@Edoumou)
