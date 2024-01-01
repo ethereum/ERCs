@@ -11,11 +11,13 @@ created: 2023-12-31
 
 ## Abstract
 
-This proposal introduces a standardized framework for on-chain interest rate swaps. The proposed standard aims to facilitate the seamless exchange of fixed and floating interest rate cash flows between parties, providing a foundation for decentralized finance (DeFi) applications.
+This proposal introduces a standardized framework for on-chain interest rate swaps. The proposed standard aims to facilitate the seamless exchange of fixed and floating interest rate cash flows between parties, providing a foundation for decentralized finance (DeFi) applications. 
 
 ## Motivation
 
-TBD
+Interest Rate Swapping (IRS) denotes a derivative contract wherein two parties mutually consent to exchange a series of forthcoming interest payments based on a specified notional amount. This financial instrument serves as a strategic tool for hedging against interest rate fluctuations. The mechanism entails the utilization of a benchmark index to facilitate the exchange between a variable interest rate and a fixed rate. Despite its widespread use, there is currently an absence of a standardized framework that enables the representation of IRS contracts on blockchain platforms.
+
+The formulation of a standardized protocol is imperative to address this gap. This standard would establish a consistent and transparent methodology for depicting IRS contracts within the blockchain environment. By doing so, it would enhance the interoperability, security, and efficiency of interest rate swap transactions on distributed ledger technology.
 
 ## Specification
 
