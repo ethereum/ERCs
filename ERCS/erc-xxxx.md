@@ -7,6 +7,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2023-12-31
+requires: 20
 ---
 
 ## Abstract
@@ -31,26 +32,26 @@ pragma solidity ^0.8.0;
 */
 interface IERCxxxx {
     /**
-    *  @notice Returns the fixed rate payer. The party who aggreed to pay fixed interest
+    *  @notice Returns the fixed rate payer account address. The party who aggreed to pay fixed interest
     */
     function fixedRatePayer() external view returns(address);
 
     /**
-    *  @notice Returns the floating rate payer. The party who aggreed to pay floating interest
+    *  @notice Returns the floating rate payer account address. The party who aggreed to pay floating interest
     */
     function floatingRatePayer() external view returns(address);
 
     /**
     *  @notice Returns the fixed interest rate. It is RECOMMENDED to express the interest rate in basis point unit
     *          1 basis point = 0.01% = 0.0001
-    *          ex: if interest rate = 5%, then coupon() => 500 basis points
+    *          ex: if interest rate = 2.5%, then fixedRate() => 250 basis points
     */
     function fixedRate() external view returns(uint256);
 
     /**
-    *  @notice Returns the floating rate spread. It is RECOMMENDED to express the spread in basis point unit
+    *  @notice Returns the floating rate spread, i.e. the fixed part of the floating interest rate. It is RECOMMENDED to express the spread in basis point unit
     *          1 basis point = 0.01% = 0.0001
-    *          ex: if interest rate = 5%, then coupon() => 500 basis points
+    *          ex: if spread = 0.5%, then floatingRateSpread() => 50 basis points
     */
     function floatingRateSpread() external view returns(uint256);
 
@@ -61,6 +62,8 @@ interface IERCxxxx {
 
     /**
     *  @notice Returns the currency contract address of the national
+    *          Example: if notional = 2,000,000 USDC, then notionalCurrency() => the USDC contract address
+    *                   if notional = 1,500,000 DAI, then notionalCurrency() => the DAI contract address
     */
     function notionalCurrency() external view returns(address);
 
@@ -70,7 +73,7 @@ interface IERCxxxx {
     function frequency() external view returns(uint256);
 
     /**
-    *  @notice Returns the starting date of the contract
+    *  @notice Returns the starting date of the swap contract
     */
     function startingDate() external view returns(uint256);
 
@@ -81,24 +84,29 @@ interface IERCxxxx {
 
     /**
     *  @notice Returns the benchmark rate used for the floating rate
-    *          Ex: 0: EURIBOR, 1: SOFR, 2: SONIA, 3: TONA, etc.
+    *          Example: 0: CF BIRC, 1: EURIBOR, 2: SOFR, 3: SONIA, 4: TONA, etc.
     */
     function benchmark() external view returns(uint8);
 
     /**
-    *  @notice Returns true if an account is allowed to make payment of interest difference 
+    *  @notice Returns the benchmark rate contract address in case the benchmark is a crypto currency
+    *          If this is set, it allows to fetch the benchmark rate on-chain
+    *
+    *  OPTIONAL
     */
-    function isAllowedToMakePayment(address _account) external view returns(bool);
+    function benchmarkContractAddress() external view returns(address);
 
     /**
-    *  @notice Allows an account to make payment of interest difference 
+    *  @notice Makes swap calculation and transfers the interest difference to either the `fixed rate payer` or the `floating rate payer`
     */
-    function allowToMakePayment(address _account) external returns(bool);
+    function swap() external returns(bool);
 
     /**
-    *  @notice Pays the difference between the floating and fixed interests 
+    * @notice MUST be emitted when interest rates are swapped
+    * @param _amount the interest difference to be transferred
+    * @param _account the recipient account to send the interest difference to. MUST be either the `fixed rate payer` or the `floating rate payer`
     */
-    function pay() external returns(bool);
+    event Swap(uint256 _amount, address _account);
 }
 ```
 
