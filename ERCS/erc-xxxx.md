@@ -15,11 +15,9 @@ This proposal introduces a standardized framework for on-chain interest rate swa
 
 ## Motivation
 
-In progress...
+TBD
 
 ## Specification
-
-In progress...
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
@@ -104,27 +102,23 @@ interface IERCxxxx {
 
 ## Rationale
 
-In progress...
-
 TBD
 
 ## Backwards Compatibility
 
-In progress...
-
-No backward compatibility issues found.
+TBD
 
 ## Test Cases
 
-In progress...
+TBD
 
 ## Reference Implementation
 
-In progress...
+TBD
 
 ## Security Considerations
 
-In progress...
+TBD
 
 ## Copyright
 
