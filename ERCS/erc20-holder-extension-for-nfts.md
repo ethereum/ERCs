@@ -1,0 +1,179 @@
+---
+title: ERC20 Holder Extension for NFTs
+description: Extension to allow NFTs to receive and transfer ERC20 tokens.
+author: Steven Pineda (@steven2308), Jan Turk (@ThunderDeliverer)
+discussions-to: https://ethereum-magicians.org/t/token-holder-extension-for-nfts/16260
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-01-05
+requires: 165, 20, 721
+---
+
+## Abstract
+
+This proposal suggests an extension to ERC721 to enable easy exchange of ERC20 tokens. By enhancing ERC721, it allows unique tokens to manage and trade ERC20 fungible tokens bundled in a single NFT.
+
+## Motivation
+
+In the ever-evolving landscape of blockchain technology and decentralized ecosystems, interoperability between diverse token standards has become a paramount concern. By enhancing ERC721 functionality, this proposal empowers non-fungible tokens (NFTs) to engage in complex transactions, facilitating the exchange of fungible tokens, unique assets, and multi-class assets within a single protocol.
+
+This ERC introduces new utilities in the following areas:
+- Expanded use cases
+- Facilitating composite transactions
+- Market liquidity and value creation
+
+### Expanded Use Cases
+
+Enabling ERC721 tokens to handle various token types opens the door to a wide array of innovative use cases. From gaming and digital collectibles to decentralized finance (DeFi) and supply chain management, this extension enhances the potential of NFTs by allowing them to participate in complex, multi-token transactions.
+
+### Facilitating composite transactions
+
+With this extension, composite transactions involving both fungible and non-fungible assets become easier. This functionality is particularly valuable for applications requiring intricate transactions, such as gaming ecosystems where in-game assets may include a combination of fungible and unique tokens.
+
+### Market liquidity and value creation
+
+By allowing ERC721 tokens to hold and trade different types tokens, it enhances liquidity for markets in all types of tokens.
+
+## Specification
+
+### ERC20Holder
+
+```solidity
+
+interface IERC20Holder /*is IERC165, IERC721*/  {
+    /**
+     * @notice Used to notify listeners that the token received ERC-20 tokens.
+     * @param erc20Contract The address of the ERC-20 smart contract
+     * @param toTokenId The ID of the token receiving the ERC-20 tokens
+     * @param from The address of the account from which the tokens are being transferred
+     * @param amount The number of ERC-20 tokens received
+     */
+    event ReceivedERC20(
+        address indexed erc20Contract,
+        uint256 indexed toTokenId,
+        address indexed from,
+        uint256 amount
+    );
+
+    /**
+     * @notice Used to notify the listeners that the ERC-20 tokens have been transferred.
+     * @param erc20Contract The address of the ERC-20 smart contract
+     * @param fromTokenId The ID of the token from which the ERC-20 tokens have been transferred
+     * @param to The address receiving the ERC-20 tokens
+     * @param amount The number of ERC-20 tokens transferred
+     */
+    event TransferredERC20(
+        address indexed erc20Contract,
+        uint256 indexed fromTokenId,
+        address indexed to,
+        uint256 amount
+    );
+
+    /**
+     * @notice Used to retrieve the given token's specific ERC-20 balance
+     * @param erc20Contract The address of the ERC-20 smart contract
+     * @param tokenId The ID of the token being checked for ERC-20 balance
+     * @return The amount of the specified ERC-20 tokens owned by a given token
+     */
+    function balanceOfERC20(
+        address erc20Contract,
+        uint256 tokenId
+    ) external view returns (uint256);
+
+    /**
+     * @notice Transfer ERC-20 tokens from a specific token.
+     * @dev The balance MUST be transferred from this smart contract.
+     * @dev Implementers should validate that the `msg.sender` is either the token owner or approved to manage it before calling this.
+     * @dev Must increase the transfer-out-nonce for the tokenId
+     * @param erc20Contract The address of the ERC-20 smart contract
+     * @param tokenId The ID of the token to transfer the ERC-20 tokens from
+     * @param amount The number of ERC-20 tokens to transfer
+     * @param data Additional data with no specified format, to allow for custom logic
+     */
+    function transferHeldERC20FromToken(
+        address erc20Contract,
+        uint256 tokenId,
+        address to,
+        uint256 amount,
+        bytes memory data
+    ) external;
+
+    /**
+     * @notice Transfer ERC-20 tokens to a specific token.
+     * @dev The ERC-20 smart contract must have approval for this contract to transfer the ERC-20 tokens.
+     * @dev The balance MUST be transferred from the `msg.sender`.
+     * @param erc20Contract The address of the ERC-20 smart contract
+     * @param tokenId The ID of the token to transfer ERC-20 tokens to
+     * @param amount The number of ERC-20 tokens to transfer
+     * @param data Additional data with no specified format, to allow for custom logic
+     */
+    function transferERC20ToToken(
+        address erc20Contract,
+        uint256 tokenId,
+        uint256 amount,
+        bytes memory data
+    ) external;
+
+    /**
+     * @notice Nonce increased every time an ERC20 token is transferred out of a token
+     * @param tokenId The ID of the token to check the nonce for
+     * @return The nonce of the token
+     */
+    function erc20TransferOutNonce(
+        uint256 tokenId
+    ) external view returns (uint256);
+}
+```
+
+
+## Rationale
+
+### Pull mechanism
+
+We suggest to use pull mechanism, where the contract transfers the token to itself, instead of receiving it via "safe tranfer" for 2 reasons:
+
+1. Customizability with Hooks. By initiating the 
+process this way, smart contract developers have the flexibility to execute specific actions before and after transfering the tokens.
+
+2. Uniformity and Safety Across Token Standards:
+ERC20 tokens lack a standardized "safe transfer" mechanism, which means there is no reliable way to notify the receiver of a successful transfer. By adopting a pull mechanism for all tokens, a consistent approach is established across different token standards.
+
+This has the disadvantage of requiring approval of the token to be transferred before actually transferring it into an NFT.
+
+### Granular vs Generic
+
+We considered 2 ways of presenting the proposal:
+1. A granular approach where there is an independent interface for each type of held token.
+2. A universal token holder which could also hold and transfer ERC721s and ERC1155s.
+
+An implementation of the granular version is slightly cheaper in gas, and if you're using just one or two types, it's smaller in contract size. The generic version is smaller in size and have single methods to send or receive, but it also adds some complexity by always requiring Id and amount on transfer methods. Id not being necessary for ERC20s and amount not being necessary for ERC721s. 
+
+We also considered that due to the existence of safe transfer methods on both ERC721 and ERC1155, and the common used interfaces of IERC721Receiver and IERC1155Receiver, there is not much need to declare an additional interface to manage such tokens. However, this is not the case for ERC20, which does not include a method with callback to notify the receiver of the transfer. 
+
+For the aforementioned reasons, we decided to go with a granular approach.
+
+
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Test Cases
+
+Will be added.
+
+## Reference Implementation
+
+Will be added.
+
+## Security Considerations
+
+The same security considerations as with [ERC-721](./eip-721.md) apply: hidden logic may be present in any of the functions, including burn, add resource, accept resource, and more.
+
+Caution is advised when dealing with non-audited contracts.
+
+Implementations MUST use the message sender as from parameter when they are transferring tokens into an NFT. Otherwise, since the current contract needs approval, it could potentially pull the external tokens into a different NFT.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
