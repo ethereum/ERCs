@@ -114,6 +114,9 @@ describe("ERC7590", async function () {
       expect(await erc20A.balanceOf(tokenHolder.address)).to.equal(
         mockValue.div(2)
       );
+      expect(await tokenHolder.erc20TransferOutNonce(tokenHolderId)).to.equal(
+        1
+      );
     });
 
     it("cannot transfer 0 value", async function () {
