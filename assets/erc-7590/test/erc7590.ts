@@ -3,7 +3,7 @@ import { BigNumber } from "ethers";
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { ERC20Mock, ERC7590Mock } from "../typechain-types";
+import { ERC20Mock } from "../typechain-types";
 
 const IERC165 = "0x01ffc9a7";
 const IRMRKERC20Holder = "0x6f87c75c";
