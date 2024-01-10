@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.21;
 
 /**
@@ -25,11 +25,7 @@ interface IExecution {
      * @param callData The call data to be sent to the contract.
      * @return result The return data of the executed contract call.
      */
-    function execute(
-        address target,
-        uint256 value,
-        bytes calldata callData
-    )
+    function execute(address target, uint256 value, bytes calldata callData)
         external
         payable
         returns (bytes memory result);
@@ -44,10 +40,7 @@ interface IExecution {
      * @param executions An array of struct Execution (address target, uint value, bytes callData)
      * @return results The return data of the executed contract call.
      */
-    function executeBatch(Execution[] calldata executions)
-        external
-        payable
-        returns (bytes[] memory results);
+    function executeBatch(Execution[] calldata executions) external payable returns (bytes[] memory results);
 
     /**
      *
@@ -60,11 +53,7 @@ interface IExecution {
      * @param callData The call data to be sent to the contract.
      * @return result The return data of the executed contract call.
      */
-    function executeFromExecutor(
-        address target,
-        uint256 value,
-        bytes calldata callData
-    )
+    function executeFromExecutor(address target, uint256 value, bytes calldata callData)
         external
         payable
         returns (bytes memory);
@@ -102,10 +91,7 @@ interface IExecutionUnsafe {
      * @param callData The call data to be sent to the contract.
      * @return result The return data of the executed contract call.
      */
-    function executeDelegateCall(
-        address target,
-        bytes calldata callData
-    )
+    function executeDelegateCall(address target, bytes calldata callData)
         external
         payable
         returns (bytes memory result);
@@ -123,10 +109,7 @@ interface IExecutionUnsafe {
      * @param callData The call data to be sent to the contract.
      * @return result The return data of the executed contract call.
      */
-    function executeDelegateCallFromExecutor(
-        address target,
-        bytes memory callData
-    )
+    function executeDelegateCallFromExecutor(address target, bytes memory callData)
         external
         payable // gas bad
         returns (bytes memory result);
