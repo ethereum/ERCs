@@ -4,13 +4,14 @@ pragma solidity ^0.8.18;
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "./IERC7007.sol";
-import "./IVerifier.sol";
+import "./IOpmlLib.sol";
 
 /**
  * @dev Implementation of the {IERC7007} interface.
  */
-contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
-    address public immutable verifier;
+contract ERC7007_opml is ERC165, IERC7007, ERC721URIStorage {
+    address public immutable opmlLib;
+    mapping(uint256 => uint256) tokenIdToRequestId;
 
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
@@ -18,9 +19,9 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
     constructor(
         string memory name_,
         string memory symbol_,
-        address verifier_
+        address opmlLib_
     ) ERC721(name_, symbol_) {
-        verifier = verifier_;
+        opmlLib = opmlLib_;
     }
 
     /**
@@ -32,7 +33,6 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
         string calldata uri,
         bytes calldata proof
     ) public virtual override returns (uint256 tokenId) {
-        require(verify(prompt, aigcData, proof), "ERC7007: invalid proof");
         tokenId = uint256(keccak256(prompt));
         _safeMint(msg.sender, tokenId);
         string memory tokenUri = string(
@@ -47,6 +47,9 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
             )
         );
         _setTokenURI(tokenId, tokenUri);
+        tokenIdToRequestId[tokenId] = IOpmlLib(opmlLib).initOpmlRequest(prompt);
+        IOpmlLib(opmlLib).uploadResult(tokenIdToRequestId[tokenId], aigcData);
+
         emit Mint(tokenId, prompt, aigcData, uri, proof);
     }
 
@@ -58,11 +61,9 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
         bytes calldata aigcData,
         bytes calldata proof
     ) public view virtual override returns (bool success) {
-        return
-            IVerifier(verifier).verifyProof(
-                proof,
-                abi.encodePacked(prompt, aigcData)
-            );
+        uint256 tokenId = uint256(keccak256(prompt));
+        bytes32 output = bytes32(IOpmlLib(opmlLib).getOutput(tokenIdToRequestId[tokenId]));
+        return IOpmlLib(opmlLib).isFinalized(tokenIdToRequestId[tokenId]) && (output == keccak256(aigcData));
     }
 
     /**
@@ -70,10 +71,9 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
      */
     function supportsInterface(
         bytes4 interfaceId
-    ) public view virtual override(ERC165, ERC721, IERC165) returns (bool) {
+    ) public view virtual override(ERC165, IERC165, ERC721URIStorage) returns (bool) {
         return
             interfaceId == type(IERC721).interfaceId ||
-            interfaceId == type(IERC721Metadata).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 }
