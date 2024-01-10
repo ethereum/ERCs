@@ -112,7 +112,7 @@ contract ERC20 is IERC20 {
         _beforeTokenTransfer(from, to, amount);
 
         uint256 balance = _balanceOf[from];
-        require(balance > 0 && balance == amount, "ERC20: INVALID_BALANCE");
+        require(balance > 0, "ERC20: INVALID_BALANCE");
         unchecked {
             _balanceOf[from] = balance - amount;
             _balanceOf[to] += amount;
