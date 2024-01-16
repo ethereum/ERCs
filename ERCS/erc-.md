@@ -3,7 +3,7 @@ eip: pending
 title: Equity Shares Book-Entry System
 description: An auto-pilot book-entry system of equity shares to form web3.0 capital markets by implementing concept of "Code is Law".
 author: Paul Lee <@paul-lee-attorney>
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/add-erc-equity-shares-book-entry-system/18155/1
 status: Draft
 type: Standards Track
 category: ERC
