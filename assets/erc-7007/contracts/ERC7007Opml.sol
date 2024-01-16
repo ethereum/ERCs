@@ -77,10 +77,8 @@ contract ERC7007Opml is ERC165, IERC7007Updatable, ERC721URIStorage {
         bytes calldata aigcData,
         string calldata uri
     ) public virtual override {
+        require(verify(prompt, aigcData, prompt), "ERC7007: invalid aigcData"); // proof argument is not used in verify() function for opML, so we can pass prompt as proof
         uint256 tokenId = uint256(keccak256(prompt));
-        require(IOpmlLib(opmlLib).isFinalized(tokenIdToRequestId[tokenId]), "ERC7007: token is not finalized");
-        bytes memory output = IOpmlLib(opmlLib).getOutput(tokenIdToRequestId[tokenId]);
-        require(keccak256(output) == keccak256(aigcData), "ERC7007: invalid aigcData");
         string memory tokenUri = string(
             abi.encodePacked(
                 "{",
