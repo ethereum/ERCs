@@ -1,4 +1,5 @@
 ---
+eip: 7595
 title: Collateralized NFT
 description: EIP-721 Extension to enable collateralization with EIP-20 based tokens.
 author: 571nKY (@571nKY), Cosmos (@Cosmos4k), f4t50 (@f4t50), Harpocrates (@harpocrates555)
