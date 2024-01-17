@@ -1,5 +1,5 @@
 ---
-title: Collateralized NFT Standard
+title: Collateralized NFT
 description: EIP-721 Extension to enable collateralization with EIP-20 based tokens.
 author: 571nKY (@571nKY), Cosmos (@Cosmos4k), f4t50 (@f4t50), Harpocrates (@harpocrates555)
 discussions-to: https://ethereum-magicians.org/t/collateralized-nft-standard/18097
