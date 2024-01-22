@@ -40,7 +40,7 @@ export async function minimalAttestationExample() {
 }
 
 describe("ERC6956: Asset-Bound NFT --- Basics", function () {
-  // Fixture to deploy the abnftContract contract and assigne roles.
+  // Fixture to deploy the abnftContract contract and assign roles.
   // Besides owner there's user, minter and burner with appropriate roles.
   async function deployAbNftFixture() {
     // Contracts are deployed using the first signer/account by default
@@ -175,7 +175,7 @@ describe("Authorization Map tests", function () {
         .to.emit(abnftContract, "AnchorTransfer")
         .withArgs(alice.address, bob.address, anchor, 1);
 
-        // Token is now at bob... so alice may hire a hacker quickly and re-use her attestation to get 
+        // Token is now at bob... so alice may hire a hacker quickly and reuse her attestation to get 
         // the token back from Bob ... which shall of course not work
         await expect(abnftContract.connect(hacker)["transferAnchor(bytes)"](mintAttestationAlice))
         .to.revertedWith("ERC6956-E9") // Standard ERC721 event
