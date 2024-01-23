@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.0;
 
@@ -8,7 +7,7 @@ import "./Tokens/ERC20.sol";
 contract ERC7586 is IERC7586, ERC20 {
     constructor(string memory _name, string memory _symbol, IRS memory _irs) ERC20(_name, _symbol) {
         irsSymbol = _symbol;
-        irs[irsSymbol] = _irs;
+        irs = _irs;
 
         _isActive = true;
 
@@ -18,52 +17,52 @@ contract ERC7586 is IERC7586, ERC20 {
     }
 
     function payer() external view returns(address) {
-        return irs[irsSymbol].payer;
+        return irs.payer;
     }
 
     function receiver() external view returns(address) {
-        return irs[irsSymbol].receiver;
+        return irs.receiver;
     }
 
     function swapRate() external view returns(uint256) {
-        return irs[irsSymbol].swapRate;
+        return irs.swapRate;
     }
 
     function spread() external view returns(uint256) {
-        return irs[irsSymbol].spread;
+        return irs.spread;
     }
 
     function assetContract() external view returns(address) {
-        return irs[irsSymbol].assetContract;
+        return irs.assetContract;
     }
 
     function notionalAmount() external view returns(uint256) {
-        return irs[irsSymbol].notionalAmount;
+        return irs.notionalAmount;
     }
 
     function paymentFrequency() external view returns(uint256) {
-        return irs[irsSymbol].paymentFrequency;
+        return irs.paymentFrequency;
     }
 
     function paymentDates() external view returns(uint256[] memory) {
-        return irs[irsSymbol].paymentDates;
+        return irs.paymentDates;
     }
 
     function startingDate() external view returns(uint256) {
-        return irs[irsSymbol].startingDate;
+        return irs.startingDate;
     }
 
     function maturityDate() external view returns(uint256) {
-        return irs[irsSymbol].maturityDate;
+        return irs.maturityDate;
     }
 
     function benchmark() external view returns(uint256) {
         // This should be fetched from an oracle contract
-        return irs[irsSymbol].benchmark;
+        return irs.benchmark;
     }
 
     function oracleContractForBenchmark() external view returns(address) {
-        return irs[irsSymbol].oracleContractForBenchmark;
+        return irs.oracleContractForBenchmark;
     }
 
     function isActive() public view returns(bool) {
@@ -72,20 +71,20 @@ contract ERC7586 is IERC7586, ERC20 {
 
     function agree() external {
         require(_hasAgreed[msg.sender] == false, "Already agreed");
-        require(msg.sender == irs[irsSymbol].payer || msg.sender == irs[irsSymbol].receiver);
-        require(block.timestamp < irs[irsSymbol].paymentDates[0], "delay expired");
+        require(msg.sender == irs.payer || msg.sender == irs.receiver);
+        require(block.timestamp < irs.paymentDates[0], "delay expired");
 
         _hasAgreed[msg.sender] = true;
     }
 
     function swap() external returns(bool) {
         require(_isActive, "Contract not Active");
-        require(_hasAgreed[irs[irsSymbol].payer], "Missing Agreement");
-        require(_hasAgreed[irs[irsSymbol].receiver], "Missing Agreement");
+        require(_hasAgreed[irs.payer], "Missing Agreement");
+        require(_hasAgreed[irs.receiver], "Missing Agreement");
 
-        uint256 fixedRate = irs[irsSymbol].swapRate;
-        uint256 floatingRate = irs[irsSymbol].benchmark + irs[irsSymbol].spread;
-        uint256 notional = irs[irsSymbol].notionalAmount;
+        uint256 fixedRate = irs.swapRate;
+        uint256 floatingRate = irs.benchmark + irs.spread;
+        uint256 notional = irs.notionalAmount;
 
         uint256 fixedInterest = notional * fixedRate;
         uint256 floatingInterest = notional * floatingRate;
@@ -98,23 +97,23 @@ contract ERC7586 is IERC7586, ERC20 {
             revert("Nothing to swap");
         } else if(fixedInterest > floatingInterest) {
             interestToTransfer = fixedInterest - floatingInterest;
-            _recipient = irs[irsSymbol].receiver;
-            _payer = irs[irsSymbol].payer;
+            _recipient = irs.receiver;
+            _payer = irs.payer;
         } else {
             interestToTransfer = floatingInterest - fixedInterest;
-            _recipient = irs[irsSymbol].payer;
-            _payer = irs[irsSymbol].receiver;
+            _recipient = irs.payer;
+            _payer = irs.receiver;
         }
 
-        burn(irs[irsSymbol].payer, 1 ether);
-        burn(irs[irsSymbol].receiver, 1 ether);
+        burn(irs.payer, 1 ether);
+        burn(irs.receiver, 1 ether);
 
         uint256 _paymentCount = paymentCount;
         paymentCount = _paymentCount + 1;
 
-        IERC20(irs[irsSymbol].assetContract).transferFrom(_payer, _recipient, interestToTransfer * 1 ether / 10_000);
+        IERC20(irs.assetContract).transferFrom(_payer, _recipient, interestToTransfer * 1 ether / 10_000);
 
-        if(paymentCount == irs[irsSymbol].paymentDates.length) {
+        if(paymentCount == irs.paymentDates.length) {
             _isActive = false;
         }
 
