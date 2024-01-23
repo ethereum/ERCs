@@ -19,10 +19,11 @@ contract ERC20 is IERC20 {
         uint256[] paymentDates;
     }
 
-    mapping(string => IRS) irs;
     mapping(address => bool) _hasAgreed;
     mapping(address => uint256) internal _balanceOf;
     mapping(address => mapping(address => uint256)) internal _allowances;
+
+    IRS irs;
 
     string private _name;
     string private _symbol;
@@ -112,19 +113,19 @@ contract ERC20 is IERC20 {
         _beforeTokenTransfer(from, to, amount);
 
         uint256 balance = _balanceOf[from];
-        require(balance > 0, "ERC20: INVALID_BALANCE");
+        require(balance > 0 && balance == amount, "ERC20: INVALID_BALANCE");
         unchecked {
             _balanceOf[from] = balance - amount;
             _balanceOf[to] += amount;
         }
 
-        if(from == irs[irsSymbol].payer) {
-            irs[irsSymbol].payer = to;
+        if(from == irs.payer) {
+            irs.payer = to;
             _hasAgreed[to] = true;
         }
 
-        if(from == irs[irsSymbol].receiver) {
-            irs[irsSymbol].receiver = to;
+        if(from == irs.receiver) {
+            irs.receiver = to;
             _hasAgreed[to] = true;
         }
 
