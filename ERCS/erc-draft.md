@@ -1,5 +1,5 @@
 ---
-erc: to be assigned
+erc: draft
 title: Ethereum Mixing Transaction Supervision
 description: Monitoring and regulating mixing transactions on the Ethereum blockchain.
 author: Evelyn (@Evelynlhn)
