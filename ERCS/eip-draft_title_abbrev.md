@@ -2,7 +2,7 @@
 title: Context-Dependent Multi-Asset Tokens, EIP-1155 Extension
 description: An interface compatible with EIP-1155 for Multi-Asset tokens with context-dependent asset type output control.
 author: Haru (@haruu8)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-multi-context-dependent-multi-asset-tokens-eip1155-extension/18303
 status: Draft
 type: Standards Track
 category: ERC
