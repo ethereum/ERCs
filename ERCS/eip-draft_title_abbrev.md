@@ -4,8 +4,8 @@ description: An interface compatible with EIP-1155 for Multi-Asset tokens with c
 author: Haru (@haruu8)
 discussions-to: <URL>
 status: Draft
-type: <Standards Track>
-category: <ERC>
+type: Standards Track
+category: ERC
 created: 2024-01-25
 requires: EIP-165, EIP-1155
 ---
