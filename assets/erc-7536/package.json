@@ -1,5 +1,5 @@
 {
-  "name": "ERCXXXX",
+  "name": "ERC7536",
   "version": "1.0.0",
   "description": "Improvement proposal for enabling creation of time-limited copies of an abitrary NFT token by specifying some conditions",
   "scripts": {
