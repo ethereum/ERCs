@@ -6,7 +6,7 @@ discussions-to: https://ethereum-magicians.org/t/proposal-for-a-new-eip-erc-2612
 status: Draft
 type: Standards Track
 category: ERC
-created: <date created on, in ISO 8601 (yyyy-mm-dd) format>
+created: 2024-01-27
 requires: 165, 712, 1155, 5216
 ---
 
