@@ -10,18 +10,6 @@ created: <date created on, in ISO 8601 (yyyy-mm-dd) format>
 requires: 165, 712, 1155, 5216
 ---
 
-<!--
-  READ EIP-1 (https://eips.ethereum.org/EIPS/eip-1) BEFORE USING THIS TEMPLATE!
-
-  This is the suggested template for new EIPs. After you have filled in the requisite fields, please delete these comments.
-
-  Note that an EIP number will be assigned by an editor. When opening a pull request to submit your EIP, please use an abbreviated title in the filename, `eip-draft_title_abbrev.md`.
-
-  The title should be 44 characters or less. It should not repeat the EIP number in title, irrespective of the category.
-
-  TODO: Remove this comment before submitting
--->
-
 ## Abstract
 
 The "permit" approval flow for both ERC-20 and ERC-721 tokens outlined in [ERC-4494](https://github.com/ethereum/ercs/blob/master/ERCS/erc-4494.md) and [ERC-2612](https://github.com/ethereum/ercs/blob/master/ERCS/erc-2612.md)  are large improvements for the existing UX of the token underlying each ERC. This ERC extends the "permit" pattern to ERC-1155 tokens, borrowing heavily upon both ERC-4494 and ERC-2612.
@@ -29,16 +17,6 @@ The "permit" approval flow for both ERC-20 and ERC-721 tokens outlined in [ERC-4
 The structure of ERC-1155 tokens requires a new ERC to account for the token standard's use of both token IDs and balances (also why this ERC requires [ERC-5216](https://github.com/ethereum/ercs/blob/master/ERCS/erc-5216.md)). An additional field of arbitrary `bytes` is added for extra data to be added to the signatures in the case that the permit function would be extended in some way.  
 
 ## Motivation
-
-<!--
-  This section is optional.
-
-  The motivation section should include a description of any nontrivial problems the EIP solves. It should not describe how the EIP solves those problems, unless it is not immediately obvious. It should not describe why the EIP should be made into a standard, unless it is not immediately obvious.
-
-  With a few exceptions, external links are not allowed. If you feel that a particular resource would demonstrate a compelling case for your EIP, then save it as a printer-friendly PDF, put it in the assets folder, and link to that copy.
-
-  TODO: Remove this comment before submitting
--->
 
 The permit structures outlined in both ERC-4494 and ERC-2612 allows a signed message to create an approval, but are only applicable to their respective underlying tokens (ERC-721 and ERC-20).
 
@@ -174,14 +152,6 @@ This EIP requires [ERC-165](https://github.com/ethereum/ercs/blob/master/ERCS/er
 
 ## Rationale
 
-<!--
-  The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work, e.g. how the feature is supported in other languages.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
 The `permit` function is sufficient for enabling a `safeTransferFrom` transaction to be made without the need for an additional transaction.
 
 The format avoids any calls to unknown code.
@@ -200,40 +170,11 @@ An additional parameter `data` is added to the `permit` in order to offer extens
 
 ## Backwards Compatibility
 
-<!--
-
-  This section is optional.
-
-  All EIPs that introduce backwards incompatibilities must include a section describing these incompatibilities and their severity. The EIP must explain how the author proposes to deal with these incompatibilities. EIP submissions without a sufficient backwards compatibility treatise may be rejected outright.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
 No backward compatibility issues found.
 
 ## Test Cases
 
-<!--
-  This section is optional for non-Core EIPs.
-
-  The Test Cases section should include expected input/output pairs, but may include a succinct set of executable tests. It should not include project build files. No new requirements may be be introduced here (meaning an implementation following only the Specification section should pass all tests here.)
-  If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed
-
-  TODO: Remove this comment before submitting
--->
-
 ## Reference Implementation
-
-<!--
-  This section is optional.
-
-  The Reference Implementation section should include a minimal implementation that assists in understanding or implementing this specification. It should not include project build files. The reference implementation is not a replacement for the Specification section, and the proposal should still be understandable without it.
-  If the reference implementation is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed.
-
-  TODO: Remove this comment before submitting
--->
 
 ## Security Considerations
 
