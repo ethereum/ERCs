@@ -2,7 +2,7 @@
 title: ERC-1155 Permit Approvals
 description: Permit approvals for ERC-1155 tokens
 author: calvbore (@calvbore)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/proposal-for-a-new-eip-erc-2612-style-permits-for-erc1155-nfts/15504
 status: Draft
 type: Standards Track
 category: ERC
