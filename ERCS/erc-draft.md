@@ -1,4 +1,5 @@
 ---
+eip: 7604
 title: ERC-1155 Permit Approvals
 description: Permit approvals for ERC-1155 tokens
 author: calvbore (@calvbore)
