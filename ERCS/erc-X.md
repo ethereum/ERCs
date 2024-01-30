@@ -49,9 +49,10 @@ in order to withdraw funds and mark the contract as solved.
 
 | Parameter                 | Value         |
 |---------------------------|---------------|
-| `BIT_SIZE_OF_PRIMES`      | `1,024`       |
-| `EIP_X_SINGLETON_ADDRESS` | `TBD`         |
-| `MINIMUM_GAS_PAYOUT`      | `600,000,000` |
+| `BIT_SIZE_OF_PRIMES`      | `1024`        |
+| `COMMIT_REVEAL_TIME_GAP`  | `1 day`       |
+| `ERC_X_SINGLETON_ADDRESS` | `TBD`         |
+| `ESTIMATED_GAS_TO_SOLVE`  | `600,000,000` |
 | `NUMBER_OF_LOCKS`         | `119`         |
 
 ### Puzzle
@@ -75,7 +76,7 @@ where given a positive integer _n_, the objective is to find the set of prime nu
 
 - The solution for each lock SHALL be provided separately.
 - Providing solutions MUST follow a commit-reveal scheme to prevent front running.
-- This scheme MUST require one day between commit and reveal.
+- This scheme MUST require `COMMIT_REVEAL_TIME_GAP` between commit and reveal.
 
 ### Rewarding the solver
 
@@ -86,8 +87,8 @@ Upon solving the final solution,
 
 ### Bounty funds
 
-- Funds covering at least `MINIMUM_GAS_PAYOUT` gas SHALL be sent to the contract as a bounty. As a rough estimate for an example, if the current market price is 23.80 Gwei per gas, the contract SHALL have at least 14.28 ETH as a bounty. 
-  The funds must be updated to cover this amount as the value of gas increases.
+- Funds covering at least `ESTIMATED_GAS_TO_SOLVE` gas SHALL be sent to the contract as a bounty. As a rough estimate for an example, if the current market price is 23.80 Gwei per gas, the contract SHALL have at least 14.28 ETH as a bounty. 
+  The funds must be updated to cover this amount as the value of gas increases in order to make solving the puzzle incentive compatible.
 - The contract MUST accept any additional funds from any account as a donation to the bounty.
 
 ## Rationale
@@ -110,7 +111,7 @@ each of them, resulted in a cost of 583,338,223 gas. Providing a solution for a 
 The majority of the cost comes from verifying that the provided factors are indeed prime with the Miller-Rabin primality test.
 
 Since the number of factors in this [test](../assets/eip-X/test/bounty-contracts/prime-factoring-bounty/cost-of-solving-primes.test.ts) is greater than the expected number of factors of any integer, this may serve as an initial estimate of the cost to verify the solutions for randomly generated integers. Therefore, since the total cost is less than
-`MINIMUM_GAS_PAYOUT` gas, a bounty covering at least `MINIMUM_GAS_PAYOUT` should be funded to the contract. Note, this minimum viable incentive in terms of ETH is a moving target, as a function of the current Ethereum gas market. To help ensure incentive compatability of this bounty contract, the bounty funded should be at least many multiples over the current gas prices. 
+`ESTIMATED_GAS_TO_SOLVE` gas, a bounty covering at least `ESTIMATED_GAS_TO_SOLVE` should be funded to the contract. Note, this minimum viable incentive in terms of ETH is a moving target, as a function of the current Ethereum gas market. To help ensure incentive compatability of this bounty contract, the bounty funded should be at least many multiples over the current gas prices. 
 
 ## Test Cases
 
