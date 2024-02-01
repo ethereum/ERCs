@@ -16,15 +16,10 @@ struct UserOperation {
 }
 
 interface IERC7579Account {
-    error UnsupportedModuleType(uint256 moduleType);
-    // Error thrown when an execution with an unsupported CallType was made
-    error UnsupportedCallType(bytes1 callType);
-    // Error thrown when an execution with an unsupported ExecType was made
-    error UnsupportedExecType(bytes1 execType);
-
-    error AccountInitializationFailed();
-
+    // MUST be emitted when a module is installed
     event ModuleInstalled(uint256 moduleTypeId, address module);
+
+    // MUST be emitted when a module is uninstalled
     event ModuleUninstalled(uint256 moduleTypeId, address module);
 
     /**
@@ -47,7 +42,10 @@ interface IERC7579Account {
      * MUST ensure adequate authorization control: i.e. onlyExecutorModule
      * If a mode is requested that is not supported by the Account, it MUST revert
      */
-    function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata) external payable;
+    function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
+        external
+        payable
+        returns (bytes[] memory returnData);
 
     /**
      * @dev ERC-4337 validateUserOp according to ERC-4337 v0.7
@@ -74,14 +72,6 @@ interface IERC7579Account {
      * MUST sanitize the data parameter to before forwarding it to the validator module
      */
     function isValidSignature(bytes32 hash, bytes calldata data) external payable returns (bytes4);
-
-    /**
-     * @dev Initializes the account. Function might be called directly or by a factory
-     * @param data encoded data that can be used during the initialization phase
-     *
-     * MUST revert if the account is already initialized
-     */
-    function initializeAccount(bytes calldata data) external payable;
 
     /**
      * @dev Returns the account id of the smart account
