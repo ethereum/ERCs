@@ -68,10 +68,11 @@ mode = "excludes"
 pattern = '(?i)erc[\s]*[0-9]+'
 message = "proposals must be referenced with the form `ERC-N` (not `ERCN` or `ERC N`)"
 
-[lints.markdown-refs]
-kind = "markdown-proposal-ref"
-prefix = "erc-"
-suffix = ".md"
+## TODO: Disabled because half the files are in another repository.
+# [lints.markdown-refs]
+# kind = "markdown-proposal-ref"
+# prefix = "erc-"
+# suffix = ".md"
 
 [lints.preamble-req-withdrawal-reason]
 kind = "preamble-required-if-eq"
@@ -96,25 +97,26 @@ names = [
     "withdrawal-reason",
 ]
 
-[lints.preamble-requires-status]
-prefix = "erc-"
-suffix = ".md"
-kind = "preamble-requires-status"
-requires = "requires"
-status = "status"
-flow = [
-    [
-    "Draft",
-    "Stagnant",
-],
-    ["Review"],
-    ["Last Call"],
-    [
-    "Final",
-    "Withdrawn",
-    "Living",
-],
-]
+## TODO: Disabled because half the files are in another repository.
+# [lints.preamble-requires-status]
+# prefix = "erc-"
+# suffix = ".md"
+# kind = "preamble-requires-status"
+# requires = "requires"
+# status = "status"
+# flow = [
+#     [
+#         "Draft",
+#         "Stagnant",
+#     ],
+#     ["Review"],
+#     ["Last Call"],
+#     [
+#         "Final",
+#         "Withdrawn",
+#         "Living",
+#     ],
+# ]
 
 [lints.markdown-order-section]
 kind = "markdown-section-order"
