@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 /// ERC-4337 (v0.7) UserOperation struct
-struct UserOperation {
+struct PackedUserOperation {
     address sender;
     uint256 nonce;
     bytes initCode;
