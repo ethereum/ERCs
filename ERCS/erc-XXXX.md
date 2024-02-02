@@ -1,6 +1,6 @@
 ---
 eip: XXXX
-title: Sovereign Bridged NFTs (xERC-721s)
+title: Sovereign Bridged NFTs
 description: This is a proposed standard interface for moving NFTs across rollups
 author: Austin King (@0xASK)
 discussions-to: <URL> (TODO)
