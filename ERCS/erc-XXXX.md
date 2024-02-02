@@ -1,14 +1,19 @@
 ---
-eip: X
+eip: XXXX
 title: Sovereign Bridged NFTs (xERC-721s)
 description: This is a proposed standard interface for moving NFTs across rollups
-discussions-to: TODO: link Ethereum magicians post here
+author: Austin King (@0xASK)
+discussions-to: <URL> (TODO)
 status: Draft
 type: Standards Track
 category: ERC
 created: 2024-02-01
-requires: EIP-721
+requires: 721
 ---
+
+## Abstract
+
+
 
 # Abstract
 The following standard liberates the creators and holders of NFTs from the confines of a single domain — expanding their opportunity to embrace the plethora of innovation and experimentation happening across rollups in the Ethereum ecosystem.
