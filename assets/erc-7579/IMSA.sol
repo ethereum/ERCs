@@ -71,7 +71,7 @@ interface IERC7579Account {
      * with sender being the msg.sender of this function
      * MUST sanitize the data parameter to before forwarding it to the validator module
      */
-    function isValidSignature(bytes32 hash, bytes calldata data) external payable returns (bytes4);
+    function isValidSignature(bytes32 hash, bytes calldata data) external view returns (bytes4);
 
     /**
      * @dev Returns the account id of the smart account
