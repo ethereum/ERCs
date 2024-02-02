@@ -54,7 +54,7 @@ interface IERC7579Account {
      * and call it.
      * @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
      */
-    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         payable
         returns (uint256 validSignature);
