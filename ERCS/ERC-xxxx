@@ -1,0 +1,16 @@
+---
+eip: xxxx
+title: Smart Contract Data Push Mechanism
+description: An Atomic Mechanism to Allow Publisher Contract Push Data to Subcriber Contracts
+author: Elaine Zhang (@lanyinzly) <lz8aj@virginia.edu>, Jerry <jerrymindflow@gmail.com>, Amandafanny <amandafanny200@gmail.com>, Shouhao Wong (@wangshouh) <wongshouhao@outlook.com>, Doris Che (@Cheyukj) <dorischeyy@gmail.com>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-smart-contract-data-push-mechanism/18466
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-02-03
+requires: 
+---
+## Abstract
+This ERC proposes a push-based mechanism for sending data, allowing publisher contract to automatically push certain data to subscriber contracts during a call. The specific implementation relies on two interfaces: one for publisher contract to push data, and another for the subscriber contract to receive data. When the publisher contract is called, it checks if the called function corresponds to subscriber addresses. If it does, the publisher contract push data to the subscriber contracts.
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
