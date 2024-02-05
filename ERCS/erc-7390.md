@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2022-09-02
-requires: 1155, 20
+requires: 20, 1155
 ---
 
 ## Abstract
@@ -17,7 +17,7 @@ This standard defines a comprehensive set of functions and events facilitating s
 
 Vanilla options grant the right, without obligation, to buy or sell an asset at a set price within a specified timeframe.
 
-This standard doesn't represent a simple option that would be useless after the expiration date. Instead, it can store as many issuance as needed. Each issuance is identified by an id, and can be bought, exercised, cancelled, etc. independently of the other issuances.\
+This standard doesn't represent a simple option that would be useless after the expiration date. Instead, it can store as many issuance as needed. Each issuance is identified by an id, and can be bought, exercised, cancelled, etc., independently of the other issuances.\
 Every issuance is collateralized, meaning that the seller has to provide the collateral to the contract before the buyer can buy the option. The seller can retrieve the collateral if the buyer hasn't exercised in the exercise window.\
 A buyer can decide to buy only a fraction of the issuance (meaning multiple buyers is possible), and will receive accordingly tokens (ERC-1155) that represent the fraction of the issuance. These tokens can be exchanged between users, and are used for exercising the option. With this mechanism, a buyer can decide to exercise only a fraction of what he bought.\
 Also, the seller can decide to cancel the issuance if no option has been bought yet. He also has the right to update the premium price at any time. This doesn't affect the already bought options.\
@@ -94,7 +94,7 @@ Side of the option. Can take the value `Call` or `Put`. `Call` option gives the 
 
 #### `underlyingToken`
 
-**Type: `address` (ERC20 contract)**
+**Type: `address` (ERC-20 contract)**
 
 Underlying token.
 
@@ -108,7 +108,7 @@ Maximum amount of the underlying tokens that can be exercised.
 
 #### `strikeToken`
 
-**Type: `address` (ERC20 contract)**
+**Type: `address` (ERC-20 contract)**
 
 Token used as a reference to determine the strike price.
 
@@ -124,7 +124,7 @@ Note that `strike` is set for exercising the total `amount` of options.
 
 #### `premiumToken`
 
-**Type: `address` (ERC20 contract)**
+**Type: `address` (ERC-20 contract)**
 
 Premium token.
 
