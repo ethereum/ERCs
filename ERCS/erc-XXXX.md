@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 7611
 title: Sovereign Bridged NFTs
 description: This is a proposed standard interface for moving NFTs across rollups
 author: Austin King (@0xASK)
