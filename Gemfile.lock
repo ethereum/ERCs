@@ -2,12 +2,17 @@ GEM
   remote: https://rubygems.org/
   specs:
     Ascii85 (1.1.0)
-    activemodel (7.0.4.3)
-      activesupport (= 7.0.4.3)
-    activesupport (7.0.4.3)
+    activemodel (7.1.2)
+      activesupport (= 7.1.2)
+    activesupport (7.1.2)
+      base64
+      bigdecimal
       concurrent-ruby (~> 1.0, >= 1.0.2)
+      connection_pool (>= 2.2.5)
+      drb
       i18n (>= 1.6, < 2)
       minitest (>= 5.1)
+      mutex_m
       tzinfo (~> 2.0)
     addressable (2.8.4)
       public_suffix (>= 2.0.2, < 6.0)
@@ -16,17 +21,22 @@ GEM
       console (~> 1.10)
       io-event (~> 1.1)
       timers (~> 4.1)
+    base64 (0.2.0)
+    bigdecimal (3.1.4)
     coffee-script (2.4.1)
       coffee-script-source
       execjs
     coffee-script-source (1.11.1)
     colorator (1.1.0)
-    commonmarker (0.23.9)
+    commonmarker (0.23.10)
     concurrent-ruby (1.2.2)
+    connection_pool (2.4.1)
     console (1.16.2)
       fiber-local
     dnsruby (1.70.0)
       simpleidn (~> 0.2.1)
+    drb (2.2.0)
+      ruby2_keywords
     eip_validator (0.8.2)
       activemodel
       front_matter_parser (~> 0.1.1)
@@ -111,7 +121,7 @@ GEM
       yell (~> 2.0)
       zeitwerk (~> 2.5)
     http_parser.rb (0.8.0)
-    i18n (1.12.0)
+    i18n (1.14.1)
       concurrent-ruby (~> 1.0)
     io-event (1.1.7)
     jekyll (3.9.3)
@@ -235,7 +245,8 @@ GEM
       jekyll (>= 3.5, < 5.0)
       jekyll-feed (~> 0.9)
       jekyll-seo-tag (~> 2.1)
-    minitest (5.18.0)
+    minitest (5.20.0)
+    mutex_m (0.2.0)
     nokogiri (1.14.3-arm64-darwin)
       racc (~> 1.4)
     nokogiri (1.14.3-x86_64-linux)
