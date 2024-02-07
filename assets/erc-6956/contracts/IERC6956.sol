@@ -30,7 +30,7 @@ interface IERC6956 {
      * @dev This emits when approveAnchor() is called and corresponds to ERC-721 behavior
      * @param owner The owner of the anchored tokenId
      * @param approved The approved address, address(0) indicates there is no approved address
-     * @param anchor The anchor, for which approval has been chagned
+     * @param anchor The anchor, for which approval has been changed
      * @param tokenId ID (>0) of the anchored token
      */
     event AnchorApproval(address indexed owner, address approved, bytes32 indexed anchor, uint256 tokenId);
@@ -47,7 +47,7 @@ interface IERC6956 {
     /**
      * @notice This emits when an attestation has been used indicating no second attestation with the same attestationHash will be accepted
      * @param to The to address specified in the attestation
-     * @param anchor The anchor specificed in the attestation
+     * @param anchor The anchor specified in the attestation
      * @param attestationHash The hash of the attestation, see ERC-6956 for details
      * @param totalUsedAttestationsForAnchor The total number of attestations already used for the particular anchor
      */
@@ -55,7 +55,7 @@ interface IERC6956 {
 
     /**
      * @notice This emits when the trust-status of an oracle changes. 
-     * @dev Trusted oracles must explicitely be specified. 
+     * @dev Trusted oracles must explicitly be specified. 
      *      If the last event for a particular oracle-address indicates it's trusted, attestations from this oracle are valid.
      * @param oracle Address of the oracle signing attestations
      * @param trusted indicating whether this address is trusted (true). Use (false) to no longer trust from an oracle.
