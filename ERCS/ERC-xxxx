@@ -1,6 +1,6 @@
 ---
 eip: xxxx
-title: Smart Contract Data Push Mechanism
+title: Atomic Push-based Data Feed Among Contracts
 description: An Atomic Mechanism to Allow Publisher Contract Push Data to Subcriber Contracts
 author: Elaine Zhang (@lanyinzly) <lz8aj@virginia.edu>, Jerry <jerrymindflow@gmail.com>, Amandafanny <amandafanny200@gmail.com>, Shouhao Wong (@wangshouh) <wongshouhao@outlook.com>, Doris Che (@Cheyukj) <dorischeyy@gmail.com>
 discussions-to: https://ethereum-magicians.org/t/erc-xxxx-smart-contract-data-push-mechanism/18466
@@ -13,4 +13,162 @@ requires:
 ## Abstract
 This ERC proposes a push-based mechanism for sending data, allowing publisher contract to automatically push certain data to subscriber contracts during a call. The specific implementation relies on two interfaces: one for publisher contract to push data, and another for the subscriber contract to receive data. When the publisher contract is called, it checks if the called function corresponds to subscriber addresses. If it does, the publisher contract push data to the subscriber contracts.
 
+## Motivation
+Currently, there are many keepers rely on off-chain data or seperate data collection process to monitor the events on chain. This proposal aims to establish a system where the publisher contract can atomicly push data to inform subscriber contracts about the updates. The direct on-chain interaction bewteen the publisher and the subscriber allows the system to be more trustless and efficient. 
+
+This proposal will benefit DeFi's boundless and permissionless expansion
+
+
+## Specification
+
+
+```
++---------+               +-----------+                                           +-------------+
+| Client  |               | Publisher |                                           | Subscriber  |
++---------+               +-----------+                                           +-------------+
+     |                          |                                                        |
+     | Call somefunc(...)       |                                                        |
+     |------------------------->|                                                        |
+     |                          |                                                        |
+     |                          | Query Subscriber                                       |
+     |                          |-----------------                                       |
+     |                          |                |                                       |
+     |                          |<----------------                                       |
+     |                          |                                                        |
+     |                          | Call exec(bytes4 selector, bytes calldata data)        |
+     |                          |------------------------------------------------------->|
+     |                          |                                                        |
+     |                          |                                                 Result |
+     |                          |<-------------------------------------------------------|
+     |                          |                                                        |
+     |                   Result |                                                        |
+     |<-------------------------|                                                        |
+     |                          |                                                        |
+```
+
+### Contract interface
+
+A publisher contract has the following two configuration schemes, among which the unconditional push configuration requires the push contract to implement the following interface:
+
+```solidity
+interface IPushForce {
+    function isForceApproved(bytes4 selector, address target) external returns (bool);
+    function forceApprove(bytes4 selector, address target) external;
+    function forceCancel(bytes4 selector, address target) external;
+}
+```
+The conditional push configuration requires the push contract to implement the following interface:
+
+```solidity
+interface IPushFree {
+    function inbox(bytes4 selector) external returns (bytes memory);
+    function isApproved(bytes4 selector, address target, bytes calldata data) external returns (bool);
+    function approve(bytes4 selector, address target, bytes calldata data) external;
+    function cancel(bytes4 selector, address target, bytes calldata data) external;
+}
+```
+A subscriber need to implement the following interface:
+
+```solidity
+interface IExec {
+    function isLocked(bytes4 selector, bytes calldata data) external returns (bool);
+    function exec(bytes4 selector, bytes calldata data) external;
+}
+```
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {IPushFree, IPushForce} from "./interfaces/IPush.sol";
+import {IPull} from "./interfaces/IPull.sol";
+
+contract Foo is IPushFree, IPushForce {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
+    mapping(bytes4 selector => mapping(uint256 tokenId => EnumerableSet.AddressSet targets)) private _registry;
+    mapping(bytes4 selector => EnumerableSet.AddressSet targets) private _registryOfAll;
+
+    modifier notLock(bytes4 selector, address target, bytes memory data) {
+        require(!IPull(target).isLocked(selector, data), "Foo: lock");
+        _;
+    }
+
+    function inbox(bytes4 selector) public view returns (bytes memory data) {
+        uint256 loadData;
+        assembly {
+            loadData := tload(selector)
+        }
+
+        data = abi.encode(loadData);
+    }
+    
+    function isApproved(bytes4 selector, address target, bytes calldata data) external view override returns (bool) {
+        uint256 tokenId = abi.decode(data, (uint256));
+        return _registry[selector][tokenId].contains(target);
+    }
+
+    function isForceApproved(bytes4 selector, address target) external view override returns (bool) {
+        return _registryOfAll[selector].contains(target);
+    }
+
+    function approve(bytes4 selector, address target, bytes calldata data) external override {
+        uint256 tokenId = abi.decode(data, (uint256));
+        _registry[selector][tokenId].add(target);
+    }
+
+    function cancel(bytes4 selector, address target, bytes calldata data)
+        external
+        override
+        notLock(selector, target, data)
+    {
+        uint256 tokenId = abi.decode(data, (uint256));
+        _registry[selector][tokenId].remove(target);
+    }
+
+    function forceApprove(bytes4 selector, address target) external override {
+        _registryOfAll[selector].add(target);
+    }
+
+    function forceCancel(bytes4 selector, address target) external override notLock(selector, target, "") {
+        _registryOfAll[selector].remove(target);
+    }
+
+    function send(uint256 message) external {
+        _push(this.send.selector, message);
+    }
+
+    function _push(bytes4 selector, uint256 message) internal {
+        assembly {
+            tstore(selector, message)
+        }
+
+        address[] memory targets = _registry[selector][message].values();
+        for (uint256 i = 0; i < targets.length; i++) {
+            IPull(targets[i]).pull(selector, abi.encode(message));
+        }
+
+        targets = _registryOfAll[selector].values();
+        for (uint256 i = 0; i < targets.length; i++) {
+            IPull(targets[i]).pull(selector, abi.encode(message));
+        }
+    }
+}
+
+contract Bar is IPull {
+    event Log(bytes4 indexed selector, bytes data, bytes inboxData);
+
+    function isLocked(bytes4, bytes calldata) external pure override returns (bool) {
+        return true;
+    }
+
+    function pull(bytes4 selector, bytes calldata data) external {
+        bytes memory inboxData = IPushFree(msg.sender).inbox(selector);
+        emit Log(selector, data, inboxData);
+    }
+}
+```
 Copyright and related rights waived via [CC0](../LICENSE.md).
