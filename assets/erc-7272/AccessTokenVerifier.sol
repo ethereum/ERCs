@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.13;
 
 import "./IAccessTokenVerifier.sol";
@@ -12,10 +12,9 @@ contract AccessTokenVerifier is IAccessTokenVerifier {
         keccak256("FunctionCall(bytes4 functionSignature,address target,address caller,bytes parameters)");
 
     // solhint-disable max-line-length
-    bytes32 private constant TOKEN_TYPEHASH =
-        keccak256(
-            "AccessToken(uint256 expiry,FunctionCall functionCall)FunctionCall(bytes4 functionSignature,address target,address caller,bytes parameters)"
-        );
+    bytes32 private constant TOKEN_TYPEHASH = keccak256(
+        "AccessToken(uint256 expiry,FunctionCall functionCall)FunctionCall(bytes4 functionSignature,address target,address caller,bytes parameters)"
+    );
 
     // Cache the domain separator as an immutable value, but also store the chain id that it corresponds to, in order to
     // invalidate the cached domain separator if the chain id changes.
@@ -30,50 +29,38 @@ contract AccessTokenVerifier is IAccessTokenVerifier {
     }
 
     function hash(EIP712Domain memory eip712Domain) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    EIP712DOMAIN_TYPEHASH,
-                    keccak256(bytes(eip712Domain.name)),
-                    keccak256(bytes(eip712Domain.version)),
-                    eip712Domain.chainId,
-                    eip712Domain.verifyingContract
-                )
-            );
+        return keccak256(
+            abi.encode(
+                EIP712DOMAIN_TYPEHASH,
+                keccak256(bytes(eip712Domain.name)),
+                keccak256(bytes(eip712Domain.version)),
+                eip712Domain.chainId,
+                eip712Domain.verifyingContract
+            )
+        );
     }
 
     function hash(FunctionCall calldata call) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    FUNCTIONCALL_TYPEHASH,
-                    call.functionSignature,
-                    call.target,
-                    call.caller,
-                    keccak256(call.parameters)
-                )
-            );
+        return keccak256(
+            abi.encode(
+                FUNCTIONCALL_TYPEHASH, call.functionSignature, call.target, call.caller, keccak256(call.parameters)
+            )
+        );
     }
 
     function hash(AccessToken calldata token) internal pure returns (bytes32) {
         return keccak256(abi.encode(TOKEN_TYPEHASH, token.expiry, hash(token.functionCall)));
     }
 
-    function verifySignerOf(
-        AccessToken calldata token,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external view returns (address) {
+    function verifySignerOf(AccessToken calldata token, uint8 v, bytes32 r, bytes32 s)
+        external
+        view
+        returns (address)
+    {
         return _retrieveSignerFromToken(token, v, r, s);
     }
 
-    function verify(
-        AccessToken calldata token,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public view override returns (bool) {
+    function verify(AccessToken calldata token, uint8 v, bytes32 r, bytes32 s) public view override returns (bool) {
         address signer = _retrieveSignerFromToken(token, v, r, s);
 
         // Verifies that the signer recovered from the token is a registered, active, expected
@@ -91,23 +78,21 @@ contract AccessTokenVerifier is IAccessTokenVerifier {
     }
 
     function _buildDomainSeparator() private view returns (bytes32) {
-        return
-            hash(
-                EIP712Domain({
-                    name: "Ethereum Access Token",
-                    version: "1",
-                    chainId: block.chainid,
-                    verifyingContract: address(this)
-                })
-            );
+        return hash(
+            EIP712Domain({
+                name: "Ethereum Access Token",
+                version: "1",
+                chainId: block.chainid,
+                verifyingContract: address(this)
+            })
+        );
     }
 
-    function _retrieveSignerFromToken(
-        AccessToken calldata token,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) internal view returns (address) {
+    function _retrieveSignerFromToken(AccessToken calldata token, uint8 v, bytes32 r, bytes32 s)
+        internal
+        view
+        returns (address)
+    {
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _domainSeparator(), hash(token)));
 
         // HE -> Has Expired

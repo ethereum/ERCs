@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.13;
 
 import "./IAccessTokenVerifier.sol";
@@ -11,24 +11,14 @@ contract AccessTokenConsumer {
         _verifier = IAccessTokenVerifier(accessTokenVerifier);
     }
 
-    modifier requiresAuth(
-        uint8 v,
-        bytes32 r,
-        bytes32 s,
-        uint256 expiry
-    ) {
+    modifier requiresAuth(uint8 v, bytes32 r, bytes32 s, uint256 expiry) {
         // VF -> Verification Failure
         require(verify(v, r, s, expiry), "AccessToken: VF");
         _consumeAccessToken(v, r, s, expiry);
         _;
     }
 
-    function verify(
-        uint8 v,
-        bytes32 r,
-        bytes32 s,
-        uint256 expiry
-    ) internal view returns (bool) {
+    function verify(uint8 v, bytes32 r, bytes32 s, uint256 expiry) internal view returns (bool) {
         // AU -> Already Used
         require(!_isAccessTokenUsed(v, r, s, expiry), "AccessToken: AU");
 
@@ -80,22 +70,12 @@ contract AccessTokenConsumer {
         }
     }
 
-    function _isAccessTokenUsed(
-        uint8 v,
-        bytes32 r,
-        bytes32 s,
-        uint256 expiry
-    ) internal view returns (bool) {
+    function _isAccessTokenUsed(uint8 v, bytes32 r, bytes32 s, uint256 expiry) internal view returns (bool) {
         bytes32 accessTokenHash = keccak256(abi.encodePacked(v, r, s, expiry));
         return _accessTokenUsed[accessTokenHash];
     }
 
-    function _consumeAccessToken(
-        uint8 v,
-        bytes32 r,
-        bytes32 s,
-        uint256 expiry
-    ) private {
+    function _consumeAccessToken(uint8 v, bytes32 r, bytes32 s, uint256 expiry) private {
         bytes32 accessTokenHash = keccak256(abi.encodePacked(v, r, s, expiry));
 
         _accessTokenUsed[accessTokenHash] = true;

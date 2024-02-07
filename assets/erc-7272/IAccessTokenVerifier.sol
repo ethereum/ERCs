@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.13;
 
 struct EIP712Domain {
@@ -21,10 +21,5 @@ struct AccessToken {
 }
 
 interface IAccessTokenVerifier {
-    function verify(
-        AccessToken calldata token,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external view returns (bool);
+    function verify(AccessToken calldata token, uint8 v, bytes32 r, bytes32 s) external view returns (bool);
 }
