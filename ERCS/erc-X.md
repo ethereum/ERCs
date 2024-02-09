@@ -1,6 +1,6 @@
 ---
 eip: X
-title: Quantum Supremacy Oracle
+title: Quantum Supremacy Puzzle
 author: Nicholas Papadopoulos (@nikojpapa), Danny Ryan (@djrtwo)
 discussions-to: 
 status: Draft
