@@ -18,7 +18,7 @@ interface IERC7620 {
     function deductFunds(address user, uint256 amount, string memory referenceId) external;
 
     // Allows users to deposit funds into the contract, including a reference ID for the transaction
-    function depositFunds(uint256 amount, string memory referenceId) external;
+    function depositFunds(uint256 amount) external;
 
     // Returns the authorized amount for a service provider
     function authorizedAmount(address user, address serviceProvider) external view returns (uint256);

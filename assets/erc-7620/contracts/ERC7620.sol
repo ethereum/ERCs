@@ -17,7 +17,7 @@ contract ERC7620 is ReentrancyGuard {
     event ServiceProviderDeregistered(address serviceProvider);
     event AuthorizationUpdated(address indexed user, address indexed serviceProvider, uint256 newAuthorizedAmount);
     event FundsDeducted(address indexed user, address indexed serviceProvider, uint256 amount, string referenceId);
-    event FundsDeposited(address indexed user, uint256 amount, string referenceId);
+    event FundsDeposited(address indexed user, uint256 amount);
     event AuthorizationRevoked(address indexed user, address indexed serviceProvider);
 
     constructor(address payTokenAddress) {
@@ -65,9 +65,9 @@ contract ERC7620 is ReentrancyGuard {
     }
 
     // Allows users to deposit funds into the contract
-    function depositFunds(uint256 amount, string memory referenceId) external {
+    function depositFunds(uint256 amount) external {
         require(payToken.transferFrom(msg.sender, address(this), amount), "Failed to transfer funds");
-        emit FundsDeposited(msg.sender, amount, referenceId);
+        emit FundsDeposited(msg.sender, amount);
     }
 
     // View authorized amount
