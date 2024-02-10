@@ -12,11 +12,12 @@ contract ERC7620 is ReentrancyGuard {
     mapping(address => mapping(address => uint256)) private _authorizedAmounts; // User -> (Service Provider -> Authorized Amount)
     mapping(address => bool) public registeredServiceProviders; // Registered service providers
 
+    // Event definitions
     event ServiceProviderRegistered(address serviceProvider);
     event ServiceProviderDeregistered(address serviceProvider);
     event AuthorizationUpdated(address indexed user, address indexed serviceProvider, uint256 newAuthorizedAmount);
-    event FundsDeducted(address indexed user, address indexed serviceProvider, uint256 amount);
-    event FundsDeposited(address indexed user, uint256 amount);
+    event FundsDeducted(address indexed user, address indexed serviceProvider, uint256 amount, string referenceId);
+    event FundsDeposited(address indexed user, uint256 amount, string referenceId);
     event AuthorizationRevoked(address indexed user, address indexed serviceProvider);
 
     constructor(address payTokenAddress) {
@@ -38,7 +39,7 @@ contract ERC7620 is ReentrancyGuard {
         emit ServiceProviderDeregistered(serviceProvider);
     }
 
-    // Allows a user to pre-authorize a service provider to deduct funds up to a certain limit
+    // Allows users to pre-authorize a service provider to deduct funds up to a certain limit
     function authorizeServiceProvider(address serviceProvider, uint256 amount) external {
         require(registeredServiceProviders[serviceProvider], "Service provider not registered");
         _authorizedAmounts[msg.sender][serviceProvider] = amount;
@@ -53,20 +54,20 @@ contract ERC7620 is ReentrancyGuard {
     }
 
     // Deducts funds from the user's pre-authorized amount
-    function deductFunds(address user, uint256 amount) external {
+    function deductFunds(address user, uint256 amount, string memory referenceId) external {
         require(registeredServiceProviders[msg.sender], "Only registered service providers can deduct funds");
         require(_authorizedAmounts[user][msg.sender] >= amount, "Insufficient authorized amount");
 
         _authorizedAmounts[user][msg.sender] = _authorizedAmounts[user][msg.sender].sub(amount);
         require(payToken.transferFrom(user, address(this), amount), "Failed to transfer funds");
 
-        emit FundsDeducted(user, msg.sender, amount);
+        emit FundsDeducted(user, msg.sender, amount, referenceId);
     }
 
     // Allows users to deposit funds into the contract
-    function depositFunds(uint256 amount) external {
+    function depositFunds(uint256 amount, string memory referenceId) external {
         require(payToken.transferFrom(msg.sender, address(this), amount), "Failed to transfer funds");
-        emit FundsDeposited(msg.sender, amount);
+        emit FundsDeposited(msg.sender, amount, referenceId);
     }
 
     // View authorized amount
