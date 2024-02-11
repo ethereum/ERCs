@@ -44,21 +44,21 @@ contract ERC7620 is ReentrancyGuard {
     // Allows users to pre-authorize a service provider to deduct funds up to a certain limit
     function authorizeServiceProvider(address serviceProvider, uint256 amount) external {
         require(registeredServiceProviders[serviceProvider], "Service provider not registered");
-        uint256 remainingBalance = _remainingBalance[msg.sender];
-        uint256 authorizedAmount = _authorizedAmounts[msg.sender][serviceProvider];
+        uint256 remaining_balance = _remainingBalance[msg.sender];
+        uint256 authorized_amount = _authorizedAmounts[msg.sender][serviceProvider];
         
-        if (authorizedAmount == 0) {
-            require(remainingBalance >= amount, "Insufficient remaining balance for authorization");
-            _remainingBalance[msg.sender] = remainingBalance.sub(amount);
+        if (authorized_amount == 0) {
+            require(remaining_balance >= amount, "Insufficient remaining balance for authorization");
+            _remainingBalance[msg.sender] = remaining_balance.sub(amount);
         } else {
-            require(authorizedAmount != amount, "Authorized amount unchanged");
-            if (amount > authorizedAmount) {
-                uint256 increaseAmount = amount.sub(authorizedAmount);
+            require(authorized_amount != amount, "Authorized amount unchanged");
+            if (amount > authorized_amount) {
+                uint256 increaseAmount = amount.sub(authorized_amount);
                 require(_remainingBalance[msg.sender] >= increaseAmount, "Insufficient remaining balance for authorization increase");
-                _remainingBalance[msg.sender] = remainingBalance.sub(increaseAmount);
+                _remainingBalance[msg.sender] = remaining_balance.sub(increaseAmount);
             } else {
-                uint256 decreaseAmount = authorizedAmount.sub(amount);
-                _remainingBalance[msg.sender] = remainingBalance.add(decreaseAmount);
+                uint256 decreaseAmount = authorized_amount.sub(amount);
+                _remainingBalance[msg.sender] = remaining_balance.add(decreaseAmount);
             }
         }
         
@@ -68,15 +68,15 @@ contract ERC7620 is ReentrancyGuard {
 
     // Revokes authorization for a service provider to deduct funds
     function revokeAuthorization(address serviceProvider) external {
-        uint256 authorizedAmount = _authorizedAmounts[msg.sender][serviceProvider];
-        require(authorizedAmount > 0, "No authorization found");
+        uint256 authorized_amount = _authorizedAmounts[msg.sender][serviceProvider];
+        require(authorized_amount > 0, "No authorization found");
         _authorizedAmounts[msg.sender][serviceProvider] = 0;
-        _remainingBalance[msg.sender] = _remainingBalance[msg.sender].add(authorizedAmount);
+        _remainingBalance[msg.sender] = _remainingBalance[msg.sender].add(authorized_amount);
         emit AuthorizationRevoked(msg.sender, serviceProvider);
     }
 
     // Deducts funds from the user's pre-authorized amount
-    function deductAuthorizedFunds(address user, uint256 amount, string memory referenceId) external {
+    function deductAuthorizedFunds(address user, uint256 amount, string calldata referenceId) external {
         require(registeredServiceProviders[msg.sender], "Only registered service providers can deduct funds");
         require(_authorizedAmounts[user][msg.sender] >= amount, "Insufficient authorized amount");
         _authorizedAmounts[user][msg.sender] = _authorizedAmounts[user][msg.sender].sub(amount);
