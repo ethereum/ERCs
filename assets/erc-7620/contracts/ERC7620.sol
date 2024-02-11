@@ -59,7 +59,7 @@ contract ERC7620 is ReentrancyGuard {
         require(_authorizedAmounts[user][msg.sender] >= amount, "Insufficient authorized amount");
 
         _authorizedAmounts[user][msg.sender] = _authorizedAmounts[user][msg.sender].sub(amount);
-        require(payToken.transferFrom(user, address(this), amount), "Failed to transfer funds");
+        require(payToken.transfer(msg.sender, amount), "Failed to transfer funds");
 
         emit FundsDeducted(user, msg.sender, amount, referenceId);
     }
