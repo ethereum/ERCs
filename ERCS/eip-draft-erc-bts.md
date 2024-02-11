@@ -2,7 +2,7 @@
 title: ERC-BTS (Basket Token Standard)
 description: A standard for the implementation of tokenized investment funds.
 author: Dominic Ryder <dom@alvaraprotocol.io>, Callum Mitchell-Clark <callum@alvaraprotocol.io>, Joey van Etten <joe@alvaraprotocol.io>, Michael Ryder <mike@alvaraprotocol.io>
-discussions-to: <https://ethereum-magicians.org/t/proposal-for-a-new-eip-erc-the-erc-bts-basket-token-standard/18598>
+discussions-to: https://ethereum-magicians.org/t/proposal-for-a-new-eip-erc-the-erc-bts-basket-token-standard/18598
 status: Draft
 type: Standards Track
 category: ERC
