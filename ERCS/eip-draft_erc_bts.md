@@ -1,0 +1,139 @@
+---
+title: ERC-BTS (Basket Token Standard)
+description: A standard for the implementation of tokenized investment funds.
+author: Dominic Ryder <dom@alvaraprotocol.io>, Callum Mitchell-Clark <callum@alvaraprotocol.io>, Joey van Etten <joe@alvaraprotocol.io>, Michael Ryder <mike@alvaraprotocol.io>
+discussions-to: <will be added later>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-02-11
+requires: 20, 721
+---
+
+## Abstract
+
+The ERC-BTS (Basket Token Standard) allows for the implementation of multi-asset tokenized funds. This standard provides basic functionality for anyone to deploy unique, non-fungible BTS tokens that can contain an unlimited number of underlying ERC20 tokens.
+
+The deployer receives a BTS token representative of their ownership of the fund, as well as LP tokens representative of their percentage share of the fund (100% at time of deployment but changing as other wallets contribute/withdraw). Whenever a contribution is made to a BTS, BTS LP tokens are minted and distributed to the contributor’s wallet (representative of their share of the fund); when a withdrawal is made from a BTS, the BTS LP tokens are burned and funds returned to the withdrawer’s wallet.
+
+The BTS has a rebalance function which allows for a BTS owner to change the percentage share of the fund that each underlying token makes up. Tokens can be removed entirely or added through this function after a BTS has already been minted.
+
+By leveraging the ERC721 standard as a representative token of ownership when minting the BTS, the tokenized fund can also be fully manageable and transferable on-chain.
+
+## Motivation
+
+The motivation is to provide infrastructure that will enable the on-chain creation and management of asset-backed tokenized investment funds.
+
+## Specification
+
+### BTS
+
+#### Purpose
+
+The purpose of the BTS is to allow anyone to build an on-chain tokenized fund that is fully asset backed using on-chain liquidity.
+
+#### Key Functions
+
+initialize: Initializes a new BTS with name, symbol, creator, tokens, weights, token URI, and optional auto-rebalance setting.
+
+contribute(): Allows users to add ETH to the basket, purchasing proportional amounts of included tokens based on predefined weights.
+
+withdraw(uint256 _liquidity): Allows BTS LP holders to withdraw from the basket, receiving corresponding tokens.
+
+withdrawETH(uint256 _liquidity): Allows BTS LP holders to withdraw ETH from the basket, equivalent to the value of their BTS LP tokens.
+
+rebalance(address[] memory _newTokens, uint256[] memory _newWeights): The owner can manually adjust the types and weights of tokens in the basket.
+
+getTokenDetails: Returns details of a token at a given index (address and weight).
+
+totalTokens: Returns the total number of tokens in the basket.
+
+#### Distribution of BTS tokens
+
+The distribution of BTS tokens occurs during the mint function. The creator sends ETH to the contract, and the contract then swaps the ETH for user designated ERC20 tokens based on predefined weights. After the swaps, it mints a BTS token (NFT) for the sender using the initialize function of the BTS contract as well as BTS LP tokens. This BTS token is a representation of ownership and allows management of the BTS.
+
+#### Distribution of BTS LP tokens
+
+The distribution of BTS LP tokens occurs during the mint and contribute functions. After swapping ETH for the relevant ERC20 tokens, the contract mints BTS LP tokens (representing the user's share of the total BTS), and then mints BTS LP tokens using the mint function of the IBTSPair contract. The BTS LP tokens represent the liquidity provided by the user to the specified BTS pair (btsPair). The distribution is logged through the ContributedToBTS event.
+
+#### Burning the BTS LP tokens
+
+The burning of BTS LP tokens occurs during the withdraw function. Users can call this function, specifying the amount of BTS LP tokens they want to withdraw. The contract then transfers the specified amount of BTS LP tokens from the user to the BTS pair contract (btsPair). The burn function of the IBTSPair contract is called, which decreases the user's BTS LP token balance and returns an array of amounts representing the underlying tokens withdrawn. This array of amounts is logged through the WithdrawnFromBTS event.
+
+#### Events
+
+ContributedToBTS(address indexed bts, uint256 amount): Event when someone adds ETH to the basket.
+
+WithdrawnFromBTS(address indexed bts, uint256[] amounts): Event when BTS LP holder withdraws tokens from the basket.
+
+WithdrawnETHFromBTS(address indexed bts, uint256 amount): Event when BTS LP holder withdraws ETH from the basket.
+
+RebalanceBTS(address indexed bts, uint256[] oldWeights, uint256[] newWeights): Event when the owner manually rebalances the basket.
+
+#### Storage
+
+btsPair: A public variable storing the address of the associated BTS pair contract.
+
+autoRebalanceEnabled: A public variable indicating whether auto-rebalancing is enabled or not.
+
+mapping(address => bool) private _isTokenPresent: A private mapping indicating whether a token is present or not.
+
+TokenDetails: A structure holding details about the tokens, including arrays for token addresses and their corresponding weights.
+
+_tokenDetails: An instance of the TokenDetails structure.
+
+### BTSPair
+
+#### Purpose
+
+ERC20 token representing liquidity in a BTS.
+
+#### Key Functions
+
+initialize: Initializes a new BTSPair with a name and tokens.
+
+rebalance(): Allows the owner to manually adjust the types and weights of tokens in the pair.
+
+updateTokens(...): Allows the owner to change the types of tokens in the pair.
+
+mint(...): Creates new BTS LP tokens and adjusts token reserves.
+
+burn(...): Destroys BTS LP tokens and adjusts token reserves.
+
+#### Storage
+
+tokens: Array of token addresses in the pair.
+
+reserves: Array of corresponding token reserves.
+
+### IUniswap
+
+#### Purpose
+
+Defines interfaces for interacting with Uniswap V2 Router and Factory contracts (external dependencies).
+
+## Rationale
+
+TBD
+
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Reference Implementation
+
+BTS.sol: Implemented using a combination of Solidity's built-in ERC721URIStorage and Ownable contracts, along with custom logic for token management and rebalancing.
+
+Factory.sol: Implemented using ClonesUpgradeable to deploy new BTS and BTSPair contracts.
+
+BTSPair.sol: Implemented using ERC20Upgradeable and Ownable contracts, along with custom logic for liquidity tracking and rebalancing.
+
+IUniswap.sol: Not implemented, as it only defines interfaces for external contracts.
+
+## Security Considerations
+
+Needs discussion.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
