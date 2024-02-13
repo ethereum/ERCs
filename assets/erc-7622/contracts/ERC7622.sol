@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract ERC7620 is ReentrancyGuard {
+contract ERC7622 is ReentrancyGuard {
     using SafeMath for uint256;
 
     IERC20 public payToken; // ERC20 token used for payments

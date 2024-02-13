@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.20;
 
-interface IERC7620 {
+interface IERC7622 {
     // Events
     event ServiceProviderRegistered(address serviceProvider); // Event emitted when a service provider is registered
     event ServiceProviderDeregistered(address serviceProvider); // Event emitted when a service provider is deregistered
