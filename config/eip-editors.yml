@@ -3,7 +3,6 @@ governance:
   - axic
   - gcolvin
   - SamWilsn
-  - Pandapip1
 core:
   - lightclient
   - axic
@@ -16,6 +15,7 @@ erc:
   - SamWilsn
   - Pandapip1
   - xinbenlv
+  - g11tech
 networking:
   - lightclient
   - axic
