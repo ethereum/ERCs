@@ -36,6 +36,24 @@ When operations like `transfer` of NFT occur, the NFT contract can push this inf
 
 The DAO governance contract as a publisher could automatically triggers the push mechanism after the vote is completed, calling relevant subscriber contracts to directly implement the voting results, such as injecting funds into a certain account or pool.
 
+The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”,  “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this  document are to be interpreted as described in RFC 2119.
+
+### Overview
+
+The push mechanism can be divided into the following four steps:
+
+1. The publisher contract is called.
+2. The publisher contract query the subscriber list from the `selector` of the function called. The subscriber contract can put the selected data into `inbox`.
+3. The publisher contract push `selector` and data through calling `exec` function of the subscriber contract.
+4. The subscriber contract executes based on pushed `selector` and data, or it may request information from the publisher contract's inbox function as needed.
+
+In the second step, the relationship between a called function and the corresponding subscriber can be configured in the publisher contract. Two configuration schemes are proposed:
+
+1. Unconditional push: Any call to the configured selector triggers a push
+2. Conditional push: Only certain part of the calls to the configured selector trigger a push based on the configuration.
+
+It's allowed to configure multiple, different types of subscription contracts for a single function. The sending contract will call the exec function of each subscription contract in turn to push the request. When disassociating the function from the subscription contract, the sending contract must check the subscription contract's isLocked function, and the push relationship between the function and the subscription contract can only be disassociated if isLocked returns a True value. The sending contract can optionally use the inbox mechanism to store data.
+
 ## Specification
 
 
