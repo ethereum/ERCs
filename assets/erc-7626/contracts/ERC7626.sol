@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.0;
 
-// Contract to manage access control and metadata for ERC7626
 contract ERC7626 {
     address public dataOwner; // Address of the data owner
     mapping(address => bool) public authorizedUsers; // Mapping of authorized users
@@ -15,6 +14,9 @@ contract ERC7626 {
 
     // Event emitted when access is revoked from a user
     event AccessRevoked(address indexed user);
+
+    // Event emitted when data ownership is transferred
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     // Modifier to restrict access to only the owner of the contract
     modifier onlyOwner() {
@@ -58,5 +60,12 @@ contract ERC7626 {
     // Function to set new download URI, accessible only by the owner
     function setDownloadURI(string memory newURI) public onlyOwner {
         downloadURI = newURI;
+    }
+
+    // Function to transfer data ownership to a new address
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "New owner cannot be the zero address");
+        emit OwnershipTransferred(dataOwner, newOwner);
+        dataOwner = newOwner;
     }
 }
