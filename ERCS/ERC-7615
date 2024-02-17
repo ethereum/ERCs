@@ -3,7 +3,7 @@ eip: 7615
 title: Atomic Push-based Data Feed Among Contracts
 description: An Atomic Mechanism to Allow Publisher Contract Push Data to Subcriber Contracts
 author: Elaine Zhang (@lanyinzly) <lz8aj@virginia.edu>, Jerry <jerrymindflow@gmail.com>, Amandafanny <amandafanny200@gmail.com>, Shouhao Wong (@wangshouh) <wongshouhao@outlook.com>, Doris Che (@Cheyukj) <dorischeyy@gmail.com>
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-smart-contract-data-push-mechanism/18466
+discussions-to: https://ethereum-magicians.org/t/erc-7615-smart-contract-data-push-mechanism/18466
 status: Draft
 type: Standards Track
 category: ERC
@@ -16,8 +16,25 @@ This ERC proposes a push-based mechanism for sending data, allowing publisher co
 ## Motivation
 Currently, there are many keepers rely on off-chain data or seperate data collection process to monitor the events on chain. This proposal aims to establish a system where the publisher contract can atomicly push data to inform subscriber contracts about the updates. The direct on-chain interaction bewteen the publisher and the subscriber allows the system to be more trustless and efficient. 
 
-This proposal will benefit DeFi's boundless and permissionless expansion
+This proposal will offer significant advantages across a range of applications, such as enabling the boundless and permissionless expansion of DeFi, as well as enhancing DAO governance, among others. 
 
+### Lending Protocol
+
+An example of publisher contract could be an oracle, which can automatically push the price update through initiating a call to the subscriber protocol. The lending protocol, as the subscriber, can automatically liquidate the lending positions based on the received price.
+
+### Automatic Payment
+
+A service provider can use a smart contract as a publisher contract, so that when a user call this contract, it can push the information to the subsriber contracts, such as, the users' wallets like NFT bound accounts that follows [ERC-6551](./eip-6551.md) or other smart contract wallets. The user's smart contract wallet can thus perform corresponding payment operations automatically. Compared to traditional `approve` needed approach, this solution allows more complex logic in implementation, such as limited payment, etc.
+
+### PoS Without Transferring Assets
+
+For some staking scenarios, especially NFT staking, the PoS contract can be set as the subscriber and the NFT contracts can be set as the publisher. Staking can thus achieved through contracts interation, allowing users to earn staking rewards without transferring assets.
+
+When operations like `transfer` of NFT occur, the NFT contract can push this information to the PoS contract, which can then perform unstaking or other functions.
+
+### DAO Voting
+
+The DAO governance contract as a publisher could automatically triggers the push mechanism after the vote is completed, calling relevant subscriber contracts to directly implement the voting results, such as injecting funds into a certain account or pool.
 
 ## Specification
 
