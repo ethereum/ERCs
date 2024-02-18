@@ -8,7 +8,6 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2024-02-03
-requires: 
 ---
 ## Abstract
 This ERC proposes a push-based mechanism for sending data, allowing publisher contract to automatically push certain data to subscriber contracts during a call. The specific implementation relies on two interfaces: one for publisher contract to push data, and another for the subscriber contract to receive data. When the publisher contract is called, it checks if the called function corresponds to subscriber addresses. If it does, the publisher contract push data to the subscriber contracts.
