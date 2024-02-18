@@ -270,4 +270,5 @@ Subscriber contracts should implement the `isLocked` function to avoid potential
 
 Similarly, when subscribing, the publisher contract should consider whether `isLocked` is properly implemented to prevent irrevocable subscriptions. 
 
+## Copyright
 Copyright and related rights waived via [CC0](../LICENSE.md).
