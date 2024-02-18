@@ -60,8 +60,6 @@ When unsubscribing a contract from a `selector`, publisher contract MUST check w
 
 It is OPTIONAL for a publisher contract to use the `inbox` mechanism to store data.
 
-在第四步中，订阅合约应当在实现的 `exec` 函数内处理所有可能的 `selector` 请求及其数据。注意，在某些情况下，发送合约发送的数据可能只包含 `selector` 而不包含推送数据或仅包含部分推送数据，此时可能需要订阅合约请求发送合约的 `inbox` 函数获取推送数据。
-
 In the fourth step, the subscriber contract SHOULD handle all possible `selector` requests and data in the implementation of `exec` function. In some cases, `exec` MAY call `inbox` function of publisher contract to obtain the pushed data in full. 
 
 
@@ -90,6 +88,7 @@ In the fourth step, the subscriber contract SHOULD handle all possible `selector
 ```
 
 ### Contract interface
+
 As mentioned above, there are Unconditional Push and Conditional Push two types of implementation. To implement Unconditional Push, the publisher contract SHOULD implement the following interface:
 
 ```solidity
@@ -113,11 +112,11 @@ interface IPushFree {
     function cancel(bytes4 selector, address target, bytes calldata data) external;
 }
 ```
+
 `isApproved`, `approve`, and `cancel` have functionalities similar to the corresponding functions in `IPushForce`. However, an additional `data` parameter is introduced here for checking whether a push is needed. 
 The `inbox` here is used to store data in case of being called from the subscriber contract.
 
 The publisher contract SHOULD implement `_push(bytes4 selector, bytes calldata data)` function, which acts as a hook. Any function within the publisher contract that needs to implement push mechanism must call this internal function. The function MUST include querying both unconditional and conditional subscription contracts based on `selector` and `data`, and then calling corresponding `exec` function of the subscribers.
-
 
 A subscriber need to implement the following interface:
 
@@ -127,6 +126,9 @@ interface IExec {
     function exec(bytes4 selector, bytes calldata data) external;
 }
 ```
+
+`exec` is to receive requests from the publisher contracts and further proceed to execute. 
+`isLocked` is to check the status of whether the subscriber contract can unsubscribe the publisher contract based on `selector` and `data`. It is triggered when a request to unsubscribe is received. 
 
 ## Reference Implementation
 
