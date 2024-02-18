@@ -36,6 +36,8 @@ When operations like `transfer` of NFT occur, the NFT contract can push this inf
 
 The DAO governance contract as a publisher could automatically triggers the push mechanism after the vote is completed, calling relevant subscriber contracts to directly implement the voting results, such as injecting funds into a certain account or pool.
 
+## Specification
+
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”,  “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this  document are to be interpreted as described in RFC 2119.
 
 ### Overview
@@ -49,12 +51,18 @@ The push mechanism can be divided into the following four steps:
 
 In the second step, the relationship between a called function and the corresponding subscriber can be configured in the publisher contract. Two configuration schemes are proposed:
 
-1. Unconditional push: Any call to the configured selector triggers a push
-2. Conditional push: Only certain part of the calls to the configured selector trigger a push based on the configuration.
+1. Unconditional Push: Any call to the configured `selector` triggers a push
+2. Conditional Push: Only the conditioned calls to the configured `selector` trigger a push based on the configuration.
 
-It's allowed to configure multiple, different types of subscription contracts for a single function. The sending contract will call the exec function of each subscription contract in turn to push the request. When disassociating the function from the subscription contract, the sending contract must check the subscription contract's isLocked function, and the push relationship between the function and the subscription contract can only be disassociated if isLocked returns a True value. The sending contract can optionally use the inbox mechanism to store data.
+It's allowed to configure multiple, different types of subscriber contracts for a single `selector`. The publisher contract will call the `exec` function of each subscriber contract to push the request. 
 
-## Specification
+When unsubscribing a contract from a `selector`, publisher contract MUST check whether `isLocked` function of the subscriber contract returns `true`. 
+
+It is OPTIONAL for a publisher contract to use the `inbox` mechanism to store data.
+
+在第四步中，订阅合约应当在实现的 `exec` 函数内处理所有可能的 `selector` 请求及其数据。注意，在某些情况下，发送合约发送的数据可能只包含 `selector` 而不包含推送数据或仅包含部分推送数据，此时可能需要订阅合约请求发送合约的 `inbox` 函数获取推送数据。
+
+In the fourth step, the subscriber contract SHOULD handle all possible `selector` requests and data in the implementation of `exec` function. In some cases, `exec` MAY call `inbox` function of publisher contract to obtain the pushed data in full. 
 
 
 ```
@@ -82,8 +90,7 @@ It's allowed to configure multiple, different types of subscription contracts fo
 ```
 
 ### Contract interface
-
-A publisher contract has the following two configuration schemes, among which the unconditional push configuration requires the push contract to implement the following interface:
+As mentioned above, there are Unconditional Push and Conditional Push two types of implementation. To implement Unconditional Push, the publisher contract SHOULD implement the following interface:
 
 ```solidity
 interface IPushForce {
@@ -92,7 +99,11 @@ interface IPushForce {
     function forceCancel(bytes4 selector, address target) external;
 }
 ```
-The conditional push configuration requires the push contract to implement the following interface:
+
+`isForceApproved` is to query whether `selector` has already unconditionally bound to the subscriber contract with the address `target`. 
+`forceApprove` is to bind `selector` to the subscriber contract `target`. `forceCancel` is to cancel the binding relationship between `selector` and `target`, where `isLocked` function of `target` returns `true` is REQUIRED.
+
+To implement Conditional Push, the publisher contract SHOULD implement the following interface:
 
 ```solidity
 interface IPushFree {
@@ -102,6 +113,12 @@ interface IPushFree {
     function cancel(bytes4 selector, address target, bytes calldata data) external;
 }
 ```
+`isApproved`, `approve`, and `cancel` have functionalities similar to the corresponding functions in `IPushForce`. However, an additional `data` parameter is introduced here for checking whether a push is needed. 
+The `inbox` here is used to store data in case of being called from the subscriber contract.
+
+The publisher contract SHOULD implement `_push(bytes4 selector, bytes calldata data)` function, which acts as a hook. Any function within the publisher contract that needs to implement push mechanism must call this internal function. The function MUST include querying both unconditional and conditional subscription contracts based on `selector` and `data`, and then calling corresponding `exec` function of the subscribers.
+
+
 A subscriber need to implement the following interface:
 
 ```solidity
