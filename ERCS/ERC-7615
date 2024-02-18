@@ -130,6 +130,28 @@ interface IExec {
 `exec` is to receive requests from the publisher contracts and further proceed to execute. 
 `isLocked` is to check the status of whether the subscriber contract can unsubscribe the publisher contract based on `selector` and `data`. It is triggered when a request to unsubscribe is received. 
 
+## Rationale
+
+### Unconditional and Conditional Configuration
+
+When the sending contract is called, it is possible to trigger a push, requiring the caller to pay the resulting gas fees. 
+In some cases, an Unconditional Push is necessary, such as pushing price changes to a lending protocol. While, Conditional Push will reduce the unwanted gas consumption.
+
+### Check `isLocked` Before Unsubscribing
+
+Before `forceCancel` or `cancel`, the publisher contract MUST call the `isLocked` function of the subscriber contract to avoid unilateral unsubscribing. The subscriber contract may have a significant logical dependence on the publisher contract, and thus unsubscription could lead to severe issues within the subscriber contract. Therefore, the subscriber contract should implement `isLocked` function with thorough consideration.
+
+### `inbox` Mechanism
+
+In certain scenarios, the publisher contract may only push essential data with `selector` to the subscriber contracts, while the full data might be stored within `inbox`. Upon receiving the push from the publisher contract, the subscriber contract is optional to call `inbox`. 
+`inbox` mechanism simplifies the push information while still ensuring the availability of complete data, thereby reducing gas consumption.
+
+### Using Function Selectors as Parameters
+
+Using function selectors to retrieve the addresses of subscriber contracts allows 
+more detailed configuration. 
+For the subscriber contract, having the specific function of the request source based on the push information enables more accurate handling of the push information.
+
 ## Reference Implementation
 
 ```solidity
@@ -225,4 +247,27 @@ contract Bar is IPull {
     }
 }
 ```
+
+## Security Considerations
+
+### `exec` Attacks
+
+The `exec` function is `public`, therefore, it is vulnerable to malicious calls where arbitrary push information can be inserted. Implementations of `exec` should carefully consider the arbitrariness of calls and should not directly use data passed by the exec function without verification.
+
+### Reentrancy Attack
+
+The publisher contract's call to the subscriber contract's `exec` function could lead to reentrancy attacks. Malicious subscription contracts might construct reentrancy attacks to the publisher contract within `exec`.
+
+### Arbitrary Target Approve
+
+Implementation of `forceApprove` and `approve` should have reasonable access controls; otherwise, unnecessary gas losses could be imposed on callers.
+
+Check the gas usage of the `exec` function.
+
+### isLocked implementation
+
+Subscriber contracts should implement the `isLocked` function to avoid potential loss brought by unsubscription. This is particularly crucial for lending protocols implementing this proposal. Improper unsubscription can lead to abnormal clearing, causing considerable losses. 
+
+Similarly, when subscribing, the publisher contract should consider whether `isLocked` is properly implemented to prevent irrevocable subscriptions. 
+
 Copyright and related rights waived via [CC0](../LICENSE.md).
