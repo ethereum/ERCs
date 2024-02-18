@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.0;
 
-contract ERC7626 {
-    address public dataOwner; // Address of the data owner
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract ERC7626 is Ownable{
+
     mapping(address => bool) public authorizedUsers; // Mapping of authorized users
     mapping(address => uint256) public accessStartTime; // Mapping of user access start time
     mapping(address => uint256) public accessEndTime; // Mapping of user access end time
@@ -15,18 +17,8 @@ contract ERC7626 {
     // Event emitted when access is revoked from a user
     event AccessRevoked(address indexed user);
 
-    // Event emitted when data ownership is transferred
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    // Modifier to restrict access to only the owner of the contract
-    modifier onlyOwner() {
-        require(msg.sender == dataOwner, "Only owner can call this function");
-        _;
-    }
-
     // Constructor to initialize contract with owner and URIs
-    constructor(address _owner, string memory _metadataURI, string memory _downloadURI) {
-        dataOwner = _owner;
+    constructor(address initialOwner, string memory _metadataURI, string memory _downloadURI) Ownable(initialOwner) {
         metadataURI = _metadataURI;
         downloadURI = _downloadURI;
     }
@@ -60,12 +52,5 @@ contract ERC7626 {
     // Function to set new download URI, accessible only by the owner
     function setDownloadURI(string memory newURI) public onlyOwner {
         downloadURI = newURI;
-    }
-
-    // Function to transfer data ownership to a new address
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), "New owner cannot be the zero address");
-        emit OwnershipTransferred(dataOwner, newOwner);
-        dataOwner = newOwner;
     }
 }
