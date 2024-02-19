@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ERC7626 is Ownable{
+contract ERC7628 is Ownable{
 
     mapping(address => bool) public authorizedUsers; // Mapping of authorized users
     mapping(address => uint256) public accessStartTime; // Mapping of user access start time
