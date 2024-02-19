@@ -3,7 +3,7 @@ eip: 7627
 title: Secure Messaging Protocol
 description: A solution for users to securely send encrypted messages to each other.
 author: Chen Liaoyuan (@chenly) <cly@kip.pro>
-discussions-to: https://ethereum-magicians.org/t/erc-secure-messaging-protocol/18761
+discussions-to: https://ethereum-magicians.org/t/erc-7627-secure-messaging-protocol/18761
 status: Draft
 type: Standards Track
 category: ERC
