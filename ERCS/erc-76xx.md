@@ -1,5 +1,5 @@
 ---
-eip: 7600
+eip: 7627
 title: Secure Messaging Protocol
 description: A solution for users to securely send encrypted messages to each other.
 author: Chen Liaoyuan (@chenly) <cly@kip.pro>
