@@ -1,0 +1,125 @@
+---
+eip: dn
+title: Dual Nature Token Pair
+description: A specification for a co-joined fungible and non-fungible token pair
+author: vectorized (@optimizoor), Thomas (@0xjustadev), Quit (@0xQuit), Michael Amadi (@AmadiMichaels), cygaar (@0xCygaar), Harrison (@PopPunkOnChain)
+discussions-to: https://ethereum-magicians.org/t/dual-nature-token-pair/18796
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-02-21
+requires: 20, 721
+---
+
+## Abstract
+
+A fungible token contract and non-fungible token contract can be interlinked with each other, allowing actions performed on one contract to be reflected on the other contract. This proposal defines a simple generalized way for the relationship between the two token contracts to be queried and modified.
+
+## Motivation
+
+
+The [ERC-20](./eip-20.md) fungible and [ERC-721](./eip-721.md) non-fungible token standards offer sufficient flexibility for a co-joined, dual nature token pair. Transfers on the ERC-20 token can automatically trigger transfers on the ERC-721 token, and vice-versa. Such a mechanism facilitates applications like native ERC-721 fractionalization, wherein purchasing ERC-20 tokens through a bonding curve leads to the automatic issuance of ERC-721 tokens, proportional to the ERC-20 holdings.
+
+Dual nature token pairs maintain full compliance with both ERC-20 and ERC-721 token standards.
+
+To facilitate querying the relationship between the tokens, this proposal defines two extension interfaces for the ERC-20 and ERC-721 tokens respectively. This enables various quality of life improvements such as allowing decentralized exchanges and NFT marketplaces to display the relationship between the tokens.
+
+Additionally, users can configure if they want their transfers on the ERC-20 token to be automatically reflected on the ERC-721 token.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Overview
+
+A dual nature token pair comprises of an ERC-20 contract and an ERC-721 contract.
+
+For convention, the ERC-20 contract is designated as the base contract, and the ERC-721 contract is designated as the mirror contract.
+
+### ERC-20 Extension Interface
+
+The ERC-20 contract MUST implement the following interface.
+
+```solidity
+interface IDNBase {
+    /// @dev Emitted when the skip NFT status of `owner` is changed 
+    /// by any mechanism.
+    ///
+    /// This initial status for a `owner` can be dynamically chosen to
+    /// be true or false, but any changes to it MUST emit this event.
+    event SkipNFTSet(address indexed owner, bool status);
+
+    /// @dev Returns true if minting and transferring ERC20s to `owner`
+    /// SHOULD skip minting and transferring ERC721 tokens to `owner`.
+    /// Otherwise returns false.
+    ///
+    /// This method MUST NOT revert when given enough gas and 
+    /// correctly encoded calldata.
+    function getSkipNFT(address owner) external view returns (bool);
+
+    /// @dev Sets the caller's skip NFT status.
+    /// After a successful call to this method, 
+    ///
+    /// This method MAY revert (e.g. due to insufficient permissions).
+    ///
+    /// Emits a {SkipNFTSet} event.
+    function setSkipNFT(bool status) external;
+
+    /// @dev Returns the address of the mirror NFT contract.
+    /// This method MAY revert or return the zero address
+    /// to denote that a mirror ERC721 contract has not been linked.
+    ///
+    /// If a non-zero address is returned, the returned address MUST
+    /// implement `IDNMirror` and its `baseERC20()` method MUST
+    /// return the address of this contract.
+    ///
+    /// The returned value MUST NOT change once 
+    /// a non-zero address has been returned.
+    /// This method MUST NOT revert once 
+    /// a non-zero address has been returned.
+    function mirrorERC721() external view returns (address);
+}
+```
+
+### ERC-721 Extension Interface
+
+The ERC-721 contract MUST implement the following interface.
+
+```solidity
+interface IDNMirror {
+    /// @dev Returns the address of the mirror NFT contract.
+    /// This method MAY revert or return the zero address
+    /// to denote that a base ERC-20 contract has not been linked.
+    ///
+    /// If a non-zero address is returned, the returned address MUST
+    /// implement `IDNBase` and its `mirrorERC721()` method MUST
+    /// return the address of this contract.
+    ///
+    /// The returned value MUST NOT change once
+    /// a non-zero address has been returned.
+    /// This method MUST NOT revert once 
+    /// a non-zero address has been returned.
+    function baseERC20() external view returns (address);
+}
+```
+## Rationale
+
+A useful pattern is to make the `getSkipNFT(address owner)` return true by default if `owner` is a smart contract. This allows ERC-20 liquidity pools to avoid having ERC-721 tokens automatically minted to it by default whenever there is an ERC-20 transfer.
+
+The `mirrorERC721()` and `baseERC20()` returning addresses suffice as a signal that the contracts implement the required interfaces. As such, [ERC-165](./eip-165.md) is not required.
+
+The ERC-20 contract is designated as the base contract for convention, as a typical implementation can conveniently derive ERC-721 balances from the ERC-20 balances.
+
+This proposal does not cover the token synchronization logic. This is to allow flexibility for various implementation patterns and novel use cases (e.g. automatically rebased tokens).
+
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Implementations
+
+https://github.com/Vectorized/dn404
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
