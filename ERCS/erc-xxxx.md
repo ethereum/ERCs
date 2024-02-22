@@ -72,7 +72,7 @@ interface IERCXXXX is IERC721 {
 
 ## Rationale
 
-*Controlled Value Preservation*: By allowing minters to set customized transfer limits for NFTs, this standard facilitates the preservation of value for digital assets. Just as physical collectibles often gain or maintain value due to scarcity, limiting the number of transfers for an NFT can help ensure its continued value over time.
+*Controlled Value Preservation*: By allowing minters to set customized transfer limits for NFTs, this standard facilitates the preservation of value for digital assets Just as physical collectibles often gain or maintain value due to scarcity, limiting the number of transfers for an NFT can help ensure its continued value over time.
 
 *Ensuring Intended Usage*: Setting transfer limits can ensure that NFTs are used in ways that align with their intended purpose. For example, if an NFT represents a limited-edition digital artwork, limiting transfers can prevent it from being excessively traded and potentially devalued.
 
@@ -87,9 +87,9 @@ This standard can be fully [ERC-721](./eip-721.md) compatible by adding an exten
 
 This standard can be enhanced with additional advanced functionalities alongside existing NFT protocols. For example:
 
-(i) Incorporating a burn function (e.g., [ERC-5679](./eip-5679.md)) would enable NFTs to automatically expire after reaching their transfer limits, akin to the ephemeral nature of Snapchat messages that disappear after multiple views.
+- Incorporating a burn function (e.g., [ERC-5679](./eip-5679.md)) would enable NFTs to automatically expire after reaching their transfer limits, akin to the ephemeral nature of Snapchat messages that disappear after multiple views.
 
-(ii) Incorporating a non-transferring function, as defined in the SBT standards, would enable NFTs to settle and bond with a single owner after a predetermined number of transactions. This functionality mirrors the scenario where a bidder ultimately secures a treasury after participating in multiple bidding rounds.
+- Incorporating a non-transferring function, as defined in the SBT standards, would enable NFTs to settle and bond with a single owner after a predetermined number of transactions. This functionality mirrors the scenario where a bidder ultimately secures a treasury after participating in multiple bidding rounds.
 
 
 ## Reference Implementation
