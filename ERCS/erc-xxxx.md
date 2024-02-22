@@ -2,7 +2,7 @@
 eip: XXXX
 title: Limited Transferrable NFT
 description: An ERC-721 extension to limit transferability based on counts among NFTs
-author: Qin Wang <qin.wang@data61.csiro.au>, Saber Yu (@OniReimu), Shiping Chen <shiping.chen@data61.csiro.au>
+author: Qin Wang (@qinwang-git), Saber Yu (@OniReimu), Shiping Chen <shiping.chen@data61.csiro.au>
 discussions-to: https://ethereum-magicians.org/t/eip-xxx-limited-transferable-nft/18861
 status: Draft
 type: Standards Track
