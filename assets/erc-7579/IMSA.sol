@@ -31,7 +31,7 @@ interface IERC7579Account {
      * MUST ensure adequate authorization control: i.e. onlyEntryPointOrSelf
      * If a mode is requested that is not supported by the Account, it MUST revert
      */
-    function execute(bytes32 mode, bytes calldata executionCalldata) external payable;
+    function execute(bytes32 mode, bytes calldata executionCalldata) external;
 
     /**
      * @dev Executes a transaction on behalf of the account.
@@ -44,7 +44,6 @@ interface IERC7579Account {
      */
     function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
         external
-        payable
         returns (bytes[] memory returnData);
 
     /**
@@ -56,7 +55,6 @@ interface IERC7579Account {
      */
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
-        payable
         returns (uint256 validSignature);
 
     /**
@@ -112,7 +110,7 @@ interface IERC7579Account {
      * MUST emit ModuleInstalled event
      * MUST revert if the module is already installed or the initialization on the module failed
      */
-    function installModule(uint256 moduleType, address module, bytes calldata initData) external payable;
+    function installModule(uint256 moduleType, address module, bytes calldata initData) external;
 
     /**
      * @dev Uninstalls a Module of a certain type on the smart account
@@ -126,7 +124,7 @@ interface IERC7579Account {
      * MUST emit ModuleUninstalled event
      * MUST revert if the module is not installed or the deInitialization on the module failed
      */
-    function uninstallModule(uint256 moduleType, address module, bytes calldata deInitData) external payable;
+    function uninstallModule(uint256 moduleType, address module, bytes calldata deInitData) external;
 
     /**
      * @dev Returns whether a module is installed on the smart account
