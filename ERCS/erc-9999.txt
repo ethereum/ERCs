@@ -1,0 +1,39 @@
+---
+eip: xxxx
+title: ERC-721 Multi-Attribute Extension
+description: This is the draft.
+author: Chen Liaoyuan (@chenly)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-erc-721-multi-attribute-extension/12345
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-02-25
+requires: 721
+---
+
+## Abstract
+
+This extension allows NFTs to have multiple attributes and enables the transfer of attribute values.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+Implementers of this extension **MUST** have all of the following functions:
+
+
+## Rationale
+
+Nil
+
+## Backwards Compatibility
+
+This standard is fully [ERC-721](./eip-721.md) compatible.
+
+## Security Considerations
+
+Nil
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
