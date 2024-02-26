@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract ERC7628 is ERC721, Ownable {
+contract ERC7628 is ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) private _balances;
     mapping(uint256 => mapping(address => uint256)) private _allowances;
     uint256 private _totalBalance;
@@ -47,19 +48,19 @@ contract ERC7628 is ERC721, Ownable {
         emit Approval(tokenId, to, amount);
     }
 
-    function transferFrom(uint256 _fromTokenId, uint256 _toTokenId, uint256 amount) external {
+    function transferFrom(uint256 _fromTokenId, uint256 _toTokenId, uint256 amount) external nonReentrant {
         require(_isApprovedOrOwner(msg.sender, _fromTokenId), "ERC7628: transfer caller is not owner nor approved");
         _transfer(_fromTokenId, _toTokenId, amount);
     }
 
-    function transferFrom(uint256 _fromTokenId, address _to, uint256 amount) external {
+    function transferFrom(uint256 _fromTokenId, address _to, uint256 amount) external nonReentrant {
         require(_isApprovedOrOwner(msg.sender, _fromTokenId), "ERC7628: transfer caller is not owner nor approved");
         _nextTokenId++;
         _safeMint(_to, _nextTokenId);
         _transfer(_fromTokenId, _nextTokenId, amount);
     }
 
-    function _transfer(uint256 fromTokenId, uint256 toTokenId, uint256 amount) internal {
+    function _transfer(uint256 fromTokenId, uint256 toTokenId, uint256 amount) internal nonReentrant {
         require(_balances[fromTokenId] >= amount, "ERC7628: transfer amount exceeds balance");
 
         // Check allowance for non-owner transfers
