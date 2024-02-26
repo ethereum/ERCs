@@ -17,7 +17,7 @@ contract ERC7628 is ERC721, Ownable {
     {}
 
     function addBalance(uint256 tokenId, uint256 amount) public onlyOwner {
-        require(tokenId>0, "ERC7628: cannot be zero");
+        require(tokenId > 0, "ERC7628: tokenId cannot be zero");
         _balances[tokenId] += amount;
         _totalBalance += amount;
         emit Transfer(0, tokenId, amount);
@@ -40,20 +40,20 @@ contract ERC7628 is ERC721, Ownable {
     }
 
     function approve(uint256 tokenId, address to, uint256 amount) external {
-        require(to != _ownerOf(tokenId), "ERC7628: approval to current owner");
-        require(msg.sender == _ownerOf(tokenId), "ERC7628: approve caller is not owner");
+        require(to != ownerOf(tokenId), "ERC7628: approval to current owner");
+        require(msg.sender == ownerOf(tokenId), "ERC7628: approve caller is not owner");
 
         _allowances[tokenId][to] = amount;
         emit Approval(tokenId, to, amount);
     }
 
     function transferFrom(uint256 _fromTokenId, uint256 _toTokenId, uint256 amount) external {
-        require(msg.sender == _ownerOf(_fromTokenId), "ERC7628: caller is not owner");
+        require(_isApprovedOrOwner(msg.sender, _fromTokenId), "ERC7628: transfer caller is not owner nor approved");
         _transfer(_fromTokenId, _toTokenId, amount);
     }
 
     function transferFrom(uint256 _fromTokenId, address _to, uint256 amount) external {
-        require(msg.sender == _ownerOf(_fromTokenId), "ERC7628: caller is not owner");
+        require(_isApprovedOrOwner(msg.sender, _fromTokenId), "ERC7628: transfer caller is not owner nor approved");
         _nextTokenId++;
         _safeMint(_to, _nextTokenId);
         _transfer(_fromTokenId, _nextTokenId, amount);
@@ -62,10 +62,20 @@ contract ERC7628 is ERC721, Ownable {
     function _transfer(uint256 fromTokenId, uint256 toTokenId, uint256 amount) internal {
         require(_balances[fromTokenId] >= amount, "ERC7628: transfer amount exceeds balance");
 
+        // Check allowance for non-owner transfers
+        if (msg.sender != ownerOf(fromTokenId)) {
+            require(_allowances[fromTokenId][msg.sender] >= amount, "ERC7628: transfer amount exceeds allowance");
+            _allowances[fromTokenId][msg.sender] -= amount;
+        }
+
         _balances[fromTokenId] -= amount;
         _balances[toTokenId] += amount;
 
         emit Transfer(fromTokenId, toTokenId, amount);
+    }
+
+    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
+        return (spender == ownerOf(tokenId) || _allowances[tokenId][spender] > 0);
     }
 
     event Transfer(uint256 indexed fromTokenId, uint256 indexed toTokenId, uint256 value);
