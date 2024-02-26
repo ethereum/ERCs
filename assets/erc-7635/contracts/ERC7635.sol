@@ -9,13 +9,13 @@ import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 
-import "./interfaces/IERC8000.sol";
+import "./interfaces/IERC7635.sol";
 import "./interfaces/IERC721Receiver.sol";
-import "./interfaces/IERC8000Receiver.sol";
-import "./extensions/IERC8000Metadata.sol";
+import "./interfaces/IERC7635Receiver.sol";
+import "./extensions/IERC7635Metadata.sol";
 import "./libs/TransferHelper.sol";
 
-contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
+contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
 
     // --------------------------------------------------event----------------------------------------------------------
     event SlotUpdate(
@@ -115,9 +115,9 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return
         interfaceId == type(IERC165).interfaceId ||
-        interfaceId == type(IERC8000).interfaceId ||
+        interfaceId == type(IERC7635).interfaceId ||
         interfaceId == type(IERC721).interfaceId ||
-        interfaceId == type(IERC8000).interfaceId ||
+        interfaceId == type(IERC7635).interfaceId ||
         interfaceId == type(IERC721Enumerable).interfaceId ||
         interfaceId == type(IERC721Metadata).interfaceId;
     }
@@ -179,7 +179,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
     function ownerOf(uint256 tokenId_) public view virtual override returns (address owner_) {
         _requireMinted(tokenId_);
         owner_ = _allTokens[_allTokensIndex[tokenId_]].owner;
-        require(owner_ != address(0), "ERC8000: invalid token ID");
+        require(owner_ != address(0), "ERC7635: invalid token ID");
     }
 
     function _baseURI() internal view virtual returns (string memory) {
@@ -239,11 +239,11 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         });
 
         if (update_) {
-            require(tokenSlot[tokenAddress_] == slotIndex_, "ERC8000: tokenAddress not exist");
+            require(tokenSlot[tokenAddress_] == slotIndex_, "ERC7635: tokenAddress not exist");
             _requireExisted(slotIndex_);
             slots[slotIndex_] = slot;
         } else {
-            require(tokenSlot[tokenAddress_] == 0, "ERC8000: tokenAddress already exist");
+            require(tokenSlot[tokenAddress_] == 0, "ERC7635: tokenAddress already exist");
             slots.push(slot);
             slotIndex_ = slots.length - 1;
         }
@@ -268,10 +268,10 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
      * @param value_ The maximum value of `_toTokenId` that `_operator` is allowed to manage
      */
     function approve(uint256 tokenId_, uint256 slotIndex_, address operator_, uint256 value_) public payable virtual override {
-        address owner = ERC8000.ownerOf(tokenId_);
-        require(operator_ != owner, "ERC8000: approval to current owner");
+        address owner = ERC7635.ownerOf(tokenId_);
+        require(operator_ != owner, "ERC7635: approval to current owner");
 
-        require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC8000: owner! or approved!");
+        require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC7635: owner! or approved!");
 
         _approveValue(tokenId_, slotIndex_, operator_, value_);
     }
@@ -284,7 +284,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
      * @return The current approval value of `_tokenId` that `_operator` is allowed to manage
      */
     function allowance(uint256 tokenId_, uint256 slotIndex_, address operator_) public view virtual override returns (uint256) {
-        address owner = ERC8000.ownerOf(tokenId_);
+        address owner = ERC7635.ownerOf(tokenId_);
         return _approvedValues[tokenId_][owner][slotIndex_][operator_];
     }
 
@@ -358,8 +358,8 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         uint256 slotIndex_,
         uint256 valueOrNftId_
     ) public payable virtual override {
-        require(slots[slotIndex_].isToken, "ERC8000: isToken!");
-        require(toAddress_ != address(0), "ERC8000: toAddress cannot be zero!");
+        require(slots[slotIndex_].isToken, "ERC7635: isToken!");
+        require(toAddress_ != address(0), "ERC7635: toAddress cannot be zero!");
         _requireSlotTransferable(slotIndex_);
 
         _spendAllowance(_msgSender(), fromTokenId_, slotIndex_, valueOrNftId_);
@@ -399,7 +399,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         address to_,
         uint256 tokenId_
     ) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC8000: owner! or approved!");
+        require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC7635: owner! or approved!");
         _transferTokenId(from_, to_, tokenId_);
     }
 
@@ -416,7 +416,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         uint256 tokenId_,
         bytes memory data_
     ) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC8000: owner! or approved!");
+        require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC7635: owner! or approved!");
         _safeTransferTokenId(from_, to_, tokenId_, data_);
     }
 
@@ -448,11 +448,11 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
      * Emits an {Approval} event.
      */
     function approve(address to_, uint256 tokenId_) public virtual override {
-        address owner = ERC8000.ownerOf(tokenId_);
-        require(to_ != owner, "ERC8000: approval to current owner");
+        address owner = ERC7635.ownerOf(tokenId_);
+        require(to_ != owner, "ERC7635: approval to current owner");
 
         require(
-            _msgSender() == owner || ERC8000.isApprovedForAll(owner, _msgSender()), "ERC8000: owner! nor approved!"
+            _msgSender() == owner || ERC7635.isApprovedForAll(owner, _msgSender()), "ERC7635: owner! nor approved!"
         );
 
         _approve(to_, tokenId_);
@@ -476,12 +476,12 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
     }
 
     function tokenByIndex(uint256 index_) public view virtual override returns (uint256) {
-        require(index_ < ERC8000.totalSupply(), "ERC8000: index!");
+        require(index_ < ERC7635.totalSupply(), "ERC7635: index!");
         return _allTokens[index_].id;
     }
 
     function tokenOfOwnerByIndex(address owner_, uint256 index_) public view virtual override returns (uint256) {
-        require(index_ < ERC8000.balanceOf(owner_), "ERC8000: index!");
+        require(index_ < ERC7635.balanceOf(owner_), "ERC7635: index!");
         return _addressData[owner_].ownedTokens[index_];
     }
 
@@ -490,7 +490,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         address operator_,
         bool approved_
     ) internal virtual {
-        require(owner_ != operator_, "ERC8000: approve to caller");
+        require(owner_ != operator_, "ERC7635: approve to caller");
 
         _addressData[owner_].approvals[operator_] = approved_;
 
@@ -498,19 +498,19 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
     }
 
     function _isApprovedOrOwner(address operator_, uint256 tokenId_) internal view virtual returns (bool) {
-        address owner = ERC8000.ownerOf(tokenId_);
+        address owner = ERC7635.ownerOf(tokenId_);
         return (
         operator_ == owner ||
-        ERC8000.isApprovedForAll(owner, operator_) ||
-        ERC8000.getApproved(tokenId_) == operator_
+        ERC7635.isApprovedForAll(owner, operator_) ||
+        ERC7635.getApproved(tokenId_) == operator_
         );
     }
 
     function _spendAllowance(address operator_, uint256 tokenId_, uint256 slotIndex_, uint256 valueOrNftId_) internal virtual {
         uint value_ = slots[slotIndex_].isNft ? 1 : valueOrNftId_;
-        uint256 currentAllowance = ERC8000.allowance(tokenId_, slotIndex_, operator_);
+        uint256 currentAllowance = ERC7635.allowance(tokenId_, slotIndex_, operator_);
         if (!_isApprovedOrOwner(operator_, tokenId_) && currentAllowance != type(uint256).max) {
-            require(currentAllowance >= value_, "ERC8000: insufficient allowance");
+            require(currentAllowance >= value_, "ERC7635: insufficient allowance");
             _approveValue(tokenId_, slotIndex_, operator_, currentAllowance - value_);
         }
     }
@@ -520,21 +520,21 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
     }
 
     function _requireExisted(uint256 slotIndex_) internal view virtual {
-        require(slotIndex_ > 0 && slots.length - 1 >= slotIndex_, "ERC8000: invalid slot index");
+        require(slotIndex_ > 0 && slots.length - 1 >= slotIndex_, "ERC7635: invalid slot index");
     }
 
     function _requireSlotTransferable(uint256 slotIndex_) internal view virtual {
         _requireExisted(slotIndex_);
-        require(slots[slotIndex_].transferable, "ERC8000: slot transferable!");
+        require(slots[slotIndex_].transferable, "ERC7635: slot transferable!");
     }
 
     function _requireTransferable(uint256 tokenId_) internal view virtual {
-        require(_exists(tokenId_), "ERC8000: invalid token ID");
-        require(_allTokens[_allTokensIndex[tokenId_]].transferable, "ERC8000: token transferable!");
+        require(_exists(tokenId_), "ERC7635: invalid token ID");
+        require(_allTokens[_allTokensIndex[tokenId_]].transferable, "ERC7635: token transferable!");
     }
 
     function _requireMinted(uint256 tokenId_) internal view virtual {
-        require(_exists(tokenId_), "ERC8000: invalid token ID");
+        require(_exists(tokenId_), "ERC7635: invalid token ID");
     }
 
     function _mint(
@@ -544,8 +544,8 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         uint8 tokenType_,
         bool transferable_
     ) internal virtual returns (uint256){
-        require(to_ != address(0), "ERC8000: mint to the zero address");
-        require(!_exists(tokenId_), "ERC8000: token already minted");
+        require(to_ != address(0), "ERC7635: mint to the zero address");
+        require(!_exists(tokenId_), "ERC7635: token already minted");
 
         _beforeTokenTransfer(address(0), to_, tokenId_, 0);
 
@@ -620,7 +620,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         }
 
         uint256 value = _balance[tokenId_][slotIndex_];
-        require(value >= burnValue_, "ERC8000: BurnValue : Insufficient balance");
+        require(value >= burnValue_, "ERC7635: BurnValue : Insufficient balance");
 
         _balance[tokenId_][slotIndex_] -= burnValue_;
         emit TransferValue(tokenId_, 0, slotIndex_, burnValue_);
@@ -672,7 +672,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
 
     function _approve(address to_, uint256 tokenId_) internal virtual {
         _allTokens[_allTokensIndex[tokenId_]].approved = to_;
-        emit Approval(ERC8000.ownerOf(tokenId_), to_, tokenId_);
+        emit Approval(ERC7635.ownerOf(tokenId_), to_, tokenId_);
     }
 
     function _approveValue(
@@ -681,7 +681,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         address to_,
         uint256 value_
     ) internal virtual {
-        require(to_ != address(0), "ERC8000: approve value to the zero address");
+        require(to_ != address(0), "ERC7635: approve value to the zero address");
         address owner = _allTokens[_allTokensIndex[tokenId_]].owner;
         _approvedValues[tokenId_][owner][slotIndex_][to_] = value_;
 
@@ -695,11 +695,11 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         uint256 valueOrNftId_
     ) internal virtual {
         _requireSlotTransferable(slotIndex_);
-        require(_exists(fromTokenId_), "ERC8000: transfer from invalid token ID");
-        require(_exists(toTokenId_), "ERC8000: transfer to invalid token ID");
+        require(_exists(fromTokenId_), "ERC7635: transfer from invalid token ID");
+        require(_exists(toTokenId_), "ERC7635: transfer to invalid token ID");
 
         uint value = slots[slotIndex_].isNft ? 1 : valueOrNftId_;
-        require(_balance[fromTokenId_][slotIndex_] >= value, "ERC8000: insufficient balance for transfer");
+        require(_balance[fromTokenId_][slotIndex_] >= value, "ERC7635: insufficient balance for transfer");
 
         TokenData storage fromTokenData = _allTokens[_allTokensIndex[fromTokenId_]];
         TokenData storage toTokenData = _allTokens[_allTokensIndex[toTokenId_]];
@@ -722,7 +722,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
 
         require(
             _checkOnMFTReceived(fromTokenId_, toTokenId_, slotIndex_, valueOrNftId_, ""),
-            "ERC8000: transfer to non MFTReceiver"
+            "ERC7635: transfer to non MFTReceiver"
         );
     }
 
@@ -730,7 +730,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         uint nftIndex = _nftTokensIndex[slotIndex_][valueOrNftId_];
         uint nftId = _nftTokens[tokenId_][slotIndex_][nftIndex];
 
-        require(valueOrNftId_ == nftId, "ERC8000: transfer to invalid NFT ID");
+        require(valueOrNftId_ == nftId, "ERC7635: transfer to invalid NFT ID");
 
         uint lastTokenIndex = _nftTokens[tokenId_][slotIndex_].length - 1;
         uint lastTokenId = _nftTokens[tokenId_][slotIndex_][lastTokenIndex];
@@ -745,9 +745,9 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         address to_,
         uint256 tokenId_
     ) internal virtual {
-        require(ERC8000.ownerOf(tokenId_) == from_, "ERC8000: transfer from invalid owner");
-        require(to_ != address(0), "ERC8000: transfer to the zero address");
-        require(_allTokens[_allTokensIndex[tokenId_]].transferable, "ERC8000: transferable!");
+        require(ERC7635.ownerOf(tokenId_) == from_, "ERC7635: transfer from invalid owner");
+        require(to_ != address(0), "ERC7635: transfer to the zero address");
+        require(_allTokens[_allTokensIndex[tokenId_]].transferable, "ERC7635: transferable!");
 
         _beforeTokenTransfer(from_, to_, tokenId_, 0);
 
@@ -770,7 +770,7 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         _transferTokenId(from_, to_, tokenId_);
         require(
             _checkOnERC721Received(from_, to_, tokenId_, data_),
-            "ERC8000: transfer to non ERC721Receiver"
+            "ERC7635: transfer to non ERC721Receiver"
         );
     }
 
@@ -781,12 +781,12 @@ contract ERC8000 is Context, IERC8000Metadata, IERC721Enumerable {
         uint256 valueOrNftId_,
         bytes memory data_
     ) internal virtual returns (bool) {
-        address to = ERC8000.ownerOf(toTokenId_);
+        address to = ERC7635.ownerOf(toTokenId_);
         if (_isContract(to)) {
-            try IERC165(to).supportsInterface(type(IERC8000Receiver).interfaceId) returns (bool retval) {
+            try IERC165(to).supportsInterface(type(IERC7635Receiver).interfaceId) returns (bool retval) {
                 if (retval) {
-                    bytes4 receivedVal = IERC8000Receiver(to).onERC8000Received(_msgSender(), fromTokenId_, toTokenId_, slotIndex_, valueOrNftId_, data_);
-                    return receivedVal == IERC8000Receiver.onERC8000Received.selector;
+                    bytes4 receivedVal = IERC7635Receiver(to).onERC7635Received(_msgSender(), fromTokenId_, toTokenId_, slotIndex_, valueOrNftId_, data_);
+                    return receivedVal == IERC7635Receiver.onERC7635Received.selector;
                 } else {
                     return true;
                 }

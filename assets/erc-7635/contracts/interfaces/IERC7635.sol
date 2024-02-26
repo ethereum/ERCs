@@ -5,10 +5,10 @@ pragma solidity ^0.8.6;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
- * @title ERC-8000 Semi-Fungible Token Standard
+ * @title ERC-7635 Semi-Fungible Token Standard
  * Note: the ERC-165 identifier for this interface is 0x9fa8825f.
  */
-interface IERC8000 is IERC721 {
+interface IERC7635 is IERC721 {
     /**
      * @dev MUST emit when value of a token is transferred to another token with the same slot,
      *  including zero value transfers (_value == 0) as well as transfers when tokens are created

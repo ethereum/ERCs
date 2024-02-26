@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.6;
 
-import "./ERC8000.sol";
+import "./ERC7635.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
-contract TestERC8000 is ERC8000, Ownable {
+contract TestERC7635 is ERC7635, Ownable {
 
     uint256 public count;
 
@@ -16,7 +16,7 @@ contract TestERC8000 is ERC8000, Ownable {
     constructor(
         string memory name_,
         string memory symbol_
-    ) ERC8000(name_, symbol_)  {
+    ) ERC7635(name_, symbol_)  {
     }
 
     /**
