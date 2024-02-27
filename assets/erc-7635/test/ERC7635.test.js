@@ -57,8 +57,9 @@ describe("MFT", function () {
 
         // mint erc721
         await TestERC721.connect(deployer).mint(user1.address);
-        await TestERC721.connect(deployer).mint(user2.address);
-        await TestERC721.connect(deployer).mint(user2.address);
+        for (let i = 0; i < 5; i++) {
+            await TestERC721.connect(deployer).mint(user2.address);
+        }
 
         // erc20 approve
         await TestERC20.connect(user1).approve(TestERC7635.address, 100);
@@ -77,12 +78,11 @@ describe("MFT", function () {
 
         // ERC721 approve
         await TestERC721.connect(user2).setApprovalForAll(TestERC7635.address, true);
-        // deposit
-        await TestERC7635.connect(user2).deposit(3, 2, 2);
-        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(1);
-        // deposit
-        await TestERC7635.connect(user2).deposit(3, 2, 3);
-        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(2);
+        for (let i = 2; i <7; i++) {
+            await TestERC7635.connect(user2).deposit(3, 2, i);
+        }
+
+        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(5);
         // nftBalanceOf
         const nftTokensOf2 = await TestERC7635.nftBalanceOf(3, 2)
         console.log('nftTokensOf2', nftTokensOf2)
@@ -120,12 +120,12 @@ describe("MFT", function () {
         // ERC721
         // slotIdex
         await TestERC7635.connect(user2)['transferFrom(uint256,uint256,uint256,uint256)'](3, 2, 2, 2);
-        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(2 - 1);
+        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(5 - 1);
         expect(await TestERC7635['balanceOf(uint256,uint256)'](2, 2)).to.eq(1 + 1);
 
         // tokenAddress_
         await TestERC7635.connect(user2)['transferFrom(uint256,uint256,address,uint256)'](3, 2, TestERC721.address, 3);
-        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(2 - 1 - 1);
+        expect(await TestERC7635['balanceOf(uint256,uint256)'](3, 2)).to.eq(5 - 1 - 1);
         expect(await TestERC7635['balanceOf(uint256,uint256)'](2, 2)).to.eq(1 + 1 + 1);
         const nftTokensO3 = await TestERC7635.nftBalanceOf(2, 2)
         console.log('nftTokensO3', nftTokensO3)
@@ -139,8 +139,16 @@ describe("MFT", function () {
         expect(await TestERC7635['balanceOf(uint256,uint256)'](2, 2)).to.eq(3 - 1 - 1);
 
         expect(await TestERC721['balanceOf(address)'](user2.address)).to.eq('2');
+    })
 
-        const nftTokensO4 = await TestERC7635.nftBalanceOf(2, 2)
-        console.log('nftTokensO4', nftTokensO4)
+    it('Approved', async () => {
+        const [deployer, user1, user2] = await ethers.getSigners();
+
+        // approve
+        await TestERC7635.connect(user2)['approve(uint256,uint256,address,uint256)'](3, 2, user1.address, 6);
+        const getApproved = await TestERC7635['getApproved(uint256,uint256,uint256)'](3, 2,6)
+        console.log('getApproved', getApproved)
+        await TestERC7635.connect(user1)['transferFrom(uint256,uint256,address,uint256)'](3, 2, TestERC721.address, 6);
+
     })
 });

@@ -85,6 +85,8 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
     mapping(uint256 => uint256)  _allTokensIndex;
     // The approved value of slots：id =>(owner=> (slot => (approval => allowance)))
     mapping(uint256 => mapping(address => mapping(uint256 => mapping(address => uint256)))) private _approvedValues;
+    // The approved nft of slots：id =>(owner=> (slot => (nftId => approved)))
+    mapping(uint256 => mapping(address => mapping(uint256 => mapping(uint256 => address)))) private _slotNftApproved;
     // User data
     mapping(address => AddressData) _addressData;
     // tokenAddress => slotIndex
@@ -265,15 +267,15 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
      * @param tokenId_ The token to approve
      * @param slotIndex_ The slot to approve
      * @param operator_ The operator to be approved
-     * @param value_ The maximum value of `_toTokenId` that `_operator` is allowed to manage
+     * @param valueOrNftId_ The current approval value of `_tokenId` or nftId  that `_operator` is allowed to manage
      */
-    function approve(uint256 tokenId_, uint256 slotIndex_, address operator_, uint256 value_) public payable virtual override {
+    function approve(uint256 tokenId_, uint256 slotIndex_, address operator_, uint256 valueOrNftId_) public payable virtual override {
         address owner = ERC7635.ownerOf(tokenId_);
         require(operator_ != owner, "ERC7635: approval to current owner");
 
         require(_isApprovedOrOwner(_msgSender(), tokenId_), "ERC7635: owner! or approved!");
 
-        _approveValue(tokenId_, slotIndex_, operator_, value_);
+        _approveValue(tokenId_, slotIndex_, operator_, valueOrNftId_);
     }
 
     /**
@@ -286,6 +288,18 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
     function allowance(uint256 tokenId_, uint256 slotIndex_, address operator_) public view virtual override returns (uint256) {
         address owner = ERC7635.ownerOf(tokenId_);
         return _approvedValues[tokenId_][owner][slotIndex_][operator_];
+    }
+
+    /**
+     * @notice Returns the account approved for `_nftId` token.
+     * @param tokenId_ The token for which to query the approved account
+     * @param slotIndex_ The slot for which to query the approved account
+     * @param nftId_ The NFT ID
+     * @return The current approved account for `_nftId` token.
+     */
+    function getApproved(uint256 tokenId_, uint256 slotIndex_, uint256 nftId_) public view virtual override returns (address) {
+        address owner = ERC7635.ownerOf(tokenId_);
+        return _slotNftApproved[tokenId_][owner][slotIndex_][nftId_];
     }
 
     /**
@@ -507,11 +521,20 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
     }
 
     function _spendAllowance(address operator_, uint256 tokenId_, uint256 slotIndex_, uint256 valueOrNftId_) internal virtual {
-        uint value_ = slots[slotIndex_].isNft ? 1 : valueOrNftId_;
-        uint256 currentAllowance = ERC7635.allowance(tokenId_, slotIndex_, operator_);
-        if (!_isApprovedOrOwner(operator_, tokenId_) && currentAllowance != type(uint256).max) {
-            require(currentAllowance >= value_, "ERC7635: insufficient allowance");
-            _approveValue(tokenId_, slotIndex_, operator_, currentAllowance - value_);
+        address owner = ERC7635.ownerOf(tokenId_);
+        if (owner == operator_) {
+            return;
+        }
+
+        if (slots[slotIndex_].isNft) {
+            require(ERC7635.getApproved(tokenId_, slotIndex_, valueOrNftId_) == operator_, "ERC7635: slot nft approved!");
+            delete _slotNftApproved[tokenId_][owner][slotIndex_][valueOrNftId_];
+        } else {
+            uint256 currentAllowance = ERC7635.allowance(tokenId_, slotIndex_, operator_);
+            if (currentAllowance != type(uint256).max) {
+                require(currentAllowance >= valueOrNftId_, "ERC7635: insufficient allowance");
+                _approveValue(tokenId_, slotIndex_, operator_, currentAllowance - valueOrNftId_);
+            }
         }
     }
 
@@ -679,13 +702,19 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
         uint256 tokenId_,
         uint256 slotIndex_,
         address to_,
-        uint256 value_
+        uint256 valueOrNftId_
     ) internal virtual {
-        require(to_ != address(0), "ERC7635: approve value to the zero address");
         address owner = _allTokens[_allTokensIndex[tokenId_]].owner;
-        _approvedValues[tokenId_][owner][slotIndex_][to_] = value_;
+        if (slots[slotIndex_].isNft) {
+            uint nftIndex = _nftTokensIndex[slotIndex_][valueOrNftId_];
+            uint nftId = _nftTokens[tokenId_][slotIndex_][nftIndex];
+            require(valueOrNftId_ == nftId, "ERC7635: approve invalid NFT ID");
+            _slotNftApproved[tokenId_][owner][slotIndex_][valueOrNftId_] = to_;
+        } else {
+            _approvedValues[tokenId_][owner][slotIndex_][to_] = valueOrNftId_;
+        }
 
-        emit ApprovalValue(tokenId_, owner, slotIndex_, to_, value_);
+        emit ApprovalValue(tokenId_, owner, slotIndex_, to_, valueOrNftId_);
     }
 
     function _transferValue(
@@ -721,7 +750,7 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
         _afterValueTransfer(fromTokenData.owner, toTokenData.owner, fromTokenId_, toTokenId_, slotIndex_, valueOrNftId_);
 
         require(
-            _checkOnMFTReceived(fromTokenId_, toTokenId_, slotIndex_, valueOrNftId_, ""),
+            _checkOnERC7635Received(fromTokenId_, toTokenId_, slotIndex_, valueOrNftId_, ""),
             "ERC7635: transfer to non MFTReceiver"
         );
     }
@@ -774,7 +803,7 @@ contract ERC7635 is Context, IERC7635Metadata, IERC721Enumerable {
         );
     }
 
-    function _checkOnMFTReceived(
+    function _checkOnERC7635Received(
         uint256 fromTokenId_,
         uint256 toTokenId_,
         uint256 slotIndex_,

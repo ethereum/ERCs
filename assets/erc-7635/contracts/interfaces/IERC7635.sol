@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title ERC-7635 Semi-Fungible Token Standard
- * Note: the ERC-165 identifier for this interface is 0x9fa8825f.
+ * Note: the ERC-165 identifier for this interface is 0xa33cc6cc.
  */
 interface IERC7635 is IERC721 {
     /**
@@ -59,23 +59,23 @@ interface IERC7635 is IERC721 {
      * @param _tokenId The token to approve
      * @param _slotIndex The slot to approve
      * @param _operator The operator to be approved
-     * @param _value The maximum value of `_toTokenId` that `_operator` is allowed to manage
+     * @param valueOrNftId_ The current approval value of `_tokenId` or nftId  that `_operator` is allowed to manage
      */
     function approve(
         uint256 _tokenId,
         uint256 _slotIndex,
         address _operator,
-        uint256 _value
+        uint256 _valueOrNftId
     ) external payable;
 
     /**
-     * @notice Get the maximum value of a token that an operator is allowed to manage.
-     * @param _tokenId The token for which to query the allowance
-     * @param _slotIndex The slot for which to query the allowance
-     * @param _operator The address of an operator
-     * @return The current approval value of `_tokenId` that `_operator` is allowed to manage
+     * @notice Returns the account approved for `_nftId` token.
+     * @param _tokenId The token for which to query the approved account
+     * @param _slotIndex The slot for which to query the approved account
+     * @param _nftId The NFT ID
+     * @return The current approved account for `_nftId` token.
      */
-    function allowance(uint256 _tokenId, uint256 _slotIndex, address _operator) external view returns (uint256);
+    function getApproved(uint256 _tokenId, uint256 _slotIndex, uint256 _nftId) external view returns (address);
 
 
     /**
