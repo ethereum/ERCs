@@ -110,6 +110,32 @@ interface IERC7583 is IERC20, IERC165 {
     function transferInsFrom(address from, address to, uint256 insId) external;
 
     /**
+     * @dev Transfers `amount` FTs from inscription `from` to address `to`.
+     *
+     * Requirements:
+     *
+     * - msg.sender MUST be the owner of inscription `from`.
+     * - `to` cannot be the zero address.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {TransferInsToIns} event.
+     */
+    function transferFTIns(uint256 from, address to, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves a `value` amount of FTs from inscription `from` to address `to`
+     *
+     * Requirements:
+     *
+     * - If the caller is not the owner of inscription `from`, it must have been allowed to move this inscription by either {approveIns} or {setApprovalForAll}.
+     * - `to` cannot be the zero address.
+     *
+     * Emits a {TransferInsToIns} event.
+     */
+    function transferFTInsFrom(uint256 from, address to, uint256 amount) external returns (bool);
+
+    /**
      * @dev Safely transfers `insId` token from `from` to `to`, checking first that contract recipients
      * are aware of the ERC7583 protocol to prevent tokens from being forever locked.
      *
@@ -118,8 +144,7 @@ interface IERC7583 is IERC20, IERC165 {
      * - `from` cannot be the zero address.
      * - `to` cannot be the zero address.
      * - `insId` token must exist and be owned by `from`.
-     * - If the caller is not `from`, it must have been allowed to move this token by either {approveIns} or
-     *   {setApprovalForAll}.
+     * - If the caller is not `from`, it must have been allowed to move this token by either {approveIns} or {setApprovalForAll}.
      * - If `to` refers to a smart contract, it must implement {IERC7583Receiver-onERC7583Received}, which is called upon
      *   a safe transfer.
      *

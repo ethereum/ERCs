@@ -241,8 +241,8 @@ contract ERC7583 is IERC7583Metadata {
 	function mint(uint256 insId) external recordSlot(address(0), msg.sender, insId) {
 		require(_totalSupply < maxSupply, "Exceeded mint limit");
 
-    	_mint(msg.sender, tickNumber);
 		tickNumber++;
+    	_mint(msg.sender, tickNumber);
     	_totalSupply+=mintLimit;
 
 		emit Transfer(address(0), msg.sender, mintLimit);
@@ -328,9 +328,9 @@ contract ERC7583 is IERC7583Metadata {
 
         // Slots can be minted.
         if (slotFT[to] == 0) {
+            tickNumber++;
             _mint(to, tickNumber);
             slotFT[to] = tickNumber;
-            tickNumber++;
         }
 
         uint256 fromBalance = _balancesOfIns[slotFT[from]];
@@ -345,7 +345,48 @@ contract ERC7583 is IERC7583Metadata {
         emit TransferInsToIns(slotFT[from], slotFT[to], value);
     }
 
+    /// @notice Transfers FTs from only one inscritpions to others.
+    /// @param from The inscription of sending FTs
+    /// @param to Receiver address
+    /// @return value The amount of FTs sent
+    function transferFTIns(uint256 from, address to, uint256 value) external returns (bool){
+        require(ownerOf(from) == msg.sender, "ERC7583: caller is not token owner");
+
+        return _transferFTIns(from, to, value);
+    }
+
+    function _transferFTIns(uint256 from, address to, uint256 value) internal returns (bool){
+        // Slots can be minted.
+        if (slotFT[to] == 0) {
+            tickNumber++;
+            _mint(to, tickNumber);
+            slotFT[to] = tickNumber;
+        }
+
+        uint256 fromBalance = _balancesOfIns[from];
+        require(fromBalance >= value, "Insufficient balance");
+
+        unchecked {
+            _balancesOfIns[from] = fromBalance - value;
+        }
+        _balancesOfIns[slotFT[to]] += value;
+
+        emit TransferInsToIns(from, slotFT[to], value);
+        return true;
+    }
+
+    /// @notice Transfers FTs from only one inscritpions to others.
+    /// @param from The inscription of sending FTs
+    /// @param to Receiver address
+    /// @return value The amount of FTs sent
+    function transferFTInsFrom(uint256 from, address to, uint256 value) external returns (bool){
+        require(_isApprovedOrOwner(msg.sender, from), "ERC7583: caller is not token owner nor approved");
+
+        return _transferFTIns(from, to, value);
+    }
+
     /// @notice You can freely transfer the balances of multiple inscriptions into one, including slots.
+    /// @notice The inspiration comes from the first miracle of Jesus as described in John 2:1-12.
     /// @param froms Multiple inscriptions with a decreased balance
     /// @param to Inscription with a increased balance
     function waterToWine(WTW[] calldata froms, uint256 to) public {
@@ -368,27 +409,6 @@ contract ERC7583 is IERC7583Metadata {
         }
 
         _balancesOfIns[to] += increment;
-    }
-
-    /// @notice You can freely transfer the balances between any two of your inscriptions, including slots.
-    /// @notice The inspiration comes from the first miracle of Jesus as described in John 2:1-12.
-    /// @param from Inscription with a decreased balance
-    /// @param to Inscription with a increased balance
-    /// @param amount The value you gonna transfer
-    function waterToWine(uint256 from, uint256 to, uint256 amount) public {
-        require(
-            ownerOf(from) == msg.sender && ownerOf(to) == msg.sender,
-            "Is not yours"
-        );
-
-        uint256 fromBalance = _balancesOfIns[from];
-        require(fromBalance >= amount, "Insufficient balance");
-        unchecked {
-            _balancesOfIns[from] = fromBalance - amount;
-        }
-        _balancesOfIns[to] += amount;
-
-        emit TransferInsToIns(from, to, amount);
     }
 
     /// @notice Only the balance in the slot can be transferred using this function.
