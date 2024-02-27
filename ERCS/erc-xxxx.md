@@ -3,7 +3,7 @@ eip: xxxx
 title: Optimized Calls Encoding
 description: Encode mutiple calls for smart contract wallet with less gas
 author: George (@JXRow)
-discussions-to: TBA
+discussions-to: https://ethereum-magicians.org/t/add-erc-optimized-calls-encoding/18966
 status: Draft
 type: Standards Track
 category: ERC
