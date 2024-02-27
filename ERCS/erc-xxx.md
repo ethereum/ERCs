@@ -1,5 +1,5 @@
 ---
-eip: xxxx
+eip: xxx
 title: Optimized Calls Encoding
 description: Encode mutiple calls for smart contract wallet with less gas
 author: George (@JXRow)
