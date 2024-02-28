@@ -88,7 +88,7 @@ interface IERC7579Account {
      *
      * MUST return true if the account supports the mode and false otherwise
      */
-    function supportsAccountMode(bytes32 encodedMode) external view returns (bool);
+    function supportsExecutionMode(bytes32 encodedMode) external view returns (bool);
 
     /**
      * @dev Function to check if the account supports a certain module typeId
@@ -100,7 +100,7 @@ interface IERC7579Account {
 
     /**
      * @dev Installs a Module of a certain type on the smart account
-     * @param moduleType the module type ID according to the ERC-7579 spec
+     * @param moduleTypeId the module type ID according to the ERC-7579 spec
      * @param module the module address
      * @param initData arbitrary data that may be required on the module during `onInstall`
      * initialization.
@@ -110,11 +110,11 @@ interface IERC7579Account {
      * MUST emit ModuleInstalled event
      * MUST revert if the module is already installed or the initialization on the module failed
      */
-    function installModule(uint256 moduleType, address module, bytes calldata initData) external;
+    function installModule(uint256 moduleTypeId, address module, bytes calldata initData) external;
 
     /**
      * @dev Uninstalls a Module of a certain type on the smart account
-     * @param moduleType the module type ID according the ERC-7579 spec
+     * @param moduleTypeId the module type ID according the ERC-7579 spec
      * @param module the module address
      * @param deInitData arbitrary data that may be required on the module during `onInstall`
      * initialization.
@@ -124,17 +124,17 @@ interface IERC7579Account {
      * MUST emit ModuleUninstalled event
      * MUST revert if the module is not installed or the deInitialization on the module failed
      */
-    function uninstallModule(uint256 moduleType, address module, bytes calldata deInitData) external;
+    function uninstallModule(uint256 moduleTypeId, address module, bytes calldata deInitData) external;
 
     /**
      * @dev Returns whether a module is installed on the smart account
-     * @param moduleType the module type ID according the ERC-7579 spec
+     * @param moduleTypeId the module type ID according the ERC-7579 spec
      * @param module the module address
      * @param additionalContext arbitrary data that may be required to determine if the module is installed
      *
      * MUST return true if the module is installed and false otherwise
      */
-    function isModuleInstalled(uint256 moduleType, address module, bytes calldata additionalContext)
+    function isModuleInstalled(uint256 moduleTypeId, address module, bytes calldata additionalContext)
         external
         view
         returns (bool);
