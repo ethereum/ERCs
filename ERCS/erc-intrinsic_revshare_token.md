@@ -1,8 +1,9 @@
 ---
+eip: 7641
 title: Intrinsic RevShare Token
 description: An ERC-20 extension that integrates a revenue-sharing mechanism, ensuring tokens intrinsically represent a share of a communal revenue pool
 author: Conway (@0x1cc), Cathie So (@socathie), Xiaohang Yu (@xhyumiracle), Suning Yao (@fewwwww), Kartin <kartin@hyperoracle.io>
-discussions-to: https://ethereum-magicians.org/t/erc-intrinsic-revshare-token/18999
+discussions-to: https://ethereum-magicians.org/t/erc-7641-intrinsic-revshare-token/18999
 status: Draft
 type: Standards Track
 category: ERC
