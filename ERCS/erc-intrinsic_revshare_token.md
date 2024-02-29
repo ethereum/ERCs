@@ -2,7 +2,7 @@
 title: Intrinsic RevShare Token
 description: An ERC-20 extension that integrates a revenue-sharing mechanism, ensuring tokens intrinsically represent a share of a communal revenue pool
 author: Conway (@0x1cc), Cathie So (@socathie), Xiaohang Yu (@xhyumiracle), Suning Yao (@fewwwww), Kartin <kartin@hyperoracle.io>
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-intrinsic-revshare-token/18999
 status: Draft
 type: Standards Track
 category: ERC
