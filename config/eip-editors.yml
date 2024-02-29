@@ -8,12 +8,10 @@ core:
   - axic
   - gcolvin
   - SamWilsn
-  - Pandapip1
   - g11tech
 erc:
   - axic
   - SamWilsn
-  - Pandapip1
   - xinbenlv
   - g11tech
 networking:
@@ -24,13 +22,11 @@ interface:
   - lightclient
   - axic
   - SamWilsn
-  - Pandapip1
 meta:
   - lightclient
   - axic
   - gcolvin
   - SamWilsn
-  - Pandapip1
   - xinbenlv
 informational:
   - lightclient
