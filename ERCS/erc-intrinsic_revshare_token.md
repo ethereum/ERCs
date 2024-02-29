@@ -12,19 +12,24 @@ requires: 20
 
 ## Abstract
 
-This proposal outlines an extension of the prevailing ERC-20 token standard, introducing a seamlessly integrated revenue-sharing mechanism. It incorporates a suite of interfaces designed to foster fair distribution of revenue among token holders while preserving the essential attributes of ERC-20. Central to this design is the establishment of a communal revenue pool, aggregating revenues from diverse sources. The token, in essence, embodies shares, affording holders the ability to burn their tokens and redeem a proportionate share from the revenue pool. This innovative burning mechanism guarantees that, when the revenue pool is non-empty, the token's value remains at least commensurate with the share of the revenue pool. Additionally, in periodic intervals, token holders can claim a portion of the reward, enriching their engagement and further enhancing the token's utility.
+This proposal outlines an extension of the prevailing [ERC-20](./eip-20.md) token standard, introducing a seamlessly integrated revenue-sharing mechanism. It incorporates a suite of interfaces designed to foster fair distribution of revenue among token holders while preserving the essential attributes of [ERC-20](./eip-20.md). Central to this design is the establishment of a communal revenue pool, aggregating revenues from diverse sources. The token, in essence, embodies shares, affording holders the ability to burn their tokens and redeem a proportionate share from the revenue pool. This innovative burning mechanism guarantees that, when the revenue pool is non-empty, the token's value remains at least commensurate with the share of the revenue pool. Additionally, in periodic intervals, token holders can claim a portion of the reward, enriching their engagement and further enhancing the token's utility.
 
 ## Motivation
 
-<!--
-  This section is optional.
+### Revenue Sharing for Token Holders
 
-  The motivation section should include a description of any nontrivial problems the EIP solves. It should not describe how the EIP solves those problems, unless it is not immediately obvious. It should not describe why the EIP should be made into a standard, unless it is not immediately obvious.
+This proposal standardized an Intrinsic RevShare (revenue-sharing) model, allowing users to claim rewards periodically to ensure the efficiency of liquidity. This standard can inherently offer a clear path to long-term benefits for holders with revenue sharing, achieving a more sustainable token model by rewarding holders.
 
-  With a few exceptions, external links are not allowed. If you feel that a particular resource would demonstrate a compelling case for your EIP, then save it as a printer-friendly PDF, put it in the assets folder, and link to that copy.
+With the inheritance of [ERC-20](./eip-20.md) functionalities, token holders enjoy flexibility in trading tokens on secondary markets, and an optional burning mechanism empowers them to actively contribute to a deflationary economic model while obtaining a proportional share of the revenue pool.
 
-  TODO: Remove this comment before submitting
--->
+This approach also encourages active participation in open-source initiatives with a sustainable and multifaceted revenue-sharing ecosystem for Intrinsic RevShare token holders.
+
+### Funding for Any Project
+
+This standard enables the tokenizing of all kinds of projects with revenue. This EIP introduces a new model for incentivizing contributions to open-source projects. It proposes the distribution of Intrinsic RevShare tokens to active contributors, creating a tangible asset reflecting project involvement.
+
+Notably, it introduces a use case known as Initial Model Offering (IMO). Many open-sourced AI models face a challenge in monetizing their contributions, leading to a lack of motivation for contributors and organizations alike. This proposal seeks to empower open-sourced AI models and organizations by introducing Intrinsic RevShare token. In leveraging the token for IMO, open-sourced AI organizations can conduct fundraisings for essential funds to incentivize the ongoing development of AI models. Moreover, any project utilizing these open-source models contributes to the sustainability of the ecosystem by paying a designated fee to the revenue pool. This fee forms the basis of a revenue-sharing mechanism, allowing Intrinsic RevShare token holders to claim a proportionate share, thereby establishing a systematic and fair distribution mechanism. Importantly, this revenue-sharing feature serves as a guarantee for token holders, fostering long-term revenue benefits and encouraging sustained engagement in the open-source AI community.
+
 
 ## Specification
 
