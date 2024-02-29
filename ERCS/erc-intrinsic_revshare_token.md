@@ -142,9 +142,9 @@ We implement a burning mechanism wherein any token holder can burn their tokens 
 
 ### `redeemableOnBurn` interface
 
-We specify `**redeemableOnBurn`** interface to calculate the amount of ETH redeemable by a token holder upon burn. It is defined as a view function to reduce gas cost. Specifically, the amount of ETH redeemable, i.e., `redeemableETH` by a token holder with `amount` of token to burn is
+We specify `redeemableOnBurn` interface to calculate the amount of ETH redeemable by a token holder upon burn. It is defined as a view function to reduce gas cost. Specifically, the amount of ETH redeemable, i.e., `redeemableETH` by a token holder with `amount` of token to burn is
 
-```jsx
+```
 redeemableETH = amount / totalSupply * totalRedeemableETH
 ```
 
