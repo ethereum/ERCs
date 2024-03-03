@@ -1,0 +1,140 @@
+---
+title: Metadata Management for NFTs
+description: This ERC proposes a standard for managing metadata of NFTs that allows owners and authorized addresses to update the metadata of their tokens.
+author: Alexey Kureev (@Kureev) <a.g.kureev@gmail.com>
+discussions-to:
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-03-03
+requires: 721, 1155
+---
+
+## Abstract
+
+The MetadataManager contract provides a mapping for storing metadata of NFTs. It also provides a mechanism for authorizing other addresses to update the metadata of a token. This contract can be used in conjunction with any NFT contract that implements the ERC721 or ERC1155 standard.
+
+## Motivation
+
+Currently, the metadata of an NFT is immutable once it has been minted. This is problematic for use cases where the metadata of an NFT needs to be updated afterwards. For example, an NFT representing a digital artwork might need to have its metadata updated to reflect changes in the artwork's ownership or provenance.
+
+## Specification
+
+The MetadataManager contract provides the following functions:
+
+- `updateMetadata(address tokenAddress, uint256 tokenId, string memory newURI)`: Updates the metadata of a token. The sender must be the owner of the token or authorized to update the metadata.
+- `getMetadata(address tokenAddress, uint256 tokenId)`: Returns the metadata of a token. If the metadata is not stored, it will try to fetch it from the NFT contract.
+- `authorize(address tokenAddress, uint256 tokenId, address authorizedAddress)`: Authorizes an address to update the metadata of a token. Only the owner of the token can call this function.
+- `revokeAuthorization(address tokenAddress, uint256 tokenId, address authorizedAddress)`: Revokes the authorization of an address to update the metadata of a token. Only the owner of the token can call this function.
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+## Rationale
+
+This ERC provides a flexible and decentralized way to manage the metadata of NFTs. It allows the metadata of an NFT to be updated after it has been minted, and it allows the owner of an NFT to delegate the ability to update the metadata to other addresses.
+
+## Backwards Compatibility
+
+This ERC is fully backwards compatible with existing NFT standards. It can be used in conjunction with any NFT contract that implements the ERC721 or ERC1155 standard.
+
+## Test Cases
+
+TBD
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+
+pragma solidity ^0.8.0;
+
+interface INFT {
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+
+contract MetadataManager {
+    // tokenAddress => tokenId => URI of the metadata
+    mapping(address => mapping(uint256 => string)) public tokenMetadata;
+
+    // tokenAddress => tokenId => authorizedAddress => bool
+    mapping(address => mapping(uint256 => mapping(address => bool))) public isAuthorized;
+
+    // Emits when the metadata of a token is updated.
+    event MetadataUpdated(address indexed tokenAddress, uint256 indexed tokenId, string newUri);
+
+    // Emits when an address is authorized to update the metadata of a token.
+    event AuthorizationGranted(address indexed tokenAddress, uint256 indexed tokenId, address indexed authorizedAddress);
+
+    // Emits when an address is revoked from updating the metadata of a token.
+    event AuthorizationRevoked(address indexed tokenAddress, uint256 indexed tokenId, address indexed authorizedAddress);
+
+    // Throws if the sender is not the owner of the token.
+    modifier onlyTokenOwner(address tokenAddress, uint256 tokenId) {
+        INFT nftContract = INFT(tokenAddress);
+        if (msg.sender != nftContract.ownerOf(tokenId)) {
+            revert NotOwner();
+        }
+        _;
+    }
+
+    /**
+     * Updates the metadata of a token.
+     * The sender must be the owner of the token or authorized to update the metadata.
+     * Emits a {MetadataUpdated} event.
+     */
+    function updateMetadata(address tokenAddress, uint256 tokenId, string memory newURI) public {
+        INFT nftContract = INFT(tokenAddress);
+
+        if (msg.sender != nftContract.ownerOf(tokenId) || !isAuthorized[tokenAddress][tokenId][msg.sender]) {
+            revert NotAuthorized();
+        }
+
+        tokenMetadata[tokenAddress][tokenId] = newURI;
+        emit MetadataUpdated(tokenAddress, tokenId, newURI);
+    }
+
+    /**
+     * Returns the metadata of a token.
+     * If the metadata is not stored, it will try to fetch it from the NFT contract.
+     * If the NFT contract does not have a tokenURI function, it will revert.
+     */
+    function getMetadata(address tokenAddress, uint256 tokenId) public view returns (string memory) {
+        string memory metadata = tokenMetadata[tokenAddress][tokenId];
+
+        if (bytes(metadata).length == 0) {
+            try INFT(tokenAddress).tokenURI(tokenId) returns (string memory uri) {
+                return uri;
+            } catch {
+                revert NoMetadata();
+            }
+        } else {
+            return metadata;
+        }
+    }
+
+    // Authorizes an address to update the metadata of a token.
+    function authorize(address tokenAddress, uint256 tokenId, address authorizedAddress) public onlyTokenOwner(tokenAddress, tokenId) {
+        isAuthorized[tokenAddress][tokenId][authorizedAddress] = true;
+        emit AuthorizationGranted(tokenAddress, tokenId, authorizedAddress);
+    }
+
+    // Revokes the authorization of an address to update the metadata of a token.
+    function revokeAuthorization(address tokenAddress, uint256 tokenId, address authorizedAddress) public onlyTokenOwner(tokenAddress, tokenId) {
+        isAuthorized[tokenAddress][tokenId][authorizedAddress] = false;
+        emit AuthorizationRevoked(tokenAddress, tokenId, authorizedAddress);
+    }
+
+    error NotAuthorized();
+    error NotOwner();
+    error NoMetadata();
+}
+```
+
+## Security Considerations
+
+The MetadataManager contract relies on the ownerOf function of the NFT contract to determine the owner of a token. If the NFT contract does not implement this function correctly, it could lead to security issues.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
