@@ -1,4 +1,5 @@
 ---
+eip: 7646
 title: Metadata Management for NFTs
 description: This ERC proposes a standard for managing metadata of NFTs that allows owners and authorized addresses to update the metadata of their tokens.
 author: Alexey Kureev (@Kureev) <a.g.kureev@gmail.com>
