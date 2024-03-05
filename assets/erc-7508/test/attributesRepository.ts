@@ -6,65 +6,66 @@ import {
   OwnableMintableERC721Mock,
   AttributesRepository,
 } from "../../typechain-types";
-import { BigNumber } from "ethers";
-import { smock, FakeContract } from "@defi-wonderland/smock";
 
 const IERC165 = "0x01ffc9a7";
-const IAttributesRepository = "0x07cd44c7";
+const IERC7508 = "0x62ee8e7a";
 
 // --------------- FIXTURES -----------------------
+
+enum AccessType {
+  Issuer,
+  Collaborator,
+  IssuerOrCollaborator,
+  TokenOwner,
+  SpecificAddress,
+}
 
 async function tokenAttributesFixture() {
   const factory = await ethers.getContractFactory("AttributesRepository");
   const tokenAttributes = await factory.deploy();
-  await tokenAttributes.deployed();
+  await tokenAttributes.waitForDeployment();
 
-  return { tokenAttributes };
+  return tokenAttributes;
 }
 
 async function ownedCollectionFixture() {
-  const ownedCollection = await smock.fake<OwnableMintableERC721Mock>(
-    "OwnableMintableERC721Mock"
-  );
+  const factory = await ethers.getContractFactory("OwnableMintableERC721Mock");
+  const [owner, ownerOf] = await ethers.getSigners();
+  const ownedCollection = await factory.deploy(owner, ownerOf);
+  await ownedCollection.waitForDeployment();
 
-  return { ownedCollection };
+  return ownedCollection;
 }
 
 // --------------- TESTS -----------------------
 
 describe("AttributesRepository", async function () {
   let tokenAttributes: AttributesRepository;
-  let ownedCollection: FakeContract<OwnableMintableERC721Mock>;
+  let ownedCollection: OwnableMintableERC721Mock;
+  let collectionOwner: SignerWithAddress;
+  let tokenOwner: SignerWithAddress;
+  let collaborator: SignerWithAddress;
+  let collectionAddress: string;
+  const tokenId = 1n;
+  const tokenId2 = 2n;
 
   beforeEach(async function () {
-    ({ tokenAttributes } = await loadFixture(tokenAttributesFixture));
-    ({ ownedCollection } = await loadFixture(ownedCollectionFixture));
+    tokenAttributes = await loadFixture(tokenAttributesFixture);
+    ownedCollection = await loadFixture(ownedCollectionFixture);
+    collectionAddress = await ownedCollection.getAddress();
+    [collectionOwner, tokenOwner, collaborator] = await ethers.getSigners();
 
     this.tokenAttributes = tokenAttributes;
     this.ownedCollection = ownedCollection;
   });
 
-  shouldBehaveLikeTokenAttributesRepositoryInterface();
+  shouldBehaveLikeAttributesRepositoryInterface();
 
-  describe("AttributesRepository", async function () {
-    let issuer: SignerWithAddress;
-    let owner: SignerWithAddress;
-    const tokenId = 1;
-    const tokenId2 = 2;
-
+  describe("Registering attributes and setting values", async function () {
     beforeEach(async function () {
-      ({ tokenAttributes } = await loadFixture(tokenAttributesFixture));
-      ({ ownedCollection } = await loadFixture(ownedCollectionFixture));
-
-      const signers = await ethers.getSigners();
-      issuer = signers[0];
-      owner = signers[1];
-
-      ownedCollection.owner.returns(issuer.address);
-
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
     });
@@ -72,7 +73,7 @@ describe("AttributesRepository", async function () {
     it("can set and get token attributes", async function () {
       expect(
         await tokenAttributes.setStringAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "description",
           "test description"
@@ -80,14 +81,14 @@ describe("AttributesRepository", async function () {
       )
         .to.emit(tokenAttributes, "StringAttributeSet")
         .withArgs(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "description",
           "test description"
         );
       expect(
         await tokenAttributes.setStringAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "description1",
           "test description"
@@ -95,156 +96,141 @@ describe("AttributesRepository", async function () {
       )
         .to.emit(tokenAttributes, "StringAttributeSet")
         .withArgs(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "description1",
           "test description"
         );
       expect(
         await tokenAttributes.setBoolAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "rare",
           true
         )
       )
         .to.emit(tokenAttributes, "BoolAttributeSet")
-        .withArgs(ownedCollection.address, tokenId, "rare", true);
+        .withArgs(collectionAddress, tokenId, "rare", true);
       expect(
         await tokenAttributes.setAddressAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "owner",
-          owner.address
+          tokenOwner.address
         )
       )
         .to.emit(tokenAttributes, "AddressAttributeSet")
-        .withArgs(ownedCollection.address, tokenId, "owner", owner.address);
+        .withArgs(collectionAddress, tokenId, "owner", tokenOwner.address);
       expect(
         await tokenAttributes.setUintAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "atk",
-          BigNumber.from(100)
+          100n
         )
       )
         .to.emit(tokenAttributes, "UintAttributeSet")
-        .withArgs(ownedCollection.address, tokenId, "atk", BigNumber.from(100));
+        .withArgs(collectionAddress, tokenId, "atk", 100n);
       expect(
         await tokenAttributes.setUintAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "health",
-          BigNumber.from(100)
+          100n
         )
       )
         .to.emit(tokenAttributes, "UintAttributeSet")
-        .withArgs(
-          ownedCollection.address,
-          tokenId,
-          "health",
-          BigNumber.from(100)
-        );
+        .withArgs(collectionAddress, tokenId, "health", 100n);
       expect(
         await tokenAttributes.setUintAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "health",
-          BigNumber.from(95)
+          95n
         )
       )
         .to.emit(tokenAttributes, "UintAttributeSet")
-        .withArgs(
-          ownedCollection.address,
-          tokenId,
-          "health",
-          BigNumber.from(95)
-        );
+        .withArgs(collectionAddress, tokenId, "health", 95n);
       expect(
         await tokenAttributes.setUintAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "health",
-          BigNumber.from(80)
+          80n
         )
       )
         .to.emit(tokenAttributes, "UintAttributeSet")
-        .withArgs(
-          ownedCollection.address,
-          tokenId,
-          "health",
-          BigNumber.from(80)
-        );
+        .withArgs(collectionAddress, tokenId, "health", 80n);
       expect(
         await tokenAttributes.setBytesAttribute(
-          ownedCollection.address,
+          collectionAddress,
           tokenId,
           "data",
           "0x1234"
         )
       )
         .to.emit(tokenAttributes, "BytesAttributeSet")
-        .withArgs(ownedCollection.address, tokenId, "data", "0x1234");
+        .withArgs(collectionAddress, tokenId, "data", "0x1234");
 
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId,
           "description"
         )
       ).to.eql("test description");
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId,
           "description1"
         )
       ).to.eql("test description");
       expect(
-        await tokenAttributes.getBoolTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getBoolAttribute(
+          collectionAddress,
           tokenId,
           "rare"
         )
       ).to.eql(true);
       expect(
-        await tokenAttributes.getAddressTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getAddressAttribute(
+          collectionAddress,
           tokenId,
           "owner"
         )
-      ).to.eql(owner.address);
+      ).to.eql(tokenOwner.address);
       expect(
-        await tokenAttributes.getUintTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getUintAttribute(
+          collectionAddress,
           tokenId,
           "atk"
         )
-      ).to.eql(BigNumber.from(100));
+      ).to.eql(100n);
       expect(
-        await tokenAttributes.getUintTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getUintAttribute(
+          collectionAddress,
           tokenId,
           "health"
         )
-      ).to.eql(BigNumber.from(80));
+      ).to.eql(80n);
       expect(
-        await tokenAttributes.getBytesTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getBytesAttribute(
+          collectionAddress,
           tokenId,
           "data"
         )
       ).to.eql("0x1234");
 
       await tokenAttributes.setStringAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "description",
         "test description update"
       );
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId,
           "description"
         )
@@ -253,24 +239,24 @@ describe("AttributesRepository", async function () {
 
     it("can set multiple attributes of multiple types at the same time", async function () {
       await expect(
-        tokenAttributes.setTokenAttributes(
-          ownedCollection.address,
+        tokenAttributes.setAttributes(
+          collectionAddress,
           tokenId,
           [
             { key: "string1", value: "value1" },
             { key: "string2", value: "value2" },
           ],
           [
-            { key: "uint1", value: BigNumber.from(1) },
-            { key: "uint2", value: BigNumber.from(2) },
+            { key: "uint1", value: 1n },
+            { key: "uint2", value: 2n },
           ],
           [
             { key: "bool1", value: true },
             { key: "bool2", value: false },
           ],
           [
-            { key: "address1", value: owner.address },
-            { key: "address2", value: issuer.address },
+            { key: "address1", value: tokenOwner.address },
+            { key: "address2", value: await collectionOwner.getAddress() },
           ],
           [
             { key: "bytes1", value: "0x1234" },
@@ -279,46 +265,51 @@ describe("AttributesRepository", async function () {
         )
       )
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string1", "value1")
+        .withArgs(collectionAddress, tokenId, "string1", "value1")
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string2", "value2")
+        .withArgs(collectionAddress, tokenId, "string2", "value2")
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint1", BigNumber.from(1))
+        .withArgs(collectionAddress, tokenId, "uint1", 1n)
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint2", BigNumber.from(2))
+        .withArgs(collectionAddress, tokenId, "uint2", 2n)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool1", true)
+        .withArgs(collectionAddress, tokenId, "bool1", true)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool2", false)
+        .withArgs(collectionAddress, tokenId, "bool2", false)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address1", owner.address)
+        .withArgs(collectionAddress, tokenId, "address1", tokenOwner.address)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address2", issuer.address)
+        .withArgs(
+          collectionAddress,
+          tokenId,
+          "address2",
+          await collectionOwner.getAddress()
+        )
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes1", "0x1234")
+        .withArgs(collectionAddress, tokenId, "bytes1", "0x1234")
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes2", "0x5678");
+        .withArgs(collectionAddress, tokenId, "bytes2", "0x5678");
     });
 
     it("can update multiple attributes of multiple types at the same time", async function () {
-      await tokenAttributes.setTokenAttributes(
-        ownedCollection.address,
+      await tokenAttributes.setAttributes(
+        collectionAddress,
         tokenId,
         [
           { key: "string1", value: "value0" },
           { key: "string2", value: "value1" },
         ],
         [
-          { key: "uint1", value: BigNumber.from(0) },
-          { key: "uint2", value: BigNumber.from(1) },
+          { key: "uint1", value: 0n },
+          { key: "uint2", value: 1n },
         ],
         [
           { key: "bool1", value: false },
           { key: "bool2", value: true },
         ],
         [
-          { key: "address1", value: issuer.address },
-          { key: "address2", value: owner.address },
+          { key: "address1", value: await collectionOwner.getAddress() },
+          { key: "address2", value: tokenOwner.address },
         ],
         [
           { key: "bytes1", value: "0x5678" },
@@ -327,24 +318,24 @@ describe("AttributesRepository", async function () {
       );
 
       await expect(
-        tokenAttributes.setTokenAttributes(
-          ownedCollection.address,
+        tokenAttributes.setAttributes(
+          collectionAddress,
           tokenId,
           [
             { key: "string1", value: "value1" },
             { key: "string2", value: "value2" },
           ],
           [
-            { key: "uint1", value: BigNumber.from(1) },
-            { key: "uint2", value: BigNumber.from(2) },
+            { key: "uint1", value: 1n },
+            { key: "uint2", value: 2n },
           ],
           [
             { key: "bool1", value: true },
             { key: "bool2", value: false },
           ],
           [
-            { key: "address1", value: owner.address },
-            { key: "address2", value: issuer.address },
+            { key: "address1", value: tokenOwner.address },
+            { key: "address2", value: await collectionOwner.getAddress() },
           ],
           [
             { key: "bytes1", value: "0x1234" },
@@ -353,63 +344,68 @@ describe("AttributesRepository", async function () {
         )
       )
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string1", "value1")
+        .withArgs(collectionAddress, tokenId, "string1", "value1")
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string2", "value2")
+        .withArgs(collectionAddress, tokenId, "string2", "value2")
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint1", BigNumber.from(1))
+        .withArgs(collectionAddress, tokenId, "uint1", 1n)
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint2", BigNumber.from(2))
+        .withArgs(collectionAddress, tokenId, "uint2", 2n)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool1", true)
+        .withArgs(collectionAddress, tokenId, "bool1", true)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool2", false)
+        .withArgs(collectionAddress, tokenId, "bool2", false)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address1", owner.address)
+        .withArgs(collectionAddress, tokenId, "address1", tokenOwner.address)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address2", issuer.address)
+        .withArgs(
+          collectionAddress,
+          tokenId,
+          "address2",
+          await collectionOwner.getAddress()
+        )
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes1", "0x1234")
+        .withArgs(collectionAddress, tokenId, "bytes1", "0x1234")
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes2", "0x5678");
+        .withArgs(collectionAddress, tokenId, "bytes2", "0x5678");
     });
 
     it("can set and update multiple attributes of multiple types at the same time even if not all types are updated at the same time", async function () {
-      await tokenAttributes.setTokenAttributes(
-        ownedCollection.address,
+      await tokenAttributes.setAttributes(
+        collectionAddress,
         tokenId,
         [{ key: "string1", value: "value0" }],
         [
-          { key: "uint1", value: BigNumber.from(0) },
-          { key: "uint2", value: BigNumber.from(1) },
+          { key: "uint1", value: 0n },
+          { key: "uint2", value: 1n },
         ],
         [
           { key: "bool1", value: false },
           { key: "bool2", value: true },
         ],
         [
-          { key: "address1", value: issuer.address },
-          { key: "address2", value: owner.address },
+          { key: "address1", value: await collectionOwner.getAddress() },
+          { key: "address2", value: tokenOwner.address },
         ],
         []
       );
 
       await expect(
-        tokenAttributes.setTokenAttributes(
-          ownedCollection.address,
+        tokenAttributes.setAttributes(
+          collectionAddress,
           tokenId,
           [],
           [
-            { key: "uint1", value: BigNumber.from(1) },
-            { key: "uint2", value: BigNumber.from(2) },
+            { key: "uint1", value: 1n },
+            { key: "uint2", value: 2n },
           ],
           [
             { key: "bool1", value: true },
             { key: "bool2", value: false },
           ],
           [
-            { key: "address1", value: owner.address },
-            { key: "address2", value: issuer.address },
+            { key: "address1", value: tokenOwner.address },
+            { key: "address2", value: await collectionOwner.getAddress() },
           ],
           [
             { key: "bytes1", value: "0x1234" },
@@ -418,25 +414,30 @@ describe("AttributesRepository", async function () {
         )
       )
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint1", BigNumber.from(1))
+        .withArgs(collectionAddress, tokenId, "uint1", 1n)
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint2", BigNumber.from(2))
+        .withArgs(collectionAddress, tokenId, "uint2", 2n)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool1", true)
+        .withArgs(collectionAddress, tokenId, "bool1", true)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool2", false)
+        .withArgs(collectionAddress, tokenId, "bool2", false)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address1", owner.address)
+        .withArgs(collectionAddress, tokenId, "address1", tokenOwner.address)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address2", issuer.address)
+        .withArgs(
+          collectionAddress,
+          tokenId,
+          "address2",
+          await collectionOwner.getAddress()
+        )
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes1", "0x1234")
+        .withArgs(collectionAddress, tokenId, "bytes1", "0x1234")
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes2", "0x5678");
+        .withArgs(collectionAddress, tokenId, "bytes2", "0x5678");
 
       await expect(
-        tokenAttributes.setTokenAttributes(
-          ownedCollection.address,
+        tokenAttributes.setAttributes(
+          collectionAddress,
           tokenId,
           [],
           [],
@@ -449,31 +450,31 @@ describe("AttributesRepository", async function () {
         )
       )
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool1", false)
+        .withArgs(collectionAddress, tokenId, "bool1", false)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool2", true);
+        .withArgs(collectionAddress, tokenId, "bool2", true);
     });
 
     it("can set and update multiple attributes of multiple types at the same time", async function () {
       await expect(
-        tokenAttributes.setTokenAttributes(
-          ownedCollection.address,
+        tokenAttributes.setAttributes(
+          collectionAddress,
           tokenId,
           [
             { key: "string1", value: "value1" },
             { key: "string2", value: "value2" },
           ],
           [
-            { key: "uint1", value: BigNumber.from(1) },
-            { key: "uint2", value: BigNumber.from(2) },
+            { key: "uint1", value: 1n },
+            { key: "uint2", value: 2n },
           ],
           [
             { key: "bool1", value: true },
             { key: "bool2", value: false },
           ],
           [
-            { key: "address1", value: owner.address },
-            { key: "address2", value: issuer.address },
+            { key: "address1", value: tokenOwner.address },
+            { key: "address2", value: await collectionOwner.getAddress() },
           ],
           [
             { key: "bytes1", value: "0x1234" },
@@ -482,46 +483,51 @@ describe("AttributesRepository", async function () {
         )
       )
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string1", "value1")
+        .withArgs(collectionAddress, tokenId, "string1", "value1")
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string2", "value2")
+        .withArgs(collectionAddress, tokenId, "string2", "value2")
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint1", BigNumber.from(1))
+        .withArgs(collectionAddress, tokenId, "uint1", 1n)
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint2", BigNumber.from(2))
+        .withArgs(collectionAddress, tokenId, "uint2", 2n)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool1", true)
+        .withArgs(collectionAddress, tokenId, "bool1", true)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool2", false)
+        .withArgs(collectionAddress, tokenId, "bool2", false)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address1", owner.address)
+        .withArgs(collectionAddress, tokenId, "address1", tokenOwner.address)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address2", issuer.address)
+        .withArgs(
+          collectionAddress,
+          tokenId,
+          "address2",
+          await collectionOwner.getAddress()
+        )
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes1", "0x1234")
+        .withArgs(collectionAddress, tokenId, "bytes1", "0x1234")
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes2", "0x5678");
+        .withArgs(collectionAddress, tokenId, "bytes2", "0x5678");
     });
 
     it("should allow to retrieve multiple attributes at once", async function () {
-      await tokenAttributes.setTokenAttributes(
-        ownedCollection.address,
+      await tokenAttributes.setAttributes(
+        collectionAddress,
         tokenId,
         [
           { key: "string1", value: "value1" },
           { key: "string2", value: "value2" },
         ],
         [
-          { key: "uint1", value: BigNumber.from(1) },
-          { key: "uint2", value: BigNumber.from(2) },
+          { key: "uint1", value: 1n },
+          { key: "uint2", value: 2n },
         ],
         [
           { key: "bool1", value: true },
           { key: "bool2", value: false },
         ],
         [
-          { key: "address1", value: owner.address },
-          { key: "address2", value: issuer.address },
+          { key: "address1", value: tokenOwner.address },
+          { key: "address2", value: await collectionOwner.getAddress() },
         ],
         [
           { key: "bytes1", value: "0x1234" },
@@ -530,8 +536,8 @@ describe("AttributesRepository", async function () {
       );
 
       expect(
-        await tokenAttributes.getTokenAttributes(
-          ownedCollection.address,
+        await tokenAttributes.getAttributes(
+          collectionAddress,
           tokenId,
           ["string1", "string2"],
           ["uint1", "uint2"],
@@ -540,44 +546,33 @@ describe("AttributesRepository", async function () {
           ["bytes1", "bytes2"]
         )
       ).to.eql([
-        [
-          ["string1", "value1"],
-          ["string2", "value2"],
-        ],
-        [
-          ["uint1", BigNumber.from(1)],
-          ["uint2", BigNumber.from(2)],
-        ],
-        [
-          ["bool1", true],
-          ["bool2", false],
-        ],
-        [
-          ["address1", owner.address],
-          ["address2", issuer.address],
-        ],
-        [
-          ["bytes1", "0x1234"],
-          ["bytes2", "0x5678"],
-        ],
+        ["value1", "value2"],
+        [1n, 2n],
+        [true, false],
+        [tokenOwner.address, await collectionOwner.getAddress()],
+        ["0x1234", "0x5678"],
       ]);
     });
 
     it("can set multiple string attributes at the same time", async function () {
       await expect(
-        tokenAttributes.setStringAttributes(ownedCollection.address, tokenId, [
-          { key: "string1", value: "value1" },
-          { key: "string2", value: "value2" },
-        ])
+        tokenAttributes.setStringAttributes(
+          [collectionAddress],
+          [tokenId],
+          [
+            { key: "string1", value: "value1" },
+            { key: "string2", value: "value2" },
+          ]
+        )
       )
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string1", "value1")
+        .withArgs(collectionAddress, tokenId, "string1", "value1")
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "string2", "value2");
+        .withArgs(collectionAddress, tokenId, "string2", "value2");
 
       expect(
-        await tokenAttributes.getTokenAttributes(
-          ownedCollection.address,
+        await tokenAttributes.getAttributes(
+          collectionAddress,
           tokenId,
           ["string1", "string2"],
           [],
@@ -585,33 +580,28 @@ describe("AttributesRepository", async function () {
           [],
           []
         )
-      ).to.eql([
-        [
-          ["string1", "value1"],
-          ["string2", "value2"],
-        ],
-        [],
-        [],
-        [],
-        [],
-      ]);
+      ).to.eql([["value1", "value2"], [], [], [], []]);
     });
 
     it("can set multiple uint attributes at the same time", async function () {
       await expect(
-        tokenAttributes.setUintAttributes(ownedCollection.address, tokenId, [
-          { key: "uint1", value: BigNumber.from(1) },
-          { key: "uint2", value: BigNumber.from(2) },
-        ])
+        tokenAttributes.setUintAttributes(
+          [collectionAddress],
+          [tokenId],
+          [
+            { key: "uint1", value: 1n },
+            { key: "uint2", value: 2n },
+          ]
+        )
       )
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint1", BigNumber.from(1))
+        .withArgs(collectionAddress, tokenId, "uint1", 1n)
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "uint2", BigNumber.from(2));
+        .withArgs(collectionAddress, tokenId, "uint2", 2n);
 
       expect(
-        await tokenAttributes.getTokenAttributes(
-          ownedCollection.address,
+        await tokenAttributes.getAttributes(
+          collectionAddress,
           tokenId,
           [],
           ["uint1", "uint2"],
@@ -619,33 +609,28 @@ describe("AttributesRepository", async function () {
           [],
           []
         )
-      ).to.eql([
-        [],
-        [
-          ["uint1", BigNumber.from(1)],
-          ["uint2", BigNumber.from(2)],
-        ],
-        [],
-        [],
-        [],
-      ]);
+      ).to.eql([[], [1n, 2n], [], [], []]);
     });
 
     it("can set multiple bool attributes at the same time", async function () {
       await expect(
-        tokenAttributes.setBoolAttributes(ownedCollection.address, tokenId, [
-          { key: "bool1", value: true },
-          { key: "bool2", value: false },
-        ])
+        tokenAttributes.setBoolAttributes(
+          [collectionAddress],
+          [tokenId],
+          [
+            { key: "bool1", value: true },
+            { key: "bool2", value: false },
+          ]
+        )
       )
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool1", true)
+        .withArgs(collectionAddress, tokenId, "bool1", true)
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bool2", false);
+        .withArgs(collectionAddress, tokenId, "bool2", false);
 
       expect(
-        await tokenAttributes.getTokenAttributes(
-          ownedCollection.address,
+        await tokenAttributes.getAttributes(
+          collectionAddress,
           tokenId,
           [],
           [],
@@ -653,33 +638,33 @@ describe("AttributesRepository", async function () {
           [],
           []
         )
-      ).to.eql([
-        [],
-        [],
-        [
-          ["bool1", true],
-          ["bool2", false],
-        ],
-        [],
-        [],
-      ]);
+      ).to.eql([[], [], [true, false], [], []]);
     });
 
     it("can set multiple address attributes at the same time", async function () {
       await expect(
-        tokenAttributes.setAddressAttributes(ownedCollection.address, tokenId, [
-          { key: "address1", value: owner.address },
-          { key: "address2", value: issuer.address },
-        ])
+        tokenAttributes.setAddressAttributes(
+          [collectionAddress],
+          [tokenId],
+          [
+            { key: "address1", value: tokenOwner.address },
+            { key: "address2", value: await collectionOwner.getAddress() },
+          ]
+        )
       )
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address1", owner.address)
+        .withArgs(collectionAddress, tokenId, "address1", tokenOwner.address)
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "address2", issuer.address);
+        .withArgs(
+          collectionAddress,
+          tokenId,
+          "address2",
+          await collectionOwner.getAddress()
+        );
 
       expect(
-        await tokenAttributes.getTokenAttributes(
-          ownedCollection.address,
+        await tokenAttributes.getAttributes(
+          collectionAddress,
           tokenId,
           [],
           [],
@@ -691,29 +676,30 @@ describe("AttributesRepository", async function () {
         [],
         [],
         [],
-        [
-          ["address1", owner.address],
-          ["address2", issuer.address],
-        ],
+        [tokenOwner.address, await collectionOwner.getAddress()],
         [],
       ]);
     });
 
     it("can set multiple bytes attributes at the same time", async function () {
       await expect(
-        tokenAttributes.setBytesAttributes(ownedCollection.address, tokenId, [
-          { key: "bytes1", value: "0x1234" },
-          { key: "bytes2", value: "0x5678" },
-        ])
+        tokenAttributes.setBytesAttributes(
+          [collectionAddress],
+          [tokenId],
+          [
+            { key: "bytes1", value: "0x1234" },
+            { key: "bytes2", value: "0x5678" },
+          ]
+        )
       )
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes1", "0x1234")
+        .withArgs(collectionAddress, tokenId, "bytes1", "0x1234")
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, tokenId, "bytes2", "0x5678");
+        .withArgs(collectionAddress, tokenId, "bytes2", "0x5678");
 
       expect(
-        await tokenAttributes.getTokenAttributes(
-          ownedCollection.address,
+        await tokenAttributes.getAttributes(
+          collectionAddress,
           tokenId,
           [],
           [],
@@ -721,42 +707,33 @@ describe("AttributesRepository", async function () {
           [],
           ["bytes1", "bytes2"]
         )
-      ).to.eql([
-        [],
-        [],
-        [],
-        [],
-        [
-          ["bytes1", "0x1234"],
-          ["bytes2", "0x5678"],
-        ],
-      ]);
+      ).to.eql([[], [], [], [], ["0x1234", "0x5678"]]);
     });
 
     it("can reuse keys and values are fine", async function () {
       await tokenAttributes.setStringAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
         "X1"
       );
       await tokenAttributes.setStringAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId2,
         "X",
         "X2"
       );
 
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId,
           "X"
         )
       ).to.eql("X1");
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId2,
           "X"
         )
@@ -765,97 +742,85 @@ describe("AttributesRepository", async function () {
 
     it("can reuse keys among different attributes and values are fine", async function () {
       await tokenAttributes.setStringAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
         "test description"
       );
       await tokenAttributes.setBoolAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
         true
       );
       await tokenAttributes.setAddressAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
-        owner.address
+        tokenOwner.address
       );
       await tokenAttributes.setUintAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
-        BigNumber.from(100)
+        100n
       );
       await tokenAttributes.setBytesAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
         "0x1234"
       );
 
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId,
           "X"
         )
       ).to.eql("test description");
       expect(
-        await tokenAttributes.getBoolTokenAttribute(
-          ownedCollection.address,
-          tokenId,
-          "X"
-        )
+        await tokenAttributes.getBoolAttribute(collectionAddress, tokenId, "X")
       ).to.eql(true);
       expect(
-        await tokenAttributes.getAddressTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getAddressAttribute(
+          collectionAddress,
           tokenId,
           "X"
         )
-      ).to.eql(owner.address);
+      ).to.eql(tokenOwner.address);
       expect(
-        await tokenAttributes.getUintTokenAttribute(
-          ownedCollection.address,
-          tokenId,
-          "X"
-        )
-      ).to.eql(BigNumber.from(100));
+        await tokenAttributes.getUintAttribute(collectionAddress, tokenId, "X")
+      ).to.eql(100n);
       expect(
-        await tokenAttributes.getBytesTokenAttribute(
-          ownedCollection.address,
-          tokenId,
-          "X"
-        )
+        await tokenAttributes.getBytesAttribute(collectionAddress, tokenId, "X")
       ).to.eql("0x1234");
     });
 
     it("can reuse string values and values are fine", async function () {
       await tokenAttributes.setStringAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId,
         "X",
         "common string"
       );
       await tokenAttributes.setStringAttribute(
-        ownedCollection.address,
+        collectionAddress,
         tokenId2,
         "X",
         "common string"
       );
 
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId,
           "X"
         )
       ).to.eql("common string");
       expect(
-        await tokenAttributes.getStringTokenAttribute(
-          ownedCollection.address,
+        await tokenAttributes.getStringAttribute(
+          collectionAddress,
           tokenId2,
           "X"
         )
@@ -865,9 +830,9 @@ describe("AttributesRepository", async function () {
     it("should not allow to set string values to unauthorized caller", async function () {
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .setStringAttribute(
-            ownedCollection.address,
+            collectionAddress,
             tokenId,
             "X",
             "test description"
@@ -878,33 +843,28 @@ describe("AttributesRepository", async function () {
     it("should not allow to set uint values to unauthorized caller", async function () {
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setUintAttribute(
-            ownedCollection.address,
-            tokenId,
-            "X",
-            BigNumber.from(42)
-          )
+          .connect(tokenOwner)
+          .setUintAttribute(collectionAddress, tokenId, "X", 42n)
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should not allow to set boolean values to unauthorized caller", async function () {
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setBoolAttribute(ownedCollection.address, tokenId, "X", true)
+          .connect(tokenOwner)
+          .setBoolAttribute(collectionAddress, tokenId, "X", true)
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should not allow to set address values to unauthorized caller", async function () {
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .setAddressAttribute(
-            ownedCollection.address,
+            collectionAddress,
             tokenId,
             "X",
-            owner.address
+            tokenOwner.address
           )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
@@ -912,63 +872,48 @@ describe("AttributesRepository", async function () {
     it("should not allow to set bytes values to unauthorized caller", async function () {
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setBytesAttribute(ownedCollection.address, tokenId, "X", "0x1234")
+          .connect(tokenOwner)
+          .setBytesAttribute(collectionAddress, tokenId, "X", "0x1234")
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
   });
 
   describe("Token attributes access control", async function () {
-    let issuer: SignerWithAddress;
-    let owner: SignerWithAddress;
-    const tokenId = 1;
-    const tokenId2 = 2;
-
-    beforeEach(async function () {
-      ({ tokenAttributes } = await loadFixture(tokenAttributesFixture));
-      ({ ownedCollection } = await loadFixture(ownedCollectionFixture));
-
-      const signers = await ethers.getSigners();
-      issuer = signers[0];
-      owner = signers[1];
-
-      ownedCollection.owner.returns(issuer.address);
-    });
-
-    it("should not allow registering an already registered collection", async function () {
+    it("should allow registering an already registered collection", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       await expect(
         tokenAttributes.registerAccessControl(
-          ownedCollection.address,
-          issuer.address,
+          collectionAddress,
+          await collectionOwner.getAddress(),
           false
         )
-      ).to.be.revertedWithCustomError(
-        tokenAttributes,
-        "CollectionAlreadyRegistered"
-      );
+      ).to.emit(tokenAttributes, "AccessControlRegistration");
     });
 
     it("should not allow to register a collection if caller is not the owner of the collection", async function () {
       await expect(
         tokenAttributes
-          .connect(owner)
-          .registerAccessControl(ownedCollection.address, issuer.address, true)
+          .connect(tokenOwner)
+          .registerAccessControl(
+            collectionAddress,
+            await collectionOwner.getAddress(),
+            true
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should not allow to register a collection without Ownable implemented", async function () {
-      ownedCollection.owner.reset();
-
+      const erc20Factory = await ethers.getContractFactory("ERC20Mock");
+      const erc20 = await erc20Factory.deploy();
       await expect(
         tokenAttributes.registerAccessControl(
-          ownedCollection.address,
-          issuer.address,
+          await erc20.getAddress(),
+          await collectionOwner.getAddress(),
           false
         )
       ).to.be.revertedWithCustomError(tokenAttributes, "OwnableNotImplemented");
@@ -976,41 +921,46 @@ describe("AttributesRepository", async function () {
 
     it("should allow to manage access control for registered collections", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       expect(
         await tokenAttributes
-          .connect(issuer)
-          .manageAccessControl(ownedCollection.address, "X", 2, owner.address)
+          .connect(collectionOwner)
+          .manageAccessControl(
+            collectionAddress,
+            "X",
+            AccessType.IssuerOrCollaborator,
+            tokenOwner.address
+          )
       )
         .to.emit(tokenAttributes, "AccessControlUpdate")
-        .withArgs(ownedCollection.address, "X", 2, owner);
+        .withArgs(collectionAddress, "X", 2, tokenOwner);
     });
 
     it("should allow issuer to manage collaborators", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       expect(
         await tokenAttributes
-          .connect(issuer)
-          .manageCollaborators(ownedCollection.address, [owner.address], [true])
+          .connect(collectionOwner)
+          .manageCollaborators(collectionAddress, [tokenOwner.address], [true])
       )
         .to.emit(tokenAttributes, "CollaboratorUpdate")
-        .withArgs(ownedCollection.address, [owner.address], [true]);
+        .withArgs(collectionAddress, [tokenOwner.address], [true]);
     });
 
     it("should not allow to manage collaborators of an unregistered collection", async function () {
       await expect(
         tokenAttributes
-          .connect(issuer)
-          .manageCollaborators(ownedCollection.address, [owner.address], [true])
+          .connect(collectionOwner)
+          .manageCollaborators(collectionAddress, [tokenOwner.address], [true])
       ).to.be.revertedWithCustomError(
         tokenAttributes,
         "CollectionNotRegistered"
@@ -1019,31 +969,31 @@ describe("AttributesRepository", async function () {
 
     it("should not allow to manage collaborators if the caller is not the issuer", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .manageCollaborators(ownedCollection.address, [owner.address], [true])
+          .connect(tokenOwner)
+          .manageCollaborators(collectionAddress, [tokenOwner.address], [true])
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should not allow to manage collaborators for registered collections if collaborator arrays are not of equal length", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       await expect(
         tokenAttributes
-          .connect(issuer)
+          .connect(collectionOwner)
           .manageCollaborators(
-            ownedCollection.address,
-            [owner.address, issuer.address],
+            collectionAddress,
+            [tokenOwner.address, await collectionOwner.getAddress()],
             [true]
           )
       ).to.be.revertedWithCustomError(
@@ -1055,8 +1005,13 @@ describe("AttributesRepository", async function () {
     it("should not allow to manage access control for unregistered collections", async function () {
       await expect(
         tokenAttributes
-          .connect(issuer)
-          .manageAccessControl(ownedCollection.address, "X", 2, owner.address)
+          .connect(collectionOwner)
+          .manageAccessControl(
+            collectionAddress,
+            "X",
+            AccessType.IssuerOrCollaborator,
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(
         tokenAttributes,
         "CollectionNotRegistered"
@@ -1065,81 +1020,96 @@ describe("AttributesRepository", async function () {
 
     it("should not allow to manage access control if the caller is not issuer", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .manageAccessControl(ownedCollection.address, "X", 2, owner.address)
+          .connect(tokenOwner)
+          .manageAccessControl(
+            collectionAddress,
+            "X",
+            AccessType.IssuerOrCollaborator,
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should not allow to manage access control if the caller is not returned as collection owner when using ownable", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         true
       );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .manageAccessControl(ownedCollection.address, "X", 2, owner.address)
+          .connect(tokenOwner)
+          .manageAccessControl(
+            collectionAddress,
+            "X",
+            AccessType.IssuerOrCollaborator,
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should return the expected value when checking for collaborators", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       expect(
         await tokenAttributes.isCollaborator(
-          owner.address,
-          ownedCollection.address
+          tokenOwner.address,
+          collectionAddress
         )
       ).to.be.false;
 
       await tokenAttributes
-        .connect(issuer)
-        .manageCollaborators(ownedCollection.address, [owner.address], [true]);
+        .connect(collectionOwner)
+        .manageCollaborators(collectionAddress, [tokenOwner.address], [true]);
 
       expect(
         await tokenAttributes.isCollaborator(
-          owner.address,
-          ownedCollection.address
+          tokenOwner.address,
+          collectionAddress
         )
       ).to.be.true;
     });
 
     it("should return the expected value when checking for specific addresses", async function () {
       await tokenAttributes.registerAccessControl(
-        ownedCollection.address,
-        issuer.address,
+        collectionAddress,
+        await collectionOwner.getAddress(),
         false
       );
 
       expect(
         await tokenAttributes.isSpecificAddress(
-          owner.address,
-          ownedCollection.address,
+          tokenOwner.address,
+          collectionAddress,
           "X"
         )
       ).to.be.false;
 
       await tokenAttributes
-        .connect(issuer)
-        .manageAccessControl(ownedCollection.address, "X", 2, owner.address);
+        .connect(collectionOwner)
+        .manageAccessControl(
+          collectionAddress,
+          "X",
+          AccessType.IssuerOrCollaborator,
+          tokenOwner.address
+        );
 
       expect(
         await tokenAttributes.isSpecificAddress(
-          owner.address,
-          ownedCollection.address,
+          tokenOwner.address,
+          collectionAddress,
           "X"
         )
       ).to.be.true;
@@ -1147,59 +1117,85 @@ describe("AttributesRepository", async function () {
 
     it("should use the issuer returned from the collection when using only issuer when only issuer is allowed to manage parameter", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, true);
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          true
+        );
 
       await tokenAttributes
-        .connect(issuer)
+        .connect(collectionOwner)
         .manageAccessControl(
-          ownedCollection.address,
+          collectionAddress,
           "X",
-          0,
-          ethers.constants.AddressZero
+          AccessType.Issuer,
+          ethers.ZeroAddress
         );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(tokenOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
-
-      ownedCollection.owner.returns(owner.address);
 
       await expect(
         tokenAttributes
-          .connect(issuer)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(tokenOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
     });
 
     it("should only allow collaborator to modify the parameters if only collaborator is allowed to modify them", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
-
-      await tokenAttributes
-        .connect(issuer)
-        .manageAccessControl(
-          ownedCollection.address,
-          "X",
-          1,
-          ethers.constants.AddressZero
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
         );
 
       await tokenAttributes
-        .connect(issuer)
-        .manageCollaborators(ownedCollection.address, [owner.address], [true]);
+        .connect(collectionOwner)
+        .manageAccessControl(
+          collectionAddress,
+          "X",
+          AccessType.Collaborator,
+          ethers.ZeroAddress
+        );
 
       await tokenAttributes
-        .connect(owner)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
+        .connect(collectionOwner)
+        .manageCollaborators(collectionAddress, [tokenOwner.address], [true]);
+
+      await tokenAttributes
+        .connect(tokenOwner)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
 
       await expect(
         tokenAttributes
-          .connect(issuer)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(collectionOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(
         tokenAttributes,
         "NotCollectionCollaborator"
@@ -1208,409 +1204,517 @@ describe("AttributesRepository", async function () {
 
     it("should only allow issuer and collaborator to modify the parameters if only issuer and collaborator is allowed to modify them", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
-
-      await tokenAttributes
-        .connect(issuer)
-        .manageAccessControl(
-          ownedCollection.address,
-          "X",
-          2,
-          ethers.constants.AddressZero
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
         );
 
       await tokenAttributes
-        .connect(issuer)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
+        .connect(collectionOwner)
+        .manageAccessControl(
+          collectionAddress,
+          "X",
+          AccessType.IssuerOrCollaborator,
+          ethers.ZeroAddress
+        );
+
+      await tokenAttributes
+        .connect(collectionOwner)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(tokenOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(
         tokenAttributes,
         "NotCollectionIssuerOrCollaborator"
       );
 
       await tokenAttributes
-        .connect(issuer)
-        .manageCollaborators(ownedCollection.address, [owner.address], [true]);
+        .connect(collectionOwner)
+        .manageCollaborators(collectionAddress, [tokenOwner.address], [true]);
 
       await tokenAttributes
-        .connect(owner)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
+        .connect(tokenOwner)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
     });
 
     it("should only allow issuer and collaborator to modify the parameters if only issuer and collaborator is allowed to modify them even when using the ownable", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, true);
-
-      await tokenAttributes
-        .connect(issuer)
-        .manageAccessControl(
-          ownedCollection.address,
-          "X",
-          2,
-          ethers.constants.AddressZero
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          true
         );
 
-      ownedCollection.owner.returns(owner.address);
+      await tokenAttributes
+        .connect(collectionOwner)
+        .manageAccessControl(
+          collectionAddress,
+          "X",
+          AccessType.IssuerOrCollaborator,
+          ethers.ZeroAddress
+        );
 
       await tokenAttributes
-        .connect(owner)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
+        .connect(collectionOwner)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
 
       await expect(
         tokenAttributes
-          .connect(issuer)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(tokenOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(
         tokenAttributes,
         "NotCollectionIssuerOrCollaborator"
       );
 
       await tokenAttributes
-        .connect(owner)
-        .manageCollaborators(ownedCollection.address, [issuer.address], [true]);
+        .connect(collectionOwner)
+        .manageCollaborators(
+          collectionAddress,
+          [await collaborator.getAddress()],
+          [true]
+        );
 
       await tokenAttributes
-        .connect(issuer)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
+        .connect(collaborator)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
     });
 
     it("should only allow token owner to modify the parameters if only token owner is allowed to modify them", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
+        );
 
       await tokenAttributes
-        .connect(issuer)
+        .connect(collectionOwner)
         .manageAccessControl(
-          ownedCollection.address,
+          collectionAddress,
           "X",
-          3,
-          ethers.constants.AddressZero
+          AccessType.TokenOwner,
+          ethers.ZeroAddress
         );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(collaborator)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotTokenOwner");
-
-      ownedCollection.ownerOf.returns(owner.address);
-
-      await tokenAttributes
-        .connect(owner)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
 
       await expect(
         tokenAttributes
-          .connect(issuer)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(collectionOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotTokenOwner");
+
+      await tokenAttributes
+        .connect(tokenOwner)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
     });
 
     it("should only allow specific address to modify the parameters if only specific address is allowed to modify them", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
+        );
 
       await tokenAttributes
-        .connect(issuer)
+        .connect(collectionOwner)
         .manageAccessControl(
-          ownedCollection.address,
+          collectionAddress,
           "X",
-          4,
-          ethers.constants.AddressZero
+          AccessType.SpecificAddress,
+          ethers.ZeroAddress
         );
 
       await expect(
         tokenAttributes
-          .connect(owner)
-          .setAddressAttribute(ownedCollection.address, 1, "X", owner.address)
+          .connect(tokenOwner)
+          .setAddressAttribute(
+            collectionAddress,
+            tokenId,
+            "X",
+            tokenOwner.address
+          )
       ).to.be.revertedWithCustomError(tokenAttributes, "NotSpecificAddress");
 
       await tokenAttributes
-        .connect(issuer)
-        .manageAccessControl(ownedCollection.address, "X", 4, owner.address);
+        .connect(collectionOwner)
+        .manageAccessControl(
+          collectionAddress,
+          "X",
+          AccessType.SpecificAddress,
+          tokenOwner.address
+        );
 
       await tokenAttributes
-        .connect(owner)
-        .setAddressAttribute(ownedCollection.address, 1, "X", owner.address);
+        .connect(tokenOwner)
+        .setAddressAttribute(
+          collectionAddress,
+          tokenId,
+          "X",
+          tokenOwner.address
+        );
     });
 
     it("should allow to use presigned message to modify the parameters", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
+        );
 
       const uintMessage =
         await tokenAttributes.prepareMessageToPresignUintAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           1,
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const stringMessage =
         await tokenAttributes.prepareMessageToPresignStringAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "test",
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const boolMessage =
         await tokenAttributes.prepareMessageToPresignBoolAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           true,
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const bytesMessage =
         await tokenAttributes.prepareMessageToPresignBytesAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "0x1234",
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const addressMessage =
         await tokenAttributes.prepareMessageToPresignAddressAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
-          owner.address,
-          BigNumber.from(9999999999)
+          tokenOwner.address,
+          9999999999n
         );
 
-      const uintSignature = await issuer.signMessage(
-        ethers.utils.arrayify(uintMessage)
+      const uintSignature = await collectionOwner.signMessage(
+        ethers.getBytes(uintMessage)
       );
-      const stringSignature = await issuer.signMessage(
-        ethers.utils.arrayify(stringMessage)
+      const stringSignature = await collectionOwner.signMessage(
+        ethers.getBytes(stringMessage)
       );
-      const boolSignature = await issuer.signMessage(
-        ethers.utils.arrayify(boolMessage)
+      const boolSignature = await collectionOwner.signMessage(
+        ethers.getBytes(boolMessage)
       );
-      const bytesSignature = await issuer.signMessage(
-        ethers.utils.arrayify(bytesMessage)
+      const bytesSignature = await collectionOwner.signMessage(
+        ethers.getBytes(bytesMessage)
       );
-      const addressSignature = await issuer.signMessage(
-        ethers.utils.arrayify(addressMessage)
+      const addressSignature = await collectionOwner.signMessage(
+        ethers.getBytes(addressMessage)
       );
 
       const uintR: string = uintSignature.substring(0, 66);
       const uintS: string = "0x" + uintSignature.substring(66, 130);
-      const uintV: string = parseInt(uintSignature.substring(130, 132), 16);
+      const uintV: string = parseInt(
+        uintSignature.substring(130, 132),
+        16
+      ).toString();
 
       const stringR: string = stringSignature.substring(0, 66);
       const stringS: string = "0x" + stringSignature.substring(66, 130);
-      const stringV: string = parseInt(stringSignature.substring(130, 132), 16);
+      const stringV: string = parseInt(
+        stringSignature.substring(130, 132),
+        16
+      ).toString();
 
       const boolR: string = boolSignature.substring(0, 66);
       const boolS: string = "0x" + boolSignature.substring(66, 130);
-      const boolV: string = parseInt(boolSignature.substring(130, 132), 16);
+      const boolV: string = parseInt(
+        boolSignature.substring(130, 132),
+        16
+      ).toString();
 
       const bytesR: string = bytesSignature.substring(0, 66);
       const bytesS: string = "0x" + bytesSignature.substring(66, 130);
-      const bytesV: string = parseInt(bytesSignature.substring(130, 132), 16);
+      const bytesV: string = parseInt(
+        bytesSignature.substring(130, 132),
+        16
+      ).toString();
 
       const addressR: string = addressSignature.substring(0, 66);
       const addressS: string = "0x" + addressSignature.substring(66, 130);
       const addressV: string = parseInt(
         addressSignature.substring(130, 132),
         16
-      );
+      ).toString();
 
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetUintAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             1,
-            BigNumber.from(9999999999),
+            9999999999n,
             uintV,
             uintR,
             uintS
           )
       )
         .to.emit(tokenAttributes, "UintAttributeUpdated")
-        .withArgs(ownedCollection.address, 1, "X", 1);
+        .withArgs(collectionAddress, 1, "X", 1);
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetStringAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "test",
-            BigNumber.from(9999999999),
+            9999999999n,
             stringV,
             stringR,
             stringS
           )
       )
         .to.emit(tokenAttributes, "StringAttributeUpdated")
-        .withArgs(ownedCollection.address, 1, "X", "test");
+        .withArgs(collectionAddress, 1, "X", "test");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBoolAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             true,
-            BigNumber.from(9999999999),
+            9999999999n,
             boolV,
             boolR,
             boolS
           )
       )
         .to.emit(tokenAttributes, "BoolAttributeUpdated")
-        .withArgs(ownedCollection.address, 1, "X", true);
+        .withArgs(collectionAddress, 1, "X", true);
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBytesAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "0x1234",
-            BigNumber.from(9999999999),
+            9999999999n,
             bytesV,
             bytesR,
             bytesS
           )
       )
         .to.emit(tokenAttributes, "BytesAttributeUpdated")
-        .withArgs(ownedCollection.address, 1, "X", "0x1234");
+        .withArgs(collectionAddress, 1, "X", "0x1234");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetAddressAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
-            owner.address,
-            BigNumber.from(9999999999),
+            tokenOwner.address,
+            9999999999n,
             addressV,
             addressR,
             addressS
           )
       )
         .to.emit(tokenAttributes, "AddressAttributeUpdated")
-        .withArgs(ownedCollection.address, 1, "X", owner.address);
+        .withArgs(collectionAddress, 1, "X", tokenOwner.address);
     });
 
     it("should not allow to use presigned message to modify the parameters if the deadline has elapsed", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
+        );
 
       await mine(1000, { interval: 15 });
 
       const uintMessage =
         await tokenAttributes.prepareMessageToPresignUintAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           1,
-          BigNumber.from(10)
+          10n
         );
       const stringMessage =
         await tokenAttributes.prepareMessageToPresignStringAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "test",
-          BigNumber.from(10)
+          10n
         );
       const boolMessage =
         await tokenAttributes.prepareMessageToPresignBoolAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           true,
-          BigNumber.from(10)
+          10n
         );
       const bytesMessage =
         await tokenAttributes.prepareMessageToPresignBytesAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "0x1234",
-          BigNumber.from(10)
+          10n
         );
       const addressMessage =
         await tokenAttributes.prepareMessageToPresignAddressAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
-          owner.address,
-          BigNumber.from(10)
+          tokenOwner.address,
+          10n
         );
 
-      const uintSignature = await issuer.signMessage(
-        ethers.utils.arrayify(uintMessage)
+      const uintSignature = await collectionOwner.signMessage(
+        ethers.getBytes(uintMessage)
       );
-      const stringSignature = await issuer.signMessage(
-        ethers.utils.arrayify(stringMessage)
+      const stringSignature = await collectionOwner.signMessage(
+        ethers.getBytes(stringMessage)
       );
-      const boolSignature = await issuer.signMessage(
-        ethers.utils.arrayify(boolMessage)
+      const boolSignature = await collectionOwner.signMessage(
+        ethers.getBytes(boolMessage)
       );
-      const bytesSignature = await issuer.signMessage(
-        ethers.utils.arrayify(bytesMessage)
+      const bytesSignature = await collectionOwner.signMessage(
+        ethers.getBytes(bytesMessage)
       );
-      const addressSignature = await issuer.signMessage(
-        ethers.utils.arrayify(addressMessage)
+      const addressSignature = await collectionOwner.signMessage(
+        ethers.getBytes(addressMessage)
       );
 
       const uintR: string = uintSignature.substring(0, 66);
       const uintS: string = "0x" + uintSignature.substring(66, 130);
-      const uintV: string = parseInt(uintSignature.substring(130, 132), 16);
+      const uintV: string = parseInt(
+        uintSignature.substring(130, 132),
+        16
+      ).toString();
 
       const stringR: string = stringSignature.substring(0, 66);
       const stringS: string = "0x" + stringSignature.substring(66, 130);
-      const stringV: string = parseInt(stringSignature.substring(130, 132), 16);
+      const stringV: string = parseInt(
+        stringSignature.substring(130, 132),
+        16
+      ).toString();
 
       const boolR: string = boolSignature.substring(0, 66);
       const boolS: string = "0x" + boolSignature.substring(66, 130);
-      const boolV: string = parseInt(boolSignature.substring(130, 132), 16);
+      const boolV: string = parseInt(
+        boolSignature.substring(130, 132),
+        16
+      ).toString();
 
       const bytesR: string = bytesSignature.substring(0, 66);
       const bytesS: string = "0x" + bytesSignature.substring(66, 130);
-      const bytesV: string = parseInt(bytesSignature.substring(130, 132), 16);
+      const bytesV: string = parseInt(
+        bytesSignature.substring(130, 132),
+        16
+      ).toString();
 
       const addressR: string = addressSignature.substring(0, 66);
       const addressS: string = "0x" + addressSignature.substring(66, 130);
       const addressV: string = parseInt(
         addressSignature.substring(130, 132),
         16
-      );
+      ).toString();
 
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetUintAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             1,
-            BigNumber.from(10),
+            10n,
             uintV,
             uintR,
             uintS
@@ -1618,14 +1722,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "ExpiredDeadline");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetStringAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "test",
-            BigNumber.from(10),
+            10n,
             stringV,
             stringR,
             stringS
@@ -1633,14 +1737,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "ExpiredDeadline");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBoolAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             true,
-            BigNumber.from(10),
+            10n,
             boolV,
             boolR,
             boolS
@@ -1648,14 +1752,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "ExpiredDeadline");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBytesAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "0x1234",
-            BigNumber.from(10),
+            10n,
             bytesV,
             bytesR,
             bytesS
@@ -1663,14 +1767,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "ExpiredDeadline");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetAddressAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
-            owner.address,
-            BigNumber.from(10),
+            tokenOwner.address,
+            10n,
             addressV,
             addressR,
             addressS
@@ -1680,99 +1784,115 @@ describe("AttributesRepository", async function () {
 
     it("should not allow to use presigned message to modify the parameters if the setter does not match the actual signer", async function () {
       await tokenAttributes
-        .connect(issuer)
-        .registerAccessControl(ownedCollection.address, issuer.address, false);
+        .connect(collectionOwner)
+        .registerAccessControl(
+          collectionAddress,
+          await collectionOwner.getAddress(),
+          false
+        );
 
       const uintMessage =
         await tokenAttributes.prepareMessageToPresignUintAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           1,
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const stringMessage =
         await tokenAttributes.prepareMessageToPresignStringAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "test",
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const boolMessage =
         await tokenAttributes.prepareMessageToPresignBoolAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           true,
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const bytesMessage =
         await tokenAttributes.prepareMessageToPresignBytesAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "0x1234",
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const addressMessage =
         await tokenAttributes.prepareMessageToPresignAddressAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
-          owner.address,
-          BigNumber.from(9999999999)
+          tokenOwner.address,
+          9999999999n
         );
 
-      const uintSignature = await owner.signMessage(
-        ethers.utils.arrayify(uintMessage)
+      const uintSignature = await tokenOwner.signMessage(
+        ethers.getBytes(uintMessage)
       );
-      const stringSignature = await owner.signMessage(
-        ethers.utils.arrayify(stringMessage)
+      const stringSignature = await tokenOwner.signMessage(
+        ethers.getBytes(stringMessage)
       );
-      const boolSignature = await owner.signMessage(
-        ethers.utils.arrayify(boolMessage)
+      const boolSignature = await tokenOwner.signMessage(
+        ethers.getBytes(boolMessage)
       );
-      const bytesSignature = await owner.signMessage(
-        ethers.utils.arrayify(bytesMessage)
+      const bytesSignature = await tokenOwner.signMessage(
+        ethers.getBytes(bytesMessage)
       );
-      const addressSignature = await owner.signMessage(
-        ethers.utils.arrayify(addressMessage)
+      const addressSignature = await tokenOwner.signMessage(
+        ethers.getBytes(addressMessage)
       );
 
       const uintR: string = uintSignature.substring(0, 66);
       const uintS: string = "0x" + uintSignature.substring(66, 130);
-      const uintV: string = parseInt(uintSignature.substring(130, 132), 16);
+      const uintV: string = parseInt(
+        uintSignature.substring(130, 132),
+        16
+      ).toString();
 
       const stringR: string = stringSignature.substring(0, 66);
       const stringS: string = "0x" + stringSignature.substring(66, 130);
-      const stringV: string = parseInt(stringSignature.substring(130, 132), 16);
+      const stringV: string = parseInt(
+        stringSignature.substring(130, 132),
+        16
+      ).toString();
 
       const boolR: string = boolSignature.substring(0, 66);
       const boolS: string = "0x" + boolSignature.substring(66, 130);
-      const boolV: string = parseInt(boolSignature.substring(130, 132), 16);
+      const boolV: string = parseInt(
+        boolSignature.substring(130, 132),
+        16
+      ).toString();
 
       const bytesR: string = bytesSignature.substring(0, 66);
       const bytesS: string = "0x" + bytesSignature.substring(66, 130);
-      const bytesV: string = parseInt(bytesSignature.substring(130, 132), 16);
+      const bytesV: string = parseInt(
+        bytesSignature.substring(130, 132),
+        16
+      ).toString();
 
       const addressR: string = addressSignature.substring(0, 66);
       const addressS: string = "0x" + addressSignature.substring(66, 130);
       const addressV: string = parseInt(
         addressSignature.substring(130, 132),
         16
-      );
+      ).toString();
 
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetUintAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             1,
-            BigNumber.from(9999999999),
+            9999999999n,
             uintV,
             uintR,
             uintS
@@ -1780,14 +1900,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "InvalidSignature");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetStringAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "test",
-            BigNumber.from(9999999999),
+            9999999999n,
             stringV,
             stringR,
             stringS
@@ -1795,14 +1915,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "InvalidSignature");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBoolAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             true,
-            BigNumber.from(9999999999),
+            9999999999n,
             boolV,
             boolR,
             boolS
@@ -1810,14 +1930,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "InvalidSignature");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBytesAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "0x1234",
-            BigNumber.from(9999999999),
+            9999999999n,
             bytesV,
             bytesR,
             bytesS
@@ -1825,14 +1945,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "InvalidSignature");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetAddressAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
-            owner.address,
-            BigNumber.from(9999999999),
+            tokenOwner.address,
+            9999999999n,
             addressV,
             addressR,
             addressS
@@ -1843,94 +1963,106 @@ describe("AttributesRepository", async function () {
     it("should not allow to use presigned message to modify the parameters if the signer is not authorized to modify them", async function () {
       const uintMessage =
         await tokenAttributes.prepareMessageToPresignUintAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           1,
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const stringMessage =
         await tokenAttributes.prepareMessageToPresignStringAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "test",
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const boolMessage =
         await tokenAttributes.prepareMessageToPresignBoolAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           true,
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const bytesMessage =
         await tokenAttributes.prepareMessageToPresignBytesAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
           "0x1234",
-          BigNumber.from(9999999999)
+          9999999999n
         );
       const addressMessage =
         await tokenAttributes.prepareMessageToPresignAddressAttribute(
-          ownedCollection.address,
-          1,
+          collectionAddress,
+          tokenId,
           "X",
-          owner.address,
-          BigNumber.from(9999999999)
+          tokenOwner.address,
+          9999999999n
         );
 
-      const uintSignature = await issuer.signMessage(
-        ethers.utils.arrayify(uintMessage)
+      const uintSignature = await collectionOwner.signMessage(
+        ethers.getBytes(uintMessage)
       );
-      const stringSignature = await issuer.signMessage(
-        ethers.utils.arrayify(stringMessage)
+      const stringSignature = await collectionOwner.signMessage(
+        ethers.getBytes(stringMessage)
       );
-      const boolSignature = await issuer.signMessage(
-        ethers.utils.arrayify(boolMessage)
+      const boolSignature = await collectionOwner.signMessage(
+        ethers.getBytes(boolMessage)
       );
-      const bytesSignature = await issuer.signMessage(
-        ethers.utils.arrayify(bytesMessage)
+      const bytesSignature = await collectionOwner.signMessage(
+        ethers.getBytes(bytesMessage)
       );
-      const addressSignature = await issuer.signMessage(
-        ethers.utils.arrayify(addressMessage)
+      const addressSignature = await collectionOwner.signMessage(
+        ethers.getBytes(addressMessage)
       );
 
       const uintR: string = uintSignature.substring(0, 66);
       const uintS: string = "0x" + uintSignature.substring(66, 130);
-      const uintV: string = parseInt(uintSignature.substring(130, 132), 16);
+      const uintV: string = parseInt(
+        uintSignature.substring(130, 132),
+        16
+      ).toString();
 
       const stringR: string = stringSignature.substring(0, 66);
       const stringS: string = "0x" + stringSignature.substring(66, 130);
-      const stringV: string = parseInt(stringSignature.substring(130, 132), 16);
+      const stringV: string = parseInt(
+        stringSignature.substring(130, 132),
+        16
+      ).toString();
 
       const boolR: string = boolSignature.substring(0, 66);
       const boolS: string = "0x" + boolSignature.substring(66, 130);
-      const boolV: string = parseInt(boolSignature.substring(130, 132), 16);
+      const boolV: string = parseInt(
+        boolSignature.substring(130, 132),
+        16
+      ).toString();
 
       const bytesR: string = bytesSignature.substring(0, 66);
       const bytesS: string = "0x" + bytesSignature.substring(66, 130);
-      const bytesV: string = parseInt(bytesSignature.substring(130, 132), 16);
+      const bytesV: string = parseInt(
+        bytesSignature.substring(130, 132),
+        16
+      ).toString();
 
       const addressR: string = addressSignature.substring(0, 66);
       const addressS: string = "0x" + addressSignature.substring(66, 130);
       const addressV: string = parseInt(
         addressSignature.substring(130, 132),
         16
-      );
+      ).toString();
 
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetUintAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             1,
-            BigNumber.from(9999999999),
+            9999999999n,
             uintV,
             uintR,
             uintS
@@ -1938,14 +2070,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetStringAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "test",
-            BigNumber.from(9999999999),
+            9999999999n,
             stringV,
             stringR,
             stringS
@@ -1953,14 +2085,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBoolAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             true,
-            BigNumber.from(9999999999),
+            9999999999n,
             boolV,
             boolR,
             boolS
@@ -1968,14 +2100,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetBytesAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
             "0x1234",
-            BigNumber.from(9999999999),
+            9999999999n,
             bytesV,
             bytesR,
             bytesS
@@ -1983,14 +2115,14 @@ describe("AttributesRepository", async function () {
       ).to.be.revertedWithCustomError(tokenAttributes, "NotCollectionIssuer");
       await expect(
         tokenAttributes
-          .connect(owner)
+          .connect(tokenOwner)
           .presignedSetAddressAttribute(
-            issuer.address,
-            ownedCollection.address,
-            1,
+            await collectionOwner.getAddress(),
+            collectionAddress,
+            tokenId,
             "X",
-            owner.address,
-            BigNumber.from(9999999999),
+            tokenOwner.address,
+            9999999999n,
             addressV,
             addressR,
             addressS
@@ -2000,16 +2132,16 @@ describe("AttributesRepository", async function () {
   });
 });
 
-async function shouldBehaveLikeTokenAttributesRepositoryInterface() {
+async function shouldBehaveLikeAttributesRepositoryInterface() {
   it("can support IERC165", async function () {
     expect(await this.tokenAttributes.supportsInterface(IERC165)).to.equal(
       true
     );
   });
 
-  it("can support IAttributesRepository", async function () {
-    expect(
-      await this.tokenAttributes.supportsInterface(IAttributesRepository)
-    ).to.equal(true);
+  it("can support IERC7508", async function () {
+    expect(await this.tokenAttributes.supportsInterface(IERC7508)).to.equal(
+      true
+    );
   });
 }
