@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract ERC7628 is ERC721, Ownable, ReentrancyGuard {
-    mapping(uint256 => uint256) private _balances;
-    mapping(uint256 => mapping(address => uint256)) private _allowances;
-    uint256 private _totalBalance;
+    mapping(uint256 => uint256) private _shareBalances;
+    mapping(uint256 => mapping(address => uint256)) private _shareAllowances;
+    uint256 private _totalShares;
     uint256 private _nextTokenId;
 
     constructor(address initialOwner)
@@ -17,68 +17,63 @@ contract ERC7628 is ERC721, Ownable, ReentrancyGuard {
         Ownable(initialOwner)
     {}
 
-    function addBalance(uint256 tokenId, uint256 amount) public onlyOwner {
+    function addSharesToToken(uint256 tokenId, uint256 shares) public override onlyOwner {
         require(tokenId > 0, "ERC7628: tokenId cannot be zero");
-        _balances[tokenId] += amount;
-        _totalBalance += amount;
-        emit Transfer(0, tokenId, amount);
+        _shareBalances[tokenId] += shares;
+        _totalShares += shares;
+        emit SharesAdded(tokenId, shares);
     }
 
-    function balanceDecimals() external pure returns (uint8) {
+    function shareDecimals() external pure override returns (uint8) {
         return 18;
     }
 
-    function totalBalances() external view returns (uint256) {
-        return _totalBalance;
+    function totalShares() external view override returns (uint256) {
+        return _totalShares;
     }
 
-    function balanceOf(uint256 tokenId) external view returns (uint256) {
-        return _balances[tokenId];
+    function shareOf(uint256 tokenId) external view override returns (uint256) {
+        return _shareBalances[tokenId];
     }
 
-    function allowance(uint256 tokenId, address spender) external view returns (uint256) {
-        return _allowances[tokenId][spender];
+    function shareAllowance(uint256 tokenId, address spender) external view override returns (uint256) {
+        return _shareAllowances[tokenId][spender];
     }
 
-    function approve(uint256 tokenId, address to, uint256 amount) external {
-        require(to != ownerOf(tokenId), "ERC7628: approval to current owner");
+    function approveShare(uint256 tokenId, address spender, uint256 shares) external override {
+        require(spender != ownerOf(tokenId), "ERC7628: approval to current owner");
         require(msg.sender == ownerOf(tokenId), "ERC7628: approve caller is not owner");
 
-        _allowances[tokenId][to] = amount;
-        emit Approval(tokenId, to, amount);
+        _shareAllowances[tokenId][spender] = shares;
+        emit SharesApproved(tokenId, spender, shares);
     }
 
-    function transferFrom(uint256 _fromTokenId, uint256 _toTokenId, uint256 amount) external nonReentrant {
-        require(_isApprovedOrOwner(msg.sender, _fromTokenId), "ERC7628: transfer caller is not owner nor approved");
-        _transfer(_fromTokenId, _toTokenId, amount);
+    function transferShares(uint256 fromTokenId, uint256 toTokenId, uint256 shares) external override nonReentrant {
+        require(_shareBalances[fromTokenId] >= shares, "ERC7628: insufficient shares for transfer");
+        require(_isApprovedOrOwner(msg.sender, fromTokenId), "ERC7628: transfer caller is not owner nor approved");
+
+        _shareBalances[fromTokenId] -= shares;
+        _shareBalances[toTokenId] += shares;
+        emit SharesTransfered(fromTokenId, toTokenId, shares);
     }
 
-    function transferFrom(uint256 _fromTokenId, address _to, uint256 amount) external nonReentrant {
-        require(_isApprovedOrOwner(msg.sender, _fromTokenId), "ERC7628: transfer caller is not owner nor approved");
+    function transferSharesToAddress(uint256 fromTokenId, address to, uint256 shares) external override nonReentrant {
+        require(_shareBalances[fromTokenId] >= shares, "ERC7628: insufficient shares for transfer");
+        require(_isApprovedOrOwner(msg.sender, fromTokenId), "ERC7628: transfer caller is not owner nor approved");
+
         _nextTokenId++;
-        _safeMint(_to, _nextTokenId);
-        _transfer(_fromTokenId, _nextTokenId, amount);
+        _safeMint(to, _nextTokenId);
+        _shareBalances[_nextTokenId] = shares;
+        emit SharesTransfered(fromTokenId, _nextTokenId, shares);
     }
 
-    function _transfer(uint256 fromTokenId, uint256 toTokenId, uint256 amount) internal nonReentrant {
-        require(_balances[fromTokenId] >= amount, "ERC7628: transfer amount exceeds balance");
-
-        // Check allowance for non-owner transfers
-        if (msg.sender != ownerOf(fromTokenId)) {
-            require(_allowances[fromTokenId][msg.sender] >= amount, "ERC7628: transfer amount exceeds allowance");
-            _allowances[fromTokenId][msg.sender] -= amount;
-        }
-
-        _balances[fromTokenId] -= amount;
-        _balances[toTokenId] += amount;
-
-        emit Transfer(fromTokenId, toTokenId, amount);
-    }
-
+    // Helper function to check if an address is the owner or approved
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
-        return (spender == ownerOf(tokenId) || _allowances[tokenId][spender] > 0);
+        return (spender == ownerOf(tokenId) || getApproved(tokenId) == spender || isApprovedForAll(ownerOf(tokenId), spender));
     }
 
-    event Transfer(uint256 indexed fromTokenId, uint256 indexed toTokenId, uint256 value);
-    event Approval(uint256 indexed tokenId, address indexed spender, uint256 value);
+    // Make sure to declare all events as they are in IERC7628
+    event SharesAdded(uint256 indexed tokenId, uint256 shares);
+    event SharesTransfered(uint256 indexed fromTokenId, uint256 indexed toTokenId, uint256 amount);
+    event SharesApproved(uint256 indexed tokenId, address indexed spender, uint256 amount);
 }
