@@ -2,18 +2,18 @@
 
 pragma solidity ^0.8.21;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-
-import "./IERC7508.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
+import {IERC7508} from "./IERC7508.sol";
 
 /**
  * @title ERC-7508 Public On-Chain NFT Attributes Repository
  * @author Steven Pineda, Jan Turk
  * @notice Implementation smart contract of the ERC-7508 Public On-Chain NFT Attributes Repository
  */
-contract AttributesRepository is IERC7508 {
+contract AttributesRepository is IERC7508, Context {
     bytes32 public immutable DOMAIN_SEPARATOR =
         keccak256(
             abi.encode(
@@ -44,35 +44,32 @@ contract AttributesRepository is IERC7508 {
             "setAddressAttribute(address collection,uint256 tokenId,string memory key,address value)"
         );
 
-    mapping(address collection => mapping(uint256 keyId => AccessType accessType))
+    mapping(address collection => mapping(uint256 parameterId => AccessType accessType))
         private _parameterAccessType;
-    mapping(address collection => mapping(uint256 keyId => address specificAddress))
+    mapping(address collection => mapping(uint256 parameterId => address specificAddress))
         private _parameterSpecificAddress;
-    mapping(address collection => IssuerSetting issuerSetting) private _issuerSettings;
-    mapping(address collection => mapping(address collaborator => bool isCollaborator)) private _collaborators;
+    mapping(address collection => IssuerSetting setting)
+        private _issuerSettings;
+    mapping(address collection => mapping(address collaborator => bool isCollaborator))
+        private _collaborators;
 
     // For keys, we use a mapping from strings to IDs.
     // The purpose is to store unique string keys only once, since they are more expensive.
-    mapping(string key => uint256 keyId) private _keysToIds;
-    uint256 private _totalAttributes;
+    mapping(string key => uint256 id) private _keysToIds;
+    uint256 private _nextKeyId;
 
-    // For strings, we also use a mapping from strings to IDs, together with a reverse mapping
-    // The purpose is to store unique string values only once, since they are more expensive,
-    // and storing only IDs.
-    mapping(address collection => uint256 numberOfStringValues) private _totalStringValues;
-    mapping(address collection => mapping(string stringValue => uint256 stringId)) private _stringValueToId;
-    mapping(address collection => mapping(uint256 stringId => string stringValue)) private _stringIdToValue;
-    mapping(address collection => mapping(uint256 tokenId => mapping(uint256 stringKeyId => uint256 stringValueId)))
-        private _stringValueIds;
-
-    mapping(address collection => mapping(uint256 tokenId => mapping(uint256 addressKeyId => address addressValue)))
+    mapping(address collection => string attributesMetadataURI)
+        private _attributesMetadataURIs;
+    mapping(address collection => mapping(uint256 => mapping(uint256 => address)))
         private _addressValues;
-    mapping(address collection => mapping(uint256 tokenId => mapping(uint256 bytesKeyId => bytes bytesValue)))
+    mapping(address collection => mapping(uint256 => mapping(uint256 => bytes)))
         private _bytesValues;
-    mapping(address collection => mapping(uint256 tokenId => mapping(uint256 uintKeyId => uint256 uintValue)))
+    mapping(address collection => mapping(uint256 => mapping(uint256 => uint256)))
         private _uintValues;
-    mapping(address collection => mapping(uint256 tokenId => mapping(uint256 boolKeyId => bool boolValue)))
+    mapping(address collection => mapping(uint256 => mapping(uint256 => bool)))
         private _boolValues;
+    mapping(address collection => mapping(uint256 => mapping(uint256 => string)))
+        private _stringValues;
 
     struct IssuerSetting {
         bool registered;
@@ -80,6 +77,8 @@ contract AttributesRepository is IERC7508 {
         address issuer;
     }
 
+    /// Used to signal that the length of the arrays is not equal.
+    error LengthsMismatch();
     /// Used to signal that the smart contract interacting with the repository does not implement Ownable pattern.
     error OwnableNotImplemented();
     /// Used to signal that the caller is not the issuer of the collection.
@@ -88,8 +87,6 @@ contract AttributesRepository is IERC7508 {
     error CollaboratorArraysNotEqualLength();
     /// Used to signal that the collection is not registered in the repository yet.
     error CollectionNotRegistered();
-    /// Used to signal that the collection is already registered in the repository.
-    error CollectionAlreadyRegistered();
     /// Used to signal that the caller is not aa collaborator of the collection.
     error NotCollectionCollaborator();
     /// Used to signal that the caller is not the issuer or a collaborator of the collection.
@@ -110,7 +107,7 @@ contract AttributesRepository is IERC7508 {
         address collection,
         address issuer,
         bool useOwnable
-    ) external onlyUnregisteredCollection(collection) {
+    ) external {
         (bool ownableSuccess, bytes memory ownableReturn) = collection.call(
             abi.encodeWithSignature("owner()")
         );
@@ -120,20 +117,21 @@ contract AttributesRepository is IERC7508 {
         }
         if (
             ownableSuccess &&
-            address(uint160(uint256(bytes32(ownableReturn)))) != msg.sender
+            address(uint160(uint256(bytes32(ownableReturn)))) != _msgSender()
         ) {
             revert NotCollectionIssuer();
         }
 
-        IssuerSetting storage issuerSetting = _issuerSettings[collection];
-        issuerSetting.registered = true;
-        issuerSetting.issuer = issuer;
-        issuerSetting.useOwnable = useOwnable;
+        _issuerSettings[collection] = IssuerSetting({
+            registered: true,
+            issuer: issuer,
+            useOwnable: useOwnable
+        });
 
         emit AccessControlRegistration(
             collection,
             issuer,
-            msg.sender,
+            _msgSender(),
             useOwnable
         );
     }
@@ -163,10 +161,11 @@ contract AttributesRepository is IERC7508 {
         address[] memory collaboratorAddresses,
         bool[] memory collaboratorAddressAccess
     ) external onlyRegisteredCollection(collection) onlyIssuer(collection) {
-        if (collaboratorAddresses.length != collaboratorAddressAccess.length) {
+        uint256 length = collaboratorAddresses.length;
+        if (length != collaboratorAddressAccess.length) {
             revert CollaboratorArraysNotEqualLength();
         }
-        for (uint256 i; i < collaboratorAddresses.length; ) {
+        for (uint256 i; i < length; ) {
             _collaborators[collection][
                 collaboratorAddresses[i]
             ] = collaboratorAddressAccess[i];
@@ -184,11 +183,31 @@ contract AttributesRepository is IERC7508 {
     /**
      * @inheritdoc IERC7508
      */
+    function getAttributesMetadataURI(
+        address collection
+    ) external view returns (string memory attributesMetadataURI) {
+        attributesMetadataURI = _attributesMetadataURIs[collection];
+    }
+
+    /**
+     * @inheritdoc IERC7508
+     */
+    function setAttributesMetadataURI(
+        address collection,
+        string memory attributesMetadataURI
+    ) external onlyIssuer(collection) {
+        _attributesMetadataURIs[collection] = attributesMetadataURI;
+        emit MetadataURIUpdated(collection, attributesMetadataURI);
+    }
+
+    /**
+     * @inheritdoc IERC7508
+     */
     function isCollaborator(
         address collaborator,
         address collection
-    ) external view returns (bool) {
-        return _collaborators[collection][collaborator];
+    ) external view returns (bool isCollaborator_) {
+        isCollaborator_ = _collaborators[collection][collaborator];
     }
 
     /**
@@ -198,8 +217,8 @@ contract AttributesRepository is IERC7508 {
         address specificAddress,
         address collection,
         string memory key
-    ) external view returns (bool) {
-        return
+    ) external view returns (bool isSpecificAddress_) {
+        isSpecificAddress_ =
             _parameterSpecificAddress[collection][_keysToIds[key]] ==
             specificAddress;
     }
@@ -219,7 +238,7 @@ contract AttributesRepository is IERC7508 {
         string memory key,
         uint256 tokenId
     ) {
-        _onlyAuthorizedCaller(msg.sender, collection, key, tokenId);
+        _onlyAuthorizedCaller(_msgSender(), collection, key, tokenId);
         _;
     }
 
@@ -235,26 +254,15 @@ contract AttributesRepository is IERC7508 {
     }
 
     /**
-     * @notice Modifier to check if the collection is not registered.
-     * @param collection Address of the collection.
-     */
-    modifier onlyUnregisteredCollection(address collection) {
-        if (_issuerSettings[collection].registered) {
-            revert CollectionAlreadyRegistered();
-        }
-        _;
-    }
-
-    /**
      * @notice Modifier to check if the caller is the issuer of the collection.
      * @param collection Address of the collection.
      */
     modifier onlyIssuer(address collection) {
         if (_issuerSettings[collection].useOwnable) {
-            if (Ownable(collection).owner() != msg.sender) {
+            if (Ownable(collection).owner() != _msgSender()) {
                 revert NotCollectionIssuer();
             }
-        } else if (_issuerSettings[collection].issuer != msg.sender) {
+        } else if (_issuerSettings[collection].issuer != _msgSender()) {
             revert NotCollectionIssuer();
         }
         _;
@@ -314,65 +322,62 @@ contract AttributesRepository is IERC7508 {
     /**
      * @inheritdoc IERC7508
      */
-    function getStringTokenAttribute(
+    function getStringAttribute(
         address collection,
         uint256 tokenId,
         string memory key
-    ) external view returns (string memory) {
-        uint256 idForValue = _stringValueIds[collection][tokenId][
-            _keysToIds[key]
-        ];
-        return _stringIdToValue[collection][idForValue];
+    ) public view returns (string memory attribute) {
+        attribute = _stringValues[collection][tokenId][_keysToIds[key]];
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getUintTokenAttribute(
+    function getUintAttribute(
         address collection,
         uint256 tokenId,
         string memory key
-    ) external view returns (uint256) {
-        return _uintValues[collection][tokenId][_keysToIds[key]];
+    ) public view returns (uint256 attribute) {
+        attribute = _uintValues[collection][tokenId][_keysToIds[key]];
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getBoolTokenAttribute(
+    function getBoolAttribute(
         address collection,
         uint256 tokenId,
         string memory key
-    ) external view returns (bool) {
-        return _boolValues[collection][tokenId][_keysToIds[key]];
+    ) public view returns (bool attribute) {
+        attribute = _boolValues[collection][tokenId][_keysToIds[key]];
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getAddressTokenAttribute(
+    function getAddressAttribute(
         address collection,
         uint256 tokenId,
         string memory key
-    ) external view returns (address) {
-        return _addressValues[collection][tokenId][_keysToIds[key]];
+    ) public view returns (address attribute) {
+        attribute = _addressValues[collection][tokenId][_keysToIds[key]];
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getBytesTokenAttribute(
+    function getBytesAttribute(
         address collection,
         uint256 tokenId,
         string memory key
-    ) external view returns (bytes memory) {
-        return _bytesValues[collection][tokenId][_keysToIds[key]];
+    ) public view returns (bytes memory attribute) {
+        attribute = _bytesValues[collection][tokenId][_keysToIds[key]];
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getTokenAttributes(
+    function getAttributes(
         address collection,
         uint256 tokenId,
         string[] memory stringKeys,
@@ -384,171 +389,196 @@ contract AttributesRepository is IERC7508 {
         external
         view
         returns (
-            StringAttribute[] memory stringAttributes,
-            UintAttribute[] memory uintAttributes,
-            BoolAttribute[] memory boolAttributes,
-            AddressAttribute[] memory addressAttributes,
-            BytesAttribute[] memory bytesAttributes
+            string[] memory stringAttributes,
+            uint256[] memory uintAttributes,
+            bool[] memory boolAttributes,
+            address[] memory addressAttributes,
+            bytes[] memory bytesAttributes
         )
     {
-        stringAttributes = getStringTokenAttributes(
-            collection,
-            tokenId,
+        address[] memory collections = new address[](1);
+        uint256[] memory tokenIds = new uint256[](1);
+        collections[0] = collection;
+        tokenIds[0] = tokenId;
+
+        stringAttributes = getStringAttributes(
+            collections,
+            tokenIds,
             stringKeys
         );
-
-        uintAttributes = getUintTokenAttributes(collection, tokenId, uintKeys);
-
-        boolAttributes = getBoolTokenAttributes(collection, tokenId, boolKeys);
-
-        addressAttributes = getAddressTokenAttributes(
-            collection,
-            tokenId,
+        uintAttributes = getUintAttributes(collections, tokenIds, uintKeys);
+        boolAttributes = getBoolAttributes(collections, tokenIds, boolKeys);
+        addressAttributes = getAddressAttributes(
+            collections,
+            tokenIds,
             addressKeys
         );
-
-        bytesAttributes = getBytesTokenAttributes(
-            collection,
-            tokenId,
-            bytesKeys
-        );
+        bytesAttributes = getBytesAttributes(collections, tokenIds, bytesKeys);
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getStringTokenAttributes(
-        address collection,
-        uint256 tokenId,
-        string[] memory stringKeys
-    ) public view returns (StringAttribute[] memory) {
-        uint256 stringLen = stringKeys.length;
+    function getStringAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        string[] memory attributeKeys
+    ) public view returns (string[] memory attributes) {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributeKeys.length
+            );
 
-        StringAttribute[] memory stringAttributes = new StringAttribute[](
-            stringLen
-        );
+        attributes = new string[](loopLength);
 
-        for (uint i; i < stringLen; ) {
-            stringAttributes[i] = StringAttribute({
-                key: stringKeys[i],
-                value: _stringIdToValue[collection][
-                    _stringValueIds[collection][tokenId][
-                        _keysToIds[stringKeys[i]]
-                    ]
-                ]
-            });
+        for (uint256 i; i < loopLength; ) {
+            attributes[i] = getStringAttribute(
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                multipleAttributes ? attributeKeys[i] : attributeKeys[0]
+            );
             unchecked {
                 ++i;
             }
         }
-
-        return stringAttributes;
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getUintTokenAttributes(
-        address collection,
-        uint256 tokenId,
-        string[] memory uintKeys
-    ) public view returns (UintAttribute[] memory) {
-        uint256 uintLen = uintKeys.length;
+    function getUintAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        string[] memory attributeKeys
+    ) public view returns (uint256[] memory attributes) {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributeKeys.length
+            );
 
-        UintAttribute[] memory uintAttributes = new UintAttribute[](uintLen);
+        attributes = new uint256[](loopLength);
 
-        for (uint i; i < uintLen; ) {
-            uintAttributes[i] = UintAttribute({
-                key: uintKeys[i],
-                value: _uintValues[collection][tokenId][_keysToIds[uintKeys[i]]]
-            });
+        for (uint256 i; i < loopLength; ) {
+            attributes[i] = getUintAttribute(
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                multipleAttributes ? attributeKeys[i] : attributeKeys[0]
+            );
             unchecked {
                 ++i;
             }
         }
-
-        return uintAttributes;
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getBoolTokenAttributes(
-        address collection,
-        uint256 tokenId,
-        string[] memory boolKeys
-    ) public view returns (BoolAttribute[] memory) {
-        uint256 boolLen = boolKeys.length;
+    function getBoolAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        string[] memory attributeKeys
+    ) public view returns (bool[] memory attributes) {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributeKeys.length
+            );
 
-        BoolAttribute[] memory boolAttributes = new BoolAttribute[](boolLen);
+        attributes = new bool[](loopLength);
 
-        for (uint i; i < boolLen; ) {
-            boolAttributes[i] = BoolAttribute({
-                key: boolKeys[i],
-                value: _boolValues[collection][tokenId][_keysToIds[boolKeys[i]]]
-            });
+        for (uint256 i; i < loopLength; ) {
+            attributes[i] = getBoolAttribute(
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                multipleAttributes ? attributeKeys[i] : attributeKeys[0]
+            );
             unchecked {
                 ++i;
             }
         }
-
-        return boolAttributes;
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getAddressTokenAttributes(
-        address collection,
-        uint256 tokenId,
-        string[] memory addressKeys
-    ) public view returns (AddressAttribute[] memory) {
-        uint256 addressLen = addressKeys.length;
+    function getAddressAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        string[] memory attributeKeys
+    ) public view returns (address[] memory attributes) {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributeKeys.length
+            );
 
-        AddressAttribute[] memory addressAttributes = new AddressAttribute[](
-            addressLen
-        );
+        attributes = new address[](loopLength);
 
-        for (uint i; i < addressLen; ) {
-            addressAttributes[i] = AddressAttribute({
-                key: addressKeys[i],
-                value: _addressValues[collection][tokenId][
-                    _keysToIds[addressKeys[i]]
-                ]
-            });
+        for (uint256 i; i < loopLength; ) {
+            attributes[i] = getAddressAttribute(
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                multipleAttributes ? attributeKeys[i] : attributeKeys[0]
+            );
             unchecked {
                 ++i;
             }
         }
-
-        return addressAttributes;
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function getBytesTokenAttributes(
-        address collection,
-        uint256 tokenId,
-        string[] memory bytesKeys
-    ) public view returns (BytesAttribute[] memory) {
-        uint256 bytesLen = bytesKeys.length;
+    function getBytesAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        string[] memory attributeKeys
+    ) public view returns (bytes[] memory attributes) {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributeKeys.length
+            );
 
-        BytesAttribute[] memory bytesAttributes = new BytesAttribute[](bytesLen);
+        attributes = new bytes[](loopLength);
 
-        for (uint i; i < bytesLen; ) {
-            bytesAttributes[i] = BytesAttribute({
-                key: bytesKeys[i],
-                value: _bytesValues[collection][tokenId][
-                    _keysToIds[bytesKeys[i]]
-                ]
-            });
+        for (uint256 i; i < loopLength; ) {
+            attributes[i] = getBytesAttribute(
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                multipleAttributes ? attributeKeys[i] : attributeKeys[0]
+            );
             unchecked {
                 ++i;
             }
         }
-
-        return bytesAttributes;
     }
 
     /**
@@ -560,19 +590,18 @@ contract AttributesRepository is IERC7508 {
         string memory key,
         uint256 value,
         uint256 deadline
-    ) public view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    DOMAIN_SEPARATOR,
-                    SET_UINT_ATTRIBUTE_TYPEHASH,
-                    collection,
-                    tokenId,
-                    key,
-                    value,
-                    deadline
-                )
-            );
+    ) public view returns (bytes32 message) {
+        message = keccak256(
+            abi.encode(
+                DOMAIN_SEPARATOR,
+                SET_UINT_ATTRIBUTE_TYPEHASH,
+                collection,
+                tokenId,
+                key,
+                value,
+                deadline
+            )
+        );
     }
 
     /**
@@ -584,19 +613,18 @@ contract AttributesRepository is IERC7508 {
         string memory key,
         string memory value,
         uint256 deadline
-    ) public view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    DOMAIN_SEPARATOR,
-                    SET_STRING_ATTRIBUTE_TYPEHASH,
-                    collection,
-                    tokenId,
-                    key,
-                    value,
-                    deadline
-                )
-            );
+    ) public view returns (bytes32 message) {
+        message = keccak256(
+            abi.encode(
+                DOMAIN_SEPARATOR,
+                SET_STRING_ATTRIBUTE_TYPEHASH,
+                collection,
+                tokenId,
+                key,
+                value,
+                deadline
+            )
+        );
     }
 
     /**
@@ -608,19 +636,18 @@ contract AttributesRepository is IERC7508 {
         string memory key,
         bool value,
         uint256 deadline
-    ) public view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    DOMAIN_SEPARATOR,
-                    SET_BOOL_ATTRIBUTE_TYPEHASH,
-                    collection,
-                    tokenId,
-                    key,
-                    value,
-                    deadline
-                )
-            );
+    ) public view returns (bytes32 message) {
+        message = keccak256(
+            abi.encode(
+                DOMAIN_SEPARATOR,
+                SET_BOOL_ATTRIBUTE_TYPEHASH,
+                collection,
+                tokenId,
+                key,
+                value,
+                deadline
+            )
+        );
     }
 
     /**
@@ -632,19 +659,18 @@ contract AttributesRepository is IERC7508 {
         string memory key,
         bytes memory value,
         uint256 deadline
-    ) public view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    DOMAIN_SEPARATOR,
-                    SET_BYTES_ATTRIBUTE_TYPEHASH,
-                    collection,
-                    tokenId,
-                    key,
-                    value,
-                    deadline
-                )
-            );
+    ) public view returns (bytes32 message) {
+        message = keccak256(
+            abi.encode(
+                DOMAIN_SEPARATOR,
+                SET_BYTES_ATTRIBUTE_TYPEHASH,
+                collection,
+                tokenId,
+                key,
+                value,
+                deadline
+            )
+        );
     }
 
     /**
@@ -656,47 +682,18 @@ contract AttributesRepository is IERC7508 {
         string memory key,
         address value,
         uint256 deadline
-    ) public view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    DOMAIN_SEPARATOR,
-                    SET_ADDRESS_ATTRIBUTE_TYPEHASH,
-                    collection,
-                    tokenId,
-                    key,
-                    value,
-                    deadline
-                )
-            );
-    }
-
-    /**
-     * @inheritdoc IERC7508
-     */
-    function setUintAttribute(
-        address collection,
-        uint256 tokenId,
-        string memory key,
-        uint256 value
-    ) external onlyAuthorizedCaller(collection, key, tokenId) {
-        _uintValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit UintAttributeUpdated(collection, tokenId, key, value);
-    }
-
-    /**
-     * @inheritdoc IERC7508
-     */
-    function setStringAttribute(
-        address collection,
-        uint256 tokenId,
-        string memory key,
-        string memory value
-    ) external onlyAuthorizedCaller(collection, key, tokenId) {
-        _stringValueIds[collection][tokenId][
-            _getIdForKey(key)
-        ] = _getStringIdForValue(collection, value);
-        emit StringAttributeUpdated(collection, tokenId, key, value);
+    ) public view returns (bytes32 message) {
+        message = keccak256(
+            abi.encode(
+                DOMAIN_SEPARATOR,
+                SET_ADDRESS_ATTRIBUTE_TYPEHASH,
+                collection,
+                tokenId,
+                key,
+                value,
+                deadline
+            )
+        );
     }
 
     /**
@@ -707,9 +704,8 @@ contract AttributesRepository is IERC7508 {
         uint256 tokenId,
         string memory key,
         bool value
-    ) external onlyAuthorizedCaller(collection, key, tokenId) {
-        _boolValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit BoolAttributeUpdated(collection, tokenId, key, value);
+    ) external {
+        _setBoolAttribute(_msgSender(), collection, tokenId, key, value);
     }
 
     /**
@@ -720,9 +716,8 @@ contract AttributesRepository is IERC7508 {
         uint256 tokenId,
         string memory key,
         bytes memory value
-    ) external onlyAuthorizedCaller(collection, key, tokenId) {
-        _bytesValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit BytesAttributeUpdated(collection, tokenId, key, value);
+    ) external {
+        _setBytesAttribute(_msgSender(), collection, tokenId, key, value);
     }
 
     /**
@@ -733,100 +728,62 @@ contract AttributesRepository is IERC7508 {
         uint256 tokenId,
         string memory key,
         address value
-    ) external onlyAuthorizedCaller(collection, key, tokenId) {
-        _addressValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit AddressAttributeUpdated(collection, tokenId, key, value);
+    ) external {
+        _setAddressAttribute(_msgSender(), collection, tokenId, key, value);
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function setStringAttributes(
+    function setUintAttribute(
         address collection,
         uint256 tokenId,
-        StringAttribute[] memory attributes
-    ) external onlyAuthorizedCaller(collection, "", tokenId) {
-        for (uint256 i = 0; i < attributes.length; ) {
-            _stringValueIds[collection][tokenId][
-                _getIdForKey(attributes[i].key)
-            ] = _getStringIdForValue(collection, attributes[i].value);
-            emit StringAttributeUpdated(
-                collection,
-                tokenId,
-                attributes[i].key,
-                attributes[i].value
-            );
-            unchecked {
-                ++i;
-            }
-        }
+        string memory key,
+        uint256 value
+    ) external {
+        _setUintAttribute(_msgSender(), collection, tokenId, key, value);
     }
 
     /**
      * @inheritdoc IERC7508
      */
-    function setUintAttributes(
+    function setStringAttribute(
         address collection,
         uint256 tokenId,
-        UintAttribute[] memory attributes
-    ) external onlyAuthorizedCaller(collection, "", tokenId) {
-        for (uint256 i = 0; i < attributes.length; ) {
-            _uintValues[collection][tokenId][
-                _getIdForKey(attributes[i].key)
-            ] = attributes[i].value;
-            emit UintAttributeUpdated(
-                collection,
-                tokenId,
-                attributes[i].key,
-                attributes[i].value
-            );
-            unchecked {
-                ++i;
-            }
-        }
+        string memory key,
+        string memory value
+    ) external {
+        _setStringAttribute(_msgSender(), collection, tokenId, key, value);
     }
 
     /**
      * @inheritdoc IERC7508
      */
     function setBoolAttributes(
-        address collection,
-        uint256 tokenId,
+        address[] memory collections,
+        uint256[] memory tokenIds,
         BoolAttribute[] memory attributes
-    ) external onlyAuthorizedCaller(collection, "", tokenId) {
-        for (uint256 i = 0; i < attributes.length; ) {
-            _boolValues[collection][tokenId][
-                _getIdForKey(attributes[i].key)
-            ] = attributes[i].value;
-            emit BoolAttributeUpdated(
-                collection,
-                tokenId,
-                attributes[i].key,
-                attributes[i].value
+    ) external {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributes.length
             );
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @inheritdoc IERC7508
-     */
-    function setAddressAttributes(
-        address collection,
-        uint256 tokenId,
-        AddressAttribute[] memory attributes
-    ) external onlyAuthorizedCaller(collection, "", tokenId) {
-        for (uint256 i = 0; i < attributes.length; ) {
-            _addressValues[collection][tokenId][
-                _getIdForKey(attributes[i].key)
-            ] = attributes[i].value;
-            emit AddressAttributeUpdated(
-                collection,
-                tokenId,
-                attributes[i].key,
-                attributes[i].value
+        for (uint256 i; i < loopLength; ) {
+            BoolAttribute memory attribute = multipleAttributes
+                ? attributes[i]
+                : attributes[0];
+            _setBoolAttribute(
+                _msgSender(),
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                attribute.key,
+                attribute.value
             );
             unchecked {
                 ++i;
@@ -838,19 +795,30 @@ contract AttributesRepository is IERC7508 {
      * @inheritdoc IERC7508
      */
     function setBytesAttributes(
-        address collection,
-        uint256 tokenId,
+        address[] memory collections,
+        uint256[] memory tokenIds,
         BytesAttribute[] memory attributes
-    ) external onlyAuthorizedCaller(collection, "", tokenId) {
-        for (uint256 i = 0; i < attributes.length; ) {
-            _bytesValues[collection][tokenId][
-                _getIdForKey(attributes[i].key)
-            ] = attributes[i].value;
-            emit BytesAttributeUpdated(
-                collection,
-                tokenId,
-                attributes[i].key,
-                attributes[i].value
+    ) external {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributes.length
+            );
+        for (uint256 i; i < loopLength; ) {
+            BytesAttribute memory attribute = multipleAttributes
+                ? attributes[i]
+                : attributes[0];
+            _setBytesAttribute(
+                _msgSender(),
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                attribute.key,
+                attribute.value
             );
             unchecked {
                 ++i;
@@ -861,7 +829,112 @@ contract AttributesRepository is IERC7508 {
     /**
      * @inheritdoc IERC7508
      */
-    function setTokenAttributes(
+    function setStringAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        StringAttribute[] memory attributes
+    ) external {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributes.length
+            );
+        for (uint256 i; i < loopLength; ) {
+            StringAttribute memory attribute = multipleAttributes
+                ? attributes[i]
+                : attributes[0];
+            _setStringAttribute(
+                _msgSender(),
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                attribute.key,
+                attribute.value
+            );
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IERC7508
+     */
+    function setUintAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        UintAttribute[] memory attributes
+    ) external {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributes.length
+            );
+        for (uint256 i; i < loopLength; ) {
+            UintAttribute memory attribute = multipleAttributes
+                ? attributes[i]
+                : attributes[0];
+            _setUintAttribute(
+                _msgSender(),
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                attribute.key,
+                attribute.value
+            );
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IERC7508
+     */
+    function setAddressAttributes(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        AddressAttribute[] memory attributes
+    ) external {
+        (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        ) = _checkIfMultipleCollectionsAndTokens(
+                collections,
+                tokenIds,
+                attributes.length
+            );
+        for (uint256 i; i < loopLength; ) {
+            AddressAttribute memory attribute = multipleAttributes
+                ? attributes[i]
+                : attributes[0];
+            _setAddressAttribute(
+                _msgSender(),
+                multipleCollections ? collections[i] : collections[0],
+                multipleTokens ? tokenIds[i] : tokenIds[0],
+                attribute.key,
+                attribute.value
+            );
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IERC7508
+     */
+    function setAttributes(
         address collection,
         uint256 tokenId,
         StringAttribute[] memory stringAttributes,
@@ -869,12 +942,11 @@ contract AttributesRepository is IERC7508 {
         BoolAttribute[] memory boolAttributes,
         AddressAttribute[] memory addressAttributes,
         BytesAttribute[] memory bytesAttributes
-    ) external onlyAuthorizedCaller(collection, "", tokenId) {
-        for (uint256 i = 0; i < stringAttributes.length; ) {
-            _stringValueIds[collection][tokenId][
-                _getIdForKey(stringAttributes[i].key)
-            ] = _getStringIdForValue(collection, stringAttributes[i].value);
-            emit StringAttributeUpdated(
+    ) external {
+        uint256 length = stringAttributes.length;
+        for (uint256 i; i < length; ) {
+            _setStringAttribute(
+                _msgSender(),
                 collection,
                 tokenId,
                 stringAttributes[i].key,
@@ -885,11 +957,10 @@ contract AttributesRepository is IERC7508 {
             }
         }
 
-        for (uint256 i = 0; i < uintAttributes.length; ) {
-            _uintValues[collection][tokenId][
-                _getIdForKey(uintAttributes[i].key)
-            ] = uintAttributes[i].value;
-            emit UintAttributeUpdated(
+        length = uintAttributes.length;
+        for (uint256 i; i < length; ) {
+            _setUintAttribute(
+                _msgSender(),
                 collection,
                 tokenId,
                 uintAttributes[i].key,
@@ -900,11 +971,10 @@ contract AttributesRepository is IERC7508 {
             }
         }
 
-        for (uint256 i = 0; i < boolAttributes.length; ) {
-            _boolValues[collection][tokenId][
-                _getIdForKey(boolAttributes[i].key)
-            ] = boolAttributes[i].value;
-            emit BoolAttributeUpdated(
+        length = boolAttributes.length;
+        for (uint256 i; i < length; ) {
+            _setBoolAttribute(
+                _msgSender(),
                 collection,
                 tokenId,
                 boolAttributes[i].key,
@@ -915,11 +985,10 @@ contract AttributesRepository is IERC7508 {
             }
         }
 
-        for (uint256 i = 0; i < addressAttributes.length; ) {
-            _addressValues[collection][tokenId][
-                _getIdForKey(addressAttributes[i].key)
-            ] = addressAttributes[i].value;
-            emit AddressAttributeUpdated(
+        length = addressAttributes.length;
+        for (uint256 i; i < length; ) {
+            _setAddressAttribute(
+                _msgSender(),
                 collection,
                 tokenId,
                 addressAttributes[i].key,
@@ -930,11 +999,10 @@ contract AttributesRepository is IERC7508 {
             }
         }
 
-        for (uint256 i = 0; i < bytesAttributes.length; ) {
-            _bytesValues[collection][tokenId][
-                _getIdForKey(bytesAttributes[i].key)
-            ] = bytesAttributes[i].value;
-            emit BytesAttributeUpdated(
+        length = bytesAttributes.length;
+        for (uint256 i; i < length; ) {
+            _setBytesAttribute(
+                _msgSender(),
                 collection,
                 tokenId,
                 bytesAttributes[i].key,
@@ -944,6 +1012,106 @@ contract AttributesRepository is IERC7508 {
                 ++i;
             }
         }
+    }
+
+    function _checkIfMultipleCollectionsAndTokens(
+        address[] memory collections,
+        uint256[] memory tokenIds,
+        uint256 attributesLength
+    )
+        internal
+        pure
+        returns (
+            bool multipleCollections,
+            bool multipleTokens,
+            bool multipleAttributes,
+            uint256 loopLength
+        )
+    {
+        multipleCollections = collections.length != 1;
+        multipleTokens = tokenIds.length != 1;
+        multipleAttributes = attributesLength != 1;
+        if (
+            (multipleCollections &&
+                multipleAttributes &&
+                collections.length != attributesLength) ||
+            (multipleTokens &&
+                multipleAttributes &&
+                tokenIds.length != attributesLength) ||
+            (multipleCollections &&
+                multipleTokens &&
+                collections.length != tokenIds.length)
+        ) {
+            revert LengthsMismatch();
+        }
+
+        if (multipleCollections) {
+            loopLength = collections.length;
+        } else if (multipleTokens) {
+            loopLength = tokenIds.length;
+        } else {
+            loopLength = attributesLength;
+        }
+    }
+
+    function _setBoolAttribute(
+        address caller,
+        address collection,
+        uint256 tokenId,
+        string memory key,
+        bool value
+    ) internal {
+        _onlyAuthorizedCaller(caller, collection, key, tokenId);
+        _boolValues[collection][tokenId][_getIdForKey(key)] = value;
+        emit BoolAttributeUpdated(collection, tokenId, key, value);
+    }
+
+    function _setBytesAttribute(
+        address caller,
+        address collection,
+        uint256 tokenId,
+        string memory key,
+        bytes memory value
+    ) internal {
+        _onlyAuthorizedCaller(caller, collection, key, tokenId);
+        _bytesValues[collection][tokenId][_getIdForKey(key)] = value;
+        emit BytesAttributeUpdated(collection, tokenId, key, value);
+    }
+
+    function _setAddressAttribute(
+        address caller,
+        address collection,
+        uint256 tokenId,
+        string memory key,
+        address value
+    ) internal {
+        _onlyAuthorizedCaller(caller, collection, key, tokenId);
+        _addressValues[collection][tokenId][_getIdForKey(key)] = value;
+        emit AddressAttributeUpdated(collection, tokenId, key, value);
+    }
+
+    function _setStringAttribute(
+        address caller,
+        address collection,
+        uint256 tokenId,
+        string memory key,
+        string memory value
+    ) internal {
+        _onlyAuthorizedCaller(caller, collection, key, tokenId);
+        _stringValues[collection][tokenId][_getIdForKey(key)] = value;
+        emit StringAttributeUpdated(collection, tokenId, key, value);
+    }
+
+    function _setUintAttribute(
+        address caller,
+        address collection,
+        uint256 tokenId,
+        string memory key,
+        uint256 value
+    ) internal {
+        _onlyAuthorizedCaller(caller, collection, key, tokenId);
+        _uintValues[collection][tokenId][_getIdForKey(key)] = value;
+        emit UintAttributeUpdated(collection, tokenId, key, value);
     }
 
     /**
@@ -960,10 +1128,6 @@ contract AttributesRepository is IERC7508 {
         bytes32 r,
         bytes32 s
     ) external {
-        if (block.timestamp > deadline) {
-            revert ExpiredDeadline();
-        }
-
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
@@ -980,14 +1144,8 @@ contract AttributesRepository is IERC7508 {
                 )
             )
         );
-        address signer = ecrecover(digest, v, r, s);
-        if (signer != setter) {
-            revert InvalidSignature();
-        }
-        _onlyAuthorizedCaller(signer, collection, key, tokenId);
-
-        _uintValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit UintAttributeUpdated(collection, tokenId, key, value);
+        _checkDeadlineAndSigner(setter, deadline, digest, v, r, s);
+        _setUintAttribute(setter, collection, tokenId, key, value);
     }
 
     /**
@@ -1004,10 +1162,6 @@ contract AttributesRepository is IERC7508 {
         bytes32 r,
         bytes32 s
     ) external {
-        if (block.timestamp > deadline) {
-            revert ExpiredDeadline();
-        }
-
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
@@ -1024,16 +1178,8 @@ contract AttributesRepository is IERC7508 {
                 )
             )
         );
-        address signer = ecrecover(digest, v, r, s);
-        if (signer != setter) {
-            revert InvalidSignature();
-        }
-        _onlyAuthorizedCaller(signer, collection, key, tokenId);
-
-        _stringValueIds[collection][tokenId][
-            _getIdForKey(key)
-        ] = _getStringIdForValue(collection, value);
-        emit StringAttributeUpdated(collection, tokenId, key, value);
+        _checkDeadlineAndSigner(setter, deadline, digest, v, r, s);
+        _setStringAttribute(setter, collection, tokenId, key, value);
     }
 
     /**
@@ -1050,10 +1196,6 @@ contract AttributesRepository is IERC7508 {
         bytes32 r,
         bytes32 s
     ) external {
-        if (block.timestamp > deadline) {
-            revert ExpiredDeadline();
-        }
-
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
@@ -1070,14 +1212,8 @@ contract AttributesRepository is IERC7508 {
                 )
             )
         );
-        address signer = ecrecover(digest, v, r, s);
-        if (signer != setter) {
-            revert InvalidSignature();
-        }
-        _onlyAuthorizedCaller(signer, collection, key, tokenId);
-
-        _boolValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit BoolAttributeUpdated(collection, tokenId, key, value);
+        _checkDeadlineAndSigner(setter, deadline, digest, v, r, s);
+        _setBoolAttribute(setter, collection, tokenId, key, value);
     }
 
     /**
@@ -1094,10 +1230,6 @@ contract AttributesRepository is IERC7508 {
         bytes32 r,
         bytes32 s
     ) external {
-        if (block.timestamp > deadline) {
-            revert ExpiredDeadline();
-        }
-
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
@@ -1114,14 +1246,8 @@ contract AttributesRepository is IERC7508 {
                 )
             )
         );
-        address signer = ecrecover(digest, v, r, s);
-        if (signer != setter) {
-            revert InvalidSignature();
-        }
-        _onlyAuthorizedCaller(signer, collection, key, tokenId);
-
-        _bytesValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit BytesAttributeUpdated(collection, tokenId, key, value);
+        _checkDeadlineAndSigner(setter, deadline, digest, v, r, s);
+        _setBytesAttribute(setter, collection, tokenId, key, value);
     }
 
     /**
@@ -1138,10 +1264,6 @@ contract AttributesRepository is IERC7508 {
         bytes32 r,
         bytes32 s
     ) external {
-        if (block.timestamp > deadline) {
-            revert ExpiredDeadline();
-        }
-
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
@@ -1158,14 +1280,25 @@ contract AttributesRepository is IERC7508 {
                 )
             )
         );
+        _checkDeadlineAndSigner(setter, deadline, digest, v, r, s);
+        _setAddressAttribute(setter, collection, tokenId, key, value);
+    }
+
+    function _checkDeadlineAndSigner(
+        address setter,
+        uint256 deadline,
+        bytes32 digest,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal view {
+        if (block.timestamp > deadline) {
+            revert ExpiredDeadline();
+        }
         address signer = ecrecover(digest, v, r, s);
         if (signer != setter) {
             revert InvalidSignature();
         }
-        _onlyAuthorizedCaller(signer, collection, key, tokenId);
-
-        _addressValues[collection][tokenId][_getIdForKey(key)] = value;
-        emit AddressAttributeUpdated(collection, tokenId, key, value);
     }
 
     /**
@@ -1173,40 +1306,15 @@ contract AttributesRepository is IERC7508 {
      *  IDs are shared among all tokens and types
      * @dev The ID of 0 is not used as it represents the default value.
      * @param key The attribute key
-     * @return The ID of the key
+     * @return keyID The ID of the key
      */
-    function _getIdForKey(string memory key) internal returns (uint256) {
+    function _getIdForKey(string memory key) internal returns (uint256 keyID) {
         if (_keysToIds[key] == 0) {
-            _totalAttributes++;
-            _keysToIds[key] = _totalAttributes;
-            return _totalAttributes;
+            _nextKeyId++;
+            _keysToIds[key] = _nextKeyId;
+            keyID = _nextKeyId;
         } else {
-            return _keysToIds[key];
-        }
-    }
-
-    /**
-     * @notice Used to get the ID for a string value. If the value does not exist, a new ID is created.
-     * @dev IDs are shared among all tokens and used only for strings.
-     * @param collection Address of the collection being checked for string ID
-     * @param value The attribute value
-     * @return The id for the string value
-     */
-    function _getStringIdForValue(
-        address collection,
-        string memory value
-    ) internal returns (uint256) {
-        if (_stringValueToId[collection][value] == 0) {
-            _totalStringValues[collection]++;
-            _stringValueToId[collection][value] = _totalStringValues[
-                collection
-            ];
-            _stringIdToValue[collection][
-                _totalStringValues[collection]
-            ] = value;
-            return _totalStringValues[collection];
-        } else {
-            return _stringValueToId[collection][value];
+            keyID = _keysToIds[key];
         }
     }
 
