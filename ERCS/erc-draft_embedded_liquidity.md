@@ -2,7 +2,7 @@
 title: Bonding Curve-Embedded Liquidity for ERC-721 Non-Fungible Tokens (NFTs)
 description: Standard for embedding liquidity into ERC-721 Non-Fungible Tokens (NFTs) without modifications to ERC-721.
 author: AI Protocol <gm@aiprotocol.info>
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/discussion-for-bonding-curve-embedded-liquidity-for-erc-721-non-fungible-tokens-nfts/19079
 status: Draft
 type: Standards Track
 category: ERC
