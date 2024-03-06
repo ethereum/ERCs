@@ -16,15 +16,9 @@ Non-fungible [ERC-721](./eip-721.md) token contracts have experienced steady dis
 
 ## Motivation
 
-<!--
-  This section is optional.
+Fractionalization efforts have typically followed a high friction, segmented implementation pattern, whereby existing NFTs are wrapped into a separate contract. Recent experiments with hybrid token models supporting native fractionalization have found success in their flexibility and ease of integration with pre-existing protocols.
 
-  The motivation section should include a description of any nontrivial problems the EIP solves. It should not describe how the EIP solves those problems, unless it is not immediately obvious. It should not describe why the EIP should be made into a standard, unless it is not immediately obvious.
-
-  With a few exceptions, external links are not allowed. If you feel that a particular resource would demonstrate a compelling case for your EIP, then save it as a printer-friendly PDF, put it in the assets folder, and link to that copy.
-
-  TODO: Remove this comment before submitting
--->
+These token models, however, lack consensus surrounding their operation and implementation. This standard defines a specification by which native fractionalization may be supporting in a minimal and non-conflicting manner optimized for backwards compatability with ERC-20 and ERC-721 standards.
 
 ## Specification
 
@@ -256,15 +250,19 @@ TBD
 
 ## Backwards Compatibility
 
-The fractional non-fungible token standard aims to be nearly backwards compatible with existing ERC-721 and ERC-20 standards, though makes no claim to fully adhere to either.
+The fractional non-fungible token standard aims to be nearly backwards compatible with existing ERC-721 and ERC-20 standards, though makes no claim to fully adhere to either and has as such been proposed through a distinct interface.
 
 ### Events
 
-Events in ERC-721 and ERC-20 specifications share conflicting selectors on approval and transfer, meaning an adherent hybrid of the two cannot be achieved. In practice, however, distinct usage of indexed event parameters between the two specifications allows for
+Events in ERC-721 and ERC-20 specifications share conflicting selectors on approval and transfer, meaning an adherent hybrid of the two cannot be achieved. In practice, however, usage of like events with distinct parameter indexing and non-conflicting field values presents the most effective path towards backwards compatability.
 
 ### balanceOf
 
-The `balanceOf` function as defined in both ERC-20 and ERC-721 standards varies, in practice, to represent either whole or fractional token ownership. Given franctional non-fungible tokens should adhere to an underlying fractional representation, it follows that this function should return a balance in that representation. This does, however, imply that fractional NFT contracts cannot fully adhere to the specification provided by ERC-721.
+The `balanceOf` function as defined in both ERC-20 and ERC-721 standards varies, in practice, to represent either fractional or whole token ownership respectively. Given fractional non-fungible tokens should adhere to an underlying fractional representation, it follows that this function should return a balance in that representation. This does, however, imply that fractional NFT contracts cannot fully adhere to the `balanceOf` specification provided by ERC-721.
+
+### Success Return Values
+
+The `transfer` and `approve` functions both return a boolean value indicating success or failure. This is non-standard for the ERC-721 specification, though is standard for ERC-20. Fractional non-fungible tokens adhere to a returned boolean value to meet minimum expectations for the ERC-20 standard, acknowledging that this deviates from a state of ideal backwards compatability.
 
 ## Security Considerations
 
