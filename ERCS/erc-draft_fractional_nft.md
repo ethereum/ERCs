@@ -244,7 +244,9 @@ The fractional non-fungible token standard aims to be nearly backwards compatibl
 
 ### Events
 
-Events in ERC-721 and ERC-20 specifications share conflicting selectors on approval and transfer, meaning an adherent hybrid of the two cannot be achieved. In practice, however, usage of like events with distinct parameter indexing and non-conflicting field values presents the most effective path towards backwards compatability.
+Events in ERC-721 and ERC-20 specifications share conflicting selectors on approval and transfer, meaning an adherent hybrid of the two cannot be achieved.
+
+This is one of the few areas where backwards compatiblity has been intentionally broken, resulting in a new series of events with either a `Fractional` or `NonFungible` prefix.
 
 ### balanceOf
 
