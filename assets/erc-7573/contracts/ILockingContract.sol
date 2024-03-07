@@ -32,28 +32,28 @@ interface ILockingContract {
      * @param initiator is the address from which trade was incepted
      * @param id the trade ID
      */
-    event AssetTransferIncepted(address initiator, uint id);
+    event TransferIncepted(address initiator, bytes32 id);
 
     /**
      * @dev Emitted  when the transfer for the asset is incepted
      * @param confirmer is the address from which trade was incepted
      * @param id the trade ID
      */
-    event AssetTransferConfirmed(address confirmer, uint id);
+    event TransferConfirmed(address confirmer, bytes32 id);
 
     /**
      * @dev Emitted when a confirmed trade is set to active - e.g. when termination fee amounts are provided
      * @param id the trade ID
      * @param key the key that was used to claim the asset
      */
-    event AssetClaimed(uint id, string key);
+    event TokenClaimed(bytes32 id, string key);
 
     /**
      * @dev Emitted when an active trade is terminated
      * @param id the trade ID
      * @param key the key that was used to claim the asset
      */
-    event AssetReclaimed(uint id, string key);
+    event TokenReclaimed(bytes32 id, string key);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
@@ -64,7 +64,7 @@ interface ILockingContract {
      * @param from The address of the seller (the address of the buyer is message.sender).
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the asset.
      */
-    function inceptTransfer(uint id, int amount, address from, string keyEncryptedSeller) external;
+    function inceptTransfer(bytes32 id, int amount, address from, string memory keyEncryptedSeller) external;
 
     /**
      * @notice Called from the seller of the asset to confirm asset transfer. Locks the asset.
@@ -73,7 +73,7 @@ interface ILockingContract {
      * @param to The address of the buyer (the address of the seller is message.sender).
      * @param keyEncryptedBuyer Encryption of the key that can be used by the seller to claim the asset.
      */
-    function confirmTransfer(uint id, int amount, address to, string keyEncryptedBuyer) external;
+    function confirmTransfer(bytes32 id, int amount, address to, string memory keyEncryptedBuyer) external;
 
     /**
      * @notice Called from the buyer or seller to claim or (re-)claim the asset. Unlocks the asset.
@@ -81,5 +81,5 @@ interface ILockingContract {
      * @param id the trade identifier of the trade.
      * @param key The key for which the hash or encryption matches either keyEncryptedBuyer (for transfer to buyer) or keyEncryptedSeller (for transfer to seller).
      */
-    function transferWithKey(uint id, string key) external;
+    function transferWithKey(bytes32 id, string memory key) external;
 }

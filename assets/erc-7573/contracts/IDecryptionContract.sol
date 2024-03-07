@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity >=0.7.0;
+pragma solidity 0.8.15;
 
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------*/
 
@@ -27,7 +27,7 @@ interface IDecryptionContract {
      * @dev Emitted  when the transfer for the payment is incepted.
      * @param initiator is the address from which payment transfer was incepted
      * @param id the trade ID.
-     * @param the amount to be transfered.
+     * @param amount to be transfered.
      */
     event PaymentTransferIncepted(address initiator, uint id, int amount);
 
@@ -57,7 +57,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function inceptTransfer(uint id, int amount, address from, string keyEncryptedSuccess, string keyEncryptedFailure) external;
+    function inceptTransfer(uint id, int amount, address from, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
 
     /**
      * @notice Called from the sender of the payment to initiate completion of the payment transfer.
@@ -68,7 +68,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function transferAndDecrypt(uint id, address from, address to, keyEncryptedSuccess, string keyEncryptedFailure) external;
+    function transferAndDecrypt(uint id, address from, address to, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
 
     /**
      * @notice Called from the payer of the payment to cancel payment transfer.
@@ -79,5 +79,5 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function cancelAndDecrypt(uint id, address from, address to, keyEncryptedSuccess, string keyEncryptedFailure) external;
+    function cancelAndDecrypt(uint id, address from, address to, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
 }
