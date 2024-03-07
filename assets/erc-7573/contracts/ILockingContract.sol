@@ -4,52 +4,51 @@ pragma solidity >=0.7.0;
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------*/
 
 /**
- * @title ERC-DVP ASSET Locking of assets and conditional decryption of release keys upon payment to allow secure stateless delivery-versus-payment.
+ * @title ERC-7573 Locking Contract - Conditional unlocking of tokens, conditional to presentation of key.
  * @dev Interface specification for a smart contract that enables secure stateless delivery-versus-payment.
  *
- * The specification consists of two interface, one
- * is implemented by a smart contract on the "asset chain"
- * (the asset contract), the other is implemented by
- * a smart contract on the "payment chain" (the payment contract).
+ * The specification consists of two interface,
+ * one is implemented by a smart contract on one chain (e.g. the "asset chain" - the asset contract), the other is implemented by
+ * a smart contract on another chain (e.g. the "payment chain" - the payment contract).
+ * One contract performs a locking, where a transfer is conditional on a presented key: locking contract.
+ * The other contract performs a condition decryption of keys, conditional to transfer success of failure: decryption contract.
  *
- * This is the asset contracts interface.
+ * This is the locking contracts interface.
  *
- * The rationale is that the asset is locked with with two encrypted keys
+ * The rationale is that the token is locked with with two encrypted keys
  * or a hashes of keys associated with two different adresses (buyer/seller).
  *
- * The asset in transfered to the address of the buyer, if the
- * buyer's key is presented.
+ * The asset in transfered to the address of the buyer, if the buyer's key is presented.
  *
- * The asset in (re-)transfered to the address of the seller, if the
- * seller's key is presented.
+ * The asset in (re-)transfered to the address of the seller, if the seller's key is presented.
  */
 interface ILockingContract {
 
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 
     /**
-     * @dev Emitted  when the transfer for the asset is incepted
+     * @dev Emitted  when the transfer for the token is incepted
      * @param initiator is the address from which trade was incepted
      * @param id the trade ID
      */
     event TransferIncepted(address initiator, bytes32 id);
 
     /**
-     * @dev Emitted  when the transfer for the asset is incepted
+     * @dev Emitted  when the transfer for the token is incepted
      * @param confirmer is the address from which trade was incepted
      * @param id the trade ID
      */
     event TransferConfirmed(address confirmer, bytes32 id);
 
     /**
-     * @dev Emitted when a confirmed trade is set to active - e.g. when termination fee amounts are provided
+     * @dev Emitted when the token was successfully claimed (forward to buyer).
      * @param id the trade ID
      * @param key the key that was used to claim the asset
      */
     event TokenClaimed(bytes32 id, string key);
 
     /**
-     * @dev Emitted when an active trade is terminated
+     * @dev Emitted when the token was re-claimed (back to seller).
      * @param id the trade ID
      * @param key the key that was used to claim the asset
      */
@@ -58,26 +57,26 @@ interface ILockingContract {
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
     /**
-     * @notice Called from the buyer of the asset to initiate asset transfer.
+     * @notice Called from the buyer of the token to initiate token transfer.
      * @dev emits a {AssetTransferIncepted}
      * @param id the trade identifier of the trade.
      * @param from The address of the seller (the address of the buyer is message.sender).
-     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the asset.
+     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
      */
     function inceptTransfer(bytes32 id, int amount, address from, string memory keyEncryptedSeller) external;
 
     /**
-     * @notice Called from the seller of the asset to confirm asset transfer. Locks the asset.
+     * @notice Called from the seller of the token to confirm token transfer. Locks the token.
      * @dev emits a {AssetTransferConfirmed}
      * @param id the trade identifier of the trade.
      * @param to The address of the buyer (the address of the seller is message.sender).
-     * @param keyEncryptedBuyer Encryption of the key that can be used by the seller to claim the asset.
+     * @param keyEncryptedBuyer Encryption of the key that can be used by the seller to claim the token.
      */
     function confirmTransfer(bytes32 id, int amount, address to, string memory keyEncryptedBuyer) external;
 
     /**
-     * @notice Called from the buyer or seller to claim or (re-)claim the asset. Unlocks the asset.
-     * @dev emits a {AssetClaimed} or {AssetReclaimed}
+     * @notice Called from the buyer or seller to claim or (re-)claim the token. Unlocks the token.
+     * @dev emits a {TokenClaimed} or {TokenReclaimed}
      * @param id the trade identifier of the trade.
      * @param key The key for which the hash or encryption matches either keyEncryptedBuyer (for transfer to buyer) or keyEncryptedSeller (for transfer to seller).
      */
