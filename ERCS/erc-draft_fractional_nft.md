@@ -32,7 +32,7 @@ All ERC-XXXX compliant contracts MUST implement the IERCXXXX and IERC165 interfa
 
 Compliant contracts MUST emit fractional Approval or Transfer events on approval or transfer of tokens in fractional representation. Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval or Transfer on approval for all, approval, and transfer in non-fungible representation.
 
-Note that this event interface draws from existing ERC-721 and ERC-20 standards but are not backwards compatible.
+Note that the events portion of the interface draws from existing ERC-721 and ERC-20 standards but is not fully backwards compatible.
 
 ```solidity
 interface IERCXXXX is /* IERC165 */ {
