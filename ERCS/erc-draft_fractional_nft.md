@@ -236,7 +236,39 @@ interface IERCXXXXMetadata {
 
 ## Rationale
 
-TBD
+The design ideology behind this proposal can best be described as a standard, ERC-721 aligned non-fungible token implementation that represents balances in a fractional manner, while supporting traditional, non-specific transfer / approval logic seen in the ERC-20 standard.
+
+It's important to note that our goal is to implicitly support as high a degree of backwards compatability with ERC-20 and ERC-721 standards as possible to reduce or negate integration lift for existing protocols. Much of the rationale behind the proposed fractional non-fungible token specification resides within two trains of thought: isolating interface design to adhere to either the ERC-721 or ERC-20 standards, or outlining implementation standards that isolate overlapping functionality at the logic level.
+
+### ID and Amount Isolation
+
+A crucial piece of our design approach has been to ensure that the discrete value space representing ID's and amounts is sufficiently isolated. More explicitly, this should be taken to mean that for all possible inputs, no ID may be assumed to be an amount and no amount may be assumed to be an ID. Given the goal of this proposal is to outline an interface and set of standards, we won't dive into implementation guidelines, though want to note that this effect can be achieved by checking ownership of a given ID input, isolating a range for NFT ID's, etc.
+
+This approach ensures that logic in "overlapping" interfaces is similarly isolated, such that the probability of unexpected outcome for a given function call is minimized.
+
+### Transfer Logic
+
+Much of the decision
+
+### Events
+
+Given event selectors on both ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatability efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
+
+We feel that, when moving towards standardization, ensuring events are properly descriptive and isolated is the ideal solution despite introducing complexity for indexing software. As a result, we adhere to traditional transfer and approval event definitions, though distinguish these events by the `Fractional` or `NonFungible` prefix.
+
+### Pathing Logic
+
+### NFT Banking
+
+### ERC-165 Interface
+
+We have decided to include the ERC-165 interface in specification both to adhere to ERC-721 design philosophy, and as a means of exposing interfaces at the contract level. We see this as a valuable, accepted standard to adhere to such that integrating applications may identify underlying specification.
+
+Note that ERC-XXXX contracts should not make any claim through `supportsInterface` to support ERC-721 or ERC-20 standards as, despite strong backwards compatibility efforts, these contracts cannot fully adhere to existing specifications.
+
+### Metadata
+
+In-line with ERC-721, we've decided to isolate replicated metadata functionality through a separate interface. This interface includes traditional naming and token URI logic, though also introduces patterns surrounding token banking visibility, as outlined above in both the NFT Banking and Transfer Logic sections.
 
 ## Backwards Compatibility
 
@@ -246,7 +278,7 @@ The fractional non-fungible token standard aims to be nearly backwards compatibl
 
 Events in ERC-721 and ERC-20 specifications share conflicting selectors on approval and transfer, meaning an adherent hybrid of the two cannot be achieved.
 
-This is one of the few areas where backwards compatiblity has been intentionally broken, resulting in a new series of events with either a `Fractional` or `NonFungible` prefix.
+This is one of the few areas where backwards compatiblity has been intentionally broken, resulting in a new series of events with either a `Fractional` or `NonFungible` prefix. We believe that a decisive move to a non-conflicting, descriptive solution is ideal here, though will require external lift for indexing software.
 
 ### balanceOf
 
