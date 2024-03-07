@@ -20,7 +20,7 @@ Fractional ownership of NFTs has historically relied on external protocols that 
 
 Other approaches involve multiple linked contracts, which add unnecessary complexity and overhead to the interface.
 
-This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability and flexiblity.
+This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability or flexiblity.
 
 ## Specification
 
@@ -229,17 +229,17 @@ interface IERCXXXXMetadata {
   /// @return The token's URI as a string
   function tokenURI(uint256 id_) external view returns (string memory uri);
 
-  /// @notice Get the number of NFTs not currently owned
+  /// @notice Get the number of NFTs that have been minted but are not currently owned.
   /// @dev This should be the number of unowned NFTs, limited by the total
-  ///      fractional supply
-  /// @return The number of NFTs not currently owned
-  function getNFTQueueLength() external view returns (uint256 queueLength);
+  ///      fractional supply.
+  /// @return The number of NFTs not currently owned.
+  function getBankedNFTsLength() external view returns (uint256 queueLength);
 
-  /// @notice Get a paginated list of NFTs not currently owned
-  /// @param start_ Start index in queue
-  /// @param count_ Number of tokens to return from start index, inclusive
-  /// @return An array of queued NFTs from `start_`, of maximum length `count_`
-  function getNFTsInQueue(
+  /// @notice Get a paginated list of NFTs that have been minted but are not currently owned.
+  /// @param start_ Start index in queue.
+  /// @param count_ Number of tokens to return from start index, inclusive.
+  /// @return An array of queued NFTs from `start_`, of maximum length `count_`.
+  function getBankedNFTs(
     uint256 start_,
     uint256 count_
   ) external view returns (uint256[] memory nftsInQueue);
