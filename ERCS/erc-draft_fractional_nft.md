@@ -1,5 +1,5 @@
 ---
-title: Fractionally Represented Non-fungible Token Standard
+title: Fractionally Represented Non-Fungible Token Standard
 description: A standard for fractionally represented non-fungible tokens.
 author: Acme (@0xacme), Calder (@caldereth)
 discussions-to: <URL>
@@ -18,7 +18,7 @@ This proposal introduces a standard for fractionally represented non-fungible to
 
 Fractional ownership of NFTs has historically relied on external protocols that manage division and reconstitution of individual NFTs into fractional representations. The approach of dividing specific NFTs results in fragmented liquidity of the total token supply, as the fractional representations of two NFTs are not equivalent and therefore must be traded separately. Additionally, this approach requires locking of fractionalized NFTs, preventing free transfer until they are reconstituted.
 
-Other approaches involve multiple linked contracts, which add unnecessary complexity and overhead to the interface.
+Other approaches involve multiple linked contracts, which add unnecessary complexity and overhead to the interface. Dual linked contracts are also an atypical pattern for token contracts and therefore harder for users to understand.
 
 This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability or flexiblity.
 
@@ -26,7 +26,7 @@ This standard offers a unified solution to fractional ownership, aiming to incre
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-### Fractionally Represented Non-fungible Token Interface
+### Fractionally Represented Non-Fungible Token Interface
 
 All ERC-XXXX compliant contracts MUST implement the IERCXXXX and IERC165 interfaces.
 
@@ -69,22 +69,22 @@ interface IERCXXXX is /* IERC165 */ {
     address spender_
   ) external view returns (uint256 allowance);
 
-  /// @notice Query the owner of a specific NFT
+  /// @notice Query the owner of a specific NFT.
   /// @dev Tokens owned by the zero address are considered invalid and should revert on
-  ///      ownership query
-  /// @param id_ The unique identifier for an NFT
-  /// @return The address of the token's owner
+  ///      ownership query.
+  /// @param id_ The unique identifier for an NFT.
+  /// @return The address of the token's owner.
   function ownerOf(uint256 id_) external view returns (address owner);
 
   /// @notice Set approval for an address to spend a fractional amount,
-  ///         or to spend a specific NFT
-  /// @dev There must be no overlap between valid ids and fractional values
+  ///         or to spend a specific NFT.
+  /// @dev There must be no overlap between valid ids and fractional values.
   /// @dev Throws unless `msg.sender` is the current NFT owner, or an authorized
-  ///      operator of the current owner if an id is provided
+  ///      operator of the current owner if an id is provided.
   /// @dev Throws if the id is not a valid NFT
-  /// @param spender_ The spender of a given token or value
-  /// @param amountOrId_ A fractional value or id to approve
-  /// @return Whether the approval operation was successful or not
+  /// @param spender_ The spender of a given token or value.
+  /// @param amountOrId_ A fractional value or id to approve.
+  /// @return Whether the approval operation was successful or not.
   function approve(
     address spender_,
     uint256 amountOrId_
@@ -168,22 +168,22 @@ All ERC-XXXX compliant contracts MUST use the following library definitions. Com
 Note that these event libraries draw from existing ERC-721 and ERC-20 standards as a means of ensuring a reasonable degree of backward compatability and alignment with existing expectations surrounding event definitions.
 
 ```solidity
-/// @title ERC-XXXX Fractional Event Library
-library FractionalEvents {
+/// @title ERC-XXXX Fractional Event Interface
+interface FractionalEvents {
   /// @dev This emits when fractional representation approval for a given spender
   ///      is changed or reaffirmed.
-  event Approval(address indexed owner, address indexed spender, uint256 value);
+  event FractionalApproval(address indexed owner, address indexed spender, uint256 value);
 
   /// @dev This emits when ownership of fractionally represented tokens changes
   ///      by any mechanism. This event emits when tokens are both created and destroyed,
   ///      ie. when from and to are assigned to the zero address respectively.
-  event Transfer(address indexed from, address indexed to, uint256 amount);
+  event FractionalTransfer(address indexed from, address indexed to, uint256 amount);
 }
 ```
 
 ```solidity
-/// @title ERC-XXXX Non-Fungible Event Library
-library NonFungibleEvents {
+/// @title ERC-XXXX Non-Fungible Event Interface
+interface NonFungibleEvents {
   /// @dev This emits when an operator is enabled or disabled for an owner.
   ///      The operator can manage all NFTs of the owner.
   event ApprovalForAll(
@@ -195,7 +195,7 @@ library NonFungibleEvents {
   /// @dev This emits when the approved spender is changed or reaffirmed for a given NFT.
   ///      A zero address emitted as spender implies that no addresses are approved for
   ///      this token.
-  event Approval(
+  event NonFungibleApproval(
     address indexed owner,
     address indexed spender,
     uint256 indexed id
@@ -204,11 +204,11 @@ library NonFungibleEvents {
   /// @dev This emits when ownership of any NFT changes by any mechanism.
   ///      This event emits when NFTs are both created and destroyed, ie. when
   ///      from and to are assigned to the zero address respectively.
-  event Transfer(address indexed from, address indexed to, uint256 indexed id);
+  event NonFungibleTransfer(address indexed from, address indexed to, uint256 indexed id);
 }
 ```
 
-### Fractionally Represented Non-fungible Token Metadata Interface
+### Fractionally Represented Non-Fungible Token Metadata Interface
 
 This is a RECOMMENDED interface, identical in definition to the [ERC-721 Metadata Interface](./eip-721.md). Rather than using this interface directly, a distinct metadata interface should be used here to avoid confusion surrounding ERC-721 inheritance.
 
