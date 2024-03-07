@@ -30,8 +30,43 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 All ERC-XXXX compliant contracts MUST implement the IERCXXXX and IERC165 interfaces.
 
+Compliant contracts MUST emit fractional Approval or Transfer events on approval or transfer of tokens in fractional representation. Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval or Transfer on approval for all, approval, and transfer in non-fungible representation.
+
+Note that this event interface draws from existing ERC-721 and ERC-20 standards but are not backwards compatible.
+
 ```solidity
 interface IERCXXXX is /* IERC165 */ {
+    /// @dev This emits when fractional representation approval for a given spender
+  ///      is changed or reaffirmed.
+  event FractionalApproval(address indexed owner, address indexed spender, uint256 value);
+
+  /// @dev This emits when ownership of fractionally represented tokens changes
+  ///      by any mechanism. This event emits when tokens are both created and destroyed,
+  ///      ie. when from and to are assigned to the zero address respectively.
+  event FractionalTransfer(address indexed from, address indexed to, uint256 amount);
+
+  /// @dev This emits when an operator is enabled or disabled for an owner.
+  ///      The operator can manage all NFTs of the owner.
+  event ApprovalForAll(
+    address indexed owner,
+    address indexed operator,
+    bool approved
+  );
+
+  /// @dev This emits when the approved spender is changed or reaffirmed for a given NFT.
+  ///      A zero address emitted as spender implies that no addresses are approved for
+  ///      this token.
+  event NonFungibleApproval(
+    address indexed owner,
+    address indexed spender,
+    uint256 indexed id
+  );
+
+  /// @dev This emits when ownership of any NFT changes by any mechanism.
+  ///      This event emits when NFTs are both created and destroyed, ie. when
+  ///      from and to are assigned to the zero address respectively.
+  event NonFungibleTransfer(address indexed from, address indexed to, uint256 indexed id);
+
   /// @notice Decimal places in fractional representation
   /// @dev Decimals are used as a means of determining when balances or amounts
   ///      contain whole or purely fractional components
@@ -158,53 +193,6 @@ interface IERC165 {
     /// @return `true` if the contract implements `interfaceID` and
     ///         `interfaceID` is not 0xffffffff, `false` otherwise
     function supportsInterface(bytes4 interfaceID_) external view returns (bool);
-}
-```
-
-### Fractionally Represented Non-fungible Token Events
-
-All ERC-XXXX compliant contracts MUST use the following library definitions. Compliant contracts MUST emit fractional Approval or Transfer events on approval or transfer of tokens in fractional representation. Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval or Transfer on approval for all, approval, and transfer in non-fungible representation.
-
-Note that these event libraries draw from existing ERC-721 and ERC-20 standards as a means of ensuring a reasonable degree of backward compatability and alignment with existing expectations surrounding event definitions.
-
-```solidity
-/// @title ERC-XXXX Fractional Event Interface
-interface FractionalEvents {
-  /// @dev This emits when fractional representation approval for a given spender
-  ///      is changed or reaffirmed.
-  event FractionalApproval(address indexed owner, address indexed spender, uint256 value);
-
-  /// @dev This emits when ownership of fractionally represented tokens changes
-  ///      by any mechanism. This event emits when tokens are both created and destroyed,
-  ///      ie. when from and to are assigned to the zero address respectively.
-  event FractionalTransfer(address indexed from, address indexed to, uint256 amount);
-}
-```
-
-```solidity
-/// @title ERC-XXXX Non-Fungible Event Interface
-interface NonFungibleEvents {
-  /// @dev This emits when an operator is enabled or disabled for an owner.
-  ///      The operator can manage all NFTs of the owner.
-  event ApprovalForAll(
-    address indexed owner,
-    address indexed operator,
-    bool approved
-  );
-
-  /// @dev This emits when the approved spender is changed or reaffirmed for a given NFT.
-  ///      A zero address emitted as spender implies that no addresses are approved for
-  ///      this token.
-  event NonFungibleApproval(
-    address indexed owner,
-    address indexed spender,
-    uint256 indexed id
-  );
-
-  /// @dev This emits when ownership of any NFT changes by any mechanism.
-  ///      This event emits when NFTs are both created and destroyed, ie. when
-  ///      from and to are assigned to the zero address respectively.
-  event NonFungibleTransfer(address indexed from, address indexed to, uint256 indexed id);
 }
 ```
 
