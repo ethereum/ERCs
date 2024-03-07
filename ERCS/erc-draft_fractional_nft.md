@@ -12,13 +12,15 @@ requires: 165, 20, 721
 
 ## Abstract
 
-Non-fungible [ERC-721](./eip-721.md) token contracts have experienced steady discussion and development surrounding the concept of fractionalization, a means by which a distinct, singular token may be represented fractionally. This proposal defines a standard by which the concept of fractionalization may be natively implemented and supported in non-fungible token contracts.
+This proposal introduces a standard for fractionally represented non-fungible tokens, allowing NFTs to be managed and owned fractionally within a single contract. This approach enables ERC-721 NFTs to coexist with ERC-20 tokens seamlessly, enhancing liquidity and access without dividing the NFT itself, and without the need for an explicit conversion step. The standard includes mechanisms for both fractional and whole token transfers, approvals, and event emissions.
 
 ## Motivation
 
-Fractionalization efforts have typically followed a high friction, segmented implementation pattern, whereby existing NFTs are wrapped into a separate contract. Recent experiments with hybrid token models supporting native fractionalization have found success in their flexibility and ease of integration with pre-existing protocols.
+Fractional ownership of NFTs has historically relied on external protocols that manage division and reconstitution of individual NFTs into fractional representations. The approach of dividing specific NFTs results in fragmented liquidity of the total token supply, as the fractional representations of two NFTs are not equivalent and therefore must be traded separately. Additionally, this approach requires locking of fractionalized NFTs, preventing free transfer until they are reconstituted.
 
-These token models, however, lack consensus surrounding their operation and implementation. This standard defines a specification by which native fractionalization may be supporting in a minimal and non-conflicting manner optimized for backwards compatability with ERC-20 and ERC-721 standards.
+Other approaches involve multiple linked contracts, which add unnecessary complexity and overhead to the interface.
+
+This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability and flexiblity.
 
 ## Specification
 
@@ -34,20 +36,20 @@ interface IERCXXXX is /* IERC165 */ {
   /// @dev Decimals are used as a means of determining when balances or amounts
   ///      contain whole or purely fractional components
   /// @return Number of decimal places used in fractional representation
-  function decimals() external view returns (uint8 decimals_);
+  function decimals() external view returns (uint8 decimals);
 
   /// @notice The total supply of a token in fractional representation
   /// @dev The total supply of NFTs may be recovered by computing
   ///      `totalSupply() / 10 ** decimals()`
   /// @return Total supply of the token in fractional representation
-  function totalSupply() external view returns (uint256 totalSupply_);
+  function totalSupply() external view returns (uint256 totalSupply);
 
   /// @notice Balance of a given address in fractional representation
   /// @dev The total supply of NFTs may be recovered by computing
   ///      `totalSupply() / 10 ** decimals()`
   /// @param owner_ The address that owns the tokens
   /// @return Balance of a given address in fractional representation
-  function balanceOf(address owner_) external view returns (uint256 balance_);
+  function balanceOf(address owner_) external view returns (uint256 balance);
 
   /// @notice Query if an address is an authorized operator for another address
   /// @param owner_ The address that owns the NFTs
@@ -56,7 +58,7 @@ interface IERCXXXX is /* IERC165 */ {
   function isApprovedForAll(
     address owner_,
     address operator_
-  ) external view returns (bool isApproved_);
+  ) external view returns (bool isApproved);
 
   /// @notice Query the allowed amount an address can spend for another address
   /// @param owner_ The address that owns tokens in fractional representation
@@ -65,14 +67,14 @@ interface IERCXXXX is /* IERC165 */ {
   function allowance(
     address owner_,
     address spender_
-  ) external view returns (uint256 allowance_);
+  ) external view returns (uint256 allowance);
 
   /// @notice Query the owner of a specific NFT
   /// @dev Tokens owned by the zero address are considered invalid and should revert on
   ///      ownership query
   /// @param id_ The unique identifier for an NFT
   /// @return The address of the token's owner
-  function ownerOf(uint256 id_) external view returns (address owner_);
+  function ownerOf(uint256 id_) external view returns (address owner);
 
   /// @notice Set approval for an address to spend a fractional amount,
   ///         or to spend a specific NFT
@@ -86,7 +88,7 @@ interface IERCXXXX is /* IERC165 */ {
   function approve(
     address spender_,
     uint256 amountOrId_
-  ) external returns (bool success_);
+  ) external returns (bool success);
 
   /// @notice Set approval for a third party to manage all of the callers
   ///         non-fungible assets
@@ -109,29 +111,29 @@ interface IERCXXXX is /* IERC165 */ {
     address from_,
     address to_,
     uint256 amountOrId_
-  ) external returns (bool success_);
+  ) external returns (bool success);
 
   /// @notice Transfer fractional tokens from one address to another
   /// @dev The operation should revert if amount is less than the balance of `from_`
   /// @param to_ The address to transfer fractional tokens to
   /// @param amount_ The fractional value to transfer
   /// @return True if the operation was successful
-  function transfer(address to_, uint256 amount_) external returns (bool success_);
+  function transfer(address to_, uint256 amount_) external returns (bool success);
 
   /// @notice Transfers the ownership of an NFT from one address to another address
   /// @dev Throws unless `msg.sender` is the current owner, an authorized
   ///      operator, or the approved address for this NFT
-  /// @dev Throws if `_from` is not the current owner
-  /// @dev Throws if `_to` is the zero address
-  /// @dev Throws if `_tokenId` is not a valid NFT
-  /// @dev When transfer is complete, this function checks if `_to` is a
+  /// @dev Throws if `from_` is not the current owner
+  /// @dev Throws if `to_` is the zero address
+  /// @dev Throws if `tokenId_` is not a valid NFT
+  /// @dev When transfer is complete, this function checks if `to_` is a
   ///      smart contract (code size > 0). If so, it calls `onERC721Received`
-  ///      on `_to` and throws if the return value is not
+  ///      on `to_` and throws if the return value is not
   ///      `bytes4(keccak256("onERC721Received(address,uint256,bytes)"))`.
-  /// @param _from The address to transfer the NFT from
-  /// @param _to The address to transfer the NFT to
-  /// @param _tokenId The NFT to transfer
-  /// @param data Additional data with no specified format, sent in call to `_to`
+  /// @param from_ The address to transfer the NFT from
+  /// @param to_ The address to transfer the NFT to
+  /// @param tokenId_ The NFT to transfer
+  /// @param data_ Additional data with no specified format, sent in call to `to_`
   function safeTransferFrom(
     address from_,
     address to_,
@@ -142,20 +144,20 @@ interface IERCXXXX is /* IERC165 */ {
   /// @notice Transfers the ownership of an NFT from one address to another address
   /// @dev This is identical to the above function safeTransferFrom interface
   ///      though must pass empty bytes as data to `to_`
-  /// @param _from The address to transfer the NFT from
-  /// @param _to The address to transfer the NFT to
-  /// @param _tokenId The NFT to transfer
+  /// @param from_ The address to transfer the NFT from
+  /// @param to_ The address to transfer the NFT to
+  /// @param tokenId_ The NFT to transfer
   function safeTransferFrom(address from_, address to_, uint256 id_) external;
 }
 
 interface IERC165 {
     /// @notice Query if a contract implements an interface
-    /// @param interfaceID The interface identifier, as specified in ERC-165
+    /// @param interfaceID_ The interface identifier, as specified in ERC-165
     /// @dev Interface identification is specified in ERC-165. This function
     ///      uses less than 30,000 gas.
     /// @return `true` if the contract implements `interfaceID` and
     ///         `interfaceID` is not 0xffffffff, `false` otherwise
-    function supportsInterface(bytes4 interfaceID) external view returns (bool);
+    function supportsInterface(bytes4 interfaceID_) external view returns (bool);
 }
 ```
 
@@ -214,24 +216,24 @@ This is a RECOMMENDED interface, identical in definition to the [ERC-721 Metadat
 /// @title ERC-XXXX Fractional Non-Fungible Token Standard, optional metadata extension
 interface IERCXXXXMetadata {
   /// @notice A descriptive, long-form name for a given token collection
-  function name() external view returns (string memory name_);
+  function name() external view returns (string memory name);
 
   /// @notice An abbreviated, short-form name for a given token collection
-  function symbol() external view returns (string memory symbol_);
+  function symbol() external view returns (string memory symbol);
 
   /// @notice A distinct Uniform Resource Identifier (URI) for a given asset.
-  /// @dev Throws if `_tokenId` is not a valid NFT. URIs are defined in RFC
+  /// @dev Throws if `tokenId_` is not a valid NFT. URIs are defined in RFC
   ///      3986. The URI may point to a JSON file that conforms to the "ERC721
   ///      Metadata JSON Schema".
   /// @param id_ The NFT to fetch a token URI for
   /// @return The token's URI as a string
-  function tokenURI(uint256 id_) external view returns (string memory uri_);
+  function tokenURI(uint256 id_) external view returns (string memory uri);
 
   /// @notice Get the number of NFTs not currently owned
   /// @dev This should be the number of unowned NFTs, limited by the total
   ///      fractional supply
   /// @return The number of NFTs not currently owned
-  function getNFTQueueLength() external view returns (uint256 queueLength_);
+  function getNFTQueueLength() external view returns (uint256 queueLength);
 
   /// @notice Get a paginated list of NFTs not currently owned
   /// @param start_ Start index in queue
@@ -240,7 +242,7 @@ interface IERCXXXXMetadata {
   function getNFTsInQueue(
     uint256 start_,
     uint256 count_
-  ) external view returns (uint256[] memory nftsInQueue_);
+  ) external view returns (uint256[] memory nftsInQueue);
 }
 ```
 
