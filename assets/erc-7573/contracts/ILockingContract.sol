@@ -58,7 +58,7 @@ interface ILockingContract {
 
     /**
      * @notice Called from the buyer of the token to initiate token transfer.
-     * @dev emits a {AssetTransferIncepted}
+     * @dev emits a {TransferIncepted}
      * @param id the trade identifier of the trade.
      * @param from The address of the seller (the address of the buyer is message.sender).
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
@@ -67,7 +67,7 @@ interface ILockingContract {
 
     /**
      * @notice Called from the seller of the token to confirm token transfer. Locks the token.
-     * @dev emits a {AssetTransferConfirmed}
+     * @dev emits a {TransferConfirmed}
      * @param id the trade identifier of the trade.
      * @param to The address of the buyer (the address of the seller is message.sender).
      * @param keyEncryptedBuyer Encryption of the key that can be used by the seller to claim the token.
