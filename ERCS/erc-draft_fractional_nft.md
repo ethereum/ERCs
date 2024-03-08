@@ -219,7 +219,7 @@ interface IERCXXXXMetadata {
 
 ### Fractionally Represented Non-Fungible Token Banking Interface
 
-This is a RECOMMENDED interface that is intended to be used for implementations of ERC-XXXX that implement NFT ID reuse.
+This is a RECOMMENDED interface that is intended to be used by implementations of ERC-XXXX that implement NFT ID reuse.
 
 ```solidity
 interface IERCXXXXNFTBanking {
@@ -237,6 +237,23 @@ interface IERCXXXXNFTBanking {
     uint256 start_,
     uint256 count_
   ) external view returns (uint256[] memory bankedNFTs);
+}
+```
+
+### Fractionally Represented Non-Fungible Token Transfer Exemptable Interface
+
+This is a RECOMMENDED interface that is intended to be used by implementations of ERC-XXXX that wnat to allow users to opt-out of NFT transfers.
+
+```solidity
+interface ERCXXXXNFTTransferExemptable {
+  /// @notice Returns whether an address is NFT transfer exempt.
+  /// @param account_ The address to check.
+  /// @return Whether the address is NFT transfer exempt.
+  isNFTTransferExempt(address account_) external view returns (bool);
+
+  /// @notice Allows an address to set themselves as NFT transfer exempt.
+  /// @param isExempt_ The flag, true being exempt and false being non-exempt.
+  setSelfNFTTransferExempt(bool isExempt_) external;
 }
 ```
 
