@@ -237,6 +237,10 @@ interface IERCXXXXNFTBanking {
     uint256 start_,
     uint256 count_
   ) external view returns (uint256[] memory bankedNFTs);
+
+  /// Current mint counter which also represents the highest minted id, monotonically increasing to ensure accurate ownership.
+  /// @return The highest minted NFT id.
+  function minted() external view returns (unit256);
 }
 ```
 
