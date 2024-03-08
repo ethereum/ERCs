@@ -274,7 +274,15 @@ When executing the function call to either opt-in or opt-out of NFT transfers, N
 
 ### Transfer Branching Logic
 
-The NFT transfer exemption concept outlined above implies a few different logical paths when fractional amounts.
+The NFT transfer exemption concept outlined above implies a few different logical paths when transferring fractional amounts.
+
+The first case is when both the sender and the recipient are NFT transfer exempt. This case is simple, as no NFTs need to be transferred at all.
+
+The second and third cases are when either the sender or the recipient are NFT transfer exempt, but not both. When only the sender is NFT transfer exempt, no NFTs are moved from their wallet to the recipient, but on the recipient's end NFTs will be pulled from the available banked NFTs to make them whole. When the recipient is NFT transfer exempt but the sender isn't, the reverse happens: NFTs are pulled from the sender and banked, and the recipient receives no NFTs.
+
+In the fourth case, neither party is NFT transfer exempt so NFTs are simply pulled from the sender and given to the recipient.
+
+It's worth noting that the approach to the transfer logic described here is fairly opinionated. It is not required that implementers of ERC-XXXX follow this logical pattern exactly if other behavior is desired. We present this as just one example of a complete implementation.
 
 ### NFT Banking
 
