@@ -249,7 +249,7 @@ interface IERCXXXXNFTBanking {
 This is a RECOMMENDED interface that is intended to be used by implementations of ERC-XXXX that want to allow users to opt-out of NFT transfers.
 
 ```solidity
-interface ERCXXXXNFTTransferExemptable {
+interface IERCXXXXNFTTransferExemptable {
   /// @notice Returns whether an address is NFT transfer exempt.
   /// @param account_ The address to check.
   /// @return Whether the address is NFT transfer exempt.
