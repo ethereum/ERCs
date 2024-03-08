@@ -18,8 +18,6 @@ This proposal introduces a standard for fractionally represented non-fungible to
 
 Fractional ownership of NFTs has historically relied on external protocols that manage division and reconstitution of individual NFTs into fractional representations. The approach of dividing specific NFTs results in fragmented liquidity of the total token supply, as the fractional representations of two NFTs are not equivalent and therefore must be traded separately. Additionally, this approach requires locking of fractionalized NFTs, preventing free transfer until they are reconstituted.
 
-Other approaches involve multiple linked contracts, which add unnecessary complexity and overhead to the interface. Dual linked contracts are also an atypical pattern for token contracts and therefore harder for users to understand.
-
 This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability or flexiblity.
 
 ## Specification
@@ -221,16 +219,16 @@ interface IERCXXXXMetadata {
   /// @dev This should be the number of unowned NFTs, limited by the total
   ///      fractional supply.
   /// @return The number of NFTs not currently owned.
-  function getBankedNFTsLength() external view returns (uint256 queueLength);
+  function getBankedNFTsLength() external view returns (uint256 bankedNFTsLength);
 
   /// @notice Get a paginated list of NFTs that have been minted but are not currently owned.
-  /// @param start_ Start index in queue.
+  /// @param start_ Start index in bank.
   /// @param count_ Number of tokens to return from start index, inclusive.
-  /// @return An array of queued NFTs from `start_`, of maximum length `count_`.
+  /// @return An array of banked NFTs from `start_`, of maximum length `count_`.
   function getBankedNFTs(
     uint256 start_,
     uint256 count_
-  ) external view returns (uint256[] memory nftsInQueue);
+  ) external view returns (uint256[] memory bankedNFTs);
 }
 ```
 
@@ -240,9 +238,11 @@ The design ideology behind this proposal can best be described as a standard, ER
 
 It's important to note that our goal is to implicitly support as high a degree of backwards compatability with ERC-20 and ERC-721 standards as possible to reduce or negate integration lift for existing protocols. Much of the rationale behind the proposed fractional non-fungible token specification resides within two trains of thought: isolating interface design to adhere to either the ERC-721 or ERC-20 standards, or outlining implementation standards that isolate overlapping functionality at the logic level.
 
-### ID and Amount Isolation
+### ID & Amount Isolation
 
-A crucial piece of our design approach has been to ensure that the discrete value space representing ID's and amounts is sufficiently isolated. More explicitly, this should be taken to mean that for all possible inputs, no ID may be assumed to be an amount and no amount may be assumed to be an ID. Given the goal of this proposal is to outline an interface and set of standards, we won't dive into implementation guidelines, though want to note that this effect can be achieved by checking ownership of a given ID input, isolating a range for NFT ID's, etc.
+A crucial piece of our design approach has been to ensure that the discrete value space representing ID's and amounts is sufficiently isolated. More explicitly, this should be taken to mean that for all possible inputs, no ID may be assumed to be an amount and no amount may be assumed to be an ID.
+
+Given the goal of this proposal is to outline an interface and set of standards, we won't dive into implementation guidelines, though want to note that this effect can be achieved by checking ownership of a given ID input, isolating a range for NFT ID's, etc.
 
 This approach ensures that logic in "overlapping" interfaces is similarly isolated, such that the probability of unexpected outcome for a given function call is minimized.
 
@@ -252,17 +252,33 @@ Much of the decision
 
 ### Events
 
-Given event selectors on both ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatability efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
+Given that certain event selectors on ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatability efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
 
-We feel that, when moving towards standardization, ensuring events are properly descriptive and isolated is the ideal solution despite introducing complexity for indexing software. As a result, we adhere to traditional transfer and approval event definitions, though distinguish these events by the `Fractional` or `NonFungible` prefix.
+We feel that when moving towards standardization, ensuring events are properly descriptive and isolated is the ideal solution despite introducing complexity for indexing software. As a result, we adhere to traditional transfer and approval event definitions, though distinguish these events by the `Fractional` or `NonFungible` prefixes.
 
-### Pathing Logic
+### NFT Transfer Exemption
+
+In a standard ERC-XXXX transfer, value can be transferred by specifying either a fractional amount or a specific NFT ID.
+
+When transferring ERC-XXXX value by referencing a specific NFT ID, that exact NFT will be transferred from the sender to the recipient along with the corresponding fracitonal amount that represents a whole token (i.e. `10 ** decimals()`). This case is fairly straightforward.
+
+However, when transferring ERC-XXXX value by specifying a fractional amount, there there is additional complexity to consider along with some interesting flexibility that we have added in our implementation of the standard.
+
+Transferring fracitonal amounts means that a large number of NFTs can be moved in a single transaction, which can be costly in gas terms. We provide an optional opt-in mechanism for exemption from NFT transfers that both EOAs and contracts can use to dramatically reduce the gas burden of transferring large token amounts when the NFT representation is not needed.
+
+When executing the function call to either opt-in or opt-out of NFT transfers, NFTs held by the address will be directionally rebalanced to ensure they stay in sync with the new exemption status. In other words, when opting-out of NFT transfers, an address's NFTs will be banked and their NFT balance set to 0. When opting-in to NFT transfers, sufficient NFTs will be pulled from the bank and transferred to the address to match their fractional token balance.
 
 ### NFT Banking
 
+When an address newly gains a full token in fractional terms, they are consequently owed an NFT, which has to come from somewhere. Similarly, when an address drops below a full token in fractional terms an NFT must be removed from their balance to stay in sync with their fractional balance.
+
+One approach to reconcile this is repeatedly burning and minting NFT IDs as they are pulled from and added back to circulation, respectively. The minting portion of this strategy can incur significant gas costs that are generally not made up for by the slight gas refund of burning token IDs.
+
+Our implementation of ERC-XXXX includes a mechanism to store and reuse IDs rather than repeatedly burning and minting the IDs. This saves significant gas costs, and has the added benefit of providing a predictable and externally readable stream of token IDs that can be held in a queue, stack or other data structure for later reuse. The specific data structure used for this banking mechanism is immaterial and is left as a choice for any implementers of the standard.
+
 ### ERC-165 Interface
 
-We have decided to include the ERC-165 interface in specification both to adhere to ERC-721 design philosophy, and as a means of exposing interfaces at the contract level. We see this as a valuable, accepted standard to adhere to such that integrating applications may identify underlying specification.
+We include the ERC-165 interface in specification both to adhere to ERC-721 design philosophy, and as a means of exposing interfaces at the contract level. We see this as a valuable, accepted standard to adhere to such that integrating applications may identify underlying specification.
 
 Note that ERC-XXXX contracts should not make any claim through `supportsInterface` to support ERC-721 or ERC-20 standards as, despite strong backwards compatibility efforts, these contracts cannot fully adhere to existing specifications.
 
