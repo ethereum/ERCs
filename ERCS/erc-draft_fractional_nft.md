@@ -214,7 +214,15 @@ interface IERCXXXXMetadata {
   /// @param id_ The NFT to fetch a token URI for
   /// @return The token's URI as a string
   function tokenURI(uint256 id_) external view returns (string memory uri);
+}
+```
 
+### Fractionally Represented Non-Fungible Token Banking Interface
+
+This is a RECOMMENDED interface that is intended to be used for implementations of ERC-XXXX that implement NFT ID reuse.
+
+```solidity
+interface IERCXXXXNFTBanking {
   /// @notice Get the number of NFTs that have been minted but are not currently owned.
   /// @dev This should be the number of unowned NFTs, limited by the total
   ///      fractional supply.
@@ -246,10 +254,6 @@ Given the goal of this proposal is to outline an interface and set of standards,
 
 This approach ensures that logic in "overlapping" interfaces is similarly isolated, such that the probability of unexpected outcome for a given function call is minimized.
 
-### Transfer Logic
-
-Much of the decision
-
 ### Events
 
 Given that certain event selectors on ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatability efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
@@ -267,6 +271,10 @@ However, when transferring ERC-XXXX value by specifying a fractional amount, the
 Transferring fracitonal amounts means that a large number of NFTs can be moved in a single transaction, which can be costly in gas terms. We provide an optional opt-in mechanism for exemption from NFT transfers that both EOAs and contracts can use to dramatically reduce the gas burden of transferring large token amounts when the NFT representation is not needed.
 
 When executing the function call to either opt-in or opt-out of NFT transfers, NFTs held by the address will be directionally rebalanced to ensure they stay in sync with the new exemption status. In other words, when opting-out of NFT transfers, an address's NFTs will be banked and their NFT balance set to 0. When opting-in to NFT transfers, sufficient NFTs will be pulled from the bank and transferred to the address to match their fractional token balance.
+
+### Transfer Branching Logic
+
+The NFT transfer exemption concept outlined above implies a few different logical paths when fractional amounts.
 
 ### NFT Banking
 
