@@ -1,4 +1,5 @@
 ---
+eip: 7649
 title: Bonding Curve-Embedded Liquidity for ERC-721 Non-Fungible Tokens (NFTs)
 description: Standard for embedding liquidity into ERC-721 Non-Fungible Tokens (NFTs) without modifications to ERC-721.
 author: AI Protocol <gm@aiprotocol.info>
