@@ -51,7 +51,7 @@ interface IDecryptionContract {
      * @notice Called from the receiver of the amount to initiate payment transfer.
      * @dev emits a {PaymentTransferIncepted}
      * @param id the trade identifier of the trade.
-     * @param amount the amount to be transfered.
+     * @param amount the amount to be transferred.
      * @param from The address of the sender of the payment (the receiver ('to') is message.sender).
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
@@ -62,11 +62,12 @@ interface IDecryptionContract {
      * @notice Called from the sender of the amount to initiate completion of the payment transfer.
      * @dev emits a {TransferKeyRequested} and {TransferKeyReleased} with keys depending on completion success.
      * @param id the trade identifier of the trade.
+     * @param amount the amount to be transferred.
      * @param to The address of the receiver of the payment. Note: the sender of the payment (from) is implicitly the message.sender.
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function transferAndDecrypt(bytes32 id, address to, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
+    function transferAndDecrypt(bytes32 id, int amount, address to, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
 
     /**
      * @notice Called from the receiver of the amount to cancel payment transfer (cancels the incept transfer).
