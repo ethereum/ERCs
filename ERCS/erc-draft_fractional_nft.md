@@ -18,7 +18,7 @@ This proposal introduces a standard for fractionally represented non-fungible to
 
 Fractional ownership of NFTs has historically relied on external protocols that manage division and reconstitution of individual NFTs into fractional representations. The approach of dividing specific NFTs results in fragmented liquidity of the total token supply, as the fractional representations of two NFTs are not equivalent and therefore must be traded separately. Additionally, this approach requires locking of fractionalized NFTs, preventing free transfer until they are reconstituted.
 
-This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability or flexiblity.
+This standard offers a unified solution to fractional ownership, aiming to increase the liquidity and accessibility of NFTs without compromising transferability or flexibility.
 
 ## Specification
 
@@ -242,7 +242,7 @@ interface IERCXXXXNFTBanking {
 
 ### Fractionally Represented Non-Fungible Token Transfer Exemptable Interface
 
-This is a RECOMMENDED interface that is intended to be used by implementations of ERC-XXXX that wnat to allow users to opt-out of NFT transfers.
+This is a RECOMMENDED interface that is intended to be used by implementations of ERC-XXXX that want to allow users to opt-out of NFT transfers.
 
 ```solidity
 interface ERCXXXXNFTTransferExemptable {
@@ -261,7 +261,7 @@ interface ERCXXXXNFTTransferExemptable {
 
 The design ideology behind this proposal can best be described as a standard, ERC-721 aligned non-fungible token implementation that represents balances in a fractional manner, while supporting traditional, non-specific transfer / approval logic seen in the ERC-20 standard.
 
-It's important to note that our goal is to implicitly support as high a degree of backwards compatability with ERC-20 and ERC-721 standards as possible to reduce or negate integration lift for existing protocols. Much of the rationale behind the proposed fractional non-fungible token specification resides within two trains of thought: isolating interface design to adhere to either the ERC-721 or ERC-20 standards, or outlining implementation standards that isolate overlapping functionality at the logic level.
+It's important to note that our goal is to implicitly support as high a degree of backwards compatibility with ERC-20 and ERC-721 standards as possible to reduce or negate integration lift for existing protocols. Much of the rationale behind the proposed fractional non-fungible token specification resides within two trains of thought: isolating interface design to adhere to either the ERC-721 or ERC-20 standards, or outlining implementation standards that isolate overlapping functionality at the logic level.
 
 ### ID & Amount Isolation
 
@@ -273,7 +273,7 @@ This approach ensures that logic in "overlapping" interfaces is similarly isolat
 
 ### Events
 
-Given that certain event selectors on ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatability efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
+Given that certain event selectors on ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatibility efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
 
 We feel that when moving towards standardization, ensuring events are properly descriptive and isolated is the ideal solution despite introducing complexity for indexing software. As a result, we adhere to traditional transfer and approval event definitions, though distinguish these events by the `Fractional` or `NonFungible` prefixes.
 
@@ -281,11 +281,11 @@ We feel that when moving towards standardization, ensuring events are properly d
 
 In a standard ERC-XXXX transfer, value can be transferred by specifying either a fractional amount or a specific NFT ID.
 
-When transferring ERC-XXXX value by referencing a specific NFT ID, that exact NFT will be transferred from the sender to the recipient along with the corresponding fracitonal amount that represents a whole token (i.e. `10 ** decimals()`). This case is fairly straightforward.
+When transferring ERC-XXXX value by referencing a specific NFT ID, that exact NFT will be transferred from the sender to the recipient along with the corresponding fractional amount that represents a whole token (i.e. `10 ** decimals()`). This case is fairly straightforward.
 
 However, when transferring ERC-XXXX value by specifying a fractional amount, there there is additional complexity to consider along with some interesting flexibility that we have added in our implementation of the standard.
 
-Transferring fracitonal amounts means that a large number of NFTs can be moved in a single transaction, which can be costly in gas terms. We provide an optional opt-in mechanism for exemption from NFT transfers that both EOAs and contracts can use to dramatically reduce the gas burden of transferring large token amounts when the NFT representation is not needed.
+Transferring fractional amounts means that a large number of NFTs can be moved in a single transaction, which can be costly in gas terms. We provide an optional opt-in mechanism for exemption from NFT transfers that both EOAs and contracts can use to dramatically reduce the gas burden of transferring large token amounts when the NFT representation is not needed.
 
 When executing the function call to either opt-in or opt-out of NFT transfers, NFTs held by the address will be directionally rebalanced to ensure they stay in sync with the new exemption status. In other words, when opting-out of NFT transfers, an address's NFTs will be banked and their NFT balance set to 0. When opting-in to NFT transfers, sufficient NFTs will be pulled from the bank and transferred to the address to match their fractional token balance.
 
@@ -327,7 +327,7 @@ The fractional non-fungible token standard aims to be nearly backwards compatibl
 
 Events in ERC-721 and ERC-20 specifications share conflicting selectors on approval and transfer, meaning an adherent hybrid of the two cannot be achieved.
 
-This is one of the few areas where backwards compatiblity has been intentionally broken, resulting in a new series of events with either a `Fractional` or `NonFungible` prefix. We believe that a decisive move to a non-conflicting, descriptive solution is ideal here, though will require external lift for indexing software.
+This is one of the few areas where backwards compatibility has been intentionally broken, resulting in a new series of events with either a `Fractional` or `NonFungible` prefix. We believe that a decisive move to a non-conflicting, descriptive solution is ideal here, though will require external lift for indexing software.
 
 ### balanceOf
 
@@ -335,7 +335,7 @@ The `balanceOf` function as defined in both ERC-20 and ERC-721 standards varies,
 
 ### Success Return Values
 
-The `transfer` and `approve` functions both return a boolean value indicating success or failure. This is non-standard for the ERC-721 specification, though is standard for ERC-20. Fractional non-fungible tokens adhere to a returned boolean value to meet minimum expectations for the ERC-20 standard, acknowledging that this deviates from a state of ideal backwards compatability.
+The `transfer` and `approve` functions both return a boolean value indicating success or failure. This is non-standard for the ERC-721 specification, though is standard for ERC-20. Fractional non-fungible tokens adhere to a returned boolean value to meet minimum expectations for the ERC-20 standard, acknowledging that this deviates from a state of ideal backwards compatibility.
 
 ## Security Considerations
 
