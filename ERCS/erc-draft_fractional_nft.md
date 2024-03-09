@@ -238,9 +238,11 @@ interface IERCXXXXNFTBanking {
     uint256 count_
   ) external view returns (uint256[] memory bankedNFTs);
 
-  /// @notice Current mint counter which also represents the highest minted id, monotonically increasing to ensure accurate ownership.
-  /// @return The highest minted NFT id.
-  function minted() external view returns (unit256);
+  /// @notice Query the current supply of NFTs in circulation.
+  /// @dev Given supply may remain banked or unminted, this function should always be
+  ///      inclusively upper-bounded by `totalSupply() / 10 ** decimals()`.
+  /// @return The current supply of minted NFTs
+  function totalNonFungibleSupply() external view returns (unit256);
 }
 ```
 
@@ -281,37 +283,35 @@ Given that certain event selectors on ERC-20 and ERC-721 overlap, we have decide
 
 We feel that when moving towards standardization, ensuring events are properly descriptive and isolated is the ideal solution despite introducing complexity for indexing software. As a result, we adhere to traditional transfer and approval event definitions, though distinguish these events by the `Fractional` or `NonFungible` prefixes.
 
-### NFT Transfer Exemption
+### Transfers
 
 In a standard ERC-XXXX transfer, value can be transferred by specifying either a fractional amount or a specific NFT ID.
 
 When transferring ERC-XXXX value by referencing a specific NFT ID, that exact NFT will be transferred from the sender to the recipient along with the corresponding fractional amount that represents a whole token (i.e. `10 ** decimals()`). This case is fairly straightforward.
 
-However, when transferring ERC-XXXX value by specifying a fractional amount, there there is additional complexity to consider along with some interesting flexibility that we have added in our implementation of the standard.
+When transferring ERC-XXXX value by specifying a fractional amount, additional complexity is introduced in determining which NFTs should be added to or removed from transfer participants. Specifically, fractional transfers see three typical cases as follows:
 
-Transferring fractional amounts means that a large number of NFTs can be moved in a single transaction, which can be costly in gas terms. We provide an optional opt-in mechanism for exemption from NFT transfers that both EOAs and contracts can use to dramatically reduce the gas burden of transferring large token amounts when the NFT representation is not needed.
+- Whole balance of sender or receiver is unchanged -> resulting in noop on NFT logic
+- Whole balance of sender is reduced -> NFTs owned by the sender must be removed proportionally
+- Whole balance of receiver is increased -> NFTs owned by the receiver must be increased proportionally
+
+Given ERC-XXXX aims to propose a generalized specification for fractional non-fungible tokens, we're omitting strict guidelines on how to handle these cases. We would, however, like to mention that this has typically been handled by either monotonically burning / minting tokens, or by enumerating owned / unowned NFTs and removing owned NFTs on fractional transfer in LIFO order.
+
+### NFT Transfer Exemption
+
+Transferring fractional amounts means that a large number of NFTs can be moved in a single transaction, which can be costly in gas usage. We recommend an optional opt-in mechanism for exemption from NFT transfers that both EOAs and contracts can use to reduce the gas burden of transferring large token amounts when the NFT representation is not needed.
 
 When executing the function call to either opt-in or opt-out of NFT transfers, NFTs held by the address will be directionally rebalanced to ensure they stay in sync with the new exemption status. In other words, when opting-out of NFT transfers, an address's NFTs will be banked and their NFT balance set to 0. When opting-in to NFT transfers, sufficient NFTs will be pulled from the bank and transferred to the address to match their fractional token balance.
-
-### Transfer Branching Logic
-
-The NFT transfer exemption concept outlined above implies a few different logical paths when transferring fractional amounts.
-
-The first case is when both the sender and the recipient are NFT transfer exempt. This case is simple, as no NFTs need to be transferred at all.
-
-The second and third cases are when either the sender or the recipient are NFT transfer exempt, but not both. When only the sender is NFT transfer exempt, no NFTs are moved from their wallet to the recipient, but on the recipient's end NFTs will be pulled from the available banked NFTs to make them whole. When the recipient is NFT transfer exempt but the sender isn't, the reverse happens: NFTs are pulled from the sender and banked, and the recipient receives no NFTs.
-
-In the fourth case, neither party is NFT transfer exempt so NFTs are simply pulled from the sender and given to the recipient.
-
-It's worth noting that the approach to the transfer logic described here is fairly opinionated. It is not required that implementers of ERC-XXXX follow this logical pattern exactly if other behavior is desired. We present this as just one example of a complete implementation.
 
 ### NFT Banking
 
 When an address newly gains a full token in fractional terms, they are consequently owed an NFT, which has to come from somewhere. Similarly, when an address drops below a full token in fractional terms an NFT must be removed from their balance to stay in sync with their fractional balance.
 
-One approach to reconcile this is repeatedly burning and minting NFT IDs as they are pulled from and added back to circulation, respectively. The minting portion of this strategy can incur significant gas costs that are generally not made up for by the slight gas refund of burning token IDs.
+The concept of banking is generally defined as space in which un-owned, but available NFTs relative to supply are tracked. We remain unopinionated on implementation here, but want to provide a handful of examples that would fit specification.
 
-Our implementation of ERC-XXXX includes a mechanism to store and reuse IDs rather than repeatedly burning and minting the IDs. This saves significant gas costs, and has the added benefit of providing a predictable and externally readable stream of token IDs that can be held in a queue, stack or other data structure for later reuse. The specific data structure used for this banking mechanism is immaterial and is left as a choice for any implementers of the standard.
+One approach to reconcile the bank is by monotonically burning and minting NFT IDs as they are pulled from and added back to circulation, respectively. The minting portion of this strategy can incur significant gas costs that are generally not made up for by the slight gas refund of deleting storage space for burnt token IDs. This approach additionally introduces inflexibility for collections desiring persistent, finite ID space.
+
+An alternate implementation of ERC-XXXX includes a mechanism to store and reuse IDs rather than repeatedly burning and minting the IDs. This saves significant gas costs, and has the added benefit of providing a predictable and externally readable stream of token IDs that can be held in a queue, stack or other data structure for later reuse. The specific data structure used for this banking mechanism is immaterial and is left at the discretion of any implementations adhering to the standard.
 
 ### ERC-165 Interface
 
