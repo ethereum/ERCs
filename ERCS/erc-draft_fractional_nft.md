@@ -35,7 +35,7 @@ Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval
 Note that the events portion of the interface draws from existing ERC-721 and ERC-20 standards but is not fully backwards compatible.
 
 ```solidity
-interface IERCXXXX is /* IERC165 */ {
+interface IERCXXXX is IERC165 {
   /// @dev This emits when fractional representation approval for a given spender
   ///      is changed or reaffirmed.
   event FractionalApproval(address indexed owner, address indexed spender, uint256 value);
