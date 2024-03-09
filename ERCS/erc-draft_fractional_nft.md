@@ -32,7 +32,7 @@ Compliant contracts MUST emit fractional Approval or Transfer events on approval
 
 Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval or Transfer on approval for all, approval, and transfer in non-fungible representation.
 
-Note that the events portion of the interface draws from existing ERC-721 and ERC-20 standards but is not fully backwards compatible.
+Note that this interface draws from existing [ERC-721](./erc-721.md) and [ERC-20](./erc-20.md) standards, but is not fully backwards compatible with either.
 
 ```solidity
 interface IERCXXXX is IERC165 {
@@ -198,7 +198,7 @@ interface IERC165 {
 
 ### Fractionally Represented Non-Fungible Token Metadata Interface
 
-This is a RECOMMENDED interface, identical in definition to the [ERC-721 Metadata Interface](./eip-721.md). Rather than using this interface directly, a distinct metadata interface should be used here to avoid confusion surrounding ERC-721 inheritance.
+This is a RECOMMENDED interface, identical in definition to the [ERC-721 Metadata Interface](./erc-721.md). Rather than using this interface directly, a distinct metadata interface should be used here to avoid confusion surrounding ERC-721 inheritance.
 
 ```solidity
 /// @title ERC-XXXX Fractional Non-Fungible Token Standard, optional metadata extension
