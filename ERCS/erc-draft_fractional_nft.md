@@ -28,7 +28,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 All ERC-XXXX compliant contracts MUST implement the IERCXXXX and IERC165 interfaces.
 
-Compliant contracts MUST emit fractional Approval or Transfer events on approval or transfer of tokens in fractional representation. Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval or Transfer on approval for all, approval, and transfer in non-fungible representation.
+Compliant contracts MUST emit fractional Approval or Transfer events on approval or transfer of tokens in fractional representation.
+
+Compliant contracts MUST additionally emit non-fungible ApprovalForAll, Approval or Transfer on approval for all, approval, and transfer in non-fungible representation.
 
 Note that the events portion of the interface draws from existing ERC-721 and ERC-20 standards but is not fully backwards compatible.
 
