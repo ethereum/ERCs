@@ -267,21 +267,17 @@ interface IERCXXXXNFTTransferExemptable {
 
 ## Rationale
 
-The design ideology behind this proposal can best be described as a standard, ERC-721 aligned non-fungible token implementation that represents balances in a fractional manner, while supporting traditional, non-specific transfer / approval logic seen in the ERC-20 standard.
-
-It's important to note that our goal is to implicitly support as high a degree of backwards compatibility with ERC-20 and ERC-721 standards as possible to reduce or negate integration lift for existing protocols. Much of the rationale behind the proposed fractional non-fungible token specification resides within two trains of thought: isolating interface design to adhere to either the ERC-721 or ERC-20 standards, or outlining implementation standards that isolate overlapping functionality at the logic level.
+This standard unifies the representation of fractional ownership with the non-fungible token model, aligning closely with ERC-721 principles while enabling the functionality of ERC-20 transfers. This dual compatibility aims to mitigate the integration complexity for existing protocols. Our goal is to implicitly support as high a degree of backwards compatibility with ERC-20 and ERC-721 standards as possible to reduce or negate integration lift for existing protocols. The core rationale for this fractional NFT standard centers on two main strategies: first, designing interfaces that clearly align with either ERC-721 or ERC-20 standards to avoid ambiguity; and second, detailing implementation approaches that distinctly separate the logic of overlapping functionalities.
 
 ### ID & Amount Isolation
 
-A crucial piece of our design approach has been to ensure that the discrete value space representing ID's and amounts is sufficiently isolated. More explicitly, this should be taken to mean that for all possible inputs, no ID may be assumed to be an amount and no amount may be assumed to be an ID.
+Ensuring clear differentiation between token IDs and fractional amounts is central to this design. This non-overlapping design principle means that no input should be ambiguously interpreted as both an ID and an amount. We won't dive into implementation guidelines, but implementations may achieve this through various means, such as validating ownership for ID inputs or reserving specific ranges for token IDs.
 
-Given the goal of this proposal is to outline an interface and set of standards, we won't dive into implementation guidelines, though want to note that this effect can be achieved by checking ownership of a given ID input, isolating a range for NFT ID's, etc.
-
-This approach ensures that logic in "overlapping" interfaces is similarly isolated, such that the probability of unexpected outcome for a given function call is minimized.
+This approach ensures that logic in "overlapping" interfaces is similarly isolated, such that the chance of an unexpected outcome is minimized.
 
 ### Events
 
-Given that certain event signatures on ERC-20 and ERC-721 overlap, we have decided to deviate from backwards compatibility efforts in the definition of ERC-XXXX events. Recent efforts have revealed a range of potential solutions here, such as supporting events for one standard, emitting conflicting events that utilize distinct parameter indexing, amongst others.
+The overlap of event signatures between the ERC-20 and ERC-721 standards presents a challenge for backward compatibility in our fractional NFT standard. Various approaches have been explored, including aligning with a single standard's events or introducing unique events with distinct parameter indexing to resolve conflicts.
 
 We feel that when moving towards standardization, ensuring events are properly descriptive and isolated is the ideal solution despite introducing complexity for indexing software. As a result, we adhere to traditional transfer and approval event definitions, though distinguish these events by the `Fractional` or `NonFungible` prefixes.
 
@@ -289,15 +285,15 @@ We feel that when moving towards standardization, ensuring events are properly d
 
 In a standard ERC-XXXX transfer, value can be transferred by specifying either a fractional amount or a specific NFT ID.
 
-When transferring ERC-XXXX value by referencing a specific NFT ID, that exact NFT will be transferred from the sender to the recipient along with the corresponding fractional amount that represents a whole token (i.e. `10 ** decimals()`). This case is fairly straightforward.
+NFT ID Transfers: Transferring by NFT ID is straightforward. The specified NFT, along with its entire associated fractional value (equivalent to 10 \*\* decimals()), is transferred from the sender to the recipient.
 
-When transferring ERC-XXXX value by specifying a fractional amount, additional complexity is introduced in determining which NFTs should be added to or removed from transfer participants. Specifically, fractional transfers see three typical cases as follows:
+Fractional Amount Transfers: Transferring fractional amounts introduces complexity in managing NFT allocations. There are three main scenarios:
 
-- Whole balance of sender or receiver is unchanged -> resulting in noop on NFT logic
-- Whole balance of sender is reduced -> NFTs owned by the sender must be removed proportionally
-- Whole balance of receiver is increased -> NFTs owned by the receiver must be increased proportionally
+1. No change in whole token balance: If the transfer does not change the overall balance of either party, NFT allocations remain unchanged.
+2. Sender's whole token balance decreases: If the sender's overall balance decreases below the nearest whole number, a proportionate number of NFTs must be removed from their holdings.
+3. Receiver's whole token balance increases: Conversely, if the receiver's overall balance increases above the nearest whole number, their NFT holdings must be proportionately increased.
 
-Given ERC-XXXX aims to propose a generalized specification for fractional non-fungible tokens, we're omitting strict guidelines on how to handle these cases. We would, however, like to mention that this has typically been handled by either monotonically burning / minting tokens, or by enumerating owned / unowned NFTs and removing owned NFTs on fractional transfer in LIFO order.
+While ERC-XXXX provides a broad framework for fractional NFTs, it does not prescribe specific methods for handling these scenarios. Common practices include monotonically minting or burning tokens to reflect changes, or tracking NFT ownership with a stack or queue during transfers of fractional amounts.
 
 ### NFT Transfer Exemption
 
@@ -307,13 +303,13 @@ When executing the function call to either opt-in or opt-out of NFT transfers, N
 
 ### NFT Banking
 
-When an address newly gains a full token in fractional terms, they are consequently owed an NFT, which has to come from somewhere. Similarly, when an address drops below a full token in fractional terms an NFT must be removed from their balance to stay in sync with their fractional balance.
+As discussed in the Transfers section, when an address newly gains a full token in fractional terms, they are consequently owed an NFT. Similarly, when an address drops below a full token in fractional terms an NFT must be removed from their balance to stay in sync with their fractional balance.
 
-The concept of banking is generally defined as space in which un-owned, but available NFTs relative to supply are tracked. We remain unopinionated on implementation here, but want to provide a handful of examples that would fit specification.
+The NFT banking mechanism provides a space in which un-owned but available NFTs relative to supply are tracked. We remain unopinionated on implementation here, but want to provide a handful of examples that would fit specification.
 
-One approach to reconcile the bank is by monotonically burning and minting NFT IDs as they are pulled from and added back to circulation, respectively. The minting portion of this strategy can incur significant gas costs that are generally not made up for by the slight gas refund of deleting storage space for burnt token IDs. This approach additionally introduces inflexibility for collections desiring persistent, finite ID space.
+One approach to reconcile the bank is by monotonically burning and minting NFT IDs as they are pulled from and added back to circulation, respectively. The minting portion of this strategy can incur significant gas costs that are generally not made up for by the slight gas refund of deleting storage space for burnt token IDs. This approach additionally introduces inflexibility for collections that desire a persistent, finite ID space.
 
-An alternate implementation of ERC-XXXX includes a mechanism to store and reuse IDs rather than repeatedly burning and minting the IDs. This saves significant gas costs, and has the added benefit of providing a predictable and externally readable stream of token IDs that can be held in a queue, stack or other data structure for later reuse. The specific data structure used for this banking mechanism is immaterial and is left at the discretion of any implementations adhering to the standard.
+An alternate implementation of ERC-XXXX includes a mechanism to store and reuse IDs rather than repeatedly burning and minting them. This saves significant gas costs, and has the added benefit of providing a predictable and externally readable stream of token IDs that can be held in a queue, stack or other data structure for later reuse. The specific data structure used for this banking mechanism is immaterial and is left at the discretion of any implementations adhering to the standard.
 
 ### ERC-165 Interface
 
