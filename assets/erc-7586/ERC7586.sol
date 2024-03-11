@@ -16,12 +16,16 @@ contract ERC7586 is IERC7586, ERC20 {
         _totalSupply = _irs.paymentDates.length * 2 * 1 ether;
     }
 
-    function payer() external view returns(address) {
+    function fixedInterestPayer() external view returns(address) {
         return irs.payer;
     }
 
-    function receiver() external view returns(address) {
+    function floatingInterestPayer() external view returns(address) {
         return irs.receiver;
+    }
+
+    function ratesDecimals() external view returns(uint8) {
+        return irs.ratesDecimals;
     }
 
     function swapRate() external view returns(uint256) {
@@ -67,14 +71,6 @@ contract ERC7586 is IERC7586, ERC20 {
 
     function isActive() public view returns(bool) {
         return _isActive;
-    }
-
-    function agree() external {
-        require(_hasAgreed[msg.sender] == false, "Already agreed");
-        require(msg.sender == irs.payer || msg.sender == irs.receiver);
-        require(block.timestamp < irs.paymentDates[0], "delay expired");
-
-        _hasAgreed[msg.sender] = true;
     }
 
     function swap() external returns(bool) {
