@@ -11,6 +11,7 @@ contract ERC20 is IERC20 {
         uint256 spread;
         uint256 swapRate;
         uint256 benchmark;
+        uint8 ratesDecimals;
         uint256 notionalAmount;
         address assetContract;
         uint256 paymentFrequency;
