@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 error InvalidValue();
 error InvalidAddress();
 error InsufficientBalance();
+error InvalidAmountTransferred();
 
 abstract contract AbstractERC7590 is IERC7590 {
     mapping(uint256 tokenId => mapping(address erc20Address => uint256 balance))
@@ -57,10 +58,17 @@ abstract contract AbstractERC7590 is IERC7590 {
             amount,
             data
         );
+        IERC20 erc20 = IERC20(erc20Contract);
+        uint256 initBalance = erc20.balanceOf(address(this));
         _balances[tokenId][erc20Contract] -= amount;
         _erc20TransferOutNonce[tokenId]++;
 
-        IERC20(erc20Contract).transfer(to, amount);
+        erc20.transfer(to, amount);
+        uint256 newBalance = erc20.balanceOf(address(this));
+        // Here you can either use the difference as the amount, or revert if the difference is not equal to the amount and you don't want to support transfer fees
+        if (newBalance + amount != initBalance) {
+            revert InvalidAmountTransferred();
+        }
 
         emit TransferredERC20(erc20Contract, tokenId, to, amount);
         _afterTransferHeldERC20FromToken(
@@ -94,7 +102,14 @@ abstract contract AbstractERC7590 is IERC7590 {
             amount,
             data
         );
-        IERC20(erc20Contract).transferFrom(msg.sender, address(this), amount);
+        IERC20 erc20 = IERC20(erc20Contract);
+        uint256 initBalance = erc20.balanceOf(address(this));
+        erc20.transferFrom(msg.sender, address(this), amount);
+        uint256 newBalance = erc20.balanceOf(address(this));
+        // Here you can either use the difference as the amount, or revert if the difference is not equal to the amount and you don't want to support transfer fees
+        if (initBalance + amount != newBalance) {
+            revert InvalidAmountTransferred();
+        }
         _balances[tokenId][erc20Contract] += amount;
 
         emit ReceivedERC20(erc20Contract, tokenId, msg.sender, amount);
