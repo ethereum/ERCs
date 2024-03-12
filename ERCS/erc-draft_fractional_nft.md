@@ -1,6 +1,6 @@
 ---
 eip: 7651
-title: Fractionally Represented Non-Fungible Token Standard
+title: Fractionally Represented Non-Fungible Token
 description: A standard for fractionally represented non-fungible tokens.
 author: Acme (@0xacme), Calder (@caldereth)
 discussions-to: <URL>
