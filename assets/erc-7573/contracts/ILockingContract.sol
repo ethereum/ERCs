@@ -70,7 +70,7 @@ interface ILockingContract {
      * @dev emits a {TransferConfirmed}
      * @param id the trade identifier of the trade.
      * @param to The address of the buyer (the address of the seller is message.sender).
-     * @param keyEncryptedBuyer Encryption of the key that can be used by the seller to claim the token.
+     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
      */
     function confirmTransfer(bytes32 id, int amount, address to, string memory keyEncryptedBuyer) external;
 
