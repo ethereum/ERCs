@@ -28,17 +28,22 @@ interface ILockingContract {
 
     /**
      * @dev Emitted  when the transfer for the token is incepted
-     * @param initiator is the address from which trade was incepted
-     * @param id the trade ID
+     * @param id the trade identifier of the trade.
+     * @param from The address of the seller.
+     * @param to The address of the buyer.
+     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
      */
-    event TransferIncepted(address initiator, bytes32 id);
+    event TransferIncepted(bytes32 id, int amount, address from, address to, string keyEncryptedSeller);
 
     /**
      * @dev Emitted  when the transfer for the token is incepted
-     * @param confirmer is the address from which trade was incepted
-     * @param id the trade ID
+     * @param id the trade identifier of the trade.
+     * @param amount the number of tokens to be transfered.
+     * @param from The address of the seller.
+     * @param to The address of the buyer.
+     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
      */
-    event TransferConfirmed(address confirmer, bytes32 id);
+    event TransferConfirmed(bytes32 id, int amount, address from, address to, string keyEncryptedBuyer);
 
     /**
      * @dev Emitted when the token was successfully claimed (forward to buyer).
@@ -60,6 +65,7 @@ interface ILockingContract {
      * @notice Called from the buyer of the token to initiate token transfer.
      * @dev emits a {TransferIncepted}
      * @param id the trade identifier of the trade.
+     * @param amount the number of tokens to be transfered.
      * @param from The address of the seller (the address of the buyer is message.sender).
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
      */
@@ -69,6 +75,7 @@ interface ILockingContract {
      * @notice Called from the seller of the token to confirm token transfer. Locks the token.
      * @dev emits a {TransferConfirmed}
      * @param id the trade identifier of the trade.
+     * @param amount the number of tokens to be transfered.
      * @param to The address of the buyer (the address of the seller is message.sender).
      * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
      */

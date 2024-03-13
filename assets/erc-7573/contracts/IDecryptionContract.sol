@@ -24,11 +24,14 @@ interface IDecryptionContract {
 
     /**
      * @dev Emitted  when the transfer is incepted.
-     * @param initiator is the address from which the transfer was incepted
-     * @param id the trade ID.
-     * @param amount to be transfered.
+     * @param id the trade identifier of the trade.
+     * @param amount the amount to be transferred.
+     * @param from The address of the sender of the payment.
+     * @param to The address of the receiver of the payment.
+     * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
+     * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    event TransferIncepted(address initiator, bytes32 id, int amount);
+    event TransferIncepted(bytes32 id, int amount, address from, address to, string keyEncryptedSuccess, string keyEncryptedFailure);
 
     /**
      * @dev Emitted when a the transfer has been performed with a success or failure.
