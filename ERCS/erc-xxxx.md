@@ -3,7 +3,7 @@ eip: xxxx
 title: Request Method Types
 description: Use a set of request methods to indicate the type of action to take on the contract.
 author: Rickey (@HelloRickey)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/add-erc-request-method-types/19183
 status: Draft
 type: Standards Track
 category: ERC
