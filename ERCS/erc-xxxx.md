@@ -1,0 +1,176 @@
+---
+eip: xxxx
+title: Request Method Types
+description: Use a set of request methods to indicate the type of action to take on the contract.
+author: Rickey (@HelloRickey)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-03-13
+---
+
+## Abstract
+
+This proposal standardizes a set of request and response communication standards between clients and smart contracts, using POST, GET, and PUT requests to create, read, and update the states of smart contracts. You can customize different request method names, request parameters and response values, and each request method will be mapped to a specific operation.
+
+## Motivation   
+
+In Web2.0, we often use HTTP methods to define how the client interacts with the server. We use the POST, GET, and PUT methods to perform different operations on the resources in the server. This standard effectively simplifies the interaction between the client and the server. Similar standards can also be used to wrap functions in smart contracts. When the client makes a request to the contract, it indicates the type and method of operation to be taken, and the corresponding method in the contract performs the operation and returns a response.
+
+Advantages of using this standard include:
+
+- Standardization: Provide a unified and standardized communication method for clients and contracts, so that all parties can conduct more standardized interactions.
+
+- Composability: It can customize request methods, request parameters and response values, and easily build complex applications with multiple contract request methods components.
+
+- Interoperability: Easily extend plugins or middleware in request methods to enable interoperability with onchain applications from all parties.
+
+- State Management: Create, retrieve, and modify smart contract states according to the application use cases of each party.
+
+- RESTful: It can adopt RESTful design principles to make it more predictable and make calls to all parties clearer and easier to understand.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+It consists of four request method types:
+
+**GET**: Request the contract to retrieve records.
+
+**POST**: Request the contract to create a new record.
+
+**PUT**: Request the contract to update a record.
+
+**OPTIONS**: Supported request method types.
+
+Workflow:  
+
+1. Call ```options``` to obtain supported request method types.
+2. Call ```getMethods``` to obtain the request method name.
+3. Call ```getMethodReqAndRes``` to obtain the request parameter data type and response value data type.
+4. Encode request parameters and call ```get```, ```pot```, and ```put```.
+5. Decode response value.
+
+### Interfaces
+
+#### `IRequestMethodTypes.sol`
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity >=0.8.0;
+import "./Types.sol";
+interface IRequestMethodTypes{
+
+    /**
+     * Requested method type.
+     * GET, POST, PUT, OPTIONS
+     */
+    enum MethodTypes{
+        GET,
+        POST,
+        PUT,
+        OPTIONS
+    }
+
+    /**
+     * Get method names based on request method type.
+     * @param _methodTypes is the request method type.
+     * @return Method names.
+     */
+    function getMethods(MethodTypes _methodTypes)external view returns (string[] memory);
+
+    /**
+     * Get the data types of request parameters and responses based on the requested method name.
+     * @param _methodName is the method name.
+     * @return Data types of request parameters and responses.
+     */
+    function getMethodReqAndRes(string memory _methodName) external view returns(Types.Type[] memory ,Types.Type[] memory );
+
+    /**
+     * Request the contract to retrieve records.
+     * @param _methodName is the method name.
+     * @param _methodReq is the method type.
+     * @return The response to the get request.
+     */
+    function get(string memory _methodName,bytes memory _methodReq)external view returns(bytes memory);
+
+    /**
+     * Request the contract to create a new record.
+     * @param _methodName is the method name.
+     * @param _methodReq is the method type.
+     * @return The response to the post request.
+     */
+    function post(string memory _methodName,bytes memory _methodReq)external returns(bytes memory);
+
+    /**
+     * Request the contract to update a record.
+     * @param _methodName is the method name.
+     * @param _methodReq is the method type.
+     * @return The response to the put request.
+     */
+    function put(string memory _methodName,bytes memory _methodReq)external returns(bytes memory);
+
+    /**
+     * Supported request method types.
+     * @return Method types.
+     */
+    function options()external returns(MethodTypes[] memory);
+}
+
+```
+
+### Library
+
+The library [`Types.sol`](../assets/erc-xxxx/Types.sol) contains an enumeration of Solidity types used in the above interfaces.
+
+## Rationale
+
+### How to customize response status code?
+
+The return value type of each request method is bytes, so you can customize the response status code and other response information according to your needs.
+
+### How to disable a request method?
+
+You can add a mapping(string=>bool) to save the request method name and available state. After the application is upgraded, manually set the available state of the disabled request method to false. And check the state every time a request is processed.
+
+### Why is there no delete method type?
+
+The data in smart contracts is public, and deleting data is an inefficient operation. In order to facilitate data management and retrieval, you can add a mapping to save the valid state of the data, and add a put request method to set valid and invalid data. And only return valid data in get method.
+
+### How to dynamically add new request methods?
+
+Before deploying the contract, you can add a mapping (address=>bool) to record the external contract permissions. When the application adds new functions, give the v2 contract write permissions and add new request methods to the v2 contract.
+
+### How to encode request parameters and decode response?
+
+Use ```getMethodReqAndRes``` to get the data type of the method request parameters and the data type of the response value. Then use some js library to encode and decode it.   
+For example:   
+
+```javascript
+var reqDataEncode = web3.eth.abi.encodeParameters(
+  ["string", "uint256"],
+  ["alice", "1"]
+);
+
+var resDataDecode = web3.eth.abi.decodeParameters(
+  ["string", "uint256"],
+  reqDataEncode
+);
+```
+
+## Reference Implementation
+
+See [Request Method Types Example](../assets/erc-xxxx/RequestMethodTypes.sol)
+
+## Security Considerations
+
+Contract request methods are divided into safe methods and unsafe methods. If the method request is a read-only operation and will not change the state of the contract, then the method is safe.
+
+**Safe Methods:** GET, OPTIONS  
+**Unsafe Methods:** POST, PUT
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
+
