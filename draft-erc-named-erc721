@@ -21,18 +21,23 @@ An extension to `ERC-721` based on `ERC-7632` to enable named ERC-721
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-A compliant contract MUST implement `ERC-721` and following interface
+1. A compliant contract MUST implement `ERC-721` and following interface
 
 ```solidity
-interface IERC_draft {
-
-function trasfer
+interface IERCNamedNFT {
+  function safeTransferFromByName(string memory _tokenName, address from, address to, bytes calldata);
+  function approveByName(address _approved, string memory _tokenName) external payable;
+  function getApprovedByName(string memory _tokenName) external view returns (address);
 }
 ```
 
+2. A compliant contract MUST implement the ERC-165
+
+<-- TODO: inlcude ERC-165 interface id  -->
+
 ## Rationale
 
-TBD
+Needs discussion
 
 ## Backwards Compatibility
 
