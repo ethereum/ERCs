@@ -12,16 +12,16 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 interface IERC7508 is IERC165 {
     /**
      * @notice A list of supported access types.
-     * @return The `Issuer` type, where only the issuer can manage the parameter.
+     * @return The `Owner` type, where only the owner can manage the parameter.
      * @return The `Collaborator` type, where only the collaborators can manage the parameter.
-     * @return The `IssuerOrCollaborator` type, where only the issuer or collaborators can manage the parameter.
+     * @return The `OwnerOrCollaborator` type, where only the owner or collaborators can manage the parameter.
      * @return The `TokenOwner` type, where only the token owner can manage the parameters of their tokens.
      * @return The `SpecificAddress` type, where only specific addresses can manage the parameter.
      */
     enum AccessType {
-        Issuer,
+        Owner,
         Collaborator,
-        IssuerOrCollaborator,
+        OwnerOrCollaborator,
         TokenOwner,
         SpecificAddress
     }
@@ -89,14 +89,14 @@ interface IERC7508 is IERC165 {
     /**
      * @notice Used to notify listeners that a new collection has been registered to use the repository.
      * @param collection Address of the collection
-     * @param issuer Address of the issuer of the collection; the addess authorized to manage the access control
+     * @param owner Address of the owner of the collection; the addess authorized to manage the access control
      * @param registeringAddress Address that registered the collection
      * @param useOwnable A boolean value indicating whether the collection uses the Ownable extension to verify the
-     *  issuer (`true`) or not (`false`)
+     *  owner (`true`) or not (`false`)
      */
     event AccessControlRegistration(
         address indexed collection,
-        address indexed issuer,
+        address indexed owner,
         address indexed registeringAddress,
         bool useOwnable
     );
@@ -256,25 +256,25 @@ interface IERC7508 is IERC165 {
      * @dev  If the collection does not implement the Ownable interface, the `useOwnable` value must be set to `false`.
      * @dev Emits an {AccessControlRegistration} event.
      * @param collection The address of the collection that will use the RMRK token attributes repository.
-     * @param issuer The address of the issuer of the collection.
+     * @param owner The address of the owner of the collection.
      * @param useOwnable The boolean value to indicate if the collection implements the Ownable interface and whether it
-     *  should be used to validate that the caller is the issuer (`true`) or to use the manually set issuer address
+     *  should be used to validate that the caller is the owner (`true`) or to use the manually set owner address
      *  (`false`).
      */
     function registerAccessControl(
         address collection,
-        address issuer,
+        address owner,
         bool useOwnable
     ) external;
 
     /**
      * @notice Used to manage the access control settings for a specific parameter.
-     * @dev Only the `issuer` of the collection can call this function.
+     * @dev Only the `owner` of the collection can call this function.
      * @dev The possible `accessType` values are:
      *  [
-     *      Issuer,
+     *      Owner,
      *      Collaborator,
-     *      IssuerOrCollaborator,
+     *      OwnerOrCollaborator,
      *      TokenOwner,
      *      SpecificAddress,
      *  ]
@@ -314,7 +314,7 @@ interface IERC7508 is IERC165 {
      * @param collection Address of the collection
      * @return attributesMetadataURI The URI of the attributes metadata
      */
-    function getAttributesMetadataURI(
+    function getAttributesMetadataURIForCollection(
         address collection
     ) external view returns (string memory attributesMetadataURI);
 
@@ -324,7 +324,7 @@ interface IERC7508 is IERC165 {
      * @param collection Address of the collection
      * @param attributesMetadataURI The URI of the attributes metadata
      */
-    function setAttributesMetadataURI(
+    function setAttributesMetadataURIForCollection(
         address collection,
         string memory attributesMetadataURI
     ) external;
