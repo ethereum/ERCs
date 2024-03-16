@@ -1,0 +1,244 @@
+---
+eip: 76xx
+title: Generalized Token-Bound Contracts
+description: Define a registry for generic token-bound contracts 
+author: Francesco Sullo (@sullof)
+discussions-to: https://ethereum-magicians.org/t/variation-to-erc6551-to-deploy-any-kind-of-contract-linked-to-an-nft/19223
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-03-15
+requires: 6551
+---
+
+## Abstract
+
+This proposal introduces a variation of [ERC-6551](./eip-6551.md) that extends to all types of contracts linked to non-fungible tokens (NFTs). This generalization allows NFTs not only to own assets and interact with applications as accounts but also to be linked with any contract, enhancing their utility without necessitating modifications to existing smart contracts or infrastructure.
+
+## Motivation
+
+Our initial approach involved proposing an expansion of [ERC-6551](./eip-6551.md) to encompass a broader scope of token-bound contracts beyond accounts. The goal was to enable any deployed token-bound contract to potentially represent more than just an account, with the actual functionality determined by checking the contract's interface. Unfortunately, this suggestion was not adopted due to concerns about complicating the trust model built into [ERC-6551](./eip-6551.md), where projects rely on emitted events to understand the nature of the contract without additional verification steps. Our proposed change, while introducing versatility, would have necessitated interface checks by developers, introducing a layer of friction and potentially leading to non-account contracts being disregarded as irrelevant by Token Bound Account (TBA) indexes.
+
+In developing a protocol aimed at enriching the functionalities of NFTs, we encountered the need to deploy a dedicated manager and various plugins for each NFT to expand its capabilities. While some plugins functioned as accounts, mirroring the ERC-6551 approach, we found that the majority did not fit within this framework. This discrepancy necessitated the creation of a new, more flexible registry that could accommodate a wider range of functionalities. Initially, this registry was intended solely for our internal use to overcome the limitations we faced. However, as our work progressed, we recognized that the challenges we encountered were not unique to our project but were indicative of a broader need within the ecosystem for greater flexibility in linking NFTs with diverse contract types. Inspired by this insight and encouraged by preliminary feedback from the community, we decided to formalize our solution and propose it as an ERC, with the belief that it could significantly benefit the entire Ethereum ecosystem by providing a versatile framework for NFT functionalities.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+The interface `IERC76xxRegistry` is defined as follows:
+
+```solidity
+interface IERC76xxRegistry {
+  /**
+   * The registry MUST emit the TokenLinkedContractCreated event upon successful account creation.
+   */
+  event TokenLinkedContractCreated(
+    address contractAddress,
+    address indexed implementation,
+    bytes32 salt,
+    uint256 chainId,
+    address indexed tokenContract,
+    uint256 indexed tokenId
+  );
+
+  /**
+   * Deploys a contract linked to a token
+   * It a new contract is deployed, it MUST emit a TokenLinkedContractCreated event.
+   * If the contract has already been created, it just returns the account address.
+   */
+  function createTokenLinkedContract(
+    address implementation,
+    bytes32 salt,
+    uint256 chainId,
+    address tokenContract,
+    uint256 tokenId
+  ) external returns (address account);
+
+  /**
+   * Returns the computed address for the contract linked to a token
+   */
+  function tokenLinkedContract(
+    address implementation,
+    bytes32 salt,
+    uint256 chainId,
+    address tokenContract,
+    uint256 tokenId
+  ) external view returns (address account);
+}
+```
+
+Any contract developed using the ERC76xxRegistry SHOULD implement the following interface:
+
+```solidity
+interface IERC76xxContract {
+  /**
+  * @notice Returns the token linked to the contract
+  * @return chainId The chainId of the token
+  * @return tokenContract The address of the token contract
+  * @return tokenId The tokenId of the token
+  */
+  function token() external view returns (uint256 chainId, address tokenContract, uint256 tokenId);
+
+}
+```
+
+## The Registry
+
+Since this proposal is a variation of [ERC-6551](./eip-6551.md), the registry is fully aligned with the ERC6551Registry. It is responsible for predicting and returning the addresses of token-linked contracts. The registry is deployed using Nick's Factory, ensuring that its address is hardcoded within referring contracts. This approach guarantees address consistency across different deployments, ensuring that the registry maintains stability and reliability within the protocol's architecture.
+
+_As soon as a number is assigned to the ERC we will provide canonical address and more details about the implementation_ 
+
+## Reference implementation
+
+The code producing the bytecode that will be deployed using Nick's Factory is the following. It is a clear modification of the ERC6551Registry code, changing just a few lines to address the changes in the interface.
+
+```solidity
+contract ERC76xxRegistry is IERC76xxRegistry {
+  /**
+   * @notice The registry MUST revert with TokenLinkedContractCreationFailed error if the create2 operation fails.
+   */
+  error TokenLinkedContractCreationFailed();
+
+  function createTokenLinkedContract(
+    address implementation,
+    bytes32 salt,
+    uint256 chainId,
+    address tokenContract,
+    uint256 tokenId
+  ) external override returns (address) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      // Memory Layout:
+      // ----
+      // 0x00   0xff                           (1 byte)
+      // 0x01   registry (address)             (20 bytes)
+      // 0x15   salt (bytes32)                 (32 bytes)
+      // 0x35   Bytecode Hash (bytes32)        (32 bytes)
+      // ----
+      // 0x55   ERC-1167 Constructor + Header  (20 bytes)
+      // 0x69   implementation (address)       (20 bytes)
+      // 0x5D   ERC-1167 Footer                (15 bytes)
+      // 0x8C   salt (uint256)                 (32 bytes)
+      // 0xAC   chainId (uint256)              (32 bytes)
+      // 0xCC   tokenContract (address)        (32 bytes)
+      // 0xEC   tokenId (uint256)              (32 bytes)
+
+      // Silence unused variable warnings
+      pop(chainId)
+
+      // Copy bytecode + constant data to memory
+      calldatacopy(0x8c, 0x24, 0x80) // salt, chainId, tokenContract, tokenId
+      mstore(0x6c, 0x5af43d82803e903d91602b57fd5bf3) // ERC-1167 footer
+      mstore(0x5d, implementation) // implementation
+      mstore(0x49, 0x3d60ad80600a3d3981f3363d3d373d3d3d363d73) // ERC-1167 constructor + header
+
+      // Copy create2 computation data to memory
+      mstore8(0x00, 0xff) // 0xFF
+      mstore(0x35, keccak256(0x55, 0xb7)) // keccak256(bytecode)
+      mstore(0x01, shl(96, address())) // registry address
+      mstore(0x15, salt) // salt
+
+      // Compute account address
+      let computed := keccak256(0x00, 0x55)
+
+      // If the account has not yet been deployed
+      if iszero(extcodesize(computed)) {
+        // Deploy account contract
+        let deployed := create2(0, 0x55, 0xb7, salt)
+
+        // Revert if the deployment fails
+        if iszero(deployed) {
+          mstore(0x00, 0x019134ac) // `TokenLinkedContractCreationFailed()`
+          revert(0x1c, 0x04)
+        }
+
+        // Store account address in memory before salt and chainId
+        mstore(0x6c, deployed)
+
+        // Emit the TokenLinkedContractCreated event
+        log4(
+          0x6c,
+          0x60,
+          0x91dfd55a37c344f31d03488cf913823191690b82681081685733c259c25ace15,
+          implementation,
+          tokenContract,
+          tokenId
+        )
+
+        // Return the account address
+        return(0x6c, 0x20)
+      }
+
+      // Otherwise, return the computed account address
+      mstore(0x00, shr(96, shl(96, computed)))
+      return(0x00, 0x20)
+    }
+  }
+
+  function tokenLinkedContract(
+    address implementation,
+    bytes32 salt,
+    uint256 chainId,
+    address tokenContract,
+    uint256 tokenId
+  ) external view override returns (address) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      // Silence unused variable warnings
+      pop(chainId)
+      pop(tokenContract)
+      pop(tokenId)
+
+      // Copy bytecode + constant data to memory
+      calldatacopy(0x8c, 0x24, 0x80) // salt, chainId, tokenContract, tokenId
+      mstore(0x6c, 0x5af43d82803e903d91602b57fd5bf3) // ERC-1167 footer
+      mstore(0x5d, implementation) // implementation
+      mstore(0x49, 0x3d60ad80600a3d3981f3363d3d373d3d3d363d73) // ERC-1167 constructor + header
+
+      // Copy create2 computation data to memory
+      mstore8(0x00, 0xff) // 0xFF
+      mstore(0x35, keccak256(0x55, 0xb7)) // keccak256(bytecode)
+      mstore(0x01, shl(96, address())) // registry address
+      mstore(0x15, salt) // salt
+
+      // Store computed account address in memory
+      mstore(0x00, shr(96, shl(96, keccak256(0x00, 0x55))))
+
+      // Return computed account address
+      return(0x00, 0x20)
+    }
+  }
+}
+
+```
+
+This is an implementation for a contract that can be linked to a token:
+
+```solidity
+contract ERC76xxContract is IERC76xxContract {
+
+  function token() public view virtual returns (uint256, address, uint256) {
+    bytes memory footer = new bytes(0x60);
+     assembly {
+      extcodecopy(address(), add(footer, 0x20), 0x4d, 0x60)
+    }
+    return abi.decode(footer, (uint256, address, uint256));
+  }
+}
+```
+
+## Rationale
+
+The expansion of the registry's capabilities to manage contracts beyond accounts provides several advantages:
+
+- **Flexibility**: Developers can allow NFTs to interact with a broader range of linked contracts, unlocking new use cases and functionalities.
+- **Compatibility**: By ensuring that account-like contracts can still be identified as such, the proposal maintains backward compatibility with [ERC-6551](./eip-6551.md).
+- **Innovation**: This proposal encourages further innovation in the NFT space by removing limitations on the types of contracts that can be associated with NFTs.
+
+## Security Considerations
+
+This proposal does not introduce any new security considerations beyond those already addressed in [ERC-6551](./eip-6551.md).
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
