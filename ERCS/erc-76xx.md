@@ -84,6 +84,8 @@ interface IERC76xxContract {
 
 ## Reference implementation
 
+The reference implementation is almost identical to ERC6551Registry, with minor changes to emit a different event and error. 
+
 ```solidity
 contract ERC76xxRegistry is IERC76xxRegistry {
   /**
