@@ -82,7 +82,7 @@ interface IERC76xxContract {
 }
 ```
 
-Notice that there is no restriction specifying what a deployed contract is, so a deployed contract can be also an IERC6551Account.
+Notice that there is no restriction specifying what a deployed contract is, and a deployed contract can also support IERC6551Account, despite it would be better to deploy an account using the proper registry.
 
 ## Reference implementation
 
