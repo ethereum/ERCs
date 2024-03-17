@@ -82,15 +82,7 @@ interface IERC76xxContract {
 }
 ```
 
-## The Registry
-
-Since this proposal is a variation of [ERC-6551](./eip-6551.md), the registry is fully aligned with the ERC6551Registry. It is responsible for predicting and returning the addresses of token-linked contracts. The registry is deployed using Nick's Factory, ensuring that its address is hardcoded within referring contracts. This approach guarantees address consistency across different deployments, ensuring that the registry maintains stability and reliability within the protocol's architecture.
-
-_As soon as a number is assigned to the ERC we will provide canonical address and more details about the implementation_ 
-
 ## Reference implementation
-
-The code producing the bytecode that will be deployed using Nick's Factory is the following. It is a clear modification of the ERC6551Registry code, changing just a few lines to address the changes in the interface.
 
 ```solidity
 contract ERC76xxRegistry is IERC76xxRegistry {
@@ -212,7 +204,7 @@ contract ERC76xxRegistry is IERC76xxRegistry {
 
 ```
 
-This is an implementation for a contract that can be linked to a token:
+A simple implementation of IERC76xxContract:
 
 ```solidity
 contract ERC76xxContract is IERC76xxContract {
