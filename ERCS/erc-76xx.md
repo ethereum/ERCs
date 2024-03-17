@@ -30,6 +30,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 The interface `IERC76xxRegistry` is defined as follows:
 
 ```solidity
+// interfaceId 0xcd691053
 interface IERC76xxRegistry {
   /**
    * The registry MUST emit the TokenLinkedContractCreated event upon successful account creation.
@@ -84,9 +85,11 @@ interface IERC76xxContract {
 }
 ```
 
-Notice that there is no restriction specifying what a deployed contract is, and a deployed contract can also support IERC6551Account, despite it would be better to deploy an account using the proper registry.
+or the IERC6551Account interface, or both. This flexibility makes ERC6551 accounts compatible with ERC76xx out-of-the-box.
 
 ## Reference implementation
+
+### ERC76xxRegistry
 
 The reference implementation is almost identical to ERC6551Registry, with minor changes to emit a different event and error. 
 
@@ -168,6 +171,7 @@ contract ERC76xxRegistry is IERC76xxRegistry {
       mstore(0x00, shr(96, shl(96, computed)))
       return(0x00, 0x20)
     }
+
   }
 
   /// @dev see {ICrunaRegistry-tokenLinkedContract}
@@ -199,9 +203,21 @@ contract ERC76xxRegistry is IERC76xxRegistry {
       return(0x00, 0x20)
     }
   }
+
+  /// @dev Returns true if interfaceId is IERC76xxRegistry's interfaceId
+  /// This contract does not extend IERC165 to keep the bytecode as small as possible 
+  function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+    return interfaceId == 0xcd691053;
+  }
+
 }
 
 ```
+
+Compared to ERC6551Registry, the primary difference is that this implementation is IERC165 compatible and should confirm that it supports the IERC76xxRegistry interface. The reason is that, while the ERC6551Registry is a singleton and is supposed to be deployed a single time on every chain, an ERC76xxRegistry can be deployed multiple times on the same chain, and the support of the interface is essential to ensure that the contract is indeed an ERC76xxRegistry.
+
+
+### ERC76xxContract
 
 A simple implementation of IERC76xxContract:
 
