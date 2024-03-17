@@ -82,6 +82,8 @@ interface IERC76xxContract {
 }
 ```
 
+Notice that there is no restriction specifying what a deployed contract is, so a deployed contract can be also an IERC6551Account.
+
 ## Reference implementation
 
 The reference implementation is almost identical to ERC6551Registry, with minor changes to emit a different event and error. 
