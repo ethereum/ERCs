@@ -70,7 +70,7 @@ interface IERC76xxRegistry {
 }
 ```
 
-Any contract developed using the ERC76xxRegistry SHOULD implement the following interface:
+Any contract developed using the ERC76xxRegistry SHOULD implement the IERC76xxContract interface:
 
 ```solidity
 interface IERC76xxContract {
@@ -85,7 +85,30 @@ interface IERC76xxContract {
 }
 ```
 
-or the IERC6551Account interface, or both. This flexibility makes ERC6551 accounts compatible with ERC76xx out-of-the-box.
+or the IERC6551Account interface
+
+```solidity
+/// @dev the ERC-165 identifier for this interface is `0x6faff5f1`
+interface IERC6551Account {
+    receive() external payable;
+
+    function token()
+        external
+        view
+        returns (uint256 chainId, address tokenContract, uint256 tokenId);
+
+    function state() external view returns (uint256);
+
+    function isValidSigner(address signer, bytes calldata context)
+        external
+        view
+        returns (bytes4 magicValue);
+}
+```
+
+or both. This flexibility makes ERC6551 accounts compatible with ERC76xx out-of-the-box.
+
+_Notice that most likely the function state will return a bytes32 value in the final version of [ERC-6551](./eip-6551.md). As soon as that changes, we will update this proposal accordingly._
 
 ## Reference implementation
 
