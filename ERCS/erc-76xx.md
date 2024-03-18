@@ -91,7 +91,7 @@ or the IERC6551Account interface, or both. This flexibility makes ERC6551 accoun
 
 ### ERC76xxRegistry
 
-The reference implementation is almost identical to ERC6551Registry, with minor changes to emit a different event and error. 
+The reference implementation is mutuated from ERC6551Registry, with minor changes to emit a different event and error. 
 
 ```solidity
 contract ERC76xxRegistry is IERC76xxRegistry {
@@ -214,7 +214,7 @@ contract ERC76xxRegistry is IERC76xxRegistry {
 
 ```
 
-Compared to ERC6551Registry, the primary difference is that this implementation is IERC165 compatible and should confirm that it supports the IERC76xxRegistry interface. The reason is that, while the ERC6551Registry is a singleton and is supposed to be deployed a single time on every chain, an ERC76xxRegistry can be deployed multiple times on the same chain, and the support of the interface is essential to ensure that the contract is indeed an ERC76xxRegistry.
+Another difference compared to ERC6551Registry is that this implementation is IERC165 compatible and should confirm that it supports the IERC76xxRegistry interface. The reason is that, while the ERC6551Registry is a singleton and is supposed to be deployed a single time on every chain, an ERC76xxRegistry can be deployed multiple times on the same chain, and the support of the interface is essential to ensure that the contract is indeed an ERC76xxRegistry.
 
 
 ### ERC76xxContract
