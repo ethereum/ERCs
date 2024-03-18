@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2024-03-15
-requires: 6551
+requires: 165, 6551
 ---
 
 ## Abstract
@@ -227,7 +227,7 @@ contract ERC76xxRegistry is IERC76xxRegistry {
   }
 
   /// @dev Returns true if interfaceId is IERC76xxRegistry's interfaceId
-  /// This contract does not extend IERC165 to keep the bytecode as small as possible 
+  /// This contract does not explicitly extend IERC165 to keep the bytecode as small as possible 
   function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
     return interfaceId == 0xcd691053;
   }
