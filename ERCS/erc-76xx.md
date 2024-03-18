@@ -70,7 +70,7 @@ interface IERC76xxRegistry {
 }
 ```
 
-Any contract developed using the ERC76xxRegistry SHOULD implement the IERC76xxContract interface:
+Any contract created using a ERC76xxRegistry SHOULD implement the IERC76xxContract interface:
 
 ```solidity
 interface IERC76xxContract {
