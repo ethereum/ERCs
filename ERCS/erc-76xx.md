@@ -197,7 +197,6 @@ contract ERC76xxRegistry is IERC76xxRegistry {
 
   }
 
-  /// @dev see {ICrunaRegistry-tokenLinkedContract}
   function tokenLinkedContract(
     address implementation,
     bytes32 salt,
