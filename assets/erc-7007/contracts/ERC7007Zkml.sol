@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.18;
 
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -9,7 +9,7 @@ import "./IVerifier.sol";
 /**
  * @dev Implementation of the {IERC7007} interface.
  */
-contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
+contract ERC7007Zkml is ERC165, IERC7007, ERC721URIStorage {
     address public immutable verifier;
 
     /**
@@ -27,6 +27,7 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
      * @dev See {IERC7007-mint}.
      */
     function mint(
+        address to,
         bytes calldata prompt,
         bytes calldata aigcData,
         string calldata uri,
@@ -34,7 +35,7 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
     ) public virtual override returns (uint256 tokenId) {
         require(verify(prompt, aigcData, proof), "ERC7007: invalid proof");
         tokenId = uint256(keccak256(prompt));
-        _safeMint(msg.sender, tokenId);
+        _safeMint(to, tokenId);
         string memory tokenUri = string(
             abi.encodePacked(
                 "{",
@@ -47,7 +48,7 @@ contract ERC7007 is ERC165, IERC7007, ERC721URIStorage {
             )
         );
         _setTokenURI(tokenId, tokenUri);
-        emit Mint(tokenId, prompt, aigcData, uri, proof);
+        emit Mint(to, tokenId, prompt, aigcData, uri, proof);
     }
 
     /**
