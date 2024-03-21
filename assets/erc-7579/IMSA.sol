@@ -1,20 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.21;
 
-/// ERC-4337 (v0.7) UserOperation struct
-struct PackedUserOperation {
-    address sender;
-    uint256 nonce;
-    bytes initCode;
-    bytes callData;
-    bytes32 accountGasLimits;
-    uint256 preVerificationGas;
-    uint256 maxFeePerGas;
-    uint256 maxPriorityFeePerGas;
-    bytes paymasterAndData;
-    bytes signature;
-}
-
 interface IERC7579Account {
     // MUST be emitted when a module is installed
     event ModuleInstalled(uint256 moduleTypeId, address module);
@@ -24,11 +10,10 @@ interface IERC7579Account {
 
     /**
      * @dev Executes a transaction on behalf of the account.
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
      * @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
      * @param executionCalldata The encoded execution call data
      *
-     * MUST ensure adequate authorization control: i.e. onlyEntryPointOrSelf
+     * MUST ensure adequate authorization control: e.g. onlyEntryPointOrSelf if used with ERC-4337
      * If a mode is requested that is not supported by the Account, it MUST revert
      */
     function execute(bytes32 mode, bytes calldata executionCalldata) external;
@@ -45,17 +30,6 @@ interface IERC7579Account {
     function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
         external
         returns (bytes[] memory returnData);
-
-    /**
-     * @dev ERC-4337 validateUserOp according to ERC-4337 v0.7
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
-     * this validation function should decode / sload the validator module to validate the userOp
-     * and call it.
-     * @param userOp PackedUserOperation struct (see ERC-4337 v0.7+)
-     */
-    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
-        external
-        returns (uint256 validSignature);
 
     /**
      * @dev ERC-1271 isValidSignature
