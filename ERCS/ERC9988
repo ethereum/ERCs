@@ -1,0 +1,56 @@
+# EIP-9988: Extended Multiphase Fractional NFTs - XMF-NFTs
+---
+**Author**: Jonathan Else - (@JEflyer)
+**Discussions-To**: [https://github.com/JEflyer/ERC9988/issues/1](https://github.com/JEflyer/ERC9988/issues/1)  
+**Status**: Draft  
+**Type**: Standards Track  
+**Category**: ERC  
+**Created**: 25/3/2024  
+**Requires**: 721  
+---
+
+## Simple Summary
+A standard for representing ownership of fractional tokens and their transitions through different phases, catering to complex asset transformations and lifecycle management.
+
+## Abstract
+The ERC-9988 standard introduces a framework allowing ERC-721 Non-Fungible Tokens (NFTs) to be broken down into phase-based tokens (PB Tokens) representing fractional ownership or states at various lifecycle phases. Unlike standard ERC-20 tokens, PB Tokens within ERC-9988 accommodate the multifaceted nature of asset transformation, encapsulating phase transitions that reflect changes in the underlying asset's state, form, or value.
+
+## Motivation
+In industries involving supply chains or assets undergoing various forms of processing, a singular representation (as either a fungible or non-fungible token) falls short of depicting the asset's evolving nature. ERC-9988 addresses this gap by enabling dynamic representation and management of assets throughout their transformation phases, enhancing tracking and interaction with these assets on the blockchain.
+
+## Specification
+
+### Phase Tokens (PB Tokens)
+- PB Tokens are associated with an ERC-721 NFT, representing fractional ownership or specific attributes of the NFT in a given phase.
+- Each PB Token phase reflects a distinct state or condition of the underlying asset, with the contract managing transitions between these phases.
+
+### Phase Transition
+- Defines rules for transitioning PB Tokens between phases, simulating real-world asset transformations.
+- Transition rules specify conditions for phase changes, potentially altering the token count to reflect consolidation or division of the asset.
+
+### API
+- `mint(address to, uint256[] memory phaseMultipliers)`: Mints a new token with specified phase multipliers. Each multiplier defines the conversion rate for transitioning from one phase to the next.
+- `transitionPhase(uint256 parentTokenId, uint256 phaseFrom, uint256 phaseTo, uint256 amount)`: Transitions a specified amount of tokens from one phase to another for a given parent token ID.
+- `burn(uint256 parentTokenId, uint256 phase, uint256 amount)`: Burns a specified amount of tokens in a given phase for a parent token ID.
+- `tokenURI(uint256 tokenId)`: Returns the token URI for a given token ID, providing access to its metadata.
+- `phaseURI(uint256 tokenId, uint256 phase)`: Returns the phase URI for a specific phase of a given token ID, providing access to phase-specific metadata.
+
+### Events
+- `MintingPhase(uint256 indexed tokenID, uint256 indexed phase, address indexed to, uint256 amount)`: Emitted when a new token is minted, indicating the phase and the amount of tokens created.
+- `TransferPhase(uint256 indexed parentTokenId, uint256 indexed phaseFrom, uint256 indexed phaseTo, address to, uint256 amount)`: Reflects a phase transition of tokens from one phase to another, including the parent token ID, phases involved, and the amount transferred.
+- `BurnPhase(uint256 indexed parentTokenId, uint256 indexed phase, address indexed from, uint256 amount)`: Logged when tokens are burned in a specific phase, showing the parent token ID, phase, sender, and amount burned.
+- `ERC9988Transfer(address indexed from, address indexed to, uint256 tokenId, uint256 phase, uint256 amount)`: Indicates the transfer of tokens between accounts, specifying phases and amounts.
+
+## Rationale
+Introducing ERC-9988 fills a critical niche, blending the characteristics of ERC-721 and ERC-20 tokens to accurately represent dynamic assets. This standard is particularly suited for applications requiring detailed asset management through various phases of transformation.
+
+## Backwards Compatibility
+ERC-9988 extends ERC-721 standards and introduces multi-phase fungibility within the scope of a single NFT. It is designed to be compatible with existing blockchain infrastructure, with considerations for unique interactions required by phase transitions and fractional ownership.
+
+## Security Considerations
+- Implementations must ensure secure handling of phase transitions, preventing unauthorized state changes.
+- Approval and transfer mechanisms need to address the intricacies of phase-based token management, safeguarding against unauthorized access and manipulation.
+- Interoperability with wallets and platforms requires careful consideration to accurately represent and manage PB Tokens' multi-phase nature.
+
+## Conclusion
+ERC-9988 proposes an innovative approach to asset tokenization on the Ethereum blockchain, offering a solution for accurately representing and managing assets with complex lifecycles and transformations.
