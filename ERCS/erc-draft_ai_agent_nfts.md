@@ -12,7 +12,7 @@ requires: 721
 
 ## Abstract
 
-This proposal introduces a standard for AI agent NFTs. In order for AI Agents to be created and traded as NFTs it doesn't make sense to put the prompts in the token metada, therefore it requires a standard custom struct. It also needs doesn't make sense to store the prompts directly onchain as they can be quite large, therefore this standard proposes they be stored as decentralized storage URLs. This standard also proposes two options on how this data should be made private to the owner of the NFT, with the favored implementation option being encrypting the data using custom contract parameters for decryption that decrypt only to the owner of the NFT. 
+This proposal introduces a standard for AI agent NFTs. In order for AI Agents to be created and traded as NFTs it doesn't make sense to put the prompts in the token metadata, therefore it requires a standard custom struct. It also needs doesn't make sense to store the prompts directly onchain as they can be quite large, therefore this standard proposes they be stored as decentralized storage URLs. This standard also proposes two options on how this data should be made private to the owner of the NFT, with the favored implementation option being encrypting the data using custom contract parameters for decryption that decrypt only to the owner of the NFT. 
 
 ## Motivation
 
@@ -25,13 +25,58 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### AI Agent NFTs Interface
 
-All ERC-XXXX compliant contracts MUST implemet the IERC721 and AgentInfo struct
+All ERC-XXXX compliant contracts MUST implement the standard IERC721 functionality for minting and transferring NFTs, and MUST additionally implement this standard's Agent struct
 
 ```solidity
    
+struct Agent {
+  string name;
+  string description;
+  string model;
+  string userPromptURI;
+  string systemPromptURI;
+}
+```
+
+and MUST implement the mapping between NFT Token ID and its Agent information.
+
+```solidity
+   
+mapping(uint => Agent) public Agents;
+```
+
+It is RECOMMENDED that this mapping is public and that the URIs for User Prompt and System Prompt are made private through encryption with decryption set to the holder of the NFT via custom contract parameters set during encryption, such as those provided by Lit Protocol. 
+
+It is conceivable to also create an implementation whereby this mapping was set to private and accessed through a custom function that restricted access to the holder of the NFT. This approach would explose the prompts through their urls though, therefore the RECOMMENDED approach is a public mapping and encryption on the URLs. This also has the benefit of publicly exposing the data in the Agent struct to verify name, description and model and that encyrpted URIs for the User Prompt and System Prompt exist. 
+
+All ERC-XXX compliant contracts MUST implement the mintAgent function
+
+```solidity
+   
+function mintAgent(address _recipient, string memory _name, string memory _description, string memory _model, string memory _userPromptURI, string memory _systemPromptURI, string memory _tokenURI) public {
+  tokenIds++; //implementation of a counter for incrementing token Id #
+  Agents[tokenIds] = Agent(_name, _description, _model, _userPromptURI, _systemPromptURI);
+
+  emit AgentCreated(_name, _description, _model, _userPromptURI, _systemPromptURI) //Recommended event
+
+  _mint(_recipient, tokenIds);
+  _setTokenURI(tokenIds, _tokenURI);
+
+  emit AgentMinted(_recipient, _tokenURI, tokenIds); //Recommended event
+}
+```
+
+It is RECOMMENDED to implement the following events: 
+
+```solidity
+event AgentCreated(string name, string description, string model, string userPromptURI, string systemPromptURI)
+event AgentMinted(address recipient, string tokenURI, uint256 tokenId)
 
 ```
 
+## User Prompt Dynamic Variable Instruction
+
+To enable dynamic variables being injected into the User Prompt before being run, any such variables should be surrounded with ${} e.g. ${dynamicVariableName} in order that they can be recognized and handled appropriately by programs and systems that will enabled the injection, e.g. web forms and automation systems. 
 
 ## Rationale
 
@@ -43,7 +88,7 @@ This standard codifies the necessary parameters of Name, Description, Model, Use
 
 ### Addressing The Privacy In Open Blockchain Problem
 
-It doesn't make practical sense to store the user and system prompts in an existing ERC721 as the only place to put would be in the token metadata that is open for anyone to access the prompts without owning the NfT. By storing the prompts in a custom AgentInfo struct, there is the options to restrict access to the struct info to the holder of the NFT, or, since this still exposes the prompt URls to the public, encrypting the prompts onchain and tying the decryption of the URLs to the holder of the NFT, using onchain services such as Lit Protocol. 
+It doesn't make practical sense to store the user and system prompts in an existing ERC721 as the only place to put would be in the token metadata that is open for anyone to access the prompts without owning the NFT. By storing the prompts in a custom AgentInfo struct, there is the options to restrict access to the struct info to the holder of the NFT, or, since this still exposes the prompt URls to the public, encrypting the prompts onchain and tying the decryption of the URLs to the holder of the NFT, using onchain services such as Lit Protocol, which is the recommended option for implementation. 
 
 
 
