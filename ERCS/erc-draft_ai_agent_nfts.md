@@ -16,7 +16,7 @@ This proposal introduces a standard for AI agent NFTs. In order for AI Agents to
 
 ## Motivation
 
-The creation and trading of AI Agent NFTs are a natural fit and offer the potential for an entirely new and vibrant onchain market. This requires some custom data to be embedded in the NFT through a custom struct and this needs to be standardized so that any marketplace or AI Agent management product, among others, know how to create and parse AI Agent NFTs. 
+The creation and trading of AI Agent NFTs are a natural fit and offer the potential for an entirely new onchain market. This requires some custom data to be embedded in the NFT through a custom struct and this needs to be standardized so that any marketplace or AI Agent management product, among others, know how to create and parse AI Agent NFTs. 
 
 
 ## Specification
@@ -49,7 +49,7 @@ It is RECOMMENDED that this mapping is public and that the URIs for User Prompt 
 
 It is conceivable to also create an implementation whereby this mapping was set to private and accessed through a custom function that restricted access to the holder of the NFT. This approach would explose the prompts through their urls though, therefore the RECOMMENDED approach is a public mapping and encryption on the URLs. This also has the benefit of publicly exposing the data in the Agent struct to verify name, description and model and that encyrpted URIs for the User Prompt and System Prompt exist. 
 
-All ERC-XXX compliant contracts MUST implement the mintAgent function
+All ERC-XXXX compliant contracts MUST implement the mintAgent function
 
 ```solidity
    
@@ -88,7 +88,7 @@ This standard codifies the necessary parameters of Name, Description, Model, Use
 
 ### Addressing The Privacy In Open Blockchain Problem
 
-It doesn't make practical sense to store the user and system prompts in an existing ERC721 as the only place to put would be in the token metadata that is open for anyone to access the prompts without owning the NFT. By storing the prompts in a custom AgentInfo struct, there is the options to restrict access to the struct info to the holder of the NFT, or, since this still exposes the prompt URls to the public, encrypting the prompts onchain and tying the decryption of the URLs to the holder of the NFT, using onchain services such as Lit Protocol, which is the recommended option for implementation. 
+It doesn't make practical sense to store the user and system prompts in an existing ERC721 as the only place to put would be in the token metadata that is open for anyone to access the prompts without owning the NFT. By storing the prompts in a custom Agent struct and restricting access to the prompts to the holder of the NFT.  One way to do this would be through restricing access to the struct info to the holder of the NFT through a custom function, however since that option still exposes the prompt URIs to the public and thus the data inside them, the recommended method is by encrypting the prompts onchain and tying the decryption of the URLs to the holder of the NFT, using onchain services such as Lit Protocol that enable decryption to be tied to contract parameters such as ownerOf(tokenId). 
 
 
 
