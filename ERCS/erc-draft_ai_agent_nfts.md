@@ -102,7 +102,7 @@ The AI Agents NFT standard introduces additional features and data to the standa
 
 ### Reference Implementation
 
-This is being implemented in the upcoming CEO.ai product for creating, managing and using AI Agents Onchain through a DApp interface. In this implementation, Lit Protocol is being used to encrypt the prompts using custom EVMContractParameters that only decrypt for the holder of the NFT and using Arweave to store the URLs of this encrypted data. 
+This is being currently implemented in a CEO AI product for creating, managing and using AI Agents Onchain through a DApp interface. In this implementation, Lit Protocol is being used to encrypt the prompts using custom EVMContractParameters that only decrypt for the holder of the NFT and using Arweave to store the URLs of this encrypted data. 
 
 ## Security Considerations
 
