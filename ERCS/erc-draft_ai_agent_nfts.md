@@ -2,7 +2,7 @@
 title: AI Agent NFTs
 description: A specification for NFTs that represent AI Agents.
 author: Greg Marlin (@0marleymarl)
-discussions-to: [https://ethereum-magicians.org/t/add-erc-ai-agent-nfts/19371](https://ethereum-magicians.org/t/add-erc-ai-agent-nfts/19371)
+discussions-to: https://ethereum-magicians.org/t/add-erc-ai-agent-nfts/19371
 status: Draft
 type: Standards Track
 category: ERC
