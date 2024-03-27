@@ -23,10 +23,9 @@ contract RequestMethodTypes is IRequestMethodTypes{
         Types.Type[] memory dataTypeArray = new Types.Type[](2);
         dataTypeArray[0] = Types.Type.STRING;
         dataTypeArray[1] = Types.Type.UINT256;
-        Types.Type[] memory putReqArray = new Types.Type[](3);
+        Types.Type[] memory putReqArray = new Types.Type[](2);
         putReqArray[0] = Types.Type.ADDRESS;
         putReqArray[1] = Types.Type.STRING;
-        putReqArray[2] = Types.Type.UINT256;
         // @dev initialize get, post, put request parameter data types and response data types
         setMethod("getUser",MethodTypes.GET,getReqArray,dataTypeArray);
         setMethod("createUser",MethodTypes.POST,dataTypeArray,new Types.Type[](0));
@@ -71,10 +70,10 @@ contract RequestMethodTypes is IRequestMethodTypes{
 
     function put(string memory _methodName,bytes memory _methodReq)public returns(bytes memory){
         if(compareStrings(_methodName,"updateUserName")){
-            (string memory name)=abi.decode(_methodReq, (string));
-            users[msg.sender].name=name;
-            return abi.encode("");
-        } 
+            (address userAddress,string memory name)=abi.decode(_methodReq, (address,string));
+            require(userAddress==msg.sender);
+            users[userAddress].name=name;
+        }
         return abi.encode("");
     }
     
