@@ -19,7 +19,7 @@ Human users often fail to distinguish between long strings of hexadecimal charac
 This makes hexadecimal strings a poor format for human-readable account addresses.
 The problem is being exploited by several spoofing strategies that mine similar addresses and spoof ERC-20 Transfer events with the goal of tricking the end user into copying the wrong recipient address.
 These address spoofing attacks have mislead tens of thousands of ether, and countless other tokens.
-Phishers flooding the network with fake Transfer events wastes network resources and complicates blockchain accounting.
+Spoofers flooding the network with fake Transfer events waste network resources and complicate blockchain accounting.
 Improving the distinguishability of addresses will reduce the incentives for this behavior.
 
 ## Specification
