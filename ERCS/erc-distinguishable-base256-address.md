@@ -2,7 +2,7 @@
 title: Distinguishable Account Addresses 
 description: Depict Account Addresses As A String of 20 Emoji 
 author: William Morriss (@wjmelements)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-distinguishable-account-addresses/19461
 status: Draft
 type: Standards Track
 category: ERC
