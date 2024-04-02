@@ -7,7 +7,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2024-04-02
-requires: ERC-20, EIP-1153
+requires: 20, 1153
 ---
 
 ## Abstract
