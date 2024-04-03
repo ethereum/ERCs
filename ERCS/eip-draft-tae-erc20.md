@@ -1,4 +1,5 @@
 ---
+eip: 7674
 title: Transient Approval Extension for ERC-20
 description: An interface for ERC-20 approvals via EIP-1153 transient storage
 author: Xenia Shape (@byshape), Mikhail Melnik (@ZumZoom)
