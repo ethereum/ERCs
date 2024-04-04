@@ -264,24 +264,7 @@ type PaymasterServiceCapability = {
 
 Below is a diagram illustrating the full `wallet_sendCalls` flow, including how a wallet might implement the interaction.
 
-```mermaid
-sequenceDiagram
-    participant App
-    participant Wallet
-    participant Paymaster Service
-    participant Bundler
-    
-    App->>Wallet: wallet_sendCalls({...url: "https://..."})
-    Wallet->>Paymaster Service: pm_getPaymasterStubData(userOp)
-    Paymaster Service->>Wallet: Stub paymaster values
-    Wallet->>Bundler: eth_estimateUserOperationGas(userOpWithStubPaymasterValues)
-    Bundler->>Wallet: Gas estimates
-    Wallet->>Paymaster Service: pm_getPaymasterData(userOp)
-    Paymaster Service->>Wallet: Paymaster values
-    Wallet->>Bundler: eth_sendUserOperation(userOp)
-    Bundler->>Wallet: userOp hash
-    Wallet->>App: Calls identifier
-```
+![flow](../assets/erc-draft-pm-capability/0.png)
 
 ## Rationale
 
@@ -293,29 +276,7 @@ The current loose standard for paymaster services is to implement `pm_sponsorUse
 
 The URLs paymaster service providers give to app developers commonly have API keys in them. App developers might not want to pass these API keys along to wallets. To remedy this, we recommend that app developers provide a URL to their app's backend, which can then proxy calls to paymaster services. Below is a modified diagram of what this flow might look like.
 
-```mermaid
-sequenceDiagram
-    participant app.com
-    participant Wallet
-    participant api.app.com
-    participant Paymaster Service
-    participant Bundler
-    
-    app.com->>Wallet: wallet_sendCalls({...url: "api.app.com"})
-    Wallet->>api.app.com: pm_getPaymasterStubData(userOp)
-    api.app.com->>Paymaster Service: pm_getPaymasterStubData(userOp)
-    Paymaster Service->>api.app.com: Stub paymaster values
-    api.app.com->>Wallet: Stub paymaster values
-    Wallet->>Bundler: eth_estimateUserOperationGas(userOpWithStubPaymasterValues)
-    Bundler->>Wallet: Gas estimates
-    Wallet->>api.app.com: pm_getPaymasterData(userOp)
-    api.app.com->>Paymaster Service: pm_getPaymasterData(userOp)
-    Paymaster Service->>api.app.com: Paymaster values
-    api.app.com->>Wallet: Paymaster values
-    Wallet->>Bundler: eth_sendUserOperation(userOp)
-    Bundler->>Wallet: userOp hash
-    Wallet->>app.com: Calls identifier
-```
+![flowWithAPI](../assets/erc-draft-pm-capability/0.png)
 
 This flow would allow developers to keep their paymaster service API keys secret. Developers might also want to do additional simulation / validation in their backends to ensure they are sponsoring a transaction they want to sponsor.
 
