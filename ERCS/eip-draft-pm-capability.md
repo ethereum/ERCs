@@ -264,7 +264,7 @@ type PaymasterServiceCapability = {
 
 Below is a diagram illustrating the full `wallet_sendCalls` flow, including how a wallet might implement the interaction.
 
-![flow](../assets/erc-draft-pm-capability/0.png)
+![flow](../assets/eip-draft-pm-capability/0.png)
 
 ## Rationale
 
@@ -276,7 +276,7 @@ The current loose standard for paymaster services is to implement `pm_sponsorUse
 
 The URLs paymaster service providers give to app developers commonly have API keys in them. App developers might not want to pass these API keys along to wallets. To remedy this, we recommend that app developers provide a URL to their app's backend, which can then proxy calls to paymaster services. Below is a modified diagram of what this flow might look like.
 
-![flowWithAPI](../assets/erc-draft-pm-capability/0.png)
+![flowWithAPI](../assets/eip-draft-pm-capability/0.png)
 
 This flow would allow developers to keep their paymaster service API keys secret. Developers might also want to do additional simulation / validation in their backends to ensure they are sponsoring a transaction they want to sponsor.
 
