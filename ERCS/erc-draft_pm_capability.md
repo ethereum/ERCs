@@ -1,4 +1,5 @@
 ---
+eip: 7677
 title: Paymaster Web Service Capability
 description: A standard for apps to communicate with smart wallets about paymaster web services
 author: Lukas Rosario (@lukasrosario), Dror Tirosh (@drortirosh), Wilson Cusack (@wilsoncusack)
