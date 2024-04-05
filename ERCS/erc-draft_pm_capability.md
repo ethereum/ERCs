@@ -3,7 +3,7 @@ eip: 7677
 title: Paymaster Web Service Capability
 description: A standard for apps to communicate with smart wallets about paymaster web services
 author: Lukas Rosario (@lukasrosario), Dror Tirosh (@drortirosh), Wilson Cusack (@wilsoncusack)
-discussions-to: https://ethereum-magicians.org/t/add-erc-paymaster-web-service-capability/19530
+discussions-to: https://ethereum-magicians.org/t/erc-7677-paymaster-web-service-capability/19530
 status: Draft
 type: Standards Track
 category: ERC
