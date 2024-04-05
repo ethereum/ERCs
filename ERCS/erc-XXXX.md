@@ -2,7 +2,7 @@
 eip: XXXX
 title: UserOperation Builder
 description: Construct UserOperations without being coupled with account-specific logic.
-author: Derek Chiang (@derekchiang), Garvit Khatri (@plusminushalf), Fil Makarov (@filmakarov), Kristof Gazso (@kristofgazso), Derek Rein (@arein), Juan Caballero (@bumblefudge), Tomas Rocchi (@tomiir), Jake Moxey (@jxom)
+author: Derek Chiang (derek@zerodev.app), Garvit Khatri (@plusminushalf), Fil Makarov (@filmakarov), Kristof Gazso (@kristofgazso), Derek Rein (@arein), Juan Caballero (@bumblefudge), Tomas Rocchi (@tomiir), Jake Moxey (@jxom)
 discussions-to: https://ethereum-magicians.org/t/erc-XXXX-standardized-smart-account-interfaces/tbd
 status: Draft
 type: Standards Track
