@@ -31,7 +31,7 @@ interface IERC7254 {
      * @dev Emitted when the add reward  of a `contributor` is set by
      * a call to {approve}.
      */
-    event UpdateReward(address indexed contributor, uint256 value);
+    event UpdateReward(address indexed contributor, address tokenReward, uint256 value);
 
     /**
      * @dev Emitted when `value` tokens reward to another (`to`).

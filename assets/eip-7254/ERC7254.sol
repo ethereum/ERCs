@@ -33,7 +33,7 @@ contract ERC7254 is ERC20 {
     * @dev Emitted when the add reward  of a `contributor` is set by
     * a call to {approve}.
     */
-    event UpdateReward(address indexed contributor, uint256 value);
+    event UpdateReward(address indexed contributor, address tokenReward, uint256 value);
 
     /**
     * @dev Emitted when `value` tokens reward to another (`to`) from caller
@@ -58,10 +58,7 @@ contract ERC7254 is ERC20 {
     * All three of these values are immutable: they can only be set once during
     * construction.
     */
-    constructor(string memory name_, string memory symbol_, address tokenReward_) ERC20(name_, symbol_){
-        _tokenReward.push(tokenReward_);
-        isTokenReward[tokenReward_] = true;
-    }
+    constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_){}
 
     /**
     * @dev Returns max token reward.
@@ -135,7 +132,7 @@ contract ERC7254 is ERC20 {
                 require(isTokenReward[token[i]], "ERC7254: token reward is not approved");
                 IERC20(token[i]).transferFrom(owner, address(this), amount[i]);
                 _updateRewardPerShare(token[i], amount[i]);
-                emit UpdateReward(owner, amount[i]);
+                emit UpdateReward(owner, token[i], amount[i]);
             }
             
         }    
@@ -147,7 +144,7 @@ contract ERC7254 is ERC20 {
     *
     * Emits a {GetReward} event.
     */
-    function getReward(address[] memory token, address to) public virtual {
+    function getReward(address[] memory token, address to) public virtual returns(uint256[] memory) {
         address owner = _msgSender();
         for( uint256 i = 0; i < token.length; ++i){
             UserInformation storage user = userInformation[token[i]][owner];
@@ -155,9 +152,11 @@ contract ERC7254 is ERC20 {
             _withdraw(token[i], owner, reward);
             if(reward / MAX > 0){
                 IERC20(token[i]).transfer(to, reward / MAX);
-            }  
+            }
+            rewardOf[i] = reward / MAX;
             emit GetReward(owner, to, reward);
         }
+        return rewardOf;
     }
 
     /**
