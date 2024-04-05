@@ -170,10 +170,6 @@ contract CounterfactualCall {
 
 Here’s an example of calling this contract using the ethers and viem libraries:
 
-### Fractionally Represented Non-Fungible Token Banking Interface
-
-This is a RECOMMENDED interface that is intended to be used by implementations of [ERC-7651](./eip-7651.md) that implement NFT ID reuse.
-
 ```javascript
 // ethers
 const nonce = await provider.call({
@@ -194,23 +190,6 @@ const nonce = await client.call({
     bytecode: counterfactualCallBytecode,
   })
 })
-```
-
-### Fractionally Represented Non-Fungible Token Transfer Exemptable Interface
-
-This is a RECOMMENDED interface that is intended to be used by implementations of [ERC-7651](./eip-7651.md) that want to allow users to opt-out of NFT transfers.
-
-```solidity
-interface IERC7651NFTTransferExemptable {
-  /// @notice Returns whether an address is NFT transfer exempt.
-  /// @param account_ The address to check.
-  /// @return Whether the address is NFT transfer exempt.
-  isNFTTransferExempt(address account_) external view returns (bool);
-
-  /// @notice Allows an address to set themselves as NFT transfer exempt.
-  /// @param isExempt_ The flag, true being exempt and false being non-exempt.
-  setSelfNFTTransferExempt(bool isExempt_) external;
-}
 ```
 
 ## Rationale
@@ -237,7 +216,7 @@ For smart accounts deployed against EntryPoint 0.6, the `IUserOperationBuilder` 
 
 ## Security Considerations
 
-No new trust assumptions or functionality are introduced in this ERC. It standardizes existing functionality.
+TODO
 
 ## Copyright
 
