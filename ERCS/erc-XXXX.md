@@ -1,8 +1,8 @@
 ---
 eip: XXXX
-title: Smart Account Interfaces
-description: A simple way for apps, wallets, and smart account tooling to interact with Smart Accounts
-author: Derek Chiang (@derekchiang), Fil Makarov (@filmakarov), Garvit Khatri (@plusminushalf), Kristof Gazso (@kristofgazso), Derek Rein (@arein), Juan Caballero (@bumblefudge), Tomas Rocchi (@tomiir), Jake Moxey (@jxom)
+title: UserOperation Builder
+description: Construct UserOperations without being coupled with account-specific logic.
+author: Derek Chiang (@derekchiang), Garvit Khatri (@plusminushalf), Fil Makarov (@filmakarov), Kristof Gazso (@kristofgazso), Derek Rein (@arein), Juan Caballero (@bumblefudge), Tomas Rocchi (@tomiir), Jake Moxey (@jxom)
 discussions-to: https://ethereum-magicians.org/t/erc-XXXX-standardized-smart-account-interfaces/tbd
 status: Draft
 type: Standards Track
