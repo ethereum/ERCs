@@ -3,7 +3,7 @@ eip: dnmt
 title: Dual Nature Multi Token Standard
 description: An ERC for the specification of combining fungible token and multi-token standard
 author: Sennett Lau (@sennett-lau)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/erc-dual-nature-multi-token-standard/19590
 status: Draft
 type: Standards Track
 category: ERC
