@@ -1,0 +1,129 @@
+---
+eip: dnmt
+title: Dual Nature Multi Token Standard
+description: An ERC for the specification of combining fungible token and multi-token standard
+author: Sennett Lau (@sennett-lau)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-04-08
+requires: 20, 1155
+---
+
+## Abstract
+
+This proposal delineates the integration of the fungible [ERC-20](./eip-20.md) token contract with the semi-fungible [ERC-1155](./eip-1155.md) multi-token standard, enabling cohesive operations between both standards within a single contract framework. It defines a mechanism for combining two token contracts and synchronizing operations between them.
+
+## Motivation
+
+Inspired by [ERC-7631 Dual Nature Token Pair](./erc-7631), which introduced a concept of interlinkable tokens between ERC-20 and ERC-721, a challenge arises due to the duplicated `Transfer(address, address, uint256)` event, making full compatibility challenging. However, combining ERC-20 and ERC-1155 offers similar benefits of non-fungible token (NFT) fractionalization natively. Here, acquiring ERC-20 tokens could automatically issue ERC-1155 tokens proportionally to the ERC-20 holdings, achieving full compliance with both standards.
+
+Furthermore, analogous to ERC-7631, this proposal allows users to opt out of ERC-1155 mints and transfers during the ERC-20 to ERC-1155 synchronization process.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Overview
+
+Every Dual Nature Multi-Token (DNMT) MUST implement both `ERC20` and `ERC1155` interface.
+
+### Dual Nature Multi-Token Standard Interface
+
+The ERC-20 contract MUST implement the following interface.
+
+```solidity
+interface IDNMT /* is IERC20, IERC1155 */ {
+    /// The contract MUST contain the following events
+    /// ERC20 related events
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+
+    /// The contract MUST contain the following events
+    /// ERC1155 related events
+    event TransferSingle(address indexed _operator, address indexed _from, address indexed _to, uint256 _id, uint256 _value);
+    event TransferBatch(address indexed _operator, address indexed _from, address indexed _to, uint256[] _ids, uint256[] _values);
+    event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+    event URI(string _value, uint256 indexed _id);
+
+    /// The contract MAY contain the following functions
+    /// ERC20 related functions
+    function name() public view returns (string);
+    function symbol() public view returns (string);
+    function decimals() public view returns (uint8);
+
+    /// The contract MUST contain the following functions
+    /// ERC20 related functions
+    function totalSupply() public view returns (uint256);
+    function balanceOf(address _owner) public view returns (uint256);
+    function transfer(address _to, uint256 _value) public returns (bool);
+    function transferFrom(address _from, address _to, uint256 _value) public returns (bool);
+    function approve(address _spender, uint256 _value) public returns (bool);
+    function allowance(address _owner, address _spender) public view returns (uint256);
+
+    /// The contract MUST contain the following functions
+    /// ERC1155 related functions
+    function balanceOf(address _owner, uint256 _id) external view returns (uint256);
+    function balanceOfBatch(address[] calldata _owners, uint256[] calldata _ids) external view returns (uint256[] memory);
+    function setApprovalForAll(address _operator, bool _approved) external;
+    function isApprovedForAll(address _owner, address _operator) external view returns (bool);
+    function safeTransferFrom(address _from, address _to, uint256 _id, uint256 _value, bytes calldata _data) external;
+    function safeBatchTransferFrom(address _from, address _to, uint256[] calldata _ids, uint256[] calldata _values, bytes calldata _data) external;
+  
+}
+```
+
+### Dual Nature Multi-Token Skippable Interface
+
+The DNMT contract MAY implement the following interface.
+
+```solidity
+interface IDNMTSkippable {
+    /// @dev Emitted when the skip ERC1155 token status of `owner` is changed by any mechanism.
+    ///
+    /// This initial skip ERC1155 token status for `owner` can be dynamically chosen to
+    /// be true or false, but any changes to it MUST emit this event.
+    event SkipTokenSet(address indexed owner, bool status);
+
+    /// @dev Returns true if ERC-1155 mints and transfers to `owner` SHOULD be
+    /// skipped during ERC-20 to ERC-1155 synchronization. Otherwise false.
+    /// 
+    /// This method MAY revert
+    ///
+    /// If this method reverts:
+    /// - Interacting code SHOULD interpret `setSkipToken` functionality as
+    ///   unavailable (and hide any functionality to call `setSkipToken`).
+    /// - The skip ERC1155 token status for `owner` SHOULD be interpreted as undefined.
+    ///
+    /// Once a true or false value has been returned for a given `owner`,
+    /// this method MUST NOT revert for the given `owner`.
+    function getSkipToken(address owner) external view returns (bool);
+
+    /// @dev Sets the caller's skip ERC1155 token status.
+    ///
+    /// This method MAY revert
+    /// (e.g. insufficient permissions, method not supported).
+    ///
+    /// Emits a {SkipTokenSet} event.
+    function setSkipToken(bool status) external;
+}
+```
+
+## Rationale
+
+### Implementation Flexibility
+
+This proposal intentionally does not prescribe specific token synchronization logic to allow for diverse implementation strategies and novel use cases, such as one-to-one synchronization or fractionalization of ERC-1155 tokens based on ERC-20 holdings. Developers are afforded the flexibility to determine their synchronization approach, provided it remains fully compliant with the specifications of both token standards.
+
+### ERC1155 Token Skipping
+
+For instances where the `owner` is a smart contract, setting the skip status to `true` by default can prevent unnecessary ERC-1155 minting for interactions with contracts like DEXs and lending protocols, thereby potentially reducing gas costs.
+
+## Backwards Compatibility
+
+This proposal is fully backward-compatible with the existing ERC-20 and ERC-1155 standards, ensuring that contracts reliant on these standards will continue to function seamlessly.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
