@@ -3,7 +3,7 @@ eip: XXXX
 title: Cross Chain Intents Standard
 description: A standard interface for cross-chain trade execution systems.
 author: Mark Toda (@marktoda), Matt Rice (@mrice32), Nick Pai (@nicholaspai)
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/erc-cross-chain-intents-standard/19619
 status: Draft
 type: Standards Track
 category: ERC
