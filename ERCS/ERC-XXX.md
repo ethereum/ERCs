@@ -234,6 +234,12 @@ All EIP-3074 `commit`s have been pre-pended with two additional string values to
 The number of this ERC has been added to ensure that it does not conflict any other ERCs which may be defined together in the implementation contract.
 The method name of each method called has been additionally added to ensure replayability protection between other methods in this ERC, which have similar order and type to the list of parameters.
 
+Note that all operations defined by this ERC are _NOT_ authenticated _except_ via the EIP-3074 mechanism.
+The replay protection defined by this ERC and EIP-3074 is considered enough to prevent a user action from being initated by another party that violates that user's original intent when signing for that action.
+In particular, the value of `deadline` MUST be chosen such that it is sufficiently short enough that the user is unlikely to want to be able to perform the same action again, but long enough for that action to succeed (at most, several minutes is suggested, but timing depends on on-chain fee conditions and/or downstream processes such as relayer batch times, etc.)
+As a last resort, the EIP-3074 mechanism of performing a transaction to increase the value of that account's `nonce` to reassure the user that a replay is not possible, however this is not a substitute for the proper handling of constraints within the implementation contract.
+(Note that for some transactions where the deposit is initiated by the same EOA that has signed for the deposit, there are less concerns due to the change of the user's `nonce` once the action has been processed as a transaction)
+
 ## Copyright
 
 Copyright and related rights waived via [CC0](../LICENSE.md).
