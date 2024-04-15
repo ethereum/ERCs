@@ -40,17 +40,16 @@ On the protocol level, blobVM distinguishes between 2 types of transactions:
 
 Transactions data structure MUST be as follows:
 
+#### Contract deployment
 ```json
-// contract deployment
 {
   "type": 1,
   "sc": [],
   "state":[]
 }
 ```
-
+#### Contract call
 ```json
-// contract call
 {
   "type": 2,
   "inputs": [],
@@ -72,7 +71,7 @@ function encodeBvmData(data: string): number[] {
 }
 ```
 
-**Additional information about Transactions:**
+#### Additional information about Transactions:
 - Regardless of the type, the transaction ***total size** MUST be less than or equal to 128 KiB.
 - The EIP-4844 transaction (on-chain) MUST contain strictly one operation only.
 
