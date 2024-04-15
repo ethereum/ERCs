@@ -1,0 +1,239 @@
+---
+eip: TBD
+title: AUTHCALL Deposit/Withdrawal Extension for ERC-4626 Tokenized Vaults
+description: Allow Deposits and Withdrawals from Tokenized Vaults using EIP-3074 wallet signing.
+author: Señor Doggo (@fubuloubu)
+discussions-to: TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-04-14
+requires: 4626, 3074
+---
+
+## Abstract
+
+It is useful to allow atomically depositing into an [ERC-4626](./erc-4626.md) Tokenized Vault on behalf of an account in a single transaction.
+This standard is an extension on the ERC-4626 standard that allows depositing without prior ERC20 `approve` call, and additionally supports timeliness and share price checks to improve protections for this action.
+
+## Motivation
+
+Tokenized Vaults have been a successful DeFi standard that help tokenize assets into various smart contract-managed automations, represented by shares exchangable at a contract-determined rate.
+However, the standard makes it clear that additional functionality should be added to allow EOA or delegated deposits, in order to ensure that the user actions are handled in a manner that protects their assets from unintended share devaluation.
+There have been several attempts at extensiions that add this functionality, but with the rise of EIP-3074 intent-based delegated actions, it makes it possible to define a much simpler standard that enables this.
+
+A standard for delegated actions on Tokenized Vaults will help EOAs and users of batch transaction systems to ensure that the intention behind their requests are followed.
+
+## Specification
+
+[EIP-3074](https://eips.ethereum.org/EIPS/eip-3074) is a prerequisite of this ERC, and must be available as an opcode to properly process these transactions.
+Additionally, special care should be taken that the security properties of EIP-3074 are respected, this ERC only defines a standard interface and implementation requirements, and should not itself be considered sufficient for the determination of safety of any particular implementation.
+
+The encoding of the pre-image for `commit` is encoded by normal ABI v2 form, with no special packing occuring in how they are encoded (to reduce implementation complexity).
+It may be an optimization within the implementing contract that `msg.data` is directly sliced to obtain the pre-image for `commit`, without additional processing required to concatenate the parameters together.
+
+### Definitions:
+
+All definitions from ERC-4626 and EIP-3074 apply. Additionally, the following definitions are useful:
+
+- deadline: The timestamp by which a user deposit or withdraw request MUST be honored
+- `||`: byte concatenation operation
+- `b"<data>"`: bytestring literal
+
+### Methods
+
+#### depositWithAuth
+
+Mints `shares` Vault shares to `receiver` by depositing exactly `assets` of underlying tokens using `depositor`'s EIP-3074 AUTH signature, with constraints that ensure the request is processed within the parameters that `depositor` is comfortable with.
+
+MUST revert if all of `assets` cannot be deposited (due to deposit limit being reached, slippage, etc).
+
+MUST check that the shares credited for the deposit is at least `minShares`.
+
+MUST check that the current timestamp is less than or equal to the user setting of `deadline`.
+
+MUST credit the shares to `receiver`
+
+MUST emit the `Deposit` event.
+
+MUST return the _exact_ amount of shares issued to `receiver`.
+
+MUST compute `commit` (per EIP-3074 parlance) as `keccak(b"ERC-<TBD>" || b"depositWithAuth" || depositor || assets || minShares || receiver || deadline)`.
+
+```yaml
+- name: depositWithAuth
+  type: function
+  stateMutability: nonpayable
+
+  inputs:
+    - name: depositor
+      type: address
+    - name: assets
+      type: uint256
+    - name: minShares
+      type: uint256
+    - name: receiver
+      type: address
+    - name: deadline
+      type: uint256
+    - name: auth
+      type: bytes
+
+  outputs:
+    - name: shares
+      type: uint256
+```
+
+#### mintWithAuth
+
+Mints exactly `shares` Vault shares to `receiver` by depositing `assets` of underlying tokens using `depositor`'s EIP-3074 AUTH signature, with constraints that ensure the request is processed within the parameters that `depositor` is comfortable with.
+
+MUST revert if all of `assets` cannot be deposited (due to deposit limit being reached, slippage, etc).
+
+MUST check that the assets transferred for the deposit is at most `maxAssets`.
+
+MUST check that the current timestamp is less than or equal to the user setting of `deadline`.
+
+MUST credit the shares to `receiver`
+
+MUST emit the `Deposit` event.
+
+MUST return the _exact_ amount of shares issued to `receiver`.
+
+MUST compute `commit` (per EIP-3074 parlance) as `keccak(b"ERC-<TBD>" || b"mintWithAuth" || depositor || shares || maxAssets || receiver || deadline)`.
+
+```yaml
+- name: depositWithAuth
+  type: function
+  stateMutability: nonpayable
+
+  inputs:
+    - name: minter
+      type: address
+    - name: shares
+      type: uint256
+    - name: maxAssets
+      type: uint256
+    - name: receiver
+      type: address
+    - name: deadline
+      type: uint256
+    - name: auth
+      type: bytes
+
+  outputs:
+    - name: assets
+      type: uint256
+```
+
+#### withdrawWithAuth
+
+Burns `shares` from `owner` and sends exactly `assets` of underlying tokens to `receiver` using `owner`'s EIP-3074 AUTH signature, with constraints that ensure the request is processed within the parameters that `owner` is comfortable with.
+
+MUST revert if all of `assets` cannot be withdrawn (due to withdrawal limit being reached, slippage, the owner not having enough shares, etc).
+
+MUST check that the shares redeemed for the withdrawal is at most `maxShares`.
+
+MUST check that the current timestamp is less than or equal to the user setting of `deadline`.
+
+MUST transfer the assets to `receiver`
+
+MUST emit the `Withdraw` event.
+
+MUST return the _exact_ amount of shares redeemed from `owner`.
+
+MUST compute `commit` (per EIP-3074 parlance) as `keccak(b"ERC-<TBD>" || b"withdrawWithAuth" || depositor || assets || maxShares || receiver || deadline)`.
+
+MAY support an additional flow in which the shares are transferred to the Vault contract before the `withdrawWithAuth` execution, and are accounted for during `withdrawWithAuth`.
+
+```yaml
+- name: withdrawWithAuth
+  type: function
+  stateMutability: nonpayable
+
+  inputs:
+    - name: owner
+      type: address
+    - name: assets
+      type: uint256
+    - name: maxShares
+      type: uint256
+    - name: receiver
+      type: address
+    - name: deadline
+      type: uint256
+    - name: auth
+      type: bytes
+
+  outputs:
+    - name: shares
+      type: uint256
+```
+
+#### redeemWithAuth
+
+Burns exactly `shares` from `owner` and sends `assets` of underlying tokens to `receiver` using `owner`'s EIP-3074 AUTH signature, with constraints that ensure the request is processed within the parameters that `owner` is comfortable with.
+
+MUST revert if all of `shares` cannot be withdrawn (due to withdrawal limit being reached, slippage, the owner not having enough shares, etc).
+
+MUST check that the assets redeemed for the withdrawal is at least `minAssets`.
+
+MUST check that the current timestamp is less than or equal to the user setting of `deadline`.
+
+MUST transfer the assets to `receiver`
+
+MUST emit the `Withdraw` event.
+
+MUST return the _exact_ amount of assets transferred to `receiver`.
+
+MUST compute `commit` (per EIP-3074 parlance) as `keccak(b"ERC-<TBD>" || b"redeemWithAuth" || depositor || shares || minAssets || receiver || deadline)`.
+
+MAY support an additional flow in which the shares are transferred to the Vault contract before the `redeemWithAuth` execution, and are accounted for during `redeemWithAuth`.
+
+```yaml
+- name: redeemWithAuth
+  type: function
+  stateMutability: nonpayable
+
+  inputs:
+    - name: owner
+      type: address
+    - name: shares
+      type: uint256
+    - name: minAssets
+      type: uint256
+    - name: receiver
+      type: address
+    - name: deadline
+      type: uint256
+    - name: auth
+      type: bytes
+
+  outputs:
+    - name: assets
+      type: uint256
+```
+
+### Events
+
+`Deposit` and `Withdraw` should be emitted in their corresponding methods, aligning with ERC-4626.
+The event definitions do not change.
+
+## Backwards Compatibility
+
+This extension is fully compatible with ERC-4626.
+The compatibility with other extensions to ERC-20 or ERC-4626 has not been fully analyzed, and may additionally be preferred to leverage this extension to the exclusion of other similar extensions.
+
+## Reference Implementation
+
+TBD
+
+## Security Considerations
+
+All EIP-3074 `commit`s have been pre-pended with two additional string values to ensure replay protection within the context of this contract.
+The number of this ERC has been added to ensure that it does not conflict any other ERCs which may be defined together in the implementation contract.
+The method name of each method called has been additionally added to ensure replayability protection between other methods in this ERC, which have similar order and type to the list of parameters.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
