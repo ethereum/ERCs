@@ -3,7 +3,7 @@ eip: 7689
 title: Smart Blobs
 description: State machine based on lazy evaluation on top of blobspace
 author: Rani El Husseini (@charmful0x), Benjamin Brandall (@xylophonez), Nik Rykov (@angrymouse)
-discussions-to: https://ethereum-magicians.org/t/add-erc-smart-blobs/19672
+discussions-to: https://ethereum-magicians.org/t/erc-7689-smart-blobs/19672
 status: Draft
 type: Standards Track
 category: ERC
