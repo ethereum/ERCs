@@ -1,4 +1,5 @@
 ---
+eip: 7689
 title: Smart Blobs
 description: State machine based on lazy evaluation on top of blobspace
 author: Rani El Husseini (@charmful0x), Benjamin Brandall (@xylophonez), Nik Rykov (@angrymouse)
