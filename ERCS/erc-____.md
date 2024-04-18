@@ -45,7 +45,7 @@ function setValue(
     // programId = 0x37868885bbaf236c5d2e7a38952f709e796a1c99d6c9d142a1a41755d7660de3
     // account = 0xe853e0dcc1e57656bd760325679ea960d958a0a704274a5a12330208ba0f428f
     // Parse sender as bytes32 type
-    bytes32 sender = bytes32(msg.sender)
+    bytes32 sender = bytes32(uint256(msg.sender))
     // Defer write call to L2 handler
     revert StorageHandledBySolana( 
         programId,
