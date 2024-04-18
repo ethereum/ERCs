@@ -7,7 +7,7 @@ discussions-to: https://ethereum-magicians.org/t/_/_
 status: Draft
 type: Standards Track
 category: ERC
-created: 2024-04-18
+created: 2024-04-1
 ---
 
 ## Abstract
@@ -81,6 +81,14 @@ const sender = base58(sender);
 // Set manager on-chain
 await program(wallet).setManagerFor(account, sender)
 ```
+
+## Rationale
+`StorageHandledBySolana()` works in a similar fashion to `StorageHandledByL2()` from [EIP-5559](/.eip-5559) in the sense that the client needs to be pointed to a certain contract on another chain. Since this re-routing occurs across Ethereum-Solana barrier, the clients must account for two things: 
+
+- that `msg.sender` is not preserved during EVM to SVM jump, and
+- that similar to `StorageHandledByL2()`, the manager `account` must exist on SVM to establish write authorisation.
+
+The first issue is fixed by including `msg.sender` in the revert itself, while the second issue is trivially fixed by sending an initial transaction to the Solana program during setup.
 
 ## Backwards Compatibility
 None.
