@@ -1,7 +1,7 @@
 ---
 eip: ____
 title: Solana storage handler for CCIP-Write
-description: Cross-chain write deferral protocol incorporating Solana storage handler
+description: Cross-chain write deferral protocol incorporating storage handler for Solana
 author: Avneet Singh (@sshmatrix), 0xc0de4c0ffee (@0xc0de4c0ffee)
 discussions-to: https://ethereum-magicians.org/t/_/_
 status: Draft
@@ -16,7 +16,9 @@ The following standard is an extension to the cross-chain write deferral protoco
 ## Motivation
 [EIP-5559](./eip-5559) introduces two external handlers for deferring write operations to L2s and databases. This document extends that specification by introducing a third storage handler targeting Solana as the storage provider. 
 
-L2s and databases both have centralising catalysts in their stack. For L2s, this centralising agent is the shared security with Ethereum mainnet. In case of databases, the centralising agent is trivial; it is the physical server hosting the database. In light of this, a storage provider that relies on its own independent consensus mechanism is preferred. Solana is a cheap L1 solution that is fairly popular among Ethereum community and is widely supported alongside Ethereum by almost all wallet providers. This specification instructs how the clients should treat write deferrals made to the Solana handler.
+L2s and databases both have centralising catalysts in their stack. For L2s, this centralising agent is the shared security with Ethereum mainnet. In case of databases, the centralising agent is trivial; it is the physical server hosting the database. In light of this, a storage provider that relies on its own independent consensus mechanism is preferred. This specification instructs how the clients should treat write deferrals made to the Solana handler.
+
+Solana is a cheap L1 solution that is fairly popular among Ethereum community and is widely supported alongside Ethereum by almost all wallet providers. There are several chain-agnostic protocols on Ethereum which could benefit from direct access to Solana blockspace; ENS is one such example where it can serve users of Solana via its chain-agnostic properties while also using Solana's own native storage for storage. This development will surely encourage more cross-chain functionalities between Ethereum and Solana at core. 
 
 ## Specification
 A Solana storage handler `StorageHandledBySolana()` requires the hex-encoded `programId` and the manager `account` on the Solana blockchain. `programId` is equivalent to a contract address on Solana while `account` is the manager wallet on Solana handling write operations on behalf of `msg.sender`. Since Solana natively uses `base58` encoding in its virtual machine setup, `programId` values are hex-encoded according to EIP-2308 for usage on Ethereum. These hex-encoded values must be decoded to `base58` for usage on Solana. 
