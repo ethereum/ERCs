@@ -75,6 +75,7 @@ if (wallet.publicKey === account === program.isManagerFor(account, sender)) {
 In the above example, `programId`, `account` and `msg.sender` are `base58` encoded. Solana handler requires a one-time transaction on Solana during initial setup for each user to set the local manager. This call in form of pseudo-code is simply 
 
 ```js 
+/* Initial one-time setup */
 // Cast sender to base58
 const sender = base58(sender);
 // Set manager on-chain
