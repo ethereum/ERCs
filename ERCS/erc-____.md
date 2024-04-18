@@ -3,7 +3,7 @@ eip: ____
 title: Solana storage handler for CCIP-Write
 description: Cross-chain write deferral protocol incorporating storage handler for Solana
 author: Avneet Singh (@sshmatrix), 0xc0de4c0ffee (@0xc0de4c0ffee)
-discussions-to: https://ethereum-magicians.org/t/_/_
+discussions-to: https://ethereum-magicians.org/t/extension-to-eip-5559-solana-storage-handler-for-ccip-write/19706
 status: Draft
 type: Standards Track
 category: ERC
@@ -21,14 +21,13 @@ L2s and databases both have centralising catalysts in their stack. For L2s, this
 Solana is a cheap L1 solution that is fairly popular among Ethereum community and is widely supported alongside Ethereum by almost all wallet providers. There are several chain-agnostic protocols on Ethereum which could benefit from direct access to Solana blockspace; ENS is one such example where it can serve users of Solana via its chain-agnostic properties while also using Solana's own native storage. This development will surely encourage more cross-chain functionalities between Ethereum and Solana at core. 
 
 ## Specification
-A Solana storage handler `StorageHandledBySolana()` requires the hex-encoded `programId` and the manager `account` on the Solana blockchain. `programId` is equivalent to a contract address on Solana while `account` is the manager wallet on Solana handling write operations on behalf of `msg.sender`. Since Solana natively uses `base58` encoding in its virtual machine setup, `programId` values are hex-encoded according to EIP-2308 for usage on Ethereum. These hex-encoded values must be decoded to `base58` for usage on Solana. 
+A Solana storage handler `StorageHandledBySolana()` requires the hex-encoded `programId` and the manager `account` on the Solana blockchain. `programId` is equivalent to a contract address on Solana while `account` is the manager wallet on Solana handling write operations on behalf of `msg.sender`.
 
 ```solidity
 // Revert handling Solana storage handler
 error StorageHandledBySolana(
     bytes32 programId,
-    bytes32 account,
-    bytes32 sender
+    bytes32 account
 );
 
 // Generic function in a contract
@@ -44,51 +43,62 @@ function setValue(
     ) = getMetadata(node); // Arbitrary code
     // programId = 0x37868885bbaf236c5d2e7a38952f709e796a1c99d6c9d142a1a41755d7660de3
     // account = 0xe853e0dcc1e57656bd760325679ea960d958a0a704274a5a12330208ba0f428f
-    // Parse sender as bytes32 type
-    bytes32 sender = bytes32(uint256(msg.sender))
-    // Defer write call to L2 handler
+    // Defer write call to Solana handler
     revert StorageHandledBySolana( 
         programId,
-        account,
-        sender
+        account
     );
 };
 ```
 
-Clients implementing the Solana handler must call the Solana `programId` using a Solana wallet that is connected to `account` using the precise calldata that it originally received. 
+Since Solana natively uses `base58` encoding in its virtual machine setup, `programId` values that are hex-encoded on EVM must be `base58`-decoded for usage on SVM. Clients implementing the Solana handler must call the Solana `programId` using a Solana wallet that is connected to `account` using the `base58`-decoded (and casted to appropriate datatype) calldata that it originally received. 
 
 ```js
 /* Pseudo-code to write to Solana program (= contract) */
+// Decode all 'bytes32' types in EVM to 'PubKey' type in SVM
+const [programId, account, node, key, value] = svmPubkey([programId, account, node, key, value])
 // Instantiate program interface on Solana
 const program = new program(programId, rpcProvider);
 // Connect to Solana wallet
 const wallet = useWallet();
-// Cast sender to base58
-const sender = base58(sender);
 // Call the Solana program using connected wallet with initial calldata
 // [!] Only approved manager in the Solana program should call
-if (wallet.publicKey === account === program.isManagerFor(account, sender)) {
+if (wallet.publicKey === account) {
     await program(wallet).setValue(node, key, value);
 }
 ```
 
-In the above example, `programId`, `account` and `msg.sender` are `base58` encoded. Solana handler requires a one-time transaction on Solana during initial setup for each user to set the local manager. This call in form of pseudo-code is simply 
+In the above example, EVM-specific `bytes32`-type variables `programId`, `account`, `node`, `key` and `value` must all be converted to SVM-specific `PubKey` type. The equivalent `setValue()` function in the Solana program is of the form
 
-```js 
-/* Initial one-time setup */
-// Cast sender to base58
-const sender = base58(sender);
-// Set manager on-chain
-await program(wallet).setManagerFor(account, sender)
+```rust 
+// Example function in Solana program
+pub fn setValue(
+    ctx: Context,
+    node: PubKey,
+    key: PubKey,
+    value: PubKey
+) -> ProgramResult {
+    // Code to verify PROGRAM_ID and rent exemption status
+    ...
+    // Code for de-serialising, updating and re-serialising the data
+    ...
+    // Write serialised data to account
+    // [!] Stored data must be mapped by node & account
+    ...
+}
 ```
 
+Since EVM and SVM have differing architectures, it is important to define precise datatype castings from EVM to SVM. Some pre-existing custom but popular datatypes in SVM that equate to common EVM datatypes are:
+
+| EVM             | SVM          |
+|:---------------:|:------------:|
+| `bytes32`       | `PubKey`     |
+| `string`        | `String`     |
+
+For other encoding-specific datatypes such as `bytesN` (`N < 32`) and `address` (`N = 20`), this specification requires that all such variables must be padded up to `bytes32`. Using this strategy, most current use-cases of `StorageHandledBySolana()` are accounted for.
+
 ## Rationale
-`StorageHandledBySolana()` works in a similar fashion to `StorageHandledByL2()` from [EIP-5559](/.eip-5559) in the sense that the client needs to be pointed to a certain contract on another chain. Since this re-routing occurs across Ethereum-Solana barrier, the clients must account for two things: 
-
-- that `msg.sender` is not preserved during EVM to SVM jump, and
-- that similar to `StorageHandledByL2()`, the manager `account` must exist on SVM to establish write authorisation.
-
-The first issue is fixed by including `msg.sender` in the revert itself, while the second issue is trivially fixed by sending an initial transaction to the Solana program during setup.
+`StorageHandledBySolana()` works in a similar fashion to `StorageHandledByL2()` in [EIP-5559](/.eip-5559) in the sense that the client needs to be pointed to a certain contract on another chain by the revert event. Other than that, the only technical difference is casting between EVM and SVM datatypes.
 
 ## Backwards Compatibility
 None.
