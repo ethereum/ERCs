@@ -18,7 +18,7 @@ The following standard is an extension to the cross-chain write deferral protoco
 
 L2s and databases both have centralising catalysts in their stack. For L2s, this centralising agent is the shared security with Ethereum mainnet. In case of databases, the centralising agent is trivial; it is the physical server hosting the database. In light of this, a storage provider that relies on its own independent consensus mechanism is preferred. This specification instructs how the clients should treat write deferrals made to the Solana handler.
 
-Solana is a cheap L1 solution that is fairly popular among Ethereum community and is widely supported alongside Ethereum by almost all wallet providers. There are several chain-agnostic protocols on Ethereum which could benefit from direct access to Solana blockspace; ENS is one such example where it can serve users of Solana via its chain-agnostic properties while also using Solana's own native storage for storage. This development will surely encourage more cross-chain functionalities between Ethereum and Solana at core. 
+Solana is a cheap L1 solution that is fairly popular among Ethereum community and is widely supported alongside Ethereum by almost all wallet providers. There are several chain-agnostic protocols on Ethereum which could benefit from direct access to Solana blockspace; ENS is one such example where it can serve users of Solana via its chain-agnostic properties while also using Solana's own native storage. This development will surely encourage more cross-chain functionalities between Ethereum and Solana at core. 
 
 ## Specification
 A Solana storage handler `StorageHandledBySolana()` requires the hex-encoded `programId` and the manager `account` on the Solana blockchain. `programId` is equivalent to a contract address on Solana while `account` is the manager wallet on Solana handling write operations on behalf of `msg.sender`. Since Solana natively uses `base58` encoding in its virtual machine setup, `programId` values are hex-encoded according to EIP-2308 for usage on Ethereum. These hex-encoded values must be decoded to `base58` for usage on Solana. 
@@ -26,9 +26,9 @@ A Solana storage handler `StorageHandledBySolana()` requires the hex-encoded `pr
 ```solidity
 // Revert handling Solana storage handler
 error StorageHandledBySolana(
-	bytes32 programId,
+    bytes32 programId,
     bytes32 account,
-	bytes32 sender
+    bytes32 sender
 );
 
 // Generic function in a contract
@@ -39,18 +39,18 @@ function setValue(
 ) external {
     // Get metadata from on-chain sources
     (
-		bytes32 programId, // Program (= contract) address on Solana; hex-encoded
-		bytes32 account // Manager account on Solana; hex-encoded
-	) = getMetadata(node); // Arbitrary code
-	// programId = 0x37868885bbaf236c5d2e7a38952f709e796a1c99d6c9d142a1a41755d7660de3
-	// account = 0xe853e0dcc1e57656bd760325679ea960d958a0a704274a5a12330208ba0f428f
-	// Parse sender as bytes32 type
-	bytes32 sender = bytes32(msg.sender)
+        bytes32 programId, // Program (= contract) address on Solana; hex-encoded
+        bytes32 account // Manager account on Solana; hex-encoded
+    ) = getMetadata(node); // Arbitrary code
+    // programId = 0x37868885bbaf236c5d2e7a38952f709e796a1c99d6c9d142a1a41755d7660de3
+    // account = 0xe853e0dcc1e57656bd760325679ea960d958a0a704274a5a12330208ba0f428f
+    // Parse sender as bytes32 type
+    bytes32 sender = bytes32(msg.sender)
     // Defer write call to L2 handler
     revert StorageHandledBySolana( 
         programId,
         account,
-		sender
+        sender
     );
 };
 ```
