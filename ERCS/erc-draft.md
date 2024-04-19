@@ -1,4 +1,5 @@
 ---
+eip: 7695
 title: Ownership Delegation and Context for Non-Fungible Token
 description: Extends ERC-721 for financial use cases
 author: Duc Tho Tran (@ducthotran2010)
