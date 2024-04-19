@@ -1,0 +1,490 @@
+---
+title: Ownership Delegation and Context for Non-Fungible Token
+author: Duc Tho Tran (@ducthotran2010)
+discussions-to: # TODO: update when has a discussion link.
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-04-02
+requires: 165, 721
+---
+
+<!-- TODO: rename ERCx when there is an ERC number for this proposal. -->
+
+## **Abstract**
+
+This introduces an extension for ERC721 Non-Fungible Tokens (NFTs): specifying users for several contexts and differentiating owner and ownership rights for a token to use in several financial use cases for NFT.
+
+## Motivation
+
+For a standard ERC721 NFT, there are some use cases of financial applications including:
+
+- Granting users for difference purposes like rental or delegation.
+- Staking NFTs for earning rewards.
+- Mortgaging an NFT to generate income.
+
+Traditionally, these applications require ownership transfers to lock NFT in contracts. However, other decentralized applications (dApps) recognize token ownership as proof that the token owner is entitled to benefits within the rewarding systems, such as airdrops or tiered rewards. If token owners get their tokens locked in contracts they are not eligible to receive benefits from holding tokens, or the reward systems have to support as many contracts as possible to help these owners.
+
+It is because there is only an Owner role indicating the ownership rights, developing on top of ERC721 has often posed challenges. This proposal aims to solve these challenges by: contextualizing the use case to be handled by controllers, and distinguishing ownership rights from other roles at the standard level through delegation mechanism. Standardizing these measures, dApp developers can more easily construct infrastructure and protocols on top of this standard.
+
+## Specification
+
+The keywords “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119.
+
+### Definitions
+
+This specification encompasses the following components:
+
+**Token Context** provides a specified use case of a token. It serves as the association relationship between Tokens and Contexts. Within each unique token context, there exists an allocated user who is authorized to utilize the token within that context. In a specified context there are two distinct roles:
+
+- **Controller**: This role possesses the authority to control the context.
+- **User**: This role signifies the primary token user within the given context.
+
+**Ownership Rights** of a token are defined to be able to:
+
+- Transfer that token to a new owner.
+- Add token context(s): attaching that token to/from 1 or many contexts.
+- Remove token context(s): detaching that token to/from 1 or many contexts.
+
+**Ownership Delegation** involves distinguishing between owner and ownership rights by delegating ownership to other accounts for a specific duration. During this period, owners temporarily cede ownership rights until the delegation expires.
+
+### Roles
+
+| Roles               | Explanation / Permission                                                                                                                                | Quantity per Token |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Owner               | • Has **Ownership Rights** by default<br>• Delegates an account to hold **Ownership Rights** in a duration                                              | $1$                |
+| Ownership Delegatee | • Has **Ownership Rights** in a delegation duration<br>• Renounces before delegation expires                                                            | $1$                |
+| Ownership Manager   | • Is one who holds **Ownership Rights**<br>• If not delegated yet, it is referenced to **Owner**, otherwise it is referenced to **Ownership Delegatee** | $1$                |
+| **Context Roles**   |                                                                                                                                                         | $n$                |
+| Controller          | • Transfers controller<br>• Sets context user<br>• (Un)locks token transfer                                                                             | $1$ per context    |
+| User                | • Authorized to use token in its context                                                                                                                | $1$ per context    |
+
+**Entity Relationship Diagram**
+
+![ERD](../assets/erc-draft/erd.png)
+
+### Interface
+
+**Smart contracts implementing the ERCx standard MUST implement all of the functions in the `IERCx` interface.**
+
+Smart contracts implementing this standard MUST implement the ERC-165 `supportsInterface` function and MUST return the constant value `true` if `0xba63ebbb` is passed through the `interfaceID` argument.
+
+```solidity
+/// Note: the ERC-165 identifier for this interface is 0xba63ebbb.
+interface IERCx /* is IERC721, IERC165 */ {
+  /// @dev This emits when a controller is assigned to a context by any mechanism.
+  /// The zero controller address indicates the context is removed.
+  event ContextUpdated(bytes32 indexed ctxHash, address indexed controller, uint64 detachingDuration);
+  /// @dev This emits when a token is attached to a certain context by any mechanism.
+  event ContextAttached(bytes32 indexed ctxHash, uint256 indexed tokenId);
+  /// @dev This emits when a token is requested to detach from a certain context by any mechanism.
+  event ContextDetachRequested(bytes32 indexed ctxHash, uint256 indexed tokenId);
+  /// @dev This emits when a token is detached from a certain context by any mechanism.
+  event ContextDetached(bytes32 indexed ctxHash, uint256 indexed tokenId);
+  /// @dev This emits when a user is assigned to a certain context by any mechanism.
+  event ContextUserAssigned(bytes32 indexed ctxHash, uint256 indexed tokenId, address indexed user);
+  /// @dev This emits when a token is (un)locked in a certain context by any mechanism.
+  event ContextLockUpdated(bytes32 indexed ctxHash, uint256 indexed tokenId, bool locked);
+  /// @dev This emits when the ownership delegation is started by any mechanism.
+  event OwnershipDelegationStarted(uint256 indexed tokenId, address indexed delegatee, uint64 until);
+  /// @dev This emits when the ownership delegation accepted by any mechanism.
+  event OwnershipDelegationAccepted(uint256 indexed tokenId, address indexed delegatee, uint64 until);
+  /// @dev This emits when the ownership delegation stopped by any mechanism.
+  event OwnershipDelegationStopped(uint256 indexed tokenId, address indexed delegatee);
+
+  /// @notice Gets the longest duration the detaching can happen.
+  function maxDetachingDuration() external view returns (uint64);
+
+  /// @notice Gets controller address and detachment duration of a context.
+  /// @dev MUST revert if the context is not existent.
+  /// @param ctxHash            An hash of context to query the controller.
+  /// @return controller        The address of the context controller.
+  /// @return detachingDuration The new duration must be waited for detachment in second(s).
+  function getContext(bytes32 ctxHash) external view returns (address controller, uint64 detachingDuration);
+
+  /// @notice Creates a new context.
+  /// @dev MUST revert if the context hash is already existent.
+  /// MUST emit the event {ContextUpdated} to reflex context created and controller set.
+  /// @param controller        The address that controls the created context.
+  /// @param detachingDuration The duration must be waited for detachment in second(s).
+  /// @param ctxMsg            The message of new context.
+  /// @return ctxHash          Hash of the created context.
+  function createContext(address controller, uint64 detachingDuration, bytes calldata ctxMsg)
+    external
+    returns (bytes32 ctxHash);
+
+  /// @notice Updates an existing context.
+  /// @dev MUST revert if method caller is not the current controller.
+  /// MUST revert if the context hash is non-existent.
+  /// MUST revert if the new controller address is zero address.
+  /// MUST emit the event {ContextUpdated} on success.
+  /// @param ctxHash              Hash of the context to set.
+  /// @param newController        The address of new controller.
+  /// @param newDetachingDuration The new duration must be waited for detachment in second(s).
+  function updateContext(bytes32 ctxHash, address newController, uint64 newDetachingDuration) external;
+
+  /// @notice Deprecates an existing context.
+  /// @dev MUST revert if method caller is not the current controller.
+  /// MUST revert if the context hash is non-existent.
+  /// MUST emit the event {ContextUpdated} to reflex context removed.
+  /// @param ctxHash Hash of the context to remove.
+  function deprecateContext(bytes32 ctxHash) external;
+
+  /// @notice Queries if a token is attached with a certain token.
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to query.
+  /// @return        True if the token is attached with the context, false if not.
+  function isAttachedWithContext(bytes32 ctxHash, uint256 tokenId) external view returns (bool);
+
+  /// @notice Attaches a token with a certain context.
+  /// @dev MUST revert if the method caller is not an ownership manager or approved accounts to manage the tokens for ownership manager (via setApprovalForAll function).
+  /// MUST revert if the context is not existent.
+  /// MUST revert if the token is already attached with the context.
+  /// MUST emit the event {ContextAttached} with the context user is the current owner.
+  //  After the above conditions are met, this function MUST check if the controller address is a smart contract (e.g. code size > 0). If so, it MUST call {onAttached} the call result MUST be skipped.
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be attached.
+  /// @param data    Additional data with no specified format, MUST be sent unaltered in call to the {IERCxContextCallback} hook(s) on controller.
+  function attachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external;
+
+  /// @notice Requests to unlock a token if it is locked.
+  /// @dev See "requestDetachContext rules" in "Token (Un)lock Rules".
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be detached.
+  /// @param data    Additional data with no specified format, MUST be sent unaltered in call to the {IERCxContextCallback} hook(s) on controller.
+  function requestDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external;
+
+  /// @notice Executes context detachment.
+  /// @dev See "execDetachContext rules" in "Token (Un)lock Rules".
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be detached.
+  /// @param data    Additional data with no specified format, MUST be sent unaltered in call to the {IERCxContextCallback} hook(s) on controller.
+  function execDetachContext(bytes32 ctxHash, uint256 tokenId, bytes calldata data) external;
+
+  /// @notice Finds the context user of a token.
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be detached.
+  /// @return user   Address of the context user.
+  function getContextUser(bytes32 ctxHash, uint256 tokenId) external view returns (address user);
+
+  /// @notice Updates the context user of a token.
+  /// @dev MUST revert if the method caller is not context controller.
+  /// MUST revert if new user address is zero address.
+  /// MUST emit the event {ContextUserAssigned} on success.
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be update.
+  /// @param user    Address of the new user.
+  function setContextUser(bytes32 ctxHash, uint256 tokenId, address user) external;
+
+  /// @notice Queries if the lock a token is locked in a certain context.
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be queried.
+  /// @return        True if the token context is locked, false if not.
+  function isTokenContextLocked(bytes32 ctxHash, uint256 tokenId) external view returns (bool);
+
+  /// @notice (Un)locks a token in a certain context.
+  /// @dev See "setContextLock rules" in "Token (Un)lock Rules".
+  /// @param ctxHash Hash of a context.
+  /// @param tokenId The NFT to be queried.
+  /// @param lock    New status to be (un)locked.
+  function setContextLock(bytes32 ctxHash, uint256 tokenId, bool lock) external;
+
+  /// @notice Finds the ownership manager of a specified token.
+  /// @param tokenId  The NFT to be queried.
+  /// @return manager Address of delegatee.
+  function getOwnershipManager(uint256 tokenId) external view returns(address manager);
+
+  /// @notice Finds the ownership delegatee of a token.
+  /// @dev MUST revert if there is no ownership delegation.
+  /// @param tokenId    The NFT to be queried.
+  /// @return delegatee Address of delegatee.
+  /// @return until     The delegation expiry time.
+  function getOwnershipDelegatee(uint256 tokenId) external view returns (address delegatee, uint64 until);
+
+  /// @notice Finds the pending ownership delegatee of a token.
+  /// @dev MUST revert if there is no pending ownership delegation.
+  /// @param tokenId    The NFT to be queried.
+  /// @return delegatee Address of pending delegatee.
+  /// @return until     The delegation expiry time.
+  function pendingOwnershipDelegatee(uint256 tokenId) external view returns (address delegatee, uint64 until);
+
+  /// @notice Starts ownership delegation and retains ownership until a specific timestamp.
+  /// @dev Replaces the pending delegation if any.
+  /// MUST revert unless the method caller is the current owner or the approved for this NFT.
+  /// MUST emit the event {OwnershipDelegationStarted} on success.
+  /// @param tokenId   The NFT to be delegated.
+  /// @param delegatee Address of new delegatee.
+  /// @param until     The delegation expiry time.
+  function startDelegateOwnership(uint256 tokenId, address delegatee, uint64 until) external;
+
+  /// @notice Accepts ownership delegation request.
+  /// @dev MUST be called by the delegatee.
+  /// MUST revert unless the delegatee is the pending ownership delegation.
+  /// MUST emit the event {OwnershipDelegationAccepted} on success.
+  /// @param tokenId The NFT to be accepted.
+  function acceptOwnershipDelegation(uint256 tokenId) external;
+
+  /// @notice Stops the current ownership delegation.
+  /// @dev MUST be called by the delegatee.
+  /// MUST revert unless the delegation is active.
+  /// MUST emit the event {OwnershipDelegationStopped} on success.
+  /// @param tokenId The NFT to be stopped.
+  function stopOwnershipDelegation(uint256 tokenId) external;
+}
+```
+
+**Enumerable extension**
+
+The enumeration extension is OPTIONAL for ERCx smart contracts. This allows your contract to publish its full list of context and make it discoverable. When calling the `supportsInterface` function MUST return the constant value `true` if `0xcebf44b7` is passed through the `interfaceID` argument.
+
+```solidity
+/// Note: the ERC-165 identifier for this interface is 0xcebf44b7.
+interface IERCxEnumerable /* is IERC165 */ {
+  /// @dev Returns a created context in this contract at `index`.
+  /// An index must be a value between 0 and {getContextCount}, non-inclusive.
+  /// Note: When using {getContext} and {getContextCount}, make sure you perform all queries on the same block.
+  function getContext(uint256 index) external view returns(bytes32 ctxHash);
+
+  /// @dev Returns the number of contexts created in the contract.
+  function getContextCount() external view returns(uint256);
+
+  /// @dev Returns a context attached with a token at `index`.
+  /// An index must be a value between 0 and {getAttachedContextCount}, non-inclusive.
+  /// Note: When using {getAttachedContext} and {getAttachedContextCount}, make sure you perform all queries on the same block.
+  function getAttachedContext(uint256 tokenId, uint256 index) external view returns(bytes32 ctxHash);
+
+  /// @dev Returns the number of contexts attached with the token.
+  function getAttachedContextCount(uint256 tokenId) external view returns(uint256);
+}
+```
+
+**Controller Interface**
+
+The controller is RECOMMENDED to be a contract and including callback methods to allow ERCx contracts invokes in cases where there are any detach requests. When calling the `supportsInterface` function MUST return the constant value `true` if `0x92625f0b` is passed through the `interfaceID` argument.
+
+```solidity
+/// Note: the ERC-165 identifier for this interface is 0x92625f0b.
+interface IERCxContextCallback /* is IERC165 */  {
+  /// @dev This method is called once the token is attached by any mechanism.
+  /// @param ctxHash  The hash of context invoked this call.
+  /// @param tokenId  NFT identifier which is being attached.
+  /// @param operator The address which called {attachContext} function.
+  /// @param data     Additional data with no specified format.
+  function onAttached(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external;
+
+  /// @dev This method is called once the token detachment is requested by any mechanism.
+  /// @param ctxHash  The hash of context invoked this call.
+  /// @param tokenId  NFT identifier which is being requested for detachment.
+  /// @param operator The address which called {requestDetachContext} function.
+  /// @param data     Additional data with no specified format.
+  function onDetachRequested(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external;
+
+  /// @dev This method is called once a token context is detached by any mechanism.
+  /// @param ctxHash  The hash of context invoked this call.
+  /// @param tokenId  NFT identifier which is being detached.
+  /// @param operator The address which called {execDetachContext} function.
+  /// @param data     Additional data with no specified format.
+  function onExecDetachContext(bytes32 ctxHash, uint256 tokenId, address operator, bytes calldata data) external;
+}
+```
+
+### Ownership Delegation Rules
+
+**startDelegateOwnership rules**
+
+- MUST revert unless there is no delegation.
+- MUST revert unless the caller is the owner or approved accounts to manage the tokens for owner (via `approve` or `setApprovalForAll` function).
+- MUST revert unless the expiry time is in the future.
+- MUST revert if the delegatee address is the owner or zero address.
+- MUST revert if the token is not existent.
+- MUST emit the event `OwnershipDelegationStarted` on success.
+- After the above conditions are met, this function MUST replace the pending delegation if any.
+
+**acceptOwnershipDelegation rules**
+
+- MUST revert if there is no delegation for this delegatee.
+- MUST revert unless the caller is the delegatee or approved accounts to manage the tokens for delegatee (via `setApprovalForAll` function).
+- MUST revert unless the expiry time is in the future.
+- MUST revert if the token is not existent.
+- MUST emit the event `OwnershipDelegationAccepted` on success.
+
+**stopDelegateOwnership rules**
+
+- MUST revert if there is no delegation for this delegatee.
+- MUST revert unless the caller is the delegatee or approved accounts to manage the tokens for delegatee (via`setApprovalForAll` function).
+- MUST revert unless the expiry time is in the future.
+
+### **Token (Un)lock Rules**
+
+To be more explicit about how token (un)locked, these functions:
+
+- The `setContextLock` function MUST be called by the controller to (un)lock
+- The `requestDetachContext` and `execDetachContext` functions MUST be called by the ownership manager and MUST operate with respect to the `IERCxContextCallback` hook functions.
+
+A list of scenarios and rules follows.
+
+**Scenarios**
+
+**_Scenario#1:_** Context controller wants to lock a token that is not requested for detachment.
+
+- `setContextLock` MUST be called successfully
+
+**_Scenario#2:_** Context controller wants to lock a token that is requested for detachment.
+
+- `setContextLock` MUST be reverted
+
+**_Scenario#3:_** Context controller wants to unlock a token.
+
+- `setContextLock` MUST be called successfully
+
+**_Scenario#4:_** Ownership manager wants to (unlock and) detach a locked token and the callback controller implements `IERCxContextCallback`.
+
+- Caller MUST:
+  - Call `requestDetachContext` function successfully
+  - Wait at least context detaching duration (see variable `detachingDuration` in the `getContext` function)
+  - Call `execDetachContext` function successfully
+- `requestDetachContext` MUST call the `onDetachRequested` function despite the call result
+- `execDetachContext` MUST call the `onExecDetachContext` function despite the call result
+
+**_Scenario#5:_** Ownership manager wants to (unlock and) detach a locked token and the callback controller does not implement `IERCxContextCallback`.
+
+- Caller MUST:
+  - Call `requestDetachContext` function successfully
+  - Wait at least context detaching duration (see variable `detachingDuration` in the `getContext` function)
+  - Call `execDetachContext` function successfully
+
+**_Scenario#6:_** Ownership manager wants to detach an unlocked token and the callback controller implements `IERCxContextCallback`.
+
+- Caller MUST call `requestDetachContext` function successfully
+- `requestDetachContext` MUST call the `onExecDetachContext` function despite the result
+- `execDetachContext` MUST NOT be called
+
+**_Scenario#7:_** Ownership manager wants to detach an unlocked token and the callback controller does not implement `IERCxContextCallback`.
+
+- Caller MUST call `requestDetachContext` function successfully
+- `execDetachContext` MUST NOT be called
+
+**Rules**
+
+**setContextLock rules**
+
+- MUST revert if the token is requested for detachment.
+- MUST revert if the method caller is not context controller.
+- MUST emit the event `ContextLockUpdated` on success.
+
+**requestDetachContext rules**
+
+- MUST revert if the method caller is not an ownership manager or approved accounts to manage the tokens for ownership manager (via `setApprovalForAll` function).
+- If the token context is locked, MUST emit the `ContextDetachRequested` event. After the above conditions are met, this function MUST check if the controller address is a smart contract (e.g. code size > 0). If so, it MUST call `onDetachRequested` and the call result MUST be skipped.
+  - The `data` argument provided by the caller MUST be passed with its contents unaltered to the `onDetachRequested` hook function via its `data` argument.
+- If the token context is not locked, MUST emit the `ContextDetached` event. After the above conditions are met, this function MUST check if the controller address is a smart contract (e.g. code size > 0). If so, it MUST call `onExecDetachContext` and the call result MUST be skipped.
+  - The `data` argument provided by the caller MUST be passed with its contents unaltered to the `onExecDetachContext` hook function via its `data` argument.
+
+**execDetachContext** **rules**
+
+- MUST revert if the method caller is not an ownership manager or approved accounts to manage the tokens for ownership manager (via `setApprovalForAll` function).
+- MUST revert unless the caller requested detachment and waited for at least detaching duration (see variable `detachingDuration` in the `getContext` function).
+- MUST emit the `ContextDetached` event.
+- After the above conditions are met, this function MUST check if the controller address is a smart contract (e.g. code size > 0). If so, it MUST call `onExecDetachContext` and the call result MUST be skipped.
+  - The `data` argument provided by the caller MUST be passed with its contents unaltered to the `onExecDetachContext` hook function via its `data` argument.
+
+### **Additional Transfer** Rules
+
+In addition to extending from ERC721 for the transfer mechanism when transferring an NFT, the implementation:
+
+- MUST revert if the caller is not an ownership manager.
+- MUST detach all attached contexts if any.
+- MUST revoke ownership delegation if any.
+
+## **Rationale**
+
+When designing the proposal, we considered the following concerns.
+
+### **Multiple contexts for multiple use cases**
+
+This proposal is centered around Token Context to allow for the creation of distinct contexts tailored to various decentralized applications (dApps). The context controller assumes the role of facilitating (rental or delegation) dApps, by enabling the granting of usage rights to another user without modifying the NFT's ownership record. Besides, this proposal provides the lock feature for contexts to ensure trustlessness in performing these dApps, especially staking cases.
+
+### Providing an unlock mechanism for ownership
+
+An essential aspect of token management is providing an unlock mechanism for owners. Without this mechanism, the owners are unable to unlock their tokens independently and must rely on the context controller to initiate the unlocking process, and there are some cases, in which the controller could lose control, the owners are completely unable to unlock their tokens.
+
+Hence, in response to unlock requests from the ownership manager, DApp contracts need to be designed to accommodate scenarios where locked tokens can be unlocked through ownership rights.
+
+### Skipping detaching request results
+
+The callback results of the `onDetachRequested` and `onExecDetachContext` functions in the **Token (Un)lock Rules** are not handled because we are intentionally removing the controller's power to stop detachment, ensuring token detachment is independent of the controller's actions.
+
+### Ownership delegation
+
+This feature provides a novel approach through the segregation of owner and ownership. Primarily designed to facilitate delegating for third parties, this separation enables the designation of another account as the manager of ownership, distinct from the owner.
+
+Unlike `approve` or `setApprovalForAll` methods, which merely grant permission to other accounts while maintaining ownership status. The current approach with ownership delegation, transcends mere permission granting. It involves the transfer of the owner's rights to delegatee, with provisions for automatic transfer back upon expiration. This mechanism prevents potential abuses, such as requesting mortgages and transfers to alternative accounts if the owner retains ownership rights. Thereby ensuring the integrity and stability of mortgage arrangements within the NFT ecosystem.
+
+The **2-step delegation** process is designed to prevent mistakes in assigning delegatees, it must be done through two steps: offer and confirm. In cases the delegation needs to be canceled before its scheduled expiry, the delegatees can invoke `stopOwnershipDelegation` method.
+
+## **Backwards Compatibility**
+
+This proposal is backward compatible with ERC-721.
+
+## Security Considerations
+
+### Detaching duration
+
+When developing this token standard to serve multiple contexts:
+
+- The contract deployer should establish an appropriate upper threshold for detachment delay (by `maxDetachingDuration` method).
+- The context owner should anticipate potential use cases and establish an appropriate period not larger than the upper threshold.
+
+This precaution is essential to mitigate the risk of the owner abusing lo systems by spamming listings and transferring tokens to another owner in a short time.
+
+### Duplicated token usage
+
+When initiating a new context, the context controllers should track all other contexts within the NFT contract to prevent duplicated usage.
+
+For example, suppose a scenario where a token is locked for rental purposes within a particular game. If that game introduces another context (e.g. supporting delegation in that game), it could lead to duplicated token usage within the game, despite being intended for different contexts.
+
+In such cases, a shared context for rental and delegation purposes can be considered. Or there must be some restrictions on the new delegation context to prevent reusing that token in the game.
+
+### Ownership Delegation Buffer Time
+
+When constructing systems that rely on ownership delegation for product development, it is imperative to incorporate a buffer time (of at least `maxDetachingDuration` seconds) when requesting ownership delegation. This precaution is essential to mitigate the risk of potential abuse, particularly if one of the associated contexts locks the token until the delegation time expires.
+For example, consider a scenario where a mortgage contract is built atop a ERCx contract, which has a maximum detaching duration of 7 days, while the required delegation period is only 3 days. In such cases, without an adequate buffer time, the owner could exploit the system by withdrawing funds and triggering the relevant context to lock the token, thus preventing its unlock and transfer.
+
+### **Risk of Token Owner**
+
+**Phishing attacks**
+
+It is crucial to note that the owner role has the ability to delegate ownership to another account, allowing it to authorize transfers out of the respective wallet. Consequently, some malicious actors could deceive the token owner into delegating them as a delegatee by invoking the `startDelegateOwnership` method. This risk can be considered the same as the `approve` or `setApprovalForAll` methods.
+
+**Ownership rights loss**
+
+When interacting with a contract system (e.g. mortgage), where owners have to delegate their ownership rights to the smart contract, it's imperative to:
+
+- Ensure the timeframe for delegation is reasonable and not excessively distant. If the contract mandates a delegation period that extends too far into the future, make sure it includes a provision to revoke ownership delegation when specific conditions are met. Failing to include such a provision could lead to the loss of ownership rights until the delegation expires.
+- Be aware that if the contract owner is compromised, the token ownership can be altered.
+
+## Typical Use Cases
+
+### Rental
+
+This is a typical use case for rentals, supposing A(owner) owns a token and wants to list his/her token for rent, and B(user) wants to rent the token to play in a certain game.
+
+![Rental Flow](../assets/erc-draft/rental.png)
+
+### Mortgage
+
+When constructing collateral systems, it is recommended to support token owners who wish to rent out their tokens while using them for collateral lending. This approach enhances the appeal of mortgage systems, creating a more attractive and versatile financial ecosystem that meets many different needs
+
+This is a typical use case for mortgages, supposing A(owner) owns a token and wants to mortgage, and B(lender) wants to earn interest by lending their funds to A.
+
+![Mortgage Flow](../assets/erc-draft/mortgage.png)
+
+## **Copyright**
+
+Copyright and related rights waived via [CC0](https://eips.ethereum.org/LICENSE).
+
+## Reference
+
+- [ERC-721 Non-Fungible Token Standard](https://eips.ethereum.org/EIPS/eip-721)
+- [ERC-165 Standard Interface Detection](https://eips.ethereum.org/EIPS/eip-165)
+- [ERC-2615: Non-Fungible Token with mortgage and rental functions](https://eips.ethereum.org/EIPS/eip-2615)
