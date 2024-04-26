@@ -1,8 +1,16 @@
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 592.8096655232913 598.4738402473761" width="1185.6193310465826" height="1196.9476804947521" filter="invert(93%) hue-rotate(180deg)">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 592.8096655232913 598.4738402473761" width="1185.6193310465826" height="1196.9476804947521">
   <!-- svg-source:excalidraw -->
   
   <defs>
     <style class="style-fonts">
+      @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+      }
+      svg {
+          filter: invert(93%) hue-rotate(180deg);
+      }
+      }
       @font-face {
         font-family: "Virgil";
         src: url("https://excalidraw.com/Virgil.woff2");
