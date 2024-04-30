@@ -3,7 +3,7 @@ eip: ____
 title: "Cross-chain Storage Router Protocol"
 description: The cross-chain storage router protocol provides a mechanism to replace L1 storage with L2 and databases through off-chain routers
 author: Avneet Singh (@sshmatrix), 0xc0de4c0ffee (@0xc0de4c0ffee), Nick Johnson (@arachnid), Makoto Inoue (@makoto)
-discussions-to: https://ethereum-magicians.org/t/0/0
+discussions-to: https://ethereum-magicians.org/t/new-erc-cross-chain-storage-router-protocol/19853
 status: Draft
 type: Standards Track
 category: ERC
@@ -12,7 +12,7 @@ requires: 155
 ---
 
 ## Abstract
-The following standard provides a mechanism similar to [EIP-5559](./eip-5559) by which smart contracts can route storage to external providers. In particular, protocols can reduce the gas fees associated with storing data on mainnet by routing the handling of storage operations to another system or network. These storage routers act as an extension to the core L1 contract. Methods in this document specifically target security and cost-effectiveness of storage routing to three router types: L1, L2 and databases. The cross-chain data written with these methods can be retrieved by generic [EIP-3668](./eip-3668)-compliant contracts, thus completing the cross-chain data life cycle. This document, alongside [EIP-3668](./eip-3668), is a meaningful step toward a secure infrastructure for cross-chain storage routers and data retrievals.
+The following standard provides a superior mechanism to [EIP-5559](./eip-5559) by which smart contracts can route storage to external providers. In particular, protocols can reduce the gas fees associated with storing data on mainnet by routing the handling of storage operations to another system or network. These storage routers act as an extension to the core L1 contract. Methods in this document specifically target security and cost-effectiveness of storage routing to three router types: L1, L2 and databases. The cross-chain data written with these methods can be retrieved by generic [EIP-3668](./eip-3668)-compliant contracts, thus completing the cross-chain data life cycle. This document, alongside [EIP-3668](./eip-3668), is a meaningful step toward a secure infrastructure for cross-chain storage routers and data retrievals.
 
 ## Motivation
 [EIP-3668](./eip-3668), aka 'CCIP-Read', has been key to retrieving cross-chain data for a variety of contracts on Ethereum blockchain, ranging from price feeds for DeFi contracts, to more recently records for ENS users. The latter case dedicatedly uses cross-chain storage to bypass the usually high gas fees associated with on-chain storage; this aspect has a plethora of use cases well beyond ENS records and a potential for significant impact on universal affordability and accessibility of Ethereum.
@@ -477,7 +477,9 @@ await fetch(gatewayUrl, {
 Technically, the cases of L2s and databases are similar; routing to an L2 involves routing the `eth_call` to another EVM, while routing to a database can be made by extracting `eth_sign` from `eth_call` and posting the resulting signature explicitly along with the data for later verification. Methods in this document perform these precise tasks when routing storage operations to external routers. In addition, methods such as signing data with a derived signer (for databases) allow for significant UX improvement by fixing the number of signature prompts in wallets to 2, irrespective of the number of data instances to sign per node or the total number of nodes to update. This improvement comes at no additional cost to the user and allows services to perform batch updates.
 
 ## Backwards Compatibility
-None.
+1. `StorageRoutedToL2()` is backward compatible and identical to `StorageHandledByL2()` in [EIP-5559](./eip-5559).
+
+2. `StorageRoutedToDatabase()` is not backward compatible with `StorageHandledByDatabase()` in [EIP-5559](./eip-5559).
 
 ## Security Considerations
 1. Clients must purge the derived signer private keys from local storage immediately after signing the off-chain data.
