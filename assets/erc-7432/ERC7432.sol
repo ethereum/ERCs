@@ -13,7 +13,7 @@ contract ERC7432 is IERC7432 {
         bytes data;
     }
 
-    bytes32[] public allowedRoles = [keccak256('UNIQUE_ROLE')];
+    bytes32[] public allowedRoles;
 
     // roleId => isAllowed
     mapping(bytes32 => bool) public isRoleAllowed;
@@ -28,6 +28,7 @@ contract ERC7432 is IERC7432 {
     mapping(address => mapping(address => mapping(address => bool))) public tokenApprovals;
 
     constructor() {
+        allowedRoles = [keccak256('UNIQUE_ROLE')];
         for (uint256 i = 0; i < allowedRoles.length; i++) {
             isRoleAllowed[allowedRoles[i]] = true;
         }
@@ -98,7 +99,7 @@ contract ERC7432 is IERC7432 {
     function unlockToken(address _tokenAddress, uint256 _tokenId) external override {
         address originalOwner = originalOwners[_tokenAddress][_tokenId];
 
-        require(_isLocked(_tokenAddress, _tokenId), 'NftRolesRegistryVault: NFT is locked');
+        require(!_hasNonRevocableRole(_tokenAddress, _tokenId), 'NftRolesRegistryVault: NFT is locked');
 
         require(
             originalOwner == msg.sender || isRoleApprovedForAll(_tokenAddress, originalOwner, msg.sender),
@@ -138,9 +139,9 @@ contract ERC7432 is IERC7432 {
         bytes32 _roleId
     ) external view returns (bytes memory data_) {
         if (roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp) {
-            return roles[_tokenAddress][_tokenId][_roleId].data;
+            data_ = roles[_tokenAddress][_tokenId][_roleId].data;
         }
-        return '';
+        return data_;
     }
 
     function roleExpirationDate(
@@ -159,10 +160,9 @@ contract ERC7432 is IERC7432 {
         uint256 _tokenId,
         bytes32 _roleId
     ) external view returns (bool revocable_) {
-        if (roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp) {
-            return roles[_tokenAddress][_tokenId][_roleId].revocable;
-        }
-        return false;
+        return
+            roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp &&
+            roles[_tokenAddress][_tokenId][_roleId].revocable;
     }
 
     function isRoleApprovedForAll(address _tokenAddress, address _owner, address _operator) public view returns (bool) {
@@ -224,13 +224,16 @@ contract ERC7432 is IERC7432 {
         revert('NftRolesRegistryVault: role does not exist or sender is not approved');
     }
 
-    /// @notice Checks whether an NFT is locked.
+    /// @notice Checks whether an NFT has at least one non-revocable role.
     /// @param _tokenAddress The token address.
     /// @param _tokenId The token identifier.
-    /// @return True if the NFT is locked.
-    function _isLocked(address _tokenAddress, uint256 _tokenId) internal view returns (bool) {
+    /// @return true if the NFT is locked.
+    function _hasNonRevocableRole(address _tokenAddress, uint256 _tokenId) internal view returns (bool) {
         for (uint256 i = 0; i < allowedRoles.length; i++) {
-            if (roles[_tokenAddress][_tokenId][allowedRoles[i]].expirationDate > block.timestamp) {
+            if (
+                !roles[_tokenAddress][_tokenId][allowedRoles[i]].revocable &&
+            roles[_tokenAddress][_tokenId][allowedRoles[i]].expirationDate > block.timestamp
+            ) {
                 return true;
             }
         }
