@@ -24,15 +24,16 @@ Install dependencies:
 npm i
 ```
 
-Run all tests:
+Compile:
 ```shell
-npm test
+npx hardhat compile
 ```
 
-Run all tests with coverage (alternatively):
+Run all tests:
 ```shell
-npm run coverage
+npx hardhat test
 ```
+
 
 ### Configuration files
 
