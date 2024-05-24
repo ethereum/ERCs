@@ -1,5 +1,5 @@
 ---
-eip: x
+eip: 7714
 title: Simple Permissions Checks
 description: Standardized interface for checking either contract-level or calldata-level permissions
 author: TODO
