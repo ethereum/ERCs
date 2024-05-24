@@ -1,5 +1,4 @@
 ---
-eip: xxxx
 title:  Request Permissions from Wallets
 description: Adds JSON-RPC method for requesting permissions from a wallet
 author: Luka Isailovic (@lukaisailovic), Derek Rein (@arein), Dan Finlay (danfinlay), Derek Chiang (@derekchiang), Fil Makarov (@filmakarov), Pedro Gomes (@pedrouid)
@@ -37,14 +36,6 @@ Each interaction requires the user to sign a transaction with their wallet.  The
 - It’s impossible to send transactions for users without an active wallet connection.  This invalidates use cases such as subscriptions, passive investments, limit orders, and more.
 
 In the context of AA, there are multiple vendor-specific implementations of session keys, which are temporary keys imbued with specific permissions.  However, since the implementations are vendor-specific, it’s impossible for DApps to “request” session keys from wallets in a unified way, regardless of the specific wallet implementations.
-
-# Terminology
-
-- Permissions
-- Session
-- DApp
-- Wallet
-- Account
 
 # Specification
 
