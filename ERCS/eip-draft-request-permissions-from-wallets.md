@@ -3,7 +3,7 @@ eip: 7715
 title: Request Permissions from Wallets
 description: Adds JSON-RPC method for requesting permissions from a wallet
 author: Luka Isailovic (@lukaisailovic), Derek Rein (@arein), Dan Finlay (danfinlay), Derek Chiang (@derekchiang), Fil Makarov (@filmakarov), Pedro Gomes (@pedrouid)
-discussions-to: https://ethereum-magicians.org/t/erc-request-permissions-from-wallets/20100
+discussions-to: https://ethereum-magicians.org/t/erc-7715-request-permissions-from-wallets/20100
 status: Draft
 type: Standards Track
 category: ERC
