@@ -3,7 +3,7 @@
 pragma solidity ^0.8.16;
 
 import "../ICatalog.sol";
-import "../IEquippable.sol";
+import "../IERC6220.sol";
 import "../library/EquippableLib.sol";
 
 error TokenHasNoAssets();
@@ -116,7 +116,7 @@ contract EquipRenderUtils {
         virtual
         returns (ExtendedActiveAsset[] memory)
     {
-        IEquippable target_ = IEquippable(target);
+        IERC6220 target_ = IERC6220(target);
 
         uint64[] memory assets = target_.getActiveAssets(tokenId);
         uint16[] memory priorities = target_.getActiveAssetPriorities(tokenId);
@@ -180,7 +180,7 @@ contract EquipRenderUtils {
         virtual
         returns (ExtendedPendingAsset[] memory)
     {
-        IEquippable target_ = IEquippable(target);
+        IERC6220 target_ = IERC6220(target);
 
         uint64[] memory assets = target_.getPendingAssets(tokenId);
         uint256 len = assets.length;
@@ -243,20 +243,20 @@ contract EquipRenderUtils {
         view
         returns (
             uint64[] memory slotPartIds,
-            IEquippable.Equipment[] memory childrenEquipped
+        IERC6220.Equipment[] memory childrenEquipped
         )
     {
-        IEquippable target_ = IEquippable(target);
+        IERC6220 target_ = IERC6220(target);
 
         (, , address catalogAddress, uint64[] memory partIds) = target_
             .getAssetAndEquippableData(tokenId, assetId);
 
         (slotPartIds, ) = splitSlotAndFixedParts(partIds, catalogAddress);
-        childrenEquipped = new IEquippable.Equipment[](slotPartIds.length);
+        childrenEquipped = new IERC6220.Equipment[](slotPartIds.length);
 
         uint256 len = slotPartIds.length;
         for (uint256 i; i < len; ) {
-            IEquippable.Equipment memory equipment = target_.getEquipment(
+            IERC6220.Equipment memory equipment = target_.getEquipment(
                 tokenId,
                 catalogAddress,
                 slotPartIds[i]
@@ -312,7 +312,7 @@ contract EquipRenderUtils {
             EquippedSlotPart[] memory slotParts
         )
     {
-        IEquippable target_ = IEquippable(target);
+        IERC6220 target_ = IERC6220(target);
         uint64[] memory partIds;
 
         // If token does not have uint64[] memory slotPartId to save the asset, it would fail here.
@@ -366,7 +366,7 @@ contract EquipRenderUtils {
      *      childAssetMetadata,
      *      partMetadata
      *  ]
-     * @param target_ An address of the `IEquippable` smart contract to retrieve the equipped slot parts from.
+     * @param target_ An address of the `IERC6220` smart contract to retrieve the equipped slot parts from.
      * @param tokenId ID of the token for which to retrieve the equipped slot parts
      * @param assetId ID of the asset on the token to retrieve the equipped slot parts
      * @param catalogAddress The address of the catalog to which the given asset belongs to
@@ -374,7 +374,7 @@ contract EquipRenderUtils {
      * @return slotParts An array of `EquippedSlotPart` structs representing the equipped slot parts
      */
     function getEquippedSlotParts(
-        IEquippable target_,
+        IERC6220 target_,
         uint256 tokenId,
         uint64 assetId,
         address catalogAddress,
@@ -388,13 +388,13 @@ contract EquipRenderUtils {
             ICatalog.Part[] memory catalogSlotParts = ICatalog(catalogAddress)
                 .getParts(slotPartIds);
             for (uint256 i; i < len; ) {
-                IEquippable.Equipment memory equipment = target_.getEquipment(
+                IERC6220.Equipment memory equipment = target_.getEquipment(
                     tokenId,
                     catalogAddress,
                     slotPartIds[i]
                 );
                 if (equipment.assetId == assetId) {
-                    metadata = IEquippable(equipment.childEquippableAddress)
+                    metadata = IERC6220(equipment.childEquippableAddress)
                         .getAssetMetadata(
                             equipment.childId,
                             equipment.childAssetId
