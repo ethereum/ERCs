@@ -2,7 +2,7 @@
 eip: x
 title: Readable Typed Signatures for Smart Accounts
 description: Nested typed data structure for readable replay-safe signatures
-author: vectorized (@vectorized), Sihoon Lee (@push0ebp), Francisco Giordano (@frangio), Juno Im (@junomonster), howydev (@howydev), 0xcuriousapple (0xcuriousapple)
+author: vectorized (@vectorized), Sihoon Lee (@push0ebp), Francisco Giordano (@frangio), Im, Juno (@junomonster), howydev (@howydev), 0xcuriousapple (0xcuriousapple)
 discussions-to: https://ethereum-magicians.org/t/readable-typed-signatures-for-smart-accounts
 status: Draft
 type: Standards Track
