@@ -1,5 +1,5 @@
 ---
-eip: SOMETHING
+eip: x
 title: Readable Typed Signatures for Smart Accounts
 description: Nested typed data structure for readable replay-safe signatures
 author: vectorized (@vectorized), Sihoon Lee (@push0ebp), Francisco Giordano (@frangio), Juno Im (@junomonster), howydev (@howydev), 0xcuriousapple (0xcuriousapple)
