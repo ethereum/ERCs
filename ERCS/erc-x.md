@@ -40,9 +40,12 @@ This can be prevented if the application contract that calls `isValidSignature` 
 
 Hence, many major smart account implementations perform defensive rehashing: the hash is rehashed on the smart account to incorporate its own address into the final hash to be verified. 
 
-Existing approaches usually include a simple form of [EIP-712](./eip-712.md), or sometimes a non-standard `keccak256(abi.encode(hash, address(this), ...))`. This suffice to prevent replays but makes the contents of the signature opaque when requested through wallet clients.
+Existing approaches either include a simple form of [EIP-712](./eip-712.md), or a non-standard `keccak256(abi.encode(hash, address(this), ...))`. This suffice to prevent replays, but it makes the contents of the final hash opaque during the signature request.
 
-While it is theoretically possible to update all wallet clients to expose the contents in a defacto way, private companies developing both wallet clients and smart account implementations are incentivized to support their proprietary rehashing schemes. First, it requires less effort to implement on the smart account. Second, it allows them to build moats via ecosystem lock-in.
+Standardizing the defensive rehashing scheme will offer the following benefits:
+- Coordinate integration efforts across smart accounts.
+- Preventing ecosystem fragmentation in the rehashing schemes, thus improving developer and user experience.
+- Provide a well-tested and peer-reviewed reference implementation with minimal compromises.
 
 To promote account abstraction without ecosystem fragmentation, this proposal is crafted with the following objectives:
 
@@ -55,9 +58,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Overview
 
-TBD.
+## Typed Data Sign Structure and Signature
 
-## Rationale
+## Personal Sign Structure
+
+
 
 TBD.
 
