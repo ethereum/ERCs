@@ -12,8 +12,7 @@ interface IERC7007Updatable is IERC7007 {
      */
     function update(
         bytes calldata prompt,
-        bytes calldata aigcData,
-        string calldata uri
+        bytes calldata aigcData
     ) external;
 
     /**
@@ -22,7 +21,6 @@ interface IERC7007Updatable is IERC7007 {
     event Update(
         uint256 indexed tokenId,
         bytes indexed prompt,
-        bytes indexed aigcData,
-        string uri
+        bytes indexed aigcData
     );
 }
