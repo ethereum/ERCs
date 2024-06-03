@@ -58,9 +58,13 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Overview
 
-## Typed Data Sign Structure and Signature
+## Typed Data Sign Workflow 
 
-## Personal Sign Structure
+<!-- Structure Definition and Signature Wrapping Scheme -->
+
+## Personal Sign Workflow 
+
+<!-- Structure Definition -->
 
 
 
