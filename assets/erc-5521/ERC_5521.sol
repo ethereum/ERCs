@@ -138,6 +138,24 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
         return (_referredKeys, _referredValues);
     }
 
+    /// @notice Get the timestamp of an rNFT when is being created.
+    /// @param `tokenId` of the rNFT being focused, `_address` of contract address associated with the focused rNFT.
+    /// @return The timestamp of the rNFT when is being created with uint256 format.
+    function createdTimestampOf(address _address, uint256 tokenId) external view returns(uint256) {
+        uint256 memory createdTimestamp;
+
+        if (_address == address(this)) {
+            require(_exists(tokenId), "ERC_5521: token ID not existed");
+            Relationship storage relationship = _relationship[tokenId];
+            createdTimestamp = relationship.createdTimestamp;
+        } else {
+            TargetContract targetContractInstance = TargetContract(_address);
+            require(targetContractInstance.supportsInterface(type(TargetContract).interfaceId), "ERC_5521: target contract not supported");
+            createdTimestamp = targetContractInstance.createdTimestampOf(_address, tokenId);            
+        }
+        return createdTimestamp;
+    }
+
     /// @dev See {IERC165-supportsInterface}.
     function supportsInterface(bytes4 interfaceId) public view virtual override (ERC721, IERC_5521, TargetContract) returns (bool) {
         return interfaceId == type(IERC_5521).interfaceId
