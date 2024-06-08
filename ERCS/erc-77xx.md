@@ -3,7 +3,7 @@ eip: 77xx
 title: Deferred Token Transfer
 description: Allows users to schedule ERC20 token transfers for withdrawal at a specified future time, enabling time-locked payments.
 author: Chen Liaoyuan (@chenly)
-discussions-to: https://ethereum-magicians.org/t/erc-76xx-deferred-token-transfer/25601
+discussions-to: https://ethereum-magicians.org/t/deferred-token-transfer/20245
 status: Draft
 type: Standards Track
 category: ERC
