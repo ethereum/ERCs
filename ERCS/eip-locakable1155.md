@@ -3,7 +3,7 @@ eip:
 title: Lockable Extension for ERC-1155
 description: Interface for enabling locking of ERC-1155 using locker and token id based approvals
 author: Piyush Chittara (@piyush-chittara)
-discussions-to:
+discussions-to: https://ethereum-magicians.org/t/lockable-extension-for-erc1155/20250
 status: Draft
 type: Standards Track
 category: ERC
