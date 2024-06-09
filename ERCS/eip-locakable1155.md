@@ -132,15 +132,15 @@ This proposal exposes `transferAndLock(address from, address to, uint256 tokenId
 
 This standard is compatible with [ERC-1155](./eip-1155.md) standards.
 
-Existing Upgradedable [ERC-1155](./eip-1155.md) can upgrade to this standard, enabling locking capability inherently and unlock underlying liquidity features.
+Existing Upgradeable [ERC-1155](./eip-1155.md) can upgrade to this standard, enabling locking capability inherently and unlock underlying liquidity features.
 
 ## Test Cases
 
 ## Reference Implementation
 
-Reference Interface can be found [here](../assets/eip-lockable1155/IERCLocakable1155.sol).
+Reference Interface can be found [here](../assets/eip-lockable1155/IERCLockable1155.sol).
 
-Reference Implementation can be found [here](../assets/eip-lockable1155/ERCLocakable1155.sol).
+Reference Implementation can be found [here](../assets/eip-lockable1155/ERCLockable1155.sol).
 
 ## Security Considerations
 
