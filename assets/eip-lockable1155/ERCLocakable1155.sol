@@ -26,18 +26,14 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Returns the locker for the tokenId
-     *      address(0) means token is not locked
-     *      reverts if token does not exist
+     * @dev Returns the locked amount for the tokenId on account by operator
      */
-
-    // isLocked true or false: if amount!=0 .., not assigned ..
     function getLocked(uint256 tokenId, address account, address operator) public virtual view override returns(uint256){
         return locker[tokenId][account][operator];
     }
 
     /**
-     * @dev Public function to lock the token. Verifies if the msg.sender is owner or approved
+     * @dev Public function to lock the amount of token and set locker to msg.sender. Verifies if the msg.sender is owner or approved
      *      reverts otherwise
      */
     // lock: is locked true or false:  
@@ -50,7 +46,7 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     }
 
     /**
-     * @dev Public function to lock the token. Verifies if the msg.sender is owner
+     * @dev Public function to lock the amount of token and set locker to _locker. Verifies if the msg.sender is owner
      *      reverts otherwise
      */
     // lock: is locked true or false:
@@ -65,7 +61,6 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     /**
      * @dev Internal function to lock the token.
      */
-    // _lock: = locked?? bool, amount??
     function _lock(uint256 tokenId, address account, address _locker, uint256 amount) internal {
         require(balanceOf(account, tokenId)>=amount,"ERC1155: Insufficient Balance");
         locker[tokenId][account][_msgSender()]=locker[tokenId][account][_msgSender()]+amount;
@@ -77,7 +72,6 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
      * @dev Public function to unlock the token. Verifies the msg.sender is locker
      *      reverts otherwise
      */
-    // unlock not check amount
     function unlock(uint256 tokenId, address account, uint256 amount) public virtual override{
         require(locker[tokenId][account][_msgSender()]>=amount,"ERC1155: Insufficient Locked Amount");
         _unlock(tokenId,account,_msgSender(),amount);
@@ -113,13 +107,16 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     }
 
     /**
-     * @dev Override approve to make sure token is unlocked
+     * @dev Set approval on specific tokenId for token approved and operator on account
      */
     function setApprovalForId(uint256 tokenId, address operator, uint256 amount) public virtual {
         require (amount>locker[tokenId][_msgSender()][operator], "ERC1155: Insufficient Locked Amount");
         _nftApproval[tokenId][_msgSender()][operator]=amount;
     }
 
+    /**
+     * @dev Get amount for token approved and operator on account
+     */
     function getApprovalForId(uint256 tokenId, address account, address operator) public virtual returns(uint256) {
         return _nftApproval[tokenId][account][operator];
     }
@@ -149,7 +146,6 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
      * @dev Override _beforeTokenTransfer to make sure token is unlocked or msg.sender is approved if 
      * token is lockApproved
      */
-    //changes fine??
     function _beforeTokenTransfer( 
         address operator,
         address from,
@@ -160,7 +156,6 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     ) internal virtual override {
         // if it is a Transfer or Burn, we always deal with one token, that is startTokenId
         if (from != address(0)) { 
-            //done: iterate for all ids and amount (create for loop)
             for (uint256 i = 0; i < ids.length; i++) {
                 uint256 tokenId = ids[i];
                 uint256 amount = amounts[i];
@@ -188,7 +183,6 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     ) internal virtual override {
         // if it is a Transfer or Burn, we always deal with one token, that is startTokenId
         if (from != address(0)) { 
-            //done: iterate for all ids and amount (create for loop)
             for (uint256 i = 0; i < ids.length; i++) {
                 uint256 tokenId=ids[i];
                 uint256 amount = amounts[i];

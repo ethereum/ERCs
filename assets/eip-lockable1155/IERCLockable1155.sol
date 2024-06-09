@@ -20,17 +20,20 @@ interface IERCLocakable1155 is IERC1155{
     event Unlock (uint256 indexed tokenId, address account, address _locker, uint256 amount);
 
     /**
-     * @dev Lock the tokenId if msg.sender is owner or approved and set locker to msg.sender
+     * @dev lock the amount of token and set locker to msg.sender. Verifies if the msg.sender is owner or approved
+     *      reverts otherwise
      */
     function lock(uint256 tokenId, address account, uint256 amount) external;
 
     /**
-     * @dev Lock the tokenId if msg.sender is owner and set locker to _locker
+     * @dev lock the amount of token and set locker to _locker. Verifies if the msg.sender is owner
+     *      reverts otherwise
      */
     function lock(uint256 tokenId, address account, address _locker, uint256 amount) external;
 
     /**
-     * @dev Unlocks the tokenId if msg.sender is locker
+     * @dev unlock the token. Verifies the msg.sender is locker
+     *      reverts otherwise
      */
     function unlock(uint256 tokenId, address account, uint256 amount) external;
 
@@ -42,10 +45,18 @@ interface IERCLocakable1155 is IERC1155{
     function transferAndLock(address from, address to, uint256 tokenId, uint256 amount, bool setApprove) external;
 
     /**
-     * @dev Returns the wallet, that is stated as unlocking wallet for the tokenId.
-     *      If (0) returned, that means token is not locked. Any other result means token is locked.
+     * @dev Returns the locked amount for the tokenId on account by operator
      */
     function getLocked(uint256 tokenId, address account, address operator) external view returns (uint256);
 
+    /**
+     * @dev Set approval on specific tokenId for token approved and operator on account
+     */
     function setApprovalForId(uint256 tokenId, address operator, uint256 amount) external;
+
+    /**
+     * @dev Get amount for token approved and operator on account
+     */
+    function getApprovalForId(uint256 tokenId, address account, address operator) external;
+
 }

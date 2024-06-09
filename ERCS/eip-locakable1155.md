@@ -1,7 +1,7 @@
 ---
 eip:
-title: Lockable Extension for ERC-721
-description: Interface for enabling locking of ERC-721 using locker and approved
+title: Lockable Extension for ERC-1155
+description: Interface for enabling locking of ERC-1155 using locker and token id based approvals
 author: Piyush Chittara (@piyush-chittara)
 discussions-to:
 status: Draft
