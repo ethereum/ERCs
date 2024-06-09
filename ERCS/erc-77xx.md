@@ -1,7 +1,7 @@
 ---
 eip: 77xx
 title: Deferred Token Transfer
-description: Allows users to schedule ERC20 token transfers for withdrawal at a specified future time, enabling time-locked payments.
+description: Allows users to schedule ERC20 token transfers for withdrawal at a specified future time, enabling deferred payments.
 author: Chen Liaoyuan (@chenly)
 discussions-to: https://ethereum-magicians.org/t/deferred-token-transfer/20245
 status: Draft
@@ -12,11 +12,11 @@ created: 2024-06-09
 
 ## Abstract
 
-The standard enables users to deposit [ERC-20](./eip-20.md) tokens that can be withdrawn by a specified beneficiary at a future timestamp. Each deposit is assigned a unique ID and includes details such as the beneficiary, token type, amount, timestamp, and withdrawal status. 
+This standard specifies that allows users to deposit [ERC-20](./eip-20.md) tokens for a beneficiary. The beneficiary can withdraw the tokens only after a specified future timestamp. Each deposit transaction is assigned a unique ID and includes details such as the token address, sender, recipient, amount, unlock time, and withdrawal status.
 
 ### Motivation
 
-Sometimes, we need deferred payments in various scenarios, such as vesting schedules, escrow services, or timed rewards. By providing a secure and reliable mechanism for time-locked token transfers, this contract ensures that tokens are transferred only after a specified timestamp is reached. This facilitates structured and delayed payments, adding an extra layer of security and predictability to token transfers. This mechanism is particularly useful for situations where payments need to be conditional on the passage of time.
+In various scenarios, such as vesting schedules, escrow services, or timed rewards, there is a need for deferred payments. This contract provides a secure and reliable mechanism for time-locked token transfers, ensuring that tokens can only be transferred after a specified timestamp is reached. By facilitating structured and delayed payments, it adds an extra layer of security and predictability to token transfers. This is particularly useful for scenarios where payments are contingent upon the passage of time.
 
 ## Specification
 
@@ -27,69 +27,88 @@ Implementers of this standard **MUST** have all of the following functions:
 ```solidity
 pragma solidity ^0.8.0;
 
-interface IDeferredTokenTransfer {
-    // Struct to store deposit information
-    struct Deposit {
-        address beneficiary;
-        address token;
-        uint256 amount;
-        uint256 timestamp;
-        bool withdrawn;
-    }
+interface ITokenTransfer {
+    // Event emitted when a transfer is initiated.
+    event Transfer(
+        uint256 txnId,
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        uint256 amount,
+        uint256 unlockTime,
+        bytes32 referenceNo
+    );
 
-    /**
-     * @notice Create a new deposit
-     * @param _beneficiary The address that will receive the tokens
-     * @param _token The address of the ERC20 token
-     * @param _amount The amount of tokens to deposit
-     * @param _timestamp The timestamp when the tokens can be withdrawn
-     * @return The ID of the created deposit
-     */
-    function deposit(
-        address _beneficiary,
+    // Event emitted when tokens are withdrawn.
+    event Withdraw(
+        uint256 txnId,
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
+
+    // Function to initiate a token transfer.
+    // Parameters:
+    // - _token: Address of the ERC20 token contract.
+    // - _from: Address of the sender.
+    // - _to: Address of the recipient.
+    // - _amount: Amount of tokens to be transferred.
+    // - _unlockTime: Time after which the tokens can be withdrawn.
+    // - _reference: Reference ID for the transaction.
+    // Returns the transaction ID.
+    function transferFrom(
         address _token,
+        address _from,
+        address _to,
         uint256 _amount,
-        uint256 _timestamp
-    ) external returns (uint256);
+        uint256 _unlockTime,
+        bytes32 _reference
+    ) external returns (uint256 txnId);
 
-    /**
-     * @notice Withdraw tokens from a deposit
-     * @param _depositId The ID of the deposit to withdraw from
-     */
-    function withdraw(uint256 _depositId) external;
+    // Function to withdraw tokens from a transaction.
+    // Parameters:
+    // - _txnId: ID of the transaction to withdraw from.
+    function withdraw(uint256 _txnId) external;
 
-    /**
-     * @notice Get details of a deposit
-     * @param _depositId The ID of the deposit to retrieve
-     * @return beneficiary The address that will receive the tokens
-     * @return token The address of the ERC20 token
-     * @return amount The amount of tokens deposited
-     * @return timestamp The timestamp when the tokens can be withdrawn
-     * @return withdrawn Whether the tokens have been withdrawn
-     */
-    function deposits(uint256 _depositId) external view returns (address beneficiary, address token, uint256 amount, uint256 timestamp, bool withdrawn);
-
-    // Events to log deposit creation and withdrawal
-    event DepositCreated(uint256 depositId, address indexed beneficiary, uint256 amount, uint256 timestamp);
-    event TokensWithdrawn(uint256 depositId, address indexed beneficiary, uint256 amount);
+    // Function to get transaction details.
+    // Parameters:
+    // - _txnId: ID of the transaction.
+    // Returns the transaction details.
+    function getTransaction(uint256 _txnId)
+        external
+        view
+        returns (
+            address token,
+            address from,
+            address to,
+            uint256 amount,
+            uint256 unlockTime,
+            bytes32 referenceNo,
+            bool withdrawn
+        );
 }
+
 ```
 
 ## Rationale
 
 The design of the Deferred Token Transfer contract aims to provide a straightforward and secure method for handling time-locked token transfers. The following considerations were made during its development:
 
-1. **Simplicity and Usability**: The contract interface is designed to be simple and intuitive, making it easy for users to create deposits and for beneficiaries to withdraw tokens once the conditions are met.
+**Simplicity and Usability**:
+   - The contract interface is designed to be simple and intuitive, making it easy for users to create deposits and for beneficiaries to withdraw tokens once the conditions are met.
 
-2. **Security**: By leveraging OpenZeppelin's SafeERC20 library, the contract ensures secure token transfers, preventing common vulnerabilities associated with ERC20 transfers. Additionally, the contract includes checks to prevent multiple withdrawals of the same deposit.
+**Security**:
+   - By leveraging OpenZeppelin's SafeERC20 library, the contract ensures secure token transfers, preventing common vulnerabilities associated with ERC20 transfers. Additionally, the contract includes checks to prevent multiple withdrawals of the same deposit.
 
-3. **Flexibility**: The contract supports various ERC20 tokens, allowing users to create deposits with any standard ERC20 token. This flexibility makes it suitable for a wide range of use cases.
+**Flexibility**:
+   - The contract supports various ERC20 tokens, allowing users to create deposits with any standard ERC20 token. This flexibility makes it suitable for a wide range of use cases.
 
-4. **Event Logging**: Events are emitted for both deposit creation and token withdrawal. This provides transparency and allows easy tracking of contract activities, which is crucial for auditability and user confidence.
+**Event Logging**:
+   - Events are emitted for both deposit creation and token withdrawal. This provides transparency and allows easy tracking of contract activities, which is crucial for auditability and user confidence.
 
-5. **Conditional Payments**: By implementing a time-lock mechanism, the contract ensures that tokens are only transferred after a specific timestamp. This feature is essential for use cases like vesting schedules, escrow arrangements, and timed rewards, where payments need to be delayed until certain conditions are met.
-
----
+**Conditional Payments**:
+   - By implementing a time-lock mechanism, the contract ensures that tokens are only transferred after a specific timestamp. This feature is essential for use cases like vesting schedules, escrow arrangements, and timed rewards, where payments need to be delayed until certain conditions are met.
 
 ## Reference Implementation
 
@@ -98,98 +117,145 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract DeferredTokenTransfer {
+contract TokenTransfer {
     using SafeERC20 for IERC20;
 
-    // Struct to store deposit information
-    struct Deposit {
-        address beneficiary;
-        address token;
-        uint256 amount;
-        uint256 timestamp;
-        bool withdrawn;
+    struct Transaction {
+        address token;      // Address of the ERC20 token contract.
+        address from;       // Address of the sender.
+        address to;         // Address of the recipient.
+        uint256 amount;     // Amount of tokens to be transferred.
+        uint256 unlockTime; // Time after which the tokens can be withdrawn.
+        bytes32 referenceNo;  // Reference ID for the transaction.
+        bool withdrawn;     // Flag indicating if the tokens have been withdrawn.
     }
 
-    // Mapping to store deposits by ID
-    mapping(uint256 => Deposit) public deposits;
+    // Mapping from transaction ID to Transaction structure.
+    mapping(uint256 => Transaction) public transactions;
 
-    // Counter for deposit IDs
-    uint256 public depositId = uint256(0);
+    // Variable to keep track of the next transaction ID.
+    uint256 public lastTxnId = 0;
 
-    // Events to log deposit creation and withdrawal
-    event DepositCreated(uint256 depositId, address indexed beneficiary, uint256 amount, uint256 timestamp);
-    event TokensWithdrawn(uint256 depositId, address indexed beneficiary, uint256 amount);
+    // Event emitted when a transfer is initiated.
+    event Transfer(
+        uint256 txnId,
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        uint256 amount,
+        uint256 unlockTime,
+        bytes32 referenceNo
+    );
 
-    // Constructor
+    // Event emitted when tokens are withdrawn.
+    event Withdraw(
+        uint256 txnId,
+        address indexed token,
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
+
     constructor() {}
 
-    /**
-     * @notice Create a new deposit
-     * @param _beneficiary The address that will receive the tokens
-     * @param _token The address of the ERC20 token
-     * @param _amount The amount of tokens to deposit
-     * @param _timestamp The timestamp when the tokens can be withdrawn
-     * @return The ID of the created deposit
-     */
-    function deposit(
-        address _beneficiary,
+    // Function to initiate a token transfer.
+    // Parameters:
+    // - _token: Address of the ERC20 token contract.
+    // - _from: Address of the sender.
+    // - _to: Address of the recipient.
+    // - _amount: Amount of tokens to be transferred.
+    // - _unlockTime: Time after which the tokens can be withdrawn.
+    // - _reference: Reference ID for the transaction.
+    // Returns the transaction ID.
+    function transferFrom(
         address _token,
+        address _from,
+        address _to,
         uint256 _amount,
-        uint256 _timestamp
-    ) external returns (uint256) {
-        require(_amount > 0, "Invalid deposit amount");
-        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        uint256 _unlockTime,
+        bytes32 _reference
+    ) external returns (uint256 txnId) {
+        require(_amount > 0, "Invalid transfer amount");
 
-        depositId++;
+        // Transfer tokens from sender to this contract.
+        IERC20(_token).safeTransferFrom(_from, address(this), _amount);
 
-        deposits[depositId] = Deposit({
-            beneficiary: _beneficiary,
+        lastTxnId++;
+
+        // Store the transaction details.
+        transactions[lastTxnId] = Transaction({
             token: _token,
+            from: _from,
+            to: _to,
             amount: _amount,
-            timestamp: _timestamp,
+            unlockTime: _unlockTime,
+            referenceNo: _reference,
             withdrawn: false
         });
 
-        emit DepositCreated(depositId, _beneficiary, _amount, _timestamp);
-        return depositId;
+        // Emit an event for the transaction creation.
+        emit Transfer(lastTxnId, _token, _from, _to, _amount, _unlockTime, _reference);
+        return lastTxnId;
     }
 
-    /**
-     * @notice Withdraw tokens from a deposit
-     * @param _depositId The ID of the deposit to withdraw from
-     */
-    function withdraw(uint256 _depositId) external {
-        Deposit storage _deposit = deposits[_depositId];
-        require(_deposit.amount > 0, "Invalid deposit ID");
-        require(block.timestamp >= _deposit.timestamp, "Current time is before withdrawal time");
-        require(_deposit.beneficiary == msg.sender, "Wrong beneficiary");
-        require(!_deposit.withdrawn, "Tokens already withdrawn");
+    // Function to withdraw tokens from a transaction.
+    // Parameters:
+    // - _txnId: ID of the transaction to withdraw from.
+    function withdraw(uint256 _txnId) external {
+        Transaction storage transaction = transactions[_txnId];
+        require(transaction.amount > 0, "Invalid transaction ID");
+        require(block.timestamp >= transaction.unlockTime, "Current time is before unlock time");
+        require(transaction.to == msg.sender, "Only the recipient can withdraw the tokens");
+        require(!transaction.withdrawn, "Tokens already withdrawn");
 
-        _deposit.withdrawn = true;
-        IERC20(_deposit.token).safeTransfer(msg.sender, _deposit.amount);
+        IERC20(transaction.token).safeTransfer(transaction.to, transaction.amount);
 
-        emit TokensWithdrawn(_depositId, msg.sender, _deposit.amount);
+        transaction.withdrawn = true;
+
+        // Emit an event for the token withdrawal.
+        emit Withdraw(_txnId, transaction.token, transaction.from, transaction.to, transaction.amount);
     }
 
-    /**
-     * @notice Get details of a deposit
-     * @param _depositId The ID of the deposit to retrieve
-     * @return beneficiary The address that will receive the tokens
-     * @return token The address of the ERC20 token
-     * @return amount The amount of tokens deposited
-     * @return timestamp The timestamp when the tokens can be withdrawn
-     * @return withdrawn Whether the tokens have been withdrawn
-     */
-    function deposits(uint256 _depositId) external view returns (address beneficiary, address token, uint256 amount, uint256 timestamp, bool withdrawn) {
-        Deposit storage _deposit = deposits[_depositId];
-        return (_deposit.beneficiary, _deposit.token, _deposit.amount, _deposit.timestamp, _deposit.withdrawn);
+    // Function to get transaction details.
+    // Parameters:
+    // - _txnId: ID of the transaction.
+    // Returns the transaction details.
+    function getTransaction(uint256 _txnId)
+        external
+        view
+        returns (
+            address token,
+            address from,
+            address to,
+            uint256 amount,
+            uint256 unlockTime,
+            bytes32 referenceNo,
+            bool withdrawn
+        )
+    {
+        Transaction storage transaction = transactions[_txnId];
+        require(transaction.amount > 0, "Invalid transaction ID");
+
+        return (
+            transaction.token,
+            transaction.from,
+            transaction.to,
+            transaction.amount,
+            transaction.unlockTime,
+            transaction.referenceNo,
+            transaction.withdrawn
+        );
     }
 }
 ```
 
 ## Security Considerations
 
-TBD
+**Ownerless Contract Design**:
+   - To prevent the risk of token loss after deposit, the contract should not have an owner. This ensures that the contract's token balance cannot be transferred to any address other than the designated beneficiary.
+
+**Strict Beneficiary Control**:
+   - During withdrawal, the contract must strictly ensure that tokens are transferred only to the beneficiary specified at the time of deposit. This prevents unauthorized access and ensures that only the intended recipient can withdraw the tokens.
 
 ## Copyright
 
