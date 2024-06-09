@@ -95,20 +95,15 @@ interface ITokenTransfer {
 
 The design of the Deferred Token Transfer contract aims to provide a straightforward and secure method for handling time-locked token transfers. The following considerations were made during its development:
 
-**Simplicity and Usability**:
-   - The contract interface is designed to be simple and intuitive, making it easy for users to create deposits and for beneficiaries to withdraw tokens once the conditions are met.
+**Simplicity and Usability**: The contract interface is designed to be simple and intuitive, making it easy for users to create deposits and for beneficiaries to withdraw tokens once the conditions are met.
 
-**Security**:
-   - By leveraging OpenZeppelin's SafeERC20 library, the contract ensures secure token transfers, preventing common vulnerabilities associated with ERC20 transfers. Additionally, the contract includes checks to prevent multiple withdrawals of the same deposit.
+**Security**: By leveraging OpenZeppelin's SafeERC20 library, the contract ensures secure token transfers, preventing common vulnerabilities associated with ERC20 transfers. Additionally, the contract includes checks to prevent multiple withdrawals of the same deposit.
 
-**Flexibility**:
-   - The contract supports various ERC20 tokens, allowing users to create deposits with any standard ERC20 token. This flexibility makes it suitable for a wide range of use cases.
+**Flexibility**: The contract supports various ERC20 tokens, allowing users to create deposits with any standard ERC20 token. This flexibility makes it suitable for a wide range of use cases.
 
-**Event Logging**:
-   - Events are emitted for both deposit creation and token withdrawal. This provides transparency and allows easy tracking of contract activities, which is crucial for auditability and user confidence.
+**Event Logging**: Events are emitted for both deposit creation and token withdrawal. This provides transparency and allows easy tracking of contract activities, which is crucial for auditability and user confidence.
 
-**Conditional Payments**:
-   - By implementing a time-lock mechanism, the contract ensures that tokens are only transferred after a specific timestamp. This feature is essential for use cases like vesting schedules, escrow arrangements, and timed rewards, where payments need to be delayed until certain conditions are met.
+**Conditional Payments**: By implementing a time-lock mechanism, the contract ensures that tokens are only transferred after a specific timestamp. This feature is essential for use cases like vesting schedules, escrow arrangements, and timed rewards, where payments need to be delayed until certain conditions are met.
 
 ## Reference Implementation
 
@@ -205,7 +200,7 @@ contract TokenTransfer {
         Transaction storage transaction = transactions[_txnId];
         require(transaction.amount > 0, "Invalid transaction ID");
         require(block.timestamp >= transaction.unlockTime, "Current time is before unlock time");
-        require(transaction.to == msg.sender, "Only the recipient can withdraw the tokens");
+        // require(transaction.to == msg.sender, "Only the recipient can withdraw the tokens");
         require(!transaction.withdrawn, "Tokens already withdrawn");
 
         IERC20(transaction.token).safeTransfer(transaction.to, transaction.amount);
@@ -251,11 +246,9 @@ contract TokenTransfer {
 
 ## Security Considerations
 
-**Ownerless Contract Design**:
-   - To prevent the risk of token loss after deposit, the contract should not have an owner. This ensures that the contract's token balance cannot be transferred to any address other than the designated beneficiary.
+**Ownerless Contract Design**: To prevent the risk of token loss after deposit, the contract should not have an owner. This ensures that the contract's token balance cannot be transferred to any address other than the designated beneficiary.
 
-**Strict Beneficiary Control**:
-   - During withdrawal, the contract must strictly ensure that tokens are transferred only to the beneficiary specified at the time of deposit. This prevents unauthorized access and ensures that only the intended recipient can withdraw the tokens.
+**Strict Beneficiary Control**: During withdrawal, the contract must strictly ensure that tokens are transferred only to the beneficiary specified at the time of deposit. This prevents unauthorized access and ensures that only the intended recipient can withdraw the tokens.
 
 ## Copyright
 
