@@ -1,4 +1,5 @@
 ---
+eip: 7722
 title: Opaque Token
 description: An opaque token standard with privacy support
 author: Ivica Aračić (@ivica7), SWIAT
