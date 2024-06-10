@@ -17,7 +17,7 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
 
     //Mapping from tokenId to user address for locker
     mapping(uint256 tokenId => mapping(address account => mapping(address operator => uint256))) private locker;
-    mapping(uint256 tokenId => mapping(address account => mapping(address operator => uint256))) private _nftApproval;
+    mapping(uint256 tokenId => mapping(address account => mapping(address operator => uint256))) private nftApproval;
     mapping(uint256 tokenId => mapping(address account => uint256)) private lockedAmount;
 
 
@@ -101,7 +101,7 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     function _transferAndLock(uint256 tokenId, address from, address to, uint256 amount, bool setApprove) internal {
         safeTransferFrom(from, to, tokenId, amount, "" ); 
         if(setApprove){
-            _nftApproval[tokenId][to][from]=_nftApproval[tokenId][to][from]+amount;
+            nftApproval[tokenId][to][from]=nftApproval[tokenId][to][from]+amount;
         }
         _lock(tokenId,to,msg.sender,amount);
     }
@@ -111,14 +111,14 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
      */
     function setApprovalForId(uint256 tokenId, address operator, uint256 amount) public virtual {
         require (amount>locker[tokenId][_msgSender()][operator], "ERC1155: Insufficient Locked Amount");
-        _nftApproval[tokenId][_msgSender()][operator]=amount;
+        nftApproval[tokenId][_msgSender()][operator]=amount;
     }
 
     /**
      * @dev Get amount for token approved and operator on account
      */
     function getApprovalForId(uint256 tokenId, address account, address operator) public virtual returns(uint256) {
-        return _nftApproval[tokenId][account][operator];
+        return nftApproval[tokenId][account][operator];
     }
     
     /*///////////////////////////////////////////////////////////////
@@ -172,7 +172,6 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
     /**
      * @dev Override _afterTokenTransfer to make locker is purged
      */
-    //changes fine??
     function _afterTokenTransfer(
         address operator,
         address from,
@@ -187,7 +186,7 @@ abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
                 uint256 tokenId=ids[i];
                 uint256 amount = amounts[i];
                 if(getApprovalForId(tokenId,from,operator)>=amount){
-                    _nftApproval[tokenId][from][operator]=getApprovalForId(tokenId,from,operator)-amount;
+                    nftApproval[tokenId][from][operator]=getApprovalForId(tokenId,from,operator)-amount;
                     if(locker[tokenId][from][operator]>0){
                         if(amount>=locker[tokenId][from][operator]){
                             lockedAmount[tokenId][from]=lockedAmount[tokenId][from]-locker[tokenId][from][operator];         
