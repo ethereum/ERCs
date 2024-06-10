@@ -3,7 +3,7 @@ eip: 7722
 title: Opaque Token
 description: An opaque token standard with privacy support
 author: Ivica Aračić (@ivica7), SWIAT
-discussions-to: https://ethereum-magicians.org/t/erc-idea-opaque-token-a-token-standard-with-privacy-support-that-unifies-fungible-and-non-fungible-tokens
+discussions-to: https://ethereum-magicians.org/t/erc-7722-opaque-token/20249
 status: Draft
 type: Standards Track
 category: ERC
