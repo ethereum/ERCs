@@ -23,14 +23,14 @@ contract CloneFactory {
     }
 }
 
-contract ERC-4824RegistrationSummoner {
+contract ERC4824RegistrationSummoner {
     event NewRegistration(
         address indexed daoAddress,
         string daoURI,
         address registration
     );
 
-    address public ERC-4824Index;
+    address public ERC4824Index;
     address public template; /*Template contract to clone*/
 
     constructor(address _template, address _ERC-4824Index) {
