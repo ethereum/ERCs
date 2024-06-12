@@ -184,11 +184,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="1"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.30141365"
+     inkscape:zoom="0.27243931"
      inkscape:cx="897.93858"
      inkscape:cy="386.90925"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g1159"
      showgrid="false"
      inkscape:window-width="1426"
      inkscape:window-height="847"
@@ -517,7 +517,7 @@
     <g
        id="g1159">
       <path
-         style="fill:#cecece;fill-opacity:0.375;stroke:#000000;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:#cecece;fill-opacity:0.375;stroke:#8c8c8c;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="M 86.322276,290.00575 V 119.244 H 54.594263 V 93.866255 H 116.87518 V 119.244 H 86.322276"
          id="path1065"
          sodipodi:nodetypes="ccccccc" />
@@ -532,7 +532,7 @@
            id="tspan1096"
            x="84.649086"
            y="112.60667"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';stroke:#000000;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">CLIENT</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#8c8c8c;fill-opacity:1;stroke:#8c8c8c;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">CLIENT</tspan></text>
     </g>
     <text
        xml:space="preserve"
