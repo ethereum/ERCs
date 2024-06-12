@@ -184,11 +184,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="1"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.17095056"
-     inkscape:cx="1140.2606"
-     inkscape:cy="829.79059"
+     inkscape:zoom="0.28410923"
+     inkscape:cx="718.34832"
+     inkscape:cy="532.22326"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g1159"
      showgrid="false"
      inkscape:window-width="1426"
      inkscape:window-height="847"
@@ -506,13 +506,13 @@
     <g
        id="g1159">
       <path
-         style="fill:#cecece;fill-opacity:0.375;stroke:#000000;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:#cecece;fill-opacity:0.375;stroke:#8c8c8c;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="M 86.322276,290.00575 V 119.244 H 54.594263 V 93.866255 H 116.87518 V 119.244 H 86.322276"
          id="path1065"
          sodipodi:nodetypes="ccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:12.87020000000000053px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke:#8c8c8c;stroke-opacity:1;fill:#8c8c8c;fill-opacity:1;"
          x="84.649086"
          y="112.60667"
          id="text1098"
@@ -521,7 +521,7 @@
            id="tspan1096"
            x="84.649086"
            y="112.60667"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';stroke:#000000;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">CLIENT</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';stroke:#8c8c8c;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill:#8c8c8c;fill-opacity:1;">CLIENT</tspan></text>
     </g>
   </g>
 </svg>
