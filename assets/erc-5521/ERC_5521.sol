@@ -10,14 +10,16 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
     struct Relationship {
         mapping (address => uint256[]) referring;
         mapping (address => uint256[]) referred;
+        address[] referringKeys;
+        address[] referredKeys;
         uint256 createdTimestamp; // unix timestamp when the rNFT is being created
+
+        // extensible parameters
+        // ...
     }
 
     mapping (uint256 => Relationship) internal _relationship;
     address contractOwner = address(0);
-
-    mapping (uint256 => address[]) private referringKeys;
-    mapping (uint256 => address[]) private referredKeys;
 
     constructor(string memory name_, string memory symbol_) ERC721(name_, symbol_) {
         contractOwner = msg.sender;
@@ -51,7 +53,7 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
         Relationship storage relationship = _relationship[tokenId];
 
         for (uint i = 0; i < addresses.length; i++) {
-            if (relationship.referring[addresses[i]].length == 0) { referringKeys[tokenId].push(addresses[i]); } // Add the address if it's a new entry
+            if (relationship.referring[addresses[i]].length == 0) { relationship.referringKeys.push(addresses[i]); } // Add the address if it's a new entry
             relationship.referring[addresses[i]] = _tokenIds[i];
         }
 
@@ -65,9 +67,9 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
         for (uint i = 0; i < addresses.length; i++) {
             if (addresses[i] == address(this)) {
                 for (uint j = 0; j < _tokenIds[i].length; j++) {
-                    if (_relationship[_tokenIds[i][j]].referred[addresses[i]].length == 0) { referredKeys[_tokenIds[i][j]].push(addresses[i]); } // Add the address if it's a new entry
                     Relationship storage relationship = _relationship[_tokenIds[i][j]];
-
+                    if (relationship.referred[addresses[i]].length == 0) { relationship.referredKeys.push(addresses[i]); } // Add the address if it's a new entry
+                    
                     require(tokenId != _tokenIds[i][j], "ERC_5521: self-reference not allowed");
                     if (relationship.createdTimestamp >= block.timestamp) { revert("ERC_5521: the referred rNFT needs to be a predecessor"); } // Make sure the reference complies with the timing sequence
 
@@ -76,7 +78,11 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
                 }
             } else {
                 TargetContract targetContractInstance = TargetContract(addresses[i]);
-                targetContractInstance.setNodeReferredExternal(address(this), tokenId, _tokenIds[i]);
+                bool isSupports = targetContractInstance.supportsInterface(type(TargetContract).interfaceId);
+                if (isSupports) {
+                    // The target contract supports the interface, safe to call functions of the interface.
+                    targetContractInstance.setNodeReferredExternal(address(this), tokenId, _tokenIds[i]);
+                }
             }
         }
     }
@@ -85,8 +91,8 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
     /// @param _tokenIds array of rNFTs associated with addresses, recommended to check duplication at the caller's end
     function setNodeReferredExternal(address _address, uint256 tokenId, uint256[] memory _tokenIds) external {
         for (uint i = 0; i < _tokenIds.length; i++) {
-            if (_relationship[_tokenIds[i]].referred[_address].length == 0) { referredKeys[_tokenIds[i]].push(_address); } // Add the address if it's a new entry
             Relationship storage relationship = _relationship[_tokenIds[i]];
+            if (relationship.referred[_address].length == 0) { relationship.referredKeys.push(_address); } // Add the address if it's a new entry
 
             require(_address != address(this), "ERC_5521: this must be an external contract address");
             if (relationship.createdTimestamp >= block.timestamp) { revert("ERC_5521: the referred rNFT needs to be a predecessor"); } // Make sure the reference complies with the timing sequence
@@ -108,7 +114,8 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
             (_referringKeys, _referringValues) = convertMap(tokenId, true);
         } else {
             TargetContract targetContractInstance = TargetContract(_address);
-            (_referringKeys, _referringValues) = targetContractInstance.referringOf(_address, tokenId);           
+            require(targetContractInstance.supportsInterface(type(TargetContract).interfaceId), "ERC_5521: target contract not supported");
+            (_referringKeys, _referringValues) = targetContractInstance.referringOf(_address, tokenId);     
         }      
         return (_referringKeys, _referringValues);
     }
@@ -125,13 +132,32 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
             (_referredKeys, _referredValues) = convertMap(tokenId, false);
         } else {
             TargetContract targetContractInstance = TargetContract(_address);
+            require(targetContractInstance.supportsInterface(type(TargetContract).interfaceId), "ERC_5521: target contract not supported");
             (_referredKeys, _referredValues) = targetContractInstance.referredOf(_address, tokenId);           
         }
         return (_referredKeys, _referredValues);
     }
 
+    /// @notice Get the timestamp of an rNFT when is being created.
+    /// @param `tokenId` of the rNFT being focused, `_address` of contract address associated with the focused rNFT.
+    /// @return The timestamp of the rNFT when is being created with uint256 format.
+    function createdTimestampOf(address _address, uint256 tokenId) external view returns(uint256) {
+        uint256 memory createdTimestamp;
+
+        if (_address == address(this)) {
+            require(_exists(tokenId), "ERC_5521: token ID not existed");
+            Relationship storage relationship = _relationship[tokenId];
+            createdTimestamp = relationship.createdTimestamp;
+        } else {
+            TargetContract targetContractInstance = TargetContract(_address);
+            require(targetContractInstance.supportsInterface(type(TargetContract).interfaceId), "ERC_5521: target contract not supported");
+            createdTimestamp = targetContractInstance.createdTimestampOf(_address, tokenId);            
+        }
+        return createdTimestamp;
+    }
+
     /// @dev See {IERC165-supportsInterface}.
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override (ERC721, IERC_5521, TargetContract) returns (bool) {
         return interfaceId == type(IERC_5521).interfaceId
             || interfaceId == type(TargetContract).interfaceId
             || super.supportsInterface(interfaceId);    
@@ -153,13 +179,13 @@ contract ERC_5521 is ERC721, IERC_5521, TargetContract {
         uint256[][] memory returnValues;
 
         if (isReferring) {
-            returnKeys = referringKeys[tokenId];
+            returnKeys = relationship.referringKeys;
             returnValues = new uint256[][](returnKeys.length);
             for (uint i = 0; i < returnKeys.length; i++) {
                 returnValues[i] = relationship.referring[returnKeys[i]];
             }            
         } else {
-            returnKeys = referredKeys[tokenId];
+            returnKeys = relationship.referredKeys;
             returnValues = new uint256[][](returnKeys.length);
             for (uint i = 0; i < returnKeys.length; i++) {
                 returnValues[i] = relationship.referred[returnKeys[i]];
