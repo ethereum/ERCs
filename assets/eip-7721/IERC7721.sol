@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
 /// @author StreamNFT 
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
-interface IERCLocakable1155 is IERC1155{
+interface IERC7721 is IERC1155{
 
     /**
      * @dev Emitted when tokenId is locked

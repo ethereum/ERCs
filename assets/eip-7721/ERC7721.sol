@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC7066SFT.sol";
+import "./interfaces/IERC7721.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 /// @title ERC7066: Lockable Extension for ERC721
 /// @dev Implementation for the Lockable extension ERC7066 for ERC721
 /// @author StreamNFT 
 
-abstract contract ERCLocakable1155 is ERC1155,IERCLocakable1155{
+abstract contract ERC7721 is ERC1155,IERC7721{
 
     /*///////////////////////////////////////////////////////////////
                             ERC7066 EXTENSION STORAGE                        
