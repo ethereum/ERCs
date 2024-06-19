@@ -1,0 +1,118 @@
+---
+title: Exponential Curves
+description: A dynamic model for exponential curves to handle various time-based events
+author: Guilherme Neves (@0xneves)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-exponential-curves/20170
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-06-19
+---
+
+## Abstract
+
+This proposal suggests an exponential curve formula designed to handle various time-based events such as token vesting, game mechanics, unlock schedules, and other timestamp-dependent actions. The core functionality is driven by an exponential curve formula allowing for smooth, nonlinear transitions over time, providing a more sophisticated and flexible approach than linear models.
+
+## Motivation
+
+Inspired by ENS's premium decay curve, which reduces the cost of premium names over time, this proposal aims to create a more general-purpose curve that can be used in various applications. Since calculating exponentials in Solidity is not easy because of its fixed-point arithmetic, developers are obliged to use simpler equations for growth or decay, and most times linear. Providing more nuanced control over how parameters evolve over time, leading to more sophisticated applications and user experiences.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+The interface is defined as follows:
+
+```solidity
+interface IEXPCurves {
+  /**
+   * @notice This function calculates the exponential decay value over time.
+   * @param currentTimeframe The current timestamp or a point within the spectrum
+   * @param initialTimeframe The initial timestamp or the beginning of the curve
+   * @param finalTimeframe The final timestamp or the end of the curve
+   * @param curvature The curvature factor. Determines the steepness of the curve and can be
+   * negative, which will invert the curve's direction.
+   * @param ascending The curve direction (ascending or descending)
+   * @return int256 The exponential decay value at a specific interval
+   */
+  function expcurve(
+    uint32 currentTimeframe,
+    uint32 initialTimeframe,
+    uint32 finalTimeframe,
+    int16 curvature,
+    bool ascending
+  ) external pure returns (int256);
+}
+```
+
+The `expcurve` method calculates the curve's decay value at a *given timestamp* based on the *initial timestamp*, *final timestamp*, *curvature*, and *curve direction* (ascending or descending). The function returns the curve value as a percentage (0-100) in the form of a fixed-point number with 18 decimal places.
+
+Both curves are controlled by the following formulas:
+
+#### Ascending Curve
+
+$$\frac{\exp(k \cdot \frac{t - t_0}{T - t_0}) - 1}{\exp(k) - 1} \cdot 100$$
+
+#### Descending Curve
+
+$$\frac{\exp(k \cdot (1 - \frac{t - t_0}{T - t_0})) - 1}{\exp(k) - 1} \cdot 100$$
+
+Where:
+
+- `t` is the current timestamp.
+- `t0` is the start timestamp.
+- `T` is the end timestamp.
+- `k` is the curvature factor, determining the steepness of the curve (2 decimals precision).
+- `exp()` is the exponential function with base 'E' (Euler's number, approximately 2.71828).
+
+The *ascending curve* starts at 0% and increases to 100% over time, while the *descending curve* starts at 100% and decreases to 0% over time. 
+
+The *curvature* factor *k* allows for fine-tuning the curve's shape, providing a wide range of possibilities for customizing the curve's behavior. A higher *k* value results in a steeper curve, while a lower *k* value results in a flatter curve. This flexibility enables developers to create complex time-based scenarios with precise control over the curve's progression. For better precision, the curvature factor is an integer with two (2) decimal places, allowing for a range of -100.00 to 100.00.
+
+- The `initialTimeframe` **MUST** be less than or equal to the `currentTimeframe`.
+- The `initialTimeframe` **MUST** be less than the `finalTimeframe`.
+- The `curvature` **MUST NOT** be zero.
+- The `curvature` **MAY** fit between `-100.00` and `100.00` (-10_000 ~ 10_000 int16 with 2 decimals precision).
+- The curve direction when `true` is ascending and when `false` is descending.
+
+## Rationale
+
+EXPCurves was inspired by Valocracy and ENS. Both projects have a usage for the exponential curve. Valocracy uses the curve to decrease soul-bounded governance power over time and ENS uses the curve to decrease the price of premium for an expired domain over time.
+
+This formula was elaborated in a way that would facilitate developer experience when using exponential curves. The formula is simple and easy to understand, and the parameters are intuitive. The curve's behavior can be easily adjusted by changing the curvature factor, allowing developers to create a wide range of time-based scenarios.
+
+The formula is not easy to implement in Solidity because relies on fixed-point arithmetic and there is nowhere to find a complete, dynamic, and easy-to-use, implementation of it. This design aims to fill this gap and provide scalar curves so that all projects can harness their power and manage time-based events in a more sophisticated way.
+
+ERC-165 can optionally be implemented if you want integrations to detect the EXPCurves interface implementation.
+
+## Backwards Compatibility
+
+No backward compatibility issues were found.
+
+## Test Cases
+
+Tests are included in [`EXPCurves.test.ts`](../assets/eip-TBA/test/EXPCurves.test.ts).
+
+To run them, open the terminal and use the following commands:
+
+```
+cd ./assets/erc-TBA
+npm install
+npm test
+```
+
+## Reference Implementation
+
+See [`EXPCurves.sol`](../assets/eip-TBA/contracts/EXPCurves.sol).
+
+## Security Considerations
+
+The implementation of the curve **SHOULD** be carefully reviewed to avoid potential vulnerabilities and edge cases regarding overflows and underflows since Solidity cannot handle fixed-point arithmetic. The `expcurve` function **SHOULD** be thoroughly tested to ensure that the curve's parameters are correctly set and that it behaves as expected.
+
+The output of the curve has 18 decimals and **MUST** be normalized to handle the result where it will be used to avoid precision issues.
+
+When using the curve in a smart contract, developers **SHOULD** be aware of the potential gas costs associated with the calculations varying between 15.000 ~ 20.000 gas per call.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
