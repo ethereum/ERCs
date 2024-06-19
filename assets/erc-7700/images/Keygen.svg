@@ -26,7 +26,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -178,11 +178,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.23843962"
-     inkscape:cx="-198.86147"
-     inkscape:cy="1094.0833"
+     inkscape:zoom="0.94193265"
+     inkscape:cx="1132.579"
+     inkscape:cy="922.20488"
      inkscape:document-units="mm"
-     inkscape:current-layer="g10042-7-1-9"
+     inkscape:current-layer="g1198"
      showgrid="false"
      inkscape:window-width="1426"
      inkscape:window-height="847"
@@ -1048,17 +1048,15 @@
    id="tspan2969" /></tspan></text>
       <text
          xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.59163999999999994px;line-height:1.05;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;font-variant-ligatures:none;text-align:center;letter-spacing:0.36849799999999999px;text-anchor:middle;fill:#8c8c8c;fill-opacity:1;stroke:#ffffff;stroke-width:0.287564;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.59164px;line-height:1.05;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;font-variant-ligatures:none;text-align:center;letter-spacing:0.368498px;text-anchor:middle;fill:#8c8c8c;fill-opacity:1;stroke:#ffffff;stroke-width:0.287564;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          x="361.09329"
          y="261.31497"
          id="text2139-0-1-8-8-8-0-1-3-5"><tspan
            sodipodi:role="line"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;text-align:end;text-anchor:end;fill:#8c8c8c;fill-opacity:1;stroke:#ffffff;stroke-width:0.287564;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+           style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-size:5.03546px;font-family:'SF Mono';-inkscape-font-specification:'SF Mono Light';text-align:end;letter-spacing:0.222153px;text-anchor:end;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.287564;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
            x="361.31546"
            y="261.31497"
-           id="tspan2163-0-2-6-4-3-6-5-5"><tspan
-             style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-size:5.03545999999999960px;font-family:'SF Mono';-inkscape-font-specification:'SF Mono Light';letter-spacing:0.22215299999999999px;fill:#8c8c8c;fill-opacity:1;stroke:#ffffff;stroke-width:0.287564;stroke-opacity:1"
-             id="tspan2969-7">256</tspan></tspan></text>
+           id="tspan2163-0-2-6-4-3-6-5-5">256</tspan></text>
     </g>
     <text
        xml:space="preserve"
