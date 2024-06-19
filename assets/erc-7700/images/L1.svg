@@ -179,16 +179,16 @@
   </defs>
   <sodipodi:namedview
      id="base"
-     pagecolor="#ffffff"
+     pagecolor="#000000"
      bordercolor="#666666"
      borderopacity="1.0"
-     inkscape:pageopacity="1"
+     inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.19275108"
-     inkscape:cx="833.0242"
-     inkscape:cy="266.44667"
+     inkscape:zoom="0.26187232"
+     inkscape:cx="1322.4215"
+     inkscape:cy="246.92061"
      inkscape:document-units="mm"
-     inkscape:current-layer="g1159"
+     inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1426"
      inkscape:window-height="847"
@@ -258,7 +258,7 @@
        id="g1170"
        transform="translate(101.0709,4.805857)">
       <path
-         style="fill:#74ceff;fill-opacity:0.375;stroke:#0085ff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:1;stroke:#0085ff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="m 343.21612,285.19989 v -11.50475 m 0,-12.694 v -28.814 m 0,-12.587 v -105.162 H 311.4881 V 89.060401 h 62.28092 v 25.377739 h -30.5529"
          id="path1065-7"
          sodipodi:nodetypes="ccccccccccc" />
@@ -280,7 +280,7 @@
        transform="translate(101.0709,4.2183)"
        style="stroke:#ff5300;stroke-opacity:1">
       <path
-         style="fill:#ff9c74;fill-opacity:0.375;stroke:#ff5300;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:1;stroke:#ff5300;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="m 419.59838,285.78745 v -70.69727 m 0,0 V 115.0257 H 387.87036 V 89.647955 h 62.28092 V 115.0257 h -30.5529"
          id="path1065-7-8"
          sodipodi:nodetypes="ccccccccc" />
@@ -506,13 +506,13 @@
     <g
        id="g1159">
       <path
-         style="fill:none;fill-opacity:1;stroke:#8c8c8c;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:0.3764706;stroke:#ffffff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="M 86.322276,290.00575 V 119.244 H 54.594263 V 93.866255 H 116.87518 V 119.244 H 86.322276"
          id="path1065"
          sodipodi:nodetypes="ccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none"
+         style="font-size:12.87020000000000053px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke:#ffffff;stroke-opacity:1;fill:#ffffff;fill-opacity:1;"
          x="84.649086"
          y="112.60667"
          id="text1098"
@@ -521,7 +521,7 @@
            id="tspan1096"
            x="84.649086"
            y="112.60667"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#8c8c8c;fill-opacity:1;stroke:#8c8c8c;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">CLIENT</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;">CLIENT</tspan></text>
     </g>
   </g>
 </svg>
