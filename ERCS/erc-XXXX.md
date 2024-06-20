@@ -10,8 +10,6 @@ category: ERC
 created: 2024-06-20
 ---
 
-# Oracles: A Common Use Specification
-
 ## Abstract
 
 The following standard allows for the implementation of a standard API for data feeds providing the relative value of
