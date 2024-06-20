@@ -1,4 +1,5 @@
 ---
+eip: 7725
 title: Exponential Curves
 description: A dynamic model for exponential curves to handle various time-based events
 author: Guilherme Neves (@0xneves)
