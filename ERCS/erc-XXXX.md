@@ -108,7 +108,7 @@ There are no events defined in this specification
       type: address
 ```
 
-### Rationale
+## Rationale
 
 The use of `getQuote` doesn't require the consumer to be aware of any decimal partitions that might have been defined
 for the `base` or `quote` and should be preferred in most data processing cases.
@@ -117,15 +117,15 @@ The spec doesn't include a `getPrice` function because it is rarely needed on-ch
 difficult representation. The popular option for representing prices can be implemented for ERC20 with decimals as
 `oracle.quoteOf(base, quote, 10\*\*base.decimals()) and will give the value of a whole unit of base in quote terms.
 
-### Backwards Compatibility
+## Backwards Compatibility
 
 Most existing data feeds related to the relative value of pairs of assets should be representable using this standard.
 
-### Reference Implementation
+## Reference Implementation
 
 TBA
 
-### Security Considerations
+## Security Considerations
 
 This specification purposefully provides no methods for data consumers to assess the validity of the data they receive.
 It is expected of individual implementations using this specification to decide and publish the quality of the data that
