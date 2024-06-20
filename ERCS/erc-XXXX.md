@@ -121,10 +121,6 @@ difficult representation. The popular option for representing prices can be impl
 
 Most existing data feeds related to the relative value of pairs of assets should be representable using this standard.
 
-## Reference Implementation
-
-TBA
-
 ## Security Considerations
 
 This specification purposefully provides no methods for data consumers to assess the validity of the data they receive.
@@ -132,12 +128,6 @@ It is expected of individual implementations using this specification to decide 
 they provide, including the conditions in which they will stop providing it.
 
 Consumers should review these guarantees and use them to decide whether to integrate or not with a data provider.
-
-## Acknowledgements
-
-* [Getting Prices Right](https://hackernoon.com/getting-prices-right)
-
-* [Euler Price Oracles](https://github.com/euler-xyz/euler-price-oracle/blob/73a51ca5a830ed03e4a3ef9e6c699c55a32211b8/docs/whitepaper.md)
 
 ## Copyright
 
