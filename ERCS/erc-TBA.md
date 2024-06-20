@@ -3,7 +3,7 @@ eip: 7725
 title: Exponential Curves
 description: A dynamic model for exponential curves to handle various time-based events
 author: Guilherme Neves (@0xneves)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-exponential-curves/20170
+discussions-to: https://ethereum-magicians.org/t/erc-7725-exponential-curves/20170
 status: Draft
 type: Standards Track
 category: ERC
