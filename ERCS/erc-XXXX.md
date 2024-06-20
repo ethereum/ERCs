@@ -2,7 +2,7 @@
 eip: XXXX
 title: Quote Oracle Standard
 description: Standard API for data feeds providing the relative value of assets in the Ethereum and EVM-compatible blockchains.
-author: @alcueca, @ruvaag, @totomanov, @r0ohafza
+author: alcueca (@alcueca), ruvaag (@ruvaag), totomanov (@totomanov), r0ohafza (@r0ohafza)
 discussions-to: https://ethereum-magicians.org/t/erc-for-oracle-value-feeds/20351
 status: Draft
 type: Standards Track
@@ -132,6 +132,12 @@ It is expected of individual implementations using this specification to decide 
 they provide, including the conditions in which they will stop providing it.
 
 Consumers should review these guarantees and use them to decide whether to integrate or not with a data provider.
+
+## Acknowledgements
+
+* [Getting Prices Right](https://hackernoon.com/getting-prices-right)
+
+* [Euler Price Oracles](https://github.com/euler-xyz/euler-price-oracle/blob/73a51ca5a830ed03e4a3ef9e6c699c55a32211b8/docs/whitepaper.md)
 
 ## Copyright
 
