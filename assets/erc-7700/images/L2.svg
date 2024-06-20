@@ -179,16 +179,16 @@
   </defs>
   <sodipodi:namedview
      id="base"
-     pagecolor="#ffffff"
+     pagecolor="#000000"
      bordercolor="#666666"
      borderopacity="1.0"
-     inkscape:pageopacity="1"
+     inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.28410923"
-     inkscape:cx="718.34832"
-     inkscape:cy="532.22326"
+     inkscape:zoom="0.32431882"
+     inkscape:cx="937.13724"
+     inkscape:cy="456.37038"
      inkscape:document-units="mm"
-     inkscape:current-layer="g1159"
+     inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:window-width="1426"
      inkscape:window-height="847"
@@ -209,7 +209,7 @@
      transform="translate(-33.411763,-65.062998)">
     <g
        id="g2230"
-       transform="translate(-21.01786,9.7303483)"
+       transform="translate(-23.312746,9.7303483)"
        style="fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-opacity:1">
       <text
          xml:space="preserve"
@@ -221,23 +221,27 @@
            id="tspan1276-9-2"
            x="274.65268"
            y="218.35455"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">Execute on L2 [contract] [callData]   </tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">Execute on L2 [<tspan
+   style="letter-spacing:0px"
+   id="tspan964">contract</tspan>] [<tspan
+   style="letter-spacing:0px"
+   id="tspan966">callData</tspan>]   </tspan></text>
     </g>
     <g
        id="g1285"
-       transform="translate(-15.549128,4.2087553)"
+       transform="translate(-17.309034,4.2087553)"
        style="fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-opacity:1">
       <text
          xml:space="preserve"
-         style="font-size:9.26868999999999943px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.29029600000000000px;text-anchor:middle;stroke:#0085ff;stroke-width:0.309;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill:#0085ff;fill-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.309;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          x="214.05"
          y="140.99199"
          id="text1278"><tspan
            sodipodi:role="line"
            id="tspan1276"
-           x="216.62901"
+           x="216.91931"
            y="140.99199"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.26868999999999943px;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';stroke:#0085ff;stroke-width:0.309;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill:#0085ff;fill-opacity:1">setValue(calldata) </tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.26869px;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.309;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">setValue(calldata) </tspan></text>
     </g>
     <text
        xml:space="preserve"
@@ -256,9 +260,10 @@
        transform="matrix(0.27231888,0,0,0.27231888,213.85157,218.02482)" />
     <g
        id="g1170"
-       transform="translate(101.0709,4.805857)">
+       transform="translate(101.0709,4.805857)"
+       style="fill:none">
       <path
-         style="fill:#74ceff;fill-opacity:0.375;stroke:#0085ff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:1;stroke:#0085ff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="m 343.21612,285.19989 v -11.50475 m 0,-12.694 v -28.814 m 0,-12.587 v -105.162 H 311.4881 V 89.060401 h 62.28092 v 25.377739 h -30.5529"
          id="path1065-7"
          sodipodi:nodetypes="ccccccccccc" />
@@ -278,15 +283,15 @@
     <g
        id="g1175"
        transform="translate(101.0709,4.2183)"
-       style="stroke:#ff5300;stroke-opacity:1">
+       style="stroke:#ff5300;stroke-opacity:1;fill:none">
       <path
-         style="fill:#ff9c74;fill-opacity:0.375;stroke:#ff5300;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:1;stroke:#ff5300;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="m 419.59838,285.78745 v -70.69727 m 0,0 V 115.0257 H 387.87036 V 89.647955 h 62.28092 V 115.0257 h -30.5529"
          id="path1065-7-8"
          sodipodi:nodetypes="ccccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:12.87020000000000053px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;"
          x="413.49622"
          y="108.33154"
          id="text1098-9-0"
@@ -295,7 +300,7 @@
            id="tspan1096-9-8"
            x="413.49622"
            y="108.33154"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">L2</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;">L2</tspan></text>
     </g>
     <text
        xml:space="preserve"
@@ -383,9 +388,11 @@
          id="text1278-7"><tspan
            sodipodi:role="line"
            id="tspan1276-9"
-           x="204.03922"
+           x="204.15999"
            y="139.23582"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">revert StorageRoutedToL2(chainId, contract)</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">revert <tspan
+   style="letter-spacing:0px"
+   id="tspan962">StorageRoutedToL2(chainId, contract)</tspan></tspan></text>
     </g>
     <g
        id="g1291-6"
@@ -489,30 +496,30 @@
     </g>
     <g
        id="g1285-3-4"
-       transform="translate(-43.390295,129.10179)"
+       transform="translate(-46.772232,129.10179)"
        style="fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-opacity:1">
       <text
          xml:space="preserve"
-         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          x="214.90277"
          y="139.72414"
          id="text1278-7-8"><tspan
            sodipodi:role="line"
            id="tspan1276-9-3"
-           x="214.78198"
+           x="214.90277"
            y="139.72414"
            style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">response</tspan></text>
     </g>
     <g
        id="g1159">
       <path
-         style="fill:#cecece;fill-opacity:0.375;stroke:#8c8c8c;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:0.375;stroke:#ffffff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="M 86.322276,290.00575 V 119.244 H 54.594263 V 93.866255 H 116.87518 V 119.244 H 86.322276"
          id="path1065"
          sodipodi:nodetypes="ccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.87020000000000053px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke:#8c8c8c;stroke-opacity:1;fill:#8c8c8c;fill-opacity:1;"
+         style="font-size:12.87020000000000053px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke:#ffffff;stroke-opacity:1;fill:#ffffff;fill-opacity:1;"
          x="84.649086"
          y="112.60667"
          id="text1098"
@@ -521,7 +528,7 @@
            id="tspan1096"
            x="84.649086"
            y="112.60667"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';stroke:#8c8c8c;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill:#8c8c8c;fill-opacity:1;">CLIENT</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';stroke:#ffffff;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill:#ffffff;fill-opacity:1;">CLIENT</tspan></text>
     </g>
   </g>
 </svg>
