@@ -1,245 +1,115 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.21;
 
-/**
- * @dev Execution Interface of the minimal Modular Smart Account standard
- */
-interface IExecution {
-    error Unsupported();
+interface IERC7579Account {
+    // MUST be emitted when a module is installed
+    event ModuleInstalled(uint256 moduleTypeId, address module);
 
-    struct Execution {
-        address target;
-        uint256 value;
-        bytes callData;
-    }
+    // MUST be emitted when a module is uninstalled
+    event ModuleUninstalled(uint256 moduleTypeId, address module);
 
     /**
-     *
      * @dev Executes a transaction on behalf of the account.
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
+     * @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
+     * @param executionCalldata The encoded execution call data
      *
-     * @dev MSA MUST implement this function signature. If functionality should not be supported, revert "Unsupported"!
-     * @dev This function MUST revert if the call fails.
-     * @param target The address of the contract to call.
-     * @param value The value in wei to be sent to the contract.
-     * @param callData The call data to be sent to the contract.
-     * @return result The return data of the executed contract call.
+     * MUST ensure adequate authorization control: e.g. onlyEntryPointOrSelf if used with ERC-4337
+     * If a mode is requested that is not supported by the Account, it MUST revert
      */
-    function execute(address target, uint256 value, bytes calldata callData)
-        external
-        payable
-        returns (bytes memory result);
+    function execute(bytes32 mode, bytes calldata executionCalldata) external;
 
     /**
-     *
-     * @dev Executes a batched transaction via 'call' on behalf of the account.
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
-     *
-     * @dev This function MUST revert if the call fails.
-     * @dev MSA MUST implement this function signature. If functionality should not be supported, revert "Unsupported"!
-     * @param executions An array of struct Execution (address target, uint value, bytes callData)
-     * @return results The return data of the executed contract call.
-     */
-    function executeBatch(Execution[] calldata executions) external payable returns (bytes[] memory results);
-
-    /**
-     *
      * @dev Executes a transaction on behalf of the account.
-     *         This function is intended to be called by an Executor module.
-     * @dev This function MUST revert if the call fails.
-     * @dev MSA MUST implement this function signature. If functionality should not be supported, revert "Unsupported"!
-     * @param target The address of the contract to call.
-     * @param value The value in wei to be sent to the contract.
-     * @param callData The call data to be sent to the contract.
-     * @return result The return data of the executed contract call.
-     */
-    function executeFromExecutor(address target, uint256 value, bytes calldata callData)
-        external
-        payable
-        returns (bytes memory);
-
-    /**
+     *         This function is intended to be called by Executor Modules
+     * @param mode The encoded execution mode of the transaction. See ModeLib.sol for details
+     * @param executionCalldata The encoded execution call data
      *
-     * @dev Executes a transaction via delegatecall on behalf of the account.
-     *         This function is intended to be called by an Executor module.
+     * MUST ensure adequate authorization control: i.e. onlyExecutorModule
+     * If a mode is requested that is not supported by the Account, it MUST revert
+     */
+    function executeFromExecutor(bytes32 mode, bytes calldata executionCalldata)
+        external
+        returns (bytes[] memory returnData);
+
+    /**
+     * @dev ERC-1271 isValidSignature
+     *         This function is intended to be used to validate a smart account signature
+     * and may forward the call to a validator module
+     * @param hash The hash of the data that is signed
+     * @param data The data that is signed
      *
-     * @dev This function MUST revert if the call fails.
-     * @dev MSA MUST implement this function signature. If functionality should not be supported, revert "Unsupported"!
-     * @param executions An array of struct Execution (address target, uint value, bytes callData)
-     * @return results The return data of the executed contract call.
+     * MAY forward the call to a validator module
+     * The validator module MUST be called with isValidSignatureWithSender(address sender, bytes32 hash, bytes signature)
+     * with sender being the msg.sender of this function
+     * MUST sanitize the data parameter to before forwarding it to the validator module
      */
-    function executeBatchFromExecutor(Execution[] calldata executions)
-        external
-        payable
-        returns (bytes[] memory results);
-}
-/**
- * @dev implementing delegatecall execution on a smart account must be considered carefully and is not recommended in most cases
- */
-
-interface IExecutionUnsafe {
-    /**
-     * Executes a Delegatecall on behalf of the account.
-     * MUST execute a `delegatecall` to the target with the provided data
-     * MUST allow ERC-4337 Entrypoint to be the sender and MAY allow `msg.sender == address(this)`
-     * MUST revert if the call was not successful
-     * @dev Executes a transaction via delegatecall on behalf of the account.
-     *         This function is intended to be called by ERC-4337 EntryPoint.sol
-     * @dev This function MUST revert if the call fails.
-     * @dev MSA MUST implement this function signature. If functionality should not be supported, revert "Unsupported"!
-     * @param target The address of the contract to call.
-     * @param callData The call data to be sent to the contract.
-     * @return result The return data of the executed contract call.
-     */
-    function executeDelegateCall(address target, bytes calldata callData)
-        external
-        payable
-        returns (bytes memory result);
+    function isValidSignature(bytes32 hash, bytes calldata data) external view returns (bytes4);
 
     /**
-     * Executes a Delegatecall on behalf of the account, triggered by an Executor Module.
-     * MUST execute a `delegatecall` to the target with the provided data and value
-     * MUST only allow enabled executors to call this function
-     * MUST revert if the call was not successful
-     * @dev Executes a transaction via delegatecall on behalf of the account.
-     *         This function is intended to be called by an Executor module.
-     * @dev This function MUST revert if the call fails.
-     * @dev MSA MUST implement this function signature. If functionality should not be supported, revert "Unsupported"!
-     * @param target The address of the contract to call.
-     * @param callData The call data to be sent to the contract.
-     * @return result The return data of the executed contract call.
-     */
-    function executeDelegateCallFromExecutor(address target, bytes memory callData)
-        external
-        payable // gas bad
-        returns (bytes memory result);
-}
-
-/**
- * @dev Configuration Interface of the minimal Modular Smart Account standard
- */
-interface IAccountConfig {
-    event EnableValidator(address module);
-    event DisableValidator(address module);
-
-    event EnableExecutor(address module);
-    event DisableExecutor(address module);
-
-    /////////////////////////////////////////////////////
-    //  Validator Modules
-    ////////////////////////////////////////////////////
-    /**
-     * @dev Enables a Validator module on the account.
-     * @dev Implement Authorization control of your chosing
-     * @param validator The address of the Validator module to enable.
-     * @param data any abi encoded further paramters needed
-     */
-    function installValidator(address validator, bytes calldata data) external;
-
-    /**
-     * @dev Disables a Validator Module on the account.
-     * @dev Implement Authorization control of your chosing
-     * @param validator The address of the Validator module to enable.
-     * @param data any abi encoded further paramters needed
-     */
-    function uninstallValidator(address validator, bytes calldata data) external;
-
-    /**
-     * @dev checks if specific validator module is enabled on the account
-     * @param validator The address of the Validator module to enable.
-     * returns bool if validator is enabled
-     */
-    function isValidatorEnabled(address validator) external view returns (bool);
-    /////////////////////////////////////////////////////
-    //  Executor Modules
-    ////////////////////////////////////////////////////
-
-    /**
-     * @dev Enables a Executor module on the account.
-     * @dev Implement Authorization control of your chosing
-     * @param executor The address of the Validator module to enable.
-     * @param data any abi encoded further paramters needed
-     */
-    function installExecutor(address executor, bytes calldata data) external;
-
-    /**
-     * @dev Disable a Executor module on the account.
-     * @dev Implement Authorization control of your chosing
-     * @param executor The address of the Validator module to enable.
-     * @param data any abi encoded further paramters needed
-     */
-    function uninstallExecutor(address executor, bytes calldata data) external;
-
-    /**
-     * @dev checks if specific executor module is enabled on the account
-     * @param executor The address of the Executort module
-     * returns bool if executor is enabled
-     */
-    function isExecutorEnabled(address executor) external view returns (bool);
-    /////////////////////////////////////////////////////
-    //  Fallback Modules
-    ////////////////////////////////////////////////////
-    /**
-     * @dev Enables a Fallback module on the account.
-     * @dev Implement Authorization control of your chosing
-     */
-    function enableFallback(address fallbackHandler, bytes calldata data) external;
-    /**
-     * @dev uninstallExecutor
+     * @dev Returns the account id of the smart account
+     * @return accountImplementationId the account id of the smart account
      *
+     * MUST return a non-empty string
+     * The accountId SHOULD be structured like so:
+     *        "vendorname.accountname.semver"
+     * The id SHOULD be unique across all smart accounts
      */
-    function disableFallback(address fallbackHandler, bytes calldata data) external;
-    /**
-     * @dev checks if specific fallback handler is enabled on the account
-     * @param fallbackHandler The address of the fallback handler module
-     * returns bool if fallbackhandler is enabled
-     */
-    function isFallbackEnabled(address fallbackHandler) external view returns (bool);
-}
-
-/**
- * @dev Configuration Interface of the minimal Modular Smart Account Hook extention standard
- */
-interface IAccountConfig_Hook {
-    event EnableHook(address module);
-    event DisableHook(address module);
-    /////////////////////////////////////////////////////
-    //  Hook Modules
-    ////////////////////////////////////////////////////
+    function accountId() external view returns (string memory accountImplementationId);
 
     /**
-     * @dev Enables a Hook module on the account.
-     * @dev Implement Authorization control of your chosing
-     * @param hook The address of the Hook module to enable.
-     * @param data any abi encoded further paramters needed
+     * @dev Function to check if the account supports a certain execution mode (see above)
+     * @param encodedMode the encoded mode
+     *
+     * MUST return true if the account supports the mode and false otherwise
      */
-    function installHook(address hook, bytes calldata data) external;
+    function supportsExecutionMode(bytes32 encodedMode) external view returns (bool);
 
     /**
-     * @dev Disable a Hook module on the account.
-     * @dev Implement Authorization control of your chosing
-     * @param hook The address of the hook module to enable.
-     * @param data any abi encoded further paramters needed
+     * @dev Function to check if the account supports a certain module typeId
+     * @param moduleTypeId the module type ID according to the ERC-7579 spec
+     *
+     * MUST return true if the account supports the module type and false otherwise
      */
-    function uninstallHook(address hook, bytes calldata data) external;
+    function supportsModule(uint256 moduleTypeId) external view returns (bool);
 
     /**
-     * @dev checks if specific hook module is enabled on the account
-     * @param hook The address of the Executort module to enable.
-     * returns bool if hook is enabled
+     * @dev Installs a Module of a certain type on the smart account
+     * @param moduleTypeId the module type ID according to the ERC-7579 spec
+     * @param module the module address
+     * @param initData arbitrary data that may be required on the module during `onInstall`
+     * initialization.
+     *
+     * MUST implement authorization control
+     * MUST call `onInstall` on the module with the `initData` parameter if provided
+     * MUST emit ModuleInstalled event
+     * MUST revert if the module is already installed or the initialization on the module failed
      */
-    function isHookEnabled(address hook) external view returns (bool);
-}
-
-interface IMSA is IExecution, IExecutionUnsafe, IAccountConfig {
-    /////////////////////////////////////////////////////
-    //  Account Initialization
-    ////////////////////////////////////////////////////
+    function installModule(uint256 moduleTypeId, address module, bytes calldata initData) external;
 
     /**
-     * @dev initializes a MSA
-     * @dev implement checks  that account can only be initialized once
-     * @param data abi encoded init params
+     * @dev Uninstalls a Module of a certain type on the smart account
+     * @param moduleTypeId the module type ID according the ERC-7579 spec
+     * @param module the module address
+     * @param deInitData arbitrary data that may be required on the module during `onInstall`
+     * initialization.
+     *
+     * MUST implement authorization control
+     * MUST call `onUninstall` on the module with the `deInitData` parameter if provided
+     * MUST emit ModuleUninstalled event
+     * MUST revert if the module is not installed or the deInitialization on the module failed
      */
-    function initializeAccount(bytes calldata data) external;
+    function uninstallModule(uint256 moduleTypeId, address module, bytes calldata deInitData) external;
+
+    /**
+     * @dev Returns whether a module is installed on the smart account
+     * @param moduleTypeId the module type ID according the ERC-7579 spec
+     * @param module the module address
+     * @param additionalContext arbitrary data that may be required to determine if the module is installed
+     *
+     * MUST return true if the module is installed and false otherwise
+     */
+    function isModuleInstalled(uint256 moduleTypeId, address module, bytes calldata additionalContext)
+        external
+        view
+        returns (bool);
 }
