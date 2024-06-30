@@ -1,0 +1,182 @@
+---
+number: TBD
+title: Vulnerability and Exposure Identifier Specification and Indexing
+author: john (@0xJohnZW), dimitry (@dimitrysuen), myiwen (@myiwen), msfew (@fewwwww) <msfew@ora.io>
+discussions-to: TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-05-18
+---
+
+## Abstract
+
+This EIP proposes a specification of the identifiers of vulnerabilities and exposures and a rule to specify the unique identifiers for vulnerabilities for disclosure and indexing, establishing a common language for protocol developers and ethical hackers. Indexers can easily track and subscribe to vulnerability updates if the vulnerability database is compatible with this EIP, whether on-chain or off-chain.
+
+## Motivation
+
+When discussing security incidents, they are usually referred to as "Protocol Name + Exploit". Also, there are no unique identifiers for ethical hackers to reference the vulnerabilities, leading to high communication costs between the protocol developers and the ethical hackers. We can unify the terminology across various contexts by providing each vulnerability a unique identifier, as a parallel system to the existing ones such as [CVE](https://www.cve.org/) (Common Vulnerability and Exposure).
+
+This EIP can be useful in the following use cases:
+
+* Both audit and bug reports can reference a specific vulnerability with a unique identifier.
+* Security researchers can subscribe to on-chain events to track the latest vulnerabilities easily.
+
+This EIP can benefit the following parties:
+
+* Ethical hackers can exhibit their research outcomes and establish on-chain reputations.
+* Protocols' security can be enhanced since this EIP encourages open vulnerability reporting.
+* Security researchers can gain more insights on vulnerabilities in more efficient way.
+
+## Specification
+
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC-2119.
+
+### Identifier of Vulnerability and Exposure
+
+The identifier of vulnerability and exposure MUST conform to the following format: `Database Prefix + Year + Arbitrary Digits`.
+
+`Database Prefix` SHOULD be uniquely named by different assigners.
+
+`Year` MUST be in `YYYY` format.
+
+`Arbitrary Digits` is RECOMMENDED to start from `0001` and increase incrementally.
+
+These three parts MUST be connected by `-`, for example, `CVE-2024-0097`. The length of the identifier MUST NOT exceed 32 bytes.
+
+### Contract Interface
+
+The `VulnerabilityReport` event MUST be emitted when a vulnerability identifier or report is published or updated:
+
+```solidity
+event VulnerabilityReport(
+    bytes32 indexed veId,
+    bytes32 indexed assignerName,
+    bytes32 indexed state,
+    string reportCid,
+    bytes32 refVeId,
+    uint64 dateReserved,
+    uint64 datePublished,
+    uint64 dateUpdated
+)
+```
+
+`veId` is the identifier of the vulnerability and exposure assigned by `assignerName`. It MUST comply with the **Identifier of Vulnerability and Exposure** format mentioned above.
+
+`assignerName` is the name of the `veId` assigner, and the length of `assignerName` MUST NOT exceed 32 bytes. Smart contracts complying with this EIP SHOULD belong to only one assigner entity. The indexer SHOULD identify the assigner based on the contract address.
+
+`state` is the acceptance status of this `veId` set by the assigner. In this EIP, only two final state values are defined: `Published` and `Rejected`. The assigners can define their own initial or intermediate states based on their business requirements. The `status` value MUST be either `Published` or `Rejected` when the `veId` is in the final state.
+
+`reportCid` MUST be the vulnerability report's IPFS CID(Content Identifier).
+
+`refVeId` is a reference to another `veId`, which reflects the reference relationship between different identifiers for the same vulnerability. `refVeId` MUST be set according to the "Rules of Unique Identifiers" section below.
+
+`dateReserved` is a UNIX timestamp that is RECOMMENDED to refer to the time the vulnerability identifier was assigned.
+
+`datePublished` is a UNIX timestamp that is RECOMMENDED to refer to the time the vulnerability identifier was published.
+
+`dateUpdated` is a UNIX timestamp that is RECOMMENDED to refer to the last update time of the vulnerability record.
+
+### Rules of Unique Identifiers
+
+
+![veId and refVdId](../assets/erc-tbd/veId-and-refVeId.png)
+
+In general, the unique identifier for a vulnerability SHOULD be the first published `veId` on-chain. The other publishers of the same vulnerability MUST set the `refVeId`'s value to the unique identifier, usually the first publisher's `veId`.
+
+For the publisher of the unique identifier, the value of `refVeId` MUST be an empty string, `bytes32("")`.
+
+If the other publishers of the same vulnerability don't set the `refVeId` correctly, they MUST emit an event to update `refVeId` with the correct value.
+
+In some special cases, if social consensus determines a new `veId` as the unique identifier,  the publisher of the new `veId` MUST emit an event to make sure the `refVeId` is an empty string, and all other publishers MUST emit events, setting `refVeId` to that new `veId`.
+
+### Specification of Publishing
+
+The field values in the most recent `VulnerabilityReport` event SHOULD be regarded as the latest status for the vulnerability identifier and report. If an update is needed, the publisher is REQUIRED to emit a new event with the latest field values.
+
+### Specification of Indexing
+
+The indexer is RECOMMENDED to identify the assigner based on the contract address emitting the `VulnerabilityReport` event to prevent impersonation. For multiple `VulnerabilityReport` events with the same `veId`, the indexer MUST take the most recent event as the latest state of the vulnerability.
+
+## Rationale
+
+### CVE-like `veId` Format
+
+The format of `Database Prefix + Year + Arbitrary Digits` is inspired by the widely used [CVE](https://cve.mitre.org/) naming standard. The `Database Prefix` replaces `CVE`, as this EIP assumes that any individual or organization can permissionlessly create a vulnerability database and establish the corresponding naming standard that fits their criteria.
+
+### Define Enum Values for `State`
+
+The `state` changes along with business diversity. To ensure simplicity for indexers and extensibility, this EIP only defines two final states: `Published` - if `veId` is accepted, and `Rejected` - if rejected. The assigner can designate other initial or intermediate states according to their distinct business needs and publish them on the chain.
+
+### `reportCid` versus `reportUri`
+
+We choose `reportCid` based on the following considerations:
+
+1. The content-addressable method inherently decouples content and addressing.
+2. CID comes with a hash, which guarantees content integrity.
+3. The vulnerability reports should also be published on the decentralized web since the `veId`s are published on-chain.
+
+### Rules for the unique identifier and `refVeId`
+
+This EIP assumes that any individual or organization can establish a vulnerability database and assign unique identifiers to each vulnerability. Consequently, a single vulnerability may have multiple identifiers in different databases, causing multiple `VulnerabilityReport` events for the same vulnerability to be emitted on-chain. Therefore, we designed the `refVeId` field to store the reference relationship between `veId`s. The general rule is that the unique identifier for a vulnerability should be the first published `veId` on the chain. Other `veId`s for the same vulnerability should be considered "Alias IDs". The related events should set `refVeId` to the first published `veId`. This way, indexers can easily know which identifiers point to the same vulnerability.
+
+The rule of specifying the first published `veId` as the unique identifier comes from the following consideration:
+
+1. It is conventional to adopt the vulnerability identifier of the first discoverer or publisher as the "unique identifier". And they usually have sufficient time to publish the vulnerability identifier on-chain before others.
+2. This rule incentivizes the timely publishing of the vulnerability identifier on-chain, thus making its identifier the unique identifier of the vulnerability.
+
+In some special cases, if social consensus determines a new `veId` as the unique identifier, publishers only need to emit another event to update the `refVeId` value, thereby reflecting the reference relationship between the new unique identifier and their `veId`.
+
+## Reference Implementation
+
+```solidity
+pragma solidity ^0.8.19;
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+contract VulDB is Ownable {
+    constructor(address initialOwner) Ownable(initialOwner) {}
+    event VulnerabilityReport(
+        bytes32 indexed veId,
+        bytes32 indexed assignerName,
+        bytes32 indexed state,
+        string reportCid,
+        bytes32 refVeId,
+        uint64 dateReserved,
+        uint64 datePublished,
+        uint64 dateUpdated
+    );
+
+    function publishReport(
+        bytes32 veId,
+        bytes32 assignerName,
+        string memory reportCid,
+        bytes32 refVeId,
+        uint64 dateReserved,
+        uint64 datePublished,
+        uint64 dateUpdated
+    ) public onlyOwner {
+        emit VulnerabilityReport(
+            veId, assignerName, "Published", reportCid, refVeId,
+            dateReserved, datePublished, dateUpdated
+        );
+    }
+}
+```
+
+## Backwards Compatibility
+
+None.
+
+## Security Considerations
+
+For the implementation of the indexer, it's essential to address the following security aspects.
+
+* Assigner Determining: Indexers should be aware that different smart contracts can emit `VulnerabilityReport` events with the same `veId`. Therefore, the assigner needs to be determined based on the contract address.
+* Event Listening: When listening to the event, the indexer should be aware of potential missed events or incorrect ordering, especially during network congestion or reorganization.
+* Change of `refVeId`: After emitting a `VulnerabilityReport` event, the publisher can emit another event and change the value in the `refVeId` field. It may change from an empty string to a certain `veId` or vice versa.
+* Report Integrity: This EIP does not cover how to obtain the vulnerability report; It's the indexer's responsibility to obtain the report and verify its integrity.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
