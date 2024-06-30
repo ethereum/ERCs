@@ -46,11 +46,11 @@ describe("ERC7007Zkml.sol", function () {
             await expect(erc7007.mint(owner.address, prompt, aigcData, uri, validProof)).to.be.revertedWith("ERC721: token already minted");
         });
 
-        it("should emit a Mint event", async function () {
+        it("should emit a AigcData event", async function () {
             const erc7007 = await deployERC7007Fixture();
             const [owner] = await ethers.getSigners();
             await expect(erc7007.mint(owner.address, prompt, aigcData, uri, validProof))
-                .to.emit(erc7007, "Mint")
+                .to.emit(erc7007, "AigcData")
         });
     });
 
@@ -130,11 +130,11 @@ describe("ERC7007Opml.sol", function () {
             await expect(erc7007.mint(owner.address, prompt, aigcData, uri, 0x00)).to.be.revertedWith("ERC721: token already minted");
         });
 
-        it("should emit a Mint event", async function () {
+        it("should emit a AigcData event", async function () {
             const erc7007 = await deployERC7007Fixture();
             const [owner] = await ethers.getSigners();
             await expect(erc7007.mint(owner.address, prompt, aigcData, uri, validProof))
-                .to.emit(erc7007, "Mint")
+                .to.emit(erc7007, "AigcData")
         });
     });
 
