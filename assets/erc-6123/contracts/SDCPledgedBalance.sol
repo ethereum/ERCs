@@ -88,7 +88,7 @@ contract SDCPledgedBalance is SDC {
      */
     function initiateSettlement() external override onlyCounterparty onlyWhenSettled {
         tradeState = TradeState.Valuation;
-        emit TradeSettlementRequest(tradeData, settlementData[settlementData.length - 1]);
+        emit TradeSettlementRequest(msg.sender, tradeData, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -114,7 +114,7 @@ contract SDCPledgedBalance is SDC {
         if (settlementToken.balanceOf(settlementPayer) >= transferAmount &&
             settlementToken.allowance(settlementPayer,address(this)) >= transferAmount) { /* Good case: Balances are sufficient and token has enough approval */
             uint256 transactionID = uint256(keccak256(abi.encodePacked(settlementPayer,otherParty(settlementPayer), transferAmount)));
-            emit TradeSettlementPhase();
+            emit TradeSettlementPhase(msg.sender);
             tradeState = TradeState.InTransfer;
             address[] memory from = new address[](1);
             address[] memory to = new address[](1);
