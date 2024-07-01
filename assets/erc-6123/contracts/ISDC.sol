@@ -102,10 +102,11 @@ interface ISDC {
 
     /**
      * @dev Emitted when a settlement gets requested
+     * @param initiator the address of the requesting party
      * @param tradeData holding the stored trade data
      * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
      */
-    event TradeSettlementRequest(string tradeData, string lastSettlementData);
+    event TradeSettlementRequest(address initiator, string tradeData, string lastSettlementData);
 
     /**
      * @dev Emitted when a counterparty proactively requests an early termination of the underlying trade
