@@ -196,7 +196,7 @@ abstract contract SDC is ISDC {
         emit TradeTerminationConfirmed(msg.sender, _tradeId, terminationTerms);
         /* Trigger final Settlement */
         tradeState = TradeState.Valuation;
-        emit TradeSettlementRequest(tradeData, settlementData[settlementData.length - 1]);
+        emit TradeSettlementRequest(msg.sender, tradeData, settlementData[settlementData.length - 1]);
     }
 
 
