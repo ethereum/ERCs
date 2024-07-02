@@ -106,7 +106,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await expect(confirm_call).to.be.revertedWith("Confirmation fails due to inconsistent trade data or wrong party address");
     });
 
-    it("Trade cancelation fails due to wrong party calling cancel", async () => {
+    it("Trade cancellation fails due to wrong party calling cancel", async () => {
         let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
         await sdc.deployed();
 //        console.log("SDC Address: %s", sdc.address);
@@ -118,7 +118,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await expect(confirm_call).to.be.revertedWith("Cancellation fails due to inconsistent trade data or wrong party address");
     });
 
-    it("Trade cancelation fails due to wrong arguments", async () => {
+    it("Trade cancellation fails due to wrong arguments", async () => {
         let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
         await sdc.deployed();
 //        console.log("SDC Address: %s", sdc.address);

@@ -221,7 +221,7 @@ abstract contract SDC is ISDC {
     function cancelTradeTermination(string memory _tradeId, int256 _terminationPayment, string memory terminationTerms) external override onlyCounterparty onlyWhenSettled {
         address pendingRequestParty = msg.sender;
         uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment,terminationTerms)));
-        require(pendingRequests[hashConfirm] == pendingRequestParty, "Cancelation of termination failed due to wrong party or missing request");
+        require(pendingRequests[hashConfirm] == pendingRequestParty, "Cancellation of termination failed due to wrong party or missing request");
         delete pendingRequests[hashConfirm];
         emit TradeTerminationCanceled(msg.sender, _tradeId, terminationTerms);
     }
