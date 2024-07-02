@@ -213,6 +213,7 @@ interface ISDC {
      * @notice Called from a counterparty to request a mutual termination
      * @dev emits a {TradeTerminationRequest}
      * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationTerms the termination terms
      */
     function requestTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
 
@@ -220,6 +221,7 @@ interface ISDC {
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
      * @param tradeId the trade identifier of the trade which is supposed to be terminated
+     * @param terminationTerms the termination terms
      */
     function confirmTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
 
@@ -227,6 +229,7 @@ interface ISDC {
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
      * @param tradeId the trade identifier of the trade which is supposed to be terminated
+     * @param terminationTerms the termination terms
      */
     function cancelTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
 
