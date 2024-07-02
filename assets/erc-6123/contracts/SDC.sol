@@ -123,10 +123,10 @@ abstract contract SDC is ISDC {
         tradeState = TradeState.Inactive;
     }
     /*
-         * generates a hash from tradeData and generates a map entry in openRequests
-         * emits a TradeIncepted
-         * can be called only when TradeState = Incepted
-         */
+     * generates a hash from tradeData and generates a map entry in openRequests
+     * emits a TradeIncepted
+     * can be called only when TradeState = Incepted
+     */
     function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override onlyCounterparty onlyWhenTradeInactive {
         require(msg.sender != _withParty, "Calling party cannot be the same as withParty");
         require(_position == 1 || _position == -1, "Position can only be +1 or -1");
@@ -166,6 +166,20 @@ abstract contract SDC is ISDC {
         processTradeAfterConfirmation(upfrontPayer, absPaymentAmount);
     }
 
+    /*
+      * generates a hash from tradeData and checks whether an open request can be found by the opposite party
+      * if so, the open request is deleted, can only be called by incepting party.
+      * emits a TradeConfirmed
+      * can be called only when TradeState = Incepted
+      */
+    function cancelTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override  onlyCounterparty onlyWhenTradeIncepted {
+        address inceptingParty = msg.sender;
+        uint256 transactionHash = uint256(keccak256(abi.encode(_withParty,msg.sender,_tradeData,_position,_paymentAmount,_initialSettlementData)));
+        require(pendingRequests[transactionHash] == inceptingParty, "Cancellation fails due to inconsistent trade data or wrong party address");
+        delete pendingRequests[transactionHash]; // Delete Pending Request
+        tradeState = TradeState.Inactive;
+        emit TradeCanceled(msg.sender, tradeID);
+    }
 
     /*
     * Can be called by a party for mutual termination
@@ -181,7 +195,6 @@ abstract contract SDC is ISDC {
     }
 
     /*
-
      * Same pattern as for initiation
      * confirming party generates same hash, looks into pendingRequests, if entry is found with correct address, tradeState is put to terminated
      * can be called only when ProcessState = Funded and TradeState = Active
@@ -200,6 +213,18 @@ abstract contract SDC is ISDC {
         emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
+    /*
+     * Same pattern as for initiation
+     * confirming party generates same hash, looks into pendingRequests, if entry is found with correct address, tradeState is put to terminated
+     * can be called only when ProcessState = Funded and TradeState = Active
+     */
+    function cancelTradeTermination(string memory _tradeId, int256 _terminationPayment, string memory terminationTerms) external override onlyCounterparty onlyWhenSettled {
+        address pendingRequestParty = msg.sender;
+        uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment,terminationTerms)));
+        require(pendingRequests[hashConfirm] == pendingRequestParty, "Cancelation of termination failed due to wrong party or missing request");
+        delete pendingRequests[hashConfirm];
+        emit TradeTerminationCanceled(msg.sender, _tradeId, terminationTerms);
+    }
 
     function processTradeAfterConfirmation(address upfrontPayer, uint256 upfrontPayment) virtual internal;
 
