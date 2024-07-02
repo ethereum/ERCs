@@ -174,7 +174,7 @@ abstract contract SDC is ISDC {
       */
     function cancelTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override  onlyCounterparty onlyWhenTradeIncepted {
         address inceptingParty = msg.sender;
-        uint256 transactionHash = uint256(keccak256(abi.encode(_withParty,msg.sender,_tradeData,_position,_paymentAmount,_initialSettlementData)));
+        uint256 transactionHash = uint256(keccak256(abi.encode(msg.sender,_withParty,_tradeData,_position,_paymentAmount,_initialSettlementData)));
         require(pendingRequests[transactionHash] == inceptingParty, "Cancellation fails due to inconsistent trade data or wrong party address");
         delete pendingRequests[transactionHash]; // Delete Pending Request
         tradeState = TradeState.Inactive;
