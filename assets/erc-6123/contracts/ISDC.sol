@@ -112,14 +112,14 @@ interface ISDC {
      * @param cpAddress the address of the requesting party
      * @param tradeId the trade identifier which is supposed to be terminated
      */
-    event TradeTerminationRequest(address cpAddress, string tradeId);
+    event TradeTerminationRequest(address cpAddress, string tradeId, string terminationTerms);
 
     /**
      * @dev Emitted when early termination request is confirmed by the opposite party
      * @param cpAddress the party which confirms the trade termination
      * @param tradeId the trade identifier which is supposed to be terminated
      */
-    event TradeTerminationConfirmed(address cpAddress, string tradeId);
+    event TradeTerminationConfirmed(address cpAddress, string tradeId, string terminationTerms);
 
     /**
      * @dev Emitted when trade processing is halted
@@ -186,12 +186,12 @@ interface ISDC {
      * @dev emits a {TradeTerminationRequest}
      * @param tradeId the trade identifier which is supposed to be terminated
      */
-    function requestTradeTermination(string memory tradeId, int256 _terminationPayment) external;
+    function requestTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
 
     /**
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
      * @param tradeId the trade identifier of the trade which is supposed to be terminated
      */
-    function confirmTradeTermination(string memory tradeId, int256 _terminationPayment) external;
+    function confirmTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
 }

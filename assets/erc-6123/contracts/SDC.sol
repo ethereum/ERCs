@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.7.0 <0.9.0;
 
 import "./ISDC.sol";
@@ -172,11 +173,11 @@ abstract contract SDC is ISDC {
     * TerminationRequest is emitted
     * can be called only when ProcessState = Funded and TradeState = Active
     */
-    function requestTradeTermination(string memory _tradeId, int256 _terminationPayment) external override onlyCounterparty onlyWhenSettled {
+    function requestTradeTermination(string memory _tradeId, int256 _terminationPayment, string memory terminationTerms) external override onlyCounterparty onlyWhenSettled {
         require(keccak256(abi.encodePacked(tradeID)) == keccak256(abi.encodePacked(_tradeId)), "Trade ID mismatch");
-        uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment)));
+        uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment,terminationTerms)));
         pendingRequests[hash] = msg.sender;
-        emit TradeTerminationRequest(msg.sender, _tradeId);
+        emit TradeTerminationRequest(msg.sender, _tradeId, terminationTerms);
     }
 
     /*
@@ -185,14 +186,14 @@ abstract contract SDC is ISDC {
      * confirming party generates same hash, looks into pendingRequests, if entry is found with correct address, tradeState is put to terminated
      * can be called only when ProcessState = Funded and TradeState = Active
      */
-    function confirmTradeTermination(string memory _tradeId, int256 _terminationPayment) external override onlyCounterparty onlyWhenSettled {
+    function confirmTradeTermination(string memory _tradeId, int256 _terminationPayment, string memory terminationTerms) external override onlyCounterparty onlyWhenSettled {
         address pendingRequestParty = msg.sender == party1 ? party2 : party1;
-        uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment)));
+        uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment,terminationTerms)));
         require(pendingRequests[hashConfirm] == pendingRequestParty, "Confirmation of termination failed due to wrong party or missing request");
         delete pendingRequests[hashConfirm];
         mutuallyTerminated = true;
         terminationPayment = _terminationPayment;
-        emit TradeTerminationConfirmed(msg.sender, _tradeId);
+        emit TradeTerminationConfirmed(msg.sender, _tradeId, terminationTerms);
         /* Trigger final Settlement */
         tradeState = TradeState.Valuation;
         emit TradeSettlementRequest(tradeData, settlementData[settlementData.length - 1]);
