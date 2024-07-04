@@ -84,11 +84,25 @@ MUST return `true`.
       type: bool
 ```
 
+#### `invalidateNonce`
+
+Revokes the given `nonce` for `msg.sender` as the `owner`.
+
+```yaml
+- name: invalidateNonce
+  type: function
+  stateMutability: nonpayable
+
+  inputs:
+    - name: nonce
+      type: bytes32
+```
+
 ### [ERC-165](./eip-165.md) support
 
 Smart contracts implementing this standard MUST implement the [ERC-165](./eip-165.md) `supportsInterface` function.
 
-Contracts MUST return the constant value `true` if `0x6f72fac5` is passed through the `interfaceID` argument.
+Contracts MUST return the constant value `true` if `0x7a7911eb` is passed through the `interfaceID` argument.
 
 ## Rationale
 
@@ -145,6 +159,10 @@ TODO
         emit OperatorSet(owner, operator, approved);
 
         return true;
+    }
+    
+    function invalidateNonce(bytes32 nonce) external {
+        authorizations[msg.sender][nonce] = true;
     }
 ```
 
