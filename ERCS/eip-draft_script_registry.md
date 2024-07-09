@@ -1,6 +1,6 @@
 ---
-title: Permissionless Client Script Registry
-description: Permissionless registry to fetch executable client scripts for contracts
+title: Permissionless Script Registry
+description: Permissionless registry to fetch executable scripts for contracts
 author: Victor Zhang (@zhangzhongnan928), James Brown (@JamesSmartCell)
 discussions-to: https://ethereum-magicians.org/t/eip-permissionless-registry
 status: Draft
