@@ -121,7 +121,7 @@ interface ISDC {
      * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationTerms termination terms
      */
-    event TradeTerminationRequest(address cpAddress, string tradeId, string terminationTerms);
+    event TradeTerminationRequest(address cpAddress, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when early termination request is confirmed by the opposite party
@@ -129,7 +129,7 @@ interface ISDC {
      * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationTerms termination terms
      */
-    event TradeTerminationConfirmed(address cpAddress, string tradeId, string terminationTerms);
+    event TradeTerminationConfirmed(address cpAddress, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when a counterparty cancels its requests an early termination of the underlying trade
