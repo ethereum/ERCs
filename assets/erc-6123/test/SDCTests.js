@@ -149,7 +149,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      const terminate_call = await sdc.connect(counterparty1).requestTradeTermination(trade_id, terminationPayment, "terminationTerms");
      await expect(terminate_call).to.emit(sdc, "TradeTerminationRequest");
 
-     const confirm_terminate_call = await sdc.connect(counterparty2).confirmTradeTermination(trade_id, terminationPayment, "terminationTerms");
+     const confirm_terminate_call = await sdc.connect(counterparty2).confirmTradeTermination(trade_id, -terminationPayment, "terminationTerms");
      await expect(confirm_terminate_call).to.emit(sdc, "TradeTerminationConfirmed");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
      await expect(trade_state).equal(TradeState.Valuation);
