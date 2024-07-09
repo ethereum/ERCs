@@ -189,9 +189,10 @@ abstract contract SDC is ISDC {
     */
     function requestTradeTermination(string memory _tradeId, int256 _terminationPayment, string memory terminationTerms) external override onlyCounterparty onlyWhenSettled {
         require(keccak256(abi.encodePacked(tradeID)) == keccak256(abi.encodePacked(_tradeId)), "Trade ID mismatch");
-        uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment,terminationTerms)));
+        uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment, terminationTerms)));
         pendingRequests[hash] = msg.sender;
-        emit TradeTerminationRequest(msg.sender, _tradeId, terminationTerms);
+
+        emit TradeTerminationRequest(msg.sender, _tradeId, _terminationPayment, terminationTerms);
     }
 
     /*
@@ -201,12 +202,12 @@ abstract contract SDC is ISDC {
      */
     function confirmTradeTermination(string memory _tradeId, int256 _terminationPayment, string memory terminationTerms) external override onlyCounterparty onlyWhenSettled {
         address pendingRequestParty = msg.sender == party1 ? party2 : party1;
-        uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment,terminationTerms)));
+        uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", -_terminationPayment, terminationTerms)));
         require(pendingRequests[hashConfirm] == pendingRequestParty, "Confirmation of termination failed due to wrong party or missing request");
         delete pendingRequests[hashConfirm];
         mutuallyTerminated = true;
         terminationPayment = _terminationPayment;
-        emit TradeTerminationConfirmed(msg.sender, _tradeId, terminationTerms);
+        emit TradeTerminationConfirmed(msg.sender, _tradeId, -_terminationPayment, terminationTerms);
         /* Trigger final Settlement */
         address initiator = msg.sender;
         tradeState = TradeState.Valuation;
