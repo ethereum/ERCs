@@ -32,9 +32,6 @@ CP2 ->SettlementToken: tx set 'allowance' for SDC address
 CP1 ->SDC:                 tx 'inceptTrade'
 
 SDC-->EventHandler: emit TradeIncepted
-EventHandler->ValuationService: request initial valuation data
-ValuationService->EventHandler: return initial valuation data
-EventHandler->SDC: tx 'performSettlement' to store initial valuation data
 == TradeState 'Incepted' ==
 CP2->SDC: tx 'confirmTrade'
 SDC->SDC: validate tradedata
