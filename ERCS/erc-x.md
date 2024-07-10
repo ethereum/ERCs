@@ -24,6 +24,7 @@ Smart accounts can verify signatures with via [ERC-1271](./erc-1271.md) using th
 A straightforward implementation as shown below, is vulnerable to signature replay attacks.
 
 ```solidity
+/// @dev This implementation is NOT safe.
 function isValidSignature(
     bytes32 hash,
     bytes calldata signature
