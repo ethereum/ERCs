@@ -256,5 +256,8 @@ abstract contract SDC is ISDC {
         return tradeData;
     }
 
+    function isMutuallyTerminated() public view returns (bool) {
+        return mutuallyTerminated;
+    }
 
 }
