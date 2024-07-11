@@ -30,6 +30,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
   const settlementAmount1 = 200; // successful settlement in favour to CP1
   const settlementAmount2 = -1400; // failing settlement larger than buffer in favour to CP1
   const upfront = 10;
+  const terminationPayment = 100;
   let SDCFactory;
   let ERC20Factory;
 
@@ -52,7 +53,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
   it("Counterparties incept and confirm a trade successfully, upfront is transferred", async () => {
      let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
      await sdc.deployed();
-     console.log("SDC Address: %s", sdc.address);
+//     console.log("SDC Address: %s", sdc.address);
      await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
      await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount+upfront);
      let trade_id ="";
@@ -64,10 +65,25 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(trade_state).equal(TradeState.Settled);
    });
 
+  it("Counterparty incepts and cancels trade successfully", async () => {
+     let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
+     await sdc.deployed();
+//     console.log("SDC Address: %s", sdc.address);
+     await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
+     await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount+upfront);
+     let trade_id ="";
+     const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
+     await expect(incept_call).to.emit(sdc, "TradeIncepted");
+     const confirm_call = await sdc.connect(counterparty1).cancelTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
+     await expect(confirm_call).to.emit(sdc, "TradeCanceled");
+     let trade_state =  await sdc.connect(counterparty1).getTradeState();
+     await expect(trade_state).equal(TradeState.Inactive);
+   });
+
    it("Not enough approval to transfer upfront payment", async () => {
         let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
         await sdc.deployed();
-        console.log("SDC Address: %s", sdc.address);
+//        console.log("SDC Address: %s", sdc.address);
         await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
         await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount);
         const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
@@ -81,7 +97,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
     it("Trade Matching fails", async () => {
         let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
         await sdc.deployed();
-        console.log("SDC Address: %s", sdc.address);
+//        console.log("SDC Address: %s", sdc.address);
         await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
         await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount);
         const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
@@ -90,11 +106,59 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await expect(confirm_call).to.be.revertedWith("Confirmation fails due to inconsistent trade data or wrong party address");
     });
 
+    it("Trade cancellation fails due to wrong party calling cancel", async () => {
+        let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
+        await sdc.deployed();
+//        console.log("SDC Address: %s", sdc.address);
+        await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
+        await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount);
+        const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
+        await expect(incept_call).to.emit(sdc, "TradeIncepted");
+        const confirm_call = sdc.connect(counterparty2).cancelTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
+        await expect(confirm_call).to.be.revertedWith("Cancellation fails due to inconsistent trade data or wrong party address");
+    });
+
+    it("Trade cancellation fails due to wrong arguments", async () => {
+        let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
+        await sdc.deployed();
+//        console.log("SDC Address: %s", sdc.address);
+        await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
+        await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount);
+        const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
+        await expect(incept_call).to.emit(sdc, "TradeIncepted");
+        const confirm_call = sdc.connect(counterparty1).cancelTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData23");
+        await expect(confirm_call).to.be.revertedWith("Cancellation fails due to inconsistent trade data or wrong party address");
+    });
+
+  it("Counterparties incept and confirm a trade successfully, upfront is transferred, trade is terminated", async () => {
+     let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
+     await sdc.deployed();
+//     console.log("SDC Address: %s", sdc.address);
+     await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
+     await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount+upfront);
+
+    // Incept trade (and fetch tradeId)
+     const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, upfront, "initialMarketData");
+     const receipt = await incept_call.wait();
+     const event = receipt.events.find(event => event.event === 'TradeIncepted');
+     const trade_id = event.args[1];
+
+     const confirm_call = await sdc.connect(counterparty2).confirmTrade(counterparty1.address, trade_data, -1, -upfront, "initialMarketData");
+     await expect(confirm_call).to.emit(sdc, "TradeConfirmed");
+
+     const terminate_call = await sdc.connect(counterparty1).requestTradeTermination(trade_id, terminationPayment, "terminationTerms");
+     await expect(terminate_call).to.emit(sdc, "TradeTerminationRequest");
+
+     const confirm_terminate_call = await sdc.connect(counterparty2).confirmTradeTermination(trade_id, -terminationPayment, "terminationTerms");
+     await expect(confirm_terminate_call).to.emit(sdc, "TradeTerminationConfirmed");
+     let trade_state =  await sdc.connect(counterparty1).getTradeState();
+     await expect(trade_state).equal(TradeState.Valuation);
+   });
 
   it("Successful Settlement", async () => {
      let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
      await sdc.deployed();
-     console.log("SDC Address: %s", sdc.address);
+//     console.log("SDC Address: %s", sdc.address);
      await token.connect(counterparty1).approve(sdc.address,terminationFee+10*marginBufferAmount); //Approve for 10*margin amount
      await token.connect(counterparty2).approve(sdc.address,terminationFee+10*marginBufferAmount+upfront);
      let trade_id ="";
@@ -105,14 +169,10 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
      await expect(initSettlementPhase).to.emit(sdc, "TradeSettlementRequest");
      const balance_call = await token.connect(counterparty2).balanceOf(counterparty2.address);
-     console.log("Balance: %s", balance_call);
+//     console.log("Balance: %s", balance_call);
      const performSettlementCall = sdc.connect(counterparty1).performSettlement(1,"settlementData");
      await expect(performSettlementCall).to.emit(sdc, "TradeSettlementPhase");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
      await expect(trade_state).equal(TradeState.Settled);
-
    });
-
-
-
 });
