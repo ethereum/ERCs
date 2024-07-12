@@ -21,7 +21,16 @@ A set of functions to enable meta-transactions and atomic interactions with cont
 
 ## Motivation
 
-TODO
+The primary motivation for this standard is to enhance the flexibility, security, and efficiency of operator management. By leveraging EIP-712 signatures, this standard allows users to authorize operators without the need for on-chain transactions, reducing gas costs and improving user experience. This is particularly beneficial whenever frequent operator changes and cross-chain interactions are required.
+
+Additionally, this standard aims to:
+
+1. **Enable Meta-Transactions**: Allow users to delegate the execution of transactions to operators, enabling meta-transactions where the user does not need to hold native tokens to pay for gas fees on each chain.
+2. **Improve Security**: Utilize the EIP-712 standard for typed data signing, which provides a more secure and user-friendly way to sign messages compared to raw data signing.
+3. **Facilitate Interoperability**: Provide a standardized interface for operator management that can be adopted across various vault protocols, promoting interoperability and reducing integration complexity for developers.
+4. **Streamline Cross-Chain Operations**: Simplify the process of managing operators across different chains, making it easier for protocols to maintain consistent operator permissions and interactions in a multi-chain environment.
+
+By addressing these needs, the `Authorize Operator` standard aims to streamline the process of managing operators in decentralized vault protocols, making it easier for users and developers to interact with smart contracts in a secure, cost-effective, and interoperable manner across multiple blockchain networks.
 
 ## Specification
 
@@ -106,11 +115,11 @@ Contracts MUST return the constant value `true` if `0x7a7911eb` is passed throug
 
 ## Rationale
 
-TODO
+### Similarity to ERC-2612
 
-## Backwards Compatibility
+The specification is intentionally designed to closely match ERC-2612. This should simplify new integrations of the standard.
 
-TODO 
+The main difference is using `bytes32` vs `uint256`, which enables unordered nonces. 
 
 ## Reference Implementation
 
