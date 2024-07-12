@@ -177,7 +177,7 @@ The main difference is using `bytes32` vs `uint256`, which enables unordered non
 
 ## Security Considerations
 
-TODO
+Operators have significant control over users and the signed message can lead to undesired outcomes. The expiration date should be set as short as feasible to reduce the chance of an unused signature leaking at a later point.
 
 ## Copyright
 
