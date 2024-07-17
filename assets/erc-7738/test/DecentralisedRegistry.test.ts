@@ -64,6 +64,8 @@ describe("DecentralisedRegistry", function () {
     //set scriptURI
     await registry.connect(otherAccount2).setScriptURI(stakingToken.target, scriptURI);
 
+    //console.log(`Current ScriptURI = ${await registry.scriptURI(stakingToken.target)}`);
+
     expect((await registry.scriptURI(stakingToken.target)).toString()).to.be.equal(scriptURI.toString());
 
     //attempt to set Script URI with delegate account
@@ -117,6 +119,33 @@ describe("DecentralisedRegistry", function () {
     //check final return, should be:
     let correctFinal = [origScriptURI, scriptURI1, scriptURI2, scriptURI4, scriptURI1, scriptURI2, ""];
     expect((await registry.scriptURI(stakingToken.target)).toString()).to.be.equal(correctFinal.toString());
+
+    checkPageSize(2, correctFinal, registry, stakingToken);
+    checkPageSize(3, correctFinal, registry, stakingToken);
+    checkPageSize(1, correctFinal, registry, stakingToken);
+    checkPageSize(500, correctFinal, registry, stakingToken);
   });
+
+
+  async function checkPageSize(pageSize: number, correctFinal: string[], registry: any, stakingToken: any) {
+      const totalPages = Math.ceil(correctFinal.length / pageSize);
+  
+      for (let page = 1; page <= totalPages; page++) {
+          let start = (page - 1) * pageSize;
+          let expected = [];
+          
+          for (let j = 0; j < pageSize; j++) {
+              if (start + j < correctFinal.length) {
+                  expected[j] = correctFinal[start + j];
+              } else {
+                  break;
+              }
+          }
+  
+          let contractReturn = await registry.scriptURI(stakingToken.target, page, pageSize);
+          //console.log(`Actual return = ${contractReturn} Expected = ${expected}`);
+          expect(contractReturn.toString()).to.be.equal(expected.toString());
+      }
+  }
 
 })

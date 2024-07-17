@@ -10,6 +10,7 @@ contract DecentralisedRegistry is IERC7738 {
         address[] addrList;
     }
 
+    uint256 public constant MAX_PAGE_SIZE = 500;
     mapping(address => ScriptEntry) private _scriptURIs;
 
     function setScriptURI(
@@ -30,40 +31,60 @@ contract DecentralisedRegistry is IERC7738 {
     function scriptURI(
         address contractAddress
     ) public view returns (string[] memory) {
-        //build scriptURI return list, owner first
+        return scriptURI(contractAddress, 1, MAX_PAGE_SIZE);
+    }
+
+    function scriptURI(address contractAddress, uint256 page, uint256 pageSize) public view returns (string[] memory ownerScripts) {
+        require(page > 0 && pageSize > 0 && pageSize <= MAX_PAGE_SIZE, "Page >= 1 and pageSize <= MAX_PAGE_SIZE");
+        
         address contractOwner = Ownable(contractAddress).owner();
         address[] memory addrList = _scriptURIs[contractAddress].addrList;
-        uint256 i;
+        uint256 startPoint = pageSize * (page - 1);
 
-        //now calculate list length
         uint256 listLen = _scriptURIs[contractAddress].scriptURIs[contractOwner].length;
-        for (i = 0; i < addrList.length; i++) {
+        for (uint256 i = 0; i < addrList.length; i++) {
             listLen += _scriptURIs[contractAddress].scriptURIs[addrList[i]].length;
         }
 
-        string[] memory ownerScripts = new string[](listLen);
+        uint256 arrayLen = listLen < pageSize ? listLen : pageSize;
+        ownerScripts = new string[](arrayLen);
         uint256 scriptIndex = 0;
+        uint256 currentIndex = 0;
 
-        // Add owner strings
-        for (i = 0; i < _scriptURIs[contractAddress].scriptURIs[contractOwner].length; i++) {
-            ownerScripts[scriptIndex++] = _scriptURIs[contractAddress].scriptURIs[contractOwner][i];
+        if (startPoint >= listLen) {
+            return new string[](0) ;
         }
 
-        // remainder
-        for (i = 0; i < addrList.length; i++) {
-            for (uint256 j = 0; j < _scriptURIs[contractAddress].scriptURIs[addrList[i]].length; j++) {
-                string memory thisScriptURI = _scriptURIs[contractAddress].scriptURIs[addrList[i]][j];
-                if (bytes(thisScriptURI).length > 0) {
+        // Add owner scriptURIs
+        (scriptIndex, currentIndex) = _addScriptURIs(contractOwner, contractAddress, startPoint, scriptIndex, pageSize, ownerScripts, currentIndex);
+
+        // Add remainder of scriptURIs
+        for (uint256 i = 0; i < addrList.length && scriptIndex < pageSize; i++) {
+            (scriptIndex, currentIndex) = _addScriptURIs(addrList[i], contractAddress, startPoint, scriptIndex, pageSize, ownerScripts, currentIndex);
+        }
+    }
+
+    function _addScriptURIs(
+        address user,
+        address contractAddress,
+        uint256 startPoint,
+        uint256 scriptIndex,
+        uint256 pageSize,
+        string[] memory ownerScripts,
+        uint256 currentIndex
+    ) internal view returns (uint256, uint256) {
+        for (uint256 j = 0; j < _scriptURIs[contractAddress].scriptURIs[user].length; j++) {
+            string memory thisScriptURI = _scriptURIs[contractAddress].scriptURIs[user][j];
+            if (bytes(thisScriptURI).length > 0) {
+                if (currentIndex >= startPoint) {
                     ownerScripts[scriptIndex++] = thisScriptURI;
                 }
+                if (scriptIndex >= pageSize) {
+                    break;
+                }
             }
+            currentIndex++;
         }
-
-        //fill remainder of any removed strings
-        for (i = scriptIndex; i < listLen; i++) {
-            ownerScripts[scriptIndex++] = "";
-        }
-
-        return ownerScripts;
+        return (scriptIndex, currentIndex);
     }
 }
