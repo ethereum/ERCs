@@ -79,6 +79,13 @@ interface ISDC {
     event TradeConfirmed(address confirmer, string tradeId);
 
     /**
+     * @dev Emitted when an incepted trade is canceled by the incepting counterparty
+     * @param initiator is the address from which trade was canceled
+     * @param tradeId the trade identifier
+     */
+    event TradeCanceled(address initiator, string tradeId);
+
+    /**
      * @dev Emitted when a confirmed trade is set to active - e.g. when termination fee amounts are provided
      * @param tradeId the trade identifier of the activated trade
      */
@@ -102,24 +109,35 @@ interface ISDC {
 
     /**
      * @dev Emitted when a settlement gets requested
+     * @param initiator the address of the requesting party
      * @param tradeData holding the stored trade data
      * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
      */
-    event TradeSettlementRequest(string tradeData, string lastSettlementData);
+    event TradeSettlementRequest(address initiator, string tradeData, string lastSettlementData);
 
     /**
      * @dev Emitted when a counterparty proactively requests an early termination of the underlying trade
      * @param cpAddress the address of the requesting party
      * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationTerms termination terms
      */
-    event TradeTerminationRequest(address cpAddress, string tradeId, string terminationTerms);
+    event TradeTerminationRequest(address cpAddress, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when early termination request is confirmed by the opposite party
      * @param cpAddress the party which confirms the trade termination
      * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationTerms termination terms
      */
-    event TradeTerminationConfirmed(address cpAddress, string tradeId, string terminationTerms);
+    event TradeTerminationConfirmed(address cpAddress, string tradeId, int256 terminationPayment, string terminationTerms);
+
+    /**
+     * @dev Emitted when a counterparty cancels its requests an early termination of the underlying trade
+     * @param cpAddress the address of the requesting party
+     * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationTerms termination terms
+     */
+    event TradeTerminationCanceled(address cpAddress, string tradeId, string terminationTerms);
 
     /**
      * @dev Emitted when trade processing is halted
@@ -137,7 +155,7 @@ interface ISDC {
      * @param _withParty is the party the inceptor wants to trade with
      * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
      * @param _position is the position the inceptor has in that trade
-     * @param _paymentAmount is the paymentamount which can be positive or negative
+     * @param _paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
     function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
@@ -147,12 +165,22 @@ interface ISDC {
      * @dev emits a {TradeConfirmed} event if trade data match
      * @param _withParty is the party the confirmer wants to trade with
      * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param _position is the position the inceptor has in that trade
-     * @param _paymentAmount is the paymentamount which can be positive or negative
+     * @param _position is the position the confirmer has in that trade (negative of the position the inceptor has in the trade)
+     * @param _paymentAmount is the payment amount which can be positive or negative (viewed from the confirmer, negative of the inceptor's view)
      * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
      function confirmTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
 
+    /**
+     * @notice Performs a matching of provided trade data and settlement data of a previous trade inception. Required to be called by inceptor.
+     * @dev emits a {TradeCanceled} event if trade data match and msg.sender agrees with the party that incepted the trade.
+     * @param _withParty is the party the inceptor wants to trade with
+     * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param _position is the position the inceptor has in that trade
+     * @param _paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
+     * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
+     */
+    function cancelTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
 
     /// Settlement Cycle: Settlement
 
@@ -185,6 +213,7 @@ interface ISDC {
      * @notice Called from a counterparty to request a mutual termination
      * @dev emits a {TradeTerminationRequest}
      * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationTerms the termination terms
      */
     function requestTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
 
@@ -192,6 +221,16 @@ interface ISDC {
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
      * @param tradeId the trade identifier of the trade which is supposed to be terminated
+     * @param terminationTerms the termination terms
      */
     function confirmTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
+
+    /**
+     * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
+     * @dev emits a {TradeTerminationConfirmed}
+     * @param tradeId the trade identifier of the trade which is supposed to be terminated
+     * @param terminationTerms the termination terms
+     */
+    function cancelTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
+
 }
