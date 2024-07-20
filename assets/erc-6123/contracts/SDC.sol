@@ -56,6 +56,10 @@ abstract contract SDC is ISDC {
         Settled,
 
         /*
+         * Termination is in Progress
+         */
+        InTermination,
+        /*
          * Terminated.
          */
         Terminated
@@ -81,8 +85,11 @@ abstract contract SDC is ISDC {
     modifier onlyWhenInTransfer() {
         require(tradeState == TradeState.InTransfer, "Trade state is not 'InTransfer'."); _;
     }
+    modifier onlyWhenInTermination () {
+        require(tradeState == TradeState.InTermination, "Trade state is not 'InTermination'."); _;
+    }
 
-    TradeState internal tradeState;
+    TradeState private tradeState;
 
     modifier onlyCounterparty() {
         require(msg.sender == party1 || msg.sender == party2, "You are not a counterparty."); _;
@@ -98,8 +105,6 @@ abstract contract SDC is ISDC {
     bool internal mutuallyTerminated = false;
     int256 terminationPayment;
 
-    int256[] internal settlementAmounts;
-    string[] internal settlementData;
 
 
     /*
@@ -139,6 +144,7 @@ abstract contract SDC is ISDC {
         emit TradeIncepted(msg.sender, tradeID, _tradeData);
     }
 
+
     /*
      * generates a hash from tradeData and checks whether an open request can be found by the opposite party
      * if so, data are stored and open request is deleted
@@ -152,18 +158,19 @@ abstract contract SDC is ISDC {
         delete pendingRequests[transactionHash]; // Delete Pending Request
         tradeState = TradeState.Confirmed;
         emit TradeConfirmed(msg.sender, tradeID);
-        address upfrontPayer;
-        if (_position==1 && _paymentAmount < 0) // payment amount negative means from a long position : party has to pay
+
+        address upfrontPayer = _paymentAmount > 0 ? otherParty(receivingParty) : receivingParty;
+      /*  if (_position==1 && _paymentAmount < 0) // payment amount negative means from a long position : party has to pay
             upfrontPayer = msg.sender;
         else if (_position==1 && _paymentAmount > 0)
             upfrontPayer = _withParty;
         else if (_position==-1 && _paymentAmount < 0) // payment amount negative means from a short position : party has to pay
             upfrontPayer = msg.sender;
         else
-            upfrontPayer = _withParty;
-        settlementData.push(_initialSettlementData);
+            upfrontPayer = _withParty;*/
+
         uint256 absPaymentAmount = uint256(abs(_paymentAmount));
-        processTradeAfterConfirmation(upfrontPayer, absPaymentAmount);
+        processTradeAfterConfirmation(upfrontPayer, absPaymentAmount,_initialSettlementData);
     }
 
     /*
@@ -210,8 +217,13 @@ abstract contract SDC is ISDC {
         emit TradeTerminationConfirmed(msg.sender, _tradeId, -_terminationPayment, terminationTerms);
         /* Trigger final Settlement */
         address initiator = msg.sender;
-        tradeState = TradeState.Valuation;
-        emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
+        address payerAddress = _terminationPayment > 0 ? otherParty(receivingParty) : receivingParty;
+        uint256 absPaymentAmount = uint256(abs(_terminationPayment));
+        processTradeAfterMutualTermination(payerAddress,absPaymentAmount,terminationTerms);
+
+       // processTradeAfterMutualTermination()
+        //        tradeState = TradeState.Valuation;
+        //        emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -227,7 +239,8 @@ abstract contract SDC is ISDC {
         emit TradeTerminationCanceled(msg.sender, _tradeId, terminationTerms);
     }
 
-    function processTradeAfterConfirmation(address upfrontPayer, uint256 upfrontPayment) virtual internal;
+    function processTradeAfterConfirmation(address upfrontPayer, uint256 upfrontPayment, string memory initialSettlementData) virtual internal;
+    function processTradeAfterMutualTermination(address terminationFeePayer, uint256 terminationAmount,  string memory terminationData) virtual internal;
 
     /*
      * Utilities
@@ -281,6 +294,21 @@ abstract contract SDC is ISDC {
 
     function getTradeData() public view returns (string memory) {
         return tradeData;
+    }
+
+
+    function setTradeState(TradeState newState) internal {
+        if ( newState == TradeState.Incepted && tradeState != TradeState.Inactive)
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.Confirmed && tradeState != TradeState.Incepted)
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.InTransfer && !(tradeState == TradeState.Confirmed || tradeState == TradeState.Valuation) )
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.Valuation && tradeState != TradeState.Settled)
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.InTermination && tradeState != TradeState.Settled)
+            revert("Provided Trade state is not allowed");
+        tradeState = newState;
     }
 
 

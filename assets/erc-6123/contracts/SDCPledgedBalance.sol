@@ -42,6 +42,10 @@ contract SDCPledgedBalance is SDC {
         uint256 terminationFee;
     }
 
+    int256[] private settlementAmounts;
+    string[] private settlementData;
+
+
 
     mapping(address => MarginRequirement) private marginRequirements; // Storage of M and P per counterparty address
 
@@ -57,29 +61,35 @@ contract SDCPledgedBalance is SDC {
     }
 
 
-    function processTradeAfterConfirmation(address upfrontPayer, uint256 upfrontPayment) override internal{
+    function processTradeAfterConfirmation(address upfrontPayer, uint256 upfrontPayment, string memory initialSettlementData) override internal{
+        settlementData.push(initialSettlementData);
         uint256 marginRequirementParty1 = uint(marginRequirements[party1].buffer + marginRequirements[party1].terminationFee );
         uint256 marginRequirementParty2 = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );
         uint256 requiredBalanceParty1 = marginRequirementParty1 + (upfrontPayer==party1 ? upfrontPayment : 0);
         uint256 requiredBalanceParty2 = marginRequirementParty2 + (upfrontPayer==party2 ? upfrontPayment : 0);
-        bool isAvailableParty1 = (settlementToken.balanceOf(party1) >= requiredBalanceParty1) && (settlementToken.allowance(party1, address(this)) >= requiredBalanceParty1);
-        bool isAvailableParty2 = (settlementToken.balanceOf(party2) >= requiredBalanceParty2) && (settlementToken.allowance(party2, address(this)) >= requiredBalanceParty2);
-        if (isAvailableParty1 && isAvailableParty2){       // Pre-Conditions: M + P needs to be locked (i.e. pledged)
-            address[] memory from = new address[](3);
-            address[] memory to = new address[](3);
-            uint256[] memory amounts = new uint256[](3);
-            from[0] = party1;       to[0] = address(this);              amounts[0] = marginRequirementParty1;
-            from[1] = party2;       to[1] = address(this);              amounts[1] = marginRequirementParty2;
-            from[2] = upfrontPayer; to[2] = otherParty(upfrontPayer);   amounts[2] = upfrontPayment;
-            uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-            tradeState = TradeState.InTransfer;
-            settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);             // Atomic Transfer
+        //bool isAvailableParty1 = (settlementToken.balanceOf(party1) >= requiredBalanceParty1) && (settlementToken.allowance(party1, address(this)) >= requiredBalanceParty1);
+        //bool isAvailableParty2 = (settlementToken.balanceOf(party2) >= requiredBalanceParty2) && (settlementToken.allowance(party2, address(this)) >= requiredBalanceParty2);
+        //if (isAvailableParty1 && isAvailableParty2){       // Pre-Conditions: M + P needs to be locked (i.e. pledged)
+        address[] memory from = new address[](3);
+        address[] memory to = new address[](3);
+        uint256[] memory amounts = new uint256[](3);
+        from[0] = party1;       to[0] = address(this);              amounts[0] = marginRequirementParty1;
+        from[1] = party2;       to[1] = address(this);              amounts[1] = marginRequirementParty2;
+        from[2] = upfrontPayer; to[2] = otherParty(upfrontPayer);   amounts[2] = upfrontPayment;
+        uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
+        setTradeState(TradeState.InTransfer);
+        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);             // Atomic Transfer
+        //}
+        //else {
+        //    tradeState = TradeState.Inactive;
+        //    emit TradeTerminated("Insufficient Balance or Allowance");
+        //    }
         }
-        else {
-            tradeState = TradeState.Inactive;
-            emit TradeTerminated("Insufficient Balance or Allowance");
-            }
-        }
+
+    function processTradeAfterMutualTermination(address terminationFeePayer, uint256 terminationAmount, string memory terminationData) override internal{
+        setTradeState(TradeState.InTermination);
+    //@todo - implement this in analogy to function above for termination
+    }
 
     /*
      * Settlement can be initiated when margin accounts are locked, a valuation request event is emitted containing tradeData and valuationViewParty
@@ -88,7 +98,7 @@ contract SDCPledgedBalance is SDC {
      */
     function initiateSettlement() external override onlyCounterparty onlyWhenSettled {
         address initiator = msg.sender;
-        tradeState = TradeState.Valuation;
+        setTradeState(TradeState.Valuation);
         emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
@@ -115,17 +125,16 @@ contract SDCPledgedBalance is SDC {
         if (settlementToken.balanceOf(settlementPayer) >= transferAmount &&
             settlementToken.allowance(settlementPayer,address(this)) >= transferAmount) { /* Good case: Balances are sufficient and token has enough approval */
             uint256 transactionID = uint256(keccak256(abi.encodePacked(settlementPayer,otherParty(settlementPayer), transferAmount)));
-            emit TradeSettlementPhase();
-            tradeState = TradeState.InTransfer;
             address[] memory from = new address[](1);
             address[] memory to = new address[](1);
             uint256[] memory amounts = new uint256[](1);
             from[0] = settlementPayer; to[0] = otherParty(settlementPayer); amounts[0] = transferAmount;
-            tradeState = TradeState.InTransfer;
+            emit TradeSettlementPhase();
+            setTradeState(TradeState.InTransfer);
             settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);
         }
         else { /* Bad Case: Process termination by booking from own balance */
-            tradeState = TradeState.InTransfer;
+            setTradeState(TradeState.InTransfer);
             _processAfterTransfer(false);
         }
     }
@@ -152,16 +161,16 @@ contract SDCPledgedBalance is SDC {
     function _processAfterTransfer(bool success) internal{
         if(success){
             emit TradeSettled();
-            if (tradeState == TradeState.Terminated || mutuallyTerminated){
-                tradeState = TradeState.Inactive;
+            if (getTradeState() == TradeState.Terminated || mutuallyTerminated){
+                setTradeState(TradeState.Inactive);
             }
             else{
-                tradeState = TradeState.Settled;
+                setTradeState(TradeState.Settled);
             }
         }
         else{ // TRANSFER HAS FAILED
             if (settlementData.length == 1){ // Case after confirmTrade where Transfer of upfront has failed
-                tradeState = TradeState.Inactive;
+                setTradeState(TradeState.Inactive);
                 emit TradeTerminated("Initial Upfront Transfer fail - Trade Inactive");
             }
             else{
@@ -175,7 +184,7 @@ contract SDCPledgedBalance is SDC {
                 settlementToken.approve(settlementReceiver,uint256(marginRequirements[settlementReceiver].buffer)); // Release Buffers
 
                 // Do Pledge Transfer from own balances including termination fee
-                tradeState = TradeState.Terminated;
+                setTradeState( TradeState.Terminated );
                 emit TradeTerminated("Trade terminated due to regular settlement failure");
                 address[] memory to = new address[](2);
                 uint256[] memory amounts = new uint256[](2);
