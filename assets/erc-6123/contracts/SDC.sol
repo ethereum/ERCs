@@ -82,9 +82,7 @@ abstract contract SDC is ISDC {
     modifier onlyWhenValuation() {
         require(tradeState == TradeState.Valuation, "Trade state is not 'Valuation'."); _;
     }
-    modifier onlyWhenInTransfer() {
-        require(tradeState == TradeState.InTransfer, "Trade state is not 'InTransfer'."); _;
-    }
+
     modifier onlyWhenInTermination () {
         require(tradeState == TradeState.InTermination, "Trade state is not 'InTermination'."); _;
     }

@@ -25,7 +25,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
   let counterparty1;
   let counterparty2;
   let trade_id;
-  let initialLiquidityBalance = 5000;
+  let initialLiquidityBalance = 10000;
   let terminationFee = 100;
   let marginBufferAmount = 900;
   const settlementAmount1 = 200; // successful settlement in favour to CP1
@@ -153,7 +153,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      const confirm_terminate_call = await sdc.connect(counterparty2).confirmTradeTermination(trade_id, -terminationPayment, "terminationTerms");
      await expect(confirm_terminate_call).to.emit(sdc, "TradeTerminationConfirmed");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
-     await expect(trade_state).equal(TradeState.InTermination);
+     await expect(trade_state).equal(TradeState.Terminated);
    });
 
   it("Successful Settlement", async () => {
@@ -169,8 +169,8 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(confirm_call).to.emit(sdc, "TradeConfirmed");
      const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
      await expect(initSettlementPhase).to.emit(sdc, "TradeSettlementRequest");
-     const balance_call = await token.connect(counterparty2).balanceOf(counterparty2.address);
-//     console.log("Balance: %s", balance_call);
+     //const balance_call = await token.connect(counterparty2).balanceOf(counterparty2.address);
+     //console.log("Balance: %s", balance_call);
      const performSettlementCall = sdc.connect(counterparty1).performSettlement(1,"settlementData");
      await expect(performSettlementCall).to.emit(sdc, "TradeSettlementPhase");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
