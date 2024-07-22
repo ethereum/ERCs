@@ -87,8 +87,9 @@ contract SDCPledgedBalance is SDC {
      * can be called only when ProcessState = Rebalanced and TradeState = Active
      */
     function initiateSettlement() external override onlyCounterparty onlyWhenSettled {
+        address initiator = msg.sender;
         tradeState = TradeState.Valuation;
-        emit TradeSettlementRequest(tradeData, settlementData[settlementData.length - 1]);
+        emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -151,7 +152,7 @@ contract SDCPledgedBalance is SDC {
     function _processAfterTransfer(bool success) internal{
         if(success){
             emit TradeSettled();
-            if (tradeState == TradeState.Terminated || tradeState == mutuallyTerminated){
+            if (tradeState == TradeState.Terminated || mutuallyTerminated){
                 tradeState = TradeState.Inactive;
             }
             else{
