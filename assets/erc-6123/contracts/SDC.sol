@@ -107,7 +107,6 @@ abstract contract SDC is ISDC {
     string internal tradeID;
     string internal tradeData;
     mapping(uint256 => address) internal pendingRequests; // Stores open request hashes for several requests: initiation, update and termination
-    bool internal mutuallyTerminated = false;
     int256 terminationPayment;
     int256 upfrontPayment;
 
@@ -127,6 +126,8 @@ abstract contract SDC is ISDC {
         address _party2,
         address _settlementToken
     ) {
+        terminationPayment = 0;
+        upfrontPayment = 0;
         party1 = _party1;
         party2 = _party2;
         settlementToken = ERC20Settlement(_settlementToken);
@@ -211,12 +212,11 @@ abstract contract SDC is ISDC {
         uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", -_terminationPayment, terminationTerms)));
         require(pendingRequests[hashConfirm] == pendingRequestParty, "Confirmation of termination failed due to wrong party or missing request");
         delete pendingRequests[hashConfirm];
-        mutuallyTerminated = true;
         emit TradeTerminationConfirmed(msg.sender, _tradeId, -_terminationPayment, terminationTerms);
         /* Trigger final Settlement */
-        address initiator = msg.sender;
         address payerAddress = _terminationPayment > 0 ? otherParty(receivingParty) : receivingParty;
         uint256 absPaymentAmount = uint256(abs(_terminationPayment));
+        setTradeState(TradeState.InTermination);
         processTradeAfterMutualTermination(payerAddress,absPaymentAmount,terminationTerms);
 
     }

@@ -48,14 +48,11 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
 
 
 
-  it("Counterparties incept and confirm a trade successfully, upfront is transferred from CP1 to CP2", async () => {
+  it("Counterparties incept and confirm a trade successfully, Upfront is transferred from CP1 to CP2", async () => {
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
      await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
-
      let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
-
-//     console.log("SDC Address: %s", sdc.address);
      await token.connect(counterparty1).approve(sdc.address,terminationFee+marginBufferAmount);
      await token.connect(counterparty2).approve(sdc.address,terminationFee+marginBufferAmount+upfront);
      let trade_id ="";

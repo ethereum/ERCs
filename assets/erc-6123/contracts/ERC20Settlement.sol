@@ -44,7 +44,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
             ISDC(sdcAddress).afterTransfer(transactionID, true);
     }
 
-    function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external onlySDC {
+    function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external view onlySDC {
         revert("not implemented");
     }
 
