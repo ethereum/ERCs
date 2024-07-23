@@ -78,7 +78,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
             }
             if (balanceOf(fromAddress) <  totalRequiredBalance){
                 ISDC(sdcAddress).afterTransfer(transactionID, false);
-                break;
+                return;
             }
 
         }

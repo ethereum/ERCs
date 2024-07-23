@@ -65,6 +65,13 @@ abstract contract SDC is ISDC {
         Terminated
     }
 
+    function    inStateIncepted()    public view returns (bool) { return tradeState == TradeState.Incepted; }
+    function    inStateConfirmed()   public view returns (bool) { return tradeState == TradeState.Confirmed; }
+    function    inStateSettled()     public view returns (bool) { return tradeState == TradeState.Settled; }
+    function    inStateTransfer()    public view returns (bool) { return tradeState == TradeState.InTransfer; }
+    function    inStateTermination() public view returns (bool) { return tradeState == TradeState.InTermination; }
+    function    inStateTerminated()  public view returns (bool) { return tradeState == TradeState.Terminated; }
+
     /*
     * Modifiers serve as guards whether at a specific process state a specific function can be called
     */
@@ -102,6 +109,7 @@ abstract contract SDC is ISDC {
     mapping(uint256 => address) internal pendingRequests; // Stores open request hashes for several requests: initiation, update and termination
     bool internal mutuallyTerminated = false;
     int256 terminationPayment;
+    int256 upfrontPayment;
 
 
 
@@ -157,15 +165,8 @@ abstract contract SDC is ISDC {
         tradeState = TradeState.Confirmed;
         emit TradeConfirmed(msg.sender, tradeID);
 
-        address upfrontPayer = _paymentAmount > 0 ? otherParty(receivingParty) : receivingParty;
-      /*  if (_position==1 && _paymentAmount < 0) // payment amount negative means from a long position : party has to pay
-            upfrontPayer = msg.sender;
-        else if (_position==1 && _paymentAmount > 0)
-            upfrontPayer = _withParty;
-        else if (_position==-1 && _paymentAmount < 0) // payment amount negative means from a short position : party has to pay
-            upfrontPayer = msg.sender;
-        else
-            upfrontPayer = _withParty;*/
+        upfrontPayment = _paymentAmount;
+        address upfrontPayer = _paymentAmount < 0 ? msg.sender : _withParty;
 
         uint256 absPaymentAmount = uint256(abs(_paymentAmount));
         processTradeAfterConfirmation(upfrontPayer, absPaymentAmount,_initialSettlementData);
@@ -196,7 +197,7 @@ abstract contract SDC is ISDC {
         require(keccak256(abi.encodePacked(tradeID)) == keccak256(abi.encodePacked(_tradeId)), "Trade ID mismatch");
         uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment, terminationTerms)));
         pendingRequests[hash] = msg.sender;
-
+        terminationPayment = _terminationPayment;
         emit TradeTerminationRequest(msg.sender, _tradeId, _terminationPayment, terminationTerms);
     }
 
@@ -211,7 +212,6 @@ abstract contract SDC is ISDC {
         require(pendingRequests[hashConfirm] == pendingRequestParty, "Confirmation of termination failed due to wrong party or missing request");
         delete pendingRequests[hashConfirm];
         mutuallyTerminated = true;
-        terminationPayment = _terminationPayment;
         emit TradeTerminationConfirmed(msg.sender, _tradeId, -_terminationPayment, terminationTerms);
         /* Trigger final Settlement */
         address initiator = msg.sender;
@@ -219,9 +219,6 @@ abstract contract SDC is ISDC {
         uint256 absPaymentAmount = uint256(abs(_terminationPayment));
         processTradeAfterMutualTermination(payerAddress,absPaymentAmount,terminationTerms);
 
-       // processTradeAfterMutualTermination()
-        //        tradeState = TradeState.Valuation;
-        //        emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -274,6 +271,15 @@ abstract contract SDC is ISDC {
         return tradeState;
     }
 
+    function getUpfrontPayment() public view returns (int) {
+        return upfrontPayment;
+    }
+
+    function getTerminationPayment() public view returns (int) {
+        return terminationPayment;
+    }
+
+
     /**
      * Other party
      */
@@ -304,10 +310,12 @@ abstract contract SDC is ISDC {
             revert("Provided Trade state is not allowed");
         if ( newState == TradeState.Valuation && tradeState != TradeState.Settled)
             revert("Provided Trade state is not allowed");
-        if ( newState == TradeState.InTermination && tradeState != TradeState.Settled)
+        if ( newState == TradeState.InTermination && !(tradeState == TradeState.InTransfer || tradeState == TradeState.Settled ) )
             revert("Provided Trade state is not allowed");
         tradeState = newState;
     }
+
+
 
 
 }
