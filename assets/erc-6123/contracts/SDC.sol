@@ -41,22 +41,22 @@ abstract contract SDC is ISDC {
         Confirmed,
 
         /*
-         * Valuation Phase
+         * Valuation Phase: The contract is awaiting a valuation for the next settlement.
          */
         Valuation,
 
         /*
-         * A Token-based Transfer is in Progress
+         * Token-based Transfer is in Progress. Contracts awaits termination of token transfer (allows async transfers).
          */
         InTransfer,
 
         /*
-         * Settlement is Completed
+         * Settlement is Completed.
          */
         Settled,
 
         /*
-         * Termination is in Progress
+         * Termination is in Progress.
          */
         InTermination,
         /*
@@ -65,17 +65,9 @@ abstract contract SDC is ISDC {
         Terminated
     }
 
-    function    inStateIncepted()    public view returns (bool) { return tradeState == TradeState.Incepted; }
-    function    inStateConfirmed()   public view returns (bool) { return tradeState == TradeState.Confirmed; }
-    function    inStateSettled()     public view returns (bool) { return tradeState == TradeState.Settled; }
-    function    inStateTransfer()    public view returns (bool) { return tradeState == TradeState.InTransfer; }
-    function    inStateTermination() public view returns (bool) { return tradeState == TradeState.InTermination; }
-    function    inStateTerminated()  public view returns (bool) { return tradeState == TradeState.Terminated; }
-
     /*
     * Modifiers serve as guards whether at a specific process state a specific function can be called
     */
-
 
     modifier onlyWhenTradeInactive() {
         require(tradeState == TradeState.Inactive, "Trade state is not 'Inactive'."); _;
@@ -109,8 +101,6 @@ abstract contract SDC is ISDC {
     mapping(uint256 => address) internal pendingRequests; // Stores open request hashes for several requests: initiation, update and termination
     int256 terminationPayment;
     int256 upfrontPayment;
-
-
 
     /*
      * SettlementToken holds:
@@ -151,7 +141,6 @@ abstract contract SDC is ISDC {
         tradeData = _tradeData; // Set trade data to enable querying already in inception state
         emit TradeIncepted(msg.sender, tradeID, _tradeData);
     }
-
 
     /*
      * generates a hash from tradeData and checks whether an open request can be found by the opposite party
@@ -232,18 +221,89 @@ abstract contract SDC is ISDC {
         emit TradeTerminationCanceled(msg.sender, _tradeId, terminationTerms);
     }
 
+    /*
+     * Booking of the upfrontPayment and implementation specific setups of margin buffers / wallets.
+     */
     function processTradeAfterConfirmation(address upfrontPayer, uint256 upfrontPayment, string memory initialSettlementData) virtual internal;
+
+    /*
+     * Booking of the terminationAmount and implementation specific cleanup of margin buffers / wallets.
+     */
     function processTradeAfterMutualTermination(address terminationFeePayer, uint256 terminationAmount,  string memory terminationData) virtual internal;
 
     /*
-     * Utilities
-    */
+     * Management of Trade States
+     */
+    function    inStateIncepted()    public view returns (bool) { return tradeState == TradeState.Incepted; }
+    function    inStateConfirmed()   public view returns (bool) { return tradeState == TradeState.Confirmed; }
+    function    inStateSettled()     public view returns (bool) { return tradeState == TradeState.Settled; }
+    function    inStateTransfer()    public view returns (bool) { return tradeState == TradeState.InTransfer; }
+    function    inStateTermination() public view returns (bool) { return tradeState == TradeState.InTermination; }
+    function    inStateTerminated()  public view returns (bool) { return tradeState == TradeState.Terminated; }
+
+    function getTradeState() public view returns (TradeState) {
+        return tradeState;
+    }
+
+    function setTradeState(TradeState newState) internal {
+        if ( newState == TradeState.Incepted && tradeState != TradeState.Inactive)
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.Confirmed && tradeState != TradeState.Incepted)
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.InTransfer && !(tradeState == TradeState.Confirmed || tradeState == TradeState.Valuation) )
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.Valuation && tradeState != TradeState.Settled)
+            revert("Provided Trade state is not allowed");
+        if ( newState == TradeState.InTermination && !(tradeState == TradeState.InTransfer || tradeState == TradeState.Settled ) )
+            revert("Provided Trade state is not allowed");
+        tradeState = newState;
+    }
+
+    /*
+     * Upfront and termination payments.
+     */
+
+    function getReceivingParty() public view returns (address) {
+        return receivingParty;
+    }
+
+    function getUpfrontPayment() public view returns (int) {
+        return upfrontPayment;
+    }
+
+    function getTerminationPayment() public view returns (int) {
+        return terminationPayment;
+    }
+
+    /*
+     * Trade Specification (ID, Token, Data)
+     */
+
+    function getTradeID() public view returns (string memory) {
+        return tradeID;
+    }
+
+    function setTradeId(string memory _tradeID) public {
+        tradeID= _tradeID;
+    }
+
+    function getTokenAddress() public view returns(address) {
+        return address(settlementToken);
+    }
+
+    function getTradeData() public view returns (string memory) {
+        return tradeData;
+    }
+
+    /*
+     * Utilities (internal)
+     */
 
     /**
-     * Absolute value of an integer
+     * Other party
      */
-    function abs(int x) internal pure returns (int256) {
-        return x >= 0 ? x : -x;
+    function otherParty(address party) internal view returns (address) {
+        return (party == party1 ? party2 : party1);
     }
 
     /**
@@ -260,60 +320,10 @@ abstract contract SDC is ISDC {
         return a < b ? a : b;
     }
 
-
-    function getTokenAddress() public view returns(address) {
-        return address(settlementToken);
-    }
-
-    function getTradeState() public view returns (TradeState) {
-        return tradeState;
-    }
-
-    function getUpfrontPayment() public view returns (int) {
-        return upfrontPayment;
-    }
-
-    function getTerminationPayment() public view returns (int) {
-        return terminationPayment;
-    }
-
-
     /**
-     * Other party
+     * Absolute value of an integer
      */
-    function otherParty(address party) internal view returns (address) {
-        return (party == party1 ? party2 : party1);
+    function abs(int x) internal pure returns (int256) {
+        return x >= 0 ? x : -x;
     }
-
-
-    function getTradeID() public view returns (string memory) {
-        return tradeID;
-    }
-
-    function setTradeId(string memory _tradeID) public {
-        tradeID= _tradeID;
-    }
-
-    function getTradeData() public view returns (string memory) {
-        return tradeData;
-    }
-
-
-    function setTradeState(TradeState newState) internal {
-        if ( newState == TradeState.Incepted && tradeState != TradeState.Inactive)
-            revert("Provided Trade state is not allowed");
-        if ( newState == TradeState.Confirmed && tradeState != TradeState.Incepted)
-            revert("Provided Trade state is not allowed");
-        if ( newState == TradeState.InTransfer && !(tradeState == TradeState.Confirmed || tradeState == TradeState.Valuation) )
-            revert("Provided Trade state is not allowed");
-        if ( newState == TradeState.Valuation && tradeState != TradeState.Settled)
-            revert("Provided Trade state is not allowed");
-        if ( newState == TradeState.InTermination && !(tradeState == TradeState.InTransfer || tradeState == TradeState.Settled ) )
-            revert("Provided Trade state is not allowed");
-        tradeState = newState;
-    }
-
-
-
-
 }
