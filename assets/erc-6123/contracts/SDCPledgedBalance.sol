@@ -52,8 +52,8 @@ contract SDCPledgedBalance is SDC {
         address _party1,
         address _party2,
         address _settlementToken,
-        uint256 _initialBuffer, // m
-        uint256 _initalTerminationFee // p
+        uint256 _initialBuffer,         // m
+        uint256 _initalTerminationFee   // p
     ) SDC(_party1,_party2,_settlementToken) {
         marginRequirements[party1] = MarginRequirement(_initialBuffer, _initalTerminationFee);
         marginRequirements[party2] = MarginRequirement(_initialBuffer, _initalTerminationFee);
@@ -164,13 +164,15 @@ contract SDCPledgedBalance is SDC {
         from[1] = party2;       to[1] = address(this);              amounts[1] = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );
         from[2] = upfrontPayer; to[2] = otherParty(upfrontPayer);   amounts[2] = upfrontPayment;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);             // Atomic Transfer
+        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);      // Batched Transfer
     }
 
     /*
      * internal function which processes mutual termination, transfers termination payment and releases pledged balances from sdc address
      */
     function processTradeAfterMutualTermination(address terminationFeePayer, uint256 terminationAmount, string memory terminationData) override internal{
+        settlementAmounts.push(0); // termination payment is saved separately
+        settlementData.push(terminationData);
         address[] memory from = new address[](3);
         address[] memory to = new address[](3);
         uint256[] memory amounts = new uint256[](3);
@@ -178,7 +180,7 @@ contract SDCPledgedBalance is SDC {
         from[1] = address(this);       to[1] = party2;              amounts[1] = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );  // Release buffers
         from[2] = terminationFeePayer; to[2] = otherParty(terminationFeePayer);   amounts[2] = terminationAmount;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);
+        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);    // Batched Transfer
     }
 
     /* function which perfoms the "Pledged Booking" in case of failed settlement, transferring open settlement amount as well as termination fee from sdc's own balance

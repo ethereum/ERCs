@@ -146,6 +146,7 @@ abstract contract SDC is ISDC {
         uint256 transactionHash = uint256(keccak256(abi.encode(msg.sender,_withParty,_tradeData,_position, _paymentAmount,_initialSettlementData)));
         pendingRequests[transactionHash] = msg.sender;
         receivingParty = _position == 1 ? msg.sender : _withParty;
+        upfrontPayment = _position == 1 ? _paymentAmount : -_paymentAmount; // upfrontPayment is saved with view on the receiving party
         tradeID = Strings.toString(transactionHash);
         tradeData = _tradeData; // Set trade data to enable querying already in inception state
         emit TradeIncepted(msg.sender, tradeID, _tradeData);
@@ -165,12 +166,9 @@ abstract contract SDC is ISDC {
         delete pendingRequests[transactionHash]; // Delete Pending Request
         tradeState = TradeState.Confirmed;
         emit TradeConfirmed(msg.sender, tradeID);
-
-        upfrontPayment = _paymentAmount;
-        address upfrontPayer = _paymentAmount < 0 ? msg.sender : _withParty;
-
-        uint256 absPaymentAmount = uint256(abs(_paymentAmount));
-        processTradeAfterConfirmation(upfrontPayer, absPaymentAmount,_initialSettlementData);
+        address upfrontPayer = upfrontPayment > 0 ? otherParty(receivingParty) : receivingParty;
+        uint256 upfrontTransferAmount = uint256(abs(_paymentAmount));
+        processTradeAfterConfirmation(upfrontPayer, upfrontTransferAmount,_initialSettlementData);
     }
 
     /*
@@ -198,8 +196,8 @@ abstract contract SDC is ISDC {
         require(keccak256(abi.encodePacked(tradeID)) == keccak256(abi.encodePacked(_tradeId)), "Trade ID mismatch");
         uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment, terminationTerms)));
         pendingRequests[hash] = msg.sender;
-        terminationPayment = _terminationPayment;
-        emit TradeTerminationRequest(msg.sender, _tradeId, _terminationPayment, terminationTerms);
+        terminationPayment = _terminationPayment; // termination payment will be provided in view of receiving party
+        emit TradeTerminationRequest(msg.sender, _tradeId, terminationPayment, terminationTerms);
     }
 
     /*
@@ -212,9 +210,9 @@ abstract contract SDC is ISDC {
         uint256 hashConfirm = uint256(keccak256(abi.encode(_tradeId, "terminate", -_terminationPayment, terminationTerms)));
         require(pendingRequests[hashConfirm] == pendingRequestParty, "Confirmation of termination failed due to wrong party or missing request");
         delete pendingRequests[hashConfirm];
-        emit TradeTerminationConfirmed(msg.sender, _tradeId, -_terminationPayment, terminationTerms);
-        /* Trigger final Settlement */
-        address payerAddress = _terminationPayment > 0 ? otherParty(receivingParty) : receivingParty;
+        emit TradeTerminationConfirmed(msg.sender, _tradeId, terminationPayment, terminationTerms);
+        /* Trigger Termination Payment Amount */
+        address payerAddress = terminationPayment > 0 ? otherParty(receivingParty) : receivingParty;
         uint256 absPaymentAmount = uint256(abs(_terminationPayment));
         setTradeState(TradeState.InTermination);
         processTradeAfterMutualTermination(payerAddress,absPaymentAmount,terminationTerms);

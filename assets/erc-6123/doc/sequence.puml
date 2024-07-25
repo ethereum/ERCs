@@ -69,7 +69,7 @@ else success
 else fail
 	SDC->SettlementToken: tx 'transfer' Settlement Amount from SDC Balance to Receiving Party
 	SDC->SettlementToken: tx 'transfer' Termination Fee from SDC Balance to Receiving Party
-    	SDC->SettlementToken: tx 'transfer' - Transfer remaing Party Balances
+    	SDC->SettlementToken: tx 'transfer' - Release  remainigBalances to parties
 
 == TradeState 'Terminated' ==
 end
