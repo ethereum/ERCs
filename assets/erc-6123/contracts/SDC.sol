@@ -72,12 +72,15 @@ abstract contract SDC is ISDC {
     modifier onlyWhenTradeInactive() {
         require(tradeState == TradeState.Inactive, "Trade state is not 'Inactive'."); _;
     }
+
     modifier onlyWhenTradeIncepted() {
         require(tradeState == TradeState.Incepted, "Trade state is not 'Incepted'."); _;
     }
+
     modifier onlyWhenSettled() {
         require(tradeState == TradeState.Settled, "Trade state is not 'Settled'."); _;
     }
+
     modifier onlyWhenValuation() {
         require(tradeState == TradeState.Valuation, "Trade state is not 'Valuation'."); _;
     }
@@ -86,11 +89,11 @@ abstract contract SDC is ISDC {
         require(tradeState == TradeState.InTermination, "Trade state is not 'InTermination'."); _;
     }
 
-    TradeState private tradeState;
-
     modifier onlyCounterparty() {
         require(msg.sender == party1 || msg.sender == party2, "You are not a counterparty."); _;
     }
+
+    TradeState private tradeState;
 
     address internal party1;
     address internal party2;
@@ -124,6 +127,7 @@ abstract contract SDC is ISDC {
         settlementToken.setSDCAddress(address(this));
         tradeState = TradeState.Inactive;
     }
+
     /*
      * generates a hash from tradeData and generates a map entry in openRequests
      * emits a TradeIncepted
