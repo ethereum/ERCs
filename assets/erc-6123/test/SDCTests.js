@@ -125,7 +125,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(trade_state).equal(TradeState.Inactive);
    });
 
-   it("Not enough balance to transfer upfront payment", async () => {
+   it("4. Not enough balance to transfer upfront payment", async () => {
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
      await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -145,7 +145,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(cp2_balance).equal(initialLiquidityBalance);
    });
 
-   it("4. Trade Matching fails", async () => {
+   it("5. Trade Matching fails", async () => {
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
      await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -156,7 +156,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(confirm_call).to.be.revertedWith("Confirmation fails due to inconsistent trade data or wrong party address");
    });
 
-   it("5. Trade cancellation fails due to wrong party calling cancel", async () => {
+   it("6. Trade cancellation fails due to wrong party calling cancel", async () => {
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
      await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -167,7 +167,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(confirm_call).to.be.revertedWith("Cancellation fails due to inconsistent trade data or wrong party address");
    });
 
-   it("6. Trade cancellation fails due to wrong arguments", async () => {
+   it("7. Trade cancellation fails due to wrong arguments", async () => {
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
      await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -179,7 +179,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(confirm_call).to.be.revertedWith("Cancellation fails due to inconsistent trade data or wrong party address");
    });
 
-  it("7. Counterparties incept and confirm, upfront is transferred from CP2 to CP1, Trade is terminated with Payment from CP2 to CP1", async () => {
+  it("8. Counterparties incept and confirm, upfront is transferred from CP2 to CP1, Trade is terminated with Payment from CP2 to CP1", async () => {
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
      await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -204,7 +204,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(cp2_balance).equal(initialLiquidityBalance-upfront-terminationPayment);
    });
 
-    it("8a. CP1 is Receiving Party, Trade-Termination is incepted by CP2 which receives the termination payment from CP1", async () => {
+    it("9a. CP1 is Receiving Party, Trade-Termination is incepted by CP2 which receives the termination payment from CP1", async () => {
         let token = await ERC20Factory.deploy();
         await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
         await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -221,7 +221,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await expect(cp1_balance).equal(initialLiquidityBalance-terminationPayment);
         await expect(cp2_balance).equal(initialLiquidityBalance+terminationPayment);
     });
-    it("8b. CP1 is Receiving Party, Trade-Termination is incepted by CP1 which pays the termination payment to CP2", async () => {
+    it("9b. CP1 is Receiving Party, Trade-Termination is incepted by CP1 which pays the termination payment to CP2", async () => {
         let token = await ERC20Factory.deploy();
         await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
         await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
@@ -239,7 +239,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await expect(cp2_balance).equal(initialLiquidityBalance+terminationPayment);
     });
 
-  it("9. Successful Inception with Upfront transferred from CP2 to CP1 + successful settlement transferred from CP1 to CP2", async () => {
+  it("10. Successful Inception with Upfront transferred from CP2 to CP1 + successful settlement transferred from CP1 to CP2", async () => {
      let settlementAmount = -245;
      let token = await ERC20Factory.deploy();
      await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
@@ -266,7 +266,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
 
    });
 
-    it("10. Failed settlement followed by Termination with Pledge Case", async () => {
+    it("11. Failed settlement followed by Termination with Pledge Case", async () => {
         let settlementAmount = -500;
         let token = await ERC20Factory.deploy();
         await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
@@ -297,7 +297,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
 
     });
 
-    it("11. Failed Mutual Termination: Payment from CP1 to CP2 results in pledge case with capped termination fee amount being transferred", async () => {
+    it("12. Failed Mutual Termination: Payment from CP1 to CP2 results in pledge case with capped termination fee amount being transferred", async () => {
         let token = await ERC20Factory.deploy();
         await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
         await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
