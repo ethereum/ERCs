@@ -96,7 +96,7 @@ contract SDCPledgedBalance is SDC {
     * afterTransfer processes SDC depending on success of the respective payment and depending on the current trade state
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
-    function afterTransfer(uint256 transactionHash , bool success) external override  {
+    function afterTransfer(bool success, uint256 transactionHash) external override  {
         if ( inStateConfirmed()){
             if (success){
                 setTradeState(TradeState.Settled);

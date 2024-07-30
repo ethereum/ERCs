@@ -39,9 +39,9 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
 
     function checkedTransfer(address to, uint256 value, uint256 transactionID) public onlySDC{
         if ( balanceOf(sdcAddress) < value)
-            ISDC(sdcAddress).afterTransfer(transactionID, false);
+            ISDC(sdcAddress).afterTransfer(false, transactionID);
         else
-            ISDC(sdcAddress).afterTransfer(transactionID, true);
+            ISDC(sdcAddress).afterTransfer(true, transactionID);
     }
 
     function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external view onlySDC {
@@ -54,14 +54,14 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         for(uint256 i = 0; i < values.length; i++)
             requiredBalance += values[i];
         if (balanceOf(msg.sender) < requiredBalance){
-            ISDC(sdcAddress).afterTransfer(transactionID, false);
+            ISDC(sdcAddress).afterTransfer(false, transactionID);
             return;
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
                 _transfer(sdcAddress,to[i],values[i]);
             }
-            ISDC(sdcAddress).afterTransfer(transactionID, true);
+            ISDC(sdcAddress).afterTransfer(true, transactionID);
         }
     }
 
@@ -77,7 +77,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
                     totalRequiredBalance += values[j];
             }
             if (balanceOf(fromAddress) <  totalRequiredBalance){
-                ISDC(sdcAddress).afterTransfer(transactionID, false);
+                ISDC(sdcAddress).afterTransfer(false, transactionID);
                 return;
             }
 
@@ -85,7 +85,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         for(uint256 i = 0; i < to.length; i++){
             _transfer(from[i],to[i],values[i]);
         }
-        ISDC(sdcAddress).afterTransfer(transactionID, true);
+        ISDC(sdcAddress).afterTransfer(true, transactionID);
     }
 
 }
