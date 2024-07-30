@@ -41,7 +41,7 @@ SDC-->EventHandler: emit TradeConfirmed
 SDC ->SettlementToken: tx 'transferFrom' margin buffers and termination fees\nto SDC address for CP1 and CP2
 SDC->SettlementToken: tx 'transferFrom' optional Upfront Fee from Paying to Receiving Party
 ==  TradeState 'inTransfer' ==
-SettlementToken->SDC: callback tx 'afterSettlement'
+SettlementToken->SDC: callback tx 'afterTransfer'
 ==ProcessState 'Settled' ==
 
 end
@@ -63,7 +63,7 @@ SDC->SettlementToken: tx 'transferFrom' settlement amount from Paying Party to R
 SDC-->EventHandler: emit AwaitingTransfer
 
 alt Transfer Check
-	SettlementToken->SDC: callback tx 'afterSettlement'
+	SettlementToken->SDC: callback tx 'afterTransfer'
 else success
 == TradeState 'Settled' ==
 else fail
