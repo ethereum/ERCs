@@ -93,7 +93,7 @@ interface ISDC {
 
     /**
      * @dev Emitted when an active trade is terminated
-     * @param cause string holding the cause of the termination
+     * @param cause string holding data associated with the termination, e.g. transactionData upon a failed transaction
      */
     event TradeTerminated(string cause);
 
@@ -105,7 +105,7 @@ interface ISDC {
     /**
      * @dev Emitted when settlement process has been finished
      */
-    event TradeSettled();
+    event TradeSettled(string transactionData);
 
     /**
      * @dev Emitted when a settlement gets requested
@@ -152,35 +152,35 @@ interface ISDC {
     /**
      * @notice Incepts a trade, stores trade data
      * @dev emits a {TradeIncepted} event
-     * @param _withParty is the party the inceptor wants to trade with
-     * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param _position is the position the inceptor has in that trade
-     * @param _paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
-     * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
+     * @param withParty is the party the inceptor wants to trade with
+     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param position is the position the inceptor has in that trade
+     * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
+     * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-    function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
+    function inceptTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external;
 
     /**
      * @notice Performs a matching of provided trade data and settlement data of a previous trade inception
      * @dev emits a {TradeConfirmed} event if trade data match
-     * @param _withParty is the party the confirmer wants to trade with
-     * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param _position is the position the confirmer has in that trade (negative of the position the inceptor has in the trade)
-     * @param _paymentAmount is the payment amount which can be positive or negative (viewed from the confirmer, negative of the inceptor's view)
-     * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
+     * @param withParty is the party the confirmer wants to trade with
+     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param position is the position the confirmer has in that trade (negative of the position the inceptor has in the trade)
+     * @param paymentAmount is the payment amount which can be positive or negative (viewed from the confirmer, negative of the inceptor's view)
+     * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-     function confirmTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
+     function confirmTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external;
 
     /**
      * @notice Performs a matching of provided trade data and settlement data of a previous trade inception. Required to be called by inceptor.
      * @dev emits a {TradeCanceled} event if trade data match and msg.sender agrees with the party that incepted the trade.
-     * @param _withParty is the party the inceptor wants to trade with
-     * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param _position is the position the inceptor has in that trade
-     * @param _paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
-     * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
+     * @param withParty is the party the inceptor wants to trade with
+     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param position is the position the inceptor has in that trade
+     * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
+     * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-    function cancelTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
+    function cancelTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external;
 
     /// Settlement Cycle: Settlement
 
@@ -202,9 +202,10 @@ interface ISDC {
     /**
      * @notice May get called from outside to to finish a transfer (callback). The trade decides on how to proceed based on success flag
      * @param success tells the protocol whether transfer was successful
+     * @param transactionData data associtated with the transfer, will be emitted via the events.
      * @dev may emit a {TradeSettled} event  or a {TradeTerminated} event
      */
-    function afterTransfer(uint256 transactionHash, bool success) external;
+    function afterTransfer(uint256 transactionData, bool success) external;
 
 
     /// Trade termination
@@ -212,25 +213,27 @@ interface ISDC {
     /**
      * @notice Called from a counterparty to request a mutual termination
      * @dev emits a {TradeTerminationRequest}
-     * @param tradeId the trade identifier which is supposed to be terminated
-     * @param terminationTerms the termination terms
+     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param terminationPayment an agreed termination amount (viewed from the requester)
+     * @param terminationTerms the termination terms to be stored on chain.
      */
-    function requestTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
+    function requestTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
 
     /**
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
-     * @param tradeId the trade identifier of the trade which is supposed to be terminated
-     * @param terminationTerms the termination terms
+     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param terminationPayment an agreed termination amount (viewed from the confirmer, negative of the value provided by the requester)
+     * @param terminationTerms the termination terms to be stored on chain.
      */
-    function confirmTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
+    function confirmTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
 
     /**
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
-     * @param tradeId the trade identifier of the trade which is supposed to be terminated
+     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
      * @param terminationTerms the termination terms
      */
-    function cancelTradeTermination(string memory tradeId, int256 _terminationPayment, string memory terminationTerms) external;
+    function cancelTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
 
 }
