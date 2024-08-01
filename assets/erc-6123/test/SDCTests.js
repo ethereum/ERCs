@@ -251,10 +251,10 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      const confirm_call = await sdc.connect(counterparty2).confirmTrade(counterparty1.address, trade_data, -1, -upfront, "initialMarketData");
      await expect(confirm_call).to.emit(sdc, "TradeConfirmed");
      const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
-     await expect(initSettlementPhase).to.emit(sdc, "TradeSettlementRequest");
+     await expect(initSettlementPhase).to.emit(sdc, "SettlementRequested");
 
      const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount,"settlementData");
-     await expect(performSettlementCall).to.emit(sdc, "TradeSettlementPhase");
+     await expect(performSettlementCall).to.emit(sdc, "SettlementEvaluated");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
      await expect(trade_state).equal(TradeState.Settled);
      let sdc_balance = await token.connect(counterparty1).balanceOf(sdc.address);
@@ -281,10 +281,10 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await expect(confirm_call).to.emit(sdc, "TradeConfirmed");
 
         const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
-        await expect(initSettlementPhase).to.emit(sdc, "TradeSettlementRequest");
+        await expect(initSettlementPhase).to.emit(sdc, "SettlementRequested");
 
         const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount,"settlementData");
-        await expect(performSettlementCall).to.emit(sdc, "TradeSettlementPhase");
+        await expect(performSettlementCall).to.emit(sdc, "SettlementEvaluated");
         let trade_state =  await sdc.connect(counterparty1).getTradeState();
         let sdc_balance = await token.connect(counterparty1).balanceOf(sdc.address);
         let cp1_balance = await token.connect(counterparty1).balanceOf(counterparty1.address);

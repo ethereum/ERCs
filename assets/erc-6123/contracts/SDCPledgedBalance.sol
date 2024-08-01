@@ -68,7 +68,7 @@ contract SDCPledgedBalance is SDC {
     function initiateSettlement() external override onlyCounterparty onlyWhenSettled {
         address initiator = msg.sender;
         setTradeState(TradeState.Valuation);
-        emit TradeSettlementRequest(initiator, tradeData, settlementData[settlementData.length - 1]);
+        emit SettlementRequested(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -87,7 +87,7 @@ contract SDCPledgedBalance is SDC {
         address[] memory to = new address[](1);
         uint256[] memory amounts = new uint256[](1);
         from[0] = settlementPayer; to[0] = otherParty(settlementPayer); amounts[0] = transferAmount;
-        emit TradeSettlementPhase();
+        emit SettlementEvaluated();
         setTradeState(TradeState.InTransfer);
         settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);
     }
@@ -110,7 +110,7 @@ contract SDCPledgedBalance is SDC {
         else if ( inStateTransfer() ){
             if (success){
                 setTradeState(TradeState.Settled);
-                emit TradeSettled("Settlement Settled - Pledge Transfer");
+                emit SettlementTranfered("Settlement Settled - Pledge Transfer");
             }
             else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
                 int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
