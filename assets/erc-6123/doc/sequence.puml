@@ -70,7 +70,7 @@ SDC->SettlementToken: tx 'transferFrom' settlement amount from Paying Party to R
 alt Transfer Check
 	SettlementToken->SDC: callback tx 'afterTransfer'
 else success
-    SDC-->EventHandler: emit SettlementTransfered
+    SDC-->EventHandler: emit SettlementTransferred
 == TradeState 'Settled' ==
 else fail
     SDC-->EventHandler: emit SettlementFailed
