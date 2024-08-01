@@ -154,12 +154,6 @@ interface ISDC {
      */
     event TradeTerminationCanceled(address cpAddress, string tradeId, string terminationTerms);
 
-    /**
-     * @dev Emitted when trade processing is halted
-     * @param message of what has happened
-     */
-    event ProcessHalted(string message);
-
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
     /// Trade Inception
