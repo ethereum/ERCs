@@ -62,7 +62,11 @@ pragma solidity >=0.7.0 <0.9.0;
  */
 
 interface ISDC {
+
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
+
+    /* Events related to trade inception */
+
     /**
      * @dev Emitted  when a new trade is incepted from a eligible counterparty
      * @param initiator is the address from which trade was incepted
@@ -85,6 +89,8 @@ interface ISDC {
      */
     event TradeCanceled(address initiator, string tradeId);
 
+    /* Events related to activation and termination */
+
     /**
      * @dev Emitted when a confirmed trade is set to active - e.g. when termination fee amounts are provided
      * @param tradeId the trade identifier of the activated trade
@@ -97,15 +103,22 @@ interface ISDC {
      */
     event TradeTerminated(string cause);
 
+    /* Events related to the settlement process */
+
     /**
      * @dev Emitted when Settlement phase is initiated
      */
-    event TradeSettlementPhase();
+    event SettlementEvaluated();
 
     /**
      * @dev Emitted when settlement process has been finished
      */
-    event TradeSettled(string transactionData);
+    event SettlementTranfered(string transactionData);
+
+    /**
+     * @dev Emitted when settlement process has been finished
+     */
+    event SettlementFailed(string transactionData);
 
     /**
      * @dev Emitted when a settlement gets requested
@@ -113,7 +126,9 @@ interface ISDC {
      * @param tradeData holding the stored trade data
      * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
      */
-    event TradeSettlementRequest(address initiator, string tradeData, string lastSettlementData);
+    event SettlementRequested(address initiator, string tradeData, string lastSettlementData);
+
+    /* Events related to trade termination */
 
     /**
      * @dev Emitted when a counterparty proactively requests an early termination of the underlying trade
@@ -162,7 +177,7 @@ interface ISDC {
 
     /**
      * @notice Performs a matching of provided trade data and settlement data of a previous trade inception
-     * @dev emits a {TradeConfirmed} event if trade data match
+     * @dev emits a {TradeConfirmed} event if trade data match and emits a {TradeActivated} if trade becomes active or {TradeTerminated} if not
      * @param withParty is the party the confirmer wants to trade with
      * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
      * @param position is the position the confirmer has in that trade (negative of the position the inceptor has in the trade)
@@ -186,13 +201,13 @@ interface ISDC {
 
     /**
      * @notice Called to trigger a (maybe external) valuation of the underlying contract and afterwards the according settlement process
-     * @dev emits a {TradeSettlementRequest}
+     * @dev emits a {SettlementRequested}
      */
     function initiateSettlement() external;
 
     /**
      * @notice Called to trigger according settlement on chain-balances callback for initiateSettlement() event handler
-     * @dev perform settlement checks, may initiate transfers and emits {TradeSettlementPhase}
+     * @dev perform settlement checks, may initiate transfers and emits {SettlementEvaluated}
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
@@ -203,10 +218,9 @@ interface ISDC {
      * @notice May get called from outside to to finish a transfer (callback). The trade decides on how to proceed based on success flag
      * @param success tells the protocol whether transfer was successful
      * @param transactionData data associtated with the transfer, will be emitted via the events.
-     * @dev may emit a {TradeSettled} event  or a {TradeTerminated} event
+     * @dev emit a {SettlementTranfered} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
      */
     function afterTransfer(bool success, uint256 transactionData) external;
-
 
     /// Trade termination
 
@@ -230,10 +244,9 @@ interface ISDC {
 
     /**
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
-     * @dev emits a {TradeTerminationConfirmed}
+     * @dev emits a {TradeTerminationCanceled}
      * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
      * @param terminationTerms the termination terms
      */
     function cancelTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
-
 }
