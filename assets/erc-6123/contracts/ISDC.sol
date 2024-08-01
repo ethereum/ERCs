@@ -124,7 +124,7 @@ interface ISDC {
     /**
      * @dev Emitted when settlement process has been finished
      */
-    event SettlementTranfered(string transactionData);
+    event SettlementTranferred(string transactionData);
 
     /**
      * @dev Emitted when settlement process has been finished
@@ -215,7 +215,7 @@ interface ISDC {
      * @notice May get called from outside to to finish a transfer (callback). The trade decides on how to proceed based on success flag
      * @param success tells the protocol whether transfer was successful
      * @param transactionData data associtated with the transfer, will be emitted via the events.
-     * @dev emit a {SettlementTranfered} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
+     * @dev emit a {SettlementTranferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
      */
     function afterTransfer(bool success, uint256 transactionData) external;
 

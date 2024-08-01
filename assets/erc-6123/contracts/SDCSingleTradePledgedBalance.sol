@@ -110,7 +110,7 @@ contract SDCPledgedBalance is SDC {
         else if ( inStateTransfer() ){
             if (success){
                 setTradeState(TradeState.Settled);
-                emit SettlementTranfered("Settlement Settled - Pledge Transfer");
+                emit SettlementTranferred("Settlement Settled - Pledge Transfer");
             }
             else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
                 int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
