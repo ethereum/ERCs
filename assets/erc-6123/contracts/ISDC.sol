@@ -106,9 +106,12 @@ interface ISDC {
     /* Events related to the settlement process */
 
     /**
-     * @dev Emitted when Settlement phase is initiated
+     * @dev Emitted when Settlement has been valued and settlement phase is initiated
+     * @param initiator the address of the requesting party
+     * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
+     * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
-    event SettlementEvaluated();
+    event SettlementEvaluated(address initiator, int256 settlementAmount, string settlementData);
 
     /**
      * @dev Emitted when settlement process has been finished
