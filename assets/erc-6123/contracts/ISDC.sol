@@ -106,20 +106,9 @@ interface ISDC {
     /* Events related to the settlement process */
 
     /**
-     * @dev Emitted when a settlement gets requested
-     * @param initiator the address of the requesting party
-     * @param tradeData holding the stored trade data
-     * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
+     * @dev Emitted when Settlement phase is initiated
      */
-    event SettlementRequested(address initiator, string tradeData, string lastSettlementData);
-
-    /**
-     * @dev Emitted when Settlement has been valued and settlement phase is initiated
-     * @param initiator the address of the requesting party
-     * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
-     * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
-     */
-    event SettlementEvaluated(address initiator, int256 settlementAmount, string settlementData);
+    event SettlementEvaluated();
 
     /**
      * @dev Emitted when settlement process has been finished
@@ -130,6 +119,14 @@ interface ISDC {
      * @dev Emitted when settlement process has been finished
      */
     event SettlementFailed(string transactionData);
+
+    /**
+     * @dev Emitted when a settlement gets requested
+     * @param initiator the address of the requesting party
+     * @param tradeData holding the stored trade data
+     * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
+     */
+    event SettlementRequested(address initiator, string tradeData, string lastSettlementData);
 
     /* Events related to trade termination */
 
@@ -156,6 +153,12 @@ interface ISDC {
      * @param terminationTerms termination terms
      */
     event TradeTerminationCanceled(address cpAddress, string tradeId, string terminationTerms);
+
+    /**
+     * @dev Emitted when trade processing is halted
+     * @param message of what has happened
+     */
+    event ProcessHalted(string message);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
