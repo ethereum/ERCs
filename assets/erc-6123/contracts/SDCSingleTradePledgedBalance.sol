@@ -35,8 +35,7 @@ import "./ERC20Settlement.sol";
  *-------------------------------------*
 */
 
-contract SDCPledgedBalance is SDC {
-
+contract SDCSingleTradePledgedBalance is SDCSingleTrade {
 
     struct MarginRequirement {
         uint256 buffer;
@@ -54,7 +53,7 @@ contract SDCPledgedBalance is SDC {
         address _settlementToken,
         uint256 _initialBuffer,         // m
         uint256 _initalTerminationFee   // p
-    ) SDC(_party1,_party2,_settlementToken) {
+    ) SDCSingleTrade(_party1,_party2,_settlementToken) {
         marginRequirements[party1] = MarginRequirement(_initialBuffer, _initalTerminationFee);
         marginRequirements[party2] = MarginRequirement(_initialBuffer, _initalTerminationFee);
     }
@@ -96,7 +95,7 @@ contract SDCPledgedBalance is SDC {
     * afterTransfer processes SDC depending on success of the respective payment and depending on the current trade state
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
-    function afterTransfer(bool success, uint256 transactionHash) external override  {
+    function afterTransfer(bool success, string memory transactionHash) external override  {
         if ( inStateConfirmed()){
             if (success){
                 setTradeState(TradeState.Settled);
@@ -104,28 +103,28 @@ contract SDCPledgedBalance is SDC {
             }
             else{
                 setTradeState(TradeState.Terminated);
-                emit TradeTerminated("Upfront Transfer Failure");
+                emit TradeTerminated(tradeID, "Upfront Transfer Failure");
             }
         }
         else if ( inStateTransfer() ){
             if (success){
                 setTradeState(TradeState.Settled);
-                emit SettlementTranferred("Settlement Settled - Pledge Transfer");
+                emit SettlementTransferred("Settlement Settled - Pledge Transfer");
             }
             else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
                 int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 setTradeState(TradeState.InTermination);
                 processTerminationWithPledge(settlementAmount);
-                emit TradeTerminated("Settlement Failed - Pledge Transfer");
+                emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
             }
         }
         else if( inStateTermination() ){
             if (success){
                 setTradeState(TradeState.Terminated);
-                emit TradeTerminated("Trade terminated sucessfully");
+                emit TradeTerminated(tradeID, "Trade terminated sucessfully");
             }
             else{
-                emit TradeTerminated("Mutual Termination failed - Pledge Transfer");
+                emit TradeTerminated(tradeID, "Mutual Termination failed - Pledge Transfer");
                 processTerminationWithPledge(getTerminationPayment());
             }
         }
