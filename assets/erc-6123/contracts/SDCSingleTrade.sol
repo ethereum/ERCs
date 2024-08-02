@@ -19,7 +19,7 @@ import "./ERC20Settlement.sol";
  * - upon termination all remaining 'locked' amounts will be transferred back to the counterparties
 */
 
-abstract contract SDC is ISDC {
+abstract contract SDCSingleTrade is ISDC {
     /*
      * Trade States
      */
@@ -143,7 +143,7 @@ abstract contract SDC is ISDC {
         upfrontPayment = _position == 1 ? _paymentAmount : -_paymentAmount; // upfrontPayment is saved with view on the receiving party
         tradeID = Strings.toString(transactionHash);
         tradeData = _tradeData; // Set trade data to enable querying already in inception state
-        emit TradeIncepted(msg.sender, tradeID, _tradeData);
+        emit TradeIncepted(msg.sender, _withParty, tradeID, _tradeData, _position, _paymentAmount, _initialSettlementData);
     }
 
     /*
