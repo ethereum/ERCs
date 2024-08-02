@@ -133,7 +133,7 @@ abstract contract SDCSingleTrade is ISDC {
      * emits a TradeIncepted
      * can be called only when TradeState = Incepted
      */
-    function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override onlyCounterparty onlyWhenTradeInactive {
+    function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override onlyCounterparty onlyWhenTradeInactive returns (string memory) {
         require(msg.sender != _withParty, "Calling party cannot be the same as withParty");
         require(_position == 1 || _position == -1, "Position can only be +1 or -1");
         tradeState = TradeState.Incepted; // Set TradeState to Incepted
@@ -144,6 +144,7 @@ abstract contract SDCSingleTrade is ISDC {
         tradeID = Strings.toString(transactionHash);
         tradeData = _tradeData; // Set trade data to enable querying already in inception state
         emit TradeIncepted(msg.sender, _withParty, tradeID, _tradeData, _position, _paymentAmount, _initialSettlementData);
+        return tradeID;
     }
 
     /*

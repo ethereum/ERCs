@@ -175,7 +175,7 @@ interface ISDC {
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
      */
-    function inceptTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external;
+    function inceptTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external returns (string memory);
 
     /**
      * @notice Performs a matching of provided trade data and settlement data of a previous trade inception
