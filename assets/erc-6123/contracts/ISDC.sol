@@ -229,26 +229,27 @@ interface ISDC {
     /**
      * @notice Called from a counterparty to request a mutual termination
      * @dev emits a {TradeTerminationRequest}
-     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationPayment an agreed termination amount (viewed from the requester)
      * @param terminationTerms the termination terms to be stored on chain.
      */
-    function requestTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
+    function requestTradeTermination(string memory tradeId, int256 terminationPayment, string memory terminationTerms) external;
 
     /**
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationConfirmed}
-     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationPayment an agreed termination amount (viewed from the confirmer, negative of the value provided by the requester)
      * @param terminationTerms the termination terms to be stored on chain.
      */
-    function confirmTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
+    function confirmTradeTermination(string memory tradeId, int256 terminationPayment, string memory terminationTerms) external;
 
     /**
      * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
      * @dev emits a {TradeTerminationCanceled}
-     * @param tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
+     * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationPayment an agreed termination amount (viewed from the requester)
      * @param terminationTerms the termination terms
      */
-    function cancelTradeTermination(string memory tradeData, int256 terminationPayment, string memory terminationTerms) external;
+    function cancelTradeTermination(string memory tradeId, int256 terminationPayment, string memory terminationTerms) external;
 }
