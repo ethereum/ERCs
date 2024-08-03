@@ -27,8 +27,6 @@ CP1 ->SettlementToken: allocate balances
 CP2 ->SettlementToken: allocate balances
 CP1 ->SDC: tx 'deploy' a SDC with token address
 activate SDC
-CP1 ->SettlementToken: tx set 'allowance' for SDC address
-CP2 ->SettlementToken: tx set 'allowance' for SDC address
 CP1 ->SDC:                 tx 'inceptTrade'
 
 SDC-->EventHandler: emit TradeIncepted
@@ -71,7 +69,7 @@ else success
 else fail
 	SDC->SettlementToken: tx 'transfer' Settlement Amount from SDC Balance to Receiving Party
 	SDC->SettlementToken: tx 'transfer' Termination Fee from SDC Balance to Receiving Party
-    	SDC->SettlementToken: tx 'approve' - Unlock remaing Party Balances
+    	SDC->SettlementToken: tx 'transfer' - Release  remainigBalances to parties
 
 == TradeState 'Terminated' ==
 end
