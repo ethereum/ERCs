@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "./AccessLayers.sol";
 import "./LibAccessLayers.sol";
 
-contract LayeredProxy is TransparentUpgradeableProxy, AccessLayers {
+contract Protected is TransparentUpgradeableProxy, AccessLayers {
     uint256 balance = 10000000 ether;
 
     constructor(
