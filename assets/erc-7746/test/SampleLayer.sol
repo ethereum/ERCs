@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity =0.8.20;
-import "./ILayer.sol";
+import "../ILayer.sol";
 
 contract RecoverableFuse is ILayer {
     mapping(address => mapping(bytes4 => uint256)) usage;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity =0.8.20;
-import "./ILayer.sol";
+import "../ILayer.sol";
 
 library LibAccessLayers {
     bytes32 constant ACCESS_LAYERS_STORAGE_POSITION = keccak256("lib.access.layer.storage");

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-import "../mocks/MockERC20.sol";
+import "./MockERC20.sol";
 pragma solidity =0.8.20;
 
 contract Drainer {
