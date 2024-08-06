@@ -1,7 +1,7 @@
 ---
 title: Wrapping of bubbled up reverts
 description: Handling bubbled up reverts using custom errors with additional context
-author: Daniel Gretzke (@gretzke), Sara Reynolds (@snreynolds), Alice Henshaw (@hensha256), Marko Veniger (@veniger)
+author: Daniel Gretzke (@gretzke), Sara Reynolds (@snreynolds), Alice Henshaw (@hensha256), Marko Veniger (@veniger), Hadrien Croubois (@Amxx)
 discussions-to: https://ethereum-magicians.org/t/tbd
 status: Draft
 type: Standards Track
