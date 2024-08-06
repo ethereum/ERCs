@@ -140,27 +140,29 @@ interface ISDC {
 
     /**
      * @dev Emitted when a counterparty proactively requests an early termination of the underlying trade
-     * @param cpAddress the address of the requesting party
+     * @param initiator the address of the requesting party
+     * @param terminationPayment an agreed termination amount (viewed from the requester)
      * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationTerms termination terms
      */
-    event TradeTerminationRequest(address cpAddress, string tradeId, int256 terminationPayment, string terminationTerms);
+    event TradeTerminationRequest(address initiator, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when early termination request is confirmed by the opposite party
-     * @param cpAddress the party which confirms the trade termination
+     * @param confirmer the party which confirms the trade termination
      * @param tradeId the trade identifier which is supposed to be terminated
+     * @param terminationPayment an agreed termination amount (viewed from the confirmer, negative of the value provided by the requester)
      * @param terminationTerms termination terms
      */
-    event TradeTerminationConfirmed(address cpAddress, string tradeId, int256 terminationPayment, string terminationTerms);
+    event TradeTerminationConfirmed(address confirmer, string tradeId, int256 terminationPayment, string terminationTerms);
 
     /**
      * @dev Emitted when a counterparty cancels its requests an early termination of the underlying trade
-     * @param cpAddress the address of the requesting party
+     * @param initiator the address of the requesting party
      * @param tradeId the trade identifier which is supposed to be terminated
      * @param terminationTerms termination terms
      */
-    event TradeTerminationCanceled(address cpAddress, string tradeId, string terminationTerms);
+    event TradeTerminationCanceled(address initiator, string tradeId, string terminationTerms);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
@@ -174,6 +176,7 @@ interface ISDC {
      * @param position is the position the inceptor has in that trade
      * @param paymentAmount is the payment amount which can be positive or negative (viewed from the inceptor)
      * @param initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
+     * @return the tradeId uniquely determining this trade.
      */
     function inceptTrade(address withParty, string memory tradeData, int position, int256 paymentAmount, string memory initialSettlementData) external returns (string memory);
 
