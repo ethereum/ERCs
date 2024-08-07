@@ -8,17 +8,15 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2024-07-29
-requires: 712, 1193
 ---
 
 ## Abstract
 
-Introduces a new RPC method `wallet_signedRequest` that enables dapps to interact with wallets in a tamperproof manner via "signed requests".
-To send a signed request, the dapp first publishes a set of public keys via its DNS records.
-Then, the dapp signs its plaintext RPC request with a corresponding private key,
-and submits the original request payload, signature, and public key id as the parameters of `wallet_signedRequest`.
-Upon receiving a signed request, the wallet retrieves the public key from the dapp's DNS records, verifies the signature, and finally processes the plaintext request as normal.
-The wallet can subsequently indicate to the user that the request was not tampered with.
+Introduces a new RPC method to be implemented by wallets, `wallet_signedRequest`, that
+enables dapps to interact with wallets in a tamperproof manner via "signed requests". The
+dapp associates a public key with its DNS record and uses the corresponding private key to
+sign payloads sent to the wallet via `wallet_signedRequest`. Wallets can then use use the
+public key in the DNS record to validate the integrity of the payload.
 
 ## Motivation
 
@@ -28,18 +26,22 @@ In essence, this is similar to how HTTPS is used in the web.
 Currently, the communication channel between dapps and wallets is vulnerable to man in the middle attacks.
 Specifically, attackers can intercept RPC requests by injecting JavaScript code in the page,
 via e.g. an XSS vulnerability or due to a malicious extension.
-Once an RPC request is intercepted, it can be modified in a number of pernicious ways:
+Once an RPC request is intercepted, it can be modified in a number of pernicious ways, including:
 
 - Editing the calldata in order to siphon funds or otherwise change the transaction outcome
-- Modify the parameters of an EIP-712 request
-- Obtain a replayable signature from the wallet
-- TODO
+- Modifying the parameters of an EIP-712 request
+- Obtaining a replayable signature from the wallet
 
 Even if the user realizes that requests from the dapp may be tampered with, they have little to no recourse to mitigate the problem.
 Overall, the lack of a chain of trust between the dapp and the wallet hurts the ecosystem as a whole:
 
 - Users cannot simply trust otherwise honest dapps, and are at risk of losing funds
 - Dapp maintainers are at risk of hurting their reputations if an attacker finds a viable MITM attack
+
+For these reasons, we recommend that wallets implement the `wallet_signedRequest` RPC method.
+This method provides dapp developers with a way to explicitly ask the wallet to verify the
+integrity of a payload. This is a significant improvement over the status quo, which forces
+dapps to rely on implicit approaches such as argument bit packing.
 
 ## Specification
 
@@ -63,7 +65,7 @@ We propose to use the dapp's domain certificate of a root of trust to establish 
 
 Attested public keys are necessary for the chain of trust to be established.
 Since this is traditionally done via DNS certificates, we propose the addition of a DNS record containing the public keys.
-This is similar to DKIM, but the use of the configuration file provides more flexibility for future improvements, and support for multiple algorithm and key pairs.
+This is similar to DKIM, but the use of a manifest file provides more flexibility for future improvements, as well as support for multiple algorithm and key pairs.
 
 Similarly to standard JWT practices, the wallet could eagerly cache dapp keys.
 However, in the absence of a revocation mechanism, a compromised key could still be used until caches have expired.
@@ -241,6 +243,11 @@ which are of very limited value for an attacker.
 
 For these reason, we do not recommend a specific replay protection mechanism at this time. If/when the need arise, the extensibility of
 the manifest will provide the necessary room to enforce a replay protection envelope (eg:JWT) for affected dapp.
+
+## References
+
+- Related EIPs / ERCs:
+  - [EIP-1193: Ethereum Provider JavaScript API](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1193.md)
 
 ## Copyright
 
