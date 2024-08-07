@@ -16,7 +16,7 @@ An ERC token standard representing shares in a corporation. This new interface s
 
 ## Motivation
 
-Creating a standard for corporation requires an industry effort. That's why this token standard adheres to the same design principles as the [Open Cap Table Coalition](https://www.opencaptablecoalition.com/format) (OCF), an industry-approved data standard for cap tables. Now everyone can adopt the same OCF-compliant token standard for Ethereum and beyond!
+Creating a standard for corporation requires an industry effort. That's why this token standard adheres to the same design principles as the [Open Cap Format](https://www.opencaptablecoalition.com/format) (OCF), an industry-approved data standard for cap tables. Now everyone can adopt the same OCF-compliant token standard for Ethereum and beyond!
 
 ## Specification
 
@@ -88,7 +88,7 @@ interface IToken {
    *  `_newName` is the name of the token
    *  `_newSymbol` is the symbol of the token
    *  `_newDecimals` is the decimals of the token
-   *  `_newVersion` is the version of the token, current version is 3.0
+   *  `_newVersion` is the version of the token, current version is 1.0
    *  `_newOnchainID` is the address of the onchainID of the token
    */
   event UpdatedTokenInformation(
