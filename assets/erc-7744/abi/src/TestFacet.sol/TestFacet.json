@@ -1,0 +1,28 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "Bar",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "foo",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ping",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  }
+]
