@@ -190,7 +190,7 @@ abstract contract SDCSingleTrade is ISDC {
         require(keccak256(abi.encodePacked(tradeID)) == keccak256(abi.encodePacked(_tradeId)), "Trade ID mismatch");
         uint256 hash = uint256(keccak256(abi.encode(_tradeId, "terminate", _terminationPayment, terminationTerms)));
         pendingRequests[hash] = msg.sender;
-        emit TradeTerminationRequest(msg.sender, _tradeId, terminationPayment, terminationTerms);
+        emit TradeTerminationRequest(msg.sender, _tradeId, _terminationPayment, terminationTerms);
     }
 
     /*
@@ -206,7 +206,7 @@ abstract contract SDCSingleTrade is ISDC {
 
         terminationPayment = msg.sender == receivingParty ? _terminationPayment : -_terminationPayment; // termination payment will be provided in view of receiving party
 
-        emit TradeTerminationConfirmed(msg.sender, _tradeId, terminationPayment, terminationTerms);
+        emit TradeTerminationConfirmed(msg.sender, _tradeId, _terminationPayment, terminationTerms);
         /* Trigger Termination Payment Amount */
         address payerAddress = terminationPayment > 0 ? otherParty(receivingParty) : receivingParty;
         uint256 absPaymentAmount = uint256(abs(_terminationPayment));
