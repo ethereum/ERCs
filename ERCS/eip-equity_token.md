@@ -3,7 +3,7 @@ eip: 7752
 title: Equity Token
 description: Equity token standard for corporations
 author: Matt Rosendin <matt@capsign.com>
-discussions-to: https://ethereum-magicians.org/t/equity-token-standard/20735
+discussions-to: https://ethereum-magicians.org/t/erc-7752-equity-token/20735
 status: Draft
 type: Standards
 category: ERC
