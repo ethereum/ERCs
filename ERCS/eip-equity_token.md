@@ -1,4 +1,5 @@
 ---
+eip: 7752
 title: Equity Token
 description: Equity token standard for corporations
 author: Matt Rosendin <matt@capsign.com>
