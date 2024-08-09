@@ -2,7 +2,7 @@
 eip: XXXX
 title: Tamperproof Web Immutable Transaction (TWIT)
 description: Provides a mechanism for DAP to use the API defined in EIP-1193 in a tamperproof way
-author: Erik Marks, Guillaume Grosbois
+author: Erik Marks (@remarks), Guillaume Grosbois (@uni-guillaume)
 discussions-to: TODO
 status: Draft
 type: Standards Track
