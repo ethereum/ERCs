@@ -290,8 +290,12 @@ abstract contract ERC1271 is EIP712 {
             /// @solidity memory-safe-assembly
             assembly {
                 mstore(gasprice(), gasprice())
+                // Basefee contract.
                 // See: https://gist.github.com/Vectorized/3c9b63524d57492b265454f62d895f71
-                let b := 0x000000000000378eDCD5B5B0A24f5342d8C10485 // Basefee contract,
+                // We'll use an external contract to retrieve the basefee, 
+                // because solc 0.8.4 and some chains do not support the basefee opcode.
+                // In absence of this contract, the basefee will be treated as zero.
+                let b := 0x000000000000378eDCD5B5B0A24f5342d8C10485
                 pop(staticcall(0xffff, b, codesize(), gasprice(), gasprice(), 0x20))
                 // If `gasprice < basefee`, the call cannot be on-chain, and we can skip the gas burn.
                 if iszero(mload(gasprice())) {
