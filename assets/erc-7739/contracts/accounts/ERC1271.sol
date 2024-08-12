@@ -289,7 +289,7 @@ abstract contract ERC1271 is EIP712 {
         if (tx.gasprice == uint256(0)) {
             /// @solidity memory-safe-assembly
             assembly {
-                mstore(gasprice(), gasprice())
+                mstore(gasprice(), gasprice()) // `mstore(0x00, 0x00)`.
                 // Basefee contract.
                 // See: https://gist.github.com/Vectorized/3c9b63524d57492b265454f62d895f71
                 // We'll use an external contract to retrieve the basefee, 
