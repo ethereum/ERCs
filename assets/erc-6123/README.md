@@ -11,8 +11,8 @@ We provide the essential steps to compile the contracts and run the provided uni
 ### Provided Contracts and Tests
 
 - `contracts/ISDC.sol` - Interface contract
-- `contracts/SDC.sol` - SDC abstract contract for an OTC Derivative
-- `contracts/SDCPledgedBalance.sol` - SDC full implementation for an OTC Derivative
+- `contracts/SDCSingleTrade.sol` - SDC abstract contract for an OTC Derivative (single trade case only)
+- `contracts/SDCSingleTradePledgedBalance.sol` - SDC full implementation for an OTC Derivative (single trade case only)
 - `contracts/IERC20Settlement.sol` - Interface (extending the ERC-20) for settlement tokens used in `SDCPledgedBalance`.
 - `contracts/ERC20Settlement.sol` - Mintable settlement token contract implementing `IERC20Settlement` for unit tests
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
