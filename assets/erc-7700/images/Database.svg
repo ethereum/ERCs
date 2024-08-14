@@ -30,6 +30,17 @@
       </cc:Work>
     </rdf:RDF>
   </metadata>
+   <style>
+      :root {
+         --main-stroke: #000;
+      }
+      @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --main-stroke: #fff;
+      }
+      }
+  </style>
   <defs
      id="defs2">
     <rect
@@ -212,7 +223,7 @@
        transform="translate(-3.5162968,-1.0583333)">
       <text
          xml:space="preserve"
-         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:none"
          x="265.3746"
          y="228.0849"
          id="text1278-7-4"><tspan
@@ -220,7 +231,7 @@
            id="tspan1276-9-2"
            x="265.25381"
            y="228.0849"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">HTTP POST [<tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:none">HTTP POST [<tspan
    style="letter-spacing:0px"
    id="tspan967">signer</tspan>] [<tspan
    style="letter-spacing:0px"
@@ -229,7 +240,7 @@
    id="tspan971">approval</tspan>]</tspan></text>
       <text
          xml:space="preserve"
-         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:none"
          x="352.51151"
          y="242.26897"
          id="text1278-7-4-3"><tspan
@@ -237,7 +248,7 @@
            id="tspan1276-9-2-3"
            x="352.39072"
            y="242.26897"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">[<tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:none">[<tspan
    style="letter-spacing:0px"
    id="tspan973">callData</tspan>]</tspan></text>
     </g>
@@ -247,7 +258,7 @@
        style="fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-opacity:1">
       <text
          xml:space="preserve"
-         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.309;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:none"
          x="214.05"
          y="140.99199"
          id="text1278"><tspan
@@ -255,17 +266,17 @@
            id="tspan1276"
            x="216.91931"
            y="140.99199"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.26869px;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.309;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">setValue(calldata) </tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:9.26869px;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:none">setValue(calldata) </tspan></text>
     </g>
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.8755px;line-height:1.05;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;font-variant-ligatures:none;text-align:center;letter-spacing:0.471533px;text-anchor:middle;fill:#ff4f00;fill-opacity:1;stroke:#000000;stroke-width:0.803351;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.8755px;line-height:1.05;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;font-variant-ligatures:none;text-align:center;letter-spacing:0.471533px;text-anchor:middle;fill:#ff4f00;fill-opacity:1;stroke:none"
        x="187.27057"
        y="146.44186"
        id="text2139-0-1-8-8-8-0-0"
        transform="scale(1.047946,0.95424763)"><tspan
          sodipodi:role="line"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;text-align:end;text-anchor:end;fill:#ff4f00;fill-opacity:1;stroke:#000000;stroke-width:0.803351;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:SPOTNIK;-inkscape-font-specification:SPOTNIK;text-align:end;text-anchor:end;fill:#ff4f00;fill-opacity:1;stroke:none"
          x="187.27057"
          y="146.44186"
          id="tspan2163-0-2-6-4-3-4" /></text>
@@ -283,7 +294,7 @@
          sodipodi:nodetypes="ccccccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;none"
          x="338.12903"
          y="107.73608"
          id="text1098-9"
@@ -292,7 +303,7 @@
            id="tspan1096-9"
            x="338.12903"
            y="107.73608"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">L1</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:none">L1</tspan></text>
     </g>
     <g
        id="g1175"
@@ -305,7 +316,7 @@
          sodipodi:nodetypes="ccccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:none"
          x="413.49622"
          y="108.33154"
          id="text1098-9-0"
@@ -314,7 +325,7 @@
            id="tspan1096-9-8"
            x="413.49622"
            y="108.33154"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">DB</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:none">DB</tspan></text>
     </g>
     <text
        xml:space="preserve"
@@ -322,7 +333,7 @@
        style="font-size:14.11110000000000042px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.36777100000000001px;white-space:pre;shape-inside:url(#rect1163);" />
     <text
        xml:space="preserve"
-       style="font-size:6.37907px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.282;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="font-size:6.37907px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:none"
        x="450.22726"
        y="90.796715"
        id="text1098-9-9"
@@ -331,7 +342,7 @@
          id="tspan1096-9-6"
          x="450.22726"
          y="90.796715"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.282;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">CONTRACT 1</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:none">CONTRACT 1</tspan></text>
     <path
        style="fill:none;stroke:#0085ff;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        d="M 86.011763,148.28317 H 444.28702"
@@ -384,7 +395,7 @@
        style="fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-opacity:1">
       <text
          xml:space="preserve"
-         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#0085ff;fill-opacity:1;stroke:none"
          x="204.15999"
          y="139.23582"
          id="text1278-7"><tspan
@@ -392,7 +403,7 @@
            id="tspan1276-9"
            x="204.15999"
            y="139.23582"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:#0085ff;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">revert <tspan
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#0085ff;fill-opacity:1;stroke:none">revert <tspan
    style="letter-spacing:0px"
    id="tspan965">StorageRoutedToDatabase(gatewayURL)</tspan></tspan></text>
     </g>
@@ -505,7 +516,7 @@
        style="fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-opacity:1">
       <text
          xml:space="preserve"
-         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:none"
          x="214.90277"
          y="139.72414"
          id="text1278-7-8"><tspan
@@ -513,18 +524,18 @@
            id="tspan1276-9-3"
            x="214.78198"
            y="139.72414"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">response</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:none">response</tspan></text>
     </g>
     <g
        id="g1159">
       <path
-         style="fill:none;fill-opacity:0.375;stroke:#ffffff;stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:none;fill-opacity:0.375;stroke:var(--main-stroke);stroke-width:2.365;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
          d="M 86.322276,290.00575 V 119.244 H 54.594263 V 93.866255 H 116.87518 V 119.244 H 86.322276"
          id="path1065"
          sodipodi:nodetypes="ccccccc" />
       <text
          xml:space="preserve"
-         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.771;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         style="font-size:12.8702px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:var(--main-stroke);fill-opacity:1;"
          x="84.649086"
          y="112.60667"
          id="text1098"
@@ -533,11 +544,11 @@
            id="tspan1096"
            x="84.649086"
            y="112.60667"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.771;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">CLIENT</tspan></text>
+           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:var(--main-stroke);fill-opacity:1;stroke:none">CLIENT</tspan></text>
     </g>
     <text
        xml:space="preserve"
-       style="font-size:6.37907px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.282;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       style="font-size:6.37907px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:none"
        x="529.70569"
        y="90.796715"
        id="text1098-9-9-8"
@@ -546,6 +557,6 @@
          id="tspan1096-9-6-7"
          x="529.70569"
          y="90.796715"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.282;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1">DATABASE</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'SF Mono';-inkscape-font-specification:'SF Mono';fill:#ff5300;fill-opacity:1;stroke:none">DATABASE</tspan></text>
   </g>
 </svg>
