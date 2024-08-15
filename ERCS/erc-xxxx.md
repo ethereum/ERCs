@@ -198,7 +198,7 @@ If it fails to find such a value, returns an error message with the detailed des
 Parameters:
 
 1. OBJECT - The RIP-7560 transaction object (as defined in `eth_sendRip7560Transaction`).
-   The `validationGasLimit`, `paymasterGasLimit`, `callGasLimit` fields are optional.
+   The `validationGasLimit`, paymasterValidationGasLimit, `paymasterGasLimit` and `callGasLimit` fields are optional.
 2. QUANTITY | TAG - integer block number, or the string "latest", "earliest", "pending", "safe" or "finalized"
 3. OBJECT - State override set
    The State Override Set option allows you to change the state of a contract before executing the call. This means you
