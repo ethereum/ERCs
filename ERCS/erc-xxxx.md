@@ -40,32 +40,16 @@ which requires a creation of new JSON-RPC API methods.
 
 We define the following changes to the Ethereum JSON-RPC API:
 
-#### Add RIP-7560 support for `eth_sendRawTransaction`
+#### Create a new JSON-RPC API method `eth_signRip7560Transaction`
 
-Parameters:
+This method is used by an RIP-7560 wallet application that operates the credentials for the Smart Contract Account
+specified as a `sender` of the provided RIP-7560 transaction.
 
-1. DATA - The signed RLP-encoded RIP-7560 transaction data.
-
-Returns:
-
-1. DATA, 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
-
-#### Add RIP-7560 support for `eth_sendTransaction`
-
-Allows clients to send a new transaction to the mempool.
-Can operate in two modes:
-as a wallet request to sign and send the transaction
-or simply a way to send a pre-signed one.
-
-If fhe `signature` parameter is not `null` acts similar to `eth_sendRawTransaction`,
-simply allowing the use of a JSON transaction format instead of its RLP encoding.
-
-If fhe `signature` parameter is `null`, fills in a `signature` field similar to the `eth_signRip7560Transaction` method.
 In case the node is not able to create such a `signature` returns an error describing the failure reason.
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object
+1. OBJECT - The RIP-7560 transaction object. The `signature` parameter must be `null`.
 
 | Name                            | Type           | Description                                                    |
 |---------------------------------|----------------|----------------------------------------------------------------|
@@ -85,28 +69,8 @@ Parameters:
 | callGasLimit                    | QUANTITY       | Gas provided for the transaction execution frame               |
 | accessList                      | OBJECT         | An EIP-2930 compatible Access List structure                   |
 | EIP-7702 authorizations (WIP)   | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs    |
-| **signature**                   | DATA           | A signature of any kind used by Account to verify transaction  |
 
 \* fields marked as **bold** are unique for the RIP-7560 transaction type
-
-Returns:
-
-1. DATA, 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
-
-Error:
-
-DATA - The revert data of the first reverted frame.
-CODE - The error code indicating the type of error, which may include the entity that caused the revert on-chain.
-MESSAGE - The human-readable error that may include a decoding of the `DATA` field if possible.
-
-#### Create a new JSON-RPC API method `eth_signRip7560Transaction`
-
-This method is used by an RIP-7560 wallet application that operates the credentials for the Smart Contract Account
-specified as a `sender` of the provided RIP-7560 transaction.
-
-Parameters:
-
-1. OBJECT - The RIP-7560 transaction object. The `signature` parameter must be `null`.
 
 Returns:
 
