@@ -111,6 +111,8 @@ Does not require the transaction to be properly signed, meaning it continues exe
 or a paymaster contract make a `sigFailAccount` or `sigFailPaymaster` call.
 If all frames execute successfully, simply returns the data returned by the top level frame of the execution phase.
 If any of the validation or execution frames revers, returns an error object containing the revert message.
+Note that unlike `eth_call`, RIP-7560 transaction depends on its deployment and validation,
+so it can't be called in isolation from its deployment and validation
 If the transaction validation fails for any reason other than the failed signature check,
 returns an error object containing the details of the validation failure.
 
@@ -208,13 +210,13 @@ by different implementation.
 ### Error Codes
 
 * code: -32500 - transaction validation failed by `sender`.
-  The message field SHOULD be set to the revert message from the `sender`.
+  The message field SHOULD be set to the revert message and data from the `sender`.
 
 * code: -32501 - transaction validation failed by `paymaster`.
-  The message field SHOULD be set to the revert message from the `paymaster`.
+  The message field SHOULD be set to the revert message and data from the `paymaster`.
 
 * code: -32502 - transaction validation failed by `deployer`
-  The message field SHOULD be set to the revert message from the `deployer`.
+  The message field SHOULD be set to the revert message and data from the `deployer`.
 
 * code: -32503 - Transaction out of time range.
   The message field SHOULD include the requested time range and the current block timestamp.
