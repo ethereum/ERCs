@@ -26,13 +26,6 @@ Native Account Abstraction is expected to supersede [ERC-4337](https://eips.ethe
 by making all the benefits of Account Abstraction a core part of the protocol, bringing down the cost for the users,
 enabling easy migration to post-quantum cryptography and eventually deprecation of Externally Owned Accounts altogether.
 
-A number of current Ethereum JSON-RPC API methods are defined for transactions of existing types, such as legacy,
-[EIP-2930](https://eips.ethereum.org/EIPS/eip-2930),
-[EIP-1559](https://eips.ethereum.org/EIPS/eip-1559),
-[EIP-4844](https://eips.ethereum.org/EIPS/eip-4844),
-and the upcoming [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702).
-They are not properly defined for RIP-7560 transaction type.
-
 There are also some actions that are only applicable in the context of Native Account Abstraction,
 which requires a creation of new JSON-RPC API methods.
 
