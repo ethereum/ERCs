@@ -31,43 +31,35 @@ which requires a creation of new JSON-RPC API methods.
 
 ## Specification
 
+This document defines the API that the RIP-7560 compatible Ethereum nodes provide to either Smart Contract
+Wallet applications or advanced dapps.
 We define the following changes to the Ethereum JSON-RPC API:
 
-#### Create a new JSON-RPC API method `eth_signRip7560Transaction`
+### Definition of the RIP-7560 transaction type:
 
-This method is used by an RIP-7560 wallet application that operates the credentials for the Smart Contract Account
-specified as a `sender` of the provided RIP-7560 transaction.
+The following table represents a full list of fields of an RIP-7560 transaction:
 
-In case the node is not able to create such a `signature` returns an error describing the failure reason.
+| Name                          | Type           | Description                                                    |
+|-------------------------------|----------------|----------------------------------------------------------------|
+| sender                        | DATA, 20 Bytes | Address of the Smart Contract Account making the transaction   |
+| deployer                      | DATA, 20 Bytes | Address of the Deployer - account factory contract             |
+| deployerData                  | DATA           | Data that is provided to the Deployer contract                 |
+| paymaster                     | DATA, 20 Bytes | Address of the Paymaster contract                              |
+| paymasterData                 | DATA           | Data that is provided to the Paymaster contract                |
+| callData                      | DATA           | Data that is provided to the Account contract for execution    |
+| nonce                         | QUANTITY       | A 256 bit nonce. Use of `nonce > 2^64` is defined in RIP-7712  |
+| builderFee                    | QUANTITY       | Value passed from sender or paymaster to the `coinbase`        |
+| maxPriorityFeePerGas          | QUANTITY       | The maximum gas price to be included as a tip to the validator |
+| maxFeePerGas                  | QUANTITY       | The maximum fee per unit of gas                                |
+| validationGasLimit            | QUANTITY       | Gas provided for the transaction account validation frame      |
+| paymasterValidationGasLimit   | QUANTITY       | Gas provided for the transaction paymaster validation frame    |
+| paymasterPostOpGasLimit       | QUANTITY       | Gas provided for the transaction paymaster `postOp` frame      |
+| callGasLimit                  | QUANTITY       | Gas provided for the transaction execution frame               |
+| accessList                    | OBJECT         | An EIP-2930 compatible Access List structure                   |
+| EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs    |
+| signature                     | DATA           | A signature of any kind used by Account to verify transaction  |
 
-Parameters:
-
-1. OBJECT - The RIP-7560 transaction object. The `signature` parameter must be `null`.
-
-| Name                            | Type           | Description                                                    |
-|---------------------------------|----------------|----------------------------------------------------------------|
-| **sender**                      | DATA, 20 Bytes | Address of the Smart Contract Account making the transaction   |
-| **deployer**                    | DATA, 20 Bytes | Address of the Deployer - account factory contract             |
-| **deployerData**                | DATA           | Data that is provided to the Deployer contract                 |
-| **paymaster**                   | DATA, 20 Bytes | Address of the Paymaster contract                              |
-| **paymasterData**               | DATA           | Data that is provided to the Paymaster contract                |
-| callData                        | DATA           | Data that is provided to the Account contract for execution    |
-| nonce                           | QUANTITY       | A 256 bit nonce. Use of `nonce > 2^64` is defined in RIP-7712) |
-| **builderFee**                  | QUANTITY       | Value passed from sender or paymaster to the `coinbase`        |
-| maxPriorityFeePerGas            | QUANTITY       | The maximum gas price to be included as a tip to the validator |
-| maxFeePerGas                    | QUANTITY       | The maximum fee per unit of gas                                |
-| **validationGasLimit**          | QUANTITY       | Gas provided for the transaction account validation frame      |
-| **paymasterValidationGasLimit** | QUANTITY       | Gas provided for the transaction paymaster validation frame    |
-| **paymasterPostOpGasLimit**     | QUANTITY       | Gas provided for the transaction paymaster `postOp` frame      |
-| callGasLimit                    | QUANTITY       | Gas provided for the transaction execution frame               |
-| accessList                      | OBJECT         | An EIP-2930 compatible Access List structure                   |
-| EIP-7702 authorizations (WIP)   | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs    |
-
-\* fields marked as **bold** are unique for the RIP-7560 transaction type
-
-Returns:
-
-1. DATA - a value to be used as a `signature` parameter that makes the provided RIP-7560 transaction valid.
+### Changes to the JSON-RPC API
 
 #### Add RIP-7560 support for `eth_getTransactionReceipt`
 
@@ -127,7 +119,7 @@ returns an error object containing the details of the validation failure.
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object (as defined in `eth_signRip7560Transaction`).
+1. OBJECT - The RIP-7560 transaction object.
    The `signature` field is optional.
 2. QUANTITY | TAG - integer block number, or the string "latest", "earliest", "pending", "safe" or "finalized"
 
@@ -143,7 +135,8 @@ MESSAGE - The human-readable error that may include a decoding of the `DATA` fie
 
 #### Add RIP-7560 support for all remaining transaction-level RPC APIs
 
-This includes the following APIs: `eth_sendTransaction`, `eth_sendRawTransaction`,  `eth_getTransactionByHash`, `eth_getTransactionByBlockHashAndIndex`,
+This includes the following APIs: `eth_sendTransaction`, `eth_sendRawTransaction`,  `eth_getTransactionByHash`,
+`eth_getTransactionByBlockHashAndIndex`,
 `eth_getTransactionByBlockNumberAndIndex`.
 
 These methods have a very similar purpose and should support returning the new transaction type object.
@@ -161,7 +154,7 @@ If it fails to find such a value, returns an error message with the detailed des
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object (as defined in `eth_signRip7560Transaction`).
+1. OBJECT - The RIP-7560 transaction object.
    The `validationGasLimit`, paymasterValidationGasLimit, `paymasterGasLimit` and `callGasLimit` fields are optional.
 2. QUANTITY | TAG - integer block number, or the string "latest", "earliest", "pending", "safe" or "finalized"
 3. OBJECT - State override set
@@ -205,67 +198,15 @@ defined in the [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562).
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object (as defined in `eth_signRip7560Transaction`).
+1. OBJECT - The RIP-7560 transaction object.
 2. QUANTITY | TAG - a block number, or the string "earliest", "latest", "pending", "safe" or "finalized", as in the
    default block parameter.
 
 Returns:
 
-1. OBJECT - the tracing result of executing the entire validation phase of the RIP-7560 transaction.
-
-Example of the tracing result JSON response:
-
-```json
-{
-  "callsFromEntryPoint": [
-    {
-      "topLevelTargetAddress": "<address>",
-      "access": {
-        "<address>": {
-          "reads": {
-            "slot": "value"
-          },
-          "writes": {
-            "slot": "value"
-          },
-          "transientReads": {},
-          "transientWrites": {}
-        }
-      },
-      "opcodes": {
-        "<OPCODE>": "<count>"
-      },
-      "contractSize": {
-        "<address>": {
-          "contractSize": 0,
-          "opcode": "CALL"
-        }
-      },
-      "calls": [
-        {
-          "type": "CALL",
-          "from": "<address>",
-          "to": "<address>",
-          "method": "0x",
-          "value": "0x0",
-          "gas": 2000000,
-          "gasUsed": 0,
-          "data": "<data>"
-        }
-      ],
-      "logs": [
-        {
-          "data": "<data>",
-          "topic": [
-            "<topic>"
-          ]
-        }
-      ]
-    }
-  ]
-}
-
-```
+1. OBJECT - the tracing result of executing the entire validation phase of the RIP-7560 transaction.\
+The exact shape of the returned object is not strictly defined by this standard and can be decided
+by different implementation.
 
 ### Error Codes
 
