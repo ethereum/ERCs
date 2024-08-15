@@ -59,9 +59,7 @@ The following table represents a full list of fields of an RIP-7560 transaction:
 | EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs    |
 | signature                     | DATA           | A signature of any kind used by Account to verify transaction  |
 
-### Changes to the JSON-RPC API
-
-#### Changes to `eth_getTransactionReceipt`
+### Add RIP-7560 support for `eth_getTransactionReceipt`
 
 For an RIP-7560 transaction included in a block, return also the values specific to this transaction type
 in addition to all the existing fields.
@@ -106,7 +104,7 @@ Continued, these fields are shared by all transaction types:
 | type              | QUANTITY        | Integer of the transaction type                                                            |
 | status            | QUANTITY        | Either 1 (success) or 0 (failure) status of the execution frame                            |
 
-#### Create a new JSON-RPC API method `eth_executeRip7560Transaction`
+### Create a new JSON-RPC API method `eth_executeRip7560Transaction`
 
 Executes the entire RIP-7560 transaction in memory without broadcasting it or including it in a block.
 Does not require the transaction to be properly signed, meaning it continues execution after either an account
@@ -132,7 +130,7 @@ DATA - The revert data of the first reverted frame.
 CODE - The error code indicating the type of error, which may include the entity that caused the revert on-chain.
 MESSAGE - The human-readable error that may include a decoding of the `DATA` field if possible.
 
-#### Add RIP-7560 support for all remaining transaction-level RPC APIs
+### Add RIP-7560 support for all remaining transaction-level RPC APIs
 
 This includes the following APIs: `eth_sendTransaction`, `eth_sendRawTransaction`,  `eth_getTransactionByHash`,
 `eth_getTransactionByBlockHashAndIndex`,
@@ -142,7 +140,7 @@ These methods have a very similar purpose and should support returning the new t
 
 Note that the "transaction index position" is determined by the position of the transaction's **validation frame**.
 
-#### Create a new JSON-RPC API method `eth_estimateRip7560TransactionGas`
+### Create a new JSON-RPC API method `eth_estimateRip7560TransactionGas`
 
 Performs a search for gas limit values required to make each of the frames of the RIP-7560 transaction execute
 successfully and without running out of gas.
@@ -179,7 +177,7 @@ DATA - The revert data of the first reverted frame.
 CODE - The error code indicating the type of error, which may include the entity that caused the revert on-chain.
 MESSAGE - The human-readable error that may include a decoding of the `DATA` field if possible.
 
-##### Notes on implementation details
+#### Notes on implementation details
 
 As mentioned in the RIP-7560, the `sender` and `paymaster` contracts should not revert on the validation failure
 and should make calls to `sigFailAccount` and `sigFailPaymaster` respectively
@@ -188,7 +186,7 @@ in order to support `eth_estimateRip7560TransactionGas`.
 The recommended way to achieve this behavior for Smart Contract Accounts and Paymasters is to compare the `signature`
 parameter to a predetermined "dummy signature" and to call a `sigFail` callback in case the values match.
 
-#### Create a new JSON-RPC API method `eth_traceRip7560Validation`
+### Create a new JSON-RPC API method `eth_traceRip7560Validation`
 
 Only executes the validation phase of the RIP-7560 transaction and returns the tracing results of this execution.
 This is done in order to allow other clients to determine
