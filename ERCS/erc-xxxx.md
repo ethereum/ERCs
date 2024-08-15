@@ -76,44 +76,6 @@ Returns:
 
 1. DATA - a value to be used as a `signature` parameter that makes the provided RIP-7560 transaction valid.
 
-#### Add RIP-7560 support for `eth_getTransaction` APIs
-
-This includes the following APIs: `eth_getTransactionByHash`, `eth_getTransactionByBlockHashAndIndex`,
-`eth_getTransactionByBlockNumberAndIndex`.
-
-These methods have a very similar purpose and should support returning the new transaction type object.
-
-Parameters:
-`eth_getTransactionByHash`:
-
-1. DATA, 32 Bytes - hash of a transaction
-
-`eth_getTransactionByBlockHashAndIndex`:
-
-1. DATA, 32 Bytes - hash of a block.
-2. QUANTITY - the transaction index position.
-
-`eth_getTransactionByBlockNumberAndIndex`:
-
-1. QUANTITY | TAG - a block number, or the string "earliest", "latest", "pending", "safe" or "finalized", as in the
-   default block parameter.
-2. QUANTITY - the transaction index position.
-
-Note that the "transaction index position" is determined by the position of the transaction's **validation frame**.
-
-Returns:
-
-1. OBJECT - A transaction object, or `null` when no transaction was found:
-
-| Name             | Type           | Description                                                             |
-|------------------|----------------|-------------------------------------------------------------------------|
-| blockHash        | DATA, 32 Bytes | Hash of the block where this transaction was in, or `null` when pending |
-| blockNumber      | QUANTITY       | Block number where this transaction was in, or `null` when pending      |
-| transactionIndex | QUANTITY       | The transaction's index position in the block, or `null` when pending   |
-| type             | QUANTITY       | The transaction type                                                    |
-
-\* followed by the entire RIP-7560 transaction object as described in `eth_sendRip7560Transaction`
-
 #### Add RIP-7560 support for `eth_getTransactionReceipt`
 
 For an RIP-7560 transaction included in a block, return also the values specific to this transaction type
@@ -185,6 +147,15 @@ Error:
 DATA - The revert data of the first reverted frame.
 CODE - The error code indicating the type of error, which may include the entity that caused the revert on-chain.
 MESSAGE - The human-readable error that may include a decoding of the `DATA` field if possible.
+
+#### Add RIP-7560 support for all remaining transaction-level RPC APIs
+
+This includes the following APIs: `eth_sendTransaction`, `eth_sendRawTransaction`,  `eth_getTransactionByHash`, `eth_getTransactionByBlockHashAndIndex`,
+`eth_getTransactionByBlockNumberAndIndex`.
+
+These methods have a very similar purpose and should support returning the new transaction type object.
+
+Note that the "transaction index position" is determined by the position of the transaction's **validation frame**.
 
 #### Create a new JSON-RPC API method `eth_estimateRip7560TransactionGas`
 
