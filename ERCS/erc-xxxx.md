@@ -13,7 +13,7 @@ requires: RIP-7560, ERC-7562, EIP-7702
 
 ## Abstract
 
-The [RIP-7560](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7560.md) defines the new transaction type
+[RIP-7560](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7560.md) defines the new transaction type
 and the modifications to the EVM needed for the Native Account Abstraction support.
 
 However, there are a number of modifications to the Ethereum JSON-RPC API that is needed as well.
