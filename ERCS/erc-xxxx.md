@@ -88,7 +88,6 @@ Fields specific to an RIP-7560 transaction receipt:
 | postOpStatus               | QUANTITY        | 1 (success), 0 (failure), or `null` (did not run) status of the `postOp` frame |
 | postOpGasUsed              | QUANTITY        | The amount of gas actually used by the paymaster `postOp` frame                |
 | validationLogs             | ARRAY           | Array of log objects, which this transaction'S VALIDATION FRAME generated.     |
-| validationLogsBloom        | DATA, 256 Bytes | Array of log objects, which this transaction'S VALIDATION FRAME generated.     |
 
 Continued, these fields are shared by all transaction types:
 
