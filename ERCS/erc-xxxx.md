@@ -22,7 +22,7 @@ for the Native Account Abstraction ecosystem to implement these APIs in a standa
 
 ## Motivation
 
-Native Account Abstraction is expected to supersede the [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337)
+Native Account Abstraction is expected to supersede [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337)
 by making all the benefits of Account Abstraction a core part of the protocol, bringing down the cost for the users,
 enabling easy migration to post-quantum cryptography and eventually deprecation of Externally Owned Accounts altogether.
 
