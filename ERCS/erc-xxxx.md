@@ -127,7 +127,7 @@ returns an error object containing the details of the validation failure.
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object (as defined in `eth_sendRip7560Transaction`).
+1. OBJECT - The RIP-7560 transaction object (as defined in `eth_signRip7560Transaction`).
    The `signature` field is optional.
 2. QUANTITY | TAG - integer block number, or the string "latest", "earliest", "pending", "safe" or "finalized"
 
@@ -161,7 +161,7 @@ If it fails to find such a value, returns an error message with the detailed des
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object (as defined in `eth_sendRip7560Transaction`).
+1. OBJECT - The RIP-7560 transaction object (as defined in `eth_signRip7560Transaction`).
    The `validationGasLimit`, paymasterValidationGasLimit, `paymasterGasLimit` and `callGasLimit` fields are optional.
 2. QUANTITY | TAG - integer block number, or the string "latest", "earliest", "pending", "safe" or "finalized"
 3. OBJECT - State override set
@@ -205,7 +205,7 @@ defined in the [ERC-7562](https://eips.ethereum.org/EIPS/eip-7562).
 
 Parameters:
 
-1. OBJECT - The RIP-7560 transaction object (as defined in `eth_sendRip7560Transaction`).
+1. OBJECT - The RIP-7560 transaction object (as defined in `eth_signRip7560Transaction`).
 2. QUANTITY | TAG - a block number, or the string "earliest", "latest", "pending", "safe" or "finalized", as in the
    default block parameter.
 
