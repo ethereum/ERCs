@@ -61,7 +61,7 @@ The following table represents a full list of fields of an RIP-7560 transaction:
 
 ### Changes to the JSON-RPC API
 
-#### Add RIP-7560 support for `eth_getTransactionReceipt`
+#### Changes to `eth_getTransactionReceipt`
 
 For an RIP-7560 transaction included in a block, return also the values specific to this transaction type
 in addition to all the existing fields.
