@@ -110,7 +110,7 @@ Executes the entire RIP-7560 transaction in memory without broadcasting it or in
 Does not require the transaction to be properly signed, meaning it continues execution after either an account
 or a paymaster contract make a `sigFailAccount` or `sigFailPaymaster` call.
 If all frames execute successfully, simply returns the data returned by the top level frame of the execution phase.
-If any of the validation or execution frames revers, returns an error object containing the revert message.
+If any of the validation or execution frames reverts, returns an error object containing the revert message.
 Note that unlike `eth_call`, RIP-7560 transaction depends on its deployment and validation,
 so it can't be called in isolation from its deployment and validation
 If the transaction validation fails for any reason other than the failed signature check,
