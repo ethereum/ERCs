@@ -22,7 +22,7 @@ for the Native Account Abstraction ecosystem to implement these APIs in a standa
 
 ## Motivation
 
-Native Account Abstraction is expected to supersede [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337)
+Native Account Abstraction is expected to improve upon [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337)
 by making all the benefits of Account Abstraction a core part of the protocol, bringing down the cost for the users,
 enabling easy migration to post-quantum cryptography and eventually deprecation of Externally Owned Accounts altogether.
 
@@ -46,7 +46,7 @@ The following table represents a full list of fields of an RIP-7560 transaction:
 | deployerData                  | DATA           | Data that is provided to the Deployer contract                 |
 | paymaster                     | DATA, 20 Bytes | Address of the Paymaster contract                              |
 | paymasterData                 | DATA           | Data that is provided to the Paymaster contract                |
-| callData                      | DATA           | Data that is provided to the Account contract for execution    |
+| executionData                 | DATA           | Data that is provided to the Account contract for execution    |
 | nonce                         | QUANTITY       | A 256 bit nonce. Use of `nonce > 2^64` is defined in RIP-7712  |
 | builderFee                    | QUANTITY       | Value passed from sender or paymaster to the `coinbase`        |
 | maxPriorityFeePerGas          | QUANTITY       | The maximum gas price to be included as a tip to the validator |
@@ -57,7 +57,7 @@ The following table represents a full list of fields of an RIP-7560 transaction:
 | callGasLimit                  | QUANTITY       | Gas provided for the transaction execution frame               |
 | accessList                    | OBJECT         | An EIP-2930 compatible Access List structure                   |
 | EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs    |
-| signature                     | DATA           | A signature of any kind used by Account to verify transaction  |
+| authorizationData             | DATA           | Data that will be used by the Account to verify transaction    |
 
 ### Add RIP-7560 support for `eth_getTransactionReceipt`
 
@@ -74,18 +74,18 @@ Returns:
 
 Fields specific to an RIP-7560 transaction receipt:
 
-| Name                       | Type            | Description                                                                    |
-|----------------------------|-----------------|--------------------------------------------------------------------------------|
-| sender                     | DATA, 20 Bytes  | Address of the sender of this transaction                                      |
-| paymaster                  | DATA, 20 Bytes  | Address of the Paymaster if it is paying for the transaction, `null` otherwise |
-| deployer                   | DATA, 20 Bytes  | Address of the Deployer if it is included in the transaction, `null` otherwise |
-| senderCreationGasUsed      | QUANTITY        | The amount of gas actually used by the sender deployment frame                 |
-| senderValidationGasUsed    | QUANTITY        | The amount of gas actually used by the sender validation frame                 |
-| paymasterValidationGasUsed | QUANTITY        | The amount of gas actually used by the paymaster validation frame              |
-| executionGasUsed           | QUANTITY        | The amount of gas actually used by the execution frame                         |
-| postOpStatus               | QUANTITY        | 1 (success), 0 (failure), or `null` (did not run) status of the `postOp` frame |
-| postOpGasUsed              | QUANTITY        | The amount of gas actually used by the paymaster `postOp` frame                |
-| validationLogs             | ARRAY           | Array of log objects, which this transaction'S VALIDATION FRAME generated.     |
+| Name                       | Type           | Description                                                                    |
+|----------------------------|----------------|--------------------------------------------------------------------------------|
+| sender                     | DATA, 20 Bytes | Address of the sender of this transaction                                      |
+| paymaster                  | DATA, 20 Bytes | Address of the Paymaster if it is paying for the transaction, `null` otherwise |
+| deployer                   | DATA, 20 Bytes | Address of the Deployer if it is included in the transaction, `null` otherwise |
+| senderCreationGasUsed      | QUANTITY       | The amount of gas actually used by the sender deployment frame                 |
+| senderValidationGasUsed    | QUANTITY       | The amount of gas actually used by the sender validation frame                 |
+| paymasterValidationGasUsed | QUANTITY       | The amount of gas actually used by the paymaster validation frame              |
+| executionGasUsed           | QUANTITY       | The amount of gas actually used by the execution frame                         |
+| postOpStatus               | QUANTITY       | 1 (success), 0 (failure), or `null` (did not run) status of the `postOp` frame |
+| postOpGasUsed              | QUANTITY       | The amount of gas actually used by the paymaster `postOp` frame                |
+| validationLogs             | ARRAY          | Array of log objects, which this transaction'S VALIDATION FRAME generated.     |
 
 Continued, these fields are shared by all transaction types:
 
@@ -113,13 +113,13 @@ If all frames execute successfully, simply returns the data returned by the top 
 If any of the validation or execution frames reverts, returns an error object containing the revert message.
 Note that unlike `eth_call`, RIP-7560 transaction depends on its deployment and validation,
 so it can't be called in isolation from its deployment and validation
-If the transaction validation fails for any reason other than the failed signature check,
+If the transaction validation fails for any reason other than the failed `authorizationData` check,
 returns an error object containing the details of the validation failure.
 
 Parameters:
 
 1. OBJECT - The RIP-7560 transaction object.
-   The `signature` field is optional.
+   The `authorizationData` field is optional.
 2. QUANTITY | TAG - integer block number, or the string "latest", "earliest", "pending", "safe" or "finalized"
 
 Returns:
@@ -185,8 +185,9 @@ As mentioned in the RIP-7560, the `sender` and `paymaster` contracts should not 
 and should make calls to `sigFailAccount` and `sigFailPaymaster` respectively
 in order to support `eth_estimateRip7560TransactionGas`.
 
-The recommended way to achieve this behavior for Smart Contract Accounts and Paymasters is to compare the `signature`
-parameter to a predetermined "dummy signature" and to call a `sigFail` callback in case the values match.
+The recommended way to achieve this behavior for Smart Contract Accounts and Paymasters is to compare the
+`authorizationData`
+parameter to a predetermined "dummy" and to call a `sigFail` callback in case the values match.
 
 ### Create a new JSON-RPC API method `eth_traceRip7560Validation`
 
@@ -204,8 +205,8 @@ Parameters:
 Returns:
 
 1. OBJECT - the tracing result of executing the entire validation phase of the RIP-7560 transaction.\
-The exact shape of the returned object is not strictly defined by this standard and can be decided
-by different implementation.
+   The exact shape of the returned object is not strictly defined by this standard and can be decided
+   by different implementation.
 
 ### Error Codes
 
@@ -235,7 +236,7 @@ It seems like the difference between these transaction types warrants a separate
 The RPC API methods standard described in this document does not have any consequences for the security of the
 Native Account Abstraction ecosystem.
 
-The implementations of these APIs, especially the ones related to generating a `signature` for a transaction,
+The implementations of these APIs, especially the ones related to generating an `authorizationData` for a transaction,
 must be extremely careful when handling the Smart Contract Accounts' credentials.
 
 ## Copyright
