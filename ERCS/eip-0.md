@@ -3,10 +3,10 @@ eip: 0000
 title: Instinct-Based Automatic Transactions  
 description: A blockchain framework for autonomous transaction execution based on predefined AI-driven instincts with temptation values.  
 author: James Savechives (@jamesavechives) <james.walstonn@gmail.com>  
-discussions-to: https://ethereum-magicians.org/t/erc-0000-ai-driven-instinct-based-automatic-transactions/20725  
-status: Draft  
-type: Standards Track  
-category: ERC  
+discussions-to: https://ethereum-magicians.org/t/erc-0000-ai-driven-instinct-based-automatic-transactions/20725
+status: Draft
+type: Standards Track
+category: ERC
 created: 2024-08-19
 ---
 
