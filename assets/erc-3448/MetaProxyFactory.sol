@@ -85,7 +85,7 @@ contract MetaProxyFactory {
       mstore(ptr, length)
       ptr := add(ptr, 32)
 
-      // The size is deploy code + contract code + calldatasize - 4 + 32.
+      // The size is deploy code + contract code + length + 32.
       addr := create(0, start, sub(ptr, start))
     }
   }
