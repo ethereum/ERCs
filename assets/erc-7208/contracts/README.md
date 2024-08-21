@@ -1,7 +1,7 @@
 # Reference implementation of ERC-7208 and usage examples
 ## List of contracts
 ### Interfaces
-- [IDataIndex](/interfaces/IDataIndex.sol) - Interface of Data Index
+- [IDataIndex](./interfaces/IDataIndex.sol) - Interface of Data Index
 - [IDataObject](./interfaces/IDataObject.sol) - Interface of Data Object
 - [IDataPointRegistry](./interfaces/IDataPointRegistry.sol) - Interface of Data Point Registry
 - [IIDManager](./interfaces/IIDManager.sol) - Interface for buildinq and quering Data Index user identifiers
