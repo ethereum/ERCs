@@ -1,14 +1,14 @@
 # Reference implementation of ERC-7208 and usage examples
 ## List of contracts
 ### Interfaces
-- [IDataIndex](./interfaces/IDataIndex.sol) - Interface of Data Index
+- [IDataIndex](/interfaces/IDataIndex.sol) - Interface of Data Index
 - [IDataObject](./interfaces/IDataObject.sol) - Interface of Data Object
 - [IDataPointRegistry](./interfaces/IDataPointRegistry.sol) - Interface of Data Point Registry
 - [IIDManager](./interfaces/IIDManager.sol) - Interface for buildinq and quering Data Index user identifiers
 
 ### Implementation
-- [DataIndex](DataIndex.sol) - Data Index (implements `IDataIndex` and `IIDManager`)
-- [DataPointRegistry](DataPointRegistry.sol) - Data Point Registry (implements `IDataPointRegistry`)
+- [DataIndex](./DataIndex.sol) - Data Index (implements `IDataIndex` and `IIDManager`)
+- [DataPointRegistry](./DataPointRegistry.sol) - Data Point Registry (implements `IDataPointRegistry`)
 - [DataPoints](./utils/DataPoints.sol) - Library implementing DataPoint type and its encode/decode functions
 - [OmnichainAddress](./utils/OmnichainAddress.sol) - Library implementing OmnichainAddress type which combines address and chain id
 - [ChainidTools](./utils/ChainidTools.sol) - Library implementing utility functions to work with chain ids
