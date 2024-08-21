@@ -20,8 +20,3 @@
 - [MinimalisticERC1155WithERC20FractionsDataManager](./datamanagers/MinimalisticERC1155WithERC20FractionsDataManager.sol) - DataManager implements token with fungible fractions with ERC1155 interface, linked to a DataManager which implements ERC20 interface for same token
 - [MinimalisticERC20FractionDataManager](./datamanagers/MinimalisticERC20FractionDataManager.sol) - implements token with ERC20 interface, linked to a DataManager which implements ERC1155 interface for same token
 - [MinimalisticERC20FractionDataManagerFactory](./datamanagers/MinimalisticERC20FractionDataManagerFactory.sol) - factory of DataManagers implementing ERC20 interface for token with fungible fractions
-
-
-
-
-
