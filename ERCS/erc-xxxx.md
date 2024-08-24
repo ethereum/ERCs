@@ -84,7 +84,7 @@ We then define the following Solidity interface:
     }
 
 interface IPaymasterConfigurationResolver {
-    function getPaymasterConfiguration(bytes operation, bytes context) external;
+    function getPaymasterConfiguration(bytes operation, bytes context) returns (PaymasterConfiguration);
 }
 
 ```
