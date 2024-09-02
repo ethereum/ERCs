@@ -4,6 +4,7 @@ pragma solidity >=0.7.0 <0.9.0;
 import "./ISDC.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "./IERC20Settlement.sol";
 
 contract ERC20Settlement is ERC20, IERC20Settlement{
@@ -38,25 +39,14 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
     }
 
     function checkedTransfer(address to, uint256 value, uint256 transactionID) public onlySDC{
-        try this.transfer(to,value) returns (bool transferSuccessFlag) {
-            ISDC(sdcAddress).afterTransfer(transactionID, transferSuccessFlag);
-        }
-        catch{
-            ISDC(sdcAddress).afterTransfer(transactionID, false);
-        }
+        if ( balanceOf(sdcAddress) < value)
+            ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+        else
+            ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
     }
 
-    function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external onlySDC {
-        // TODO: Bug - reason="Error: Transaction reverted: contract call run out of gas and made the transaction revert", method="estimateGas",
-        if (this.balanceOf(from)< value || this.allowance(from,address(msg.sender)) < value )
-            ISDC(sdcAddress).afterTransfer(transactionID, false);
-        try this.transfer(to,value) returns (bool transferSuccessFlag) {
-            ISDC(sdcAddress).afterTransfer(transactionID, transferSuccessFlag);
-        }
-        catch{
-            ISDC(sdcAddress).afterTransfer(transactionID, false);
-        }
-        // address owner = _msgSender();    // currently not used
+    function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external view onlySDC {
+        revert("not implemented");
     }
 
     function checkedBatchTransfer(address[] memory to, uint256[] memory values, uint256 transactionID ) public onlySDC{
@@ -65,14 +55,14 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         for(uint256 i = 0; i < values.length; i++)
             requiredBalance += values[i];
         if (balanceOf(msg.sender) < requiredBalance){
-            ISDC(sdcAddress).afterTransfer(transactionID, false);
+            ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
             return;
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
-                transfer(to[i],values[i]);
+                _transfer(sdcAddress,to[i],values[i]);
             }
-            ISDC(sdcAddress).afterTransfer(transactionID, true);
+            ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
         }
     }
 
@@ -88,15 +78,15 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
                     totalRequiredBalance += values[j];
             }
             if (balanceOf(fromAddress) <  totalRequiredBalance){
-                ISDC(sdcAddress).afterTransfer(transactionID, false);
-                break;
+                ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+                return;
             }
 
         }
         for(uint256 i = 0; i < to.length; i++){
-            transferFrom(from[i],to[i],values[i]);
+            _transfer(from[i],to[i],values[i]);
         }
-        ISDC(sdcAddress).afterTransfer(transactionID, true);
+        ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
     }
 
 }
