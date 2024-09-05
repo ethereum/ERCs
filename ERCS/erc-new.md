@@ -5,7 +5,7 @@ author: S7iter (@admi-n)
 discussions-to: 
 status: Draft
 type: Standards Track
-category: Core
+category: ERC
 created: 2024-09-05
 ---
 
