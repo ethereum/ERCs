@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 7763
 title: Exposed App Keys for Application-Specific Wallet Accounts
 description: A standard for generating and managing exposed application-specific key pairs
 author: Dan Finlay (@danfinlay)
