@@ -1,6 +1,6 @@
 ---
 title: Buyer-Seller Negotiable Pricing Mechanism
-description: Allows buyers and sellers to freely negotiate and determine transaction prices on the Ethereum network.
+description: Allows buyers and sellers to freely negotiate and determine prices.
 author: S7iter (@admi-n)
 discussions-to: 
 status: Draft
