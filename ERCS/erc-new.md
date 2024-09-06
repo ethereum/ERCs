@@ -1,4 +1,5 @@
 ---
+eip: 7764
 title: Buyer-Seller Negotiable Pricing Mechanism
 description: Allows buyers and sellers to freely negotiate and determine prices.
 author: S7iter (@admi-n)
