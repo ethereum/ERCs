@@ -30,11 +30,17 @@ implementations of the ERC-4337 protocol have a standardized set of APIs that ca
 
 ## Specification
 
+### Definitions
+
+* **bundler**: a node exposing the APIs, in order to submit them to the network.
+  A bundler collects one or more UserOperations into a bundle and submits them together to
+  the `EntryPoint` in a single `handleUserOp` call.
+
 ### RPC methods (eth namespace)
 
 #### eth_sendUserOperation
 
-The `eth_sendUserOperation` method submits a `UserOperation` object to the UserOperation mempool of the client.
+The `eth_sendUserOperation` method submits a `UserOperation` object to the UserOperation mempool.
 The client MUST validate the `UserOperation`, and return a result accordingly.
 
 The result SHOULD be set to the `userOpHash` if and only if the request passed simulation and was accepted
