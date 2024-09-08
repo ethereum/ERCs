@@ -98,7 +98,6 @@ Continued, these fields are shared by all transaction types:
 | cumulativeGasUsed | QUANTITY        | The total amount of gas used when this transaction was executed in the block.              |
 | effectiveGasPrice | QUANTITY        | The sum of the base fee and tip paid per unit of gas.                                      |
 | gasUsed           | QUANTITY        | The amount of gas used by this specific transaction alone.                                 |
-| contractAddress   | DATA, 20 Bytes  | The contract address created, if the transaction was a contract creation, otherwise `null` |
 | logs              | ARRAY           | Array of log objects, which this transaction'S EXECUTION FRAME generated.                  |
 | logsBloom         | DATA, 256 Bytes | Bloom filter for light clients to quickly retrieve related logs.                           |
 | type              | QUANTITY        | Integer of the transaction type                                                            |
