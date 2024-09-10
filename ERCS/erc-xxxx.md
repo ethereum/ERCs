@@ -35,9 +35,9 @@ This document defines the API that the RIP-7560 compatible Ethereum nodes provid
 Wallet applications or advanced dapps.
 We define the following changes to the Ethereum JSON-RPC API:
 
-### Create a new JSON-RPC API method `eth_executeRip7560Transaction`
+### Create a new JSON-RPC API method `eth_callRip7560Transaction`
 
-Executes the entire RIP-7560 transaction in memory without broadcasting it or including it in a block.
+Executes the entire RIP-7560 transaction **in memory** without broadcasting it or including it in a block.
 Does not require the transaction to be properly signed, meaning it continues execution after either an account
 or a paymaster contract make a `sigFailAccount` or `sigFailPaymaster` call.
 If all frames execute successfully, simply returns the data returned by the top level frame of the execution phase.
