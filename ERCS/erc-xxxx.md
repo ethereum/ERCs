@@ -59,49 +59,6 @@ The following table represents a full list of fields of an RIP-7560 transaction:
 | EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs                         |
 | authorizationData             | DATA           | Data that will be used by the Account to verify transaction                         |
 
-### Add RIP-7560 support for `eth_getTransactionReceipt`
-
-For an RIP-7560 transaction included in a block, return also the values specific to this transaction type
-in addition to all the existing fields.
-
-Parameters:
-
-1. DATA, 32 Bytes - hash of a transaction
-
-Returns:
-
-1. OBJECT - A transaction receipt object, or `null` when no receipt was found:
-
-Fields specific to an RIP-7560 transaction receipt:
-
-| Name                       | Type           | Description                                                                                                                        |
-|----------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------------|
-| sender                     | DATA, 20 Bytes | Address of the sender of this transaction                                                                                          |
-| paymaster                  | DATA, 20 Bytes | Address of the Paymaster if it is paying for the transaction, `null` otherwise                                                     |
-| deployer                   | DATA, 20 Bytes | Address of the Deployer if it is included in the transaction, `null` otherwise                                                     |
-| senderCreationGasUsed      | QUANTITY       | The amount of gas actually used by the sender deployment frame, or zero if frame not executed                                      |
-| senderValidationGasUsed    | QUANTITY       | The amount of gas actually used by the sender validation frame                                                                     |
-| paymasterValidationGasUsed | QUANTITY       | The amount of gas actually used by the paymaster validation frame, or zero if frame not executed                                   |
-| executionGasUsed           | QUANTITY       | The amount of gas actually used by the execution frame                                                                             |
-| postOpGasUsed              | QUANTITY       | The amount of gas actually used by the paymaster `postOp` frame, or zero if frame not executed                                     |
-| executionStatus            | QUANTITY       | 0 (success), 1 (execution reverted), 2 (`postOp` reverted), 3 (both execution and `postOp` reverted) status of the execution frame |
-| validationLogs             | ARRAY          | Array of log objects, which this transaction'S VALIDATION FRAME generated.                                                         |
-
-Continued, these fields are shared by all transaction types:
-
-| Name              | Type            | Value                                                                         |
-|-------------------|-----------------|-------------------------------------------------------------------------------|
-| transactionHash   | DATA, 32 Bytes  | Hash of the transaction.                                                      |
-| transactionIndex  | QUANTITY        | Integer of the transactions index position in the block.                      |
-| blockHash         | DATA, 32 Bytes  | Hash of the block where this transaction was in.                              |
-| blockNumber       | QUANTITY        | Block number where this transaction was in.                                   |
-| cumulativeGasUsed | QUANTITY        | The total amount of gas used when this transaction was executed in the block. |
-| effectiveGasPrice | QUANTITY        | The sum of the base fee and tip paid per unit of gas.                         |
-| gasUsed           | QUANTITY        | The amount of gas used by this specific transaction alone.                    |
-| logs              | ARRAY           | Array of log objects, which this transaction'S EXECUTION FRAME generated.     |
-| logsBloom         | DATA, 256 Bytes | Bloom filter for light clients to quickly retrieve related logs.              |
-| type              | QUANTITY        | Integer of the transaction type                                               |
-
 ### Create a new JSON-RPC API method `eth_executeRip7560Transaction`
 
 Executes the entire RIP-7560 transaction in memory without broadcasting it or including it in a block.
@@ -132,7 +89,11 @@ MESSAGE - The human-readable error that may include a decoding of the `DATA` fie
 
 ### Add RIP-7560 support for all remaining transaction-level RPC APIs
 
-This includes the following APIs: `eth_sendTransaction`, `eth_sendRawTransaction`,  `eth_getTransactionByHash`,
+This includes the following APIs:
+`eth_sendTransaction`,
+`eth_sendRawTransaction`,
+`eth_getTransactionByHash`,
+`eth_getTransactionReceipt`,
 `eth_getTransactionByBlockHashAndIndex`,
 `eth_getTransactionByBlockNumberAndIndex`.
 
