@@ -35,30 +35,6 @@ This document defines the API that the RIP-7560 compatible Ethereum nodes provid
 Wallet applications or advanced dapps.
 We define the following changes to the Ethereum JSON-RPC API:
 
-### Definition of the RIP-7560 transaction type:
-
-The following table represents a full list of fields of an RIP-7560 transaction:
-
-| Name                          | Type           | Description                                                                         |
-|-------------------------------|----------------|-------------------------------------------------------------------------------------|
-| sender                        | DATA, 20 Bytes | Address of the Smart Contract Account making the transaction                        |
-| deployer                      | DATA, 20 Bytes | Address of the Deployer - account factory contract (optional)                       |
-| deployerData                  | DATA           | Data that is provided to the Deployer contract (if `deployer` is set)               |
-| paymaster                     | DATA, 20 Bytes | Address of the Paymaster contract (optional)                                        |
-| paymasterData                 | DATA           | Data that is provided to the Paymaster contract (if `paymaster` is set)             |
-| executionData                 | DATA           | Data that is provided to the Account contract for execution                         |
-| nonce                         | QUANTITY       | A 256 bit nonce. Use of `nonce > 2^64` is defined in RIP-7712                       |
-| builderFee                    | QUANTITY       | Value passed from sender or paymaster to the `coinbase`                             |
-| maxPriorityFeePerGas          | QUANTITY       | The maximum gas price to be included as a tip to the validator                      |
-| maxFeePerGas                  | QUANTITY       | The maximum fee per unit of gas                                                     |
-| validationGasLimit            | QUANTITY       | Gas provided for the transaction account validation frame                           |
-| paymasterValidationGasLimit   | QUANTITY       | Gas provided for the transaction paymaster validation frame (if `paymaster` is set) |
-| paymasterPostOpGasLimit       | QUANTITY       | Gas provided for the transaction paymaster `postOp` frame (if `paymaster` is set)   |
-| callGasLimit                  | QUANTITY       | Gas provided for the transaction execution frame                                    |
-| accessList                    | OBJECT         | An EIP-2930 compatible Access List structure                                        |
-| EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs                         |
-| authorizationData             | DATA           | Data that will be used by the Account to verify transaction                         |
-
 ### Create a new JSON-RPC API method `eth_executeRip7560Transaction`
 
 Executes the entire RIP-7560 transaction in memory without broadcasting it or including it in a block.
