@@ -1,6 +1,6 @@
 {
   "name": "@finmath.net/sdc",
-  "version": "0.3.1",
+  "version": "0.4.2",
   "description": "Solidity Smart Derivative Contracts",
   "author": "Christian Fries, Peter Kohl-Landgraf, Alexandros Korpis",
   "license": "ISC",
