@@ -18,7 +18,7 @@ requires: 4337, 7562
 However, one big limitation remains:
 each transaction must carry its own `signature` or other form of validation input in order to be included.
 
-We propose an extension to the ERC-4337 that introduces a validation frame that is shared by multiple transactions.
+We propose an extension to the ERC-4337 that introduces a new entity, aggregator, that is called during validation, to validate multiple user operations at once.
 
 This addition will enable `UserOperations` to support sharing validation inputs, saving gas and guaranteeing atomicity of the bundle.
 
