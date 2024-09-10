@@ -159,7 +159,7 @@ Returns:
 
 ## Rationale
 
-### Creating `eth_executeRip7560Transaction` instead of modifying `eth_call`
+### Creating `eth_callRip7560Transaction` instead of modifying `eth_call`
 
 The semantics of the `eth_call` are currently very simple for all existing transaction types, and would become
 significantly more complex with the addition of the RIP-7560 transaction type support.
