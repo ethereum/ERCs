@@ -78,7 +78,7 @@ struct AggregatorStakeInfo {
 In addition to the steps described in ERC-4337, during bundling the bundler should:
 
 * Sort UserOps by aggregator, to create the lists of UserOps-per-aggregator.
-* For each aggregator, run the aggregator-specific code to create aggregated signature, and update the UserOps.
+* For each aggregator, call `aggregateSignatures()` to create aggregated signature, and update the UserOps.
 
 ### New "entry point" function in the ERC-4337 `EntryPoint` contract
 
