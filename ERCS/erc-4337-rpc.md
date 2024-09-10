@@ -2,7 +2,7 @@
 eip:
 title: JSON-RPC API for Account Abstraction Using the UserOperation Mempool
 description: A set of JSON-RPC API methods that defines a communication between smart contract account wallets and bundlers
-author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat), Kristof Gazso (@kristofgazso), Tjaden Hess (@tjade273)
+author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat)
 discussions-to:
 status: Draft
 type: Standards Track
@@ -34,7 +34,7 @@ implementations of the ERC-4337 protocol have a standardized set of APIs that ca
 
 * **bundler**: a node exposing the APIs, in order to submit them to the network.
   A bundler collects one or more UserOperations into a bundle and submits them together to
-  the `EntryPoint` in a single `handleUserOp` call.
+  the `EntryPoint` in a single `handleOps` call.
 
 ### RPC methods (eth namespace)
 
