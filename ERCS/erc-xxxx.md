@@ -55,7 +55,10 @@ Parameters:
 
 Returns:
 
-DATA - The return value of the `sender` execution frame.
+OBJECT: 
+    data - the return value of the `sender` execution frame.
+    sigFail [optional] - account called "sigFailAccount"
+    sigFailPaymaster [optional] - paymaster called "sigFailPaymaster"
 
 Error:
 
