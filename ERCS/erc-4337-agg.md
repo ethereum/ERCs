@@ -2,7 +2,7 @@
 eip:
 description: An ERC-4337 improvement to aggregation of all UserOperation signatures in a bundle
 title: Signature Aggregation for Account Abstraction
-author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat), Kristof Gazso (@kristofgazso), Tjaden Hess (@tjade273)
+author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat)
 discussions-to:
 status: Draft
 type: Standards Track
