@@ -16,7 +16,7 @@ requires: RIP-7560, ERC-7562, EIP-7702
 [RIP-7560](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7560.md) defines the new transaction type
 and the modifications to the EVM needed for the Native Account Abstraction support.
 
-However, there are a number of modifications to the Ethereum JSON-RPC API that is needed as well.
+However, there are a number of modifications to the Ethereum JSON-RPC API that are needed as well.
 This proposal contains the full description of the new or modified APIs, and it would be highly beneficial
 for the Native Account Abstraction ecosystem to implement these APIs in a standardised and compatible way.
 
@@ -27,7 +27,7 @@ by making all the benefits of Account Abstraction a core part of the protocol, b
 enabling easy migration to post-quantum cryptography and eventually deprecation of Externally Owned Accounts altogether.
 
 There are also some actions that are only applicable in the context of Native Account Abstraction,
-which requires a creation of new JSON-RPC API methods.
+which require a creation of new JSON-RPC API methods.
 
 ## Specification
 
