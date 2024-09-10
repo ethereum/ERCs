@@ -74,34 +74,33 @@ Returns:
 
 Fields specific to an RIP-7560 transaction receipt:
 
-| Name                       | Type           | Description                                                                                      |
-|----------------------------|----------------|--------------------------------------------------------------------------------------------------|
-| sender                     | DATA, 20 Bytes | Address of the sender of this transaction                                                        |
-| paymaster                  | DATA, 20 Bytes | Address of the Paymaster if it is paying for the transaction, `null` otherwise                   |
-| deployer                   | DATA, 20 Bytes | Address of the Deployer if it is included in the transaction, `null` otherwise                   |
-| senderCreationGasUsed      | QUANTITY       | The amount of gas actually used by the sender deployment frame, or zero if frame not executed    |
-| senderValidationGasUsed    | QUANTITY       | The amount of gas actually used by the sender validation frame                                   |
-| paymasterValidationGasUsed | QUANTITY       | The amount of gas actually used by the paymaster validation frame, or zero if frame not executed |
-| executionGasUsed           | QUANTITY       | The amount of gas actually used by the execution frame                                           |
-| postOpGasUsed              | QUANTITY       | The amount of gas actually used by the paymaster `postOp` frame, or zero if frame not executed   |
-| postOpStatus               | QUANTITY       | 1 (success), 0 (failure), or `null` (did not run) status of the `postOp` frame                   |
-| validationLogs             | ARRAY          | Array of log objects, which this transaction'S VALIDATION FRAME generated.                       |
+| Name                       | Type           | Description                                                                                                                        |
+|----------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------------|
+| sender                     | DATA, 20 Bytes | Address of the sender of this transaction                                                                                          |
+| paymaster                  | DATA, 20 Bytes | Address of the Paymaster if it is paying for the transaction, `null` otherwise                                                     |
+| deployer                   | DATA, 20 Bytes | Address of the Deployer if it is included in the transaction, `null` otherwise                                                     |
+| senderCreationGasUsed      | QUANTITY       | The amount of gas actually used by the sender deployment frame, or zero if frame not executed                                      |
+| senderValidationGasUsed    | QUANTITY       | The amount of gas actually used by the sender validation frame                                                                     |
+| paymasterValidationGasUsed | QUANTITY       | The amount of gas actually used by the paymaster validation frame, or zero if frame not executed                                   |
+| executionGasUsed           | QUANTITY       | The amount of gas actually used by the execution frame                                                                             |
+| postOpGasUsed              | QUANTITY       | The amount of gas actually used by the paymaster `postOp` frame, or zero if frame not executed                                     |
+| executionStatus            | QUANTITY       | 0 (success), 1 (execution reverted), 2 (`postOp` reverted), 3 (both execution and `postOp` reverted) status of the execution frame |
+| validationLogs             | ARRAY          | Array of log objects, which this transaction'S VALIDATION FRAME generated.                                                         |
 
 Continued, these fields are shared by all transaction types:
 
-| Name              | Type            | Value                                                                                      |
-|-------------------|-----------------|--------------------------------------------------------------------------------------------|
-| transactionHash   | DATA, 32 Bytes  | Hash of the transaction.                                                                   |
-| transactionIndex  | QUANTITY        | Integer of the transactions index position in the block.                                   |
-| blockHash         | DATA, 32 Bytes  | Hash of the block where this transaction was in.                                           |
-| blockNumber       | QUANTITY        | Block number where this transaction was in.                                                |
-| cumulativeGasUsed | QUANTITY        | The total amount of gas used when this transaction was executed in the block.              |
-| effectiveGasPrice | QUANTITY        | The sum of the base fee and tip paid per unit of gas.                                      |
-| gasUsed           | QUANTITY        | The amount of gas used by this specific transaction alone.                                 |
-| logs              | ARRAY           | Array of log objects, which this transaction'S EXECUTION FRAME generated.                  |
-| logsBloom         | DATA, 256 Bytes | Bloom filter for light clients to quickly retrieve related logs.                           |
-| type              | QUANTITY        | Integer of the transaction type                                                            |
-| status            | QUANTITY        | Either 1 (success) or 0 (failure) status of the execution frame                            |
+| Name              | Type            | Value                                                                         |
+|-------------------|-----------------|-------------------------------------------------------------------------------|
+| transactionHash   | DATA, 32 Bytes  | Hash of the transaction.                                                      |
+| transactionIndex  | QUANTITY        | Integer of the transactions index position in the block.                      |
+| blockHash         | DATA, 32 Bytes  | Hash of the block where this transaction was in.                              |
+| blockNumber       | QUANTITY        | Block number where this transaction was in.                                   |
+| cumulativeGasUsed | QUANTITY        | The total amount of gas used when this transaction was executed in the block. |
+| effectiveGasPrice | QUANTITY        | The sum of the base fee and tip paid per unit of gas.                         |
+| gasUsed           | QUANTITY        | The amount of gas used by this specific transaction alone.                    |
+| logs              | ARRAY           | Array of log objects, which this transaction'S EXECUTION FRAME generated.     |
+| logsBloom         | DATA, 256 Bytes | Bloom filter for light clients to quickly retrieve related logs.              |
+| type              | QUANTITY        | Integer of the transaction type                                               |
 
 ### Create a new JSON-RPC API method `eth_executeRip7560Transaction`
 
