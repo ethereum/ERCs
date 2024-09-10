@@ -1,6 +1,6 @@
 ---
 eip: xxxx
-title: JSON-RPC API for RIP-7560 Native Account Abstraction
+title: JSON-RPC Ethereum Client API for RIP-7560 Native Account Abstraction
 description: A set of JSON-RPC API methods that are required for a fully functional Native Account Abstraction protocol
 author:
 discussions-to:
