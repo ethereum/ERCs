@@ -39,25 +39,25 @@ We define the following changes to the Ethereum JSON-RPC API:
 
 The following table represents a full list of fields of an RIP-7560 transaction:
 
-| Name                          | Type           | Description                                                    |
-|-------------------------------|----------------|----------------------------------------------------------------|
-| sender                        | DATA, 20 Bytes | Address of the Smart Contract Account making the transaction   |
-| deployer                      | DATA, 20 Bytes | Address of the Deployer - account factory contract             |
-| deployerData                  | DATA           | Data that is provided to the Deployer contract                 |
-| paymaster                     | DATA, 20 Bytes | Address of the Paymaster contract                              |
-| paymasterData                 | DATA           | Data that is provided to the Paymaster contract                |
-| executionData                 | DATA           | Data that is provided to the Account contract for execution    |
-| nonce                         | QUANTITY       | A 256 bit nonce. Use of `nonce > 2^64` is defined in RIP-7712  |
-| builderFee                    | QUANTITY       | Value passed from sender or paymaster to the `coinbase`        |
-| maxPriorityFeePerGas          | QUANTITY       | The maximum gas price to be included as a tip to the validator |
-| maxFeePerGas                  | QUANTITY       | The maximum fee per unit of gas                                |
-| validationGasLimit            | QUANTITY       | Gas provided for the transaction account validation frame      |
-| paymasterValidationGasLimit   | QUANTITY       | Gas provided for the transaction paymaster validation frame    |
-| paymasterPostOpGasLimit       | QUANTITY       | Gas provided for the transaction paymaster `postOp` frame      |
-| callGasLimit                  | QUANTITY       | Gas provided for the transaction execution frame               |
-| accessList                    | OBJECT         | An EIP-2930 compatible Access List structure                   |
-| EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs    |
-| authorizationData             | DATA           | Data that will be used by the Account to verify transaction    |
+| Name                          | Type           | Description                                                                         |
+|-------------------------------|----------------|-------------------------------------------------------------------------------------|
+| sender                        | DATA, 20 Bytes | Address of the Smart Contract Account making the transaction                        |
+| deployer                      | DATA, 20 Bytes | Address of the Deployer - account factory contract (optional)                       |
+| deployerData                  | DATA           | Data that is provided to the Deployer contract (if `deployer` is set)               |
+| paymaster                     | DATA, 20 Bytes | Address of the Paymaster contract (optional)                                        |
+| paymasterData                 | DATA           | Data that is provided to the Paymaster contract (if `paymaster` is set)             |
+| executionData                 | DATA           | Data that is provided to the Account contract for execution                         |
+| nonce                         | QUANTITY       | A 256 bit nonce. Use of `nonce > 2^64` is defined in RIP-7712                       |
+| builderFee                    | QUANTITY       | Value passed from sender or paymaster to the `coinbase`                             |
+| maxPriorityFeePerGas          | QUANTITY       | The maximum gas price to be included as a tip to the validator                      |
+| maxFeePerGas                  | QUANTITY       | The maximum fee per unit of gas                                                     |
+| validationGasLimit            | QUANTITY       | Gas provided for the transaction account validation frame                           |
+| paymasterValidationGasLimit   | QUANTITY       | Gas provided for the transaction paymaster validation frame (if `paymaster` is set) |
+| paymasterPostOpGasLimit       | QUANTITY       | Gas provided for the transaction paymaster `postOp` frame (if `paymaster` is set)   |
+| callGasLimit                  | QUANTITY       | Gas provided for the transaction execution frame                                    |
+| accessList                    | OBJECT         | An EIP-2930 compatible Access List structure                                        |
+| EIP-7702 authorizations (WIP) | ARRAY          | An EIP-7702 compatible list of contracts injected into EOAs                         |
+| authorizationData             | DATA           | Data that will be used by the Account to verify transaction                         |
 
 ### Add RIP-7560 support for `eth_getTransactionReceipt`
 
@@ -74,18 +74,18 @@ Returns:
 
 Fields specific to an RIP-7560 transaction receipt:
 
-| Name                       | Type           | Description                                                                    |
-|----------------------------|----------------|--------------------------------------------------------------------------------|
-| sender                     | DATA, 20 Bytes | Address of the sender of this transaction                                      |
-| paymaster                  | DATA, 20 Bytes | Address of the Paymaster if it is paying for the transaction, `null` otherwise |
-| deployer                   | DATA, 20 Bytes | Address of the Deployer if it is included in the transaction, `null` otherwise |
-| senderCreationGasUsed      | QUANTITY       | The amount of gas actually used by the sender deployment frame                 |
-| senderValidationGasUsed    | QUANTITY       | The amount of gas actually used by the sender validation frame                 |
-| paymasterValidationGasUsed | QUANTITY       | The amount of gas actually used by the paymaster validation frame              |
-| executionGasUsed           | QUANTITY       | The amount of gas actually used by the execution frame                         |
-| postOpStatus               | QUANTITY       | 1 (success), 0 (failure), or `null` (did not run) status of the `postOp` frame |
-| postOpGasUsed              | QUANTITY       | The amount of gas actually used by the paymaster `postOp` frame                |
-| validationLogs             | ARRAY          | Array of log objects, which this transaction'S VALIDATION FRAME generated.     |
+| Name                       | Type           | Description                                                                                      |
+|----------------------------|----------------|--------------------------------------------------------------------------------------------------|
+| sender                     | DATA, 20 Bytes | Address of the sender of this transaction                                                        |
+| paymaster                  | DATA, 20 Bytes | Address of the Paymaster if it is paying for the transaction, `null` otherwise                   |
+| deployer                   | DATA, 20 Bytes | Address of the Deployer if it is included in the transaction, `null` otherwise                   |
+| senderCreationGasUsed      | QUANTITY       | The amount of gas actually used by the sender deployment frame, or zero if frame not executed    |
+| senderValidationGasUsed    | QUANTITY       | The amount of gas actually used by the sender validation frame                                   |
+| paymasterValidationGasUsed | QUANTITY       | The amount of gas actually used by the paymaster validation frame, or zero if frame not executed |
+| executionGasUsed           | QUANTITY       | The amount of gas actually used by the execution frame                                           |
+| postOpGasUsed              | QUANTITY       | The amount of gas actually used by the paymaster `postOp` frame, or zero if frame not executed   |
+| postOpStatus               | QUANTITY       | 1 (success), 0 (failure), or `null` (did not run) status of the `postOp` frame                   |
+| validationLogs             | ARRAY          | Array of log objects, which this transaction'S VALIDATION FRAME generated.                       |
 
 Continued, these fields are shared by all transaction types:
 
@@ -165,12 +165,12 @@ Returns:
 
 1. Object
 
-| Name                        | Type     |
-|-----------------------------|----------|
-| validationGasLimit          | QUANTITY |
-| paymasterValidationGasLimit | QUANTITY |
-| paymasterPostOpGasLimit     | QUANTITY |
-| callGasLimit                | QUANTITY |
+| Name                        | Type     | Comment                                 |
+|-----------------------------|----------|-----------------------------------------|
+| validationGasLimit          | QUANTITY |                                         |
+| paymasterValidationGasLimit | QUANTITY | if `paymaster` is set, `null` otherwise |
+| paymasterPostOpGasLimit     | QUANTITY | if `paymaster` is set, `null` otherwise |
+| callGasLimit                | QUANTITY |                                         |
 
 Error:
 
