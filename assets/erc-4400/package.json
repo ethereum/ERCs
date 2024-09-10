@@ -18,6 +18,6 @@
     "typescript": "^4.5.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.3.2"
+    "@openzeppelin/contracts": "^5.0.2"
   }
 }
