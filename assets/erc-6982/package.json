@@ -21,7 +21,7 @@
     "typescript": "^4.9.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.3",
-    "@openzeppelin/contracts-upgradeable": "^4.8.3"
+    "@openzeppelin/contracts": "^5.0.2",
+    "@openzeppelin/contracts-upgradeable": "^5.0.2"
   }
 }
