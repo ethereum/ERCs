@@ -1,7 +1,7 @@
 {
   "name": "erc-7401",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.6.0"
+    "@openzeppelin/contracts": "^5.0.2"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.1",
