@@ -208,34 +208,42 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
         await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
         let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
+        // Note: position = 1 => counterparty1 is the receivingParty
         const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, 0, "initialMarketData");
         const receipt = await incept_call.wait();
         const event = receipt.events.find(event => event.event === 'TradeIncepted');
         const trade_id = event.args[2];
         const confirm_call = await sdc.connect(counterparty2).confirmTrade(counterparty1.address, trade_data, -1, 0, "initialMarketData");
+
+        // Note: terminationPayment is considered to be viewed from the requester here.
         const terminate_call = await sdc.connect(counterparty2).requestTradeTermination(trade_id, -terminationPayment, "terminationTerms");
+        // Note: terminationPayment is considered to be viewed from the confirmer here.
         const confirm_terminate_call = await sdc.connect(counterparty1).confirmTradeTermination(trade_id, +terminationPayment, "terminationTerms");
+
         let cp1_balance = await token.connect(counterparty1).balanceOf(counterparty1.address);
         let cp2_balance = await token.connect(counterparty1).balanceOf(counterparty2.address);
-        await expect(cp1_balance).equal(initialLiquidityBalance-terminationPayment);
-        await expect(cp2_balance).equal(initialLiquidityBalance+terminationPayment);
+        await expect(cp1_balance).equal(initialLiquidityBalance+terminationPayment);
+        await expect(cp2_balance).equal(initialLiquidityBalance-terminationPayment);
     });
+
     it("9b. CP1 is Receiving Party, Trade-Termination is incepted by CP1 which pays the termination payment to CP2", async () => {
         let token = await ERC20Factory.deploy();
         await token.connect(counterparty1).mint(counterparty1.address,initialLiquidityBalance);
         await token.connect(counterparty2).mint(counterparty2.address,initialLiquidityBalance);
         let sdc = await SDCFactory.deploy(counterparty1.address, counterparty2.address,token.address,marginBufferAmount,terminationFee);
+        // Note: position = 1 => counterparty1 is the receivingParty
         const incept_call = await sdc.connect(counterparty1).inceptTrade(counterparty2.address, trade_data, 1, 0, "initialMarketData");
         const receipt = await incept_call.wait();
         const event = receipt.events.find(event => event.event === 'TradeIncepted');
         const trade_id = event.args[2];
         const confirm_call = await sdc.connect(counterparty2).confirmTrade(counterparty1.address, trade_data, -1, 0, "initialMarketData");
-        const terminate_call = await sdc.connect(counterparty1).requestTradeTermination(trade_id, -terminationPayment, "terminationTerms");
-        const confirm_terminate_call = await sdc.connect(counterparty2).confirmTradeTermination(trade_id, +terminationPayment, "terminationTerms");
+        // Note: terminationPayment is considered to be viewed from the requester here.
+        const terminate_call = await sdc.connect(counterparty1).requestTradeTermination(trade_id, terminationPayment, "terminationTerms");
+        const confirm_terminate_call = await sdc.connect(counterparty2).confirmTradeTermination(trade_id, -terminationPayment, "terminationTerms");
         let cp1_balance = await token.connect(counterparty1).balanceOf(counterparty1.address);
         let cp2_balance = await token.connect(counterparty1).balanceOf(counterparty2.address);
-        await expect(cp1_balance).equal(initialLiquidityBalance-terminationPayment);
-        await expect(cp2_balance).equal(initialLiquidityBalance+terminationPayment);
+        await expect(cp1_balance).equal(initialLiquidityBalance+terminationPayment);
+        await expect(cp2_balance).equal(initialLiquidityBalance-terminationPayment);
     });
 
   it("10. Successful Inception with Upfront transferred from CP2 to CP1 + successful settlement transferred from CP1 to CP2", async () => {
