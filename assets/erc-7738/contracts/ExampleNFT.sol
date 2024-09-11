@@ -6,11 +6,12 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract StakingToken is ERC721, ERC721Enumerable, Ownable {
+//This is an example NFT used purely to generate a TokenScript for linking to
+contract ExampleNFT is ERC721, ERC721Enumerable, Ownable {
     uint256 private _nextTokenId;
 
     constructor()
-        ERC721("StakingToken", "STK")
+        ERC721("ExampleNFT", "NFT")
         Ownable(msg.sender)
     {
         safeMint();

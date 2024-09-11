@@ -13,6 +13,8 @@ contract DecentralisedRegistryPermissioned is IERC7738 {
 
     mapping(address => ScriptEntry) private _scriptURIs;
 
+    uint256 ll = 0;
+
     event RegisterOwner(
         address indexed contractAddress,
         address indexed newOwner
@@ -57,6 +59,7 @@ contract DecentralisedRegistryPermissioned is IERC7738 {
         );
         emit RegisterOwner(contractAddress, sender);
         existingEntry.owner = sender;
+        ll++;
     }
 
     function isDelegateOrOwner(
