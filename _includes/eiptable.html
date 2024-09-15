@@ -12,7 +12,7 @@
   {% assign count = eips|size %}
   {% if count > 0 %}
     <h2 id="{{status|slugify}}">{{status}}</h2>
-    <table class="eiptable">
+    <table class="table table-striped">
       <thead>
         {% if status == "Last Call" %}
           <tr>
