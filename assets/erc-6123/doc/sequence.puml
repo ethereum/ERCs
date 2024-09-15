@@ -9,11 +9,8 @@ title SmartDerivativeContract with Settlement-Token and off-chain Valuation Serv
 
     participant SettlementToken
 
-
 	participant EventHandler
 	participant ValuationService
-
-
 
 activate EventHandler
 activate SettlementToken
@@ -27,26 +24,27 @@ CP1 ->SettlementToken: allocate balances
 CP2 ->SettlementToken: allocate balances
 CP1 ->SDC: tx 'deploy' a SDC with token address
 activate SDC
-CP1 ->SettlementToken: tx set 'allowance' for SDC address
-CP2 ->SettlementToken: tx set 'allowance' for SDC address
 CP1 ->SDC:                 tx 'inceptTrade'
 
 SDC-->EventHandler: emit TradeIncepted
-EventHandler->ValuationService: request initial valuation data
-ValuationService->EventHandler: return initial valuation data
-EventHandler->SDC: tx 'performSettlement' to store initial valuation data
 == TradeState 'Incepted' ==
-CP2->SDC: tx 'confirmTrade'
-SDC->SDC: validate tradedata
 
-SDC-->EventHandler: emit TradeConfirmed
+    CP2->SDC: tx 'confirmTrade'
+    SDC->SDC: validate tradedata
+
+    SDC-->EventHandler: emit TradeConfirmed
 
 == TradeState 'Confirmed' ==
 
-SDC ->SettlementToken: tx 'transferFrom' margin buffers and termination fees\nto SDC address for CP1 and CP2
-SDC->SettlementToken: tx 'transferFrom' optional Upfront Fee from Paying to Receiving Party
+    SDC -> SettlementToken: tx 'transferFrom' margin buffers and termination fees\nto SDC address for CP1 and CP2
+    SDC -> SettlementToken: tx 'transferFrom' optional Upfront Fee from Paying to Receiving Party
+
 ==  TradeState 'inTransfer' ==
-SettlementToken->SDC: callback tx 'afterSettlement'
+
+    SettlementToken->SDC: callback tx 'afterTransfer'
+
+    SDC-->EventHandler: emit TradeActivated
+
 ==ProcessState 'Settled' ==
 
 end
@@ -57,25 +55,31 @@ loop Every Settlement
 CP1->SDC: tx: 'initiateSettlement'
 
 == TradeState 'Valuation' ==
-SDC-->EventHandler:emit ProcessSettlementRequest
+SDC-->EventHandler:emit SettlementRequested
 
 EventHandler->ValuationService: request valuation data
 ValuationService->EventHandler: return valuation data
 EventHandler->SDC: callback: tx 'performSettlement'
 SDC->SDC:Caps Settlement Amount at Margin Buffer Level
+
+SDC-->EventHandler: emit SettlementEvaluated
+
 SDC->SettlementToken: tx 'transferFrom' settlement amount from Paying Party to Receiving Party Balance
 == TradeState 'inTransfer' ==
-SDC-->EventHandler: emit AwaitingTransfer
 
 alt Transfer Check
-	SettlementToken->SDC: callback tx 'afterSettlement'
+	SettlementToken->SDC: callback tx 'afterTransfer'
 else success
+    SDC-->EventHandler: emit SettlementTransferred
 == TradeState 'Settled' ==
 else fail
+    SDC-->EventHandler: emit SettlementFailed
+
 	SDC->SettlementToken: tx 'transfer' Settlement Amount from SDC Balance to Receiving Party
 	SDC->SettlementToken: tx 'transfer' Termination Fee from SDC Balance to Receiving Party
-    	SDC->SettlementToken: tx 'approve' - Unlock remaing Party Balances
+    SDC->SettlementToken: tx 'transfer' - Release  remainigBalances to parties
 
+    SDC-->EventHandler: emit TradeTerminated
 == TradeState 'Terminated' ==
 end
 
