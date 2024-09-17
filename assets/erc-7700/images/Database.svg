@@ -8,9 +8,9 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="538.99292mm"
-   height="246.26625mm"
-   viewBox="0 0 538.99292 246.26626"
+   width="539.02795mm"
+   height="246.15076mm"
+   viewBox="0 0 539.02795 246.15077"
    version="1.1"
    id="svg6"
    inkscape:version="1.0.2 (e86c8708, 2021-01-15)"
@@ -26,7 +26,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -184,9 +184,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.21711624"
-     inkscape:cx="949.51301"
-     inkscape:cy="-145.17033"
+     inkscape:zoom="0.20274572"
+     inkscape:cx="769.42935"
+     inkscape:cy="391.29236"
      inkscape:document-units="mm"
      inkscape:current-layer="g1001"
      showgrid="false"
@@ -195,10 +195,10 @@
      inkscape:window-x="23"
      inkscape:window-y="37"
      inkscape:window-maximized="0"
-     fit-margin-top="20"
-     fit-margin-left="20"
-     fit-margin-right="20"
-     fit-margin-bottom="20"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
      inkscape:document-rotation="0"
      showguides="false"
      units="mm" />
@@ -206,10 +206,17 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-33.411763,-64.921999)">
+     transform="translate(-33.40752,-65.103501)">
     <g
        id="g1001"
        transform="translate(-3.5162968,-1.0583333)">
+      <rect
+         style="fill:#141414;fill-rule:evenodd;stroke-width:0.729001;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke fill markers;stop-color:#000000"
+         id="rect970"
+         width="539.02795"
+         height="246.15076"
+         x="36.923817"
+         y="66.161835" />
       <text
          xml:space="preserve"
          style="font-size:9.26869px;line-height:1.25;font-family:Palatino;-inkscape-font-specification:Palatino;font-variant-ligatures:none;text-align:center;letter-spacing:-0.241567px;text-anchor:middle;fill:#ff5300;fill-opacity:1;stroke:#ff5300;stroke-width:0.257131;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
