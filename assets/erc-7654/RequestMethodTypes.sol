@@ -59,7 +59,7 @@ contract RequestMethodTypes is IRequestMethodTypes{
         }  
     }
 
-    function post(string memory _methodName,bytes memory _methodReq)public returns(bytes memory){
+    function post(string memory _methodName,bytes memory _methodReq)public payable returns(bytes memory){
         if(compareStrings(_methodName,"createUser")){
             (string memory name,uint256 age)=abi.decode(_methodReq, (string,uint256));
             users[msg.sender]=Profiles(name,age);
@@ -68,7 +68,7 @@ contract RequestMethodTypes is IRequestMethodTypes{
         return abi.encode("");
     }
 
-    function put(string memory _methodName,bytes memory _methodReq)public returns(bytes memory){
+    function put(string memory _methodName,bytes memory _methodReq)public payable returns(bytes memory){
         if(compareStrings(_methodName,"updateUserName")){
             (address userAddress,string memory name)=abi.decode(_methodReq, (address,string));
             require(userAddress==msg.sender);
