@@ -1,5 +1,5 @@
 ---
-eip:
+eip: 7769
 title: JSON-RPC API for Account Abstraction Using the UserOperation Mempool
 description: A set of JSON-RPC API methods that defines a communication between smart contract account wallets and bundlers
 author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat)
