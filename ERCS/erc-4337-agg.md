@@ -1,9 +1,9 @@
 ---
 eip: 7766
-description: An ERC-4337 improvement to aggregation of all UserOperation signatures in a bundle
 title: Signature Aggregation for Account Abstraction
+description: An ERC-4337 improvement to aggregation of all UserOperation signatures in a bundle
 author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat)
-discussions-to:
+discussions-to: https://ethereum-magicians.org/t/erc-7766-signature-aggregation-for-account-abstraction/21123
 status: Draft
 type: Standards Track
 category: ERC
