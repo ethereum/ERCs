@@ -1,5 +1,5 @@
 ---
-eip:
+eip: 7766
 description: An ERC-4337 improvement to aggregation of all UserOperation signatures in a bundle
 title: Signature Aggregation for Account Abstraction
 author: Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn), Alex Forshtat (@forshtat)
