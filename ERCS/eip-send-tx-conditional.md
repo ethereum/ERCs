@@ -1,7 +1,7 @@
 ```---
 eip: send-tx-cond
 title: Conditional send transaction RPC
-description: Conditional send transaction RPC for better integration with sequencers
+description: JSON-RPC API for block builders allowing users to express preconditions for transaction inclusion
 author: Dror Tirosh (@drortirosh), Yoav Weiss (@yoavw), Alex Forshtat (@forshtat), Shahaf Nacson (@shahafn)
 discussions-to:
 status: Draft
@@ -13,22 +13,32 @@ created: 2024-04-16
 
 ## Abstract
 
-This EIP proposes a new RPC method `eth_sendRawTransactionConditional` for block builders and sequencers, enhancing transaction integration by allowing preconditions for transaction inclusion. This method aims to improve efficiency by reducing the need for transaction simulation, thereby improving transaction ordering cpu cost.
+This EIP proposes a new JSON-RPC API method `eth_sendRawTransactionConditional` for block builders and sequencers,
+enhancing transaction integration by allowing users to express preconditions for transaction inclusion.
+
+This method aims to improve efficiency by reducing the need for transaction simulation,
+thereby improving the computational efficiency of transaction ordering.
 
 ## Motivation
 
-Current private APIs, such as the Flashbots API, require block builders to simulate transactions to determine eligibility for inclusion, a process that is CPU-intensive and inefficient. The proposed RPC method addresses this by enabling transactions to specify preconditions, thus reducing computational overhead and potentially lowering transaction costs.
+Current private block builder APIs, such as the Flashbots API,
+require block builders to simulate transactions to determine eligibility for inclusion,
+a process that is CPU-intensive and inefficient.
 
-Moreover, the flashbots API doesn't give any tool to a block-builder to determine the cross-dependencies of different transactions. The only way to guarantee that another transaction doesn't interfere with a given one is by placing it as the first transaction in the block.
+The proposed RPC method addresses this by enabling transactions to specify preconditions,
+thus reducing computational overhead and potentially lowering transaction costs.
+
+Moreover, the flashbots API does not provide the block builder with a mechanism to determine the
+cross-dependencies of different transactions.
+
+The only way to guarantee that another transaction does not interfere with a given one is by placing
+it as the first transaction in the block.
 This makes this placement very lucrative, and disproportionately expensive.
+
 In addition, since there is no way to give any guarantee on other slots, their pricing has to be low accordingly.
 
-Since there is no easy way to detect cross-dependencies of different transactions, it is cpu-intensive to find an optimal ordering of transactions.
-
-
-### Out of scope
-
-This document does not define an algorithm for a block builder to select a transaction in case of conflicting transactions.
+Since there is no easy way to detect cross-dependencies of different transactions,
+it is CPU-intensive to find an optimal ordering of transactions.
 
 ## Specification
 
@@ -36,39 +46,50 @@ This document does not define an algorithm for a block builder to select a trans
 
 * Parameters:
 
-1.   transaction: The raw, signed transaction data. Similar to `eth_sendRawTransaction`
-2. options: An object containing conditions under which the transaction must be included.
-* The "options" param may include any of the following members:
-    * **knownAccounts**: a map of accounts with expected storage
-        * The key is account address
+1. `transaction`: The raw, signed transaction data. Similar to `eth_sendRawTransaction`.
+2. `options`: An object containing conditions under which the transaction must be included.
+* The "options" parameter may include any of the following members:
+    * **knownAccounts**: a mapping of accounts with expected storage
+        * The key of the mapping is account address
+        * A special key `balance` defines the expected balance of the account
         * If the value is **hex string**, it is the known storage root hash of that account.
-        * If the value is an **object**, then each member is in the format of `"slot": "value"`, which are explicit slot values within that account storage.
-          both `slot` and `value` are hex values
-        * a special key `balance` define the expected balance of the account
+        * If the value is an **object**, then it is a mapping where each member is in the format of `"slot": "value"`.
+          The `value` fields are explicit slot values of the account's storage.
+          Both `slot` and `value` are hex-encoded strings.
     * **blockNumberMin**: [optional] minimal block number for inclusion
     * **blockNumberMax**: [optional] maximum block number for inclusion
     * **timestampMin**: [optional] minimum block timestamp for inclusion
     * **timestampMax**: [optional] maximum block timestamp for inclusion
-    * **paysConbase**: paysCoinbase[optional] this is not a precondition, but an expected outcome: the caller declares the minmimum amount paid to the coinbase by this transaction (including gas fees and direct payment)
-      It is only relevant if the API is used to define a "marketplace" for clients to compete on inclusion.
+    * **paysCoinbase**: [optional] the caller declares the minimum amount paid to the `coinbase` by this transaction,
+      including gas fees and direct payment.
 
+Before accepting the request, the block-builder or sequencer SHOULD:
 
-* Before accepting the request, the block-builder/sequencer SHOULD:
-    * If block range was given, check that the block number is within the range.
-    * If timestamps range was given, check that the block's timestamp is within the range.
-    * For an address with a storage root hash, validate the current root is unmodified.
-    * For an address with a list of slots, it should verify that all these slots hold the exact value specified.
-* The sequencer should REJECT the request if any address is doesn't pass the above rules.
+* Check that the block number is within the block range if the block range value was specified.
+* Check that the block's timestamp is within the timestamp range if the timestamp range was specified.
+* For all addresses with a specified storage root hash, validate the current root is unmodified.
+* For all addresses with a specified slot values mapping, validate that all these slots hold the exact value specified.
+
+The sequencer should REJECT the request if any address does not pass the above rules.
 
 ### Return value
 
-In case of successful inclusion, the call should return the same value as `sendRawTransaction` (namely, the transaction-hash)
-In case of failure, it SHOULD return an error with indication of failure reason.
-The error code SHOULD be -32003 (transaction rejected) with reason string describing the cause: storage error, out of block/time range,
-In case of repeated failures or knownAccounts too large, the error code SHOULD be -32005 (Limit exceeded) with a description of the error
+In case of a successful inclusion, the call should return a hash of the newly submitted transaction.
+This behaviour is equivalent to the `eth_sendRawTransaction` JSON-RPC API method.
 
-**NOTE:** Even if the transaction was accepted (into the internal mempool), the caller MUST NOT assume block inclusion, and must monitor the blockchain.
+In case of an immediate failure to validate the transaction's conditions,
+the block builder SHOULD return an error with indication of failure reason.
 
+The error code SHOULD be "-32003 transaction rejected" with reason string describing the cause:
+i.e. storage error, out of block/time range, etc.
+
+In case of repeated failures or `knownAccounts` mapping being too large for the current block builder to handle,
+the error code SHOULD be "-32005 limit exceeded" with a description of the error.
+
+**NOTE:** Same as with the `eth_sendRawTransaction` method,
+even if the RPC method call does not resul in an error and the transaction is
+initially accepted into the internal block builder's mempool,
+the caller MUST NOT assume that a transaction will be included in a block and should monitor the blockchain.
 
 ## Sample request:
 ```json
@@ -91,27 +112,33 @@ In case of repeated failures or knownAccounts too large, the error code SHOULD b
     ]
 }
 ```
+
 ### Possible Use-cases:
 
 - **auction market**:
-- **alternative to flashbot api**:
-  The flashbot api requires the builder to simulate the transactions to determine their cross-dependency. This can be cpu consuming.
-  For high-MEV, this is acceptable, but not for cheap general-purpose account-abstraction transactions.
+- **alternative to the Flashbots API**:
+  The Flashbots API requires the builder to simulate the transactions to determine their cross-dependency.
+  This can be a CPU-intensive task.
+  For high-value MEV transactions this high load may be acceptable.
+  However, it is not acceptable for low-value general-purpose Account Abstraction transactions.
 
 ### Limitations
 
-- Callers should not assume that a successul response means the transaction is included
-  In particular, it is possible that a block re-order might remove the transaction, or cause it to fail, just like any other transaction.
+- Callers should not assume that a successful response means the transaction is included.
+  Specifically, it is possible that a block re-order might remove the transaction or cause it to fail.
 
-### Security Consideration
+## Security Consideration
 
-The block-builder should protect itself against abuse of the API, namely, submitting a large #  of requests which are known to fail.
+The block builder should protect itself against abuse of the API.
+Namely, a malicious actor submitting a large number of requests which are known to fail may lead to a denial of service.
 
-Following are suggested mechanisms:
+Following is the list of suggested potential mitigation mechanisms:
 
-* **Throttling**: the block builder should allow a maximum rate of rpc calls per sender, and increase
-  that rate after successful inclusion. repeated rejection of blocks should reduce the allowed rate.
+* **Throttling**: the block builder should allow a maximum rate of RPC calls per sender.
+  The block builder may increase that rate after a successful inclusion.
+  Repeated rejections of transactions should reduce the allowed rate.
 * **Arbitrum**-style protection: Arbitrum implemented this API, but they run the storage validation not only
   against the current block, but also into past 2 seconds.
-  This prevents abusing the API for MEV, while making it viable for ERC-4337 account validation
-* **Fastlane on Polygon** uses it explicitly for ERC-4337, by checking the submitted UserOperations exist on the public mempool (and reject the transaction otherwise)
+  This prevents abusing the API for MEV, while making it viable for ERC-4337 account validation.
+* **Fastlane on Polygon** uses it explicitly for ERC-4337,
+  by checking the submitted UserOperations exist on the public mempool and rejecting the transaction otherwise.
