@@ -1,9 +1,9 @@
 ---
-eip: ####
-title: Partial Gas Sponsorship Interface
+eip: 7772
+title: Partial Gas Sponsorship
 description: Defining an interface that dApps can use to sponsor a portion of the gas fees required for user operations
 author: Lyu Min (@rockmin216), Wu Jinzhou (@wujinzhou), Elwin Chua (@jingkang0822), Lucas Lim (@limyeechern)
-discussions-to: https://ethereum-magicians.org/t/igassponsor-partial-gas-sponsorship-interface/21145
+discussions-to: https://ethereum-magicians.org/t/erc-7772-partial-gas-sponsorship-interface/21145
 status: Draft
 type: Standards Track
 category: Interface
