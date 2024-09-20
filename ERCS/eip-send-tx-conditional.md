@@ -1,4 +1,4 @@
-```---
+---
 eip: send-tx-cond
 title: Conditional send transaction RPC
 description: JSON-RPC API for block builders allowing users to express preconditions for transaction inclusion
@@ -9,7 +9,6 @@ type: Standards Track
 category: Interface
 created: 2024-04-16
 ---
-```
 
 ## Abstract
 
@@ -48,25 +47,25 @@ it is CPU-intensive to find an optimal ordering of transactions.
 
 1. `transaction`: The raw, signed transaction data. Similar to `eth_sendRawTransaction`.
 2. `options`: An object containing conditions under which the transaction must be included.
-* The "options" parameter may include any of the following members:
-    * **knownAccounts**: a mapping of accounts with expected storage
-        * The key of the mapping is account address
-        * A special key `balance` defines the expected balance of the account
+* The `options` parameter may include any of the following optional members:
+    * **knownAccounts**: a mapping of accounts with their expected storage slots' values.
+        * The key of the mapping is account address.
+        * A special key `balance` defines the expected balance of the account.
         * If the value is **hex string**, it is the known storage root hash of that account.
         * If the value is an **object**, then it is a mapping where each member is in the format of `"slot": "value"`.
           The `value` fields are explicit slot values of the account's storage.
           Both `slot` and `value` are hex-encoded strings.
-    * **blockNumberMin**: [optional] minimal block number for inclusion
-    * **blockNumberMax**: [optional] maximum block number for inclusion
-    * **timestampMin**: [optional] minimum block timestamp for inclusion
-    * **timestampMax**: [optional] maximum block timestamp for inclusion
-    * **paysCoinbase**: [optional] the caller declares the minimum amount paid to the `coinbase` by this transaction,
+    * **blockNumberMin**: minimal block number for inclusion.
+    * **blockNumberMax**: maximum block number for inclusion.
+    * **timestampMin**: minimum block timestamp for inclusion.
+    * **timestampMax**: maximum block timestamp for inclusion.
+    * **paysCoinbase**: the caller declares the minimum amount paid to the `coinbase` by this transaction,
       including gas fees and direct payment.
 
-Before accepting the request, the block-builder or sequencer SHOULD:
+Before accepting the request, the block builder or sequencer SHOULD:
 
 * Check that the block number is within the block range if the block range value was specified.
-* Check that the block's timestamp is within the timestamp range if the timestamp range was specified.
+* Check that the block timestamp is within the timestamp range if the timestamp range was specified.
 * For all addresses with a specified storage root hash, validate the current root is unmodified.
 * For all addresses with a specified slot values mapping, validate that all these slots hold the exact value specified.
 
@@ -113,19 +112,26 @@ the caller MUST NOT assume that a transaction will be included in a block and sh
 }
 ```
 
-### Possible Use-cases:
-
-- **auction market**:
-- **alternative to the Flashbots API**:
-  The Flashbots API requires the builder to simulate the transactions to determine their cross-dependency.
-  This can be a CPU-intensive task.
-  For high-value MEV transactions this high load may be acceptable.
-  However, it is not acceptable for low-value general-purpose Account Abstraction transactions.
-
 ### Limitations
 
 - Callers should not assume that a successful response means the transaction is included.
   Specifically, it is possible that a block re-order might remove the transaction or cause it to fail.
+
+## Rationale
+
+The `knownAccounts` only allows specifying the exact values for storage slots.
+While in some cases specifying `minValue` or `maxValue` for a slot could be useful,
+it would significantly increase complexity of the proposed API.
+Additionally, determining the validity range for a slot value is a non-trivial task for the sender of a transaction.
+
+One way to provide a more complex rule for a transaction condition is by specifying the `paysCoinbase` parameter,
+and issuing a transfer to the `coinbase` address on some condition.
+
+## Backwards Compatibility
+
+This is a proposal for a new API method so no backward compatibility issues are expected.
+Existing non-standard implementations of `eth_sendRawTransactionConditional` API may need to be modified in order to
+become compatible with the standard.
 
 ## Security Consideration
 
@@ -142,3 +148,7 @@ Following is the list of suggested potential mitigation mechanisms:
   This prevents abusing the API for MEV, while making it viable for ERC-4337 account validation.
 * **Fastlane on Polygon** uses it explicitly for ERC-4337,
   by checking the submitted UserOperations exist on the public mempool and rejecting the transaction otherwise.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
