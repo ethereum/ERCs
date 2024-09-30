@@ -1,0 +1,221 @@
+<style type="text/css">
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+
+    .token-id {
+        font-weight: bold;
+    }
+
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%;
+        /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+
+    .error-message {
+        position: absolute;
+        bottom: -20px;
+        /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none;
+        /* Hidden by default */
+    }
+
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none;
+        /* Hidden by default */
+        pointer-events: none;
+    }
+</style>
+<p id="tokendesc">Create a new script mapping for a contract. Input the contract address and the scriptURI</p>
+<br></br>
+<div id="inputBox">
+    <h3>Contract Address</h3>
+    <input id="contractAddr" type="text" value=""></input>
+    <span class="error-message" id="errorText">Not a valid contract</span>
+    <span class="success-icon" id="successIcon">✔</span>
+</div>
+<div id="inputBox">
+    <h3>ScriptURI</h3>
+    <input id="scriptURI" type="text" value="" data-ts-prop="false"></input>
+    <span class="error-message" id="errorText-url">Not a valid URL</span>
+    <span class="success-icon" id="successIcon-url">✔</span>
+</div>
+<span class="error-message" id="formatter"></span>
+
+<br></br>
+<script type="text/javascript">
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    async function updateContractAddr(event) {
+        let checksummedAddr = await checkContract(event.target.value);
+        if (checksummedAddr.length > 0) {
+            web3.action.setProps({
+                contractAddressLocal: event.target.value
+            });
+        }
+    }
+
+    async function checkContract(value) {
+        if (value === "") {
+            successIcon.style.display = 'none';
+            errorText.style.display = 'none';
+            return "";
+        }
+
+        try {
+            let checksumAddr = ethers.getAddress(value);
+            const result = await provider.getCode(checksumAddr);
+            if (result.startsWith("0x60")) {
+                errorText.style.display = 'none';
+                successIcon.style.display = 'inline';
+                return checksumAddr;
+            } else {
+                successIcon.style.display = 'none';
+                errorText.textContent = "No contract at address";
+                errorText.style.display = 'block';
+            }
+            return result.startsWith("0x60") ? checksumAddr : "";
+        } catch (error) {
+            console.log(`${error} ${value} is NOT a valid Ethereum address.`);
+            successIcon.style.display = 'none';
+            if (error.message.includes("bad address checksum")) {
+                errorText.textContent = "Failed Checksum (use lowercase)";
+            } else {
+                errorText.textContent = "Not a valid address";
+            }
+            errorText.style.display = 'block';
+            return "";
+        }
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    function validateURL(input) {
+        try {
+            // Attempt to create a new URL object
+            new URL(input);
+            return true;
+        } catch (e) {
+            // If an error is thrown, the URL is not valid
+            return false;
+        }
+    }
+
+    function sanitizeInput(input) {
+        formatter.innerHTML = '';
+        formatter.appendChild(document.createTextNode(input));
+        return formatter.innerHTML;
+    }
+
+    function updateScriptURI(event) {
+        //first pre-parse the url
+        let chosenUrl = event.target.value; //event.target.value;//sanitizeInput(event.target.value);
+        if (!validateURL(chosenUrl)) {
+            successIconURL.style.display = 'none';
+            errorTextURL.textContent = "Not a valid address";
+            errorTextURL.style.display = 'block';
+        } else {
+            errorTextURL.style.display = 'none';
+            successIconURL.style.display = 'inline';
+
+            let sanitised = sanitizeInput(event.target.value);
+            console.log(`Santise: ${sanitised}`);
+
+            let scriptArray = [`${chosenUrl}`];
+            console.log(`Update scriptURI: ${chosenUrl}`);
+            web3.action.setProps({
+                scriptURILocal: scriptArray
+            });
+        }
+    }
+
+    const errorText = document.getElementById('errorText');
+    const successIcon = document.getElementById('successIcon');
+    const errorTextURL = document.getElementById('errorText-url');
+    const successIconURL = document.getElementById('successIcon-url');
+    const formatter = document.getElementById('formatter');
+    let addrTypingTimer;
+    let scriptTypingTimer;
+
+    document.getElementById('contractAddr').addEventListener('input', (event) => {
+        clearTimeout(addrTypingTimer);
+        addrTypingTimer = setTimeout(() => updateContractAddr(event), typingDelay);
+    });
+    document.getElementById('scriptURI').addEventListener('input', (event) => {
+        clearTimeout(scriptTypingTimer);
+        scriptTypingTimer = setTimeout(() => updateScriptURI(event), typingDelay);
+    });
+
+
+    //'input', updateScriptURI);
+
+
+    document.addEventListener("DOMContentLoaded", async function () {
+        //call function
+
+        try {
+
+        } catch (error) {
+            console.log(`Owner error: ${error}`);
+            return false;
+        }
+
+    });
+</script>
