@@ -1,4 +1,5 @@
 ---
+eip: 7777
 title: Identity and Governance Interface for Human Robot Societies 
 description: This ERC defines standardized interfaces for managing the identities of humans and robots, establishing and maintaining laws (“rule sets”) that apply to those societies, and standardizing the immigration (“registering”) and emigration (“leaving”) of humans and robots from the rights and responsibilities of those rule sets.
 author: OpenMind, Jan Liphardt <jan@openmind.org>, Shaohong Zhong (ShaohongZ) <shaohong@openmind.org>, Boyuan Chen (bchen-dev) <boyuan@openmind.org>, Paige Xu <paige@openmind.org>
