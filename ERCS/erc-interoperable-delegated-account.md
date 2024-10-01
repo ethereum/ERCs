@@ -1,0 +1,172 @@
+---
+eip: <to be assigned>
+title: Interoperable Delegated Accounts
+description: Interoperable Delegated Account interfaces and behaviors for better interoperability and storage management.
+author: David Kim (@PowerStream3604), Richard Meissner (@rmeissner), Akshay Patel (akshay-ap), Joshua Kim (@JoshuaKim3604), Fangting (@trinity-0111)
+discussions-to: https://ethereum-magicians.org/t/erc-interoperable-delegated-account/21237
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-10-02
+requires: 7702, 7201
+---
+
+## Abstract
+
+This proposal outlines the interfaces to make delegated EOAs interoperable after the merge of EIP 7702. With the 7702, EOAs will be able to enable execution abstraction, which leads to a more feature-rich account, including gas sponsorship, batch execution, and more.
+
+However, there is a need to help facilitate storage management for redelegation, as invalid management of storage may incur storage collisions that can lead to unexpected behavior of accounts (e.g., account getting locked, security vulnerabilities, etc)
+
+The interface `InteroperableDelegatedAccount` suggests the interfaces for delegated EOAs to be interoperable and facilitate a better environment for redelegation.
+
+## Motivation
+
+After the merge of EIP-7702, it is expected that a considerable number of EOA wallets will migrate from pure EOA accounts to delegated EOA accounts.
+
+This is to enable a more appealing wallet UX, including a 1-step swap, automated subscription, gas sponsorship, and more.
+
+However, considering the fact that delegated EOAs will utilize its own storage bound to their Smart Account implementation, the storage management is essential to foster migration between wallets to better ensure sovereignty of users to freely migrate their wallet app whenever they want.
+
+To facilitate the secure migration of wallets, and a better foundation for freedom of users to freely migrate between wallets, this proposal proposes the minimal interfaces and the expected behaviors for the delegated EOAs.
+
+## Specification
+
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+```jsx
+interface IInteroperableDelegatedAccount {
+
+	/*
+	 * @dev    Provides the namespace of the account.
+	 *         namespace of accounts can possibly include, account version, account name, wallet vendor name, etc
+	 * @notice this standard does not standardize the namespace format
+	 * e.g.,   "v0.1.2.7702Account.WalletProjectA"
+	 */
+	function accountId() external view returns (string);
+	
+	/*
+	 * @dev    Externally shares the storage bases that has been used throughout the account.
+	 *         Majority of 7702 accounts will have their distinctive storage base to reduce the chance of storage collision.
+	 *         This allows the external entities to know what the storage base is of the account.
+	 *         Wallets willing to redelegate already-delegated accounts should call accountStorageBase() to check if it confirms with the account it plans to redelegate.
+	 *
+	 *         The bytes32 array should be stored at the storage slot: keccak(keccak('InteroperableDelegatedAccount.ERC.Storage')-1) & ~0xff
+	 *         This is an append-only array so newly redelegated accounts should not overwrite the storage at this slot, but just append their base to the array.
+	 *         This append operation should be done during the initialization of the account.
+	 */
+	function accountStorageBases() external view returns (bytes32[]);
+	
+	/*
+	 * @dev    Function called before redelegation.
+	 *         This function should prepare the account for a delegation to a different implementation.
+	 *         This function could be triggered by the new wallet that wants to redelegate an already delegated EOA.
+	 *         It should uninitialize storages if needed and execute wallet-specific logic to prepare for redelegation.
+	 *         msg.sender should be the owner of the account.
+	 */
+	function onRedelegation() external returns (bool);
+	
+}
+```
+
+Accounts MUST implement the above `accountId()` & `accountStorageBases()` to be compliant with the ERC.
+
+Accounts MAY implement the `onRedelegation()`.
+
+### `accountId()`
+
+This function is a view function to fetch the account information.
+
+A use case for this could be wallet showing the redelegation process e.g., Are you willing to migrate your account `“Wallet A” → “Wallet B”`.
+
+Wallet A information could be extracted from `accountId()`.
+
+### `accountStorageBases()`
+
+This function returns the list of base storage slots of that account has used.
+
+7702 Accounts do plan to use a custom non-zero storage slot to avoid storage collision as much as possible, however, there hasn’t been a standardized approach on how to fetch them.
+
+This function provides a standardized approach for wallets and other applications to check the base storage slots of an account, and verify if the base storage slots are far enough from the newly to-be-redelegated account’s base storage slot.
+
+Note that there could be some exceptions for mappings, etc depending on how account manages storage.
+
+This provides Wallets and applications a standard approach to fetch the base storage slots for verification rather than just relying on the probability of hash.
+
+If the account uses external storage, it should return EIP Number prefixed slot with the external storage contract address concatenated.
+
+```jsx
+<EIP-Number><EIP-Number><EIP-Number>..N...<Storage-Contract-Address>
+```
+
+When the account is delegated(e.g., during the account initialization stage), the account implementation should append the base storage slot of the account to the following slot position: `keccak(keccak('InteroperableDelegatedAccount.ERC.Storage')-1) & ~0xff` .
+
+The storage variable would be using the `bytes32[]` type and is an append-only variable which newly delegated accounts append its storage slot hash. The account may choose to not append its storage base to an array if there is an identical entry that already exist.
+
+In case the account identifies that there are colliding storage bases, the account can perform further storage verification either off-chain or on-chain and decide whether the delegation would happen.
+
+Wallet may revert the delegation if the colliding storage includes a suspicious storage values that may target the user(e.g., shadow signer, etc).
+
+### `onRedelegation()`
+
+This function is to prepare for the redelegation to a new account.
+
+When this function is called, the existing delegated account should perform actions to not limit or impact the user when the user redelegates to a new account as much as possible.
+
+For example, the account could uninitialize the storage variables as much as it can to provide clean storage for new wallet.
+
+This ERC, however, does not explicitly state the behavior to be done during this function call as wallet implementations have very distinctive architecture and details.
+
+**The standard expect the wallet implementation to revert it back to a clean storage state as much as possible with this function.**
+
+`onRedelegation()` should validate if the caller is indeed the authorized user by checking the `msg.sender` value.
+
+This could also be done through a `self-call` if a custom validation scheme is implemented or at the wallet's discretion as a side case.
+
+![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/c47ef4ae-b412-4e0c-9b94-d1cfbca0e6bc/660caca5-3245-41bc-8a6a-450f924419d6/image.png)
+
+## Rationale
+
+EOA (Externally Owned Account) is currently comprised of cryptographic key pair that is mostly managed in the form of mnemonic phrase.
+
+This simplicity provided frictionless interoperability between wallets that gave users the freedom to freely migrate between different wallet applications.
+
+However, after the merge of EIP 7702, each EOA will be given the ability to delegate itself to a smart account which will impact migration as storage remains in the continuous context while EOA can be delegated to diverse smart accounts if the user migrates their wallet.
+
+Account Abstraction Wallets, given the wallet-specific validation and execution logic, also have the interoperability issue to be considered but its importance in EOA is much more significant as EOA users are already familiar with wallet migration and its a common action to migrate wallets.
+
+This ERC provides a standard approach for fetching the storage base used in the delegated account together with an optional mechanism to clean up the storage.
+
+## Backward Compatibility
+
+Existing smart accounts that was built prior to the EIP 7702 discussion will need changes to support this ERC.
+
+This ERC was specifically for Smart Accounts for EOA, but this could be applied further to diverse cases and architecture.
+
+## Reference Implementation
+
+`IInteroperableDelegatedAccount.sol`
+
+## Security Considerations
+
+1. Calling `onRedelegation()` should include security mechanism to properly authentication the owner.
+2. This standard enforces the accounts to 
+    1. provide proper Base Storage Slot when `accountStorageBase()` is called
+    2. perform proper actions to make account storage to a clean state as much as possible (e.g., uninitialization of storage variables, etc) IF the account supports `onRedelegation()`
+    
+    However, whether the account follows the above three enforcements with behavioral actions is dependant of the account.
+    
+    If needed, accounts may check the authenticity of the information through off-chain approaches.
+    
+3. Wiping out the storage completely may not be an adaptable action depending on how account implementation manages storage.
+    
+    This standard recommends the account to completely wipe out its storage, however, exceptions apply if the account is incapable of doing that.
+    
+    In the case when the account cannot completely wipe out its storage, the standard expect the account to perform the best degree of action it can do to support the redelegation operation for the user.
+    
+    Also, the account should make sure the initializer cannot be triggered by an arbitrary entity after `onRedelegation()` is called.
+    
+4. `onRedelegation()` should not reset the replay protection considering that it could incur a vulnerability(e.g., signature reply attack).
+
+## Copyright
+
+Copyright and related rights waived via [CC0](notion://www.notion.so/LICENSE.md).
