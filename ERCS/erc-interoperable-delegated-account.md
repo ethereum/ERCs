@@ -1,9 +1,9 @@
 ---
-eip: <to be assigned>
+eip: 7779
 title: Interoperable Delegated Accounts
 description: Interoperable Delegated Account interfaces and behaviors for better interoperability and storage management.
 author: David Kim (@PowerStream3604), Richard Meissner (@rmeissner), Akshay Patel (akshay-ap), Joshua Kim (@JoshuaKim3604), Fangting (@trinity-0111)
-discussions-to: https://ethereum-magicians.org/t/erc-interoperable-delegated-account/21237
+discussions-to: https://ethereum-magicians.org/t/erc-7779-interoperable-delegated-account/21237
 status: Draft
 type: Standards Track
 category: ERC
