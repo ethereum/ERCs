@@ -5,7 +5,7 @@
     "@openzeppelin/contracts": "^5.0.0",
     "viem": "^2.19.8",
     "typescript": "^5.0.4",
-    "vite": "^4.3.5",
+    "vite": "^5.4.4",
     "vitest": "^2.0.5"
   }
 }
