@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ts:token xmlns:ts="http://tokenscript.org/2024/01/tokenscript"
+		  xmlns:xml="http://www.w3.org/XML/1998/namespace"
+		  xsi:schemaLocation="http://tokenscript.org/2024/01/tokenscript https://www.tokenscript.org/schemas/2024-01/tokenscript.xsd"
+		  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		  xmlns:ethereum="urn:ethereum:constantinople"
+		  name="ERC7738">
+    <ts:label>
+        <ts:plurals xml:lang="en">
+            <ts:string quantity="one">
+                ERC-7738 Registry Token
+            </ts:string>
+            <ts:string quantity="other">
+                ERC-7738 Registry Tokens
+            </ts:string>
+        </ts:plurals>
+    </ts:label>
+    <ts:contract interface="erc721" name="RegistryContract">
+        <ts:address network="1">0x0077380bCDb2717C9640e892B9d5Ee02Bb5e0682</ts:address>
+        <ts:abi>
+			<![CDATA[
+			[
+				{
+                  "name": "setScriptURI",
+				  "inputs": [
+					{
+					  "internalType": "address",
+					  "name": "contractAddressLocal",
+					  "type": "address"
+					},
+                    {
+					  "internalType": "string[]",
+					  "name": "scriptURILocal",
+					  "type": "string[]"
+					}
+				  ],
+				  "outputs": [
+					
+				  ],
+				  "stateMutability": "nonpayable",
+				  "type": "function"
+				},
+                {
+                  "name": "updateScriptURI",
+				  "inputs": [
+					{
+					  "internalType": "uint256",
+					  "name": "tokenId",
+					  "type": "uint256"
+					},
+                    {
+					  "internalType": "string",
+					  "name": "scriptURILocal",
+					  "type": "string"
+					}
+				  ],
+				  "outputs": [
+					
+				  ],
+				  "stateMutability": "nonpayable",
+				  "type": "function"
+				}
+			]
+			]]>
+		</ts:abi>
+    </ts:contract>
+    <ts:origins>
+        <ts:ethereum contract="RegistryContract"/>
+    </ts:origins>
+    <ts:cards>
+        <ts:card type="token" name="Info" buttonClass="secondary" origins="RegistryContract">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Info
+                </ts:string>
+            </ts:label>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				<ts:include type="html" src="./info.html" />
+            </ts:view>
+        </ts:card>
+        <ts:card type="action" name="update" buttonClass="primary" origins="RegistryContract">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Update ScriptURI
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction function="updateScriptURI" contract="RegistryContract">
+                    <ts:data>
+                        <ts:uint256 ref="tokenId"/>
+                        <ts:string local-ref="scriptURILocal"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				<ts:include type="html" src="./updateScript.html" />
+            </ts:view>
+        </ts:card>
+        <ts:card type="action" name="setName" buttonClass="featured" origins="RegistryContract">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Set Name
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction function="setName" contract="RegistryContract">
+                    <ts:data>
+                        <ts:uint256 ref="tokenId"/>
+                        <ts:string local-ref="nameEntry"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				<ts:include type="html" src="./setName.html" />
+            </ts:view>
+        </ts:card>
+        <ts:card type="action" name="setIcon" origins="RegistryContract">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Set Icon
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction function="setIconURI" contract="RegistryContract">
+                    <ts:data>
+                        <ts:uint256 ref="tokenId"/>
+                        <ts:string local-ref="iconEntry"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				<ts:include type="html" src="./setIcon.html" />
+            </ts:view>
+        </ts:card>
+        <ts:card type="onboarding" name="setScript" buttonClass="primary">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Set ScriptURI
+                </ts:string>
+            </ts:label>
+        
+            <ts:transaction>
+                <ethereum:transaction contract="RegistryContract" function="setScriptURI" >
+                    <ts:data>
+                        <ts:address local-ref="contractAddressLocal"></ts:address>
+                        <ts:struct local-ref="scriptURILocal"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+			<ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				<ts:include type="html" src="./onboard.html" />
+            </ts:view>
+        </ts:card>    
+    </ts:cards>
+    <ts:attribute name="totalSupply">
+        <ts:type>
+            <ts:syntax>1.3.6.1.4.1.1466.115.121.1.36</ts:syntax>
+        </ts:type>
+        <ts:label>
+            <ts:string xml:lang="en">
+                totalSupply
+            </ts:string>
+        </ts:label>
+        <ts:origins>
+            <ethereum:call function="totalSupply" contract="RegistryContract" as="uint">
+                <ts:data/>
+            </ethereum:call>
+        </ts:origins>
+    </ts:attribute>
+</ts:token>

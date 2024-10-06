@@ -1,0 +1,1163 @@
+<ts:token xmlns:ethereum="urn:ethereum:constantinople" xmlns:ts="http://tokenscript.org/2024/01/tokenscript" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="ERC7738" xsi:schemaLocation="http://tokenscript.org/2024/01/tokenscript https://www.tokenscript.org/schemas/2024-01/tokenscript.xsd">
+    <ts:label>
+        <ts:plurals xml:lang="en">
+            <ts:string quantity="one">
+                ERC-7738 Registry Token
+            </ts:string>
+            <ts:string quantity="other">
+                ERC-7738 Registry Tokens
+            </ts:string>
+        </ts:plurals>
+    </ts:label>
+    <ts:contract interface="erc721" name="RegistryContract">
+        <ts:address network="1">0x0077380bCDb2717C9640e892B9d5Ee02Bb5e0682</ts:address>
+        <ts:abi>
+			
+			[
+				{
+                  "name": "setScriptURI",
+				  "inputs": [
+					{
+					  "internalType": "address",
+					  "name": "contractAddressLocal",
+					  "type": "address"
+					},
+                    {
+					  "internalType": "string[]",
+					  "name": "scriptURILocal",
+					  "type": "string[]"
+					}
+				  ],
+				  "outputs": [
+					
+				  ],
+				  "stateMutability": "nonpayable",
+				  "type": "function"
+				},
+                {
+                  "name": "updateScriptURI",
+				  "inputs": [
+					{
+					  "internalType": "uint256",
+					  "name": "tokenId",
+					  "type": "uint256"
+					},
+                    {
+					  "internalType": "string",
+					  "name": "scriptURILocal",
+					  "type": "string"
+					}
+				  ],
+				  "outputs": [
+					
+				  ],
+				  "stateMutability": "nonpayable",
+				  "type": "function"
+				}
+			]
+			
+		</ts:abi>
+    </ts:contract>
+    <ts:origins>
+        <ts:ethereum contract="RegistryContract"/>
+    </ts:origins>
+    <ts:cards>
+        <ts:card buttonClass="secondary" name="Info" origins="RegistryContract" type="token">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Info
+                </ts:string>
+            </ts:label>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				
+            <style type="text/css">/*&lt;![CDATA[*/ 
+
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+
+    .token-id {
+        font-weight: bold;
+    }
+
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%;
+        /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+
+    .error-message {
+        position: absolute;
+        bottom: -20px;
+        /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none;
+        /* Hidden by default */
+    }
+
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none;
+        /* Hidden by default */
+        pointer-events: none;
+    }
+
+    #textCentre {
+        text-align: center;
+    }
+
+    .text-box {
+        border: 1px solid #ccc;
+        /* Thin border */
+        border-radius: 10px;
+        /* Rounded corners */
+        padding: 10px;
+        /* Space between the text and the border */
+        background-color: #f7f7f7;
+        /* Optional: a light background color */
+        font-family: Arial, sans-serif;
+        /* Optional: set a font-family */
+        max-width: 90%;
+        /* Max-width of 90% */
+        word-wrap: break-word;
+        /* Ensures the text wraps onto multiple lines */
+        box-sizing: border-box;
+        /* Ensures padding and border are included in the element's total width and height */
+        margin: 0 auto;
+        /* Centers the box horizontally within its container */
+        display: none;
+    }
+
+ /*//]]&gt;*/</style>
+<div id="textCentre">
+    <h3>ERC-7738 registry</h3>
+
+    <h3>Contract</h3>
+    <div class="text-box" id="Contract"></div>
+
+    <h3>Order #</h3>
+    <div class="text-box" id="Order"></div>
+
+    <h3>ScriptURI</h3>
+    <div class="text-box" id="scriptURI"></div>
+
+    <h3>ENS</h3>
+    <div class="text-box" id="ENS"></div>
+
+    <h3>Name</h3>
+    <div class="text-box" id="name"></div>
+
+    <h3>Authenticated by Owner</h3>
+    <div class="text-box" id="MintedByOwner"></div>
+
+</div>
+
+<script type="text/javascript">//&lt;![CDATA[
+
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    const metadataCaller = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function tokenURI(uint256 id) public view returns (string)"
+    ], provider);
+
+    async function getMetaData() {
+        let metaData = await metadataCaller.tokenURI(currentTokenInstance.tokenId);
+        //pull out attrs
+        let metaDataJSON = JSON.parse(metaData);
+        return metaDataJSON.attributes;
+    }
+
+    function populateItems(attributes) {
+        let container;
+
+        for (let i = 0; i &lt; attributes.length; i++) {
+            const attribute = attributes[i];
+
+            // Skip entries with blank values
+            if (!attribute.value) {
+                continue;
+            }
+
+            const container = document.getElementById(attribute.trait_type);
+            if (container) {
+                container.style.display = 'block';
+                container.innerHTML = attribute.value;
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", async function () {
+
+        let tokenInfo = currentTokenInstance.tokenInfo;
+        let attributes = tokenInfo.attributes;
+
+        if (attributes.length == 0) {
+            //fetch attrs
+            attributes = await getMetaData();
+        }
+
+        populateItems(attributes);
+
+    });
+
+//]]&gt;</script></ts:view>
+        </ts:card>
+        <ts:card buttonClass="primary" name="update" origins="RegistryContract" type="action">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Update ScriptURI
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction contract="RegistryContract" function="updateScriptURI">
+                    <ts:data>
+                        <ts:uint256 ref="tokenId"/>
+                        <ts:string local-ref="scriptURILocal"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				
+            <style type="text/css">/*&lt;![CDATA[*/ 
+
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+    .token-id {
+        font-weight: bold;
+    }
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%; /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .error-message {
+        position: absolute;
+        bottom: -20px; /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none; /* Hidden by default */
+    }
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px; /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none; /* Hidden by default */
+        pointer-events: none; 
+    }
+    #textCentre {
+        text-align: center;
+    }
+    .text-box {
+        border: 1px solid #ccc; /* Thin border */
+        border-radius: 10px; /* Rounded corners */
+        padding: 10px; /* Space between the text and the border */
+        background-color: #f7f7f7; /* Optional: a light background color */
+        font-family: Arial, sans-serif; /* Optional: set a font-family */
+        max-width: 90%; /* Max-width of 90% */
+        word-wrap: break-word; /* Ensures the text wraps onto multiple lines */
+        box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+        margin: 0 auto; /* Centers the box horizontally within its container */
+        display: none;
+    }
+    
+ /*//]]&gt;*/</style>
+    <p id="tokendesc">Create a new script mapping for a contract. Input the contract address and the scriptURI</p>
+    <br/><br/>
+    <div id="textCentre">
+    <h3>Current ScriptURI</h3>
+    </div>
+    <div class="text-box" id="existing">
+    </div>
+    <br/><br/>
+    <div id="inputBox">
+        <h3>ScriptURI</h3>
+        <input id="scriptURI" type="text" value="" data-ts-prop="false"/>
+        <span class="error-message" id="errorText-url">Not a valid URL</span>
+        <span class="success-icon" id="successIcon-url">✔</span>
+    </div>
+    <span class="error-message" id="formatter"></span>
+    
+    <br/><br/>
+    <script type="text/javascript">//&lt;![CDATA[
+
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    const errorTextURL = document.getElementById('errorText-url');
+    const successIconURL = document.getElementById('successIcon-url');
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    const metadataCaller = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function tokenURI(uint256 id) public view returns (string)"
+    ], provider);
+
+    function validateURL(input) {
+        try {
+            // Attempt to create a new URL object
+            new URL(input);
+            return true;
+        } catch (e) {
+            // If an error is thrown, the URL is not valid
+            return false;
+        }
+    }
+
+    function sanitizeInput(input) {
+        formatter.innerHTML = '';
+        formatter.appendChild(document.createTextNode(input));
+        return formatter.innerHTML;
+    }
+
+    function updateScriptURI(event) {
+        let chosenUrl = event.target.value;
+        if (!validateURL(chosenUrl)) {
+            successIconURL.style.display = 'none';
+            errorTextURL.textContent = "Not a valid address";
+            errorTextURL.style.display = 'block';
+        } else {
+            errorTextURL.style.display = 'none';
+            successIconURL.style.display = 'inline';
+
+            let sanitised = sanitizeInput(chosenUrl);
+            console.log(`Update scriptURI: ${sanitised}`);
+
+            web3.action.setProps({
+                scriptURILocal: sanitised
+		    });
+        }
+    }
+
+    let scriptTypingTimer;
+
+    document.getElementById('scriptURI').addEventListener('input', (event) =&gt; {
+        clearTimeout(scriptTypingTimer);
+        scriptTypingTimer = setTimeout(() =&gt; updateScriptURI(event), typingDelay);
+    });
+
+    async function getMetaData() {
+        let metaData = await metadataCaller.tokenURI(currentTokenInstance.tokenId);
+        //pull out attrs
+        let metaDataJSON = JSON.parse(metaData);
+        return metaDataJSON.attributes;
+    }
+
+    function populateScript(attributes) {
+        const container = document.getElementById('existing');
+        for (let i = 0; i &lt; attributes.length; i++) {
+            if (attributes[i].trait_type == "scriptURI") {
+                container.style.display = 'block';
+                container.innerHTML = attributes[i].value;  
+                break;
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", async function() {
+
+        let tokenInfo = currentTokenInstance.tokenInfo;
+        let attributes = tokenInfo.attributes;
+
+        if (attributes.length == 0) {
+            //fetch attrs
+            attributes = await getMetaData();
+        }
+
+        populateScript(attributes);
+
+        });
+    
+//]]&gt;</script></ts:view>
+        </ts:card>
+        <ts:card buttonClass="featured" name="setName" origins="RegistryContract" type="action">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Set Name
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction contract="RegistryContract" function="setName">
+                    <ts:data>
+                        <ts:uint256 ref="tokenId"/>
+                        <ts:string local-ref="nameEntry"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				
+            <style type="text/css">/*&lt;![CDATA[*/ 
+
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+    .token-id {
+        font-weight: bold;
+    }
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%; /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .error-message {
+        position: absolute;
+        bottom: -20px; /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none; /* Hidden by default */
+    }
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px; /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none; /* Hidden by default */
+        pointer-events: none; 
+    }
+    #textCentre {
+        text-align: center;
+    }
+    .text-box {
+        border: 1px solid #ccc; /* Thin border */
+        border-radius: 10px; /* Rounded corners */
+        padding: 10px; /* Space between the text and the border */
+        background-color: #f7f7f7; /* Optional: a light background color */
+        font-family: Arial, sans-serif; /* Optional: set a font-family */
+        max-width: 90%; /* Max-width of 90% */
+        word-wrap: break-word; /* Ensures the text wraps onto multiple lines */
+        box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+        margin: 0 auto; /* Centers the box horizontally within its container */
+        display: none;
+    }
+    
+ /*//]]&gt;*/</style>
+    <p id="tokendesc">Add a name for your script entry</p>
+    <br/><br/>
+    <div id="textCentre">
+    <h3>Current Name</h3>
+    </div>
+    <div class="text-box" id="existing">
+    </div>
+    <br/><br/>
+    <div id="inputBox">
+        <h3>Name</h3>
+        <input id="scriptURI" type="text" value="" data-ts-prop="false"/>
+    </div>
+    
+    <br/><br/>
+    <script type="text/javascript">//&lt;![CDATA[
+
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    const metadataCaller = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function tokenURI(uint256 id) public view returns (string)"
+    ], provider);
+
+    function updateName(event) {
+        //clean up name
+        let cleanedValue = event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        event.target.value = cleanedValue;
+        web3.action.setProps({
+            nameEntry: cleanedValue
+		});
+    }
+
+    let typingTimer;
+
+    document.getElementById('scriptURI').addEventListener('input', (event) =&gt; {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() =&gt; updateName(event), typingDelay);
+    });
+
+    async function getMetaData() {
+        let metaData = await metadataCaller.tokenURI(currentTokenInstance.tokenId);
+        //pull out attrs
+        let metaDataJSON = JSON.parse(metaData);
+        return metaDataJSON.attributes;
+    }
+
+    function populateScript(attributes) {
+        const container = document.getElementById('existing');
+        let isSet = false;
+        for (let i = 0; i &lt; attributes.length; i++) {
+            if (attributes[i].trait_type == "name" &amp;&amp; attributes[i].value?.length &gt; 0) {
+                container.style.display = 'block';
+                container.innerHTML = attributes[i].value;  
+                isSet = true;
+                break;
+            }
+        }
+
+        if (!isSet) {
+            container.style.display = 'block';
+            container.innerHTML = "-- Not Set --";  
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", async function() {
+
+        let tokenInfo = currentTokenInstance.tokenInfo;
+        let attributes = tokenInfo.attributes;
+
+        if (attributes.length == 0) {
+            //fetch attrs
+            attributes = await getMetaData();
+        }
+
+        populateScript(attributes);
+
+        });
+    
+//]]&gt;</script></ts:view>
+        </ts:card>
+        <ts:card name="setIcon" origins="RegistryContract" type="action">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Set Icon
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction contract="RegistryContract" function="setIconURI">
+                    <ts:data>
+                        <ts:uint256 ref="tokenId"/>
+                        <ts:string local-ref="iconEntry"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				
+            <style type="text/css">/*&lt;![CDATA[*/ 
+
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+    .token-id {
+        font-weight: bold;
+    }
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%; /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .error-message {
+        position: absolute;
+        bottom: -20px; /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none; /* Hidden by default */
+    }
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px; /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none; /* Hidden by default */
+        pointer-events: none; 
+    }
+    #textCentre {
+        text-align: center;
+    }
+    .text-box {
+        border: 1px solid #ccc; /* Thin border */
+        border-radius: 10px; /* Rounded corners */
+        padding: 10px; /* Space between the text and the border */
+        background-color: #f7f7f7; /* Optional: a light background color */
+        font-family: Arial, sans-serif; /* Optional: set a font-family */
+        max-width: 90%; /* Max-width of 90% */
+        word-wrap: break-word; /* Ensures the text wraps onto multiple lines */
+        box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+        margin: 0 auto; /* Centers the box horizontally within its container */
+        display: none;
+    }
+    .imgbox {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0; /* Remove any default margin */
+        }
+
+        .center-fit {
+            object-fit: cover;
+            width: 200px;
+            height: 200px;
+            margin: auto;
+        }    
+    
+ /*//]]&gt;*/</style>
+    <div id="textCentre">
+    <h3>Set an icon for your script entry</h3>
+    <p>(note, you must upload the icon yourself and provide the URI here)</p>
+    </div>
+    <br/><br/>
+    <div id="textCentre">
+    <h3>Current Icon</h3>
+    </div>
+    <div id="existing">
+    </div>
+    <br/><br/>
+    <div id="inputBox">
+        <h3>Icon URL</h3>
+        <input id="iconURI" type="text" value="" data-ts-prop="false"/>
+        <span class="error-message" id="errorText-url">Not a valid URL</span>
+        <span class="success-icon" id="successIcon-url">✔</span>
+    </div>
+    <span class="error-message" id="formatter"></span>
+    
+    <br/><br/>
+    <script type="text/javascript">//&lt;![CDATA[
+
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    const errorTextURL = document.getElementById('errorText-url');
+    const successIconURL = document.getElementById('successIcon-url');
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    const metadataCaller = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function tokenURI(uint256 id) public view returns (string)"
+    ], provider);
+
+    function validateURL(input) {
+        try {
+            // Attempt to create a new URL object
+            new URL(input);
+            return true;
+        } catch (e) {
+            // If an error is thrown, the URL is not valid
+            return false;
+        }
+    }
+
+    function sanitizeInput(input) {
+        formatter.innerHTML = '';
+        formatter.appendChild(document.createTextNode(input));
+        return formatter.innerHTML;
+    }
+
+    function updateIconURI(event) {
+        let chosenUrl = event.target.value;
+        if (!validateURL(chosenUrl)) {
+            successIconURL.style.display = 'none';
+            errorTextURL.textContent = "Not a valid address";
+            errorTextURL.style.display = 'block';
+        } else {
+            errorTextURL.style.display = 'none';
+            successIconURL.style.display = 'inline';
+
+            let sanitised = sanitizeInput(chosenUrl);
+            console.log(`Update iconEntry: ${sanitised}`);
+
+            web3.action.setProps({
+                iconEntry: sanitised
+		    });
+        }
+    }
+
+    let typingTimer;
+
+    document.getElementById('iconURI').addEventListener('input', (event) =&gt; {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() =&gt; updateIconURI(event), typingDelay);
+    });
+
+    async function getMetaData() {
+        let metaData = await metadataCaller.tokenURI(currentTokenInstance.tokenId);
+        //pull out attrs
+        let metaDataJSON = JSON.parse(metaData);
+        return metaDataJSON.image;
+    }
+
+    function populateIcon(icon) {
+        const container = document.getElementById('existing');
+        container.innerHTML = `&lt;div class="imgbox"&gt;&lt;img class="center-fit" src='${icon}'&gt;&lt;/div&gt;`;
+    }
+
+    const IPFS_REPLACE_GATEWAYS = [
+		"ipfs://",
+		"https://ipfs.io/ipfs/",
+		"https://gateway.pinata.cloud/ipfs/"
+	];
+
+    const IPFS_GATEWAY = "https://smart-token-labs-demo-server.mypinata.cloud/ipfs/";
+
+	function processIpfsUrl(uri){
+
+		for (let gateway of IPFS_REPLACE_GATEWAYS){
+
+			if (IPFS_GATEWAY.indexOf(gateway) === 0){
+				continue;
+			}
+
+			if (uri.indexOf(gateway) === 0){
+				uri = uri.replace(gateway, IPFS_GATEWAY);
+				break;
+			}
+		}
+
+		return uri;
+	}
+
+    document.addEventListener("DOMContentLoaded", async function() {
+
+        let tokenInfo = currentTokenInstance.tokenInfo;
+        let image = tokenInfo.image;
+
+        if (image.length == 0) {
+            //fetch attrs
+            image = await getMetaData();
+        }
+
+        populateIcon(image);
+
+        });
+    
+//]]&gt;</script></ts:view>
+        </ts:card>
+        <ts:card buttonClass="primary" name="setScript" type="onboarding">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Set ScriptURI
+                </ts:string>
+            </ts:label>
+        
+            <ts:transaction>
+                <ethereum:transaction contract="RegistryContract" function="setScriptURI">
+                    <ts:data>
+                        <ts:address local-ref="contractAddressLocal"/>
+                        <ts:struct local-ref="scriptURILocal"/>
+                    </ts:data>
+                </ethereum:transaction>
+            </ts:transaction>
+			<ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				
+            <style type="text/css">/*&lt;![CDATA[*/ 
+
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+
+    .token-id {
+        font-weight: bold;
+    }
+
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%;
+        /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+
+    .error-message {
+        position: absolute;
+        bottom: -20px;
+        /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none;
+        /* Hidden by default */
+    }
+
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none;
+        /* Hidden by default */
+        pointer-events: none;
+    }
+
+ /*//]]&gt;*/</style>
+<p id="tokendesc">Create a new script mapping for a contract. Input the contract address and the scriptURI</p>
+<br/><br/>
+<div id="inputBox">
+    <h3>Contract Address</h3>
+    <input id="contractAddr" type="text" value=""/>
+    <span class="error-message" id="errorText">Not a valid contract</span>
+    <span class="success-icon" id="successIcon">✔</span>
+</div>
+<div id="inputBox">
+    <h3>ScriptURI</h3>
+    <input id="scriptURI" type="text" value="" data-ts-prop="false"/>
+    <span class="error-message" id="errorText-url">Not a valid URL</span>
+    <span class="success-icon" id="successIcon-url">✔</span>
+</div>
+<span class="error-message" id="formatter"></span>
+
+<br/><br/>
+<script type="text/javascript">//&lt;![CDATA[
+
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    async function updateContractAddr(event) {
+        let checksummedAddr = await checkContract(event.target.value);
+        if (checksummedAddr.length &gt; 0) {
+            web3.action.setProps({
+                contractAddressLocal: event.target.value
+            });
+        }
+    }
+
+    async function checkContract(value) {
+        if (value === "") {
+            successIcon.style.display = 'none';
+            errorText.style.display = 'none';
+            return "";
+        }
+
+        try {
+            let checksumAddr = ethers.getAddress(value);
+            const result = await provider.getCode(checksumAddr);
+            if (result.startsWith("0x60")) {
+                errorText.style.display = 'none';
+                successIcon.style.display = 'inline';
+                return checksumAddr;
+            } else {
+                successIcon.style.display = 'none';
+                errorText.textContent = "No contract at address";
+                errorText.style.display = 'block';
+            }
+            return result.startsWith("0x60") ? checksumAddr : "";
+        } catch (error) {
+            console.log(`${error} ${value} is NOT a valid Ethereum address.`);
+            successIcon.style.display = 'none';
+            if (error.message.includes("bad address checksum")) {
+                errorText.textContent = "Failed Checksum (use lowercase)";
+            } else {
+                errorText.textContent = "Not a valid address";
+            }
+            errorText.style.display = 'block';
+            return "";
+        }
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    function validateURL(input) {
+        try {
+            // Attempt to create a new URL object
+            new URL(input);
+            return true;
+        } catch (e) {
+            // If an error is thrown, the URL is not valid
+            return false;
+        }
+    }
+
+    function sanitizeInput(input) {
+        formatter.innerHTML = '';
+        formatter.appendChild(document.createTextNode(input));
+        return formatter.innerHTML;
+    }
+
+    function updateScriptURI(event) {
+        //first pre-parse the url
+        let chosenUrl = event.target.value; //event.target.value;//sanitizeInput(event.target.value);
+        if (!validateURL(chosenUrl)) {
+            successIconURL.style.display = 'none';
+            errorTextURL.textContent = "Not a valid address";
+            errorTextURL.style.display = 'block';
+        } else {
+            errorTextURL.style.display = 'none';
+            successIconURL.style.display = 'inline';
+
+            let sanitised = sanitizeInput(event.target.value);
+            console.log(`Santise: ${sanitised}`);
+
+            let scriptArray = [`${chosenUrl}`];
+            console.log(`Update scriptURI: ${chosenUrl}`);
+            web3.action.setProps({
+                scriptURILocal: scriptArray
+            });
+        }
+    }
+
+    const errorText = document.getElementById('errorText');
+    const successIcon = document.getElementById('successIcon');
+    const errorTextURL = document.getElementById('errorText-url');
+    const successIconURL = document.getElementById('successIcon-url');
+    const formatter = document.getElementById('formatter');
+    let addrTypingTimer;
+    let scriptTypingTimer;
+
+    document.getElementById('contractAddr').addEventListener('input', (event) =&gt; {
+        clearTimeout(addrTypingTimer);
+        addrTypingTimer = setTimeout(() =&gt; updateContractAddr(event), typingDelay);
+    });
+    document.getElementById('scriptURI').addEventListener('input', (event) =&gt; {
+        clearTimeout(scriptTypingTimer);
+        scriptTypingTimer = setTimeout(() =&gt; updateScriptURI(event), typingDelay);
+    });
+
+
+    //'input', updateScriptURI);
+
+
+    document.addEventListener("DOMContentLoaded", async function () {
+        //call function
+
+        try {
+
+        } catch (error) {
+            console.log(`Owner error: ${error}`);
+            return false;
+        }
+
+    });
+
+//]]&gt;</script></ts:view>
+        </ts:card>    
+    </ts:cards>
+    <ts:attribute name="totalSupply">
+        <ts:type>
+            <ts:syntax>1.3.6.1.4.1.1466.115.121.1.36</ts:syntax>
+        </ts:type>
+        <ts:label>
+            <ts:string xml:lang="en">
+                totalSupply
+            </ts:string>
+        </ts:label>
+        <ts:origins>
+            <ethereum:call as="uint" contract="RegistryContract" function="totalSupply">
+                <ts:data/>
+            </ethereum:call>
+        </ts:origins>
+    </ts:attribute>
+</ts:token>

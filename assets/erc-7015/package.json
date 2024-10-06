@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "viem": "^2.19.8",
+    "typescript": "^5.0.4",
+    "vite": "^5.4.4",
+    "vitest": "^2.0.5"
+  }
+}
