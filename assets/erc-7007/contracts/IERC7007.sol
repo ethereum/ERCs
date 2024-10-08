@@ -9,34 +9,28 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  */
 interface IERC7007 is IERC165, IERC721 {
     /**
-     * @dev Emitted when `tokenId` token is minted.
+     * @dev Emitted when AI Generated Content (AIGC) data is added to token at `tokenId`.
      */
-    event Mint(
-        address indexed to,
+    event AigcData(
         uint256 indexed tokenId,
         bytes indexed prompt,
         bytes aigcData,
-        string uri,
         bytes proof
     );
 
     /**
-     * @dev Mint token at `tokenId` given `to`, `prompt`, `aigcData`, `uri` and `proof`. `proof` means that we input the ZK proof when using zkML and byte zero when using opML as the verification method.
-     *
-     * Requirements:
-     * - `tokenId` must not exist.'
-     * - verify(`prompt`, `aigcData`, `proof`) must return true.
+     * @dev Add AIGC data to token at `tokenId` given `prompt`, `aigcData` and `proof`.
      *
      * Optional:
      * - `proof` should not include `aigcData` to save gas.
+     * - verify(`prompt`, `aigcData`, `proof`) should return true for zkML scenario.
      */
-    function mint(
-        address to,
+    function addAigcData(
+        uint256 tokenId,
         bytes calldata prompt,
         bytes calldata aigcData,
-        string calldata uri,
         bytes calldata proof
-    ) external returns (uint256 tokenId);
+    ) external;
 
     /**
      * @dev Verify the `prompt`, `aigcData` and `proof`.
