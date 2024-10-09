@@ -1,4 +1,5 @@
 ---
+eip: 7785
 title: On-chain registration of chain identifiers
 description: Derive chain identifiers by hashing their chain name and use ENS to map chain names to these identifiers
 author: Marco Stronati (@paracetamolo), Jeff Lau <jeff-lau@live.com>
