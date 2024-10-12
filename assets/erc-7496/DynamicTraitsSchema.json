@@ -28,20 +28,6 @@
                 "required": ["type"],
                 "properties": {
                   "type": { "const": "string" },
-                  "acceptableValues": {
-                    "type": "array",
-                    "description": "An exclusive list of possible string values that can be set for the trait. If this is not specified, the trait can be set to any reasonable string value. If `valueMappings` is specified, this list must be the `mappedValue`s.",
-                    "items": {
-                      "oneOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
                   "maxLength": {
                     "type": "number",
                     "description": "The maximum length of the string value that can be set for the trait (inclusive). If this is not specified, the trait can be set to any reasonable string length."
