@@ -2,7 +2,7 @@
 title: Cross-Chain Messaging Gateway
 description: An interface for contracts to send and receive cross-chain messages.
 author: Francisco Giordano (@frangio), Hadrien Croubois (@Amxx), Ernesto Garcia (@ernestognw), CJ Cobb (@cjcobb23)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-yyyy-cross-chain-messaging-gateway/21374
 status: Draft
 type: Standards Track
 category: ERC
