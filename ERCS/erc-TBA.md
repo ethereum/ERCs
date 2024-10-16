@@ -1,7 +1,7 @@
 ---
 title: Soulbound Degradable Governance
 description:
-  A governance standard for DAOs where voting power is non-transferable and decays over time without
+  DAO governance where voting power is non-transferable and decays over time without
   active contributions.
 author: Guilherme Neves (@0xneves) Rafael Castaneda (@castacrypto)
 discussions-to: https://ethereum-magicians.org/t/soulbounded-degradable-governance-sdg-a-new-approach-to-dao-power-structures/21326
