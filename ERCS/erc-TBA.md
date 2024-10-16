@@ -5,7 +5,7 @@ description:
   DAO governance where voting power is non-transferable and decays over time without
   active contributions.
 author: Guilherme Neves (@0xneves) Rafael Castaneda (@castacrypto)
-discussions-to: https://ethereum-magicians.org/t/soulbounded-degradable-governance-sdg-a-new-approach-to-dao-power-structures/21326
+discussions-to: https://ethereum-magicians.org/t/erc-7787-soulbound-degradable-governance/21326
 status: Draft
 type: Standards Track
 category: ERC
