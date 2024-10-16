@@ -1,4 +1,5 @@
 ---
+eip: 7787
 title: Soulbound Degradable Governance
 description:
   DAO governance where voting power is non-transferable and decays over time without
