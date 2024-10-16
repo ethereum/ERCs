@@ -120,6 +120,113 @@ The inclusion of **grace periods** and **decay periods** balances fairness with 
 
 No backward compatibility issues found.
 
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import { SDG } from "./SDG.sol"; // SDG implementation
+import { SOULERC721 } from "./ERC721/SOULERC721.sol"; // Soulbounded ERC721 implementation
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol"; // Oz Ownable contract
+
+/**
+ * @title Valocracy
+ * @dev Implements the SDG governance model where governance power decays over time if not actively
+ * maintained. Only the contract owner can mint new tokens or grant additional governance power.
+ */
+contract Valocracy is SDG, SOULERC721, Ownable {
+  // Event emitted when voting units are updated
+  event VotingUnitsUpdated(address indexed account, uint256 oldVotingUnits, uint256 newVotingUnits);
+
+  // Sequential ID and total supply of tokens
+  uint256 public totalSupply;
+
+  // Mapping of addresses to their token IDs
+  mapping(address => uint256) private _tokens;
+
+  /**
+   * @param _name The name of the ERC721 token.
+   * @param _symbol The symbols of the ERC721 token.
+   */
+  constructor(
+    string memory _name,
+    string memory _symbol
+  ) Ownable(_msgSender()) SOULERC721(_name, _symbol) {}
+
+  /**
+   * @dev See {IERC721Metadata-tokenURI}.
+   * @notice This function returns a static string as the token URI. In a real implementation, this
+   * function should return an URI that points to a JSON file with metadata about the token. Or even
+   * better, a dynamic SVG that displays the governance power of the token holder.
+   */
+  function tokenURI(uint256 tokenId) public pure override returns (string memory) {
+    return "Custom images or Dynamic NFT that displays the governance power";
+  }
+
+  /**
+   * @dev See {ISDG-getVotes}.
+   */
+  function getVotes(address account) public view override returns (uint256) {
+    uint256 grantedTime = _lastUpdateOf(account);
+
+    // If no voting units was granted or still in grace period, return all voting units
+    if (grantedTime == 0 || block.timestamp < grantedTime + gracePeriod()) {
+      return _votingUnitsOf(account);
+    }
+
+    // Calculate time passed since grace period ended
+    uint256 timeSinceGracePeriod = block.timestamp - (grantedTime + gracePeriod());
+
+    // If decay period is over, return 0
+    if (timeSinceGracePeriod >= decayPeriod()) {
+      return 0;
+    }
+
+    // Linear decay: Calculate remaining voting units during decay period
+    uint256 decayPercentage = (timeSinceGracePeriod * 1e18) / decayPeriod(); // Percentage in 18 decimals
+    uint256 remainingVotes = (_votingUnitsOf(account) * (1e18 - decayPercentage)) / 1e18;
+
+    return remainingVotes;
+  }
+
+  /**
+   * @dev Grants voting units to the specified account by `amount`. Only the contract owner can
+   * mint new tokens and grant additional votings units. If the users doesn't have a token, one
+   * will be minted for them.
+   * @param to The address to mint the new token or grant additional voting units.
+   * @param amount The amount of voting units to grant alongside the token.
+   */
+  function grantVotingUnits(address to, uint256 amount) public virtual onlyOwner {
+    if (_tokens[to] == 0) {
+      _mint(to, ++totalSupply);
+      _tokens[to] = totalSupply;
+    }
+
+    uint256 votingUnits = getVotes(to);
+    _setVotingUnits(to, votingUnits + amount);
+
+    emit VotingUnitsUpdated(to, votingUnits, amount);
+  }
+
+  /**
+   * @notice Burns an ERC721 token and erases the voting units associated with the token holder.
+   * @dev The token must exist and be burnable by the token holder or authorized entity.
+   * @param tokenId The ID of the token to burn.
+   */
+  function burn(uint256 tokenId) public virtual {
+    address from = ownerOf(tokenId);
+    uint256 votingUnits = getVotes(from);
+
+    _tokens[from] = 0;
+    _setVotingUnits(from, 0);
+    _burn(tokenId);
+
+    emit VotingUnitsUpdated(from, votingUnits, 0);
+  }
+}
+```
+
 ## Security Considerations
 
 Needs discussion.
