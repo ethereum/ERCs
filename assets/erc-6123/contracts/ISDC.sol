@@ -124,11 +124,6 @@ interface ISDC {
     event TradeSettlementPhase();
 
     /**
-     * @dev Emitted when settlement process has been finished
-     */
-    event TradeSettled();
-
-    /**
      * @dev Emitted when Settlement has been valued and settlement phase is initiated
      * @param initiator the address of the requesting party
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
