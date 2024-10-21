@@ -14,6 +14,19 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IERC20Settlement is IERC20 {
 
+    /**
+     * @dev Emitted during Settlement phase in case an offchain settlement is needed
+     * @param _hash - checksum
+     * @param sdcAddress - address of the sdc trade
+     * @param _fromId - payer ID for offchain system
+     * @param _toId - receiver ID for offchain system
+     * @param _amount - payment amount
+     * @param _fromAddress - payer onchain address
+     * @param _toAddress - receiver onchain address
+     * @param correlationId - id for an external system
+     */
+    event PaymentTriggered(string _hash, address sdcAddress, string _fromId, string _toId, uint256 _amount, address _fromAddress, address _toAddress, string correlationId);
+
     /*
      * @dev Performs a single transfer from msg.sender balance and checks whether this transfer can be conducted
      * @param to - receiver
@@ -49,5 +62,16 @@ interface IERC20Settlement is IERC20 {
      */
     function checkedBatchTransferFrom(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID ) external;
 
+    /*
+     * @dev Inits an SDC for which it conducts the settlement
+     * @param address - address of sdc contract
+     */
+    function initSDC(address sdcAddress) external;
 
+    /**
+     * @dev Performs the initialization of a party, stores an onchain address associated with an offchain ID
+     * @param partyAddress - onchain address
+     * @param partyId - ID for offchain system
+     */
+    function initParty(address partyAddress, string memory partyId) external;
 }
