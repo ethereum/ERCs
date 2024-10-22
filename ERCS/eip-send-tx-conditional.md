@@ -51,7 +51,10 @@ it is CPU-intensive to find an optimal ordering of transactions.
     * **knownAccounts**: a mapping of accounts with their expected storage slots' values.
         * The key of the mapping is account address.
         * A special key `balance` defines the expected balance of the account.
-        * A special key `code` to expect specific code: `""` to mark "expected not to have code", and `"0xef01…"` for specific eip-7702 delegation. (Other values are irrelevant, since code other code values can't be modified)
+        * A special key `code` defines the expected code of the account.
+          Use `""` to indicate that address is expected not to have any code.
+          Use `"0xef01…"` to indicate a specific EIP-7702 delegation.
+        * A special key `nonce` defines the expected nonce of the account.
         * If the value is **hex string**, it is the known storage root hash of that account.
         * If the value is an **object**, then it is a mapping where each member is in the format of `"slot": "value"`.
           The `value` fields are explicit slot values of the account's storage.
