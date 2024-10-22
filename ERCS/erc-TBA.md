@@ -2,7 +2,7 @@
 title: Wallet Transaction Intents
 description: Wallet support for transactions with prerequisites
 author: Agustín Aguilar (@agusx1211), Michael Standen (@ScreamingHawk)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/wallet-transaction-intents/21426
 status: Draft
 type: Standards Track
 category: ERC
