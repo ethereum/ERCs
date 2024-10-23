@@ -67,11 +67,4 @@ interface IERC20Settlement is IERC20 {
      * @param address - address of sdc contract
      */
     function initSDC(address sdcAddress) external;
-
-    /**
-     * @dev Performs the initialization of a party, stores an onchain address associated with an offchain ID
-     * @param partyAddress - onchain address
-     * @param partyId - ID for offchain system
-     */
-    function initParty(address partyAddress, string memory partyId) external;
 }
