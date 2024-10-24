@@ -86,7 +86,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         address[] memory to = new address[](1);
         uint256[] memory amounts = new uint256[](1);
         from[0] = settlementPayer; to[0] = otherParty(settlementPayer); amounts[0] = transferAmount;
-        emit SettlementEvaluated(msg.sender, settlementAmount, _settlementData);
+        emit SettlementDetermined(msg.sender, settlementAmount, _settlementData);
         setTradeState(TradeState.InTransfer);
         settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);
     }

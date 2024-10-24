@@ -124,7 +124,7 @@ interface ISDC {
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
-    event SettlementEvaluated(address initiator, int256 settlementAmount, string settlementData);
+    event SettlementDetermined(address initiator, int256 settlementAmount, string settlementData);
 
     /**
      * @dev Emitted when settlement process has been finished
@@ -212,7 +212,7 @@ interface ISDC {
 
     /**
      * @notice Called to trigger according settlement on chain-balances callback for initiateSettlement() event handler
-     * @dev perform settlement checks, may initiate transfers and emits {SettlementEvaluated}
+     * @dev perform settlement checks, may initiate transfers and emits {SettlementDetermined}
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
