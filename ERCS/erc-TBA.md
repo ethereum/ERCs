@@ -1,4 +1,5 @@
 ---
+eip: 7794
 title: Grant Registry
 description: A registry contract for managing and tracking grants across different blockchain networks, enabling improved transparency, lifecycle management, and interoperability between grant programs.
 author: Guilherme Neves (@0xneves)
