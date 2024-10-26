@@ -3,7 +3,7 @@ eip: 7794
 title: Grant Registry
 description: A registry contract for managing and tracking grants across different blockchain networks, enabling improved transparency, lifecycle management, and interoperability between grant programs.
 author: Guilherme Neves (@0xneves)
-discussions-to: https://ethereum-magicians.org/t/grant-program-registry/20791
+discussions-to: https://ethereum-magicians.org/t/erc-7794-grant-registry/20791
 status: Draft
 type: Standards Track
 category: ERC
