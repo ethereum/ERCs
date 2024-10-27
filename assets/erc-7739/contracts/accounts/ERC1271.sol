@@ -32,8 +32,9 @@ abstract contract ERC1271 is EIP712 {
         // If `hash` is `0x7739...7739`, returns `bytes4(0x77390001)`.
         // The returned number MAY be increased in future ERC7739 versions.
         unchecked {
-            if (uint256(hash) == ~(msg.data.length >> msg.data.length) / 0xffff * 0x7739) {
-                return 0x77390001;
+            if (signature.length == uint256(0)) {
+                // Forces the compiler to optimize for smaller bytecode size.
+                if (uint256(hash) == ~signature.length / 0xffff * 0x7739) return 0x77390001;
             }
         }
         bool success = _erc1271IsValidSignature(hash, _erc1271UnwrapSignature(signature));
@@ -198,7 +199,29 @@ abstract contract ERC1271 is EIP712 {
         virtual
         returns (bool result)
     {
-        bytes32 t = _typedDataSignFields();
+        uint256 t = uint256(uint160(address(this)));
+        // Forces the compiler to pop the variables after the scope, avoiding stack-too-deep.
+        if (t != uint256(0)) {
+            (
+                ,
+                string memory name,
+                string memory version,
+                uint256 chainId,
+                address verifyingContract,
+                bytes32 salt,
+            ) = eip712Domain();
+            /// @solidity memory-safe-assembly
+            assembly {
+                t := mload(0x40) // Grab the free memory pointer.
+                // Skip 2 words for the `typedDataSignTypehash` and `contents` struct hash.
+                mstore(add(t, 0x40), keccak256(add(name, 0x20), mload(name)))
+                mstore(add(t, 0x60), keccak256(add(version, 0x20), mload(version)))
+                mstore(add(t, 0x80), chainId)
+                mstore(add(t, 0xa0), shr(96, shl(96, verifyingContract)))
+                mstore(add(t, 0xc0), salt)
+                mstore(0x40, add(t, 0xe0)) // Allocate the memory.
+            }
+        }
         /// @solidity memory-safe-assembly
         assembly {
             let m := mload(0x40) // Cache the free memory pointer.
@@ -220,7 +243,7 @@ abstract contract ERC1271 is EIP712 {
                     break
                 }
                 // Else, use the `TypedDataSign` workflow.
-                // `TypedDataSign({ContentsName} contents,bytes1 fields,...){ContentsType}`.
+                // `TypedDataSign({ContentsName} contents,string name,...){ContentsType}`.
                 mstore(m, "TypedDataSign(") // Store the start of `TypedDataSign`'s type encoding.
                 let p := add(m, 0x0e) // Advance 14 bytes to skip "TypedDataSign(".
                 calldatacopy(p, add(o, 0x40), c) // Copy `contentsName`, optimistically.
@@ -261,29 +284,6 @@ abstract contract ERC1271 is EIP712 {
         }
         if (t == bytes32(0)) hash = _hashTypedData(hash); // `PersonalSign` workflow.
         result = _erc1271IsValidSignatureNowCalldata(hash, signature);
-    }
-
-    /// @dev For use in `_erc1271IsValidSignatureViaNestedEIP712`,
-    function _typedDataSignFields() private view returns (bytes32 m) {
-        (
-            ,
-            string memory name,
-            string memory version,
-            uint256 chainId,
-            address verifyingContract,
-            bytes32 salt,
-        ) = eip712Domain();
-        /// @solidity memory-safe-assembly
-        assembly {
-            m := mload(0x40) // Grab the free memory pointer.
-            // Skip 2 words for the `typedDataSignTypehash` and `contents` struct hash.
-            mstore(add(m, 0x40), keccak256(add(name, 0x20), mload(name)))
-            mstore(add(m, 0x60), keccak256(add(version, 0x20), mload(version)))
-            mstore(add(m, 0x80), chainId)
-            mstore(add(m, 0xa0), shr(96, shl(96, verifyingContract)))
-            mstore(add(m, 0xc0), salt)
-            mstore(0x40, add(m, 0xe0)) // Allocate the memory.
-        }
     }
 
     /// @dev Performs the signature validation without nested EIP-712 to allow for easy sign ins.
