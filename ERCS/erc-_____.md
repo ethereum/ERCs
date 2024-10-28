@@ -2,7 +2,7 @@
 eip: ____
 title: Contactless Payment
 description: Standard for initializing contactless payment transactions from EVM wallets
-author: Amhed Herrera, Justin Lee, Arjun Dureja
+author: Amhed Herrera (@amhed), Justin Lee (@JustinDLee), Arjun Dureja (@arjun-dureja)
 discussions-to: 
 status: Draft
 type: Standards Track
@@ -20,7 +20,7 @@ Currently there is no standard mechanism in crypto to do contactless payment tra
 ## Specification
 
 Comprised of three parts:
-- A new web3Provider method called `requestContactlessPayment`
+- A new Ethereum Provider JavaScript API method called `requestContactlessPayment`
 - An agreement on the payload for data exchange between the parties
 - An optional mechanism for relaying large JSON payloads using a backend relayer
 
