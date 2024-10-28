@@ -1,6 +1,6 @@
 ---
 eip: ____
-title: "Contactless Crypto Payment Standard"
+title: Contactless Payment
 description: Standard for initializing contactless payment transactions from EVM wallets
 author: Amhed Herrera, Justin Lee, Arjun Dureja
 discussions-to: 
