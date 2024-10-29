@@ -1,5 +1,5 @@
 ---
-eip: ____
+eip: 7798
 title: Contactless Payment
 description: Standard for initializing contactless payment transactions from EVM wallets
 author: Amhed Herrera (@amhed), Justin Lee (@JustinDLee), Arjun Dureja (@arjun-dureja)
