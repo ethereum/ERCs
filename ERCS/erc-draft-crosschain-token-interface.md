@@ -1,0 +1,174 @@
+---
+eip: <to be assigned>
+title: Crosschain Token Interface
+description: Minimal token interface for cross-chain transfers
+status: Draft
+type: Standards Track
+authors: Wonderland (skeletor <skeletor@defi.sucks>, parti <particle@defi.sucks>, Joxes <joxes@defi.sucks>, ng <ng@defi.sucks>, agus duha <agusduha@defi.sucks>, 0x Discotech <0xdiscotech@defi.sucks>, gotzen lenek <gotzen@defi.sucks>), Uniswap (0age <0age@uniswap.org>), OP Labs (Mark Tyneway <mark@oplabs.co>, Zain Bacchus <zain@oplabs.co>, Matt Solomon <msolomon@oplabs.co>, Maurelian <maurelian@protonmail.ch>)
+created: 2024-10-30
+---
+
+## Abstract
+
+The ERC-xxx standard introduces a minimal interface for tokens to communicate cross-chain. It allows bridges with mint and burn rights to send and relay token transfers with a standardized API.
+
+## Motivation
+
+All rollups and multiple important sidechains (Gnosis and Polygon PoS, among others) implement canonical bridges that embed their security into some part of the network's core architecture. These bridges do not have mint/burn rights over original tokens, so they usually lock (unlock) liquidity on the native chain and then mint (burn) a non-equivalent representation on the other. Mint/burn is used because the native token is non-existent on that side, so they must create a new representation.
+
+However, each bridge implements a different interface for minting/burning on non-native chains. For example, L1 bridged tokens need to support the `OptimismMintableERC20` specification when bridged (minted) to the OP Stack, but the `IArbToken` interface when bridged to the Arbitrum Stack.
+
+This interface fragmentation is a massive issue in cross-chain communication among chains via third-party bridges or future canonical solutions. At this point, it is clear that every bridge would benefit from a standardized interface for minted/burnt tokens. 
+
+There have been different attempts in the past to standardize token-bridging interfaces. The most relevant proposal has been ERC-7281. However, third-party providers are also developing cross-chain token frameworks, such as NTT by Wormhole and OFT by LayerZero. Each framework defines its features, like rate limits and fee switches, and implements its mint and burn versions. The resultant interfaces become highly specific, lacking naming conventions and structures.
+
+The proposed interface includes the most relevant and minimal set of actions used by most of these standards. These actions also do not require any governance or owner participation, in contrast, for instance, to set rate limits. xERC20, OFT, NTT, and others can be built on top of this interface. 
+
+## Specifications
+
+This ERC introduces the `IERCxxx` interface.
+
+### Methods
+
+**`crosschainMint`**
+
+Mints `_amount` of token to address `_account`. 
+
+This function works as the minting entry point for bridge contracts. Each implementation is responsible for its access control logic.
+
+```solidity
+crosschainMint(address _account, uint256 _amount)
+```
+
+**`crosschainBurn`**
+
+Burns `_amount` of token from address `_account`.
+
+This function works as the burning entry point for bridge contracts. Each implementation is responsible for its access control logic.
+
+```solidity
+crosschainBurn(address _account, uint256 _amount)
+```
+
+### Events
+
+**`CrosschainMint`**
+
+MUST trigger when `crosschainMint` is successfully called.
+
+```solidity
+event CrosschainMint(address indexed _to, uint256 _amount)
+```
+
+Note: implementations might consider additionally emitting `Transfer(address(0), _to, _amount)`to be compliant with [ERC-5679](erc-5679.md).
+
+**`CrosschainBurnt`**
+
+MUST trigger when `crosschainBurn` is successfully called.
+
+```solidity
+event CrosschainBurnt(address indexed _from, uint256 _amount)
+```
+
+Note: implementations might consider additionally emitting `Transfer(_from, address(0), _amount)` to be compliant with [ERC-5679](erc-5679.md).
+
+## Rationale
+
+The core design decisions behind this minimal interface are
+
+- Bridge agnosticism.
+- Extensibility.
+
+**Bridge agnosticism**
+This interface is designed so bridges, not tokens, contain the logic to process cross-chain actions. By maintaining this separation of concerns, token contracts remain simple, reducing their attack surface and easing auditing and upgradability. Offloading cross-chain complexities to bridge contracts ensures that tokens do not embed specific bridge logic.
+
+By implementing the proposed interface, tokens can be supported by different bridge designs:
+
+- Lock/unlock bridges can still operate and do not require any token modification.
+- Burn/mint bridges can now use a universal and minimal token interface, so they will not need to introduce bridge-specific representations, improving cross-chain fungibility.
+
+**Extensibility**
+The minimal interface serves as a foundational layer upon which other standards can be built.
+Token issuers or bridge contracts can extend functionality by adding features such as mint/burn limits, cross-chain transfer fees, and more without altering the core interface.
+
+The interface is intentionally neutral and does not impose conditions on:
+
+- **Access Control**: Token issuers determine who is authorized to call `crosschainMint()` and `crosschainBurn()`.
+- **Zero Amount Calls**: Token issuers decide whether to allow or revert calls with zero amounts.
+
+## Backwards Compatibility
+
+This proposal is fully backwards compatible with [ERC-20](erc-20.md).
+
+As discussed in the Motivation section, a minimal, flexible cross-chain standard interface is necessary. The problem becomes larger as more tokens are deployed without a standardized format.
+
+- Upgradable tokens can be upgraded to implement the new interface.
+- Non-upgradable tokens cannot implement the interface on the token itself. They can still migrate to a standard-compliant version using a lockbox mechanism, as proposed by ERC-7281. The idea is to lock non-mintable tokens and mint the same amount of interface-compliant tokens. The bridge contract can act as a lockbox on the native chain.
+
+Bridge contracts will also need an upgrade to integrate with the interface. Most popular bridges in terms of liquidity at the date are upgradable or use tokens that can be upgraded to point to new bridge contracts. 
+
+1. Arbitrum One ($5.23B)
+2. Portal Wormhole ($2.43B)
+3. Polygon PoS ($2.15B)
+4. OP Mainnet ($2.09B)
+5. Mantle ($983M)
+6. LayerZero OFTs ($465M)
+7. Omnibridge ($449M)
+8. Base ($350M)
+9. Scroll ($128M)
+10. zkSync ($77M)
+
+Source: L2Beat (10/31/24)
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.25;
+
+abstract contract CrosschainERC20 is ERC20, IERCxxx {
+		/// @notice Address of the TOKEN_BRIDGE contract that is allowed to mint/burn tokens.
+    address public immutable TOKEN_BRIDGE;
+
+    /// @notice Constructor to set the TOKEN_BRIDGE address.
+    /// @param _tokenBridge Address of the TOKEN_BRIDGE.
+    constructor(address _tokenBridge) {
+        require(_tokenBridge != address(0), "Invalid TOKEN_BRIDGE address");
+        TOKEN_BRIDGE = _tokenBridge;
+    }
+    
+    /// @notice A modifier that only allows the TOKEN_BRIDGE to call
+    modifier onlyTokenBridge() {
+        if (msg.sender != TOKEN_BRIDGE) revert Unauthorized();
+        _;
+    }
+
+    /// @notice Allows the TOKEN_BRIDGE to mint tokens.
+    /// @param _to     Address to mint tokens to.
+    /// @param _amount Amount of tokens to mint.
+    function crosschainMint(address _to, uint256 _amount) external onlyTokenBridge {
+        _mint(_to, _amount);
+
+        emit CrosschainMint(_to, _amount);
+    }
+
+    /// @notice Allows the TOKEN_BRIDGE to burn tokens.
+    /// @param _from   Address to burn tokens from.
+    /// @param _amount Amount of tokens to burn.
+    function crosschainBurn(address _from, uint256 _amount) external onlyTokenBridge {
+        _burn(_from, _amount);
+
+        emit CrosschainBurn(_from, _amount);
+    }
+}
+```
+
+## Security Considerations
+
+Token issuers are responsible for controlling which contracts are authorized to call the `crosschainMint()` and `crosschainBurn()` functions. A buggy or malicious authorized caller could mint or burn tokens improperly, damaging token holders and disrupting integrations.
+
+One method to minimize potential losses is introducing mint/burn limits, as proposed by ERC-7281. These features are fully compatible with the proposed interface.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://eips.ethereum.org/LICENSE).
