@@ -13,7 +13,7 @@ requires: 712
 
 ## Abstract
 
-This EIP improves on [EIP-712] signatures to better support smart contract accounts by 1) introducing signing domains as a way to prevent replay attacks when private keys are shared across accounts, and 2) allowing dapps and wallets to coordinate on the method that will be used to authenticate the signature.
+This ERC improves on [EIP-712] signatures to better support smart contract accounts by 1) introducing signing domains as a way to prevent replay attacks when private keys are shared across accounts, and 2) allowing dapps and wallets to coordinate on the method that will be used to authenticate the signature.
 
 [EIP-712]: ./erc-712.md
 
@@ -28,7 +28,7 @@ Standards like [ERC-1271] and [ERC-6492] give smart contract accounts (SCAs) the
 
 Smart contract accounts may be "owned" by cryptographic keys whose signatures are used to authorize the use of the account. There is not necessarily a one-to-one mapping between keys and accounts, because a single key may control multiple accounts, so care must be taken to prevent replay attacks across them. This is done by binding a signature to a particular account.
 
-EIP-712 introduced a scheme where signatures can be bound to a verifying domain, which corresponds to the protocol contract that will authenticate a signature. Reusing this mechanism to additionally bind a signature to the domain of the smart contract account runs into a large amount of complexity and attack surface (see [ERC-7739]), as well as yet unresolved issues with account composability (SCAs that control other SCAs). This EIP introduces *signing domains* in addition to verifying domains to natively enable wallets to generate smart contract account signatures with replay protection.
+EIP-712 introduced a scheme where signatures can be bound to a verifying domain, which corresponds to the protocol contract that will authenticate a signature. Reusing this mechanism to additionally bind a signature to the domain of the smart contract account runs into a large amount of complexity and attack surface (see [ERC-7739]), as well as yet unresolved issues with account composability (SCAs that control other SCAs). This ERC introduces *signing domains* in addition to verifying domains to natively enable wallets to generate smart contract account signatures with replay protection.
 
 [ERC-7739]: ./erc-7739.md
 
