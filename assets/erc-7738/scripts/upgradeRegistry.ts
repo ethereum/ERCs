@@ -43,4 +43,4 @@ main()
     });
 
 
- // to run: npx hardhat run .\scripts\updateRegistry.ts --network holesky
+ // to run: npx hardhat run .\scripts\upgradeRegistry.ts --network holesky
