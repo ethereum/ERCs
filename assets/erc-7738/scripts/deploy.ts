@@ -163,10 +163,16 @@ main()
     });
 
 
-    // to run: npx hardhat run .\scripts\deploy.ts --network holesky
-    // to verify logic: npx hardhat verify 0x30Af1aea43490e2F03d4d7eF3116b745D7D58c30 --network holesky 
-    // to verify full: npx hardhat verify 0x0077380bCDb2717C9640e892B9d5Ee02Bb5e0682 --network holesky "ERC-7738 Script Registry", "ERC7738", 0x97b0341BEdbC521778B669550774691918202e65, 0x527E7E85cF60390b56bE953888e0cb036682761B
+    // to run: npx hardhat run .\scripts\deploy.ts --network mainnet
+    // to verify logic: npx hardhat verify 0x30Af1aea43490e2F03d4d7eF3116b745D7D58c30 --network mainnet 
+    // to verify full: npx hardhat verify 0x0077380bCDb2717C9640e892B9d5Ee02Bb5e0682 --network mainnet "ERC-7738 Script Registry", "ERC7738", 0x276d7760fA6774E3AE8F8a7446B88fb2479D38aC, 0x527E7E85cF60390b56bE953888e0cb036682761B
 
     // verify metadata logic: npx hardhat verify 0x276d7760fA6774E3AE8F8a7446B88fb2479D38aC --network mainnet
 
     // verify ensAssigner logic: npx hardhat verify 0x527E7E85cF60390b56bE953888e0cb036682761B --network mainnet
+
+// npx hardhat verify 0x30Af1aea43490e2F03d4d7eF3116b745D7D58c30 --network arbitrum
+// npx hardhat verify 0x276d7760fA6774E3AE8F8a7446B88fb2479D38aC --network arbitrum
+// npx hardhat verify 0x97b0341BEdbC521778B669550774691918202e65 --network arbitrum
+// npx hardhat verify 0x527E7E85cF60390b56bE953888e0cb036682761B --network arbitrum
+// npx hardhat verify 0x0077380bCDb2717C9640e892B9d5Ee02Bb5e0682 --network arbitrum "ERC-7738 Script Registry", "ERC7738", 0x276d7760fA6774E3AE8F8a7446B88fb2479D38aC, 0x527E7E85cF60390b56bE953888e0cb036682761B
