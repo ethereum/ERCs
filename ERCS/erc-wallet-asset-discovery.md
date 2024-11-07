@@ -1,0 +1,218 @@
+---
+eip: xxxx
+title: Wallet Asset Discovery ERC
+description: JSON-RPC method for wallets to share a user’s complete asset list with Dapps, including assets not easily discoverable through on-chain information alone.
+author: Luka Isailovic (@lukaisailovic), Konrad Kopp (@kopy-kat)
+discussions-to: TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-11-07
+---
+
+## Abstract
+
+This ERC introduces a new RPC call, wallet_getAssets, for wallets to declare to the Dapp what assets are owned by the user. This allows for more accurate asset discovery and the use of assets that aren’t available on-chain but can be provided by the wallet
+
+## Motivation
+
+Currently, Dapps primarily rely on on-chain data to determine a user's balance, which can be limiting. Furthermore, a Dapp might restrict the user from initiating actions that the wallet could otherwise resolve, as it cannot account for the total assets a user has across different accounts or chains.
+
+Wallets already have information about a user's assets, including those not visible on-chain, and need a way to communicate that information to Dapps.
+
+## Specification
+
+The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119.
+
+### Method: `wallet_getAssets`
+
+#### Request schema
+
+```ts
+type WalletGetAssetsRequest = {
+  account: Hex;
+  requiredAssets?: Record<Hex, Hex[]>;
+};
+```
+
+`account` is a required field that indicates for which account assets are requested.
+
+`requiredAssets` is an optional field that specifies only the assets Dapp cares about on the specific chains. If it is provided, the response from the wallet SHOULD include those assets.
+
+#### Example request
+
+```json
+{
+  "account": "0x123",
+  "requiredAssets": {
+    "0x1": ["0x456", "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"],
+    "0xa": ["0x789", "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"]
+  }
+}
+```
+
+#### Response schema
+
+```ts
+type Asset = {
+  address: Hex;
+  balance: Hex;
+  type: string;
+  metadata: any;
+};
+type WalletGetAssetsResponse = Record<Hex, Asset[]>;
+```
+
+The key **SHOULD** be EIP-155 chainId
+
+Asset fields:
+
+`address` is the address of the asset as Hex. Native assets **MUST** use `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE` address specified by ERC-7528
+
+`balance` is the balance of the asset as Hex
+
+**`type`:** A string indicating the type of the asset. Common asset types include but **aren’t limited to**:
+
+- **`ERC20`:** For ERC20 tokens
+- **`ERC721`:** For ERC721 tokens (NFTs)
+- **`native`:** For the chain's native currency
+
+**`metadata`:** An optional object containing additional information about the asset. The specific fields within the metadata object may vary depending on the asset type and the wallet's implementation."
+
+#### Example response
+
+```json
+{
+  "0x1": [
+    {
+      address: "0x123",
+      balance: "0xcaaea35047fe5702",
+      type: "ERC20",
+      metadata: {
+        name: "Token",
+        symbol: "TOK",
+        decimals: 18,
+      }
+    },
+    {
+      address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      balance: "0xcaaea35047fe5702",
+      type: "native"
+    }
+  ],
+  "0xa": [
+    {
+      address: "0x456",
+      balance: "0xcd5595",
+      type: "ERC721",
+      metadata: {
+      //...
+      }
+    }
+  ],
+};
+```
+
+### Asset definitions
+
+This section specifies a structure for the most commonly used asset types.
+This ERC does not specify an exhaustive list of asset types. Since the type is a generic string, there could be a mismatch between the type Dapp expects and the one returned by the wallet. It’s important that no two assets share the same type. Therefore, new asset types should be specified in ERCs, either in this ERC as an amendment or in another ERC.
+
+**Native**
+
+```ts
+type NativeAsset = {
+  address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+  balance: Hex;
+  type: "native";
+  metadata: any;
+};
+```
+
+Example:
+
+```json
+{
+  "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  "balance": "0xcaaea35047fe5702",
+  "type": "native"
+}
+```
+
+**ERC-20 Token**
+
+```ts
+type Erc20Asset = {
+  address: Hex;
+  balance: Hex;
+  type: "ERC20";
+  metadata: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    [key: string]: any;
+  };
+};
+```
+
+Example:
+
+```json
+{
+  address: "0x123",
+  balance: "0xcaaea35047fe5702",
+  type: "ERC20",
+  metadata: {
+    name: "Token",
+    symbol: "TOK",
+    decimals: 18
+  }
+},
+```
+
+**ERC-721 Token**
+
+```ts
+type Erc721Asset = {
+  address: Hex;
+  balance: Hex;
+  type: "ERC20";
+  metadata: {
+    name: string;
+    symbol: string;
+    [key: string]: any;
+  };
+};
+```
+
+## Capabilities
+
+If the wallet is using CAIP-25 authorization, wallet **SHOULD** include `assetDiscovery` key in the CAIP-25 `sessionsProperties` object. Value should be an object with `supported` key and value `true`
+
+```json
+{
+  //...
+  "sessionProperties": {
+    "assetDiscovery": {
+      "supported": true
+    }
+  }
+}
+```
+
+If the wallet supports ERC-5792 wallet **SHOULD** respond on `wallet_getCapabilities` request using the `assetDiscovery` key. Value should be an object with `supported` key and value `true`
+Wallet **SHOULD** include this for every chainId.
+
+```json
+{
+  "0xa": {
+    "assetDiscovery": {
+      "supported": true
+    }
+  }
+}
+```
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
