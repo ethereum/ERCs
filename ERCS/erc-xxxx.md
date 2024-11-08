@@ -3,7 +3,7 @@ eip: xxxx
 title: ZK Identity Registry
 description: Singleton registry system for storing abstract provable identity statements.
 author: Artem Chystiakov (@arvolear) <artem@rarilabs.com> Oleksandr Kurbatov <oleksandr@rarilabs.com> Yaroslav Panasenko <yaroslav@rarilabs.com>
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-zk-identity-registry/21624
 status: Draft
 type: Standards Track
 category: ERC
