@@ -11,7 +11,7 @@ created: 2024-11-09
 
 ## Abstract
 
-This document specifies a Schnorr signatures over the elliptic curve secp256k1 for EVM applications.
+This document specifies a Schnorr signature scheme over the elliptic curve secp256k1 for EVM applications.
 
 ## Motivation
 
@@ -29,7 +29,7 @@ In contrast to BLS (multi-) signatures, Schnorr signatures are far more efficien
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC-2119 and RFC-8174 when, and only when, they appear in all capitals, as shown here.
 
-Let `G` be secp256k1’s generator and `Q` secp256k1’s order. Let `sk` be an secp256k1 secret key and `Pk = [sk]G` be the secret key’s public key in affine coordinates. Let `Pkₑ` be a public key’s Ethereum address, `Pkₓ` a public key’s `x` coordinate, and `Pkₚ` a public key’s `y` coordinate’s parity with `1` if `y` is even and `0` if `y` is odd. Let `‖` be the concatenation operator performing a byte-wise concatenation.
+Let `G` be secp256k1’s generator and `Q` secp256k1’s order. Let `sk` be an secp256k1 secret key and `Pk = [sk]G` be the secret key’s public key in affine coordinates. Let `Pkₑ` be a public key’s Ethereum address, `Pkₓ` a public key’s `x` coordinate, and `Pkₚ` a public key’s `y` coordinate’s parity with `0` if `y` is even and `1` if `y` is odd. Let `‖` be the concatenation operator performing a byte-wise concatenation.
 
 ## Hash Functions
 
@@ -110,7 +110,7 @@ Note that this Schnorr scheme uses `R`'s Ethereum address instead of the public 
 
 ### Signature Malleability
 
-While Schnorr signatures as specified in this document are not malleable due to the definition of `s`, great care must be taken during verification to ensure a Schnorr signatures `s ∊ [1, Q)`. Note that this issue is mentioned explicitly due to Solidity's weak type system and the expectation of most implementation using type `uint256` for the `s` variable.
+While Schnorr signatures as specified in this document are not malleable due to the definition of `s`, great care must be taken during verification to ensure a Schnorr signatures `s ∊ [1, Q)`. Note that this issue is mentioned explicitly due to Solidity's weak type system and the expectation of most implementations using type `uint256` for the `s` variable.
 
 ### Rogue Key Attacks
 
