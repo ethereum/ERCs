@@ -1,0 +1,262 @@
+---
+title: Routing Interface Standard
+description: A standard interface to simulate over swap liquidity.
+author: Alan Höng (@kayibal) and Markus Schmitt (@haikane)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-routing-interface-standard/21634
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-11-09
+---
+
+# Abstract
+
+This ERC proposes a standardized interface for on-chain swap liquidity. It defines methods to calculate price, swap tokens, retrieve trading limits, and query capabilities of liquidity pools.
+
+The standard aims to simplify access to defi liquidity sources – to improve composability and make routing (solving), MEV capture (searching), and other defi functions easier.
+
+# Motivation
+
+The number and variety of DEXs grew rapidly. However, the lack of a standard interface to DEX, and other defi, liquidity creates imporant challenges:
+
+1. **Lost of duplicate effort —> Barriers to entry**: Routers, searchers and solvers have to understand the internals of every liquidity source. Resulting in significant duplication of effort across teams. This also makes it hard for new entrants to compete with incumbents – leading to centralisation in routing, solving, searching and market making.
+2. **Limits to DEX innovation**: It's difficult for new DEXs to get order flow, as they must convince multiple solver, router, and searcher teams to integrate them.
+3. **Risk of centralisation in defi**: The ecosystem risks centralization as larger teams with more resources can more easily integrate new liquidity sources, potentially marginalizing smaller teams and new entrants.
+
+By providing a standardized interface for liquidity sources, this ERC aims to:
+
+1. Foster innovation in DEX design by enabling new protocols to compete based on their merits rather than integration efforts. Allowing each DEX to take composability into their own hands.
+2. Significantly improve the efficiency and composability of the DeFi ecosystem.
+3. Reduce the barrier to entry for new solvers and routers.
+
+# Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+### Interface
+
+```solidity
+pragma solidity ^0.8.0;
+
+interface IERC_LiquidityInterface {
+    /// @dev Representation used for rational numbers such as prices
+    struct Fraction {
+        uint256 numerator;
+        uint256 denominator;
+    }
+
+    /// @dev The Trade struct holds data about an executed trade
+    struct Trade {
+        /// @dev If OrderSide is Sell, the amount of tokens sold. If OrderSide is Buy, the amount bought
+        uint256 calculatedAmount;
+        /// @dev The amount of gas used in the trade
+        uint256 gasUsed;
+        /// @dev The price of the pool after the trade. For zero use Fraction(0, 1)
+        Fraction marginalPriceAfterTrade;
+    }
+
+    /// @dev The OrderSide enum represents possible sides of a trade: Sell or Buy
+    /// @dev If OrderSide is Sell, the sell amount is interpreted to be fixed
+    enum OrderSide {
+        Sell,
+        Buy
+    }
+    
+    /// @dev Describes the derivative order
+    enum DerivativeOrder {
+       First,
+       Second
+    }
+
+    /// @dev The Capability enum represents supported features of a trading pool
+    enum Capability {
+        Unset,
+        /// @dev Support OrderSide.Sell values (required)
+        SellOrder,
+        /// @dev Support OrderSide.Buy values (optional)
+        BuyOrder,
+        /// @dev Support evaluating the price function (optional)
+        PriceFunction,
+        /// @dev Support tokens that charge a fee on transfer (optional)
+        FeeOnTransfer,
+        /// @dev The pool maintains constant price for increasingly larger amounts (optional)
+        ConstantPrice,
+        /// @dev Pool does not read token balances while swapping (optional)
+        TokenBalanceIndependent,
+        /// @dev Prices are returned scaled by token decimals (optional)
+        ScaledPrices,
+        /// @dev Pool reverts if sell limits are exceeded (optional)
+        HardLimits,
+        /// @dev Pool's price function supports amountIn=0 for current price (optional)
+        MarginalPrice,
+        /// @dev Support evaluating the price derivative function (optional)
+        Derivatives
+    }
+    
+    /// @dev Thrown when a pool or swap is not available for unexpected reason
+    error Unavailable(string reason);
+
+    /// @dev Thrown when a limit has been exceeded
+    error LimitExceeded(uint256 limit);
+
+    /// @dev Thrown when a function is not implemented
+    error NotImplemented(string reason);
+    
+    /// @notice Calculates pool marginal prices for specified amounts
+    /// @dev The returned prices should include all dex fees. For dynamic fees, use minimum fee.
+    /// Method should be implemented as view for efficiency. If not available, flag via
+    /// capabilities and revert with NotImplemented error
+    /// @param poolId The ID of the trading pool
+    /// @param sellToken The token being sold
+    /// @param buyToken The token being bought
+    /// @param specifiedAmounts The amounts for price calculation
+    /// @return prices Array of prices as fractions corresponding to provided amounts
+    function price(
+        bytes32 poolId,
+        address sellToken,
+        address buyToken,
+        uint256[] memory specifiedAmounts
+    ) external returns (Fraction[] memory prices);
+    
+    /// @notice Calculates pool price derivatives for specified amounts after swap
+    /// @dev The returned derivatives should include all dex fees. For dynamic fees, use minimum fee.
+    /// Method should be implemented as view for efficiency. If not available, flag via
+    /// capabilities and revert with NotImplemented error
+    /// @param poolId The ID of the trading pool
+    /// @param sellToken The token being sold
+    /// @param buyToken The token being bought
+    /// @param order Which derivative order to return (First or Second)
+    /// @param specifiedAmounts The amounts for derivative calculation
+    /// @return prices Array of derivatives as fractions corresponding to provided amounts
+    function priceDerivative(
+        bytes32 poolId,
+        address sellToken,
+        address buyToken,
+        DerivativeOrder order,
+        uint256[] memory specifiedAmounts
+    ) external returns (Fraction[] memory prices);
+    
+    /// @notice Swaps token on a pool respecting a marginal limit price
+    /// @dev Should be state modifying to execute the swap. Include gas usage estimate using gasleft()
+    /// @param poolId The ID of the trading pool
+    /// @param sellToken The token being sold
+    /// @param buyToken The token being bought
+    /// @param limitPrice The maximum acceptable price for the trade
+    /// @return trade Trade struct representing the executed trade
+    function swapToPrice(
+        bytes32 poolId,
+        address sellToken,
+        address buyToken,
+        Fraction limitPrice
+    ) external returns (Trade memory trade);
+    
+    /// @notice Simulates swapping tokens on a given pool
+    /// @dev Should be state modifying to execute the swap. Include gas usage estimate using gasleft().
+    /// If price function not supported (Capability.PriceFunction), return Fraction(0, 0) for price
+    /// @param poolId The ID of the trading pool
+    /// @param sellToken The token being sold
+    /// @param buyToken The token being bought
+    /// @param side The side of the trade (Sell or Buy)
+    /// @param specifiedAmount The amount to be traded
+    /// @return trade Trade struct representing the executed trade
+    function swap(
+        bytes32 poolId,
+        address sellToken,
+        address buyToken,
+        OrderSide side,
+        uint256 specifiedAmount
+    ) external returns (Trade memory trade);
+
+    /// @notice Retrieves the limits for each token
+    /// @dev Returns maximum tradeable amounts. Limit is reached when received amounts
+    /// approach zero or swap fails. Overestimate rather than underestimate.
+    /// Swap should not revert with LimitExceeded for amounts below limit
+    /// @param poolId The ID of the trading pool
+    /// @param sellToken The token being sold
+    /// @param buyToken The token being bought
+    /// @return limits Array of maximum tradeable amounts
+    function getLimits(
+        bytes32 poolId,
+        address sellToken,
+        address buyToken
+    ) external returns (uint256[] memory limits);
+
+    /// @notice Retrieves the capabilities of the selected pool
+    /// @dev Must return supported features. Never return Unset.
+    /// Must return at least BuyOrder or SellOrder
+    /// @param poolId The ID of the trading pool
+    /// @param sellToken The token being sold
+    /// @param buyToken The token being bought
+    /// @return capabilities Array of supported capabilities
+    function getCapabilities(
+        bytes32 poolId,
+        address sellToken,
+        address buyToken
+    ) external returns (Capability[] memory capabilities);
+    
+    /// @notice Retrieves the tokens in the selected pool
+    /// @dev Optional function. Must return all tradeable tokens in the pool
+    /// @param poolId The ID of the trading pool
+    /// @return tokens Array of token contract addresses
+    function getTokens(
+        bytes32 poolId
+    ) external returns (address[] memory tokens);
+}
+```
+
+Retrieves tokens for a given pool. This function is OPTIONAL.
+
+- MUST return all tokens that are tradeable by the pool.
+
+# Rationale
+
+## A short overview of functions needed in order routing
+
+This ERC aims to make it easy for anyone to discover and use defi liquidity. Especially solvers, searchers, and aggregators (here collectively termed “routers”).
+
+Here are common and important pieces of different routing algorithms, that inspired the design of this ERC:
+
+**Marginal Price**: The marginal price is the first derivative of the swap (amount out) function at a particular trade amount. The spot price, i.e. the current price, is the marginal price at trade amount 0. Having easy access to the marginal price at different trade amounts is essential to:
+
+- **Filter pools**: Pools with the best spot price have the best "instantaneous swap rate" for the token pair – making them a good candidate to include in a swap route. Second derivatives help judge even better which pool will provide the highest amount out for the swap (area under the swap curve).
+- **Determine swap amounts**: Marginal prices are also very good for sizing steps in iterative algorithms: Swap on the pool with the best marginal price until it reaches the marginal price of the second best pool, then split between both until you reach the marginal price of the third best pool etc.
+- **Curve interpolation**: Solvers can also use marginal prices to construct analytical interpolations of price functions that might not have simple analytical representations. Sample at multiple points and then build an interpolation. Analytical interpolation are useful to find analytical solutions to trade and split amounts – before using iterative approaches for fine-tuning the splits.
+- **Price after swap equivalence**: Besides discontinuous price functions and discrete gas costs, optimal solutions to route splitting must equalise the marginal prices of all pools included in the split.
+- **Convex optimisation**: Framing the optimal routing problem as a convex optimisation problem, which has gained more popularity recently, also relies on fast and accurate access to marginal prices.
+From these uses in different routing approaches we derived the need for:
+- **price**: A price function that can provide the spot price (marginal price at 0 amount in) and the marginal price *after* any trade amount.
+- **priceDerivative**: Derivatives of marginal prices, i.e. second derivatives of the swap function, are very useful for choosing pools, and for analytically interpolating the swap function.
+- **swap to price**: A direct analytical derivation of the trade amount needed to move the liquidity pool to a specific marginal price speeds up routers, by avoiding iterative queries to the price function.
+
+## Other rationale
+
+The design of this interface aims to balance flexibility and standardization:
+
+1. Separation of price and swap functions: So you can query price without state changes.
+2. Optional price function: In some protocols, providing a spot price is not easy or not possible.
+3. Capabilities query: Enables dynamic discovery of pool features for flexible integration.
+4. Gas estimation: Including gas estimates in the swap function aids solvers and routers to route optimally.
+5. Optional functions for testing: The `getTokens` and `getPoolIds` functions simplify the testing process without being essential for core functionality.
+
+## Backwards Compatibility
+
+This ERC is designed to be compatible with existing liquidity pool implementations. Pools can implement this interface alongside their existing interfaces without breaking changes.
+
+## Reference Implementation
+
+[TODO: Add reference implementation]
+
+## Security Considerations
+
+None of the above methods are supposed to be called onchain. This interface is purely for indexing liquidity and efficiently simulating over it's properties to arrive at the most efficient trade amount during solving.
+
+It is an interface designed purely for reading. As such it presents to risk to the protocol.
+
+### Risk of faulty swap amounts
+If the above functions are implemented incorrectly, and if solvers do not check for the expected amount out in their routers – then routers can unintentionally lose users funds by routing inefficiently.
+
+Routers MUST verify expected out amounts from swaps against protocols to avoid this risk.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
