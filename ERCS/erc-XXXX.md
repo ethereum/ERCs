@@ -2,7 +2,7 @@
 eip: XXXX
 title: A Schnorr Signature Scheme for EVM Applications
 author: merkleplant (@pmerkleplant)
-discussions-to:
+discussions-to: https://ethereum-magicians.org/t/erc-xxx-a-schnorr-signature-scheme-for-evm-applications/21636
 status: Draft
 type: Standards Track
 category: ERC
