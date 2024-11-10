@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.7.0;
 
 import "./ISDC.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -38,36 +38,35 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         _mint(to, amount);
     }
 
-    function checkedTransfer(address to, uint256 value, uint256 transactionID) public onlySDC{
+    function transferAndCallback(address to, uint256 value, uint256 transactionID, address callbackContract) public onlySDC{
         if ( balanceOf(sdcAddress) < value)
-            ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+            ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
         else
-            ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
+            ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
     }
 
-    function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external view onlySDC {
+    function transferFromAndCallback(address from, address to, uint256 value, uint256 transactionID, address callbackContract) external view onlySDC {
         revert("not implemented");
     }
 
-    function checkedBatchTransfer(address[] memory to, uint256[] memory values, uint256 transactionID ) public onlySDC{
+    function transferBatchAndCallback(address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) public onlySDC{
         require (to.length == values.length, "Array Length mismatch");
         uint256 requiredBalance = 0;
         for(uint256 i = 0; i < values.length; i++)
             requiredBalance += values[i];
         if (balanceOf(msg.sender) < requiredBalance){
-            ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+            ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
             return;
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
                 _transfer(sdcAddress,to[i],values[i]);
             }
-            ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
+            ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
         }
     }
 
-
-    function checkedBatchTransferFrom(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID ) public onlySDC{
+    function transferBatchFromAndCallback(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) public onlySDC{
         require (from.length == to.length, "Array Length mismatch");
         require (to.length == values.length, "Array Length mismatch");
         for(uint256 i = 0; i < from.length; i++){
@@ -78,7 +77,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
                     totalRequiredBalance += values[j];
             }
             if (balanceOf(fromAddress) <  totalRequiredBalance){
-                ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+                ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
                 return;
             }
 
@@ -86,7 +85,6 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         for(uint256 i = 0; i < to.length; i++){
             _transfer(from[i],to[i],values[i]);
         }
-        ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
+        ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
     }
-
 }
