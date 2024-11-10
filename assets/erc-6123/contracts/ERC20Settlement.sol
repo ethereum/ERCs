@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./IERC20Settlement.sol";
 
-contract ERC20Settlement is ERC20, IERC20Settlement{
-
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------
 * @title Reference (example) Implementation for Settlement Token Interface
 * @dev This token performs transfers on-chain.
@@ -16,7 +14,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
 * Only SDC can call checkedTransfers
 * Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC perfoms next state change
 */
-
+contract ERC20Settlement is ERC20, IERC20Settlement{
 
     modifier onlySDC() {
         require(msg.sender == sdcAddress, "Only allowed to be called from SDC Address"); _;
@@ -39,11 +37,11 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
     }
 
     function transferAndCallback(address to, uint256 value, uint256 transactionID, address callbackContract) public onlySDC{
-        if ( balanceOf(sdcAddress) < value) {
+        if ( balanceOf(msg.sender) < value) {
             ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
         }
         else {
-            _transfer(sdcAddress,to,value);
+            _transfer(msg.sender,to,value);
             ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
         }
     }
@@ -64,7 +62,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
-                _transfer(sdcAddress,to[i],values[i]);
+                _transfer(msg.sender,to[i],values[i]);
             }
             ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
         }
