@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./IERC20Settlement.sol";
 
-contract ERC20Settlement is ERC20, IERC20Settlement{
-
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------
 * @title Reference (example) Implementation for Settlement Token Interface
 * @dev This token performs transfers on-chain.
@@ -16,7 +14,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
 * Only SDC can call checkedTransfers
 * Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC perfoms next state change
 */
-
+contract ERC20Settlement is ERC20, IERC20Settlement{
 
     modifier onlySDC() {
         require(msg.sender == sdcAddress, "Only allowed to be called from SDC Address"); _;
@@ -39,10 +37,13 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
     }
 
     function transferAndCallback(address to, uint256 value, uint256 transactionID, address callbackContract) public onlySDC{
-        if ( balanceOf(sdcAddress) < value)
+        if ( balanceOf(msg.sender) < value) {
             ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
-        else
+        }
+        else {
+            _transfer(msg.sender,to,value);
             ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
+        }
     }
 
     function transferFromAndCallback(address from, address to, uint256 value, uint256 transactionID, address callbackContract) external view onlySDC {
@@ -52,15 +53,16 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
     function transferBatchAndCallback(address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) public onlySDC{
         require (to.length == values.length, "Array Length mismatch");
         uint256 requiredBalance = 0;
-        for(uint256 i = 0; i < values.length; i++)
+        for(uint256 i = 0; i < values.length; i++) {
             requiredBalance += values[i];
+        }
         if (balanceOf(msg.sender) < requiredBalance){
             ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
             return;
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
-                _transfer(sdcAddress,to[i],values[i]);
+                _transfer(msg.sender,to[i],values[i]);
             }
             ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
         }
