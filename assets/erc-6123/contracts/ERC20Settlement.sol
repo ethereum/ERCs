@@ -39,10 +39,13 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
     }
 
     function transferAndCallback(address to, uint256 value, uint256 transactionID, address callbackContract) public onlySDC{
-        if ( balanceOf(sdcAddress) < value)
+        if ( balanceOf(sdcAddress) < value) {
             ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
-        else
+        }
+        else {
+            _transfer(sdcAddress,to,value);
             ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
+        }
     }
 
     function transferFromAndCallback(address from, address to, uint256 value, uint256 transactionID, address callbackContract) external view onlySDC {
@@ -52,8 +55,9 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
     function transferBatchAndCallback(address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) public onlySDC{
         require (to.length == values.length, "Array Length mismatch");
         uint256 requiredBalance = 0;
-        for(uint256 i = 0; i < values.length; i++)
+        for(uint256 i = 0; i < values.length; i++) {
             requiredBalance += values[i];
+        }
         if (balanceOf(msg.sender) < requiredBalance){
             ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
             return;
