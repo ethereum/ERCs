@@ -66,7 +66,6 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         }
     }
 
-
     function transferBatchFromAndCallback(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) public onlySDC{
         require (from.length == to.length, "Array Length mismatch");
         require (to.length == values.length, "Array Length mismatch");
@@ -88,5 +87,4 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         }
         ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
     }
-
 }
