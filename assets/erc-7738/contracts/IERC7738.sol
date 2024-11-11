@@ -13,5 +13,5 @@ interface IERC7738 {
 
     /// @notice Update the scriptURI 
     /// emits event ScriptUpdate(address indexed contractAddress, scriptURI memory newScriptURI);
-    function setScriptURI(address contractAddress, string[] memory scriptURIList) external;
+    function setScriptURI(address contractAddress, string[] calldata scriptURIList) external;
 }
