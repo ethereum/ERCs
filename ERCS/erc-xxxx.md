@@ -1,0 +1,430 @@
+---
+eip: to-be-assign
+title: Expirable Mechanism for ERC20 Token
+description: An extension of the ERC20 standard that enables the creation of fungible tokens with configurable expiration features, allowing for time-sensitive use cases.
+author: sirawt (@MASDXI), ADISAKBOONMARK (@ADISAKBOONMARK)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-expirable-mechanism-for-erc20-token/21655
+status: Draft
+type: Standards Track
+category: ERC
+created: 2024-11-13
+---
+
+## Simple Summary
+
+An extended interface to enables fungible token to possess expiration capabilities, allowing them to expire after a predetermined period of time.
+
+## Abstract
+
+Introduces an extension for `ERC20` tokens , which facilitates the implementation of an expiration mechanism. Through this extension, tokens are designated a predetermined validity period, after which they become invalid and can no longer be transferred or used. This functionality proves beneficial in scenarios such as time-limited bond, loyalty reward , or game token necessitating automatic invalidation after a specific duration. The extension is meticulously crafted to seamlessly align with the existing `ERC20` standard, ensuring smooth integration with prevailing token contracts, while concurrently introducing the capability to govern and enforce token expiration at the contract level.
+
+## Motivation
+
+This extension standard facilitates the development of `ERC20` standard compatible tokens featuring expiration dates. This capability broadens the scope of potential applications, particularly those involving time-sensitive assets. Expirable tokens are well-suited for scenarios necessitating temporary validity, including:
+
+- Bonds or financial instruments with defined maturity dates
+- Time-constrained assets within gaming ecosystems
+- Next-gen loyalty programs incorporating expiring rewards or points
+- Prepaid credits for utilities or services (e.g., cashback, data packages, fuel, computing resources) that expire if not used within a specified time-frame
+- Postpaid telecom data package allocations that expire at the end of the billing cycle, motivating users to utilize their data before it resets
+- Tokenized e-Money for a closed-loop ecosystem, such as transportation, food court, and retail payments
+
+## Rationale
+
+The rationale for developing an expirable `ERC20` token extension is based on several key requirements that ensure its practicality and adaptability for various applications to
+
+- Compatibility with the existing `ERC20` standard. The extension should integrate smoothly with the `ERC20` interface, This ensures compatibility with existing token ecosystems and third-party tools like wallets and blockchain explorers.
+- Flexible design for business use cases. The smart contract should be extensible, allowing businesses to tailor the expiration functionality to their specific needs, whether it’s dynamic reward systems or time-sensitive applications.
+- Configurable expiration period. After deployment, users should have the flexibility to define and modify the expiration period of tokens according to their business requirements, supporting various use cases.
+- Configurable block time after network upgrades. Following a blockchain network upgrade, block times may fluctuate upward or downward. The smart contract must support configurable block times to allow dynamic adjustments to the block times, ensuring expiration calculations remain accurate as transaction speeds evolve.
+- Automatic selection of nearly expired tokens, When transferring tokens, the system should prioritize tokens that are approaching their expiration date, following a First-In-First-Out (`FIFO`) approach. This mechanism encourages users to utilize their tokens before they expire. Datat structure that suitable is `List` and `Queue`.
+- Effortless on state management, The contract’s design minimizes the need for operation `WRITE` or `UPDATE` frequent on-chain state maintenance. By reducing reliance on off-chain indexing or caching, the system optimizes infrastructure usage and ensures streamlined performance without unnecessary dependencies. This design reduces operational overhead while keeping state securely maintained within the chain.
+- Resilient Architecture, The contract architecture is built for robustness, supporting `EVM` types `1`, `2`, and `2.5`, and remains fully operational on Layer 2 solutions with sub-second block times. By anchoring operations to `block.number`, the system ensures asset integrity and continuity, even during prolonged network outages, safeguarding against potential asset loss. see more detail in [taiko article on EVM Types](https://taiko.mirror.xyz/j6KgY8zbGTlTnHRFGW6ZLVPuT0IV0_KmgowgStpA0K4)
+
+## Design and Technique
+
+#### Sliding Window Algorithm for maintain window to look for expiration balance
+
+This contract creates an abstract implementation that adopts the **Sliding Window Algorithm** to maintain a window over a period of time (block height). This efficient approach allows for the look back and calculation of **usable balances** for each account within that window period. With this approach, the contract does not require a variable acting as a "counter" to keep updating the latest state (current period), nor does it need any interaction calls to keep updating the current period, which is an effortful and costly design.
+
+#### Era and Slot for storing data in vertical and horizontal way
+
+```solidity
+    // ... skipping
+
+    struct Slot {
+        uint256 slotBalance;
+        mapping(uint256 => uint256) blockBalances;
+        SortedList.List list;
+    }
+
+    //... skipping
+
+    mapping(address => mapping(uint256 => mapping(uint8 => Slot))) private _balances;
+    mapping(uint256 => uint256) private _worldBlockBalance;
+```
+
+With this struct `Slot` it provides an abstract loop in a horizontal way more efficient for calculating the usable balance of the account because it provides `slotBalance` which acts as suffix balance so you don't need to get to iterate or traversal over the `list` for each `Slot` to calculate the entire slot balance if the slot can presume not to expire. otherwise struct `Slot` also provides vertical in a sorted list.
+The `_worldBlockBalance` mapping tracks the total token balance across all accounts that minted tokens within a particular block. This structure allows the contract to trace expired balances easily. By consolidating balance data for each block.
+
+#### Buffering 1 slot rule for ensuring safety
+
+In this design, the buffering slot is the critical element that requires careful calculation to ensure accurate handling of balances nearing expiration. By incorporating this buffer, the contract guarantees that any expiring balance is correctly accounted for within the sliding window mechanism, ensuring reliability and preventing premature expiration or missed balances.
+
+#### First-In-First-Out (FIFO) priority to enforce token expiration rules
+
+Enforcing `FIFO` priority ensures that tokens nearing expiration are processed before newer ones, aligning with the token lifecycle and expiration rules. This method eliminates the need for additional off-chain computation and ensures that all token processing occurs efficiently on-chain, fully compliant with the ERC20 interface.
+A **Sorted List** is integral to this approach. Each slot maintains its own list, sorted by token creation which can be `block.number` or `block.timestamp`, This separation ensures that tokens in one slot do not interfere with the balance handling in another. The contract can independently manage token expirations within each slot to maintain accuracy and predictability in processing account balances.
+
+#### Sliding Window 
+
+``` Solidity
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.0 <0.9.0;
+
+/// @title An implemation sliding window algorithm in Solidity, the sliding frame relying on block-height rather than block-timestmap.
+/// @notice This library designed to compatible with subsecond blocktime on both Layer 1 Network (L1) and Layer 2 Network (L2).
+// inspiration:
+// https://github.com/stonecoldpat/slidingwindow
+
+library SlidingWindow {
+    uint8 private constant MINIMUM_SLOT_PER_ERA = 1;
+    uint8 private constant MAXIMUM_SLOT_PER_ERA = 12;
+    uint8 private constant MINIMUM_FRAME_SIZE = 1;
+    uint8 private constant MAXIMUM_FRAME_SIZE = 64;
+    uint8 private constant MINIMUM_BLOCK_TIME_IN_MILLISECONDS = 100;
+    uint24 private constant MAXIMUM_BLOCK_TIME_IN_MILLISECONDS = 600_000;
+    uint40 private constant YEAR_IN_MILLISECONDS = 31_556_926_000;
+
+    struct SlidingWindowState {
+        uint40 _blockPerEra;
+        uint40 _blockPerSlot;
+        uint40 _frameSizeInBlockLength;
+        uint8[2] _frameSizeInEraAndSlotLength;
+        uint8 _slotSize;
+        uint256 _startBlockNumber;
+    }
+
+    error InvalidBlockTime();
+    error InvalidFrameSize();
+    error InvalidSlotPerEra();
+
+    /// @notice Calculates the difference between the current block number and the start of the sliding window frame.
+    /// @dev This function computes the difference in blocks between the current block number and the start of
+    /// the sliding window frame, as defined by `_frameSizeInBlockLength` in the sliding window state `self`.
+    /// It checks if the `blockNumber` is greater than or equal to `_frameSizeInBlockLength`. If true, it calculates
+    /// the difference; otherwise, it returns zero blocks indicating the block number is within the sliding window frame.
+    /// @param self The sliding window state to use for calculations.
+    /// @param blockNumber The current block number to calculate the difference from.
+    /// @return blocks The difference in blocks between the current block and the start of the sliding window frame.
+    function _calculateBlockDifferent(
+        SlidingWindowState storage self,
+        uint256 blockNumber
+    ) private view returns (uint256 blocks) {
+        uint256 frameSizeInBlockLengthCache = self._frameSizeInBlockLength;
+        unchecked {
+            if (blockNumber >= frameSizeInBlockLengthCache) {
+                // If the current block is beyond the expiration period
+                blocks = blockNumber - frameSizeInBlockLengthCache;
+            }
+        }
+    }
+
+    /// @notice Calculates the era based on the provided block number and sliding window state.
+    /// @dev Computes the era by determining the difference between the current block number and the start block number,
+    /// then dividing this difference by the number of blocks per era. Uses unchecked arithmetic for performance considerations.
+    /// @param self The sliding window state.
+    /// @param blockNumber The block number for which to calculate the era.
+    /// @return era corresponding to the given block number.
+    function _calculateEra(SlidingWindowState storage self, uint256 blockNumber) private view returns (uint256 era) {
+        unchecked {
+            uint256 startblockNumberCache = self._startBlockNumber;
+            // Calculate era based on the difference between the current block and start block
+            if (startblockNumberCache > 0 && blockNumber > startblockNumberCache) {
+                era = (blockNumber - startblockNumberCache) / self._blockPerEra;
+            }
+        }
+    }
+
+    /// @notice Calculates the slot based on the provided block number and sliding window state.
+    /// @dev Computes the slot by determining the difference between the current block number and the
+    /// start block number, then mapping this difference to a slot based on the number of blocks per era
+    /// and slot size. Uses unchecked arithmetic for performance considerations.
+    /// @param self The sliding window state.
+    /// @param blockNumber The block number for which to calculate the slot.
+    /// @return slot corresponding to the given block number.
+    function _calculateSlot(SlidingWindowState storage self, uint256 blockNumber) private view returns (uint8 slot) {
+        unchecked {
+            uint256 startblockNumberCache = self._startBlockNumber;
+            uint40 blockPerYearCache = self._blockPerEra;
+            if (blockNumber > startblockNumberCache) {
+                slot = uint8(
+                    ((blockNumber - startblockNumberCache) % blockPerYearCache) / (blockPerYearCache / self._slotSize)
+                );
+            }
+        }
+    }
+
+    /// @notice Adjusts the block number to handle buffer operations within the sliding window.
+    /// @dev The adjustment is based on the number of blocks per slot. If the current block number
+    /// is greater than the number of blocks per slot, it subtracts the block per slot from
+    /// the block number to obtain the adjusted block number.
+    /// @param self The sliding window state.
+    /// @param blockNumber The current block number.
+    /// @return Updated block number after adjustment.
+    function _frameBuffer(SlidingWindowState storage self, uint256 blockNumber) private view returns (uint256) {
+        unchecked {
+            uint256 blockPerSlotCache = self._blockPerSlot;
+            if (blockNumber > blockPerSlotCache) {
+                blockNumber = blockNumber - blockPerSlotCache;
+            }
+        }
+        return blockNumber;
+    }
+
+    /// @notice Updates the parameters of the sliding window based on the given block time and frame size.
+    /// @dev This function adjusts internal parameters such as blockPerEra, blockPerSlot, and frame sizes
+    /// based on the provided blockTime and frameSize. It ensures that block time is within valid limits
+    /// and frame size is appropriate for the sliding window. The calculations depend on constants like
+    /// YEAR_IN_MILLISECONDS , MINIMUM_BLOCK_TIME_IN_MILLISECONDS , MAXIMUM_BLOCK_TIME_IN_MILLISECONDS ,
+    /// MINIMUM_FRAME_SIZE, MAXIMUM_FRAME_SIZE, and SLOT_PER_ERA.
+    /// @param self The sliding window state to update.
+    /// @param blockTime The time duration of each block in milliseconds.
+    /// @param frameSize The size of the frame in slots.
+    /// @param slotSize The size of the slot per era.
+    function updateSlidingWindow(
+        SlidingWindowState storage self,
+        uint24 blockTime,
+        uint8 frameSize,
+        uint8 slotSize
+    ) internal {
+        if (blockTime < MINIMUM_BLOCK_TIME_IN_MILLISECONDS || blockTime > MAXIMUM_BLOCK_TIME_IN_MILLISECONDS) {
+            revert InvalidBlockTime();
+        }
+        if (frameSize < MINIMUM_FRAME_SIZE || frameSize > MAXIMUM_FRAME_SIZE) {
+            revert InvalidFrameSize();
+        }
+        if (slotSize < MINIMUM_SLOT_PER_ERA || slotSize > MAXIMUM_SLOT_PER_ERA) {
+            revert InvalidSlotPerEra();
+        }
+        unchecked {
+            /// @custom:truncate https://docs.soliditylang.org/en/latest/types.html#division
+            uint40 blockPerSlotCache = (YEAR_IN_MILLISECONDS / blockTime) / slotSize;
+            uint40 blockPerEraCache = blockPerSlotCache * slotSize;
+            self._blockPerEra = blockPerEraCache;
+            self._blockPerSlot = blockPerSlotCache;
+            self._frameSizeInBlockLength = blockPerSlotCache * frameSize;
+            self._slotSize = slotSize;
+            if (frameSize <= slotSize) {
+                self._frameSizeInEraAndSlotLength[0] = 0;
+                self._frameSizeInEraAndSlotLength[1] = frameSize;
+            } else {
+                self._frameSizeInEraAndSlotLength[0] = frameSize / slotSize;
+                self._frameSizeInEraAndSlotLength[1] = frameSize % slotSize;
+            }
+        }
+    }
+
+    /// @notice Calculates the current era and slot within the sliding window based on the given block number.
+    /// @dev This function computes both the era and slot using the provided block number and the sliding
+    /// window state parameters such as _startBlockNumber, _blockPerEra, and _slotSize. It delegates era
+    /// calculation to the `calculateEra` function and slot calculation to the `calculateSlot` function.
+    /// The era represents the number of complete eras that have passed since the sliding window started,
+    /// while the slot indicates the specific position within the current era.
+    /// @param self The sliding window state to use for calculations.
+    /// @param blockNumber The block number to calculate the era and slot from.
+    /// @return era The current era derived from the block number.
+    /// @return slot The current slot within the era derived from the block number.
+    function calculateEraAndSlot(
+        SlidingWindowState storage self,
+        uint256 blockNumber
+    ) internal view returns (uint256 era, uint8 slot) {
+        era = _calculateEra(self, blockNumber);
+        slot = _calculateSlot(self, blockNumber);
+        return (era, slot);
+    }
+
+    /// @notice Determines the sliding window frame based on the provided block number.
+    /// @dev This function computes the sliding window frame based on the provided `blockNumber` and the state `self`.
+    /// It determines the `toEra` and `toSlot` using `calculateEraAndSlot`, then calculates the block difference
+    /// using `_calculateBlockDifferent` to adjust the `blockNumber`. Finally, it computes the `fromEra` and `fromSlot`
+    /// using `calculateEraAndSlot` with the adjusted `blockNumber`, completing the determination of the sliding window frame.
+    /// @param self The sliding window state to use for calculations.
+    /// @param blockNumber The current block number to calculate the sliding window frame from.
+    /// @return fromEra The starting era of the sliding window frame.
+    /// @return toEra The ending era of the sliding window frame.
+    /// @return fromSlot The starting slot within the starting era of the sliding window frame.
+    /// @return toSlot The ending slot within the ending era of the sliding window frame.
+    function frame(
+        SlidingWindowState storage self,
+        uint256 blockNumber
+    ) internal view returns (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) {
+        (toEra, toSlot) = calculateEraAndSlot(self, blockNumber);
+        blockNumber = _calculateBlockDifferent(self, blockNumber);
+        (fromEra, fromSlot) = calculateEraAndSlot(self, blockNumber);
+    }
+
+    /// @notice Computes a safe frame of eras and slots relative to a given block number.
+    /// @dev This function computes a safe frame of eras and slots relative to the provided `blockNumber`.
+    /// It first calculates the frame using the `frame` function and then adjusts the result to ensure safe indexing.
+    /// @param self The sliding window state containing the configuration.
+    /// @param blockNumber The block number used as a reference point for computing the frame.
+    /// @return fromEra The starting era of the safe frame.
+    /// @return toEra The ending era of the safe frame.
+    /// @return fromSlot The starting slot within the starting era of the safe frame.
+    /// @return toSlot The ending slot within the ending era of the safe frame.
+    function safeFrame(
+        SlidingWindowState storage self,
+        uint256 blockNumber
+    ) internal view returns (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) {
+        (toEra, toSlot) = calculateEraAndSlot(self, blockNumber);
+        blockNumber = _calculateBlockDifferent(self, blockNumber);
+        blockNumber = _frameBuffer(self, blockNumber);
+        (fromEra, fromSlot) = calculateEraAndSlot(self, blockNumber);
+    }
+
+    /// @notice Retrieves the number of blocks per era from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the blocks per era.
+    /// @param self The sliding window state.
+    /// @return The number of blocks per era.
+    function getBlockPerEra(SlidingWindowState storage self) internal view returns (uint40) {
+        return self._blockPerEra;
+    }
+
+    /// @notice Retrieves the number of blocks per slot from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the blocks per slot.
+    /// @param self The sliding window state.
+    /// @return The number of blocks per slot.
+    function getBlockPerSlot(SlidingWindowState storage self) internal view returns (uint40) {
+        return self._blockPerSlot;
+    }
+
+    /// @notice Retrieves the frame size in block length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of block length.
+    /// @param self The sliding window state.
+    /// @return The frame size in block length.
+    function getFrameSizeInBlockLength(SlidingWindowState storage self) internal view returns (uint40) {
+        return self._frameSizeInBlockLength;
+    }
+
+    /// @notice Retrieves the frame size in era length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of era length.
+    /// @param self The sliding window state.
+    /// @return The frame size in era length.
+    function getFrameSizeInEraLength(SlidingWindowState storage self) internal view returns (uint8) {
+        return self._frameSizeInEraAndSlotLength[0];
+    }
+
+    /// @notice Retrieves the frame size in slot length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of slot length.
+    /// @param self The sliding window state.
+    /// @return The frame size in slot length.
+    function getFrameSizeInSlotLength(SlidingWindowState storage self) internal view returns (uint8) {
+        return self._frameSizeInEraAndSlotLength[1];
+    }
+
+    /// @notice Retrieves the frame size in era and slot length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of era and slot length.
+    /// @param self The sliding window state.
+    /// @return An array containing frame size in era and slot length.
+    function getFrameSizeInEraAndSlotLength(SlidingWindowState storage self) internal view returns (uint8[2] memory) {
+        return self._frameSizeInEraAndSlotLength;
+    }
+
+    /// @notice Retrieves the number of slots per era from the sliding window state.
+    /// @dev This function returns the `_slotSize` attribute from the provided sliding window state `self`,
+    /// which represents the number of slots per era in the sliding window configuration.
+    /// @param self The sliding window state containing the configuration.
+    /// @return The number of slots per era configured in the sliding window state.
+    function getSlotPerEra(SlidingWindowState storage self) internal view returns (uint8) {
+        return self._slotSize;
+    }
+}
+```
+
+## Interfaces
+
+```solidity
+function tokenList(address account,uint256 era,uint8 slot) external view returns (uint256[] memory list);
+```
+
+- Purpose: This function retrieves a list of token associated with a specific account, within a given era and slot.
+- Parameters:
+  account: The address of the account whose token balances are being queried.
+  - `era`: Refers to a specific time period or epoch in which the tokens are held.
+  - `slot`: A subdivision of the era, representing finer divisions of time or state.
+- Returns: An array list of token corresponding to the specified era and slot.  
+
+```solidity
+function balanceOfBlock(uint256 blocknumber) returns (uint256);
+```
+
+- Purpose: This function returns the balance of tokens at a specific blockchain blocknumber.
+- Parameters:
+  - `blocknumber`: The block number for which the token balance is being queried.
+- Returns: The token balance as of that particular block number. This is useful for checking historical balances.
+
+```solidity
+function transfer(address to, uint256 fromEra, uint8 fromSlot, uint256 toEra, uint8 toSlot) external returns (bool);
+```
+
+- Purpose: This function works similarly to `ERC20` transfer but allows to move tokens within specific eras and slots.
+- Parameters:
+  - `to`: The address of the account to which tokens are being transferred.
+  - `fromEra`: The era from which the tokens are being transferred.
+  - `fromSlot`: The slot from which the tokens are being transferred.
+  - `toEra`: The destination era to which the tokens will be transferred.
+  - `toSlot`: The destination slot to which the tokens will be transferred.
+- Returns: A boolean value indicating whether the transfer was successful.
+
+```solidity
+function transferFrom(address form, address to, uint256 fromEra,uint8 fromSlot,uint256 toEra,uint8 toSlot) external returns (bool);
+```
+
+- Purpose: This function works similarly to `ERC20` transferFrom but allows to move tokens within specific eras and slots.
+- Parameters:
+  - `from`: The address of the account from which tokens are being transferred.
+  - `to`: The address of the account to which tokens are being transferred.
+  - `fromEra`: The era from which the tokens are being transferred.
+  - `fromSlot`: The slot from which the tokens are being transferred.
+  - `toEra`: The destination era to which the tokens will be transferred.
+  - `toSlot`: The destination slot to which the tokens will be transferred.
+- Returns: A boolean value indicating whether the transfer was successful.
+
+---
+
+## Token Receipt and Transaction Likelihood across various block time
+
+Assuming each `Era` contains 4 `slots`, which aligns with familiar time-based divisions like a year being divided into four quarters, the following table presents various scenarios based on block time and token receipt intervals. It illustrates the potential transaction frequency and likelihood of receiving tokens within a given period.
+
+| Block Time (ms) | Blocks/Day | Blocks/Slot | Receive Interval (block) | Index/Slot | Likelihood    |
+| --------------- | ---------- | ----------- | ------------------------ | ---------- | ------------- |
+| 100             | 864,000    | 77,760,000  | 1                        | 77,760,000 | Very Unlikely |
+| 500             | 172,800    | 15,552,000  | 1                        | 15,552,000 | Very Unlikely |
+| 1000            | 86,400     | 7,776,000   | 1                        | 7,776,000  | Very Unlikely |
+| 1000            | 86,400     | 7,776,000   | 28,800 (3times/day)      | 270        | Unlikely      |
+| 1000            | 86,400     | 7,776,000   | 86,400 (1times/day)      | 90         | Possible      |
+| 5000            | 17,280     | 1,555,200   | 17,280 (1times/day)      | 90         | Possible      |
+| 12000           | 7,200      | 648,000     | 54,000 (1times/week)     | 12         | Very Likely   |
+| 12000           | 7,200      | 648,000     | 216,000 (1time/month)    | 3          | Very Likely   |
+
+> Note:
+>
+> - Transactions per day are assumed based on loyalty point earnings.
+> - Likelihood varies depending on the use case; for instance, gaming use cases may have higher transaction volumes than the given estimates.
+
+## Security Considerations
+
+- [SC06:Denial Of Service](https://owasp.org/www-project-smart-contract-top-10/2023/en/src/SC06-denial-of-service-attacks.html) Run out of gas problem due to the operation consuming high gas used if transferring multiple groups of small tokens [dust](https://www.investopedia.com/terms/b/bitcoin-dust.asp) transaction.
+- [SC09:Gas Limit Vulnerabilities](https://owasp.org/www-project-smart-contract-top-10/2023/en/src/SC09-gas-limit-vulnerabilities.html) Exceeds block gas limit if the blockchain have block gas limit lower than the gas used of the transaction.
+- [SWC116:Block values as a proxy for time](https://swcregistry.io/docs/SWC-116/) and [avoid using `block.number` as a timestamp](https://consensys.github.io/smart-contract-best-practices/development-recommendations/solidity-specific/timestamp-dependence/#avoid-using-blocknumber-as-a-timestamp) Emphasize that network block times can fluctuate. In networks with variable block times, contracts relying on block values for time-based operations may not behave as expected. This can lead to inaccurate calculations or unintended outcomes.
+- [Solidity Division Rounding Down](https://docs.soliditylang.org/en/latest/types.html#division) This contract may encounter scenarios where the calculated expiration block is shorter than the actual expiration block. This discrepancy can arise from the outputs of `blockPerYear` and `blockPerSlot * slotPerEra`, which may differ. Additionally, Solidity's division operation only returns integers, rounding down to the nearest whole number. However, by enforcing valid block times within the defined limits of `MINIMUM_BLOCK_TIME_IN_MILLISECONDS` and `MAXIMUM_BLOCK_TIME_IN_MILLISECONDS`, the contract mitigates this risk effectively.
+
+---
+
+#### Historical links related to this standard
+
+- [Idea: Expirable Non-Fungible Token](https://ethereum-magicians.org/t/idea-expirable-non-fungible-token/8275)
+- ethereum stack exchange question [#27379](https://ethereum.stackexchange.com/questions/27379/is-it-possible-to-create-an-expiring-ephemeral-erc-20-token)
+- ethereum stack exchange question [#63937](https://ethereum.stackexchange.com/questions/63937/erc20-token-with-expiration-date)
+
