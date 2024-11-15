@@ -1,7 +1,7 @@
 ---
 eip: X
 title: Quantum Supremacy Puzzle
-author: Nicholas Papadopoulos (@nikojpapa), Danny Ryan (@djrtwo)
+author: Nicholas Papadopoulos (@nikojpapa)
 discussions-to: 
 status: Draft
 type: Standards Track
@@ -130,7 +130,13 @@ Since the number of factors in this [test](../assets/eip-X/test/bounty-contracts
 
 ### Bit-length of the integers
 Sander[^11] proves that difficult to factor numbers without a known factorization, called RSA-UFOs, can be generated.
-Using logic based on that described by Anoncoin using this method, this contract shall generate `NUMBER_OF_LOCKS` integers of `3 * BIT_SIZE_OF_PRIMES` bits each to achieve a one in a billion chance of being insecure.
+A post by Anoncoin calculates that that the probability of generating an RSA-UFO is 0.16, and hence one would need to generate 119 integers to ensure a one in a billion chance of being insecure.
+That is, $\log (10^{-9}) / \log (1 - 0.16) \approx 119$.
+Therefore, this contract shall generate `NUMBER_OF_LOCKS` integers of `3 * BIT_SIZE_OF_PRIMES` bits each to achieve a one in a billion chance of being insecure.
+
+Note: Theorem 1 of the Sander[^11] paper states that Let $\xi \in (\frac{1}{3}, \frac{5}{12})$. Then the number of integers $\leq x$ that have two distinct prime factors $\geq x^\xi$ is $x(\frac{1}{2} \ln^2(\frac{1}{2\xi}) + O(\frac{1}{ln(x)}))$.
+Since $O(\frac{1}{ln(x)})$ approaches $0$ as $x$ approaches $\infty$, the probability $\frac{1}{2} \ln^2(\frac{1}{2\xi}) \approx 0.082$.
+As this differs from Anoncoin's results by only a factor of 2, this EIP chooses the more cost-friendly result of generting 119 locks while being confident that at least one secure lock will be generated.
 
 #### Predicted security
 ##### Classical
@@ -220,7 +226,10 @@ On the other end, the tradeoff would be a longer risk of theft of their ETH but 
 
 Hence, this integer factoring puzzle may serve as the latter of the extremes.
 If this puzzle is solved, then one may assume that the power of quantum computers has already surpassed the ability to break ECDSA verification schemes.
-This allows users to watch this contract as an extreme safeguard in the case that they want to save more ETH with a greater risk of theft by a quantum advantage. 
+This allows users to watch this contract as an extreme safeguard in the case that they want to save more ETH with a greater risk of theft by a quantum advantage.
+
+## Acknowledgements
+Thank you to Danny Ryan (@djrtwo), who played an integral role in developing this contract by regularly discussing and providing ideas and verification throughout the development process.
 
 ## Copyright
 Copyright and related rights waived via [CC0](../LICENSE.md).
