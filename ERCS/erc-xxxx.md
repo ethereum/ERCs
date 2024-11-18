@@ -1,7 +1,6 @@
 ---
 eip: <to be assigned>
 title: Store, Table-Based Introspectable Storage
-
 description: On-chain tables for automatic indexing and introspectable state
 authors: alvarius <alvarius@latticex.xyz>, dk1a <dk1a@protonmail.com>, frolic <frolic@lattice.xyz>, ludens <ludens@lattice.xyz>, vdrg <vdrg@lattice.xyz>, yonada
 discussions-to: https://ethereum-magicians.org/t/erc-xxxx-store-table-based-introspectable-storage/21628
