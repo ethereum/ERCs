@@ -1,5 +1,5 @@
 ---
-eip: <to be assigned>
+eip: 7813
 title: Store, Table-Based Introspectable Storage
 description: On-chain tables for automatic indexing and introspectable state
 authors: alvarius <alvarius@latticex.xyz>, dk1a <dk1a@protonmail.com>, frolic <frolic@lattice.xyz>, ludens <ludens@lattice.xyz>, vdrg <vdrg@lattice.xyz>, yonada
