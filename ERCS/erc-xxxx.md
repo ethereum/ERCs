@@ -192,7 +192,7 @@ There are a few design decisions that have to be explicitly specified to ensure 
 
 #### Transparent Auditing
 
-**Event Logging**: Emitting events for each significant action (registration, unregistration, role granting, and revocation) provides a transparent log that can be monitored and audited. This helps detect and respond to unauthorized or suspicious activities promptly.
+**Event Logging**: Emitting events for each significant action (registration, unregistration, role granting, and revocation) provides a transparent log that can be monitored and audited. This helps in detecting and responding to unauthorized or suspicious activities promptly.
 
 ## Reference Implementation
 
