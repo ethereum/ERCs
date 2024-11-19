@@ -2,17 +2,17 @@
 eip: xxxx
 title: Access Control Registry
 description: The AccessControlRegistry contract standardizes access control management by allowing registration, unregistration, role assignment, and role revocation for contracts, ensuring secure and transparent role management.
-author: 
+author: Shubham Khandelwal (@shubh-ta), Anushka Yadav (@anushka642000)
 discussions-to: 
 status: Draft
 type: Standards Track
 category: ERC
-created: 
+created: 2024-11-19
 ---
 
 ## Abstract
 
-The Access Control Registry (ACR) standard defines a universal interface for managing role-based access control across multiple smart contracts. This standard introduces a centralized registry where contracts can register themselves and designate an administrator responsible for managing roles within their contract. The ACR provides functionality to grant and revoke roles for specific accounts, either individually or in bulk, ensuring that only authorized users can perform specific actions within a contract.This EIP introduces an on-chain registry system that a decentralized protocol may use to manage access controls for their smart contracts.
+The Access Control Registry (ACR) standard defines a universal interface for managing role-based access control across multiple smart contracts. This standard introduces a centralized registry contract that allows for the registration of contracts, management of roles across multiple contracts, and querying of contract-specific role information. The ACR provides functionality to grant and revoke roles for specific accounts, either individually or in bulk, ensuring that only authorized users can perform specific actions within a contract.This EIP introduces an on-chain registry system that a decentralized protocol may use to manage access controls for their smart contracts.
 
 The core of the standard includes:
 
@@ -26,7 +26,8 @@ By centralizing access control management, the ACR standard aims to reduce redun
 
 ## Motivation
 
-The need for a standardized access control mechanism across Ethereum smart contracts is paramount. Current practices involve bespoke implementations, leading to redundancy and potential security flaws. By providing a unified interface for registering contracts and managing roles, this standard simplifies development, ensures consistency, and enhances security. It facilitates easier integration and auditing, fostering a more robust and interoperable ecosystem.
+As decentralized applications (dApps) grow in complexity, managing access control across multiple smart contracts becomes increasingly difficult.
+Current practices involve bespoke implementations, leading to redundancy and potential security flaws. A standardized approach for managing roles and permissions will ensure better interoperability, security, and transparency. By providing a unified interface for registering contracts and managing roles, this standard simplifies development, ensures consistency, and enhances security. It facilitates easier integration and auditing, fostering a more robust and interoperable ecosystem.
 
 The advantages of using the provided system might be:
 
@@ -48,7 +49,7 @@ interface IAccessControlRegistry {
     // Contains information about a registered contract.
     // @param isActive Indicates whether the contract is active.
     // @param admin The address of the admin for the registered contract.
-    struct contractInfo {
+    struct ContractInfo {
         bool isActive;
         address admin;
     }
@@ -83,9 +84,8 @@ interface IAccessControlRegistry {
     );
 
     // Registers a contract with the given admin.
-    // @param _contract The address of the contract to register.
     // @param _admin The address of the admin for the registered contract.
-    function registerContract(address _contract, address _admin) external;
+    function registerContract(address _admin) external;
 
     // Unregisters a contract.
     // @param _contract The address of the contract to unregister.
@@ -111,23 +111,22 @@ interface IAccessControlRegistry {
         address[] memory accounts
     ) external;
 
-    // Checks if an account has a specific role for a contract.
-    // @param targetContract The address of the contract.
-    // @param account The address of the account.
-    // @param role The role to check.
-    // @return True if the account has the role for the contract, false otherwise.
-    function hasRole(
-        address targetContract,
-        address account,
-        bytes32 role
-    ) external view returns (bool);
+    
+    //Gets the information of a registered contract.
+    //@param _contract The address of the contract to get the information.
+    //@return isActive Whether the contract is active.
+    //@return admin The address of the admin for the contract.
+    //MUST revert if the registered contract doesn't exist
+    function getContractInfo(
+        address _contract
+    ) external view returns (bool isActive, address admin);
 
     // Gets the information of a registered contract.
     // @param _contract The address of the contract to get the information.
     // @return isActive Whether the contract is active.
     // @return admin The address of the admin for the contract.
     // MUST revert if the registered contract doesn't exist`
-    function getContractInfo(
+    function getRoleInfo(
         address _contract
     ) external view returns (bool isActive, address admin);
 }
@@ -140,7 +139,7 @@ The IAccessControlRegistry interface aims to provide a standardized way to manag
 
 ### Contract Registration and Unregistration
 
-**registerContract(address _contract, address _admin)**: This function allows the registration of a new contract along with its admin address. This is crucial for initializing the access control settings for a contract and ensuring that there is an accountable admin who can manage roles and permissions.
+**registerContract(address _admin)**: This function allows the registration of a new contract along with its admin address. This is crucial for initializing the access control settings for a contract and ensuring that there is an accountable admin who can manage roles and permissions.
 
 **unRegisterContract(address _contract)**: This function enables the removal of a contract from the registry. Unregistering a contract is important when a contract is no longer in use or needs to be decommissioned to prevent unauthorized access.
 
@@ -148,11 +147,11 @@ The IAccessControlRegistry interface aims to provide a standardized way to manag
 
 **grantRole(address[] memory targetContracts, bytes32[] memory roles, address[] memory accounts)**: This function allows the assignment of roles to multiple accounts for multiple contracts in a single transaction. This bulk operation is designed to reduce the gas costs and simplify the process of role assignment in large systems with numerous contracts and users.
 
-**revokeRole(address[] memory targetContracts, bytes32[] memory roles, address[] memory accounts)**: Similar to grantRole, this function facilitates the revocation of roles from multiple accounts across multiple contracts in a single transaction. This ensures efficient management of permissions, especially in scenarios where many users need their roles updated simultaneously.
+**revokeRole(address[] memory targetContracts, bytes32[] memory roles, address[] memory accounts)**: Similar to `grantRole`, this function facilitates the revocation of roles from multiple accounts across multiple contracts in a single transaction. This ensures efficient management of permissions, especially in scenarios where many users need their roles updated simultaneously.
 
 ### Role Checking
 
-**hasRole(address targetContract, address account, bytes32 role)**: This view function allows the verification of whether a particular account holds a specific role for a given contract. This is essential for ensuring that operations requiring specific permissions are performed only by authorized users.
+**getRoleInfo(address targetContract, address account, bytes32 role)**: This view function allows the verification of whether a particular account holds a specific role for a given contract. This is essential for ensuring that operations requiring specific permissions are performed only by authorized users.
 
 ### Contract Information Retrieval
 
@@ -175,13 +174,9 @@ There are a few design decisions that have to be explicitly specified to ensure 
 
 **No Central Owner**: There is no central owner who can register contracts. This design choice promotes decentralization and ensures that individual contracts are responsible for their own registration and management.
 
-#### Contract-Only Registration
-
-**Contract Call Restriction**: The registerContract function can only be called by other contracts (require(msg.sender != tx.origin)). This prevents individual accounts from manipulating the registration process, ensuring that only legitimate contracts can register themselves.
-
 #### Efficient Storage and Lookup
 
-**Mapping Utilization**: The use of mappings for storing contract information (mapping(address => contractInfo) private contracts) and role assignments (mapping(address => mapping(address => mapping(bytes32 => bool))) private _contractRoles) ensures efficient storage and lookup. This is crucial for maintaining performance in a large-scale system with numerous contracts and roles.
+**Mapping Utilization**: The use of mappings for storing contract information (mapping(address => ContractInfo) private contracts) and role assignments (mapping(address => mapping(address => mapping(bytes32 => bool))) private _contractRoles) ensures efficient storage and lookup. This is crucial for maintaining performance in a large-scale system with numerous contracts and roles.
 
 #### Role Management Flexibility
 
@@ -202,168 +197,196 @@ There are a few design decisions that have to be explicitly specified to ensure 
 ## Reference Implementation
 
 ```solidity
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
 import "./IAccessControlRegistry.sol";
 
 contract AccessControlRegistry is IAccessControlRegistry {
 
-    // Mapping to store contract information
-    mapping(address => contractInfo) private contracts;
-    
-    // Mapping to store roles associated with contracts and accounts
-    mapping(address => mapping(address => mapping(bytes32 => bool))) private _contractRoles;
+    // Mapping to store information of registered contracts
+    mapping(address => ContractInfo) public contracts;
 
-    // Modifier to ensure that the caller is the admin of the contract
-    modifier onlyAdmin(address _contract) {
-        require(msg.sender == contracts[_contract].admin, "Msg Sender is not admin");
+    // Mapping to track roles assigned to accounts for specific contracts
+    mapping(address => mapping(address => mapping(bytes32 => bool))) public _contractRoles;
+
+    // Custom error to handle duplicate registration attempts
+    error ContractAlreadyRegistered();
+
+    // Modifier to check if the caller is an admin or the contract itself
+    modifier onlyAdminOrContract(address _contract) {
+        require(
+            _isAdmin(_contract, msg.sender) || 
+            (contracts[msg.sender].isActive && msg.sender == _contract),
+            "Caller is not admin nor contract"
+        );
         _;
     }
 
-    // Modifier to ensure that the contract is active
+    // Modifier to check if the caller is an admin of the contract
+    modifier onlyAdmin(address _contract) {
+        require(
+            _isAdmin(_contract, msg.sender),
+            "Caller is not an admin"
+        );
+        _;
+    }
+
+    // Modifier to ensure the contract is active
     modifier onlyActiveContract(address _contract) {
         require(contracts[_contract].isActive, "Contract not registered");
         _;
     }
 
-    // Modifier to validate that the address is not zero
+    // Modifier to validate if the provided address is non-zero
     modifier validAddress(address addr) {
         require(addr != address(0), "Invalid address");
         _;
     }
 
-    // @notice Registers a contract with the given admin.
-    // @param _contract The address of the contract to register.
-    // @param _admin The address of the admin for the registered contract.
-    function registerContract(address _contract, address _admin) 
-        public 
-        validAddress(_contract) 
-        validAddress(_admin) 
-    {
-        require(msg.sender != tx.origin, "Only contracts can call this function");
-        require(contracts[_contract].admin == address(0) || contracts[_contract].admin == _admin, "Contract admin already defined");
-        contracts[_contract].isActive = true;
-        contracts[_contract].admin = _admin;
+    // Registers a contract with the given admin
+    // _admin: Address of the admin to register
+    function registerContract(address _admin) external validAddress(_admin) {
+        address _contract = msg.sender;
+
+        // Check if the contract is already registered
+        ContractInfo storage contractInfo = contracts[_contract];
+        if (contractInfo.isActive) {
+            revert ContractAlreadyRegistered();
+        }
+
+        // Register the contract with the provided admin
+        contractInfo.isActive = true;
+        contractInfo.admin = _admin;
+
         emit ContractRegistered(_contract, _admin);
     }
 
-    // @notice Unregisters a contract.
-    // @param _contract The address of the contract to unregister.
+    // Unregisters a contract
+    // _contract: Address of the contract to unregister
     function unRegisterContract(address _contract) 
         public 
         onlyAdmin(_contract) 
         onlyActiveContract(_contract) 
     {
-        contracts[_contract].isActive = false;
+        ContractInfo storage contractInfo = contracts[_contract];
+        contractInfo.isActive = false;
+        contractInfo.admin = address(0);
+
         emit ContractUnregistered(_contract);
     }
 
-    // @notice Grants roles to multiple accounts for multiple contracts.
-    // @param targetContracts An array of contract addresses to which roles will be granted.
-    // @param roles An array of roles to be granted.
-    // @param accounts An array of accounts to be granted the roles.
+    // Grants roles to multiple accounts for multiple contracts
+    // targetContracts: Array of contract addresses
+    // roles: Array of roles to grant
+    // accounts: Array of accounts to assign the roles
     function grantRole(
         address[] memory targetContracts,
         bytes32[] memory roles,
         address[] memory accounts
-    ) 
-        public 
-    {
+    ) public {
         require(
             targetContracts.length == roles.length &&
             roles.length == accounts.length,
             "Array lengths do not match"
         );
 
-        for (uint256 i = 0; i < roles.length; i++) {
+        uint256 cachedArrayLength = roles.length;
+
+        // Grant roles in a batch
+        for (uint256 i; i < cachedArrayLength; ++i) {
             _grantRole(targetContracts[i], roles[i], accounts[i]);
         }
     }
 
-    // @notice Revokes roles from multiple accounts for multiple contracts.
-    // @param targetContracts An array of contract addresses from which roles will be revoked.
-    // @param roles An array of roles to be revoked.
-    // @param accounts An array of accounts from which the roles will be revoked.
+    // Revokes roles from multiple accounts for multiple contracts
+    // targetContracts: Array of contract addresses
+    // roles: Array of roles to revoke
+    // accounts: Array of accounts from which roles are revoked
     function revokeRole(
         address[] memory targetContracts,
         bytes32[] memory roles,
         address[] memory accounts
-    ) 
-        public 
-    {
+    ) public {
         require(
             targetContracts.length == roles.length &&
             roles.length == accounts.length,
             "Array lengths do not match"
         );
 
-        for (uint256 i = 0; i < roles.length; i++) {
+        uint256 cachedArrayLength = roles.length;
+
+        // Revoke roles in a batch
+        for (uint256 i; i < cachedArrayLength; ++i) {
             _revokeRole(targetContracts[i], roles[i], accounts[i]);
         }
     }
 
-    // @notice Checks if an account has a specific role for a contract.
-    // @param targetContract The address of the contract.
-    // @param account The address of the account.
-    // @param role The role to check.
-    // @return True if the account has the role for the contract, false otherwise.
-    function hasRole(address targetContract, address account, bytes32 role) 
+    // Retrieves information of a registered contract
+    // _contract: Address of the contract
+    // Returns: isActive status and admin address
+    function getContractInfo(address _contract) 
         public 
         view 
-        onlyActiveContract(targetContract) 
-        returns (bool) 
+        returns (bool isActive, address admin) 
     {
-        return _contractRoles[targetContract][account][role];
-    }
-
-    // @notice Gets the information of a registered contract.
-    // @param _contract The address of the contract to get the information.
-    // @return isActive Whether the contract is active.
-    // @return admin The address of the admin for the contract.
-    function getContractInfo(address _contract)
-        public
-        view
-        returns (bool isActive, address admin)
-    {
-        contractInfo memory info = contracts[_contract];
+        ContractInfo storage info = contracts[_contract];
         return (info.isActive, info.admin);
     }
 
-    // @notice Internal function to grant a role to an account for a contract.
-    // @param targetContract The address of the contract.
-    // @param role The role to grant.
-    // @param account The address of the account.
+    // Gets role information for an account and contract
+    // targetContract: Address of the target contract
+    // account: Address of the account
+    // role: Role identifier
+    // Returns: Boolean indicating if the account has the role
+    function getRoleInfo(
+        address targetContract,
+        address account,
+        bytes32 role
+    ) public view returns (bool) {
+        return _contractRoles[targetContract][account][role];
+    }
+
+    // Internal function to grant a role to an account for a contract
     function _grantRole(
         address targetContract,
         bytes32 role,
         address account
-    ) 
-        internal 
-        onlyAdmin(targetContract) 
-        onlyActiveContract(targetContract) 
-        validAddress(account) 
+    )
+        internal
+        onlyAdminOrContract(targetContract)
+        onlyActiveContract(targetContract)
+        validAddress(account)
     {
         _contractRoles[targetContract][account][role] = true;
         emit RoleGranted(targetContract, role, account);
     }
 
-    // @notice Internal function to revoke a role from an account for a contract.
-    // @param targetContract The address of the contract.
-    // @param role The role to revoke.
-    // @param account The address of the account.
+    // Internal function to revoke a role from an account for a contract
     function _revokeRole(
         address targetContract,
         bytes32 role,
         address account
-    ) 
-        internal 
-        onlyAdmin(targetContract) 
-        onlyActiveContract(targetContract) 
-        validAddress(account) 
+    )
+        internal
+        onlyAdminOrContract(targetContract)
+        onlyActiveContract(targetContract)
+        validAddress(account)
     {
-        require(_contractRoles[targetContract][account][role], "Role already revoked");
+        require(
+            _contractRoles[targetContract][account][role],
+            "Role already revoked"
+        );
         _contractRoles[targetContract][account][role] = false;
         emit RoleRevoked(targetContract, role, account);
+    }
+
+    // Checks if the caller is an admin for the contract
+    // _contract: Address of the contract
+    // _admin: Address of the admin
+    // Returns: Boolean indicating admin status
+    function _isAdmin(address _contract, address _admin) internal view returns (bool) {
+        return _admin == contracts[_contract].admin;
     }
 }
 
@@ -374,8 +397,6 @@ contract AccessControlRegistry is IAccessControlRegistry {
 The AccessControlRegistry implements several security measures to ensure the integrity and reliability of the access control system:
 
 **Admin-Only Restrictions**: By limiting state-modifying functions to contract admins, the system prevents unauthorized users from making critical changes.
-
-**Contract-Only Registration**: Ensuring that only contracts can register themselves prevents misuse by individual accounts.
 
 **Valid Address Checks**: By requiring non-zero addresses, the system avoids potential vulnerabilities associated with null addresses.
 
