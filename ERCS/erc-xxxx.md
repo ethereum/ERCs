@@ -1,9 +1,9 @@
 ---
-eip: xxxx
+eip: 7820
 title: Access Control Registry
 description: The AccessControlRegistry contract standardizes access control management by allowing registration, unregistration, role assignment, and role revocation for contracts, ensuring secure and transparent role management.
 author: Shubham Khandelwal (@shubh-ta), Anushka Yadav (@anushka642000)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-access-control-registry-standard/21764
+discussions-to: https://ethereum-magicians.org/t/erc-7820-access-control-registry/21764
 status: Draft
 type: Standards Track
 category: ERC
