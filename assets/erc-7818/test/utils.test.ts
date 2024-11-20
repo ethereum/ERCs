@@ -1,13 +1,12 @@
 import { Contract, Signer } from "ethers";
 import { ethers } from "hardhat";
 import { mine, time } from "@nomicfoundation/hardhat-network-helpers";
-
 import {
   ERC20_NAME,
   ERC20_SYMBOL,
+  ERC20_EXPIRABLE_CONTRACT,
   SlidingWindowState,
   YEAR_IN_MILLISECONDS,
-  ERC7818_EXP_BASE_CONTRACT,
 } from "./constant.test";
 
 // tools
@@ -84,7 +83,7 @@ const deployERC7818Base = async function (
   const [deployer, alice, bob, jame] = await ethers.getSigners();
 
   const ERC7818 = await ethers.getContractFactory(
-    ERC7818_EXP_BASE_CONTRACT,
+    ERC20_EXPIRABLE_CONTRACT,
     deployer
   );
   const erc7818 = await ERC7818.deploy(

@@ -1,31 +1,36 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
-/// @title Reference implementation of ERC-7818
+/// @title Reference implementation of ERC-7818.
 
-import {SCDLL as SortedList} from "./libraries/SCDLLLib.sol";
-import {SlidingWindow} from "./SlidingWindow.sol";
-import {IERC7818} from "./IERC7818.sol";
+import {SCDLL} from "../libraries/SCDLLLib.sol";
+import {SW} from "../libraries/SWLib.sol";
+import {IERC7818} from "../IERC7818.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IERC7818, SlidingWindow {
-    using SortedList for SortedList.List;
+abstract contract ERC20Expirable is Context, IERC20Errors, IERC7818 {
+    using SCDLL for SCDLL.List;
+    using SW for SW.State;
+
+    error ERC7818TransferExpired();
 
     string private _name;
     string private _symbol;
+    SW.State private _window;
 
     /// @notice Struct representing a slot containing balances mapped by blocks.
     struct Slot {
         uint256 slotBalance;
         mapping(uint256 blockNumber => uint256 balance) blockBalances;
-        SortedList.List list;
+        SCDLL.List list;
     }
 
-    mapping(address account => mapping(uint256 era => mapping(uint8 slot => Slot))) private _balances;
-    mapping(address account => mapping(address spneder => uint256 balance)) private _allowances;
+    mapping(address account => mapping(uint256 era => mapping(uint8 slot => Slot)))
+        private _balances;
+    mapping(address account => mapping(address spneder => uint256 balance))
+        private _allowances;
     mapping(uint256 blockNumber => uint256 balance) private _worldBlockBalances;
 
     /// @notice Constructor function to initialize the token contract with specified parameters.
@@ -41,9 +46,142 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
         uint16 blockTime_,
         uint8 frameSize_,
         uint8 slotSize_
-    ) SlidingWindow(blockNumber_, blockTime_, frameSize_, slotSize_) {
+    ) {
         _name = name_;
         _symbol = symbol_;
+        _window._startBlockNumber = blockNumber_ != 0
+            ? blockNumber_
+            : _blockNumberProvider();
+        _updateSlidingWindow(blockTime_, frameSize_, slotSize_);
+    }
+
+    /// @notice Allows for  in subsecond blocktime network.
+    /// @dev Returns the current block number.
+    /// This function can be overridden in derived contracts to provide custom
+    /// block number logic, useful in networks with subsecond block times.
+    /// @return The current network block number.
+    function _blockNumberProvider() internal view virtual returns (uint256) {
+        return block.number;
+    }
+
+    /// @notice Updates the parameters of the sliding window based on the given block time and frame size.
+    /// @dev This function adjusts internal parameters such as blockPerEra, blockPerSlot, and frame sizes
+    /// based on the provided blockTime and frameSize. It ensures that block time is within valid limits
+    /// and frame size is appropriate for the sliding window. The calculations depend on constants like
+    /// YEAR_IN_MILLISECONDS , MINIMUM_BLOCK_TIME_IN_MILLISECONDS , MAXIMUM_BLOCK_TIME_IN_MILLISECONDS ,
+    /// MINIMUM_FRAME_SIZE, MAXIMUM_FRAME_SIZE, and SLOT_PER_ERA.
+    /// @param blockTime The time duration of each block in milliseconds.
+    /// @param frameSize The size of the frame in slots.
+    /// @param slotSize The size of the slot per era.
+    function _updateSlidingWindow(
+        uint24 blockTime,
+        uint8 frameSize,
+        uint8 slotSize
+    ) internal virtual {
+        _window.updateSlidingWindow(blockTime, frameSize, slotSize);
+    }
+
+    /// @notice Calculates the current era and slot within the sliding window based on the given block number.
+    /// @dev This function computes both the era and slot using the provided block number and the sliding
+    /// window state parameters such as _startBlockNumber, _blockPerEra, and _slotSize. It delegates era
+    /// calculation to the `calculateEra` function and slot calculation to the `calculateSlot` function.
+    /// The era represents the number of complete eras that have passed since the sliding window started,
+    /// while the slot indicates the specific position within the current era.
+    /// @param blockNumber The block number to calculate the era and slot from.
+    /// @return era The current era derived from the block number.
+    /// @return slot The current slot within the era derived from the block number.
+    function _calculateEraAndSlot(
+        uint256 blockNumber
+    ) internal view virtual returns (uint256 era, uint8 slot) {
+        (era, slot) = _window.calculateEraAndSlot(blockNumber);
+    }
+
+    /// @notice Determines the sliding window frame based on the provided block number.
+    /// @dev This function computes the sliding window frame based on the provided `blockNumber` and the state `self`.
+    /// It determines the `toEra` and `toSlot` using `calculateEraAndSlot`, then calculates the block difference
+    /// using `_calculateBlockDifferent` to adjust the `blockNumber`. Finally, it computes the `fromEra` and `fromSlot`
+    /// using `calculateEraAndSlot` with the adjusted `blockNumber`, completing the determination of the sliding window frame.
+    /// @param blockNumber The current block number to calculate the sliding window frame from.
+    /// @return fromEra The starting era of the sliding window frame.
+    /// @return toEra The ending era of the sliding window frame.
+    /// @return fromSlot The starting slot within the starting era of the sliding window frame.
+    /// @return toSlot The ending slot within the ending era of the sliding window frame.
+    function _frame(
+        uint256 blockNumber
+    )
+        internal
+        view
+        virtual
+        returns (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot)
+    {
+        return _window.frame(blockNumber);
+    }
+
+    /// @notice Computes a safe frame of eras and slots relative to a given block number.
+    /// @dev This function computes a safe frame of eras and slots relative to the provided `blockNumber`.
+    /// It first calculates the frame using the `frame` function and then adjusts the result to ensure safe indexing.
+    /// @param blockNumber The block number used as a reference point for computing the frame.
+    /// @return fromEra The starting era of the safe frame.
+    /// @return toEra The ending era of the safe frame.
+    /// @return fromSlot The starting slot within the starting era of the safe frame.
+    /// @return toSlot The ending slot within the ending era of the safe frame.
+    function _safeFrame(
+        uint256 blockNumber
+    )
+        internal
+        view
+        virtual
+        returns (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot)
+    {
+        return _window.safeFrame(blockNumber);
+    }
+
+    /// @notice Retrieves the number of blocks per era from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the blocks per era.
+    /// @return The number of blocks per era.
+    function _getBlockPerEra() internal view virtual returns (uint40) {
+        return _window.getBlockPerEra();
+    }
+
+    /// @notice Retrieves the number of blocks per slot from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the blocks per slot.
+    /// @return The number of blocks per slot.
+    function _getBlockPerSlot() internal view virtual returns (uint40) {
+        return _window.getBlockPerSlot();
+    }
+
+    /// @notice Retrieves the frame size in block length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of block length.
+    /// @return The frame size in block length.
+    function _getFrameSizeInBlockLength()
+        internal
+        view
+        virtual
+        returns (uint40)
+    {
+        return _window.getFrameSizeInBlockLength();
+    }
+
+    /// @notice Retrieves the frame size in era length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of era length.
+    /// @return The frame size in era length.
+    function _getFrameSizeInEraLength() internal view virtual returns (uint8) {
+        return _window.getFrameSizeInEraLength();
+    }
+
+    /// @notice Retrieves the frame size in slot length from the sliding window state.
+    /// @dev Uses the sliding window state to fetch the frame size in terms of slot length.
+    /// @return The frame size in slot length.
+    function _getFrameSizeInSlotLength() internal view virtual returns (uint8) {
+        return _window.getFrameSizeInSlotLength();
+    }
+
+    /// @notice Retrieves the number of slots per era from the sliding window state.
+    /// @dev This function returns the `_slotSize` attribute from the provided sliding window state `self`,
+    /// which represents the number of slots per era in the sliding window configuration.
+    /// @return The number of slots per era configured in the sliding window state.
+    function _getSlotPerEra() internal view virtual returns (uint8) {
+        return _window.getSlotPerEra();
     }
 
     /// @notice Retrieves the total slot balance for the specified account and era,
@@ -88,8 +226,12 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
         uint8 slot,
         uint256 blockNumber
     ) private view returns (uint256 balance) {
-        Slot storage _spender = _balances[account][era][slot];
-        uint256 key = _locateUnexpiredBlockBalance(_spender.list, blockNumber, _getFrameSizeInBlockLength());
+        Slot storage _spender = _slotOf(account,era,slot);
+        uint256 key = _locateUnexpiredBlockBalance(
+            _spender.list,
+            blockNumber,
+            _getFrameSizeInBlockLength()
+        );
         while (key > 0) {
             unchecked {
                 balance += _spender.blockBalances[key];
@@ -117,7 +259,12 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
         uint256 blockNumber
     ) private view returns (uint256 balance) {
         unchecked {
-            balance = _bufferSlotBalance(account, fromEra, fromSlot, blockNumber);
+            balance = _bufferSlotBalance(
+                account,
+                fromEra,
+                fromSlot,
+                blockNumber
+            );
             // Go to the next slot. Increase the era if the slot is over the limit.
             uint8 slotSizeCache = _getSlotPerEra();
             fromSlot = (fromSlot + 1) % slotSizeCache;
@@ -132,13 +279,26 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
                 // Keep it simple stupid first by spliting into 3 part then sum.
                 // Part1: calulate balance at fromEra in naive in naive way O(n)
                 uint8 maxSlotCache = slotSizeCache - 1;
-                balance += _slotBalance(account, fromEra, fromSlot, maxSlotCache);
+                balance += _slotBalance(
+                    account,
+                    fromEra,
+                    fromSlot,
+                    maxSlotCache
+                );
                 // Part2: calulate balance betaween fromEra and toEra in naive way O(n)
                 for (uint256 era = fromEra + 1; era < toEra; era++) {
                     balance += _slotBalance(account, era, 0, maxSlotCache);
                 }
                 // Part3:calulate balance at toEra in navie way O(n)
                 balance += _slotBalance(account, toEra, 0, toSlot);
+            }
+        }
+    }
+
+    function _expired(uint256 id) internal view returns (bool) {
+        unchecked {
+            if (_blockNumberProvider() - id >= _getFrameSizeInBlockLength()) {
+                return true;
             }
         }
     }
@@ -155,8 +315,10 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
 
         if (from == address(0)) {
             // Mint token.
-            (uint256 currentEra, uint8 currentSlot) = _calculateEraAndSlot(blockNumberCache);
-            Slot storage _recipient = _balances[to][currentEra][currentSlot];
+            (uint256 currentEra, uint8 currentSlot) = _calculateEraAndSlot(
+                blockNumberCache
+            );
+            Slot storage _recipient = _slotOf(to,currentEra,currentSlot);
             unchecked {
                 _recipient.slotBalance += value;
                 _recipient.blockBalances[blockNumberCache] += value;
@@ -165,8 +327,20 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
             _worldBlockBalances[blockNumberCache] += value;
         } else {
             // Burn token.
-            (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) = _frame(blockNumberCache);
-            uint256 balance = _lookBackBalance(from, fromEra, toEra, fromSlot, toSlot, blockNumberCache);
+            (
+                uint256 fromEra,
+                uint256 toEra,
+                uint8 fromSlot,
+                uint8 toSlot
+            ) = _frame(blockNumberCache);
+            uint256 balance = _lookBackBalance(
+                from,
+                fromEra,
+                toEra,
+                fromSlot,
+                toSlot,
+                blockNumberCache
+            );
             if (balance < value) {
                 revert ERC20InsufficientBalance(from, balance, value);
             }
@@ -175,10 +349,18 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
             uint256 balanceCache = 0;
 
             if (to == address(0)) {
-                while ((fromEra < toEra || (fromEra == toEra && fromSlot <= toSlot)) && pendingValue > 0) {
-                    Slot storage _spender = _balances[from][fromEra][fromSlot];
+                while (
+                    (fromEra < toEra ||
+                        (fromEra == toEra && fromSlot <= toSlot)) &&
+                    pendingValue > 0
+                ) {
+                    Slot storage _spender = _slotOf(from,fromEra,fromSlot);
 
-                    uint256 key = _locateUnexpiredBlockBalance(_spender.list, blockNumberCache, blockLengthCache);
+                    uint256 key = _locateUnexpiredBlockBalance(
+                        _spender.list,
+                        blockNumberCache,
+                        blockLengthCache
+                    );
 
                     while (key > 0 && pendingValue > 0) {
                         balanceCache = _spender.blockBalances[key];
@@ -214,11 +396,19 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
                 }
             } else {
                 // Transfer token.
-                while ((fromEra < toEra || (fromEra == toEra && fromSlot <= toSlot)) && pendingValue > 0) {
-                    Slot storage _spender = _balances[from][fromEra][fromSlot];
-                    Slot storage _recipient = _balances[to][fromEra][fromSlot];
+                while (
+                    (fromEra < toEra ||
+                        (fromEra == toEra && fromSlot <= toSlot)) &&
+                    pendingValue > 0
+                ) {
+                    Slot storage _spender = _slotOf(from,fromEra,fromSlot);
+                    Slot storage _recipient = _slotOf(to,fromEra,fromSlot);
 
-                    uint256 key = _locateUnexpiredBlockBalance(_spender.list, blockNumberCache, blockLengthCache);
+                    uint256 key = _locateUnexpiredBlockBalance(
+                        _spender.list,
+                        blockNumberCache,
+                        blockLengthCache
+                    );
 
                     while (key > 0 && pendingValue > 0) {
                         balanceCache = _spender.blockBalances[key];
@@ -264,13 +454,53 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
         emit Transfer(from, to, value);
     }
 
+    function _updateSpecific(
+        address from,
+        address to,
+        uint256 id,
+        uint256 value
+    ) internal virtual {
+        (uint256 era, uint8 slot) = _calculateEraAndSlot(id);
+        if (from == address(0)) {
+            Slot storage _recipient = _balances[to][era][slot];
+            unchecked {
+                _recipient.slotBalance += value;
+                _recipient.blockBalances[id] += value;
+            }
+            _worldBlockBalances[id] += value;
+        } else {
+            Slot storage _spender = _slotOf(from,era,slot);
+            uint256 balanceCache = _spender.blockBalances[id];
+            if (balanceCache < value) {
+                revert ERC20InsufficientBalance(from, balanceCache, value);
+            }
+            if (to == address(0)) {
+                _spender.slotBalance -= value;
+                _spender.blockBalances[id] -= value;
+                _worldBlockBalances[id] -= value;
+            } else {
+                Slot storage _recipient = _slotOf(to,era,slot);
+                _spender.slotBalance -= value;
+                _spender.blockBalances[id] -= value;
+                _recipient.slotBalance += value;
+                _recipient.blockBalances[id] += value;
+            }
+        }
+
+        emit Transfer(from, to, value);
+    }
+
     /// @notice Retrieves the Slot storage for a given account, era, and slot.
     /// @dev This function accesses the `_balances` mapping to return the Slot associated with the specified account, era, and slot.
     /// @param account The address of the account whose slot is being queried.
     /// @param fromEra The era during which the slot was created or updated.
     /// @param fromSlot The slot identifier within the era for the account.
     /// @return slot The storage reference to the Slot structure for the given account, era, and slot.
-    function _slotOf(address account, uint256 fromEra, uint8 fromSlot) internal view returns (Slot storage) {
+    function _slotOf(
+        address account,
+        uint256 fromEra,
+        uint8 fromSlot
+    ) internal view returns (Slot storage) {
         return _balances[account][fromEra][fromSlot];
     }
 
@@ -284,7 +514,7 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
     /// @param expirationPeriodInBlockLength The maximum allowed difference between blockNumber and the key.
     /// @return key The index of the first valid block balance.
     function _locateUnexpiredBlockBalance(
-        SortedList.List storage list,
+        SCDLL.List storage list,
         uint256 blockNumber,
         uint256 expirationPeriodInBlockLength
     ) internal view returns (uint256 key) {
@@ -330,11 +560,19 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
     /// @param owner The address of the token owner.
     /// @param spender The address of the spender.
     /// @param value The amount of tokens to spend from the allowance.
-    function _spendAllowance(address owner, address spender, uint256 value) internal {
+    function _spendAllowance(
+        address owner,
+        address spender,
+        uint256 value
+    ) internal {
         uint256 currentAllowance = _allowances[owner][spender];
         if (currentAllowance != type(uint256).max) {
             if (currentAllowance < value) {
-                revert ERC20InsufficientAllowance(spender, currentAllowance, value);
+                revert ERC20InsufficientAllowance(
+                    spender,
+                    currentAllowance,
+                    value
+                );
             }
             unchecked {
                 _approve(owner, spender, currentAllowance - value, false);
@@ -359,7 +597,12 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
     /// @param spender The address of the spender.
     /// @param value The amount of tokens to allow.
     /// @param emitEvent Boolean flag indicating whether to emit the `Approval` event.
-    function _approve(address owner, address spender, uint256 value, bool emitEvent) internal {
+    function _approve(
+        address owner,
+        address spender,
+        uint256 value,
+        bool emitEvent
+    ) internal {
         if (owner == address(0)) {
             revert ERC20InvalidApprover(address(0));
         }
@@ -388,84 +631,214 @@ abstract contract ERC7818 is  Context, IERC20, IERC20Metadata, IERC20Errors, IER
         _update(from, to, value);
     }
 
+    function _transferSpecific(
+        address from,
+        address to,
+        uint256 id,
+        uint256 value
+    ) internal {
+        if (from == address(0)) {
+            revert ERC20InvalidSender(address(0));
+        }
+        if (to == address(0)) {
+            revert ERC20InvalidReceiver(address(0));
+        }
+        _updateSpecific(from, to, id, value);
+    }
+
     /// @notice Retrieves the total balance stored at a specific block.
     /// @dev This function returns the balance of the given block from the internal `_worldBlockBalances` mapping.
     /// @param blockNumber The block number for which the balance is being queried.
     /// @return balance The total balance stored at the given block number.
-    function getBlockBalance(uint256 blockNumber) external view virtual returns (uint256) {
+    function getBlockBalance(
+        uint256 blockNumber
+    ) external view virtual returns (uint256) {
         return _worldBlockBalances[blockNumber];
     }
 
-    /// @inheritdoc IERC20Metadata
+    /// @custom:gas-inefficiency if not limit the size of array
+    function tokenList(
+        address account,
+        uint256 era,
+        uint8 slot
+    ) external view virtual returns (uint256[] memory list) {
+        list = _balances[account][era][slot].list.ascending();
+    }
+
+    function currentEraAndSlot()
+        external
+        view
+        virtual
+        returns (uint256 era, uint8 slot)
+    {
+        (era, slot) = _calculateEraAndSlot(_blockNumberProvider());
+    }
+
+    function frame() external view virtual returns (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) {
+        return _frame(_blockNumberProvider());
+    }
+
+    function safeFrame() external view virtual returns (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) {
+        return _safeFrame(_blockNumberProvider());
+    }
+
+    function getBlockPerEra() external view virtual returns (uint40) {
+        return _getBlockPerEra();
+    }
+
+    function getBlockPerSlot() external view virtual returns (uint40) {
+        return _getBlockPerSlot();
+    }
+
+    function getFrameSizeInEraLength() external view virtual returns (uint8) {
+        return _getFrameSizeInEraLength();
+    }
+
+    function getFrameSizeInSlotLength() external view virtual returns (uint8) {
+        return _getFrameSizeInSlotLength();
+    }
+
+    function getSlotPerEra() external view virtual returns (uint8) {
+        return _getSlotPerEra();
+    }
+
+    /// @dev See {IERC20Metadata-name}.
     function name() public view virtual returns (string memory) {
         return _name;
     }
 
-    /// @inheritdoc IERC20Metadata
+    /// @dev See {IERC20Metadata-symbol}.
     function symbol() public view virtual returns (string memory) {
         return _symbol;
     }
 
-    /// @inheritdoc IERC20Metadata
+    /// @dev See {IERC20Metadata-decimals}.
     function decimals() public view virtual returns (uint8) {
         return 18;
     }
 
     /// @notice Returns 0 as there is no actual total supply due to token expiration.
     /// @dev This function returns the total supply of tokens, which is constant and set to 0.
-    /// @inheritdoc IERC20
+    /// @dev See {IERC20-totalSupply}.
     function totalSupply() public pure virtual returns (uint256) {
         return 0;
     }
 
     /// @notice Returns the available balance of tokens for a given account.
     /// @dev Calculates and returns the available balance based on the frame.
-    /// @inheritdoc IERC20
+    /// @dev See {IERC20-balanceOf}.
     function balanceOf(address account) public view virtual returns (uint256) {
         uint256 blockNumberCache = _blockNumberProvider();
-        (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) = _frame(blockNumberCache);
-        return _lookBackBalance(account, fromEra, toEra, fromSlot, toSlot, blockNumberCache);
+        (uint256 fromEra, uint256 toEra, uint8 fromSlot, uint8 toSlot) = _frame(
+            blockNumberCache
+        );
+        return
+            _lookBackBalance(
+                account,
+                fromEra,
+                toEra,
+                fromSlot,
+                toSlot,
+                blockNumberCache
+            );
     }
 
-    /// @inheritdoc IERC20
-    function allowance(address owner, address spender) public view virtual returns (uint256) {
+    /// @dev See {IERC20-allowance}.
+    function allowance(
+        address owner,
+        address spender
+    ) public view virtual returns (uint256) {
         return _allowances[owner][spender];
     }
 
-    /// @inheritdoc IERC20
+    /// @dev See {IERC20-transfer}.
     function transfer(address to, uint256 value) public virtual returns (bool) {
         address from = _msgSender();
         _transfer(from, to, value);
         return true;
     }
 
-    /// @inheritdoc IERC20
-    function transferFrom(address from, address to, uint256 value) public virtual returns (bool) {
+    /// @dev See {IERC20-transferFrom}.
+    function transferFrom(
+        address from,
+        address to,
+        uint256 value
+    ) public virtual returns (bool) {
         address spender = _msgSender();
         _spendAllowance(from, spender, value);
         _transfer(from, to, value);
         return true;
     }
 
-    /// @inheritdoc IERC20
-    function approve(address spender, uint256 value) public virtual returns (bool) {
+    /// @dev See {IERC20-approve}.
+    function approve(
+        address spender,
+        uint256 value
+    ) public virtual returns (bool) {
         address owner = _msgSender();
         _approve(owner, spender, value);
         return true;
     }
 
     /// @inheritdoc IERC7818
-    function tokenList(address account, uint256 era, uint8 slot) external view virtual returns (uint256[] memory list) {
-        list = _balances[account][era][slot].list.ascending();
+    /// @notice implementation defined `id` with token id
+    function balanceOf(
+        address account,
+        uint256 id
+    ) external view returns (uint256) {
+        if (_expired(id)) {
+            return 0;
+        }
+        (uint256 era, uint8 slot) = _calculateEraAndSlot(id);
+        return _balances[account][era][slot].blockBalances[id];
     }
 
     /// @inheritdoc IERC7818
-    function balanceOfBlock(uint256 blockNumber) public view virtual returns (uint256) {
-        return _worldBlockBalances[blockNumber];
-    }
-
-    /// @inheritdoc IERC7818
-    function expiryDuration() public view virtual returns (uint256) {
+    /// @notice implementation define duration unit in blocks
+    function duration() public view virtual returns (uint256) {
         return _getFrameSizeInBlockLength();
+    }
+
+    /// @inheritdoc IERC7818
+    function epoch() public view virtual returns (uint256) {
+        (uint256 era, ) = _calculateEraAndSlot(_blockNumberProvider());
+        return era;
+    }
+
+    /// @inheritdoc IERC7818
+    function expired(uint256 id) public view virtual returns (bool) {
+        return _expired(id);
+    }
+
+    /// @inheritdoc IERC7818
+    /// @notice implementation defined `id` with token id
+    function transfer(
+        address to,
+        uint256 id,
+        uint256 value
+    ) public override returns (bool) {
+        if (_expired(id)) {
+            revert ERC7818TransferExpired();
+        }
+        address owner = _msgSender();
+        _transferSpecific(owner, to, id, value);
+        return true;
+    }
+
+    /// @inheritdoc IERC7818
+    /// @notice implementation defined `id` with token id
+    function transferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 value
+    ) public virtual returns (bool) {
+        if (_expired(id)) {
+            revert ERC7818TransferExpired();
+        }
+        address spender = _msgSender();
+        _spendAllowance(from, spender, value);
+        _transferSpecific(from, to, id, value);
+        return true;
     }
 }

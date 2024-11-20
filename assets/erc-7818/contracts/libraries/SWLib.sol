@@ -6,7 +6,7 @@ pragma solidity >=0.8.0 <0.9.0;
 // inspiration: 
 // https://github.com/stonecoldpat/slidingwindow
 
-library SlidingWindow {
+library SW {
     uint8 private constant MINIMUM_SLOT_PER_ERA = 1;
     uint8 private constant MAXIMUM_SLOT_PER_ERA = 12;
     uint8 private constant MINIMUM_FRAME_SIZE = 1;
