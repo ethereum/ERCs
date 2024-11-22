@@ -62,7 +62,7 @@ ValuationService->EventHandler: return valuation data
 EventHandler->SDC: callback: tx 'performSettlement'
 SDC->SDC:Caps Settlement Amount at Margin Buffer Level
 
-SDC-->EventHandler: emit SettlementEvaluated
+SDC-->EventHandler: emit SettlementDetermined
 
 SDC->SettlementToken: tx 'transferFrom' settlement amount from Paying Party to Receiving Party Balance
 == TradeState 'inTransfer' ==

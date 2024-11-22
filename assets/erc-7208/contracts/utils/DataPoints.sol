@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
 import {ChainidTools} from "./ChainidTools.sol";
 
@@ -30,14 +30,23 @@ type DataPoint is bytes32;
  * @notice Library with utility functions to encode and decode DataPoint
  */
 library DataPoints {
-    /// @dev represent PPPPVVRR prefix
+    /// @dev Represents PPPPVVRR prefix
     bytes4 internal constant PREFIX = 0x44500000;
+
+    /// @dev Offset of the DataPoint prefix
+    uint256 internal constant PREFIX_BIT_OFFSET = 224;
+
+    /// @dev Offset of the DataPoint id
+    uint256 internal constant ID_BIT_OFFSET = 192;
+
+    /// @dev Offset of the DataPoint chainid
+    uint256 internal constant CHAINID_BIT_OFFSET = 160;
 
     /// @dev Error thrown when DataPoint structure is not supported
     error UnsupportedDataPointStructure();
 
     /**
-     * @notice Encode DataPoint
+     * @dev Encode DataPoint
      * @param registry Address of the registry which allocated the DataPoint
      * @param id 32 bit implementation-specific id of the DataPoint
      * @return Encoded DataPoint
@@ -45,12 +54,17 @@ library DataPoints {
     function encode(address registry, uint32 id) internal view returns (DataPoint) {
         return
             DataPoint.wrap(
-                bytes32((uint256(uint32(PREFIX)) << 224) | (uint256(id) << 192) | (uint256(ChainidTools.chainid()) << 160) | uint256(uint160(registry)))
+                bytes32(
+                    (uint256(uint32(PREFIX)) << PREFIX_BIT_OFFSET) |
+                        (uint256(id) << ID_BIT_OFFSET) |
+                        (uint256(ChainidTools.chainid()) << CHAINID_BIT_OFFSET) |
+                        uint256(uint160(registry))
+                )
             );
     }
 
     /**
-     * @notice Decode DataPoint
+     * @dev Decode DataPoint
      * @param dp DataPoint to decode
      * @return chainid Chain ID of the DataPoint
      * @return registry Address of the registry which allocated the DataPoint
@@ -58,10 +72,10 @@ library DataPoints {
      */
     function decode(DataPoint dp) internal pure returns (uint32 chainid, address registry, uint32 id) {
         uint256 dpu = uint256(DataPoint.unwrap(dp));
-        bytes4 prefix = bytes4(uint32(dpu >> 224));
+        bytes4 prefix = bytes4(uint32(dpu >> PREFIX_BIT_OFFSET));
         if (prefix != PREFIX) revert UnsupportedDataPointStructure();
         registry = address(uint160(dpu));
-        chainid = uint32(dpu >> 160);
-        id = uint32(dpu >> 192);
+        chainid = uint32(dpu >> CHAINID_BIT_OFFSET);
+        id = uint32(dpu >> ID_BIT_OFFSET);
     }
 }
