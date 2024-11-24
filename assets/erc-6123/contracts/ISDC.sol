@@ -128,13 +128,17 @@ interface ISDC {
 
     /**
      * @dev Emitted when settlement process has been finished
+     * @param transactionID a transaction id
+     * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event SettlementTransferred(string transactionData);
+    event SettlementTransferred(uint256 transactionID, string transactionData);
 
     /**
      * @dev Emitted when settlement process has been finished
+     * @param transactionID a transaction id
+     * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event SettlementFailed(string transactionData);
+    event SettlementFailed(uint256 transactionID, string transactionData);
 
     /* Events related to trade termination */
 
@@ -222,7 +226,7 @@ interface ISDC {
     /**
      * @notice May get called from outside to to finish a transfer (callback). The trade decides on how to proceed based on success flag
      * @param success tells the protocol whether transfer was successful
-     * @param transactionID a transaction
+     * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      * @dev emit a {SettlementTransferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
      */

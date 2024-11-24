@@ -109,11 +109,12 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         else if ( inStateTransfer() ){
             if (success){
                 setTradeState(TradeState.Settled);
-                emit SettlementTransferred("Settlement Settled - Pledge Transfer");
+                emit SettlementTransferred(transactionID, "Settlement Settled - Pledge Transfer");
             }
             else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
-                int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 setTradeState(TradeState.InTermination);
+                emit SettlementFailed(transactionID, "Settlement Failed - Pledge Transfer");
+                int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 processTerminationWithPledge(settlementAmount);
                 emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
             }
