@@ -15,7 +15,7 @@ requires: [ERC-2470]
 This proposal introduces a smart contract containing a classically intractable puzzle that is expected to only be able to be solved using quantum computers.
 The contract is funded with ETH, which can only be retrieved by solving the problem.
 On-chain applications can then watch this contract to be aware of the quantum advantage milestone of solving this puzzle.
-For example, Ethereum smart contract wallets can, using custom verification schemes such as those based on [ERC-4337](./eip-4337.md), watch this contract and fall back to a quantum secure signature verification scheme if and when it is solved.
+For example, Ethereum smart contract wallets can, using custom verification schemes such as those based on [ERC-4337](./erc-4337.md), watch this contract and fall back to a quantum secure signature verification scheme if and when it is solved.
 
 The contract, then, serves the two purposes of (1) showing proof of a strict quantum supremacy[^1] that is strong enough to 
 indicate concerns in RSA and ECDSA security, and (2) acting as an indicator to protect Ethereum assets by triggering quantum-secure 
@@ -115,15 +115,15 @@ Since the number of factors in this [test](../assets/eip-X/test/bounty-contracts
 
 ## Test Cases
 
-- [Random Bytes Accumulator](../assets/eip-X/test/bounty-contracts/support/random-bytes-accumulator.test.ts)
-- [RSA-UFO Generation](../assets/eip-X/test/bounty-contracts/prime-factoring-bounty/prime-factoring-bounty-with-rsa-ufo/prime-factoring-bounty-with-rsa-ufo.test.ts)
-- [Prime Factoring Bounty](../assets/eip-X/test/bounty-contracts/prime-factoring-bounty/prime-factoring-bounty-with-predetermined-locks/prime-factoring-bounty-with-predetermined-locks.test.ts)
+- [Random Bytes Accumulator](../assets/erc-X/test/bounty-contracts/support/random-bytes-accumulator.test.ts)
+- [RSA-UFO Generation](../assets/erc-X/test/bounty-contracts/prime-factoring-bounty/prime-factoring-bounty-with-rsa-ufo/prime-factoring-bounty-with-rsa-ufo.test.ts)
+- [Prime Factoring Bounty](../assets/erc-X/test/bounty-contracts/prime-factoring-bounty/prime-factoring-bounty-with-predetermined-locks/prime-factoring-bounty-with-predetermined-locks.test.ts)
 
 ## Reference Implementation
 
-- [Quantum Supremacy Contract](../assets/eip-X/contracts/bounty-contracts/prime-factoring-bounty/prime-factoring-bounty-with-rsa-ufo/PrimeFactoringBountyWithRsaUfo.sol)
+- [Quantum Supremacy Contract](../assets/erc-X/contracts/bounty-contracts/prime-factoring-bounty/prime-factoring-bounty-with-rsa-ufo/PrimeFactoringBountyWithRsaUfo.sol)
 
-- Example proof-of-concept [account](../assets/eip-X/contracts/bounty-fallback-account/BountyFallbackAccount.sol) 
+- Example proof-of-concept [account](../assets/erc-X/contracts/bounty-fallback-account/BountyFallbackAccount.sol) 
   having a quantum secure verification scheme after quantum supremacy trigger
 
 ## Security Considerations
@@ -165,19 +165,19 @@ Order-finding can be reduced[^10] to factoring, and vice-versa. Therefore, the p
 
 To compare costs with the factoring puzzle, we may compare the contracts using these puzzles in two ways: (1) verifying known solutions and (2) deploying.
 
-To verify submitted solutions, an order-finding contract was [deployed](../assets/eip-X/test/bounty-contracts/order-finding-bounty/cost-of-solving-order.test.ts) with a lock having a random 3072-bit
+To verify submitted solutions, an order-finding contract was [deployed](../assets/erc-X/test/bounty-contracts/order-finding-bounty/cost-of-solving-order.test.ts) with a lock having a random 3072-bit
 modulus and a random 3071-bit base. Cleve[^14] defines the quantum order-finding problem to have an order no greater than twice the bit size of the modulus, 
 i.e. 768 bytes. Therefore, 768 random solutions of byte size equal to its iteration were sent to the contract. 
 The maximum gas cost from these iterations was 4,835,737 gas, the minimum was 108,948, the mean was 2,472,370, and the median was 2,478,643.
 
-[Deploying](../assets/eip-X/deploy/2_deploy_order_finding_bounty.ts) an order-finding contract with 119 locks at 3,072 bits resulted in a cost of 4,029,364,172 gas, which includes testing that the generated base was neither 1
+[Deploying](../assets/erc-X/deploy/2_deploy_order_finding_bounty.ts) an order-finding contract with 119 locks at 3,072 bits resulted in a cost of 4,029,364,172 gas, which includes testing that the generated base was neither 1
 nor -1 and was coprime with the modulus. Alternatively, deploying without checking for being coprime could also use a
 probabilistic method. Deploying the contract at 119 locks without checking for coprimality resulted in a cost of 242,370,598 gas. However,
 since two randomly generated integers have about 0.61 chance of being coprime[^15], 
 one would need to generate 23 random pairs to have a one in a billion chance of having no coprime pairs. So, this probabilistic method
 would also cost a large amount, possibly more, depending on the satisfactory probability.
 
-[Deploying](../assets/eip-X/deploy/1_deploy_prime_factoring_bounty.ts) the prime factorization puzzle, on the other hand, resulted in a cost of 150,994,811 gas when generating 119 locks of size 3,072 bits.
+[Deploying](../assets/erc-X/deploy/1_deploy_prime_factoring_bounty.ts) the prime factorization puzzle, on the other hand, resulted in a cost of 150,994,811 gas when generating 119 locks of size 3,072 bits.
 
 This opens up a debatable question as to which puzzle should be used based on which would be less costly and for which party. Order-finding has a much
 higher deployment cost but also has a chance of costing far less to the solver, which would decrease the barrier to entry of
@@ -547,4 +547,4 @@ Copyright and related rights waived via [CC0](../LICENSE.md).
         ]
       }
     ```
-[ERC-2470]: ./eip-2470.md
+[ERC-2470]: ./erc-2470.md
