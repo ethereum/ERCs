@@ -1,47 +1,94 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Arrays.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Arrays} from "@openzeppelin/contracts/utils/Arrays.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ERC165, IERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {IERC1155MetadataURI} from "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {IERC1155Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
-import "../interfaces/IDataIndex.sol";
-import "../interfaces/IDataObject.sol";
-import "./MinimalisticERC20FractionDataManagerFactory.sol";
-import "./MinimalisticERC20FractionDataManager.sol";
+import {IDataIndex} from "../interfaces/IDataIndex.sol";
+import {IDataObject} from "../interfaces/IDataObject.sol";
+import {MinimalisticERC20FractionDataManagerFactory} from "./MinimalisticERC20FractionDataManagerFactory.sol";
+import {MinimalisticERC20FractionDataManager} from "./MinimalisticERC20FractionDataManager.sol";
+import {IFractionTransferEventEmitter} from "../interfaces/IFractionTransferEventEmitter.sol";
+import {DataPoint} from "../utils/DataPoints.sol";
+import {IFungibleFractionsOperations} from "../interfaces/IFungibleFractionsOperations.sol";
 
 /**
- * Deployment process
- * 1. Allocate DataPoint via IDataPointRegistry.allocate()
- * 2. Deploy ERC1155WithERC20FractionsDataManager (or an extending contract)
- * 3. Grant Admin role on the DataPoint to the deployed contract
+ * @title Minimalistic ERC1155 With ERC20 Fractions Data Manager
+ * @notice Contract for managing ERC1155 tokens with ERC20 fractions
+ * @dev This contract is used to manage ERC1155 tokens where each token ID can be treated as an ERC20 token
+ *      by deploying a ERC20FractionDataManager contract for each token ID.
+ *
+ *      Deployment process:
+ *      1. Allocate DataPoint via IDataPointRegistry.allocate()
+ *      2. Deploy ERC1155WithERC20FractionsDataManager (or an extending contract)
+ *      3. Grant Admin role on the DataPoint to the deployed contract
  */
-contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEventEmitter, IERC1155, IERC1155Errors, ERC165, Ownable {
+contract MinimalisticERC1155WithERC20FractionsDataManager is
+    IFractionTransferEventEmitter,
+    IERC1155,
+    IERC1155Errors,
+    IERC1155MetadataURI,
+    ERC165,
+    Ownable,
+    ReentrancyGuard
+{
     using Arrays for uint256[];
 
+    /// @dev Error thrown when the parameters are wrong
+    error WrongParameters();
+
+    /// @dev Error thrown when the ERC1155 token ID is zero
     error IncorrectId(uint256 id);
+
+    /// @notice Event emitted when a ERC20FractionDataManager contract is deployed
     event ERC20FractionDataManagerDeployed(uint256 id, address dm);
 
-    string private _name;
-    string private _symbol;
-    string private _defaultURI = "";
-    DataPoint internal immutable datapoint;
-    IDataObject public immutable fungibleFractionsDO;
-    IDataIndex public dataIndex;
-    mapping(address account => mapping(address operator => bool)) private _operatorApprovals;
-    mapping(uint256 id => address erc20dm) public fractionManagersById;
-    mapping(address erc20dm => uint256 id) public fractionManagersByAddress;
-    MinimalisticERC20FractionDataManagerFactory erc20FractionsDMFactory;
+    /// @notice Event emitted when the default URI is set
+    event DefaultURISet(string defaultURI);
 
+    /// @dev DataPoint used in the fungibleFractions data object
+    DataPoint internal immutable _datapoint;
+
+    /// @dev Fungible Fractions Data Object contract
+    IDataObject public immutable fungibleFractionsDO;
+
+    /// @dev Data Index implementation
+    IDataIndex public immutable dataIndex;
+
+    /// @dev ERC20FractionDataManager factory contract
+    MinimalisticERC20FractionDataManagerFactory public immutable erc20FractionsDMFactory;
+
+    /// @dev Name of the ERC1155 token
+    string private _name;
+
+    /// @dev Symbol of the ERC1155 token
+    string private _symbol;
+
+    /// @dev Default URI for token types
+    string private _defaultURI = "";
+
+    /// @dev Mapping of approvals state for an address to an operator
+    mapping(address account => mapping(address operator => bool)) private _operatorApprovals;
+
+    /// @dev Mapping of ERC20FractionDataManager contract address by token ID
+    mapping(uint256 id => address erc20dm) public fractionManagersById;
+
+    /// @dev Mapping of token ID by ERC20FractionDataManager contract address
+    mapping(address erc20dm => uint256 id) public fractionManagersByAddress;
+
+    /// @notice Modifier to check if the caller is the minter
     modifier onlyMinter() {
         _checkMinter();
         _;
     }
 
+    /// @dev Set up the ERC1155 token with initial data and roles
     constructor(
         bytes32 _dp,
         address _dataIndex,
@@ -50,72 +97,106 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
         string memory name_,
         string memory symbol_
     ) Ownable(msg.sender) {
+        if (_dp == bytes32(0) || _dataIndex == address(0) || _fungibleFractionsDO == address(0) || _erc20FractionsDMFactory == address(0)) {
+            revert WrongParameters();
+        }
+
         _name = name_;
         _symbol = symbol_;
-        datapoint = DataPoint.wrap(_dp);
+        _datapoint = DataPoint.wrap(_dp);
         dataIndex = IDataIndex(_dataIndex);
         fungibleFractionsDO = IDataObject(_fungibleFractionsDO);
         erc20FractionsDMFactory = MinimalisticERC20FractionDataManagerFactory(_erc20FractionsDMFactory);
     }
 
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
+    /// @inheritdoc IERC165
     function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, ERC165) returns (bool) {
         return interfaceId == type(IERC1155).interfaceId || interfaceId == type(IERC1155MetadataURI).interfaceId || super.supportsInterface(interfaceId);
     }
 
+    /// @notice Set a new Default URI
     function setDefaultURI(string calldata defaultURI) external onlyOwner {
         _setDefaultURI(defaultURI);
     }
 
+    /**
+     * @notice Total supply of the ERC1155 token
+     * @return The amount of tokens in existence
+     * @dev This function is used to get the total supply of the ERC1155 token considering all token IDs
+     */
     function totalSupply() public view returns (uint256) {
-        return abi.decode(fungibleFractionsDO.read(datapoint, IFungibleFractionsOperations.totalSupplyAll.selector, ""), (uint256));
+        return abi.decode(fungibleFractionsDO.read(_datapoint, IFungibleFractionsOperations.totalSupplyAll.selector, ""), (uint256));
     }
 
+    /**
+     * @notice Total supply of the ERC1155 token by ID
+     * @param id The token ID
+     * @return The amount of tokens in existence for the given token ID
+     */
     function totalSupply(uint256 id) public view returns (uint256) {
-        return abi.decode(fungibleFractionsDO.read(datapoint, IFungibleFractionsOperations.totalSupply.selector, abi.encode(id)), (uint256));
+        return abi.decode(fungibleFractionsDO.read(_datapoint, IFungibleFractionsOperations.totalSupply.selector, abi.encode(id)), (uint256));
     }
 
+    /**
+     * @notice Balance of an account
+     * @param account The account to check the balance of
+     * @param id The token ID
+     * @return The amount of tokens the account has for the given token ID
+     */
     function balanceOf(address account, uint256 id) public view returns (uint256) {
-        return abi.decode(fungibleFractionsDO.read(datapoint, IFungibleFractionsOperations.balanceOf.selector, abi.encode(account, id)), (uint256));
+        return abi.decode(fungibleFractionsDO.read(_datapoint, IFungibleFractionsOperations.balanceOf.selector, abi.encode(account, id)), (uint256));
     }
 
+    /**
+     * @notice Balance of multiple accounts for multiple token IDs
+     * @param accounts The accounts to check the balance of
+     * @param ids The token IDs
+     * @return The amounts of tokens each account has for respective token IDs
+     */
     function balanceOfBatch(address[] memory accounts, uint256[] memory ids) public view returns (uint256[] memory) {
         return
             abi.decode(
-                fungibleFractionsDO.read(datapoint, IFungibleFractionsOperations.balanceOfBatchAccounts.selector, abi.encode(accounts, ids)),
+                fungibleFractionsDO.read(_datapoint, IFungibleFractionsOperations.balanceOfBatchAccounts.selector, abi.encode(accounts, ids)),
                 (uint256[])
             );
     }
 
+    /**
+     * @notice Get the URI for a token ID
+     * @return The URI for the given token ID
+     */
     function uri(uint256) public view virtual returns (string memory) {
         return _defaultURI;
     }
 
+    /**
+     * @notice Get the name of the ERC1155 token
+     * @return The name of the token
+     */
     function name() public view returns (string memory) {
         return _name;
     }
+
+    /**
+     * @notice Get the symbol of the ERC1155 token
+     * @return The symbol of the token
+     */
     function symbol() public view returns (string memory) {
         return _symbol;
     }
 
-    /**
-     * @dev See {IERC1155-setApprovalForAll}.
-     */
+    /// @inheritdoc IERC1155
     function setApprovalForAll(address operator, bool approved) public virtual {
         _setApprovalForAll(_msgSender(), operator, approved);
     }
 
-    /**
-     * @dev See {IERC1155-isApprovedForAll}.
-     */
+    /// @inheritdoc IERC1155
     function isApprovedForAll(address account, address operator) public view virtual returns (bool) {
         return _operatorApprovals[account][operator];
     }
 
     /**
-     * @dev Approve `operator` to operate on all of `owner` tokens
+     * @dev Approve `operator` to operate on all of `tokenOwner` tokens
      *
      * Emits an {ApprovalForAll} event.
      *
@@ -123,17 +204,15 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
      *
      * - `operator` cannot be the zero address.
      */
-    function _setApprovalForAll(address owner, address operator, bool approved) internal virtual {
+    function _setApprovalForAll(address tokenOwner, address operator, bool approved) internal virtual {
         if (operator == address(0)) {
             revert ERC1155InvalidOperator(address(0));
         }
-        _operatorApprovals[owner][operator] = approved;
-        emit ApprovalForAll(owner, operator, approved);
+        _operatorApprovals[tokenOwner][operator] = approved;
+        emit ApprovalForAll(tokenOwner, operator, approved);
     }
 
-    /**
-     * @dev See {IERC1155-safeTransferFrom}.
-     */
+    /// @inheritdoc IERC1155
     function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes calldata data) public virtual {
         address sender = _msgSender();
         if (from != sender && !isApprovedForAll(from, sender)) {
@@ -142,9 +221,7 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
         _safeTransferFrom(from, to, id, value, data);
     }
 
-    /**
-     * @dev See {IERC1155-safeBatchTransferFrom}.
-     */
+    /// @inheritdoc IERC1155
     function safeBatchTransferFrom(address from, address to, uint256[] calldata ids, uint256[] calldata values, bytes calldata data) external virtual {
         address sender = _msgSender();
         if (from != sender && !isApprovedForAll(from, sender)) {
@@ -344,6 +421,8 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
 
     function _setDefaultURI(string memory defaultURI) internal virtual {
         _defaultURI = defaultURI;
+
+        emit DefaultURISet(defaultURI);
     }
 
     function _checkMinter() internal view {
@@ -352,32 +431,47 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
 
     function _writeTransfer(address from, address to, uint256 id, uint256 value) internal virtual {
         if (from == address(0)) {
-            dataIndex.write(address(fungibleFractionsDO), datapoint, IFungibleFractionsOperations.mint.selector, abi.encode(to, id, value));
+            dataIndex.write(fungibleFractionsDO, _datapoint, IFungibleFractionsOperations.mint.selector, abi.encode(to, id, value));
         } else if (to == address(0)) {
-            dataIndex.write(address(fungibleFractionsDO), datapoint, IFungibleFractionsOperations.burn.selector, abi.encode(from, id, value));
+            dataIndex.write(fungibleFractionsDO, _datapoint, IFungibleFractionsOperations.burn.selector, abi.encode(from, id, value));
         } else {
-            dataIndex.write(address(fungibleFractionsDO), datapoint, IFungibleFractionsOperations.transferFrom.selector, abi.encode(from, to, id, value));
+            dataIndex.write(fungibleFractionsDO, _datapoint, IFungibleFractionsOperations.transferFrom.selector, abi.encode(from, to, id, value));
         }
     }
 
     function _writeTransferBatch(address from, address to, uint256[] memory ids, uint256[] memory values) internal virtual {
-        if (from == address(0)) {
-            dataIndex.write(address(fungibleFractionsDO), datapoint, IFungibleFractionsOperations.batchMint.selector, abi.encode(to, ids, values));
-        } else if (to == address(0)) {
-            dataIndex.write(address(fungibleFractionsDO), datapoint, IFungibleFractionsOperations.batchBurn.selector, abi.encode(from, ids, values));
-        } else {
-            dataIndex.write(address(fungibleFractionsDO), datapoint, IFungibleFractionsOperations.batchTransferFrom.selector, abi.encode(from, to, ids, values));
-        }
+        dataIndex.write(fungibleFractionsDO, _datapoint, IFungibleFractionsOperations.batchTransferFrom.selector, abi.encode(from, to, ids, values));
     }
 
+    /**
+     * @notice Mint new tokens
+     * @param to The address to mint tokens to
+     * @param id The token ID
+     * @param value The amount of tokens to mint
+     * @param data Additional data with no specified format
+     */
     function mint(address to, uint256 id, uint256 value, bytes memory data) public virtual onlyMinter {
         _mint(to, id, value, data);
     }
 
-    function batchMint(address, uint256[] memory, uint256[] memory, bytes memory) public pure {
-        revert("Batch mint not supported"); // it will be very expensive anyway
+    /**
+     * @notice Burn tokens
+     * @param from The address to burn tokens from
+     * @param id The token ID
+     * @param value The amount of tokens to burn
+     */
+    function burn(address from, uint256 id, uint256 value) public virtual {
+        _burn(from, id, value);
     }
 
+    /**
+     * @notice Function to emit a TransferSingle event
+     * @param from The address to transfer tokens from
+     * @param to The address to transfer tokens to
+     * @param value The amount of tokens to transfer
+     * @dev This function is used to emit a TransferSingle event when a transfer operation is performed in the
+     *      ERC20FractionDataManager contract
+     */
     function fractionTransferredNotify(address from, address to, uint256 value) external {
         uint256 id = fractionManagersByAddress[_msgSender()];
         if (id == 0) revert WrongTransferNotificationSource();
@@ -386,8 +480,24 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
 
     function _mint(address to, uint256 id, uint256 value, bytes memory data) internal virtual {
         if (id == 0) revert IncorrectId(id);
-        _deployERC20DMIfNotDeployed(id, data);
+
+        if (to == address(0)) {
+            revert ERC1155InvalidReceiver(address(0));
+        }
+
+        _deployERC20DMIfNotDeployed(id);
         _updateWithAcceptanceCheck(address(0), to, id, value, data);
+    }
+
+    function _burn(address from, uint256 id, uint256 value) internal virtual {
+        if (id == 0) revert IncorrectId(id);
+
+        address sender = _msgSender();
+        if (from != sender && !isApprovedForAll(from, sender)) {
+            revert ERC1155MissingApprovalForAll(sender, from);
+        }
+
+        _updateWithAcceptanceCheck(from, address(0), id, value, "");
     }
 
     function _update(address from, address to, uint256 id, uint256 value) internal {
@@ -397,37 +507,32 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
 
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal {
         _updateInternal(from, to, ids, values);
-        for (uint256 i; i < ids.length; i++) {
+
+        uint256 length = ids.length;
+        for (uint256 i; i < length; i++) {
             uint256 id = ids.unsafeMemoryAccess(i);
-            uint256 value = ids.unsafeMemoryAccess(i); // We have an array length check in ERC1155Transfers._safeBatchTransferFrom()
+            uint256 value = values.unsafeMemoryAccess(i); // We have an array length check in ERC1155Transfers._safeBatchTransferFrom()
             _erc20TransferNotify(id, from, to, value);
         }
     }
 
-    function _deployERC20DMIfNotDeployed(uint256 id, bytes memory data) internal {
+    function _deployERC20DMIfNotDeployed(uint256 id) internal {
         if (fractionManagersById[id] != address(0)) return; // Already deployed
-        (string memory name_, string memory symbol_) = _prepareNameAndSymbol(data, id);
+        (string memory name_, string memory symbol_) = _prepareNameAndSymbol(id);
         _deployERC20DM(id, name_, symbol_);
     }
 
     function _afterDeployERC20DM(address deployedDM) internal virtual {}
 
-    function _prepareNameAndSymbol(bytes memory data, uint256 id) private view returns (string memory, string memory) {
-        string memory name_;
-        string memory symbol_;
-        if (data.length != 0) {
-            (name_, symbol_) = abi.decode(data, (string, string));
-        } else {
-            name_ = string.concat(name(), " ", Strings.toString(id));
-            symbol_ = string.concat(symbol(), "-", Strings.toString(id));
-        }
-        return (name_, symbol_);
+    function _prepareNameAndSymbol(uint256 id) private view returns (string memory name_, string memory symbol_) {
+        name_ = string.concat(name(), " ", Strings.toString(id));
+        symbol_ = string.concat(symbol(), "-", Strings.toString(id));
     }
 
-    function _deployERC20DM(uint256 id, string memory name_, string memory symbol_) private {
+    function _deployERC20DM(uint256 id, string memory name_, string memory symbol_) private nonReentrant {
         address erc20dm = erc20FractionsDMFactory.deploy(id);
         MinimalisticERC20FractionDataManager(erc20dm).initialize(
-            DataPoint.unwrap(datapoint),
+            DataPoint.unwrap(_datapoint),
             address(dataIndex),
             address(fungibleFractionsDO),
             address(this),
@@ -439,7 +544,7 @@ contract MinimalisticERC1155WithERC20FractionsDataManager is IFractionTransferEv
         fractionManagersById[id] = erc20dm;
         fractionManagersByAddress[erc20dm] = id;
 
-        dataIndex.allowDataManager(datapoint, erc20dm, true);
+        dataIndex.allowDataManager(_datapoint, erc20dm, true);
 
         _afterDeployERC20DM(erc20dm);
 
