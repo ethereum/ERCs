@@ -216,11 +216,9 @@ evm://user@rollup.eth.mainnet/transfer?amount=10
 
 ## Rationale
 
-### Separator Choice
+#### Using @ vs : for the separator 
 
 The colon (`:`) may be a reasonable choice for separator because it is not an allowed character in ENS names, it is familiar (eg. IPv6), and isn't as overloaded as the `@` symbol.
-
-#### Alternative: `@`
 
 The `@` symbol may be a reasonable choice as it is arguably more human-readable, is already a common choice for addresses, and finds use in email and several federated communication protocols. The English reading (foo-**AT**-example-DOT-com) is natural and implies a hierarchy between the left and the right components.
 
