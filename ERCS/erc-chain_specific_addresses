@@ -33,8 +33,13 @@ In the same spirit, the address could be a human-readable name as well, which is
 Desired properties:
 - a unified format to represent any address on L1 or L2
 - the ability to use chain names in addition to identifiers
-- the ability to use ENS names in addition to addresses
+- the chain portion can be a domain name, or just the suffix for a "base chain" (eg. `eth`, `myfavoriterollup.eth`, `sepolia`, `my_l3.base.superchain.eth`)
+- the address portion can be either the appropriate type of address for the chain (0x... for EVM chains, otherwise eg. for starknet something else), or a domain name (ENS or other)
 - the ability to resolve ENS names on the L2
+- the address portion and the chain portion should be resolved separately 
+- checksums are MANDATORY
+- checksum hash goes over the entire address, so users can't just replace a component and expect it to stay valid
+
 
 ## Specification
 
@@ -59,51 +64,155 @@ A few examples below.
 
 Option 1: using @
 ```
-#Mainnet
+Mainnet
 - 0x12345...6789@0x1
 - 0x12345...6789@eth
 - alice.eth@eth
 
-#Testnet (Sepolia)
+Testnet (Sepolia)
 - 0x12345...6789@0xaa36a7
 - 0x12345...6789@sepolia
 - alice.eth@sepolia
 
-#Rollup#
+Rollup
 - 0x12345...6789@chainId
 - 0x12345...6789@arbitrum.eth
 - alice.eth@arbitrum.eth
 
-#Rollup Sepolia
+Rollup Sepolia
 - 0x12345...6789@arbitrum.sepolia
 
-#My ENS name is registered on rollupX, but I want to receive funds on rollupY
-- alice.base.eth@arbitrum.eth
+My ENS name is registered on rollup1, but I want to receive funds on rollup2
+- alice.rollup1.eth@rollup2.eth
 ```
 
 Option 2: using : instead of @ 
 ```
-#Mainnet
+Mainnet
 - 0x12345...6789:0x1
 - 0x12345...6789:eth
 - alice.eth:eth
 
-#Testnet (Sepolia)
+Testnet (Sepolia)
 - 0x12345...6789:0xaa36a7
 - 0x12345...6789:sepolia
 - alice.eth:sepolia
 
-#Rollup#
+Rollup
 - 0x12345...6789:chainId
 - 0x12345...6789:arbitrum.eth
 - alice.eth:arbitrum.eth
 
-#Rollup Sepolia
+Rollup Sepolia
 - 0x12345...6789:arbitrum.sepolia
 
-#My ENS name is registered on rollupX, but I want to receive funds on rollupY
-- alice.base.eth:arbitrum.eth
+My ENS name is registered on rollup1, but I want to receive funds on rollup2
+- alice.rollup1.eth:rollup2.eth
 ```
+### CHECKSUM
+TODO: add more explanation here
+
+Two desired properties:
+1) checksums are MANDATORY
+2) checksum hash goes over the entire address, so users can't just go and replace a component and expect it to stay valid
+
+
+### A special case for ENS resolution
+
+Any ENS name today can be resolved to a chain identifier as in [ENSIP-11](https://docs.ens.domains/ensip/11) or to an address as in [ENSIP-9](https://docs.ens.domains/ensip/9).
+We could imagine having a name `user.eth` that points to a record of the form `{address ; chain_id}`. Given such an address a wallet can verify it resolves to a valid account.
+The advantage of this format is that it is very flexible and can accommodate a number of use cases, however it can also lead to confusion for users because a name does not necessarily resolve to a valid account. The same `user.eth` could lead to a website, a NFT or multiple addresses.
+
+The resolution of a `address@chain` on the contrary, imposes that the left-hand resolves to an address and the right-hand to a chain identifier.
+
+When given a `user@rollup.eth`, the wallet can resolve `rollup.eth` to get a chain identifier and `user.rollup.eth` to get an address. In any other case it fails.
+
+### L2 resolution
+
+In case an address is not registered on L1, but only on a L2, the resolution can be processed using [CCIP-Read EIP](https://eips.ethereum.org/EIPS/eip-3668) and [ENSIP-10 Wildcard Resolution](https://docs.ens.domains/ensip/10).
+
+In the previous example `user@rollup.eth`, `user` would not be registered on L1.
+In this case the wallet can resolve `rollup.eth` to get a chain identifier as before and when attempting to resolve `user.rollup.eth` to get an address, it would fail and be redirected to the L2 gateway. Any answer from the gateway needs to be verified as explained in the EIP.
+
+#### Note: avoiding the http gateway
+
+In order to avoid contacting an external http gateway, we could define the gateway to be a ENS contract on the L2. In this way a wallet operator would need to only rely on a node following the L1 and a node following the L2.
+
+### L1 resolution
+
+Ethereum Mainnet and its testnets can be resolved to their corresponding chain identifiers using a [centralized list](https://chainid.network/chains.json), which remains unchanged from how it works today. Other L1 registrations are out of scope for this EIP.
+
+Mapping:
+```
+L1-TLD -> {L1_chain_id : chain_id; L1_ens_address : address;}
+```
+Example:
+```
+eth     -> {L1_chain_id : 0x1;      L1_ens_address : <ENS-address-on-mainnet>}
+sepolia -> {L1_chain_id : 0xaa36a7; L1_ens_address : <ENS-address-on-sepolia>}
+```
+
+### Note: clashes of L1 and TLD
+
+In the above proposal the ENS TLD and chain name coincide which may be confusing or incorrect in some cases. A more explicit approach could be to have an additional suffix for the chain name.
+Example:
+```
+name.eth.mainnet -> {L1_chain_id : 0x1;      L1_ens_address : <ENS-address-on-mainnet>}
+name.eth.sepolia -> {L1_chain_id : 0xaa36a7; L1_ens_address : <ENS-address-on-sepolia>}
+```
+### Note: default fallbacks
+
+If a user receives a legacy address without chain name, the wallet can:
+Refuse the address (safest)
+Default to Mainnet (unambiguous)
+Dynamically default to same chainID as sender (ambiguous and context-dependent but probably compatible with current use-cases)
+
+### Advanced patterns
+
+The `@` syntax described in this EIP is a restricted resolution case for ENS names whose main purpose it to be user-friendly. We can however support more advanced pattern in ENS.
+
+### Supported today
+
+For example a user might configure its name with multiple address such as
+```
+rollup1.user.eth -> {address : address; chain_id : chain_id} 
+rollup2.user.eth -> {address : address; chain_id : chain_id} 
+```
+Given `user.eth` as recipient a wallet could prompt the user to select a destination chain.
+Otherwise the user can be more explicit and give as recipient `rollup1.user.eth`.
+
+### Note: Speculative
+
+Alternatively we could store multiple addressed under the same domain as
+```
+user.eth -> { rollup1 : address * chain_id ; 
+              rollup2 : address * chain_id } 
+```
+if a syntax to access ENS records could be standardized, the user could be asked to be paid at
+`user.eth/rollup1`
+
+### URL compatibility
+
+It would be very desirable to maintain compatibility with the syntax defined by the [Uniform Resource Identifier](https://www.rfc-editor.org/rfc/rfc3986) standard, so that in the future a schema could be supported.
+
+Example of a link to require a payment of 10 tokens to the `user` address living in `rollup`:
+```
+evm://user@rollup.eth.mainnet/transfer?amount=10
+```
+
+### Resolution step-by-step example
+
+1. Check the type of `chain`
+   - if typeof(chain) == “ENS name”: go to step 2
+   - if typeof(chain) == “L1 TLD”: go to step 3
+   - if typeof(chain) == “chainId”: go to step 4
+2. Resolve the ENS name's `text(chainENSName, ‘chain_id’)` record using [ENSIP-10](https://docs.ens.domains/ensip/10) and skip to step 4
+3. Use an offline mapping of `TLD => chainId` to find the relevant chainId.
+4. Check if `account` is an ENS name, if not end the resolution process.
+5. Generate the cointype using the chainId via ENSIP-11: `coinType = 0x80000000 | chainId`
+6. Verify the bridge address by resolving `[chainId].id.eth`'s `name(name, 60)` record using [ENSIP-10](https://docs.ens.domains/ensip/10)
+7. Check if this name matches the ENS name representing the chain, continue otherwise consider the resolution a failure and error.
+8. Resolve the ENS name's `addr(name, cointype)`
 
 ## Rationale
 
@@ -119,52 +228,11 @@ TBD
 
 ## Backwards Compatibility
 
-<!--
-
-  This section is optional.
-
-  All EIPs that introduce backwards incompatibilities must include a section describing these incompatibilities and their severity. The EIP must explain how the author proposes to deal with these incompatibilities. EIP submissions without a sufficient backwards compatibility treatise may be rejected outright.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
 No backward compatibility issues found.
-
-## Test Cases
-
-<!--
-  This section is optional for non-Core EIPs.
-
-  The Test Cases section should include expected input/output pairs, but may include a succinct set of executable tests. It should not include project build files. No new requirements may be be introduced here (meaning an implementation following only the Specification section should pass all tests here.)
-  If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed
-
-  TODO: Remove this comment before submitting
--->
-
-## Reference Implementation
-
-<!--
-  This section is optional.
-
-  The Reference Implementation section should include a minimal implementation that assists in understanding or implementing this specification. It should not include project build files. The reference implementation is not a replacement for the Specification section, and the proposal should still be understandable without it.
-  If the reference implementation is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed.
-
-  TODO: Remove this comment before submitting
--->
 
 ## Security Considerations
 
-<!--
-  All EIPs must contain a section that discusses the security implications/considerations relevant to the proposed change. Include information that might be important for security discussions, surfaces risks and can be used throughout the life cycle of the proposal. For example, include security-relevant design decisions, concerns, important discussions, implementation-specific guidance and pitfalls, an outline of threats and risks and how they are being addressed. EIP submissions missing the "Security Considerations" section will be rejected. An EIP cannot proceed to status "Final" without a Security Considerations discussion deemed sufficient by the reviewers.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
-Needs discussion.
+tbd 
 
 ## Copyright
 
