@@ -216,15 +216,7 @@ evm://user@rollup.eth.mainnet/transfer?amount=10
 
 ## Rationale
 
-<!--
-  The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work, e.g. how the feature is supported in other languages.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
-TBD
+todo
 
 ## Backwards Compatibility
 
@@ -232,7 +224,7 @@ No backward compatibility issues found.
 
 ## Security Considerations
 
-tbd 
+todo
 
 ## Copyright
 
