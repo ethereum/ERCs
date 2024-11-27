@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: CC0-1.0
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
@@ -10,16 +10,16 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IERC7818 is IERC20 {
     /**
-     * @dev Retrieves the balance of a specific `identifier` owned by an account.
+     * @dev Retrieves the balance of a specific `epoch` owned by an account.
      * @param account The address of the account.
-     * @param identifier The Identifier "MAY" represents an epoch, round, period, or token identifier.
-     * @return uint256 The balance of the specified `identifier`.
-     * @notice `identifier` "MUST" represent a unique identifier, and its meaning "SHOULD"
+     * @param epoch "MAY" represents an epoch, round, or period.
+     * @return uint256 The balance of the specified `epoch`.
+     * @notice `epoch` "MUST" represent a unique identifier, and its meaning "SHOULD"
      * align with how contract maintain the `epoch` in the implementing contract.
      */
     function balanceOf(
         address account,
-        uint256 identifier
+        uint256 epoch
     ) external view returns (uint256);
 
     /**
@@ -39,41 +39,41 @@ interface IERC7818 is IERC20 {
     function duration() external view returns (uint256);
 
     /**
-     * @dev Checks whether a specific `identifier` is expired.
-     * @param identifier The Identifier "MAY" represents an epoch, round, period, or token identifier.
+     * @dev Checks whether a specific `epoch` is expired.
+     * @param epoch "MAY" represents an epoch, round, or period.
      * @return bool True if the token is expired, false otherwise.
      * @notice Implementing contracts "MUST" define the logic for determining expiration,
-     * typically by comparing the current `epoch()` with the given `identifier`.
+     * typically by comparing the current `epoch()` with the given `epoch`.
      */
-    function expired(uint256 identifier) external view returns (bool);
+    function expired(uint256 epoch) external view returns (bool);
 
     /**
-     * @dev Transfers a specific `identifier` and value to a recipient.
+     * @dev Transfers a specific `epoch` and value to a recipient.
      * @param to The recipient address.
-     * @param identifier The Identifier "MAY" represents an epoch, round, period, or token identifier.
+     * @param epoch "MAY" represents an epoch, round, or period.
      * @param value The amount to transfer.
-     * @return bool True if the transfer succeeded, false or reverted if give `identifier` it's expired.
-     * @notice The transfer "MUST" revert if the token `identifier` is expired.
+     * @return bool True if the transfer succeeded, false or reverted if give `epoch` it's expired.
+     * @notice The transfer "MUST" revert if the token `epoch` is expired.
      */
     function transfer(
         address to,
-        uint256 identifier,
+        uint256 epoch,
         uint256 value
     ) external returns (bool);
 
     /**
-     * @dev Transfers a specific `identifier` and value from one account to another.
+     * @dev Transfers a specific `epoch` and value from one account to another.
      * @param from The sender's address.
      * @param to The recipient's address.
-     * @param identifier The Identifier "MAY" represents an epoch, round, period, or token identifier.
+     * @param epoch "MAY" represents an epoch, round, or period.
      * @param value The amount to transfer.
-     * @return bool True if the transfer succeeded, false or reverted if give `identifier` it's expired.
-     * @notice The transfer "MUST" revert if the token `identifier` is expired.
+     * @return bool True if the transfer succeeded, false or reverted if give `epoch` it's expired.
+     * @notice The transfer "MUST" revert if the token `epoch` is expired.
      */
     function transferFrom(
         address from,
         address to,
-        uint256 identifier,
+        uint256 epoch,
         uint256 value
     ) external returns (bool);
 }
