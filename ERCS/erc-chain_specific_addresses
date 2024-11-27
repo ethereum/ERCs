@@ -12,7 +12,7 @@ requires: 7785
 
 ## Abstract
 
-This document builds off of ERC-7785 (on-chain configs) to provide a standard and human-readable format for chain-specific L2 addresses:
+This proposal builds off of ERC-7785 (on-chain configs) to provide a standard and human-readable format for chain-specific L2 addresses:
 - A unified format for accounts that specifies, together with the address, the chain where the address lives.
 - The use of human-readable chain names and how they can be resolved to chain identifiers using ENS on L1.
 - The use of human-readable account names and how they can be resolved to addresses using ENS on L2.
@@ -21,7 +21,7 @@ This document builds off of ERC-7785 (on-chain configs) to provide a standard an
 
 The current Ethereum address landscape is leading to an ecosystem that will have hundreds and eventually thousands of L2s that use the same address format as Ethereum mainnet. This means an address by itself is not enough information to know which chain the address is related to. This can be problematic if funds are sent to an unreachable address on the incorrect chain. From the user account it should be possible to obtain the right chain identifier (chainID) to include in a transaction. 
 
-The mapping from chain names to identifiers has, since [EIP-155], been maintained off chain using a centralized list. This solution has two main shortcomings:
+The mapping from chain names to identifiers has, since EIP-155, been maintained off chain using a centralized list. This solution has two main shortcomings:
  - It does not scale with the growing number of L2s.
  - The list maintainer is a trusted centralized entity.
 
@@ -62,7 +62,7 @@ Note the difference between `ens-name`, which is a full ENS name, and `ens-subdo
 
 A few examples below. 
 
-Option 1: using @
+Option 1: using @ to separate address and chain
 ```
 Mainnet
 - 0x12345...6789@0x1
@@ -216,7 +216,7 @@ evm://user@rollup.eth.mainnet/transfer?amount=10
 
 ## Rationale
 
-todo
+TODO
 
 ## Backwards Compatibility
 
@@ -224,7 +224,7 @@ No backward compatibility issues found.
 
 ## Security Considerations
 
-todo
+TODO
 
 ## Copyright
 
