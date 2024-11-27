@@ -1,6 +1,6 @@
 # ERC-7818
 
-This is reference implementation of [ERC-7818](../../ERCS/erc-7818.md)
+This is reference implementation of ERC-7818
 
 ## Implementation Describe
 
@@ -9,7 +9,7 @@ This is reference implementation of [ERC-7818](../../ERCS/erc-7818.md)
 This contract creates an abstract implementation that adopts the `Sliding Window Algorithm` to maintain a window over a period of time (block height). This efficient approach allows for the look back and calculation of `usable balances` for each account within that window period. With this approach, the contract does not require a variable acting as a `counter` or a `state` to keep updating the latest state, nor does it need any interaction calls to keep updating the current period, which is an effortful and costly design.
 
 <p align="center">
-    <img src="implementation.svg">
+    <img src="implementation.svg" alt="Sliding Window Maintain Balance is Slot">
 </p>
 
 #### Era and Slot for storing data in vertical and horizontal way
