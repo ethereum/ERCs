@@ -14,7 +14,7 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
     string private _name;
     string private _symbol;
     uint256 private _duration;
-    uint256 private _epoch;
+    uint256 private _validity;
     uint256 private _startBlock;
 
     mapping(address => mapping(uint256 => uint256)) private _balances;
@@ -36,8 +36,10 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
         return (blockNumber - startBlock) / _duration;
     }
 
-    function _expired(uint256 id) internal view returns (bool) {
-        return id < _calculateEpoch();
+    function _expired(uint256 epoch) internal view returns (bool) {
+        uint256 latestEpoch = _calculateEpoch();
+        uint256 expirationEpoch = epoch + _validity; // _validity is the fixed validity period in epochs.
+        return latestEpoch >= expirationEpoch;
     }
 
     function _approve(address owner, address spender, uint256 value, bool emitEvent) internal virtual {
@@ -64,11 +66,11 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
         _update(address(0), account, _calculateEpoch(), value);
     }
 
-    function _mint(address account, uint256 id, uint256 value) internal {
+    function _mint(address account, uint256 epoch, uint256 value) internal {
         if (account == address(0)) {
             revert ERC20InvalidReceiver(address(0));
         }
-        _update(address(0), account, id, value);
+        _update(address(0), account, epoch, value);
     }
 
     function _burn(address account, uint256 value) internal {
@@ -78,25 +80,25 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
         _update(address(0), account, _calculateEpoch(), value);
     }
 
-    function _burn(address account, uint256 id, uint256 value) internal {
+    function _burn(address account, uint256 epoch, uint256 value) internal {
         if (account == address(0)) {
             revert ERC20InvalidReceiver(address(0));
         }
-        _update(address(0), account, id, value);
+        _update(address(0), account, epoch, value);
     }
 
-    function _update(address from, address to, uint256 id, uint256 value) internal virtual {
+    function _update(address from, address to, uint256 epoch, uint256 value) internal virtual {
         if (from == address(0)) {
             // Overflow check required: The rest of the code assumes that totalSupply never overflows
             // do nothing.
         } else {
-            uint256 fromBalance = _balances[from][id];
+            uint256 fromBalance = _balances[from][epoch];
             if (fromBalance < value) {
                 revert ERC20InsufficientBalance(from, fromBalance, value);
             }
             unchecked {
                 // Overflow not possible: value <= fromBalance <= totalSupply.
-                _balances[from][id] = fromBalance - value;
+                _balances[from][epoch] = fromBalance - value;
             }
         }
 
@@ -108,7 +110,7 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
         } else {
             unchecked {
                 // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
-                _balances[to][id]  += value;
+                _balances[to][epoch]  += value;
             }
         }
 
@@ -127,14 +129,14 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
         }
     }
 
-    function _transfer(address from, address to, uint256 id, uint256 value) internal {
+    function _transfer(address from, address to, uint256 epoch, uint256 value) internal {
         if (from == address(0)) {
             revert ERC20InvalidSender(address(0));
         }
         if (to == address(0)) {
             revert ERC20InvalidReceiver(address(0));
         }
-        _update(from, to, id, value);
+        _update(from, to, epoch, value);
     }
 
     /// @dev See {IERC20Metadata-name}.
@@ -203,63 +205,63 @@ abstract contract ERC20ExpirableBulk is Context, IERC20Errors, IERC7818 {
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation defined `id` with epoch
-    function balanceOf(
+    function balanceOfAtEpoch(
         address account,
-        uint256 id
+        uint256 epoch
     ) external view returns (uint256) {
-        if (_expired(id)) {
+        if (_expired(epoch)) {
             return 0;
         }
-        return _balances[account][id];
+        return _balances[account][epoch];
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation define duration unit in blocks
-    function duration() public view virtual returns (uint256) {
+    function epochLength() public view virtual returns (uint256) {
         return _duration;
     }
 
     /// @inheritdoc IERC7818
-    function epoch() public view virtual returns (uint256) {
-        return _epoch;
+    function epochType() external pure returns (EPOCH_TYPE) {
+        return EPOCH_TYPE.BLOCKS_BASED;
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation defined `id` with epoch
-    function expired(uint256 id) public view virtual returns (bool) {
-        return _expired(id);
+    function currentEpoch() public view virtual returns (uint256) {
+        return _calculateEpoch();
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation defined `id` with epoch
-    function transfer(
+    function isEpochExpired(uint256 epoch) public view virtual returns (bool) {
+        return _expired(epoch);
+    }
+
+    /// @inheritdoc IERC7818
+    function transferAtEpoch(
         address to,
-        uint256 id,
+        uint256 epoch,
         uint256 value
     ) public override returns (bool) {
-        if (_expired(id)) {
+        if (_expired(epoch)) {
             revert ERC7818TransferExpired();
         }
         address owner = _msgSender();
-        _transfer(owner, to, id, value);
+        _transfer(owner, to, epoch, value);
         return true;
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation defined `id` with epoch
-    function transferFrom(
+    function transferFromAtEpoch(
         address from,
         address to,
-        uint256 id,
+        uint256 epoch,
         uint256 value
     ) public virtual returns (bool) {
-        if (_expired(id)) {
+        if (_expired(epoch)) {
             revert ERC7818TransferExpired();
         }
         address spender = _msgSender();
         _spendAllowance(from, spender, value);
-        _transfer(from, to, id, value);
+        _transfer(from, to, epoch, value);
         return true;
     }
 }

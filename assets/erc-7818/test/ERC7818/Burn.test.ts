@@ -17,7 +17,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -32,7 +32,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -49,7 +49,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -67,25 +67,25 @@ export const run = async () => {
       // mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 1, 2 of era 0", async function () {
@@ -96,7 +96,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -114,7 +114,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -131,7 +131,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -149,25 +149,25 @@ export const run = async () => {
       //           mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 2, 3 of era 0", async function () {
@@ -178,7 +178,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -201,7 +201,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       let list = await erc7818.tokenList(alice.address, era, slot);
@@ -223,7 +223,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount + amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -241,25 +241,25 @@ export const run = async () => {
       //                     mint      mint
 
       // Right now, the balance must be 4.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(4);
+      expect(await erc7818.balanceOf(alice.address)).equal(4);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, 3))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, 3);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1,2.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1. Because we have burned 3 tokens before.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 3,4.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 0, 1 of era 0 when frame size full era", async function () {
@@ -273,7 +273,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -288,7 +288,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -305,7 +305,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -323,25 +323,25 @@ export const run = async () => {
       // mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 1, 2 of era 0 when frame size full era", async function () {
@@ -355,7 +355,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -373,7 +373,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -390,7 +390,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -408,25 +408,25 @@ export const run = async () => {
       //           mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 2, 3 of era 0 when frame size full era", async function () {
@@ -440,7 +440,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -463,7 +463,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       let list = await erc7818.tokenList(alice.address, era, slot);
@@ -485,7 +485,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount + amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -503,25 +503,25 @@ export const run = async () => {
       //                     mint      mint
 
       // Right now, the balance must be 4.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(4);
+      expect(await erc7818.balanceOf(alice.address)).equal(4);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, 3))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, 3);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1,2.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1. Because we have burned 3 tokens before.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 3,4.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 0, 1 of era 0 when frame size over era", async function () {
@@ -535,7 +535,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -550,7 +550,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -567,7 +567,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -585,25 +585,25 @@ export const run = async () => {
       // mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 1, 2 of era 0 when frame size over era", async function () {
@@ -617,7 +617,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -635,7 +635,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -652,7 +652,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -670,25 +670,25 @@ export const run = async () => {
       //           mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint tokens into slot 2, 3 of era 0 when frame size over era", async function () {
@@ -702,7 +702,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -725,7 +725,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       let list = await erc7818.tokenList(alice.address, era, slot);
@@ -747,7 +747,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount + amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -765,25 +765,25 @@ export const run = async () => {
       //                     mint      mint
 
       // Right now, the balance must be 4.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(4);
+      expect(await erc7818.balanceOf(alice.address)).equal(4);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, 3))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, 3);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 1,2.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1. Because we have burned 3 tokens before.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 3,4.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if value less than block balance", async function () {
@@ -794,7 +794,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -809,7 +809,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -825,19 +825,19 @@ export const run = async () => {
       // mint
 
       // Right now, the balance must be 10.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(10);
+      expect(await erc7818.balanceOf(alice.address)).equal(10);
 
       // Expectation is that the token will be burning from the head of the linked list.
       await expect(erc7818.burn(alice.address, 5))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, 5);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(5);
+      expect(await erc7818.balanceOf(alice.address)).equal(5);
 
       // Skip to the expiry period.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] burn correctly if mint mint at end era period", async function () {
@@ -848,7 +848,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -870,7 +870,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -886,7 +886,7 @@ export const run = async () => {
       //                                mint
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to [era: 1, slot 0].
       await mineBlock(blockPerSlot);
@@ -905,7 +905,7 @@ export const run = async () => {
       await expect(erc7818.burn(alice.address, amount + amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, ZeroAddress, amount + amount);
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[FAILED] burn from zero address", async function () {

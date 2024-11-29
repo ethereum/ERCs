@@ -44,7 +44,7 @@ export const run = async () => {
         slotSize,
         frameSize,
       });
-      expect(await erc7818.duration()).to.equal(self._frameSizeInBlockLength);
+      expect(await erc7818.validityPeriod()).to.equal(self._frameSizeInBlockLength);
     });
 
     it("[SUCCESS] query frame size in era length", async function () {
@@ -159,7 +159,7 @@ export const run = async () => {
         .withArgs(ZeroAddress, alice.address, amount);
       const blockNumber = await network.provider.send("eth_blockNumber");
       expect(
-        await erc7818["balanceOf(address,uint256)"](alice.address, blockNumber)
+        await erc7818.balanceOfAtEpoch(alice.address, blockNumber)
       ).to.equal(1);
     });
 
@@ -171,20 +171,20 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
       const blockNumber = await network.provider.send("eth_blockNumber");
-      await skipToBlock(Number(blockNumber) + Number(await erc7818.duration()));
+      await skipToBlock(Number(blockNumber) + Number(await erc7818.validityPeriod()));
       expect(
-        await erc7818["balanceOf(address,uint256)"](alice.address, blockNumber)
+        await erc7818.balanceOfAtEpoch(alice.address, blockNumber)
       ).to.equal(0);
     });
 
     it("[SUCCESS] query epoch ", async function () {
       const { erc7818 } = await deployERC7818({});
-      expect(await erc7818.epoch()).to.equal(0);
+      expect(await erc7818.currentEpoch()).to.equal(0);
       await mineBlock(Number(await erc7818.getBlockPerEra()));
-      expect(await erc7818.epoch()).to.equal(1);
+      expect(await erc7818.currentEpoch()).to.equal(1);
     });
 
-    it("[SUCCESS] query expired ", async function () {
+    it("[SUCCESS] query isEpochExpired ", async function () {
       const { erc7818, alice } = await deployERC7818({});
 
       const amount = 1;
@@ -192,11 +192,11 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
       const blockNumber = await network.provider.send("eth_blockNumber");
-      await skipToBlock(Number(blockNumber) + Number(await erc7818.duration()));
-      expect(await erc7818.expired(blockNumber)).to.equal(true);
+      await skipToBlock(Number(blockNumber) + Number(await erc7818.validityPeriod()));
+      expect(await erc7818.isEpochExpired(blockNumber)).to.equal(true);
     });
 
-    it("[FAILED] query expired ", async function () {
+    it("[FAILED] query isEpochExpired ", async function () {
       const { erc7818, alice } = await deployERC7818({});
 
       const amount = 1;
@@ -204,7 +204,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
       const blockNumber = await network.provider.send("eth_blockNumber");
-      expect(await erc7818.expired(blockNumber)).to.equal(false);
+      expect(await erc7818.isEpochExpired(blockNumber)).to.equal(false);
     });
   });
 };

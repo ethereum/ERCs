@@ -13,7 +13,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -28,7 +28,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -45,7 +45,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -63,19 +63,19 @@ export const run = async () => {
       // mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 1, 2 of era 0", async function () {
@@ -86,7 +86,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -104,7 +104,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -121,7 +121,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -139,19 +139,19 @@ export const run = async () => {
       //           mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 2, 3 of era 0", async function () {
@@ -162,7 +162,7 @@ export const run = async () => {
       const { erc7818, alice } = await deployERC7818({});
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -185,7 +185,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       let list = await erc7818.tokenList(alice.address, era, slot);
@@ -207,7 +207,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount + amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -225,19 +225,19 @@ export const run = async () => {
       //                     mint      mint
 
       // Right now, the balance must be 4.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(4);
+      expect(await erc7818.balanceOf(alice.address)).equal(4);
 
       // Skip to the expiry period of token 1,2.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 3,4.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 0, 1 of era 0 when frame size full era", async function () {
@@ -251,7 +251,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -266,7 +266,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -283,7 +283,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -301,19 +301,19 @@ export const run = async () => {
       // mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 1, 2 of era 0 when frame size full era", async function () {
@@ -327,7 +327,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -345,7 +345,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -362,7 +362,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -380,19 +380,19 @@ export const run = async () => {
       //           mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 2, 3 of era 0 when frame size full era", async function () {
@@ -406,7 +406,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -429,7 +429,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       let list = await erc7818.tokenList(alice.address, era, slot);
@@ -451,7 +451,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount + amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -469,19 +469,19 @@ export const run = async () => {
       //                     mint      mint
 
       // Right now, the balance must be 4.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(4);
+      expect(await erc7818.balanceOf(alice.address)).equal(4);
 
       // Skip to the expiry period of token 1,2.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 3,4.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 0, 1 of era 0 when frame size over era", async function () {
@@ -495,7 +495,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -510,7 +510,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -527,7 +527,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -545,19 +545,19 @@ export const run = async () => {
       // mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 1, 2 of era 0 when frame size over era", async function () {
@@ -571,7 +571,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -589,7 +589,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(amount);
+      expect(await erc7818.balanceOf(alice.address)).equal(amount);
       let list = await erc7818.tokenList(alice.address, era, slot);
       expectExp.push(Number(list[0]) + blockPerFrame);
       expect(list.length).equal(1);
@@ -606,7 +606,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -624,19 +624,19 @@ export const run = async () => {
       //           mint      mint
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 1.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 1.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(1);
+      expect(await erc7818.balanceOf(alice.address)).equal(1);
 
       // Skip to the expiry period of token 2.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[SUCCESS] mint correctly tokens into slot 2, 3 of era 0 when frame size over era", async function () {
@@ -650,7 +650,7 @@ export const run = async () => {
       });
 
       const blockPerSlot = Number(await erc7818.getBlockPerSlot());
-      const blockPerFrame = Number(await erc7818.duration());
+      const blockPerFrame = Number(await erc7818.validityPeriod());
 
       const expectExp = [];
 
@@ -673,7 +673,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount
       );
       let list = await erc7818.tokenList(alice.address, era, slot);
@@ -695,7 +695,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
 
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(
+      expect(await erc7818.balanceOf(alice.address)).equal(
         amount + amount + amount + amount
       );
       list = await erc7818.tokenList(alice.address, era, slot);
@@ -713,19 +713,19 @@ export const run = async () => {
       //                     mint      mint
 
       // Right now, the balance must be 4.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(4);
+      expect(await erc7818.balanceOf(alice.address)).equal(4);
 
       // Skip to the expiry period of token 1,2.
       await skipToBlock(expectExp[0]);
 
       // Right now, the balance must be 2.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(2);
+      expect(await erc7818.balanceOf(alice.address)).equal(2);
 
       // Skip to the expiry period of token 3,4.
       await skipToBlock(expectExp[1]);
 
       // Right now, the balance must be 0.
-      expect(await erc7818["balanceOf(address)"](alice.address)).equal(0);
+      expect(await erc7818.balanceOf(alice.address)).equal(0);
     });
 
     it("[FAILED] mint to zero address", async function () {

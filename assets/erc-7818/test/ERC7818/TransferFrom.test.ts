@@ -62,7 +62,7 @@ export const run = async () => {
       await expect(
         erc7818
           .connect(bob)
-          ["transferFrom(address,address,uint256,uint256)"](
+          .transferFromAtEpoch(
             alice.address,
             bob.address,
             blockNumber,
@@ -73,7 +73,7 @@ export const run = async () => {
         .withArgs(alice.address, bob.address, amount);
 
       expect(
-        await erc7818["balanceOf(address,uint256)"](bob.address, blockNumber)
+        await erc7818.balanceOfAtEpoch(bob.address, blockNumber)
       ).to.equals(amount);
     });
 
@@ -109,7 +109,7 @@ export const run = async () => {
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(alice.address, bob.address, amount);
       expect(
-        await erc7818["balanceOf(address,uint256)"](bob.address, blockNumber)
+        await erc7818.balanceOfAtEpoch(bob.address, blockNumber)
       ).to.equals(amount);
     });
 
@@ -169,11 +169,11 @@ export const run = async () => {
         amount
       );
 
-      await skipToBlock(Number(blockNumber) + Number(await erc7818.duration()));
+      await skipToBlock(Number(blockNumber) + Number(await erc7818.validityPeriod()));
       await expect(
         erc7818
           .connect(bob)
-          ["transferFrom(address,address,uint256,uint256)"](
+          .transferFromAtEpoch(
             alice.address,
             bob.address,
             blockNumber,
@@ -182,7 +182,7 @@ export const run = async () => {
       ).to.be.revertedWithCustomError(erc7818, ERROR_ERC7818_TRANSFER_EXPIRED);
 
       expect(
-        await erc7818["balanceOf(address,uint256)"](bob.address, blockNumber)
+        await erc7818.balanceOfAtEpoch(alice.address, blockNumber)
       ).to.equals(0);
     });
   });

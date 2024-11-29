@@ -295,9 +295,9 @@ abstract contract ERC20Expirable is Context, IERC20Errors, IERC7818 {
         }
     }
 
-    function _expired(uint256 id) internal view returns (bool) {
+    function _expired(uint256 epoch) internal view returns (bool) {
         unchecked {
-            if (_blockNumberProvider() - id >= _getFrameSizeInBlockLength()) {
+            if (_blockNumberProvider() - epoch >= _getFrameSizeInBlockLength()) {
                 return true;
             }
         }
@@ -781,64 +781,71 @@ abstract contract ERC20Expirable is Context, IERC20Errors, IERC7818 {
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation defined `id` with token id
-    function balanceOf(
+    function balanceOfAtEpoch(
         address account,
-        uint256 id
+        uint256 epoch
     ) external view returns (uint256) {
-        if (_expired(id)) {
+        if (_expired(epoch)) {
             return 0;
         }
-        (uint256 era, uint8 slot) = _calculateEraAndSlot(id);
-        return _balances[account][era][slot].blockBalances[id];
+        (uint256 era, uint8 slot) = _calculateEraAndSlot(epoch);
+        return _balances[account][era][slot].blockBalances[epoch];
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation define duration unit in blocks
-    function duration() public view virtual returns (uint256) {
+    function epochLength() public view virtual returns (uint256) {
+        return _getBlockPerEra();
+    }
+
+    /// @inheritdoc IERC7818
+    function validityPeriod() public view virtual returns (uint256) {
         return _getFrameSizeInBlockLength();
     }
 
     /// @inheritdoc IERC7818
-    function epoch() public view virtual returns (uint256) {
+    function currentEpoch() public view virtual returns (uint256) {
         (uint256 era, ) = _calculateEraAndSlot(_blockNumberProvider());
         return era;
     }
 
     /// @inheritdoc IERC7818
-    function expired(uint256 id) public view virtual returns (bool) {
-        return _expired(id);
+    function epochType() public pure returns (EPOCH_TYPE) {
+        return EPOCH_TYPE.BLOCKS_BASED;
     }
 
     /// @inheritdoc IERC7818
-    /// @notice implementation defined `id` with token id
-    function transfer(
+    function isEpochExpired(uint256 epoch) public view virtual returns (bool) {
+        return _expired(epoch);
+    }
+
+    /// @inheritdoc IERC7818
+    function transferAtEpoch(
         address to,
-        uint256 id,
+        uint256 epoch,
         uint256 value
     ) public override returns (bool) {
-        if (_expired(id)) {
+        if (_expired(epoch)) {
             revert ERC7818TransferExpired();
         }
         address owner = _msgSender();
-        _transferSpecific(owner, to, id, value);
+        _transferSpecific(owner, to, epoch, value);
         return true;
     }
 
     /// @inheritdoc IERC7818
     /// @notice implementation defined `id` with token id
-    function transferFrom(
+    function transferFromAtEpoch(
         address from,
         address to,
-        uint256 id,
+        uint256 epoch,
         uint256 value
     ) public virtual returns (bool) {
-        if (_expired(id)) {
+        if (_expired(epoch)) {
             revert ERC7818TransferExpired();
         }
         address spender = _msgSender();
         _spendAllowance(from, spender, value);
-        _transferSpecific(from, to, id, value);
+        _transferSpecific(from, to, epoch, value);
         return true;
     }
 }
