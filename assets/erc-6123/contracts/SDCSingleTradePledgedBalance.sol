@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity >=0.8.0;
 
 import "./SDCSingleTrade.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -86,16 +86,16 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         address[] memory to = new address[](1);
         uint256[] memory amounts = new uint256[](1);
         from[0] = settlementPayer; to[0] = otherParty(settlementPayer); amounts[0] = transferAmount;
-        emit SettlementEvaluated(msg.sender, settlementAmount, _settlementData);
+        emit SettlementDetermined(msg.sender, settlementAmount, _settlementData);
         setTradeState(TradeState.InTransfer);
-        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);
+        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, address(this));
     }
 
     /*
     * afterTransfer processes SDC depending on success of the respective payment and depending on the current trade state
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
-    function afterTransfer(bool success, string memory transactionHash) external override  {
+    function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external override  {
         if ( inStateConfirmed()){
             if (success){
                 setTradeState(TradeState.Settled);
@@ -109,11 +109,12 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         else if ( inStateTransfer() ){
             if (success){
                 setTradeState(TradeState.Settled);
-                emit SettlementTransferred("Settlement Settled - Pledge Transfer");
+                emit SettlementTransferred(transactionID, "Settlement Settled - Pledge Transfer");
             }
             else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
-                int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 setTradeState(TradeState.InTermination);
+                emit SettlementFailed(transactionID, "Settlement Failed - Pledge Transfer");
+                int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 processTerminationWithPledge(settlementAmount);
                 emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
             }
@@ -163,7 +164,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         from[1] = party2;       to[1] = address(this);              amounts[1] = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );
         from[2] = upfrontPayer; to[2] = otherParty(upfrontPayer);   amounts[2] = upfrontPayment;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);      // Batched Transfer
+        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, address(this));      // Batched Transfer
     }
 
     /*
@@ -179,7 +180,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         from[1] = address(this);       to[1] = party2;              amounts[1] = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );  // Release buffers
         from[2] = terminationFeePayer; to[2] = otherParty(terminationFeePayer);   amounts[2] = terminationAmount;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-        settlementToken.checkedBatchTransferFrom(from,to,amounts,transactionID);    // Batched Transfer
+        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, address(this));    // Batched Transfer
     }
 
     /* function which perfoms the "Pledged Booking" in case of failed settlement, transferring open settlement amount as well as termination fee from sdc's own balance
@@ -193,7 +194,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         to[1] = settlementReceiver; amounts[1] = marginRequirements[settlementReceiver].terminationFee + marginRequirements[settlementReceiver].buffer; // Release
         to[2] = settlementPayer; amounts[2] = marginRequirements[settlementPayer].buffer-transferAmount; // Release of Buffer
         uint256 transactionID = uint256(keccak256(abi.encodePacked(to,amounts)));
-        settlementToken.checkedBatchTransfer(to,amounts,transactionID);
+        settlementToken.transferBatchAndCallback(to,amounts,transactionID, address(this));
     }
 
 }
