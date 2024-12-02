@@ -1,4 +1,5 @@
 ---
+eip: 7828
 title: Chain-specific addresses using ENS
 description: A unified chain-specific address format that allows specifying the account as well as the chain on which that account intends to transact. 
 author: Sam Kaufman (@SampkaML), Marco Stronati (@paracetamolo), Yuliya Alexiev (@yuliyaalexiev), Jeff Lau (@jefflau), Sam Wilson (@samwilsn), Vitalik Buterin (@vbuterin)
