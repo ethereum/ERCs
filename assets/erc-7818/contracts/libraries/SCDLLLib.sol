@@ -10,14 +10,12 @@ library SCDLL {
     struct List {
         uint256 _size;
         mapping(uint256 node => mapping(bool direction => uint256 value)) _nodes;
-        mapping(uint256 node => bytes data) _data;
     }
 
     uint8 private constant ONE_BIT = 1;
     uint8 private constant SENTINEL = 0;
     bool private constant PREV = false;
     bool private constant NEXT = true;
-    bytes private constant EMPTY = ("");
 
     /// @notice Partitions the linked list in the specified direction.
     /// @dev This function creates an array `part` of size `listSize` containing indices of nodes
@@ -117,13 +115,11 @@ library SCDLL {
     /// @dev This function inserts data into the linked list at the specified index.
     /// @param self The linked list.
     /// @param index The index at which to insert the data.
-    /// @param data The data to insert.
-    function insert(List storage self, uint256 index, bytes memory data) internal {
+    function insert(List storage self, uint256 index) internal {
         if (!exist(self, index)) {
             uint256 tmpTail = self._nodes[SENTINEL][PREV];
             uint256 tmpHead = self._nodes[SENTINEL][NEXT];
             uint256 tmpSize = self._size;
-            self._data[index] = data;
             if (tmpSize == SENTINEL) {
                 self._nodes[SENTINEL][NEXT] = index;
                 self._nodes[SENTINEL][PREV] = index;
@@ -178,7 +174,6 @@ library SCDLL {
             self._nodes[index][PREV] = SENTINEL;
             self._nodes[tmpPrev][NEXT] = tmpNext;
             self._nodes[tmpNext][PREV] = tmpPrev;
-            self._data[index] = EMPTY;
             unchecked {
                 self._size--;
             }
@@ -197,7 +192,6 @@ library SCDLL {
                 uint256 tmpNext = self._nodes[tmpCurr][NEXT];
                 self._nodes[tmpCurr][NEXT] = SENTINEL;
                 self._nodes[tmpCurr][PREV] = SENTINEL;
-                self._data[tmpCurr] = EMPTY;
                 tmpCurr = tmpNext;
                 unchecked {
                     tmpSize--;
@@ -206,17 +200,6 @@ library SCDLL {
             self._size = tmpSize;
             self._nodes[SENTINEL][NEXT] = index;
             self._nodes[index][PREV] = SENTINEL;
-        }
-    }
-
-    /// @notice Update the data of a node in the list.
-    /// @dev This function updates the data of a node in the list at the specified index.
-    /// @param self The list.
-    /// @param index The target index of the node that wants to update.
-    /// @param data The new data to assign to the node.
-    function updateNodeData(List storage self, uint256 index, bytes memory data) internal {
-        if (exist(self, index)) {
-            self._data[index] = data;
         }
     }
 
@@ -260,10 +243,9 @@ library SCDLL {
     /// @param self The list.
     /// @param index The index of the node.
     /// @return prev The index of the previous node.
-    /// @return data The data of the node.
     /// @return next The index of the next node.
-    function node(List storage self, uint256 index) internal view returns (uint256, bytes memory, uint256) {
-        return (self._nodes[index][PREV], self._data[index], self._nodes[index][NEXT]);
+    function node(List storage self, uint256 index) internal view returns (uint256, uint256) {
+        return (self._nodes[index][PREV], self._nodes[index][NEXT]);
     }
 
     /// @notice Get the indices of nodes in ascending order.

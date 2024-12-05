@@ -2,147 +2,78 @@ import { expect } from "chai";
 import { deployERC7818, skipToBlock } from "../utils.test";
 import {
   ERROR_ERC20_INSUFFICIENT_ALLOWANCE,
+  ERROR_ERC20_INSUFFICIENT_BALANCE,
+  ERROR_ERC7818_INVALID_EPOCH,
   ERROR_ERC7818_TRANSFER_EXPIRED,
   EVENT_APPROVAL,
   EVENT_TRANSFER,
 } from "../constant.test";
 import { ZeroAddress } from "ethers";
 import { network } from "hardhat";
+import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
 export const run = async () => {
   describe("TransferFrom", async function () {
-    it("[SUCCESS] transfer from alice to bob correctly", async function () {
+    beforeEach(async function () {
+      await network.provider.send("hardhat_reset");
+    });
+
+    it("[SUCCESS] transfer from alice to bob", async function () {
       const { erc7818, alice, bob } = await deployERC7818({});
-
       const amount = 100;
-
       await expect(erc7818.mint(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
-
       await expect(erc7818.connect(alice).approve(bob.address, amount))
         .to.be.emit(erc7818, EVENT_APPROVAL)
         .withArgs(alice.address, bob.address, amount);
-
       expect(await erc7818.allowance(alice.address, bob.address)).to.equal(
         amount
-      );
-
+      );      
       await expect(
         erc7818
           .connect(bob)
-          ["transferFrom(address,address,uint256)"](
-            alice.address,
-            bob.address,
-            amount
-          )
-      )
-        .to.be.emit(erc7818, EVENT_TRANSFER)
-        .withArgs(alice.address, bob.address, amount);
+          .transferFrom(alice.address, bob.address, amount)
+      ) .to.be.emit(erc7818, EVENT_TRANSFER)
+      .withArgs(alice.address, bob.address, amount);
     });
 
-    it("[SUCCESS] transfer specific id from alice to bob correctly", async function () {
+    it("[SUCCESS] transfer from specific epoch from alice to bob", async function () {
       const { erc7818, alice, bob } = await deployERC7818({});
-
       const amount = 100;
-
       await expect(erc7818.mint(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
-      const blockNumber = await network.provider.send("eth_blockNumber");
-
       await expect(erc7818.connect(alice).approve(bob.address, amount))
         .to.be.emit(erc7818, EVENT_APPROVAL)
         .withArgs(alice.address, bob.address, amount);
-
       expect(await erc7818.allowance(alice.address, bob.address)).to.equal(
         amount
       );
-
       await expect(
         erc7818
           .connect(bob)
-          .transferFromAtEpoch(
-            alice.address,
-            bob.address,
-            blockNumber,
-            amount
-          )
-      )
-        .to.be.emit(erc7818, EVENT_TRANSFER)
-        .withArgs(alice.address, bob.address, amount);
-
-      expect(
-        await erc7818.balanceOfAtEpoch(bob.address, blockNumber)
-      ).to.equals(amount);
+          .transferFromAtEpoch(0, alice.address, bob.address, amount)
+      ) .to.be.emit(erc7818, EVENT_TRANSFER)
+      .withArgs(alice.address, bob.address, amount);
     });
 
-    it("[SUCCESS] alice approve maximum and transfer to bob correctly", async function () {
+    it("[FAILED] transfer from insufficient allowance", async function () {
       const { erc7818, alice, bob } = await deployERC7818({});
-
       const amount = 100;
-      const MAX_INT =
-        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-
       await expect(erc7818.mint(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
-      const blockNumber = await network.provider.send("eth_blockNumber");
-
-      await expect(erc7818.connect(alice).approve(bob.address, MAX_INT))
+      await expect(erc7818.connect(alice).approve(bob.address, amount))
         .to.be.emit(erc7818, EVENT_APPROVAL)
-        .withArgs(alice.address, bob.address, MAX_INT);
-
+        .withArgs(alice.address, bob.address, amount);
       expect(await erc7818.allowance(alice.address, bob.address)).to.equal(
-        MAX_INT
+        amount
       );
-
       await expect(
         erc7818
           .connect(bob)
-          ["transferFrom(address,address,uint256)"](
-            alice.address,
-            bob.address,
-            amount
-          )
-      )
-        .to.be.emit(erc7818, EVENT_TRANSFER)
-        .withArgs(alice.address, bob.address, amount);
-      expect(
-        await erc7818.balanceOfAtEpoch(bob.address, blockNumber)
-      ).to.equals(amount);
-    });
-
-    it("[FAILED] insufficient allowance", async function () {
-      const { erc7818, alice, bob } = await deployERC7818({});
-
-      const amount = 100;
-
-      await expect(erc7818.mint(alice.address, amount))
-        .to.be.emit(erc7818, EVENT_TRANSFER)
-        .withArgs(ZeroAddress, alice.address, amount);
-
-      await expect(
-        erc7818.connect(alice).approve(bob.address, amount)
-      )
-        .to.be.emit(erc7818, EVENT_APPROVAL)
-        .withArgs(alice.address, bob.address, amount);
-
-      expect(
-        await erc7818.allowance(
-          alice.address,
-          bob.address
-        )
-      ).to.equal(amount);
-
-      await expect(
-        erc7818
-          .connect(bob)
-          ["transferFrom(address,address,uint256)"](
-            alice.address,
-            bob.address,
-            amount * 2
-          )
+          .transferFrom(alice.address, bob.address, amount * 2)
       )
         .to.be.revertedWithCustomError(
           erc7818,
@@ -151,39 +82,43 @@ export const run = async () => {
         .withArgs(bob.address, amount, amount * 2);
     });
 
-    it("[FAILED] transfer specific id from alice to bob", async function () {
+    it("[FAILED] transfer from expired epoch from alice to bob", async function () {
       const { erc7818, alice, bob } = await deployERC7818({});
-
       const amount = 100;
-
       await expect(erc7818.mint(alice.address, amount))
         .to.be.emit(erc7818, EVENT_TRANSFER)
         .withArgs(ZeroAddress, alice.address, amount);
-      const blockNumber = await network.provider.send("eth_blockNumber");
-
       await expect(erc7818.connect(alice).approve(bob.address, amount))
         .to.be.emit(erc7818, EVENT_APPROVAL)
         .withArgs(alice.address, bob.address, amount);
-
       expect(await erc7818.allowance(alice.address, bob.address)).to.equal(
         amount
       );
-
-      await skipToBlock(Number(blockNumber) + Number(await erc7818.validityPeriod()));
+      await mine((await erc7818.epochLength()) * BigInt(10));
       await expect(
         erc7818
           .connect(bob)
-          .transferFromAtEpoch(
-            alice.address,
-            bob.address,
-            blockNumber,
-            amount
-          )
+          .transferFromAtEpoch(0, alice.address, bob.address, amount)
       ).to.be.revertedWithCustomError(erc7818, ERROR_ERC7818_TRANSFER_EXPIRED);
+    });
 
-      expect(
-        await erc7818.balanceOfAtEpoch(alice.address, blockNumber)
-      ).to.equals(0);
+    it("[FAILED] transfer from out of valid range epoch from alice to bob", async function () {
+      const { erc7818, alice, bob } = await deployERC7818({});
+      const amount = 100;
+      await expect(erc7818.mint(alice.address, amount))
+        .to.be.emit(erc7818, EVENT_TRANSFER)
+        .withArgs(ZeroAddress, alice.address, amount);
+      await expect(erc7818.connect(alice).approve(bob.address, amount))
+        .to.be.emit(erc7818, EVENT_APPROVAL)
+        .withArgs(alice.address, bob.address, amount);
+      expect(await erc7818.allowance(alice.address, bob.address)).to.equal(
+        amount
+      );
+      await expect(
+        erc7818
+          .connect(bob)
+          .transferFromAtEpoch(100, alice.address, bob.address, amount)
+      ).to.be.revertedWithCustomError(erc7818, ERROR_ERC7818_INVALID_EPOCH);
     });
   });
 };

@@ -20,14 +20,14 @@ interface IERC7818 is IERC20 {
 
     /**
      * @dev Retrieves the balance of a specific `epoch` owned by an account.
-     * @param account The address of the account.
      * @param epoch The `epoch for which the balance is checked.
+     * @param account The address of the account.
      * @return uint256 The balance of the specified `epoch`.
      * @notice "MUST" return 0 if the specified `epoch` is expired.
      */
     function balanceOfAtEpoch(
-        address account,
-        uint256 epoch
+        uint256 epoch,
+        address account
     ) external view returns (uint256);
 
     /**
@@ -45,49 +45,51 @@ interface IERC7818 is IERC20 {
 
     /**
      * @dev Returns the type of the epoch.
-     * @return EPOCH_TYPE Enum value indicating the unit of epoch.
+     * @return EPOCH_TYPE  Enum value indicating the unit of an epoch.
      */
     function epochType() external view returns (EPOCH_TYPE);
 
     /**
-     * @dev Returns the fixed validity period for tokens, in epochs.
-     * @return uint256 Duration tokens remain valid, measured in epochs.
-     * @notice The duration aligns with the unit defined by `epochType()` (blocks or seconds).
+     * @dev Retrieves the validity duration in `epoch` counts.
+     * @return uint256 The validity duration in `epoch` counts.
      */
-    function validityPeriod() external view returns (uint256);
+    function validityDuration() external view returns (uint256);
 
     /**
      * @dev Checks whether a specific `epoch` is expired.
      * @param epoch The `epoch` to check.
      * @return bool True if the token is expired, false otherwise.
+     * @notice Implementing contracts "MUST" define and document the logic for determining expiration,
+     * typically by comparing the latest epoch with the given `epoch` value,
+     * based on the `EPOCH_TYPE` measurement (e.g., block count or time duration).
      */
     function isEpochExpired(uint256 epoch) external view returns (bool);
 
     /**
      * @dev Transfers a specific `epoch` and value to a recipient.
-     * @param to The recipient address.
      * @param epoch The `epoch` for the transfer.
+     * @param to The recipient address.
      * @param value The amount to transfer.
      * @return bool True if the transfer succeeded, otherwise false.
      */
     function transferAtEpoch(
-        address to,
         uint256 epoch,
+        address to,
         uint256 value
     ) external returns (bool);
 
     /**
      * @dev Transfers a specific `epoch` and value from one account to another.
+     * @param epoch The `epoch` for the transfer.
      * @param from The sender's address.
      * @param to The recipient's address.
-     * @param epoch The `epoch` for the transfer.
      * @param value The amount to transfer.
      * @return bool True if the transfer succeeded, otherwise false.
      */
     function transferFromAtEpoch(
+        uint256 epoch,
         address from,
         address to,
-        uint256 epoch,
         uint256 value
     ) external returns (bool);
 }

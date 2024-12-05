@@ -1,5 +1,6 @@
 node_modules
 .env
+yarn.lock
 
 # Hardhat files
 /cache
