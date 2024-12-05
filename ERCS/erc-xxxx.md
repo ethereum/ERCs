@@ -1,5 +1,5 @@
 ---
-eip: xxxx
+eip: 7832
 title: Sustainable Collections
 description: A standard for managing NFTs with dynamic fees and donation-based engagement.
 author: Gustavo Lobo (@gflobo)
