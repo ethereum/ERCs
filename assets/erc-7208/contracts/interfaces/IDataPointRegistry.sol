@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
 import {DataPoint} from "../utils/DataPoints.sol";
 
@@ -36,6 +36,12 @@ interface IDataPointRegistry {
      * @param account Account revoked from Admin role
      */
     event DataPointAdminRevoked(DataPoint indexed dp, address account);
+
+    /**
+     * @dev Error thrown when address passed is not a valid address
+     * @param owner Invalid owner
+     */
+    error InvalidOwnerAddress(address owner);
 
     /// @dev Error thrown when DataPoint allocation counter overflows
     error CounterOverflow();
