@@ -781,25 +781,26 @@ sections = [
     "Copyright",
 ]
 
-[lints.markdown-link-status]
-prefix = "erc-"
-suffix = ".md"
-kind = "markdown-link-status"
-status = "status"
-flow = [
-    [
-    "Draft",
-    "Stagnant",
-],
-    ["Review"],
-    ["Last Call"],
-    [
-    "Final",
-    "Withdrawn",
-    "Living",
-    "Moved",
-],
-]
+## Disabled because of EIP/ERC repository split.
+# [lints.markdown-link-status]
+# prefix = "erc-"
+# suffix = ".md"
+# kind = "markdown-link-status"
+# status = "status"
+# flow = [
+#     [
+#     "Draft",
+#     "Stagnant",
+# ],
+#     ["Review"],
+#     ["Last Call"],
+#     [
+#     "Final",
+#     "Withdrawn",
+#     "Living",
+#     "Moved",
+# ],
+# ]
 
 [lints.preamble-re-title-colon]
 kind = "preamble-regex"
