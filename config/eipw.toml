@@ -34,11 +34,12 @@ mode = "excludes"
 pattern = ":"
 message = "preamble header `description` should not contain `:`"
 
-[lints.preamble-refs-description]
-kind = "preamble-proposal-ref"
-name = "description"
-prefix = "erc-"
-suffix = ".md"
+## Disabled due to EIP/ERC repo split.
+# [lints.preamble-refs-description]
+# kind = "preamble-proposal-ref"
+# name = "description"
+# prefix = "erc-"
+# suffix = ".md"
 
 [lints.preamble-enum-category]
 kind = "preamble-one-of"
@@ -896,11 +897,12 @@ mode = "includes"
 pattern = "^https://ethereum-magicians.org/t/[^/]+/[0-9]+$"
 message = "preamble header `discussions-to` should point to a thread on ethereum-magicians.org"
 
-[lints.preamble-refs-title]
-kind = "preamble-proposal-ref"
-name = "title"
-prefix = "erc-"
-suffix = ".md"
+## Disabled due to EIP/ERC repo split.
+# [lints.preamble-refs-title]
+# kind = "preamble-proposal-ref"
+# name = "title"
+# prefix = "erc-"
+# suffix = ".md"
 
 [lints.preamble-enum-status]
 kind = "preamble-one-of"
