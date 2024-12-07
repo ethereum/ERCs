@@ -3,28 +3,28 @@ pragma solidity >=0.8.0 <0.9.0;
 
 /// @title Reference implementation of ERC-7818.
 
-import {SCDLL} from "../libraries/SCDLLLib.sol";
-import {SW} from "../libraries/SWLib.sol";
+import {SortedList} from "../libraries/SortedList.sol";
+import {SlidingWindow} from "../libraries/SlidingWindow.sol";
 import {IERC7818} from "../IERC7818.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 abstract contract ERC20Expirable is Context, IERC20Errors, IERC7818 {
-    using SCDLL for SCDLL.List;
-    using SW for SW.Window;
+    using SortedList for SortedList.List;
+    using SlidingWindow for SlidingWindow.Window;
 
     error ERC7818TransferredExpiredToken();
     error ERC7818InvalidEpoch();
 
     string private _name;
     string private _symbol;
-    SW.Window private _window;
+    SlidingWindow.Window private _window;
 
     struct Epoch {
         uint256 totalBalance;
         mapping(uint256 => uint256) balances;
-        SCDLL.List list;
+        SortedList.List list;
     }
 
     mapping(uint256 => mapping(address => Epoch)) private _balances;
@@ -91,7 +91,7 @@ abstract contract ERC20Expirable is Context, IERC20Errors, IERC7818 {
         uint256 blockNumber,
         uint256 duration
     ) private view returns (uint256 element) {
-        SCDLL.List storage list = _balances[epoch][account].list;
+        SortedList.List storage list = _balances[epoch][account].list;
         element = list.head();
         unchecked {
             while (blockNumber - element >= duration) {

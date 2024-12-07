@@ -1,10 +1,9 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
-/// @title Implementation of a Block-Height-Based Lazy Sliding Window Algorithm.
-/// @author Kiwari Labs
+/// @title Block-Height-Based Lazy Sliding Window Algorithm.
 
-library SW {
+library SlidingWindow {
     uint8 private constant MINIMUM_WINDOW_SIZE = 0x1; // 1 epoch
     uint8 private constant MAXIMUM_WINDOW_SIZE = 0x20; // 32 epoch
     uint8 private constant MINIMUM_BLOCKTIME = 0x64; // 100 ms
