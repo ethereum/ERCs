@@ -14,7 +14,7 @@
     <meta property="og:description" content="{{page.description | escape }}" />
     <meta name="twitter:description" content="{{page.description | escape }}" />
   {% else %}
-  <title>{{ page.title | escape }} | {{site.title}}</title>
+  <title>{{ page.title | escape }} | {{ site.title | escape }}</title>
     <meta
       property="og:title"
       content="{{ page.title | escape }} | {{site.title}}"
@@ -40,11 +40,12 @@
     }
   </script>
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}" />
-  {%- feed_meta -%}
+  <link type="application/atom+xml" rel="alternate" href="{{ '/rss/all.xml' | relative_url }}" title="{{ site.title | escape }}" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
   <link rel="stylesheet" href="{{ '/assets/css/override.css' | relative_url }}" />
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js" integrity="sha384-Rx+T1VzGupg4BHQYs2gCW9It+akI2MM/mndMCy36UVfodzcJcF0GGLxZIzObiEfa" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI=" crossorigin="anonymous">
   <script type="text/javascript">
     document.addEventListener("DOMContentLoaded", (event) => {
       const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
