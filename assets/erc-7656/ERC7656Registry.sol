@@ -109,3 +109,5 @@ contract ERC7656Registry is IERC7656Registry {
     return interfaceId == 0xc6bdc908;
   }
 }
+
+// This implementation is a variation of https://github.com/erc6551/reference/blob/main/src/ERC6551Registry.sol
