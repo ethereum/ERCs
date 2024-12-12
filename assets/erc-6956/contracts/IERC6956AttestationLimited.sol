@@ -23,13 +23,13 @@ interface IERC6956AttestationLimited is IERC6956 {
 
     /// @notice Returns number of attestations left for a particular anchor
     /// @dev Is computed by comparing the attestationsUsedByAnchor(anchor) and the current attestation limit 
-    ///      (current limited emitted via GlobalAttestationLimitUpdate or AttestationLimt events)
+    ///      (current limited emitted via GlobalAttestationLimitUpdate or AttestationLimit events)
     function attestationUsagesLeft(bytes32 anchor) external view returns (uint256 nrTransfersLeft);
 
     /// @notice Indicates the policy, in which direction attestation limits can be updated (globally or per anchor)
     function attestationLimitPolicy() external view returns (AttestationLimitPolicy policy);
 
-    /// @notice This emits when the global attestation limt is updated
+    /// @notice This emits when the global attestation limit is updated
     event GlobalAttestationLimitUpdate(uint256 indexed transferLimit, address updatedBy);
 
     /// @notice This emits when an anchor-specific attestation limit is updated

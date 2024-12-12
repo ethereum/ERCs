@@ -14,7 +14,7 @@ export enum FloatState {
 }
 
 describe("ERC6956: Asset-Bound NFT --- Full", function () {
-  // Fixture to deploy the abnftContract contract and assigne roles.
+  // Fixture to deploy the abnftContract contract and assign roles.
   // Besides owner there's user, minter and burner with appropriate roles.
   async function deployAbNftFixture() {
     // Contracts are deployed using the first signer/account by default
@@ -120,12 +120,12 @@ describe("Anchor-Floating", function () {
     expect(await abnftContract.floating(anchor))
     .to.be.equal(false); // one was used to mint
 
-    // Now alice, as the owner decides to make it explicitely floatable
+    // Now alice, as the owner decides to make it explicitly floatable
     expect(await abnftContract.connect(alice).float(anchor, FloatState.Floating))
     .to.emit(abnftContract, "FloatingStateChange")
     .withArgs(anchor, 1, FloatState.Floating, alice.address)
 
-    // It is now explicitely floatable
+    // It is now explicitly floatable
     expect(await abnftContract.floating(anchor))
     .to.be.equal(true); // one was used to mint
 
@@ -211,7 +211,7 @@ describe("Anchor-Floating", function () {
     .withArgs(alice.address,bob.address, tokenId);
   });
 
-  it("SHOULDN'T allow owner to transfer token when explicitely marked anchored", async function () {
+  it("SHOULDN'T allow owner to transfer token when explicitly marked anchored", async function () {
     const { abnftContract, anchor, maintainer, alice, bob, mallory } = await loadFixture(deployAbNftAndMintTokenToAliceFixture);
     const tokenId = await abnftContract.tokenByAnchor(anchor);
 
