@@ -1,0 +1,165 @@
+<style type="text/css">
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+    .token-id {
+        font-weight: bold;
+    }
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%; /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .error-message {
+        position: absolute;
+        bottom: -20px; /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none; /* Hidden by default */
+    }
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px; /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none; /* Hidden by default */
+        pointer-events: none; 
+    }
+    #textCentre {
+        text-align: center;
+    }
+    .text-box {
+        border: 1px solid #ccc; /* Thin border */
+        border-radius: 10px; /* Rounded corners */
+        padding: 10px; /* Space between the text and the border */
+        background-color: #f7f7f7; /* Optional: a light background color */
+        font-family: Arial, sans-serif; /* Optional: set a font-family */
+        max-width: 90%; /* Max-width of 90% */
+        word-wrap: break-word; /* Ensures the text wraps onto multiple lines */
+        box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+        margin: 0 auto; /* Centers the box horizontally within its container */
+        display: none;
+    }
+    </style>
+    <p id="tokendesc">Add a name for your script entry</p>
+    <br></br>
+    <div id="textCentre">
+    <h3>Current Name</h3>
+    </div>
+    <div class="text-box" id="existing">
+    </div>
+    <br></br>
+    <div id="inputBox">
+        <h3>Name</h3>
+        <input id="scriptURI" type="text" value="" data-ts-prop="false"></input>
+    </div>
+    
+    <br></br>
+    <script type="text/javascript">
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    const metadataCaller = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function tokenURI(uint256 id) public view returns (string)"
+    ], provider);
+
+    function updateName(event) {
+        //clean up name
+        let cleanedValue = event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        event.target.value = cleanedValue;
+        web3.action.setProps({
+            nameEntry: cleanedValue
+		});
+    }
+
+    let typingTimer;
+
+    document.getElementById('scriptURI').addEventListener('input', (event) => {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => updateName(event), typingDelay);
+    });
+
+    async function getMetaData() {
+        let metaData = await metadataCaller.tokenURI(currentTokenInstance.tokenId);
+        //pull out attrs
+        let metaDataJSON = JSON.parse(metaData);
+        return metaDataJSON.attributes;
+    }
+
+    function populateScript(attributes) {
+        const container = document.getElementById('existing');
+        let isSet = false;
+        for (let i = 0; i < attributes.length; i++) {
+            if (attributes[i].trait_type == "name" && attributes[i].value?.length > 0) {
+                container.style.display = 'block';
+                container.innerHTML = attributes[i].value;  
+                isSet = true;
+                break;
+            }
+        }
+
+        if (!isSet) {
+            container.style.display = 'block';
+            container.innerHTML = "-- Not Set --";  
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", async function() {
+
+        let tokenInfo = currentTokenInstance.tokenInfo;
+        let attributes = tokenInfo.attributes;
+
+        if (attributes.length == 0) {
+            //fetch attrs
+            attributes = await getMetaData();
+        }
+
+        populateScript(attributes);
+
+        });
+    </script>
