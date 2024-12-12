@@ -229,9 +229,9 @@ contract Mailbox {
 
     /// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
     function _resetMailbox() private {
-	    delete inbox[block.number - 1];
-	    delete inboxDigest[block.number - 1];
-	    delete outboxDigest[block.number - 1];	
+	  delete inbox[block.number - 1];
+      delete inboxDigest[block.number - 1];
+	  delete outboxDigest[block.number - 1];	
     }
 
     /// @notice Send a message to another chain
