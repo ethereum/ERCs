@@ -20,7 +20,7 @@ L2s have scaled Ethereum and unlocked new avenues for innovation, but left the e
 - **Unified developer experience:** This standard abstracts away the low-level details of message passing from applications. This allows application developers to achieve the following, even among chains with different VMs, coordination protocols, or settlement logic:
     - send/receive messages to/from many chains using the **same interface**.
     - deploy their application across multiple chains with **little-to-no** code changes.
-    - focus on their application’s design instead of cross-chain infrastructure
+    - focus on their application’s design instead of cross-chain infrastructure.
 - **Modularity:**  This ERC standardizes only the low level information required for sending and receiving messages between chains, similar to the Internet Protocol. This allows a **clean separation** between the interface for sending/receiving messages (this ERC) and a coordination protocol or settlement mechanism. This allows chains to adopt this standard with minimal changes, and gives chains **flexibility** to choose the specific protocols they need, instead of forcing all chains to agree on a single coordination protocol or settlement mechanism.
 - **Shared Infrastructure:** This standard allows applications and chains to **reuse/repurpose infrastructure** for different use cases. Applications can leverage existing library contracts for common operations like encoding message payload for token transfer, while relayer networks can serve multiple purposes without significant modifications. This shared foundation simplifies the development and deployment of new chains, applications, and protocols.
 
