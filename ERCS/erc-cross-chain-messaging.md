@@ -18,9 +18,9 @@ This ERC proposes a **mailbox API** and **message format** for sending and recei
 L2s have scaled Ethereum and unlocked new avenues for innovation, but left the ecosystem *fragmented*. To address this, there are a variety of cross-chain communication protocols designed to make L2s composable with each other, each implements its own message format that is incompatible with others. This ERC proposes a neutral, standard format for sending and receiving cross-chain messages. By standardizing the interface chains for messaging, we achieve:
 
 - **Unified developer experience:** This standard abstracts away the low-level details of message passing from applications. This allows application developers to achieve the following, even among chains with different VMs, coordination protocols, or settlement logic:
-    - send/receive messages to/from many chains using the **same interface**.
-    - deploy their application across multiple chains with **little-to-no** code changes.
-    - focus on their application’s design instead of cross-chain infrastructure.
+  - send/receive messages to/from many chains using the **same interface**.
+  - deploy their application across multiple chains with **little-to-no** code changes.
+  - focus on their application’s design instead of cross-chain infrastructure.
 - **Modularity:**  This ERC standardizes only the low level information required for sending and receiving messages between chains, similar to the Internet Protocol. This allows a **clean separation** between the interface for sending/receiving messages (this ERC) and a coordination protocol or settlement mechanism. This allows chains to adopt this standard with minimal changes, and gives chains **flexibility** to choose the specific protocols they need, instead of forcing all chains to agree on a single coordination protocol or settlement mechanism.
 - **Shared Infrastructure:** This standard allows applications and chains to **reuse/repurpose infrastructure** for different use cases. Applications can leverage existing library contracts for common operations like encoding message payload for token transfer, while relayer networks can serve multiple purposes without significant modifications. This shared foundation simplifies the development and deployment of new chains, applications, and protocols.
 
@@ -35,7 +35,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - In ***synchronous*** messaging protocols, chains have synchronized blocks (e.g., a block for each chain is produced every *t* seconds) and messages are received on the destination chain within the same block timeslot as they were sent from the source chain. In particular, a chain may send a message and read a response in one transaction within a block on a chain.
 - In ***asynchronous*** messaging protocols the restrictions of synchronous protocols do not apply. In particular, the chains sending and receiving messages may not have synchronized block timeslots and there may be a delay (measured in elapsed blocks) between the transaction on the source chain that sends a message and the transaction on the destination chain in which it is received.
 
-There is a wide range of ways in which both synchronous and asynchronous protocols may operate. For example, some protocols (particularly for asynchronous messaging) may require the source chain's block in which the message was sent to be finalized (e.g., settled on Ethereum) before it can be included within a block produced for the destination chain. Other protocols may allow for messages to be optimistically included in blocks with consistency checks delayed until settlement time (reminiscent of speculative execution). 
+There is a wide range of ways in which both synchronous and asynchronous protocols may operate. For example, some protocols (particularly for asynchronous messaging) may require the source chain's block in which the message was sent to be finalized (e.g., settled on Ethereum) before it can be included within a block produced for the destination chain. Other protocols may allow for messages to be optimistically included in blocks with consistency checks delayed until settlement time (reminiscent of speculative execution).
 
 ## Message Format
 
@@ -81,7 +81,7 @@ struct Message {
 }
 ```
 
-It is RECOMMENDED that there exists a global rollup registry service that supports registration, deregistration, and efficient lookup of a rollup's chain ID. This work is outside the scope of this ERC, however. To display the sender and receiver of a `Message`, wallets and frontends MAY use [ERC-3770](./erc-3770.md) for chain-specific addresses. 
+It is RECOMMENDED that there exists a global rollup registry service that supports registration, deregistration, and efficient lookup of a rollup's chain ID. This work is outside the scope of this ERC, however. To display the sender and receiver of a `Message`, wallets and frontends MAY use [ERC-3770](./erc-3770.md) for chain-specific addresses.
 
 ## Mailbox APIs
 
@@ -173,11 +173,11 @@ Messages received via `Mailbox.recv()` are **authenticated** because they must f
 
 ### Multiple VM Support
 
-Notice that our standard requires **no changes to a chain's VM** (i.e. no new opcode or precompiles required), but only proposes some smart contract interfaces. Specifically, the sender/recipient account type — generic `bytes32` instead of EVM-specific `address` type -- allows this standard to support a much wider class of VMs (e.g. SolanaVM that uses `Ed25519` public key as their accounts). 
+Notice that our standard requires **no changes to a chain's VM** (i.e. no new opcode or precompiles required), but only proposes some smart contract interfaces. Specifically, the sender/recipient account type — generic `bytes32` instead of EVM-specific `address` type -- allows this standard to support a much wider class of VMs (e.g. SolanaVM that uses `Ed25519` public key as their accounts).
 
 An optional `MultiplexABIEncoder` contract can abstract away the VM-specific encoding when preparing the message payload: a generic `encode(chainId)` function, as opposed to EVM’s `abi.encode`, that takes in the destination chain ID and decides the corresponding encoder logic so that the receiving party can decode natively. If the apps only care about interoperating with EVM chains, they can safely use `abi.encode()` as is and not go through any general encoder.
 
-On the receiving side, EVM chains would type cast `address(parsedAddress)` on the `bytes32 parsedAddress` from the received message. 
+On the receiving side, EVM chains would type cast `address(parsedAddress)` on the `bytes32 parsedAddress` from the received message.
 
 ### Arbitrary message payload
 
@@ -187,14 +187,14 @@ The `Message.payload` field is designed for maximum flexibility, capable of enco
 
 For message lookups in the mailbox, the query key is derived from the hash of all message metadata rather than relying on a single `sessionId` field. This is because the `sessionId` derivation is customizable and may not adequately bind to key metadata like source and destination addresses. In contrast, the wrapping messaging protocol may enforce permissions for sending or receiving based on these metadata fields, so the query key must bind to the entire set of metadata.
 
-Observe that when applications allow users to define `sessionId`, these values may not be unique across messages. Depending on the implementation of the inbox, this could be a concern. For example,  a mapping-based inbox needs an additional *nullifier set* to enforce the uniqueness of message metadata and avoid message overwrites in the case of a colliding map-key. 
+Observe that when applications allow users to define `sessionId`, these values may not be unique across messages. Depending on the implementation of the inbox, this could be a concern. For example,  a mapping-based inbox needs an additional *nullifier set* to enforce the uniqueness of message metadata and avoid message overwrites in the case of a colliding map-key.
 
 ### Gas Cost
 
 The most costly operations are `sstore` during `Mailbox.populateInbox()`, which writes to the mapping `inbox` in contract storage, and `sload`, during `Mailbox.recv()` which reads from the `inbox` in storage. Luckily, Mailboxes costs on L2 are much cheaper. In cases of more gas-sensitive chains and applications, we suggest these potential optimizations:
 
 - `delete inbox[key]` during `.recv()` to get gas refunds for cleaning some storage
-    - Synchronous messages are cleaned up at the end of the same block in which they are populated. L2 can optionally implement gas optimizations for such block ephemeral storage.
+  - Synchronous messages are cleaned up at the end of the same block in which they are populated. L2 can optionally implement gas optimizations for such block ephemeral storage.
 - utilize the [EIP-2930](../assets/erc-cross-chain-messaging/eip-2930.md) access list to “pre-warm” predictable storage slots for lower execution cost
 - batch-populate inbox messages and cluster them under fewer keys (bucketed mapping) e.g.: `mapping(bytes32 bucketKey => mapping(bytes32 => bytes)`
 
@@ -210,7 +210,7 @@ As mentioned above, pre-filling the inbox of the destination chain incurs additi
 
 ## Related Proposals
 
-In comparison to IBC-like standards, this ERC is designed to work in a *stateless* manner. Messages do not need to pass a proof from the source chain at the time they are consumed on the destination chain. This allows use cases such as synchronous composability and intra-block messaging since messages don’t need to include finalized state from the source chain. Additionally, this ERC does not require multiple steps to establish a link between two chains. Messages can be directly sent from one chain to another in a single step. 
+In comparison to IBC-like standards, this ERC is designed to work in a *stateless* manner. Messages do not need to pass a proof from the source chain at the time they are consumed on the destination chain. This allows use cases such as synchronous composability and intra-block messaging since messages don’t need to include finalized state from the source chain. Additionally, this ERC does not require multiple steps to establish a link between two chains. Messages can be directly sent from one chain to another in a single step.
 
 [ERC-7683](./erc-7683.md) standardizes intent-based systems by defining structs for orders and interfaces for settlement smart contracts. This standard is application-specific and aimed at designers of cross-chain intent systems, while our proposal is more general and targets developers implementing arbitrary cross-chain applications. However, an intent system based on ERC-7683 **can be built on top** of our standard due to its modularity. An application implementing ERC-7683 could use the `Mailbox` API defined in this proposal to send `originData` from event messages between the source chain (where user funds are deposited) and the destination chain(s) (where intents are solved). We provide more details in the *Example Usage* section.
 
@@ -220,13 +220,13 @@ In comparison to IBC-like standards, this ERC is designed to work in a *stateles
 
 We show a *possible* implementation of the mailbox contract for synchronous messaging protocol, and explain how it can be easily modified to support asynchronous protocols as well.
 
-The high-level flow is as follows: 
+The high-level flow is as follows:
 
 - Sending a message simply updates the outbox digest.
 - Prefill the inbox by inserting the messages sequentially in the same order as the outbox in the source chain. Each insertion updates the corresponding inbox digest.
 - Applications can then read a message by querying the key-value map inbox with the (hashed) message metadata.
 - External to these transactions, the settlement layer will receive new inbox digest and outbox digest (with storage proofs against a proven new rollup state) and checks `chain_i.inboxDigest[chain_j] == chain_j.outboxDigest[chain_i]` for all `i!=j`
-    - Note: We ignore the slight complication of mailbox reset at the beginning of each block using nested mapping in our description above for brevity, but they are dealt with in our code snippet below.
+  - Note: We ignore the slight complication of mailbox reset at the beginning of each block using nested mapping in our description above for brevity, but they are dealt with in our code snippet below.
 
 ```solidity
 /// @title Mailbox contract implementation for synchronous communication
@@ -362,7 +362,7 @@ To extend the synchronous mailbox to support asynchronous protocols, we only nee
 
 - Remove the first layer of mapping from `inbox`, `inboxDigest`, `outboxDigest`, since the “domain-separation from block number” requirement is gone. (e.g. changed to `mapping(bytes32 => bytes) inbox`)
 - At the settlement layer, enforce that the destination chain’s inbox is a **subset** of the source chain’s outbox messages, rather than a full equality check.
-    - Consequently, change the accumulator algorithm used to compute `inboxDigest,outboxDigest` to ones with efficient subset proof.
+  - Consequently, change the accumulator algorithm used to compute `inboxDigest,outboxDigest` to ones with efficient subset proof.
 - Remove the `_reset()` logic since all messages for async will be permanently stored.
 
 An ERC token contract wishing to allow cross-chain transfers would need to add the functions `xTransfer` and `xReceive` . The logic of a single chain transfer (e.g. `Token.send`) must be split into two functions `Token.xTransfer` and `Token.xReceive`. Each of these functions respectively mints and burns the same amount of assets and interact with the `Mailbox` contract.
@@ -409,7 +409,7 @@ contract XChainToken is ERC20Burnable {
     /// @notice This function must be called on the destination chain to mint 
     ///     the tokens. This function can be called by any participant.
     /// @param srcChainId identifier of the source chain the funds are sent from
-    ///	@param sessionId unique identifier needed to fetch the message
+    /// @param sessionId unique identifier needed to fetch the message
     function xReceive(uint32 srcChainId, uint128 sessionId) public {
         /// Analoguous to crossTransfer except that this function can only be 
         ///     called once with the same parameters in order to avoid double 
@@ -436,7 +436,7 @@ contract XChainToken is ERC20Burnable {
 
 ## Cross-chain function calls
 
-In this example we show how to implement a cross-chain function call using the `Mailbox` abstraction:  The logic of cross-chain execution is handled by a contract `RemoteExecuter` deployed on both source and destination chains. 
+In this example we show how to implement a cross-chain function call using the `Mailbox` abstraction:  The logic of cross-chain execution is handled by a contract `RemoteExecuter` deployed on both source and destination chains.
 
 On the source chain `A`, a user wanting to call a function `fun` of a contract `Foo` on the destination chain `B` can invoke `RemoteExecuter.remoteCall` with the address of the contract `Foo` and other parameters including the function name and its arguments. This generates a message that is sent to chain `B`.
 
