@@ -1,0 +1,226 @@
+<style type="text/css">
+    .token-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+    }
+    .token-icon {
+        width: 50px;
+        height: 50px;
+        margin-right: 20px;
+    }
+    .token-id,
+    .token-price,
+    .token-expiry {
+        margin-right: 20px;
+    }
+    .token-id {
+        font-weight: bold;
+    }
+    #inputBox {
+        position: relative;
+        text-align: center;
+        width: 90%; /* Adjust to align with input width */
+        margin: 0 auto;
+    }
+    input {
+        position: relative;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 12px;
+        display: -ms-inline-flexbox;
+        display: inline-flex;
+        color: rgba(0, 0, 0, 0.87);
+        padding: 9.5px 14px;
+        width: 100%;
+        border-color: #D8D8D8;
+        box-sizing: border-box;
+        padding-right: 10px;
+    }
+    input[type=text]:focus {
+        border-color: #D8D8D8;
+        background: #FAFAFA;
+        color: rgba(0, 0, 0, 0.87);
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .error-message {
+        position: absolute;
+        bottom: -20px; /* Adjust based on input height and spacing */
+        right: 0;
+        color: red;
+        font-size: 12px;
+        display: none; /* Hidden by default */
+    }
+    .success-icon {
+        position: absolute;
+        top: 50%;
+        right: 8px; /* Adjust this value if needed, to position based on padding of input */
+        /* transform: translateY(-10%); */
+        color: green;
+        font-size: 24px;
+        display: none; /* Hidden by default */
+        pointer-events: none; 
+    }
+    #textCentre {
+        text-align: center;
+    }
+    .text-box {
+        border: 1px solid #ccc; /* Thin border */
+        border-radius: 10px; /* Rounded corners */
+        padding: 10px; /* Space between the text and the border */
+        background-color: #f7f7f7; /* Optional: a light background color */
+        font-family: Arial, sans-serif; /* Optional: set a font-family */
+        max-width: 90%; /* Max-width of 90% */
+        word-wrap: break-word; /* Ensures the text wraps onto multiple lines */
+        box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+        margin: 0 auto; /* Centers the box horizontally within its container */
+        display: none;
+    }
+    .imgbox {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0; /* Remove any default margin */
+        }
+
+        .center-fit {
+            object-fit: cover;
+            width: 200px;
+            height: 200px;
+            margin: auto;
+        }    
+    </style>
+    <div id="textCentre">
+    <h3>Set an icon for your script entry</h3>
+    <p>(note, you must upload the icon yourself and provide the URI here)</p>
+    </div>
+    <br></br>
+    <div id="textCentre">
+    <h3>Current Icon</h3>
+    </div>
+    <div id="existing">
+    </div>
+    <br></br>
+    <div id="inputBox">
+        <h3>Icon URL</h3>
+        <input id="iconURI" type="text" value="" data-ts-prop="false"></input>
+        <span class="error-message" id="errorText-url">Not a valid URL</span>
+        <span class="success-icon" id="successIcon-url">✔</span>
+    </div>
+    <span class="error-message" id="formatter"></span>
+    
+    <br></br>
+    <script type="text/javascript">
+
+    const typingDelay = 500; // Check delay in milliseconds (0.5 seconds)
+
+    const errorTextURL = document.getElementById('errorText-url');
+    const successIconURL = document.getElementById('successIcon-url');
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'banksy'
+    });
+
+    const metadataCaller = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function tokenURI(uint256 id) public view returns (string)"
+    ], provider);
+
+    function validateURL(input) {
+        try {
+            // Attempt to create a new URL object
+            new URL(input);
+            return true;
+        } catch (e) {
+            // If an error is thrown, the URL is not valid
+            return false;
+        }
+    }
+
+    function sanitizeInput(input) {
+        formatter.innerHTML = '';
+        formatter.appendChild(document.createTextNode(input));
+        return formatter.innerHTML;
+    }
+
+    function updateIconURI(event) {
+        let chosenUrl = event.target.value;
+        if (!validateURL(chosenUrl)) {
+            successIconURL.style.display = 'none';
+            errorTextURL.textContent = "Not a valid address";
+            errorTextURL.style.display = 'block';
+        } else {
+            errorTextURL.style.display = 'none';
+            successIconURL.style.display = 'inline';
+
+            let sanitised = sanitizeInput(chosenUrl);
+            console.log(`Update iconEntry: ${sanitised}`);
+
+            web3.action.setProps({
+                iconEntry: sanitised
+		    });
+        }
+    }
+
+    let typingTimer;
+
+    document.getElementById('iconURI').addEventListener('input', (event) => {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => updateIconURI(event), typingDelay);
+    });
+
+    async function getMetaData() {
+        let metaData = await metadataCaller.tokenURI(currentTokenInstance.tokenId);
+        //pull out attrs
+        let metaDataJSON = JSON.parse(metaData);
+        return metaDataJSON.image;
+    }
+
+    function populateIcon(icon) {
+        const container = document.getElementById('existing');
+        container.innerHTML = `<div class="imgbox"><img class="center-fit" src='${icon}'></div>`;
+    }
+
+    const IPFS_REPLACE_GATEWAYS = [
+		"ipfs://",
+		"https://ipfs.io/ipfs/",
+		"https://gateway.pinata.cloud/ipfs/"
+	];
+
+    const IPFS_GATEWAY = "https://smart-token-labs-demo-server.mypinata.cloud/ipfs/";
+
+	function processIpfsUrl(uri){
+
+		for (let gateway of IPFS_REPLACE_GATEWAYS){
+
+			if (IPFS_GATEWAY.indexOf(gateway) === 0){
+				continue;
+			}
+
+			if (uri.indexOf(gateway) === 0){
+				uri = uri.replace(gateway, IPFS_GATEWAY);
+				break;
+			}
+		}
+
+		return uri;
+	}
+
+    document.addEventListener("DOMContentLoaded", async function() {
+
+        let tokenInfo = currentTokenInstance.tokenInfo;
+        let image = tokenInfo.image;
+
+        if (image.length == 0) {
+            //fetch attrs
+            image = await getMetaData();
+        }
+
+        populateIcon(image);
+
+        });
+    </script>
