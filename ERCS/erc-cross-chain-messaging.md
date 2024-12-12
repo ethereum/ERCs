@@ -340,8 +340,8 @@ Note that in this example gas on the destination chain is paid by the caller of 
 /// Contract deployed on both chains A and B
 /// This contract takes care of receiving remote calls from the source chain and of the execution on the destination chain 
 contract RemoteExecuter {
-    /// @notice points to the chain Mailbox
-    Mailbox public mailbox;
+	/// @notice points to the chain Mailbox
+	Mailbox public mailbox;
 	/// @notice maps chainId to the canonical RemoteExecuter address
 	/// @dev We assume the contract RemoteExecuter is deployed on both (or more) chains, and this map allows to know the address of the contract on the other chain(s).
 	mapping(uint32 => address) public remoteExecuterAddress;	
