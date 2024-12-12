@@ -224,7 +224,7 @@ contract Mailbox {
 		
     /// @dev Given the metadata (Message struct without payload field) of a message, derive the digest used as the dictionary key for inbox/outbox.
     function getMetadataDigest(uint32 srcChainId, uint32 destChainId, address srcAddress, address destAddress, uint256 uid) pure returns (bytes32) {
-	return keccak(abi.encodePacked(srcChainId, destChainId, srcAddress, destAddress, uid)); 
+	    return keccak(abi.encodePacked(srcChainId, destChainId, srcAddress, destAddress, uid)); 
     }
 
     /// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
@@ -232,7 +232,7 @@ contract Mailbox {
 	    delete inbox[block.number - 1];
 	    delete inboxDigest[block.number - 1];
 	    delete outboxDigest[block.number - 1];	
-	}
+    }
 
     /// @notice Send a message to another chain
     function send(uint32 destChainId, address destAddress, uint256 uid, bytes memory payload) public {
