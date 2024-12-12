@@ -1,7 +1,7 @@
 ---
 title: Cross-chain Message Format and Mailbox
 description: A mailbox API and message format to provide a unified cross-chain developer experience
-author: Ellie Davidson (elliedavidson), Alex Xiong (alxiong), Philippe Camacho (philippecamacho), and Ben Fisch (benafisch)
+author: Ellie Davidson (@elliedavidson), Alex Xiong (@alxiong), Philippe Camacho (@philippecamacho), and Ben Fisch (@benafisch)
 discussions-to: https://ethereum-magicians.org/t/erc-xxxx-cross-chain-message-format-and-mailbox/22185
 status: Draft
 type: Standards Track
