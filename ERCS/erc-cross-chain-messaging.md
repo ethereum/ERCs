@@ -106,8 +106,8 @@ contract Mailbox {
     /// @return Digest of all outbox messages directed at `destChainId`
     function outboxDigest(uint32 destChainId) returns (bytes32);
 
-	/// @notice Returns the "key" in inbox/outbox map for a message according to its metadata 
-	/// @dev The metadata includes all fields in the `Metadata` struct.
+    /// @notice Returns the "key" in inbox/outbox map for a message according to its metadata 
+    /// @dev The metadata includes all fields in the `Metadata` struct.
     function getMetadataDigest(Metadata calldata metadata) pure returns (bytes32);
 
     /// @notice Send a message to another chain
@@ -117,11 +117,11 @@ contract Mailbox {
     /// @dev SHOULD update the outbox digest and/or the outbox
     function send(Metadata calldata metadata, bytes memory payload) public;
   
-	/// @notice Receive a message from another chain
-	/// @dev SHOULD revert if message cannot be retrieved
-	/// @dev SHOULD sanity check `metadata.destChainId == this.chain_id()`
-	/// @param metadata Metadata of the message
-	/// @return payload of the retrieved message
+    /// @notice Receive a message from another chain
+    /// @dev SHOULD revert if message cannot be retrieved
+    /// @dev SHOULD sanity check `metadata.destChainId == this.chain_id()`
+    /// @param metadata Metadata of the message
+    /// @return payload of the retrieved message
     function recv(Metadata calldata metadata) public returns (bytes memory payload);
     
     /// @notice Populate the inbox with incoming messages
@@ -133,8 +133,8 @@ contract Mailbox {
     /// @notice Generates a fresh and random sessionId for new messages
     /// @dev In order to ensure the uniqueness of the value generated, this function MIGHT require using a contract variable
     /// @dev With this unique session ID, for messages that do not require a nonce, we can set nonce=0, and the overall metadata digest is still collision-free with high probability 
-	/// @return A unique sessionId
-	function randSessionId() returns (uint128);
+    /// @return A unique sessionId
+    function randSessionId() returns (uint128);
 }
 ```
 
@@ -227,8 +227,8 @@ contract Mailbox {
 	return keccak(abi.encodePacked(srcChainId, destChainId, srcAddress, destAddress, uid)); 
     }
 
-	/// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
-	function _resetMailbox() private {
+    /// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
+    function _resetMailbox() private {
 		delete inbox[block.number - 1];
 		delete inboxDigest[block.number - 1];
 		delete outboxDigest[block.number - 1];	
@@ -246,7 +246,7 @@ contract Mailbox {
         // digest' = H(digest | metadata | payload)
         outboxDigest[block.number][this.chain_id()] = keccak256(abi.encodePacked(
 	        outboxDigest[block.number][this.chain_id()], key,m.payload
-	      ));
+	    ));
     }
     
     /// @dev This function is called by the Coordinator. It can only be called once per block
@@ -266,7 +266,7 @@ contract Mailbox {
             // digest' = H(digest | metadata | payload)
             inboxDigest[block.number][m.srcChainId] = keccak256(abi.encodePacked(
 	            inboxDigest[block.number][m.srcChainId],key, m.payload
-	          ));
+	        ));
         }
     }
   
@@ -290,8 +290,8 @@ An ERC token contract wishing to allow cross-chain transfers would need to add t
 ```solidity
 /// ERC20 token contract supporting cross-chain transfers
 contract XChainToken is ERC20Burnable {
-	/// @notice points to the Mailbox contract used
-	Mailbox public mailbox;
+    /// @notice points to the Mailbox contract used
+    Mailbox public mailbox;
 	/// @notice bitmap for redeem-once control on inbox messages
 	mapping(bytes32 => bool) private isRedeemed;
 	/// @notice maps chainId to the canonical XChainToken address
