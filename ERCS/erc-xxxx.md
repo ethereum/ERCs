@@ -1,8 +1,8 @@
 ---
-title: EIP-XXXX: Cross-chain Message Formats and Mailbox
+title: Cross-chain Message Format and Mailbox
 description: A mailbox API and message format to provide a unified cross-chain developer experience
-author: Ellie Davidson (@elliedavidson), Alex Xiong (@alxiong), Philippe Camacho (@philippecamacho), and Ben Fisch (@benafisch)(@GitHubUsername)>
-discussions-to: <URL>
+author: Ellie Davidson (elliedavidson), Alex Xiong (alxiong), Philippe Camacho (philippecamacho), and Ben Fisch (benafisch)
+discussions-to: TODO
 status: Draft
 type: Standards Track
 category: ERC
