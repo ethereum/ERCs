@@ -170,7 +170,7 @@ The most costly operations are `sstore` during `Mailbox.populateInbox()`, which 
 
 - `delete inbox[key]` during `.recv()` to get gas refunds for cleaning some storage
     - Synchronous messages are cleaned up at the end of the same block in which they are populated. L2 can optionally implement gas optimizations for such block ephemeral storage.
-- utilize the [EIP-2930](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2930.md) access list to “pre-warm” predictable storage slots for lower execution cost
+- utilize the [EIP-2930](../assets/erc-cross-chain-messaging/eip-2930.md) access list to “pre-warm” predictable storage slots for lower execution cost
 - batch-populate inbox messages and cluster them under fewer keys (bucketed mapping) e.g.: `mapping(bytes32 bucketKey => mapping(bytes32 => bytes)`
 
 ### Pre-filled Inbox
