@@ -46,33 +46,33 @@ All messages MUST follow this format:
 /// @notice Metadata for a cross-chain message
 struct Metadata {
     /// @notice The chain identifier of the source chain
-    uint32 srcChainId,
+    uint32 srcChainId;
     /// @notice The chain identifier of the destination chain
-    uint32 destChainId,
+    uint32 destChainId;
     /// @notice The address of the sending party
     /// @dev 32 bytes are used to encode the address. In the case of an Ethereum address, the last 12 bytes can be padded with zeros
-    bytes32 srcAddress,
+    bytes32 srcAddress;
     /// @notice The address of the recipient
     /// @dev 32 bytes are used to encode the address. In the case of an Ethereum address, the last 12 bytes can be padded with zeros
-    bytes32 destAddress,
+    bytes32 destAddress;
     /// @notice The identifier for a cross-chain interaction session
     /// @dev SHOULD be unique for every new cross-chain calls
-    uint128 sessionId,
+    uint128 sessionId;
     /// @notice The message counter within an interaction session 
     /// @dev SHOULD be unique within a session
     /// @dev OPTIONAL for most asynchronous bridges where every message has a distinct sessionId, simply set to 0 if unused
     /// @dev E.g. In a cross-chain call: ChainA.func1 -m1-> ChainB.func2 -m2-> ChainC.func3 -m3-> ChainB.func4, the subscript i in m_i is the nonce
-    uint128 nonce,
+    uint128 nonce;
 }
 
 /// @title Message type
 /// @notice A cross-chain message
 struct Message {
     /// @notice The message metadata 
-    Metadata metadata,
+    Metadata metadata;
     /// @notice Message payload encoded using RLP serialization
     /// @dev It may be ABI-encoded function calls, info about bridged assets, or arbitrary message data
-    bytes payload,
+    bytes payload;
 }
 ```
 
@@ -92,23 +92,25 @@ contract Mailbox {
     /// @notice Returns the chain ID for the host chain
     /// @dev SHOULD be set at the deployment time as immutable except for when using an upgradable Mailbox since immutable variables are discouraged.
     /// @dev MUST NOT change regardless of upgradable contracts or not.
-    function chain_id() view public returns (uint32);
-    
+    function chain_id() public view returns (uint32);
+
     /// @notice Returns the digest of the inbox, used for mailbox consistency checks
     /// @dev There SHOULD be an accumulator (e.g. chained-hash or MerkleTree) logic that takes in every new inbox message and updates the digest
     /// @param srcChainId Identifier of the source chain
     /// @return Digest of all inbox messages coming from `srcChainId`
-    function inboxDigest(uint32 srcChainId) returns (bytes32);
+    function inboxDigest(uint32 srcChainId) public returns (bytes32);
 
     /// @notice Returns the digest of the outbox, used for mailbox consistency checks
     /// @dev There SHOULD be an accumulator (e.g. chained-hash or MerkleTree) logic that takes in every new outbox message and updates the digest
     /// @param destChainId Identifier of the destination chain
     /// @return Digest of all outbox messages directed at `destChainId`
-    function outboxDigest(uint32 destChainId) returns (bytes32);
+    function outboxDigest(uint32 destChainId) public returns (bytes32);
 
-    /// @notice Returns the "key" in inbox/outbox map for a message according to its metadata 
+    /// @notice Returns the "key" in inbox/outbox map for a message according to its metadata
     /// @dev The metadata includes all fields in the `Metadata` struct.
-    function getMetadataDigest(Metadata calldata metadata) pure returns (bytes32);
+    function getMetadataDigest(
+        Metadata calldata metadata
+    ) public pure returns (bytes32);
 
     /// @notice Send a message to another chain
     /// @param metadata Metadata of the message
@@ -116,25 +118,30 @@ contract Mailbox {
     /// @dev SHOULD sanity check `metadata.srcChainId == this.chain_id() && metadata.srcAddress == msg.sender`;
     /// @dev SHOULD update the outbox digest and/or the outbox
     function send(Metadata calldata metadata, bytes memory payload) public;
-  
+
     /// @notice Receive a message from another chain
     /// @dev SHOULD revert if message cannot be retrieved
     /// @dev SHOULD sanity check `metadata.destChainId == this.chain_id()`
     /// @param metadata Metadata of the message
     /// @return payload of the retrieved message
-    function recv(Metadata calldata metadata) public returns (bytes memory payload);
-    
+    function recv(
+        Metadata calldata metadata
+    ) public returns (bytes memory payload);
+
     /// @notice Populate the inbox with incoming messages
     /// @param messages Inbox messages to put in `this.inbox`
     /// @param aux OPTIONAL auxiliary information/witness to justify these inbox messages
     /// @dev `aux` may be empty or signature from a trusted relayer, etc.
-    function populateInbox(Message[] calldata messages, bytes memory aux) public;
-    
+    function populateInbox(
+        Message[] calldata messages,
+        bytes memory aux
+    ) public;
+
     /// @notice Generates a fresh and random sessionId for new messages
     /// @dev In order to ensure the uniqueness of the value generated, this function MIGHT require using a contract variable
-    /// @dev With this unique session ID, for messages that do not require a nonce, we can set nonce=0, and the overall metadata digest is still collision-free with high probability 
+    /// @dev With this unique session ID, for messages that do not require a nonce, we can set nonce=0, and the overall metadata digest is still collision-free with high probability
     /// @return A unique sessionId
-    function randSessionId() returns (uint128);
+    function randSessionId() public returns (uint128);
 }
 ```
 
@@ -412,62 +419,82 @@ Note that in this example gas on the destination chain is paid by the caller of 
 
 ```solidity
 /// Contract deployed on both chains A and B
-/// This contract takes care of receiving remote calls from the source chain and of the execution on the destination chain 
+/// This contract takes care of receiving remote calls from the source chain and of the execution on the destination chain
 contract RemoteExecuter {
-	/// @notice points to the chain Mailbox
-	Mailbox public mailbox;
-	/// @notice maps chainId to the canonical RemoteExecuter address
-	/// @dev We assume the contract RemoteExecuter is deployed on both (or more) chains, and this map allows to know the address of the contract on the other chain(s).
-	mapping(uint32 => address) public remoteExecuterAddress;	
-	// Track which messages have already been processed 
-	mapping(bytes32 => bool) private executedMessages;
-	
-	/// @notice Prepare the execution function on a another chain
-	/// @dev This function sends a message to the destination chain with the parameters of the call
-	function remoteCall(uint32 destChainId, address remoteContractAddress, bytes callParams){
-		Mailbox.Metadata memory metadata = Mailbox.Metadata(mailbox.chain_id(), destChainId, bytes32(address(this)), bytes32(remoteExecuterAddress[destChainId]), mailbox.randSessionId(), 0);
-		mailbox.send(metadata, callParams);
-	}
-	
-	/// @notice Call a contract function locally based on some message that was sent from another chain
-	/// @param srcChainId Identifier of the source chain where the call was initiated
-    /// @param sessionId Session identifier 
-	function execute(uint32 srcChainId, uint128 sessionId){
-		// Check that the message has not be executed yet
-		bytes32 memory uid = keccak256(abi.encodePacked(sessionId, 0));
-		require(!this.executedMessages[uid], "already executed");
+    /// @notice points to the chain Mailbox
+    Mailbox public mailbox;
+    /// @notice maps chainId to the canonical RemoteExecuter address
+    /// @dev We assume the contract RemoteExecuter is deployed on both (or more) chains, and this map allows to know the address of the contract on the other chain(s).
+    mapping(uint32 => address) public remoteExecuterAddress;
+    // Track which messages have already been processed
+    mapping(bytes32 => bool) private executedMessages;
 
-		// Read the message
-		Mailbox.Metadata memory metadata = Mailbox.Metadata(srcChainId, mailbox.chain_id(), bytes32(remoteExecuterAddress[srcChainId]), bytes32(address(this)), sessionId, 0);
-		bytes memory payload = Mailbox.recv(metadata);
+    /// @notice Prepare the execution function on a another chain
+    /// @dev This function sends a message to the destination chain with the parameters of the call
+    function remoteCall(
+        uint32 destChainId,
+        address remoteContractAddress,
+        bytes callParams
+    ) public {
+        Mailbox.Metadata memory metadata = Mailbox.Metadata(
+            mailbox.chain_id(),
+            destChainId,
+            bytes32(address(this)),
+            bytes32(remoteExecuterAddress[destChainId]),
+            mailbox.randSessionId(),
+            0
+        );
+        mailbox.send(metadata, callParams);
+    }
 
-		// Call the function
-		(address contractAddress, bytes memory callParams) = abi.decode(payload);
-		contractAddress.call{gas: 100000}(callParams);
-		
-		// Mark message as executed
-		this.executedMessages[uid] = true;
-	}
+    /// @notice Call a contract function locally based on some message that was sent from another chain
+    /// @param srcChainId Identifier of the source chain where the call was initiated
+    /// @param sessionId Session identifier
+    function execute(uint32 srcChainId, uint128 sessionId) public {
+        // Check that the message has not be executed yet
+        bytes32 memory uid = keccak256(abi.encodePacked(sessionId, 0));
+        require(!this.executedMessages[uid], "already executed");
+
+        // Read the message
+        Mailbox.Metadata memory metadata = Mailbox.Metadata(
+            srcChainId,
+            mailbox.chain_id(),
+            bytes32(remoteExecuterAddress[srcChainId]),
+            bytes32(address(this)),
+            sessionId,
+            0
+        );
+        bytes memory payload = Mailbox.recv(metadata);
+
+        // Call the function
+        (address contractAddress, bytes memory callParams) = abi.decode(
+            payload
+        );
+        contractAddress.call{gas: 100000}(callParams);
+
+        // Mark message as executed
+        this.executedMessages[uid] = true;
+    }
 }
 
 // Contract deployed on chain A
 contract Caller {
-	/// @notice Function on the source chain A that calls a function of a contract deployed on the destination chain B
-	/// @dev The identifier of the destination chain CHAIN_B_ID and the remote contract address FOO_CONTRACT_ADDRESS are hardcoded
-	/// @param val parameter to be passed to the function Foo.fun(...) 
-	function callChainB(uint256 val){
-		bytes memory callParams = abi.encodeCall(Foo.fun(val));
-		RemoteExecuter.remoteCall(CHAIN_B_ID, FOO_CONTRACT_ADDRESS, callParams);		
-	}
+    /// @notice Function on the source chain A that calls a function of a contract deployed on the destination chain B
+    /// @dev The identifier of the destination chain CHAIN_B_ID and the remote contract address FOO_CONTRACT_ADDRESS are hardcoded
+    /// @param val parameter to be passed to the function Foo.fun(...)
+    function callChainB(uint256 val) public {
+        bytes memory callParams = abi.encodeCall(Foo.fun(val));
+        RemoteExecuter.remoteCall(CHAIN_B_ID, FOO_CONTRACT_ADDRESS, callParams);
+    }
 }
 
 /// Contract deployed on chain B
 /// We assume this contract is deployed at the address FOO_CONTRACT_ADDRESS
 /// This contract has a function that is called from chain A
 contract Foo {
-	function fun(uint256 parameter){
-		require(parameter == 42);
-	}
+    function fun(uint256 parameter) public {
+        require(parameter == 42);
+    }
 }
 ```
 
