@@ -81,7 +81,7 @@ struct Message {
 }
 ```
 
-It is RECOMMENDED that there exists a global rollup registry service that supports registration, deregistration, and efficient lookup of a rollup's chain ID. This work is outside the scope of this ERC, however. To display the sender and receiver of a `Message`, wallets and frontends MAY use [ERC-3770](./erc-3770.md) for chain-specific addresses.
+It is RECOMMENDED that there exists a global rollup registry service that supports registration, deregistration, and efficient lookup of a rollup's chain ID. This work is outside the scope of this ERC, however. To display the sender and receiver of a `Message`, wallets and frontends MAY use [ERC-3770](./eip-3770.md) for chain-specific addresses.
 
 ## Mailbox APIs
 
@@ -181,7 +181,7 @@ On the receiving side, EVM chains would type cast `address(parsedAddress)` on th
 
 ### Arbitrary message payload
 
-The `Message.payload` field is designed for maximum flexibility, capable of encoding arbitrary data, including application-specific structures like the `CrossChainOrder` from [ERC-7683](./erc-7683.md) (See *Example Usage* section below for details of this integration). In contrast to some existing bridge designs that restrict the payload to function calls, the message payload in our design can also represent simpler data types, such as a boolean status flag for acknowledgments. This flexibility enables a wider range of use cases and simplifies integration across various applications.
+The `Message.payload` field is designed for maximum flexibility, capable of encoding arbitrary data, including application-specific structures like the `CrossChainOrder` from [ERC-7683](./eip-7683.md) (See *Example Usage* section below for details of this integration). In contrast to some existing bridge designs that restrict the payload to function calls, the message payload in our design can also represent simpler data types, such as a boolean status flag for acknowledgments. This flexibility enables a wider range of use cases and simplifies integration across various applications.
 
 ### Use Metadata Digest Instead of `sessionId` for Message Query Key
 
@@ -195,7 +195,7 @@ The most costly operations are `sstore` during `Mailbox.populateInbox()`, which 
 
 - `delete inbox[key]` during `.recv()` to get gas refunds for cleaning some storage
   - Synchronous messages are cleaned up at the end of the same block in which they are populated. L2 can optionally implement gas optimizations for such block ephemeral storage.
-- utilize the [EIP-2930](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2930.md) access list to “pre-warm” predictable storage slots for lower execution cost
+- utilize the [EIP-2930](./eip-2930) access list to “pre-warm” predictable storage slots for lower execution cost
 - batch-populate inbox messages and cluster them under fewer keys (bucketed mapping) e.g.: `mapping(bytes32 bucketKey => mapping(bytes32 => bytes)`
 
 ### Pre-filled Inbox
@@ -212,7 +212,7 @@ As mentioned above, pre-filling the inbox of the destination chain incurs additi
 
 In comparison to IBC-like standards, this ERC is designed to work in a *stateless* manner. Messages do not need to pass a proof from the source chain at the time they are consumed on the destination chain. This allows use cases such as synchronous composability and intra-block messaging since messages don’t need to include finalized state from the source chain. Additionally, this ERC does not require multiple steps to establish a link between two chains. Messages can be directly sent from one chain to another in a single step.
 
-[ERC-7683](./erc-7683.md) standardizes intent-based systems by defining structs for orders and interfaces for settlement smart contracts. This standard is application-specific and aimed at designers of cross-chain intent systems, while our proposal is more general and targets developers implementing arbitrary cross-chain applications. However, an intent system based on ERC-7683 **can be built on top** of our standard due to its modularity. An application implementing ERC-7683 could use the `Mailbox` API defined in this proposal to send `originData` from event messages between the source chain (where user funds are deposited) and the destination chain(s) (where intents are solved). We provide more details in the *Example Usage* section.
+[ERC-7683](./eip-7683.md) standardizes intent-based systems by defining structs for orders and interfaces for settlement smart contracts. This standard is application-specific and aimed at designers of cross-chain intent systems, while our proposal is more general and targets developers implementing arbitrary cross-chain applications. However, an intent system based on ERC-7683 **can be built on top** of our standard due to its modularity. An application implementing ERC-7683 could use the `Mailbox` API defined in this proposal to send `originData` from event messages between the source chain (where user funds are deposited) and the destination chain(s) (where intents are solved). We provide more details in the *Example Usage* section.
 
 # Example Usage
 
