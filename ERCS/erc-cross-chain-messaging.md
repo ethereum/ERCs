@@ -68,11 +68,11 @@ struct Metadata {
 /// @title Message type
 /// @notice A cross-chain message
 struct Message {
-  /// @notice The message metadata 
-  Metadata metadata,
-  /// @notice Message payload encoded using RLP serialization
-  /// @dev It may be ABI-encoded function calls, info about bridged assets, or arbitrary message data
-  bytes payload,
+    /// @notice The message metadata 
+    Metadata metadata,
+    /// @notice Message payload encoded using RLP serialization
+    /// @dev It may be ABI-encoded function calls, info about bridged assets, or arbitrary message data
+    bytes payload,
 }
 ```
 
@@ -135,6 +135,7 @@ contract Mailbox {
     /// @dev With this unique session ID, for messages that do not require a nonce, we can set nonce=0, and the overall metadata digest is still collision-free with high probability 
 	/// @return A unique sessionId
 	function randSessionId() returns (uint128);
+}
 ```
 
 The `Mailbox` contract SHOULD keep track of an *inbox* of incoming messages. The concrete data structure used to store the `inbox` queue SHOULD be a hash-map-like `mapping` in Solidity to enable efficient lookup by the dApps with payload-independent query keys. Being able to read/receive messages based on their metadata only, rather than their actual payload, is critical in achieving synchronous messaging with a dynamic payload known only at runtime. It is OPTIONAL to track the full outbox messages in the contract storage — an outbox digest may be sufficient for some cases.
@@ -209,7 +210,7 @@ contract Mailbox {
     
     /// @notice nested map: blockNum -> metadataDigest -> payload
     /// @dev Easy cleanup by `delete inbox[block.number -1]`
-    mapping(uint256 => mapping(bytes32 => bytes) inbox;
+    mapping(uint256 => mapping(bytes32 => bytes)) inbox;
     // Mapping to detect key collisions: metadataDigest -> writtenFlag
     mapping(bytes32 => bool) outboxNullifier;
   
@@ -251,7 +252,7 @@ contract Mailbox {
     /// @dev This function is called by the Coordinator. It can only be called once per block
     function populateInbox(Message[] calldata messages, bytes memory aux) {
 	    // Before putting new inbox messages at the beginning of each block, "reset" the inbox/outbox
-	       _resetMailbox();
+	    _resetMailbox();
 
         for (uint i=0;i<messages.length;i++){
             Message memory m = messages[i];
@@ -301,15 +302,15 @@ contract XChainToken is ERC20Burnable {
 	/// @param amount amount to transfer
 	/// @param destChainId identifier of the destination chain	
 	function xTransfer(uint32 destChainId, address destAddress, uint256 amount) external returns (bool) {
-		// Burn the token of the caller
-		this.burn(amount);
+	    // Burn the token of the caller
+	    this.burn(amount);
 			
-		// Write a message to the Mailbox to notify the other chain that the token have been successfully burnt.
+	    // Write a message to the Mailbox to notify the other chain that the token have been successfully burnt.
 		bytes memory payload = abi.encodePacked(amount, destAddress); // Specify the amount to be minted and the recipient
 		mailbox.send(
 			Mailbox.Metadata(mailbox.chain_id(), destChainId, bytes32(address(this)), bytes32(xChainTokenAddress[destChainId]), mailbox.randSessionId(), 0),
 				payload
-			);
+            );
 	}
 	
 	/// @notice This function must be called on the destination chain to mint the tokens. This function can be called by any participant.
