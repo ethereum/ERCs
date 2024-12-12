@@ -1,59 +1,123 @@
-/// ERC20 token contract supporting cross-chain transfers
-contract XChainToken is ERC20Burnable {
-    /// @notice points to the Mailbox contract used
-    Mailbox public mailbox;
-    /// @notice bitmap for redeem-once control on inbox messages
-    mapping(bytes32 => bool) private isRedeemed;
-    /// @notice maps chainId to the canonical XChainToken address
-    mapping(uint32 => address) public xChainTokenAddress;
+/// @title Mailbox contract implementation for synchronous communication
+contract Mailbox {
+    // ... Constructor + other simple functions like chain_id().
 
-    /// @notice use this function to transfer some amount of this token to another address on another chain
-    /// @param destAddress receiver address
-    /// @param amount amount to transfer
-    /// @param destChainId identifier of the destination chain
-    function xTransfer(
+    /// @notice nested map: blockNum -> metadataDigest -> payload
+    /// @dev Easy cleanup by `delete inbox[block.number -1]`
+    mapping(uint256 => mapping(bytes32 => bytes)) inbox;
+    // Mapping to detect key collisions: metadataDigest -> writtenFlag
+    mapping(bytes32 => bool) outboxNullifier;
+
+    // These hash values are computed incrementally.
+    /// @notice Nested map: blockNum -> srcChainId -> H(...H(m_2 | H(m_1))..)
+    /// @dev Easy cleanup by `delete inboxDigest[block.number -1]`
+    mapping(uint256 => mapping(uint32 => bytes32)) inboxDigest;
+    /// @notice Nested map: blockNum -> destChainId -> H(...H(m_2 | H(m_1))..)
+    /// @dev Easy cleanup by `delete outboxDigest[block.number -1]`
+    mapping(uint256 => mapping(uint32 => bytes32)) outboxDigest;
+
+    /// @dev Given the metadata (Message struct without payload field) of a message, derive the digest used as the dictionary key for inbox/outbox.
+    function getMetadataDigest(
+        uint32 srcChainId,
+        uint32 destChainId,
+        address srcAddress,
+        address destAddress,
+        uint256 uid
+    ) pure public returns (bytes32) {
+        return
+            keccak(
+                abi.encodePacked(
+                    srcChainId,
+                    destChainId,
+                    srcAddress,
+                    destAddress,
+                    uid
+                )
+            );
+    }
+
+    /// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
+    function _resetMailbox() private {
+        delete inbox[block.number - 1];
+        delete inboxDigest[block.number - 1];
+        delete outboxDigest[block.number - 1];
+    }
+
+    /// @notice Send a message to another chain
+    function send(
         uint32 destChainId,
         address destAddress,
-        uint256 amount
-    ) external returns (bool) {
-        // Burn the token of the caller
-        this.burn(amount);
+        uint256 uid,
+        bytes memory payload
+    ) public {
+        bytes32 key = getMetadataDigest(
+            this.chain_id(),
+            destChainId,
+            bytes32(srcAddress),
+            bytes32(msg.sender),
+            uid
+        );
 
-        // Write a message to the Mailbox to notify the other chain that the token have been successfully burnt.
-        bytes memory payload = abi.encodePacked(amount, destAddress); // Specify the amount to be minted and the recipient
-        mailbox.send(
-            Mailbox.Metadata(
-                mailbox.chain_id(),
-                destChainId,
-                bytes32(address(this)),
-                bytes32(xChainTokenAddress[destChainId]),
-                mailbox.randSessionId(),
-                0
-            ),
-            payload
+        // Prevent overwriting the same key
+        require(!outboxNullifier[key]);
+        outboxNullifier[key] = true;
+
+        // Update the outbox digest
+        // digest' = H(digest | metadata | payload)
+        outboxDigest[block.number][this.chain_id()] = keccak256(
+            abi.encodePacked(
+                outboxDigest[block.number][this.chain_id()],
+                key,
+                m.payload
+            )
         );
     }
 
-    /// @notice This function must be called on the destination chain to mint the tokens. This function can be called by any participant.
-    /// @param srcChainId identifier of the source chain the funds are sent from
-    ///	@param sessionId unique identifier needed to fetch the message
-    function xReceive(uint32 srcChainId, uint128 sessionId) public {
-        /// Analoguous to crossTransfer except that this function can only be called once with the same parameters
-        /// in order to avoid double minting. A mapping struct like isRedeemed can be used for this purpose.
-        bytes memory payload = mailbox.recv(
-            Mailbox.Metadata(
-                srcChainId,
-                mailbox.chain_id(),
-                bytes32(xChainTokenAddress[srcChainId]),
-                bytes32(address(this)),
-                sessionId,
-                0
-            )
+    /// @dev This function is called by the Coordinator. It can only be called once per block
+    function populateInbox(Message[] calldata messages, bytes memory aux) public {
+        // Before putting new inbox messages at the beginning of each block, "reset" the inbox/outbox
+        _resetMailbox();
+
+        for (uint i = 0; i < messages.length; i++) {
+            Message memory m = messages[i];
+            // Reject if the message was not sent to this chain
+            require(m.destChainId == this.chain_id());
+
+            bytes32 key = getMetadataDigest(
+                m.srcChainid,
+                m.srcAddr,
+                this.chain_id(),
+                m.destAddr,
+                m.uid
+            );
+            inbox[key] = m.payload;
+
+            // Update the inbox digest
+            // digest' = H(digest | metadata | payload)
+            inboxDigest[block.number][m.srcChainId] = keccak256(
+                abi.encodePacked(
+                    inboxDigest[block.number][m.srcChainId],
+                    key,
+                    m.payload
+                )
+            );
+        }
+    }
+
+    /// @notice Receive a message from another chain
+    function recv(
+        uint32 srcChainId,
+        address srcAddress,
+        address destAddress,
+        uint256 uid
+    ) public returns (bytes32) {
+        bytes32 key = getMetadataDigest(
+            srcChainId,
+            this.chain_id(),
+            bytes32(srcAddress),
+            bytes32(destAddress),
+            uid
         );
-        (uint256 amount, address destAddress) = abi.decode(
-            payload,
-            (uint256, address)
-        );
-        this.transfer(destAddress, amount);
+        return inbox[block.number][key];
     }
 }
