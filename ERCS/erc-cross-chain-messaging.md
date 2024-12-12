@@ -45,7 +45,7 @@ All messages MUST follow this format:
 /// @title Metadata type
 /// @notice Metadata for a cross-chain message
 struct Metadata {
-	/// @notice The chain identifier of the source chain
+    /// @notice The chain identifier of the source chain
     uint32 srcChainId,
     /// @notice The chain identifier of the destination chain
     uint32 destChainId,
@@ -84,8 +84,7 @@ Each chain SHOULD have **two canonical Mailbox contracts, one for synchronous an
 
 ```solidity
 /// @title Mailbox contract.
-/// @notice Mailbox for sending (resp. receiving) messages to (resp. from) other chains, standardized for 
-///         messaging protocols that support synchronous or asynchronous, or both types of message passing.
+/// @notice Mailbox for sending (resp. receiving) messages to (resp. from) other chains, standardized for messaging protocols that support synchronous or asynchronous, or both types of message passing.
 contract Mailbox {
     /// @notice Inbox: a key-value map, mapping: metadata digest -> payload
     mapping(bytes32 => bytes) inbox;
@@ -107,8 +106,8 @@ contract Mailbox {
     /// @return Digest of all outbox messages directed at `destChainId`
     function outboxDigest(uint32 destChainId) returns (bytes32);
 
-		/// @notice Returns the "key" in inbox/outbox map for a message according to its metadata 
-		/// @dev The metadata includes all fields in the `Metadata` struct.
+	/// @notice Returns the "key" in inbox/outbox map for a message according to its metadata 
+	/// @dev The metadata includes all fields in the `Metadata` struct.
     function getMetadataDigest(Metadata calldata metadata) pure returns (bytes32);
 
     /// @notice Send a message to another chain
@@ -118,11 +117,11 @@ contract Mailbox {
     /// @dev SHOULD update the outbox digest and/or the outbox
     function send(Metadata calldata metadata, bytes memory payload) public;
   
-	  /// @notice Receive a message from another chain
-	  /// @dev SHOULD revert if message cannot be retrieved
-	  /// @dev SHOULD sanity check `metadata.destChainId == this.chain_id()`
-	  /// @param metadata Metadata of the message
-	  /// @return payload of the retrieved message
+	/// @notice Receive a message from another chain
+	/// @dev SHOULD revert if message cannot be retrieved
+	/// @dev SHOULD sanity check `metadata.destChainId == this.chain_id()`
+	/// @param metadata Metadata of the message
+	/// @return payload of the retrieved message
     function recv(Metadata calldata metadata) public returns (bytes memory payload);
     
     /// @notice Populate the inbox with incoming messages
@@ -134,8 +133,8 @@ contract Mailbox {
     /// @notice Generates a fresh and random sessionId for new messages
     /// @dev In order to ensure the uniqueness of the value generated, this function MIGHT require using a contract variable
     /// @dev With this unique session ID, for messages that do not require a nonce, we can set nonce=0, and the overall metadata digest is still collision-free with high probability 
-	  /// @return A unique sessionId
-		function randSessionId() returns (uint128);
+	/// @return A unique sessionId
+	function randSessionId() returns (uint128);
 ```
 
 The `Mailbox` contract SHOULD keep track of an *inbox* of incoming messages. The concrete data structure used to store the `inbox` queue SHOULD be a hash-map-like `mapping` in Solidity to enable efficient lookup by the dApps with payload-independent query keys. Being able to read/receive messages based on their metadata only, rather than their actual payload, is critical in achieving synchronous messaging with a dynamic payload known only at runtime. It is OPTIONAL to track the full outbox messages in the contract storage — an outbox digest may be sufficient for some cases.
@@ -224,15 +223,15 @@ contract Mailbox {
 		
     /// @dev Given the metadata (Message struct without payload field) of a message, derive the digest used as the dictionary key for inbox/outbox.
     function getMetadataDigest(uint32 srcChainId, uint32 destChainId, address srcAddress, address destAddress, uint256 uid) pure returns (bytes32) {
-				return keccak(abi.encodePacked(srcChainId, destChainId, srcAddress, destAddress, uid)); 
+	return keccak(abi.encodePacked(srcChainId, destChainId, srcAddress, destAddress, uid)); 
     }
 
-		/// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
-		function _resetMailbox() private {
-				delete inbox[block.number - 1];
-				delete inboxDigest[block.number - 1];
-				delete outboxDigest[block.number - 1];	
-		}
+	/// @notice Conceptual "cleanup/reset" of mailbox after each block since sync msgs are received immediately.
+	function _resetMailbox() private {
+		delete inbox[block.number - 1];
+		delete inboxDigest[block.number - 1];
+		delete outboxDigest[block.number - 1];	
+	}
 
     /// @notice Send a message to another chain
     function send(uint32 destChainId, address destAddress, uint256 uid, bytes memory payload) public {
@@ -251,7 +250,7 @@ contract Mailbox {
     
     /// @dev This function is called by the Coordinator. It can only be called once per block
     function populateInbox(Message[] calldata messages, bytes memory aux) {
-			   // Before putting new inbox messages at the beginning of each block, "reset" the inbox/outbox
+	    // Before putting new inbox messages at the beginning of each block, "reset" the inbox/outbox
 	       _resetMailbox();
 
         for (uint i=0;i<messages.length;i++){
@@ -302,13 +301,13 @@ contract XChainToken is ERC20Burnable {
 	/// @param amount amount to transfer
 	/// @param destChainId identifier of the destination chain	
 	function xTransfer(uint32 destChainId, address destAddress, uint256 amount) external returns (bool) {
-			// Burn the token of the caller
-			this.burn(amount);
+		// Burn the token of the caller
+		this.burn(amount);
 			
-			// Write a message to the Mailbox to notify the other chain that the token have been successfully burnt.
-			bytes memory payload = abi.encodePacked(amount, destAddress); // Specify the amount to be minted and the recipient
-			mailbox.send(
-				Mailbox.Metadata(mailbox.chain_id(), destChainId, bytes32(address(this)), bytes32(xChainTokenAddress[destChainId]), mailbox.randSessionId(), 0),
+		// Write a message to the Mailbox to notify the other chain that the token have been successfully burnt.
+		bytes memory payload = abi.encodePacked(amount, destAddress); // Specify the amount to be minted and the recipient
+		mailbox.send(
+			Mailbox.Metadata(mailbox.chain_id(), destChainId, bytes32(address(this)), bytes32(xChainTokenAddress[destChainId]), mailbox.randSessionId(), 0),
 				payload
 			);
 	}
@@ -317,11 +316,11 @@ contract XChainToken is ERC20Burnable {
 	/// @param srcChainId identifier of the source chain the funds are sent from
 	///	@param sessionId unique identifier needed to fetch the message
 	function xReceive(uint32 srcChainId, uint128 sessionId){
-			/// Analoguous to crossTransfer except that this function can only be called once with the same parameters
-			/// in order to avoid double minting. A mapping struct like isRedeemed can be used for this purpose.
-			bytes memory payload = mailbox.recv(Mailbox.Metadata(srcChainId, mailbox.chain_id(), bytes32(xChainTokenAddress[srcChainId]), bytes32(address(this)), sessionId, 0));
-			(uint256 amount, address destAddress) = abi.decode(payload, (uint256, address));
-			this.transfer(destAddress, amount);
+		/// Analoguous to crossTransfer except that this function can only be called once with the same parameters
+		/// in order to avoid double minting. A mapping struct like isRedeemed can be used for this purpose.
+		bytes memory payload = mailbox.recv(Mailbox.Metadata(srcChainId, mailbox.chain_id(), bytes32(xChainTokenAddress[srcChainId]), bytes32(address(this)), sessionId, 0));
+		(uint256 amount, address destAddress) = abi.decode(payload, (uint256, address));
+		this.transfer(destAddress, amount);
 	}
 }
 ```
