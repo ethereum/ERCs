@@ -17,12 +17,12 @@ This ERC proposes a **mailbox API** and **message format** for sending and recei
 
 L2s have scaled Ethereum and unlocked new avenues for innovation, but left the ecosystem *fragmented*. To address this, there are a variety of cross-chain communication protocols designed to make L2s composable with each other, each implements its own message format that is incompatible with others. This ERC proposes a neutral, standard format for sending and receiving cross-chain messages. By standardizing the interface chains for messaging, we achieve:
 
-- **Unified developer experience:** This standard abstracts away the low-level details of message passing from applications.  This allows application developers to achieve the following, even among chains with different VMs, coordination protocols, or settlement logic:
+- **Unified developer experience:** This standard abstracts away the low-level details of message passing from applications. This allows application developers to achieve the following, even among chains with different VMs, coordination protocols, or settlement logic:
     - send/receive messages to/from many chains using the **same interface**.
     - deploy their application across multiple chains with **little-to-no** code changes.
     - focus on their application’s design instead of cross-chain infrastructure
-- **Modularity:**  This ERC standardizes only the low level information required for sending and receiving messages between chains, similar to the Internet Protocol. This allows a **clean separation** between the interface for sending/receiving messages (this ERC) and a coordination protocol or settlement mechanism.  This allows chains to adopt this standard with minimal changes, and gives chains **flexibility** to choose the specific protocols they need, instead of forcing all chains to agree on a single coordination protocol or settlement mechanism.
-- **Shared Infrastructure:** This standard allows applications and chains to **reuse/repurpose infrastructure** for different use cases.  Applications can leverage existing library contracts for common operations like encoding message payload for token transfer, while relayer networks can serve multiple purposes without significant modifications. This shared foundation simplifies the development and deployment of new chains, applications, and protocols.
+- **Modularity:**  This ERC standardizes only the low level information required for sending and receiving messages between chains, similar to the Internet Protocol. This allows a **clean separation** between the interface for sending/receiving messages (this ERC) and a coordination protocol or settlement mechanism. This allows chains to adopt this standard with minimal changes, and gives chains **flexibility** to choose the specific protocols they need, instead of forcing all chains to agree on a single coordination protocol or settlement mechanism.
+- **Shared Infrastructure:** This standard allows applications and chains to **reuse/repurpose infrastructure** for different use cases. Applications can leverage existing library contracts for common operations like encoding message payload for token transfer, while relayer networks can serve multiple purposes without significant modifications. This shared foundation simplifies the development and deployment of new chains, applications, and protocols.
 
 # Specification
 
@@ -31,7 +31,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ## Terminology
 
 - A **Messaging Protocol** consists of mailbox contracts and a coordination (sub)protocol. A chain sends a message through a transaction that writes to its outbox and receives a message through a transaction that reads from the inbox.
-- **Coordination Protocol**: A mechanism that relays messages between source and destination mailboxes, commonly through off-chain mechanisms.  Examples include shared sequencers or intent relayers.  A settlement mechanism to ensure the integrity of cross-chain messages is often part of a coordination protocol. It is not always required in the case of asynchronous messaging.
+- **Coordination Protocol**: A mechanism that relays messages between source and destination mailboxes, commonly through off-chain mechanisms. Examples include shared sequencers or intent relayers. A settlement mechanism to ensure the integrity of cross-chain messages is often part of a coordination protocol. It is not always required in the case of asynchronous messaging.
 - In ***synchronous*** messaging protocols, chains have synchronized blocks (e.g., a block for each chain is produced every *t* seconds) and messages are received on the destination chain within the same block timeslot as they were sent from the source chain. In particular, a chain may send a message and read a response in one transaction within a block on a chain.
 - In ***asynchronous*** messaging protocols the restrictions of synchronous protocols do not apply. In particular, the chains sending and receiving messages may not have synchronized block timeslots and there may be a delay (measured in elapsed blocks) between the transaction on the source chain that sends a message and the transaction on the destination chain in which it is received.
 
@@ -76,7 +76,7 @@ struct Message {
 }
 ```
 
-It is RECOMMENDED that there exists a global rollup registry service that supports registration, deregistration, and efficient lookup of a rollup's chain ID.  This work is outside the scope of this ERC, however.  To display the sender and receiver of a `Message`, wallets and frontends MAY use [ERC-3770](./erc-3770.md) for chain-specific addresses. 
+It is RECOMMENDED that there exists a global rollup registry service that supports registration, deregistration, and efficient lookup of a rollup's chain ID. This work is outside the scope of this ERC, however. To display the sender and receiver of a `Message`, wallets and frontends MAY use [ERC-3770](./erc-3770.md) for chain-specific addresses. 
 
 ## Mailbox APIs
 
@@ -163,7 +163,7 @@ On the receiving side, EVM chains would type cast `address(parsedAddress)` on th
 
 ### Arbitrary message payload
 
-The `Message.payload` field is designed for maximum flexibility, capable of encoding arbitrary data, including application-specific structures like the `CrossChainOrder` from [ERC-7683](./erc-7683.md) (See *Example Usage* section below for details of this integration). In contrast to some existing bridge designs that restrict the payload to function calls, the message payload in our design can also represent simpler data types, such as a boolean status flag for acknowledgments.  This flexibility enables a wider range of use cases and simplifies integration across various applications.
+The `Message.payload` field is designed for maximum flexibility, capable of encoding arbitrary data, including application-specific structures like the `CrossChainOrder` from [ERC-7683](./erc-7683.md) (See *Example Usage* section below for details of this integration). In contrast to some existing bridge designs that restrict the payload to function calls, the message payload in our design can also represent simpler data types, such as a boolean status flag for acknowledgments. This flexibility enables a wider range of use cases and simplifies integration across various applications.
 
 ### Use Metadata Digest Instead of `sessionId` for Message Query Key
 
@@ -192,7 +192,7 @@ As mentioned above, pre-filling the inbox of the destination chain incurs additi
 
 ## Related Proposals
 
-In comparison to IBC-like standards, this ERC is designed to work in a *stateless* manner.  Messages do not need to pass a proof from the source chain at the time they are consumed on the destination chain.  This allows use cases such as synchronous composability and intra-block messaging since messages don’t need to include finalized state from the source chain.  Additionally, this ERC does not require multiple steps to establish a link between two chains.  Messages can be directly sent from one chain to another in a single step.  
+In comparison to IBC-like standards, this ERC is designed to work in a *stateless* manner. Messages do not need to pass a proof from the source chain at the time they are consumed on the destination chain. This allows use cases such as synchronous composability and intra-block messaging since messages don’t need to include finalized state from the source chain. Additionally, this ERC does not require multiple steps to establish a link between two chains. Messages can be directly sent from one chain to another in a single step. 
 
 [ERC-7683](./erc-7683.md) standardizes intent-based systems by defining structs for orders and interfaces for settlement smart contracts. This standard is application-specific and aimed at designers of cross-chain intent systems, while our proposal is more general and targets developers implementing arbitrary cross-chain applications. However, an intent system based on ERC-7683 **can be built on top** of our standard due to its modularity. An application implementing ERC-7683 could use the `Mailbox` API defined in this proposal to send `originData` from event messages between the source chain (where user funds are deposited) and the destination chain(s) (where intents are solved). We provide more details in the *Example Usage* section.
 
