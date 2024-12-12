@@ -208,7 +208,7 @@ The high-level flow is as follows:
 - Prefill the inbox by inserting the messages sequentially in the same order as the outbox in the source chain. Each insertion updates the corresponding inbox digest.
 - Applications can then read a message by querying the key-value map inbox with the (hashed) message metadata.
 - External to these transactions, the settlement layer will receive new inbox digest and outbox digest (with storage proofs against a proven new rollup state) and checks `chain_i.inboxDigest[chain_j] == chain_j.outboxDigest[chain_i]` for all `i!=j`
-    - note: we ignore the slight complication of mailbox reset at the beginning of each block using nested mapping in our description above for brevity, but they are dealt with in our code snippet below.
+    - Note: We ignore the slight complication of mailbox reset at the beginning of each block using nested mapping in our description above for brevity, but they are dealt with in our code snippet below.
 
 ```solidity
 /// @title Mailbox contract implementation for synchronous communication
