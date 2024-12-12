@@ -20,7 +20,7 @@ L2s have scaled Ethereum and unlocked new avenues for innovation, but left the e
 - **Unified developer experience:** This standard abstracts away the low-level details of message passing from applications. This allows application developers to achieve the following, even among chains with different VMs, coordination protocols, or settlement logic:
     - send/receive messages to/from many chains using the **same interface**.
     - deploy their application across multiple chains with **little-to-no** code changes.
-    - focus on their application’s design instead of cross-chain infrastructure
+    - focus on their application’s design instead of cross-chain infrastructure.
 - **Modularity:**  This ERC standardizes only the low level information required for sending and receiving messages between chains, similar to the Internet Protocol. This allows a **clean separation** between the interface for sending/receiving messages (this ERC) and a coordination protocol or settlement mechanism. This allows chains to adopt this standard with minimal changes, and gives chains **flexibility** to choose the specific protocols they need, instead of forcing all chains to agree on a single coordination protocol or settlement mechanism.
 - **Shared Infrastructure:** This standard allows applications and chains to **reuse/repurpose infrastructure** for different use cases. Applications can leverage existing library contracts for common operations like encoding message payload for token transfer, while relayer networks can serve multiple purposes without significant modifications. This shared foundation simplifies the development and deployment of new chains, applications, and protocols.
 
@@ -92,7 +92,7 @@ Each chain SHOULD have **two canonical Mailbox contracts, one for synchronous an
 /// @notice Mailbox for sending (resp. receiving) messages to (resp. from) 
 ///     other chains, standardized for messaging protocols that support 
 ///     synchronous or asynchronous, or both types of message passing.
-contract Mailbox {
+abstract contract Mailbox {
     /// @notice Inbox: a key-value map, mapping: metadata digest -> payload
     mapping(bytes32 => bytes) inbox;
 
@@ -100,7 +100,7 @@ contract Mailbox {
     /// @dev SHOULD be set at the deployment time as immutable except for when 
     ///     using an upgradable Mailbox since immutable variables are discouraged.
     /// @dev MUST NOT change regardless of upgradable contracts or not.
-    function chain_id() public view returns (uint32);
+    function chain_id() virtual public view returns (uint32);
 
     /// @notice Returns the digest of the inbox, used for mailbox consistency 
     ///     checks
@@ -108,7 +108,7 @@ contract Mailbox {
     ///     logic that takes in every new inbox message and updates the digest
     /// @param srcChainId Identifier of the source chain
     /// @return Digest of all inbox messages coming from `srcChainId`
-    function inboxDigest(uint32 srcChainId) public returns (bytes32);
+    function inboxDigest(uint32 srcChainId) virtual public returns (bytes32);
 
     /// @notice Returns the digest of the outbox, used for mailbox consistency 
     ///     checks
@@ -123,7 +123,7 @@ contract Mailbox {
     /// @dev The metadata includes all fields in the `Metadata` struct.
     function getMetadataDigest(
         Metadata calldata metadata
-    ) public pure returns (bytes32);
+    ) virtual public pure returns (bytes32);
 
     /// @notice Send a message to another chain
     /// @param metadata Metadata of the message
@@ -131,7 +131,7 @@ contract Mailbox {
     /// @dev SHOULD sanity check `metadata.srcChainId == this.chain_id() && 
     ///     metadata.srcAddress == msg.sender`;
     /// @dev SHOULD update the outbox digest and/or the outbox
-    function send(Metadata calldata metadata, bytes memory payload) public;
+    function send(Metadata calldata metadata, bytes memory payload) virtual public;
 
     /// @notice Receive a message from another chain
     /// @dev SHOULD revert if message cannot be retrieved
@@ -140,7 +140,7 @@ contract Mailbox {
     /// @return payload of the retrieved message
     function recv(
         Metadata calldata metadata
-    ) public returns (bytes memory payload);
+    ) virtual public returns (bytes memory payload);
 
     /// @notice Populate the inbox with incoming messages
     /// @param messages Inbox messages to put in `this.inbox`
@@ -150,7 +150,7 @@ contract Mailbox {
     function populateInbox(
         Message[] calldata messages,
         bytes memory aux
-    ) public;
+    ) virtual public;
 
     /// @notice Generates a fresh and random sessionId for new messages
     /// @dev In order to ensure the uniqueness of the value generated, this 
@@ -159,7 +159,7 @@ contract Mailbox {
     ///     nonce, we can set nonce=0, and the overall metadata digest is still 
     ///     collision-free with high probability
     /// @return A unique sessionId
-    function randSessionId() public returns (uint128);
+    function randSessionId() virtual public returns (uint128);
 }
 ```
 
