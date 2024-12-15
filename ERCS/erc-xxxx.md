@@ -17,7 +17,7 @@
 
 While Diamond Storage and Proxy-Delegate patterns offer time-tested upgradeability solutions, they introduce clear constraints: bloated contract structures, rigid storage alignment requirements, and complex integrations for new logic that become increasingly cumbersome as project scope expands.  
 
-**Consolidated Dynamic Storage (CDS)** introduces a flexible, gas-efficient system that supports **post-deployment creation and extension** of both **mapped struct layouts** and their corresponding **segregated storage spaces**, enabling seamless storage evolution through a unified, centralized layer shared by pure contracts.
+**Consolidated Dynamic Storage (CDS)** introduces a flexible, gas-efficient system that supports **post-deployment creation and extension** of both **mapped struct layouts** and their corresponding **segregated storage spaces**, enabling seamless storage evolution through a unified, centralized layer shared by linked pure contracts.
 
 CDS achieves this by combining two core features:
 
