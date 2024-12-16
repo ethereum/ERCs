@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.7.0 <0.9.0;
 
 /// @title ERC-7765 Privileged Non-Fungible Tokens Tied To Real World Assets
