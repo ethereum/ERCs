@@ -2,6 +2,7 @@
 title: Wallet Connection API  
 description: Adds JSON-RPC method for requesting wallet connection with modular capabilities.  
 author: Conner Swenberg (@ilikesymmetry).
+discussions-to: TBD
 status: Draft
 type: Standards Track
 category: ERC
