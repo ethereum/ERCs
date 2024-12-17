@@ -2,12 +2,12 @@
 title: Wallet Connection API  
 description: Adds JSON-RPC method for requesting wallet connection with modular capabilities.  
 author: Conner Swenberg (@ilikesymmetry).
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-wallet-connection-api/22245
 status: Draft
 type: Standards Track
 category: ERC
 created: 2024-12-15
-requires: [ERC-1193](https://eips.ethereum.org/EIPS/eip-1193), [ERC-4361](https://eips.ethereum.org/EIPS/eip-4361), [ERC-5792](https://eips.ethereum.org/EIPS/eip-5792)  
+requires: [ERC-1193](https://eips.ethereum.org/EIPS/eip-1193), [ERC-4361](https://eips.ethereum.org/EIPS/eip-4361), [ERC-5792](https://eips.ethereum.org/EIPS/eip-5792)
 ---
 
 ## Abstract
@@ -26,14 +26,14 @@ Request the user to connect a single account to allow future RPC requests.
 
 #### RPC Specification
 
-Accepts an array of app-supported chains (hex-encoded [EIP-155](https://eips.ethereum.org/EIPS/eip-155) chain ids) to confirm which the wallet supports. Accepts capabilities and returns results for each under the same capability name. Capability names MUST be globally unique.
+Optionally accepts an array of chains (hex-encoded [EIP-155](https://eips.ethereum.org/EIPS/eip-155) chain ids) the app would like to confirm that the wallet supports. Accepts capabilities and returns results for each under the same capability name. Capability names MUST be globally unique.
 
-Only a single `account` and `capabilityResults` are returned on connection. The account includes an `address` field and a `supportedChains` field with the same schema as a [ERC-5792 `wallet_getCapabilities`](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) result. For each chain requested by the app, wallets MUST return a mapped capabilities object if the chain is supported and SHOULD use the empty object if no capabilities exist. Wallets MUST NOT return mapped capabilities objects for chains they do not support.
+Only a single `account` and `capabilityResults` are returned on connection. The account includes an `address` field and a `supportedChainsAndCapabilities` field with the same schema as a [ERC-5792 `wallet_getCapabilities`](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) result. For each chain requested by the app, wallets MUST return a mapped capabilities object if the chain is supported and SHOULD use the empty object if no capabilities exist. Wallets MUST NOT return mapped capabilities objects for chains they do not support.
 
 ```
 type WalletConnectParams = [{
   version: string;
-  chains: `0x${string}`[];
+  chains?: `0x${string}`[];
   capabilities?: Record<string,any>;
 }]
 
@@ -66,7 +66,7 @@ type WalletConnectResult = {
 {
   "account": {
     "address": "0x...",
-    "supportedChains": {
+    "supportedChainsAndCapabilities": {
       "0x1": {},
       "0x2105": {
         "atomicBatch": {
@@ -123,7 +123,6 @@ type SignInWithEthereumCapabilityResult = {
   "domain": "app.com",
   "uri": "https://app.com/connect",
   "version": "1",
-  "chainId": "8453",
   "nonce": "12345678",
   "issuedAt": "2024-12-35T04:20:00Z",
   "expirationTime": "2024-12-35T06:09:00Z"
