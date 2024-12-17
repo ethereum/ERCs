@@ -12,37 +12,35 @@ requires: [ERC-1193](https://eips.ethereum.org/EIPS/eip-1193), [ERC-4361](https:
 
 ## Abstract
 
-This proposal defines a new RPC for wallet connection with an emphasis on extensibility. Builds on the notion of optional “capabilities” defined in [ERC-5792](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) to add new functionality modularly. This proposal defines one capability to reduce separate interactions for connection and authentication, but otherwise seeks to leave capability definitions open-ended.
+This ERC introduces a new wallet connection RPC method focused on extensibility. It leverages the modular capabilities approach defined in [ERC-5792](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) to streamline connections and authentication into a single interaction. 
 
 ## Motivation
 
-As user experience expectations increase, apps demand more sophisticated options for interacting with wallets. The existing standard for wallet connection, `eth_requestAccounts`, does enable any degree of extensibility. The existing standard for wallet authentication, Sign In With Ethereum ([ERC-4361](https://eips.ethereum.org/EIPS/eip-4361)), is built on a different RPC method, `personal_sign`, which also does not enable any degree of extensibility. Together, logging in to an onchain app often requires two requests which is more complicated for both users and developers. Defining a new RPC for wallet connection creates an opportunity to immediately improve the current app experience and enable forwards compatibility for increasing sophistication.
+Current standards like `eth_requestAccounts` and `personal_sign` lack extensibility and require separate interactions for connection and authentication. This results in added complexity for both users and developers. A unified and extensible RPC can enhance user experience, simplify development, and prepare for increasing sophistication in wallet interactions.
 
 ## Specification
 
 ### `wallet_connect`
 
-Request the user to connect a single account to allow future RPC requests.
+Request the user to connect a single account and optionally confirm chain support and add capabilities.
 
 #### RPC Specification
 
-Optionally accepts an array of chains (hex-encoded [EIP-155](https://eips.ethereum.org/EIPS/eip-155) chain ids) the app would like to confirm that the wallet supports. Optionally accepts capabilities and returns results for each under the same capability name. Capability names MUST be globally unique.
-
-Only a single `account` and `capabilityResults` are returned on connection. The account includes an `address` field and a `supportedChainsAndCapabilities` field with the same schema as a [ERC-5792 `wallet_getCapabilities`](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) result. For each chain requested by the app, wallets MUST return a mapped capabilities object if the chain is supported and SHOULD use the empty object if no capabilities exist. Wallets MUST NOT return mapped capabilities objects for chains they do not support.
+For each chain requested by the app, wallets MUST return a mapped capabilities object if the chain is supported and SHOULD return an empty object if no capabilities exist. Wallets MUST NOT return mapped capabilities objects for chains they do not support. If an app does not declare chains they would like to confirm support for, the wallet can return any chains it wishes to declare support for.
 
 ```typescript
 type WalletConnectParams = [{
   version: string;
-  chains?: `0x${string}`[];
-  capabilities?: Record<string,any>;
+  chains?: `0x${string}`[]; // optional chain IDs (EIP-155 hex)
+  capabilities?: Record<string,any>; // optional connection capabilities
 }]
 
 type WalletConnectResult = {
   account: {
-    address: `0x${string}`;
-    supportedChainsAndCapabilities: Record<`0x${string}`,any>;
+    address: `0x${string}`; // connected account address
+    supportedChainsAndCapabilities: Record<`0x${string}`,any>; // chain-specific capabilities, mirrors ERC-5792 wallet_getCapabilities
   },
-  capabilityResults: Record<string,any>;
+  capabilityResults: Record<string,any>; // results of this connection request's connection capabilities
 }
 ```
 
@@ -86,7 +84,7 @@ type WalletConnectResult = {
 
 ### `signInWithEthereum` Capability
 
-Request the user to sign an [ERC-4361](https://eips.ethereum.org/EIPS/eip-4361) Sign In WIth Ethereum message on connection.
+Adds authentication using the [ERC-4361](https://eips.ethereum.org/EIPS/eip-4361) Sign In WIth Ethereum standard.
 
 #### Capability Specification
 
@@ -114,8 +112,8 @@ type SignInWithEthereumCapabilityParams = {
 }
 
 type SignInWithEthereumCapabilityResult = {
-  message: string,
-  signature: `0x${string}`
+  message: string, // formatted SIWE message
+  signature: `0x${string}` // signed over EIP-191 hash of `message`
 }
 ```
 
@@ -145,33 +143,37 @@ type SignInWithEthereumCapabilityResult = {
 
 ### Chain Specificity
 
-Account Abstraction has made chain-specific patterns common for accounts and if that initiative is to succeed, we should design for chain-specificity by default. While returning an array of supported chains would be simplest, the dictionary schema of ERC-5792’s `wallet_getCapabilities` allows for richer expression of an accounts capabilities. By returning which chains an account supports, apps are better prepared to conditionally render their experience and consider sending follow up requests like `wallet_addEthereumChain` ([ERC-3085](https://eips.ethereum.org/EIPS/eip-3085)) to fill in the gaps.
+Account Abstraction has introduced patterns where accounts operate differently depending on the chain. Designing for chain-specificity by default ensures this proposal aligns with modern wallet and app interactions. While it might seem simpler to return an array of supported chains, adopting the dictionary schema from [ERC-5792’s `wallet_getCapabilities`](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) provides a more expressive structure. This allows wallets to communicate richer, chain-specific capabilities to apps. By returning a map of supported chains and their respective capabilities, apps can conditionally adjust user experiences and determine if follow-up requests, such as `wallet_addEthereumChain` ([ERC-3085](https://eips.ethereum.org/EIPS/eip-3085)), are necessary to fill in gaps for unsupported chains.
 
 ### Capability Results
 
-Enabling capabilities to return data unlocks many use cases such as authentication, user information, and indicating existence of additional accounts. Each connection capability definition MUST include both its expected parameters and expected results. To maximize the potential and clarity of capability results, constraining the account return to a single address was chosen.
+Returning capability results alongside the connection unlocks many valuable use cases, such as authentication, user metadata sharing, or indicating additional accounts' existence. To ensure clarity and maximize potential use cases, this proposal constrains the account return to a single address while allowing modular capability results.
+
+For example, a capability requiring a user signature (e.g., for authentication) cannot reasonably scale to multiple accounts without encouraging app behavior that defaults back to treating the first account as the primary one. Instead, this design encourages apps needing multiple accounts to define additional capabilities for account discovery, ensuring modularity and forward compatibility.
 
 ### Single Account
 
-Most apps have been built on `eth_requestAccounts` and may find its chain-agnostic address array return the most intuitive. In practice, even if multiple accounts are returned by `eth_requestAccounts`, the supermajority of apps only engage with the first in the array anyways. This implies the most intuitive app developer experience is to operate with one account at a time, especially with the presence of capability results.
+While `eth_requestAccounts` technically supports returning an array of addresses, in practice, most apps only interact with the first account in the array. The supermajority of existing apps assume a single connected account, so this proposal aligns with that reality for simplicity and intuitiveness.
 
-For example, a capability that requires a signature (e.g. authenticating) is not scalable for a multi-account return and would encourage antipatterns that converge back to treating the 0-th index account as the only one that matters again. Instead, we encourage apps that desire multiple unique-address accounts in connection to propose a new capability that allows for the discovery of additional accounts (not included in the scope of this ERC).
+By constraining the account return to a single address, this ERC simplifies developer experience while still supporting richer capability results. Apps that require multiple accounts for specific functionality are encouraged to propose new capabilities rather than overloading the wallet connection process.
 
 ### Initial Authentication Capability
 
-To make this proposal immediately valuable for apps, providing a means to unify connection and authentication steps was included for the most popular method: Sign In With Ethereum. This implementation is optional and others are invited to define alternative authentication capabilities.
+To ensure immediate value, this proposal includes a capability that combines wallet connection with authentication using the widely adopted [Sign In With Ethereum (ERC-4361)](https://eips.ethereum.org/EIPS/eip-4361) standard. This optional capability simplifies the onboarding process for apps and users by combining two steps — connection and authentication — into a single interaction. Apps that prefer alternative authentication flows can implement their own capabilities without being constrained by this design.
+
+By unifying connection and authentication into one step, apps can reduce friction, improve the user experience, and minimize redundant interactions.
 
 ## Backwards Compatibility
 
-Wallets can still support existing RPCs for wallet connection and authentication. This standard builds on existing primitives for wallet-to-app communication such as ERC-5792 capabilities.
+This standard builds on existing RPCs and complements ERC-5792 for future extensibility. Wallets can continue supporting legacy methods.
 
 ## Security Considerations
 
-[ERC-4361’s security considerations](https://eips.ethereum.org/EIPS/eip-4361#security-considerations) are all relevant to the continued use of Sign In With Ethereum as an authentication mechanism and wallet connection generally. As more capabilities get added on top of this foundation, the risk of unpredictable coupling effects between them increases.
+Applies [ERC-4361 security principles](https://eips.ethereum.org/EIPS/eip-4361#security-considerations). As more capabilities are added, care must be taken to avoid unpredictable interactions.
 
 ## Privacy Considerations
 
-Existing considerations around the privacy considerations of revealing wallet addresses to apps are still relevant. Especially considering the probable addition of capabilities to share personal information, it is critical to consider how data is passed between wallet and app and address man-in-the-middle attacks.
+Wallet addresses and any shared capabilities must be handled securely to avoid data leaks or man-in-the-middle attacks.
 
 ## Copyright
 
