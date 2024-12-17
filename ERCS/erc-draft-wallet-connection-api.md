@@ -26,11 +26,11 @@ Request the user to connect a single account to allow future RPC requests.
 
 #### RPC Specification
 
-Optionally accepts an array of chains (hex-encoded [EIP-155](https://eips.ethereum.org/EIPS/eip-155) chain ids) the app would like to confirm that the wallet supports. Accepts capabilities and returns results for each under the same capability name. Capability names MUST be globally unique.
+Optionally accepts an array of chains (hex-encoded [EIP-155](https://eips.ethereum.org/EIPS/eip-155) chain ids) the app would like to confirm that the wallet supports. Optionally accepts capabilities and returns results for each under the same capability name. Capability names MUST be globally unique.
 
 Only a single `account` and `capabilityResults` are returned on connection. The account includes an `address` field and a `supportedChainsAndCapabilities` field with the same schema as a [ERC-5792 `wallet_getCapabilities`](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) result. For each chain requested by the app, wallets MUST return a mapped capabilities object if the chain is supported and SHOULD use the empty object if no capabilities exist. Wallets MUST NOT return mapped capabilities objects for chains they do not support.
 
-```
+```typescript
 type WalletConnectParams = [{
   version: string;
   chains?: `0x${string}`[];
@@ -40,7 +40,7 @@ type WalletConnectParams = [{
 type WalletConnectResult = {
   account: {
     address: `0x${string}`;
-    supportedChains: Record<`0x${string}`,any>;
+    supportedChainsAndCapabilities: Record<`0x${string}`,any>;
   },
   capabilityResults: Record<string,any>;
 }
@@ -48,7 +48,7 @@ type WalletConnectResult = {
 
 #### Example Parameters
 
-```
+```json
 [{
   "version": "1",
   "chains": ["0x1", "0x2105"],
@@ -62,7 +62,7 @@ type WalletConnectResult = {
 
 #### Example Result
 
-```
+```json
 {
   "account": {
     "address": "0x...",
@@ -90,11 +90,14 @@ Request the user to sign an [ERC-4361](https://eips.ethereum.org/EIPS/eip-4361) 
 
 #### Capability Specification
 
-Same as ERC-4361 specification with minor modifications. The chain id is optional and if not provided, the wallet SHOULD use the earliest supported chain available from the requested array. The casing of multi-word fields has been adjusted to mixedCase instead of hyphen-case. Resources are an array field. The account address returned by `wallet_connect` MUST be the same address that is auto-inserted into the SIWE message.
+Same as ERC-4361 specification with minor modifications: 
+* The chain id is optional and if not provided, the wallet SHOULD use the earliest supported chain available from the requested array. 
+* The casing of multi-word fields has been adjusted to mixedCase instead of hyphen-case. Resources are an array field. 
+* The account address returned by `wallet_connect` MUST be the same address that is auto-inserted into the SIWE message.
 
 The wallet MUST return a properly formatted ERC-4361 message that exactly matches the requested parameters and a signature over the EIP-191 hash of the message. The app SHOULD also verify that the two match for security.
 
-```
+```typescript
 type SignInWithEthereumCapabilityParams = {
   scheme?: string,
   domain: string,
@@ -118,7 +121,7 @@ type SignInWithEthereumCapabilityResult = {
 
 #### Example Parameters
 
-```
+```json
 {
   "domain": "app.com",
   "uri": "https://app.com/connect",
@@ -131,7 +134,7 @@ type SignInWithEthereumCapabilityResult = {
 
 #### Example Result
 
-```
+```json
 {
   "message": "app.com wants you to sign in with your Ethereum account:\n0x...",
   "signature": "0x..."
