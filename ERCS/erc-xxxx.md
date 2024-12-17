@@ -9,7 +9,7 @@
 **Type:** Standards Track  
 **Created:** 2024-13-12  
 **Requires:** None  
-**Discussions-To:** [Ethereum Magicians](https://ethereum-magicians.org/t/erc-xxxx-consolidated-dynamic-storage-cds-new-approach-to-post-deployment-upgradeability/22217/5)
+discussions-to: https://ethereum-magicians.org/t/erc-7844-consolidated-dynamic-storage-cds/22217
 
 ---
 
