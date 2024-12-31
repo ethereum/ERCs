@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 7854
 title: Verification-independent Cross-Chain Messaging
 description: An Verification-independent API for contracts to send and receive cross-chain messages containing arbitrary data.
 author: Yorke Rhodes (@yorhodes), Nam Chu Hoai (@nambrot)
