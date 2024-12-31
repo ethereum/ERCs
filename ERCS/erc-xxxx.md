@@ -3,7 +3,7 @@ eip: XXXX
 title: Verification-independent Cross-Chain Messaging Standard
 description: An Verification-independent API for contracts to send and receive cross-chain messages containing arbitrary data.
 author: Yorke Rhodes (@yorhodes), Nam Chu Hoai (@nambrot)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-verification-independent-cross-chain-messaging-standard/22369
+discussions-to: https://ethereum-magicians.org/t/erc-7854-verification-independent-cross-chain-messaging/22369
 status: Draft
 type: Standards Track
 category: ERC
