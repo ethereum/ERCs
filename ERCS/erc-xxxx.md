@@ -2,7 +2,7 @@
 title: Chain-Specific Payment Requests
 description: A standardized URI scheme for payment requests that enables users to specify transactions of the form "send me X tokens of type Y on chain Z".
 author: Jack Chuma (@jackchuma)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/add-erc-chain-specific-payment-requests/22379
 status: Draft
 type: Standards Track
 category: ERC
