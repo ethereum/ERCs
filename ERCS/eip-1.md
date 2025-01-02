@@ -7,7 +7,7 @@ author: Martin Becze <mb@ethereum.org>, Hudson Jameson <hudson@ethereum.org>, et
 created: 2015-10-27
 ---
 
-### **What is an ERC?**
+### What is an ERC?
 
 ERC stands for Ethereum Request for Comment. An ERC is a design document providing information to the Ethereum community or proposing a new standard for application-level protocols, interfaces, or conventions within the Ethereum ecosystem. The ERC should include a concise technical specification of the standard and a rationale for its adoption.
 
