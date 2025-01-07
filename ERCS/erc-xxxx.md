@@ -13,11 +13,11 @@ requires: 165
 
 ## Abstract
 
-Introduces an extension for [ERC-721](./eip-721.md) Non-Fungible Tokens (NFTs) and Soulbound Tokens (SBTs), Through this extension, tokens have a predetermined validity period, after which they become invalid and cannot be used in the smart contract that checks their validity. This functionality is essential for various applications where token expiration is necessary such as access and authentication, contracts, governance, licenses, and policies.
+Introduces an extension for [ERC-721](./eip-721.md), [ERC-1155](./eip-1155.md) Non-Fungible Tokens (NFTs) and Soulbound Tokens (SBTs), Through this extension, tokens have a predetermined validity period, after which they become invalid and cannot be used in the smart contract that checks their validity. This functionality is essential for various applications where token expiration is necessary such as access and authentication, contracts, governance, licenses, and policies.
 
 ## Motivation
 
-Introduces an extension for [ERC-721](./eip-721.md) Non-Fungible Tokens (NFTs) and Soulbound Tokens (SBTs), which facilitates the implementation of an expiration mechanism.
+Introduces an extension for [ERC-721](./eip-721.md), [ERC-1155](./eip-1155.md) Non-Fungible Tokens (NFTs) and Soulbound Tokens (SBTs), which facilitates the implementation of an expiration mechanism.
 
 Use cases include:
 
@@ -56,11 +56,27 @@ pragma solidity >=0.8.0 <0.9.0;
 import "IERC5007.sol";
 
 interface IERC5007Ext is IERC5007 /** IERC721 or IERC1155 */ {
+
     enum EXPIRY_TYPE {
         BLOCK_BASED, // block.number
         TIME_BASED // block.timestamp
     }
     
+     /**
+     * @dev Emitted when the expiration date of a token is set or updated.
+     * @param tokenId The identifier of the token (ERC1155 `Id` or ERC721 `tokenId`).
+     * @param startTime The start time of the token (block number or timestamp based on `expiryType()`).
+     * @param endTime The end time of the token (block number or timestamp based on `expiryType()`).
+     * @param initiator The address of the entity that set or updated the expiration.
+     */
+
+    event ExpirationUpdated(
+        uint256 indexed tokenId,
+        uint256 indexed startTime,
+        uint256 indexed endTime,
+        address initiator
+    );
+
     /**
      * @dev Returns the type of the expiry.
      * @return EXPIRY_TYPE  Enum value indicating the unit of an expiry.
@@ -94,7 +110,7 @@ interface IERC5007Ext is IERC5007 /** IERC721 or IERC1155 */ {
 
 * `isTokenValid` is used for retrieving the status of the given `tokenId` or `tokenType` the function **MUST** return `true` if the token is still valid otherwise `false`.
 
-* `supportInterface` for `IERC5007Ext` is `<0x00000000> // TODO`  for `IERC5007ExtEpoch` is `0x11111111 // TODO`
+* `supportInterface` for `IERC5007Ext` is `0x44b125a3`  for `IERC5007ExtEpoch` is `0xa05e8f58`
 
 ### Extension
 
@@ -116,6 +132,13 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./IERC5007Ext.sol";
 
 interface IERC5007ExtEpoch is IERC5007Ext {
+
+    enum EPOCH_TYPE {
+        BLOCKS_BASED, // measured in the number of blocks (e.g., 1000 blocks)
+        TIME_BASED // measured in seconds (UNIX time) (e.g., 1000 seconds)
+    }
+
+
     /**
      * @dev Retrieves the balance of a specific `epoch` owned by an account.
      * @param epoch The `epoch for which the balance is checked.
@@ -194,13 +217,21 @@ interface IERC5007ExtEpoch is IERC5007Ext {
 
 Introducing **expirability** as a token behavior in a way that doesn’t interfere with existing use cases or applications. For non-SBT tokens, transferability remains intact, ensuring compatibility with current systems, while expired tokens are simply flagged as unusable when validity checks are needed
 
+This principle ensures that the expiration feature enhances token functionality without disrupting the broader ecosystem. Tokens with expiration retain their core properties, such as ownership and transferability, ensuring seamless integration with existing standards like ERC-721 and ERC-1155. Expiration is treated as an additional layer of functionality, rather than a fundamental change, allowing developers to adopt it selectively based on their application's needs.
+
+Furthermore, the standard avoids enforcing strict usage rules for expired tokens in secondary markets. Expired tokens can still be transferred or traded, which accommodates a wide variety of use cases, such as collectibles or historical artifacts. This non-restrictive approach ensures that existing dApps, wallets, and marketplaces can support expirable tokens without modification or loss of functionality.
+
+### Granular Expiration Control
+
+The ability to define expiration in terms of either blocks (block.number) or time (block.timestamp) provides flexibility for different use cases. Block-based expiration is suitable for applications that depend on network activity, such as financial products or staking rewards, while time-based expiration works well for real-world applications like memberships, subscriptions, or event tickets.
+
 ## Backwards Compatibility
 
 This standard fully [ERC-721](./eip-721.md), [ERC-1155](./eip-1155.md), [ERC-5484](./eip-5484.md) and SBTs compatible.
 
 ## Reference Implementation
 
-TODO
+You can find our reference implementation [here](../assets/eip-XXX/ERCXXX.sol).
 
 ## Security Considerations
 
