@@ -39,33 +39,30 @@ The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL 
 ### Interface
 
 ```solidity
-
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
- * @title ERC-XXXX: Expirable NFT/SBT
+ * @title ERC-XXXX: Expirable NFTs and SBTs
  * @notice unique/granular expiry
  */
 
 // import "./IERC721.sol";
-// import "IERC5007.sol";
+// import "./IERC5007.sol";
 
 interface IERCXXXX /**is IERC5007, IERC721 */ {
-
     enum EXPIRY_TYPE {
         BLOCK_BASED, // block.number
         TIME_BASED // block.timestamp
     }
     
-     /**
+    /**
      * @dev Emitted when the expiration date of a token is set or updated.
      * @param tokenId The identifier of the token ERC721 `tokenId`.
      * @param startTime The start time of the token (block number or timestamp based on `expiryType()`).
      * @param endTime The end time of the token (block number or timestamp based on `expiryType()`).
      */
-
-    event ExpirationUpdated(
+    event TokenExpiryUpdated(
         uint256 indexed tokenId,
         uint256 indexed startTime,
         uint256 indexed endTime,
@@ -105,19 +102,19 @@ interface IERCXXXX /**is IERC5007, IERC721 */ {
 * `isTokenValid` is used for retrieving the status of the given `tokenId` or `tokenType` the function **MUST** return `true` if the token is still valid otherwise `false`.
 
 * `supportInterface` for `IERCXXXX` is `0xAABBCCDD`  for `IERCXXXXEpoch` is `0xAABBCCDD`
+* `TokenExpiryUpdated` **MUST** be emitted when the token is minted or when its expiration details (start time or end time) are updated.
 
 ### Extension Interface
 
 **Epochs** represent a specific period or block range during which certain tokens are valid borrowing concepts from [ERC-7818](./eip-7818.md), tokens are grouped under an `epoch` and share the same `validityDuration`.
 
 ```solidity
-
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
- * @title ERC-XXXX: Expirable NFT/SBT
- * @notice epoch expiry
+ * @title ERC-XXXX: Expirable NFTs and SBTs
+ * @notice epoch expiry extension
  */
 
 import "./IERCXXXX.sol";
@@ -158,7 +155,7 @@ interface IERCXXXXEpoch is IERCXXXX {
      */
     function validityDuration() external view returns (uint256);
     
-     /**
+    /**
      * @dev Checks whether a specific `epoch` is expired.
      * @param epoch The `epoch` to check.
      * @return bool True if the token is expired, false otherwise.
