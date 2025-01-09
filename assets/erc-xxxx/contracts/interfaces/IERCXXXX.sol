@@ -24,7 +24,7 @@ interface IERCXXXX {
      * @param Id The identifier representing the token type `Id` (ERC1155) or `tokenId` (ERC721).
      * @return bool True if the token is expired, false otherwise.
      */
-    function isTokenExpired(uint256 Id) external view returns (bool);
+    function isTokenValid(uint256 Id) external view returns (bool);
 
     // inherit from ERC-5007 return depends on the type `block.timestamp` or `block.number`
     // {ERC-5007} return in uint64 MAY not suitable for `block.number` based.
