@@ -59,8 +59,8 @@ interface IERCXXXX /**is IERC5007, IERC721 */ {
     /**
      * @dev Emitted when the expiration date of a token is set or updated.
      * @param tokenId The identifier of the token ERC721 `tokenId`.
-     * @param startTime The start time of the token (block number or timestamp based on `expiryType()`).
-     * @param endTime The end time of the token (block number or timestamp based on `expiryType()`).
+     * @param startTime The start time of the token (block number or timestamp based on `expiryType`).
+     * @param endTime The end time of the token (block number or timestamp based on `expiryType`).
      */
     event TokenExpiryUpdated(
         uint256 indexed tokenId,
@@ -139,7 +139,7 @@ interface IERCXXXXEpoch is IERCXXXX {
     /**
      * @dev Retrieves the duration of a single epoch.
      * @return uint256 The duration of a single epoch.
-     * @notice The unit of the epoch length is determined by the `validityPeriodType()` function.
+     * @notice The unit of the epoch length is determined by the `validityPeriodType` function.
      */
     function epochLength() external view returns (uint256);
     
@@ -150,8 +150,8 @@ interface IERCXXXXEpoch is IERCXXXX {
     function epochType() external view returns (EPOCH_TYPE);
 
     /**
-     * @dev Retrieves the validity duration of a specific token.
-     * @return uint256 The validity duration of the token in `epoch` unit.
+     * @dev Retrieves the validity duration of each token.
+     * @return uint256 The validity duration of each token in `epoch` unit.
      */
     function validityDuration() external view returns (uint256);
     
