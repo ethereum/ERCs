@@ -13,7 +13,7 @@ requires: 165
 
 ## Abstract
 
-Introduces an extension for [ERC-721](./eip-721.md) Non-Fungible Tokens (NFTs) and Soulbound Tokens (SBTs), Through this extension, tokens have a predetermined validity period, after which they become invalid and cannot be used in the smart contract that checks their validity. This functionality is essential for various applications where token expiration is necessary such as access and authentication, contracts, governance, licenses, and policies.
+Introduces an extension for [ERC-721](./eip-721.md) Non-Fungible Tokens (NFTs) and Soulbound Tokens (SBTs) that adds an expiration mechanism, allowing tokens to become invalid after a predefined period. This additional layer of functionality ensures that the expiration mechanism does not interfere with existing NFTs or SBTs, preserving transferability for NFTs and compatibility with current DApps such as NFT Marketplace. Expiration can be defined using either block height or timestamp, offering flexibility for various use cases.
 
 ## Motivation
 
@@ -79,7 +79,7 @@ interface IERCXXXX /**is IERC5007, IERC721 */ {
 
     /**
      * @dev Checks whether a specific token is expired.
-     * @param Id The identifier representing the token type `Id` (ERC1155) or `tokenId` (ERC721).
+     * @param Id The identifier representing the `tokenId` (ERC721).
      * @return bool True if the token is expired, false otherwise.
      */
     function isTokenValid(uint256 Id) external view returns (bool);
@@ -96,7 +96,7 @@ interface IERCXXXX /**is IERC5007, IERC721 */ {
 
 * `balanceOf` that inherited from [ERC-721](./eip-721.md) **MUST** return all tokens even if expired it still exists but unusable due to limitation to tracking expire token on-chain.
 
-* For Non-SBTs `transferFrom`, `safeTransferFrom`, and `safeBatchTransferFrom` **MUST** allow transferring tokens even if they expired. This ensures that expired tokens remain transferable and tradable, preserving compatibility with existing applications already deployed. However, expired tokens **MUST** be considered invalid and unusable in contracts that check for token validity.
+* For Non-SBTs `transferFrom`, and `safeTransferFrom` **MUST** allow transferring tokens even if they expired. This ensures that expired tokens remain transferable and tradable, preserving compatibility with existing applications already deployed. However, expired tokens **MUST** be considered invalid and unusable in contracts that check for token validity.
 
 * `expiryType` **MUST** return the type of expiry used by the contract, which can be either `BLOCK` or `TIME`.
 
