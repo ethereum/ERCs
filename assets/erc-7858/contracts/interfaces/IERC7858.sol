@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
-interface IERCXXXX {
+interface IERC7858 {
     enum EXPIRY_TYPE {
         BLOCK_BASED, // block.number
         TIME_BASED // block.timestamp
