@@ -2,9 +2,9 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "./interfaces/IERCXXXX.sol";
+import "./interfaces/IERC7858.sol";
 
-contract ERCXXXX is ERC721, IERCXXXX {
+contract ERC7858 is ERC721, IERC7858 {
 
     constructor(
         string memory name_, 
@@ -34,7 +34,7 @@ contract ERCXXXX is ERC721, IERCXXXX {
     }
 
     function expiryType() external pure returns (EXPIRY_TYPE) {
-        return IERCXXXX.EXPIRY_TYPE.BLOCK_BASED;
+        return IERC7858.EXPIRY_TYPE.BLOCK_BASED;
     }
 
     function isTokenValid(uint256 tokenId) external view returns (bool) {
@@ -55,6 +55,6 @@ contract ERCXXXX is ERC721, IERCXXXX {
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
-        return interfaceId == type(IERCXXXX).interfaceId || super.supportsInterface(interfaceId);
+        return interfaceId == type(IERC7858).interfaceId || super.supportsInterface(interfaceId);
     }
 }
