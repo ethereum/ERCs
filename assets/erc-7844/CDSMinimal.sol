@@ -13,6 +13,7 @@ contract CDSMinimal
 
     uint256 storageSpaces;
     uint256 constant MEMBERS_LIM = 1000;
+    uint256 constant ENTRIES_LIM = 5000000000;
 
     /**
      * @notice Minimal, unoptimized example of init_create to demonstrate core logic.
@@ -29,6 +30,9 @@ contract CDSMinimal
         uint256 safeIndex;
         uint256 stringIndex;
         uint256 len = sizes.length;
+
+        storageSpaces += 1;
+        uint256 ROOT_SLOT = _get_root_slot(storageSpaces - 1);
 
         for(uint256 i = 0; i < len; i++)
         {
@@ -57,15 +61,7 @@ contract CDSMinimal
                         valType
                     )
 
-                    //store the packed value in the member data of the storage space
-                    mstore(0x0, shl(
-                        176, 
-                        add(
-                            mul(sload(storageSpaces.slot), MEMBERS_LIM),
-                            add(1, i))
-                        )
-                    )
-                    sstore(keccak256(0x0, 0xB), packedValue)
+                    sstore(add(ROOT_SLOT, add(1, i)), packedValue)
 
                     //bitCount := bitCount + size
                     bitCount := add(bitCount, valSize)
@@ -87,14 +83,7 @@ contract CDSMinimal
                     )
 
                     //store the packed value in the member data of the storage space
-                    mstore(0x0, shl(
-                        176, 
-                        add(
-                            mul(sload(storageSpaces.slot), MEMBERS_LIM),
-                            add(1, i))
-                        )
-                    )
-                    sstore(keccak256(0x0, 0xB), packedValue)
+                    sstore(add(ROOT_SLOT, add(1, i)), packedValue)
                     
                     //increment stringIndex
                     stringIndex := add(stringIndex, 1)
@@ -116,15 +105,8 @@ contract CDSMinimal
                 safeIndex
             )
 
-            //store storage space data
-            mstore(0x0, shl(
-                176, mul(sload(storageSpaces.slot), MEMBERS_LIM))
-            )
-
-            sstore(keccak256(0x0, 0xB), storageSpaceMemberState)
+            sstore(ROOT_SLOT, storageSpaceMemberState)
         }
-        
-        storageSpaces += 1;
     }
 
     /**
@@ -145,18 +127,16 @@ contract CDSMinimal
         uint256 packedStorageSpaceStateData;
         uint256 membersCount;
 
+        uint256 ROOT_SLOT = _get_root_slot(storageSpace);
+
         assembly
         {
-            mstore(0x0, shl(
-                176, mul(storageSpace, MEMBERS_LIM))
-            )
-            packedStorageSpaceStateData := sload(keccak256(0x0, 0xB))
+            packedStorageSpaceStateData := sload(ROOT_SLOT)
             membersCount := shr(192, packedStorageSpaceStateData)
         }
 
         if(valType < 6)
         {
- 
             uint256 bitCount;
             uint256 prevSize;
             uint256 safeIndex;
@@ -166,16 +146,8 @@ contract CDSMinimal
                 //get safeIndex
                 safeIndex := shr(192, shl(192, packedStorageSpaceStateData))
 
-                mstore(0x0, shl(
-                    176, 
-                    add(
-                        mul(storageSpace, MEMBERS_LIM),
-                        add(1, safeIndex))
-                    )
-                )
-                
                 //get bitCount, verify size (omitted)
-                let previousStoredValueMemberData := sload(keccak256(0x0, 0xB))
+                let previousStoredValueMemberData := sload(add(ROOT_SLOT, add(1, safeIndex)))
 
                 bitCount := shr(128, previousStoredValueMemberData)
                 prevSize := shr(64, and(
@@ -206,14 +178,7 @@ contract CDSMinimal
                 )
 
                 //store packedMemberData
-                mstore(0x0, shl(
-                    176, 
-                    add(
-                        mul(storageSpace, MEMBERS_LIM),
-                        add(1, membersCount))
-                    )
-                )
-                sstore(keccak256(0x0, 0xB), packedMemberData)
+                sstore(add(ROOT_SLOT, add(1, membersCount)), packedMemberData)
 
                 //update safeIndex, members in state data for storage space
                 safeIndex := membersCount
@@ -225,12 +190,7 @@ contract CDSMinimal
                     or(safeIndex, shl(192, add(membersCount, 1)))
                 )
 
-                mstore(0x0, shl(
-                        176, mul(storageSpace, MEMBERS_LIM)   
-                    )
-                )
-
-                sstore(keccak256(0x0, 0xB), packedStorageSpaceStateData)
+                sstore(ROOT_SLOT, packedStorageSpaceStateData)
             }
         }
         else
@@ -261,7 +221,7 @@ contract CDSMinimal
                         add(1, membersCount))
                     )
                 )
-                sstore(keccak256(0x0, 0xB), packedMemberData)
+                sstore(add(ROOT_SLOT, add(1, membersCount)), packedMemberData)
 
                 //increment stringIndex, members
                 membersCount := add(membersCount, 1)
@@ -277,13 +237,7 @@ contract CDSMinimal
                     shl(64, stringIndex)
                 )
 
-                mstore(0x0, shl(
-                        176, mul(storageSpace, MEMBERS_LIM)   
-                    )
-                )
-
-                sstore(keccak256(0x0, 0xB), packedStorageSpaceStateData)
-
+                sstore(ROOT_SLOT, packedStorageSpaceStateData)
             }
         }
     }
@@ -297,10 +251,11 @@ contract CDSMinimal
         uint256 safeIndex
     )
     {
+        uint256 ROOT_SLOT = _get_root_slot(storageSpace);
+
         assembly
         {
-            mstore(0x0, shl(176, mul(storageSpace, MEMBERS_LIM)))
-            let packedStorageSpaceStateData := sload(keccak256(0x0, 0xB))
+            let packedStorageSpaceStateData := sload(ROOT_SLOT)
 
             members := shr(192, packedStorageSpaceStateData)
             entries := shr(128, and(
@@ -324,17 +279,11 @@ contract CDSMinimal
     ) external view returns(
         uint256 bitCount, uint256 valSize, uint256 valType)
     {
+        uint256 ROOT_SLOT = _get_root_slot(storageSpace);
+
         assembly
         {
-            mstore(0x0, shl(
-                176, 
-                add(
-                    mul(storageSpace, MEMBERS_LIM),
-                    add(1, memberIndex))
-                )
-            )
-
-            let packedStorageSpaceStateData := sload(keccak256(0x0, 0xB))
+            let packedStorageSpaceStateData := sload(add(ROOT_SLOT, add(1, memberIndex)))
 
             bitCount := shr(128, packedStorageSpaceStateData)
             valSize := shr(64, 
@@ -344,6 +293,22 @@ contract CDSMinimal
                 packedStorageSpaceStateData,
                 0x000000000000000000000000000000000000000000000000FFFFFFFFFFFFFFFF
             )
+        }
+    }
+
+    function _get_root_slot(uint256 storageSpace)
+    internal view returns(uint256 slot)
+    {
+        if(storageSpace >= storageSpaces)
+        {
+            revert("Invalid storage space!");
+        }
+
+        assembly
+        {
+            let offset := shl(176, mul(storageSpace, MEMBERS_LIM))
+            mstore(0x0, offset)
+            slot := keccak256(0x0, 0xA)
         }
     }
 }
