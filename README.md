@@ -1,4 +1,4 @@
-# Ethereum Request for Comments (ERCs)
+# Ethereum Request for Comments (ERCs).
 
 *Please note that ERCs were recently separated from the [EIPs](https://github.com/ethereum/eips) repo.*
 
