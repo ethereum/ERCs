@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.7.0;
 
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------*/
 
@@ -124,17 +124,21 @@ interface ISDC {
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
-    event SettlementEvaluated(address initiator, int256 settlementAmount, string settlementData);
+    event SettlementDetermined(address initiator, int256 settlementAmount, string settlementData);
 
     /**
      * @dev Emitted when settlement process has been finished
+     * @param transactionID a transaction id
+     * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event SettlementTransferred(string transactionData);
+    event SettlementTransferred(uint256 transactionID, string transactionData);
 
     /**
      * @dev Emitted when settlement process has been finished
+     * @param transactionID a transaction id
+     * @param transactionData data associtated with the transfer, will be emitted via the events.
      */
-    event SettlementFailed(string transactionData);
+    event SettlementFailed(uint256 transactionID, string transactionData);
 
     /* Events related to trade termination */
 
@@ -212,7 +216,7 @@ interface ISDC {
 
     /**
      * @notice Called to trigger according settlement on chain-balances callback for initiateSettlement() event handler
-     * @dev perform settlement checks, may initiate transfers and emits {SettlementEvaluated}
+     * @dev perform settlement checks, may initiate transfers and emits {SettlementDetermined}
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
@@ -222,10 +226,11 @@ interface ISDC {
     /**
      * @notice May get called from outside to to finish a transfer (callback). The trade decides on how to proceed based on success flag
      * @param success tells the protocol whether transfer was successful
+     * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      * @dev emit a {SettlementTransferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
      */
-    function afterTransfer(bool success, string memory transactionData) external;
+    function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external;
 
     /// Trade termination
 
