@@ -1,0 +1,204 @@
+---
+title: ERC-721 Verifiable Credential Extension
+description: An extension to ERC-721 that adds collection-wide verifiable credential properties, this allows native support for onchain credentials.
+author: Valerio Massimo Camaiani (@vmc-crossmint)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-01-14
+requires: 721
+---
+
+## Abstract
+
+This standard is an extension of ERC-721 that adds verifiable credential properties at the contract level. It allows ERC-721 tokens to natively reference and manage credentials (including W3C Verifiable Credentials or other kinds of off-chain data), by defining mechanisms for storage, encryption, revocation, and verification.
+
+## Motivation
+Many ERC-721 contracts require additional properties to represent verifiable credentials. While it's possible to implement these properties in various ways, it creates an extra effort for third-party platforms to build individualized solutions for each NFT collection.
+
+Having a standard for verifiable credential properties will make it easier for third-party platforms to interact with and validate NFTs that represent verifiable credentials onchain.
+
+Just as NFTs represent digital ownership, verifiable credentials (VCs) represent digital attestations about oneself (identity, education, and more). Blockchains provides an ideal solution for storing VCs and associated claims, offering precise access control, issuer legitimacy, and full lifecycle management for credentials, all while maintaining transparency to safeguard user rights.
+
+This standard addresses key gaps in the W3C framework by defining methods for storage, revocation, retrieval, and presentation, facilitating interoperability within a flexible, standardized structure. It supports custom cryptographic methods for signatures and proofs—from basic issuer signatures to advanced zero-knowledge (ZK) proofs and selective disclosure—allowing adaptability for diverse security requirements.
+
+Additionally, the standard natively supports encryption, crucial for managing sensitive data. It also provides flexibility in credential storage, referencing off-chain data via credentialURI to accommodate any storage solution, from decentralized storage (like IPFS) to centralized systems.
+
+Originally designed with W3C credentials in mind, this standard is broad enough to support any kind of credential, for example content credentials. More generally this framework can be used to link any off-chain, private payload to an NFT.
+
+## Overview
+Each NFT in this standard is linked to a credential that can be stored in any compatible storage location. To retrieve credentials for a specific user, is sufficient to get the desired credential NFT in their wallet, and the credentialURI() function can provide the exact location of each credential. This URI may point to public storage like IPFS or any custom storage solution with flexible access control, potentially subject to user approval.
+
+Upon retrieval, credentials may be stored in clear text or in encrypted form. The encryptionMethod property indicates the encryption status, allowing the verifier to know in advance if decryption is required. Decryption may involve user consent if the user's wallet signature is required. Additional steps can be added in cases where advanced algorithms enable selective disclosure or zero-knowledge (ZK) proofs to enhance privacy.
+
+Once decrypted, the credential’s authenticity and integrity can be verified using the verificationMethod, ensuring it remains untampered. For ZK proofs, specific queries can also be verified without disclosing the entire credential. The standard also  accounts for credential revocation, which can be implemented in various ways: via burning the associated NFT, an additional structure in the contract or even an off-chain revocation list; in the first case, checking that the NFT is unburned confirms the credential’s validity.
+
+While originally intended for verifiable credentials, this standard’s flexibility allows it to link any private or external data payload to a user’s wallet through an NFT, expanding its utility across various data-reference use cases.
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+The verifiable credential extension is OPTIONAL for ERC-721 contracts.
+
+```solidity
+/// @title ERC-721 Verifiable Credential Extension
+interface IERC42069 is IERC165, IERC721 {
+    /// @notice Emitted when a new credential is issued
+    /// @param tokenId The token ID of the issued credential
+    /// @param to The address to which the credential was issued
+    event CredentialIssued(uint256 indexed tokenId, address indexed to);
+
+    /// @notice Emitted when a credential is revoked
+    /// @param tokenId The token ID of the revoked credential
+    event CredentialRevoked(uint256 indexed tokenId);
+	
+    /// @notice Get the issuer of the credential collection
+    /// @dev The empty string indicates that there is no issuer
+    /// @return The issuer DID or address for this credential collection 
+    function issuer() external view returns (string memory);
+
+    /// @notice Get the type of the credentials in the collection
+    /// @return The credential type for this collection
+    function credentialType() external view returns (string memory);
+
+    /// @notice Get the encryption method of the credentials in the collection
+    /// @return The encryption method for this collection, will return empty string if not encrypted
+    function encryptionMethod() external view returns (string memory);
+
+    /// @notice Get the verification method of the credentials in the collection
+    /// @return The verification method for this collection
+    function verificationMethod() external view returns (string memory);
+
+    /// @notice Get the URI for a given credential
+    /// @dev Throws if `tokenId` is not a valid NFT
+    /// @param tokenId The NFT to get the credential URI for
+    /// @return The credential URI for the given NFT
+    function credentialURI(uint256 tokenId) external view returns (string memory);
+
+    /// @notice Check if a credential has been revoked 
+    /// @param tokenId The credential ID to check 
+    /// @return false if the credential has not been revoked
+    function isRevoked(uint256 tokenId) external view returns (bool);
+}
+```
+
+The issuer(), credentialType(), encryptionMethod(), verificationMethod() and credentialURI(uint256 tokenId) functions MUST be implemented as view functions.
+
+The encryptionMethod() function MUST return an empty string if and only if the credential is unencrypted. In case of encrypted credentials the method SHOULD return only the encryption method; Any additional encryption details required for decryption MAY be retrieved separately (a separate function or via the contract metadata).
+
+The verificationMethod() function MUST return the method to verify the credential proof.
+
+The credentialURI(uint256 tokenId) function MAY be used to retrieve the credential location. In case a given implementation uses a different method to retrieve the credential, credentialURI(uint256 tokenId) MUST return an empty string.
+
+The supportsInterface method MUST return true when called with 0x42069069.
+
+The isRevoked(uint256 tokenId) MUST return false if the credential has not been revoked. MAY return true if the credential does not exist.
+
+The CredentialIssued and CredentialRevoked events MAY be emitted to allow off-chain systems to monitor credential status efficiently. Credential revocation is not mandated, but MAY be implemented via burning the associated NFT.
+
+## Rationale
+This extension aims to provide a standardized way to represent verifiable credentials within the ERC-721 framework. The collection-wide properties (issuer and type) allow for efficient management of credentials where these properties are shared across all tokens in the collection.
+
+The credentialURI function is included to provide a way to retrieve additional off-chain information about individual credentials, similar to the tokenURI function in ERC-721.
+
+By emitting CredentialIssued and CredentialRevoked events, third-party applications and services can track the lifecycle of credentials, enabling real-time monitoring.
+
+## Backwards Compatibility
+This standard is compatible with current ERC-721 standards. It adds new functions without modifying the existing ERC-721 functionality.
+
+## Reference Implementation
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "./IERC42069.sol";
+
+contract ERC42069 is ERC721, IERC42069 {
+    string private immutable _issuer;
+    string private immutable _credentialType;
+    string private immutable _verificationMethod;
+    string private immutable _encryptionMethod;
+
+    event CredentialIssued(uint256 indexed tokenId, address indexed to);
+
+    event CredentialRevoked(uint256 indexed tokenId);
+
+
+    constructor(
+        string memory name_, 
+        string memory symbol_,
+        string memory issuer_,
+        string memory credentialType_,
+        string memory verificationMethod_
+    ) ERC721(name_, symbol_) {
+        require(bytes(issuer_).length > 0, "ERC42069: issuer cannot be empty");
+        require(bytes(credentialType_).length > 0, "ERC42069: credential type cannot be empty");
+        _issuer = issuer_;
+        _credentialType = credentialType_;
+        _verificationMethod = verificationMethod_;
+        _encryptionMethod = "lit-protocol"; // Example decentralized encryption
+    }
+
+    function issuer() external view override returns (string memory) {
+        return _issuer;
+    }
+
+    function credentialType() external view override returns (string memory) {
+        return _credentialType;
+    }
+
+    function encryptionMethod() external view override returns (string memory) {
+        return _encryptionMethod;
+    }
+
+    function verificationMethod() external view override returns (string memory) {
+        return _verificationMethod;
+    }
+
+    function credentialURI(uint256 tokenId) external view override returns (string memory) {
+        require(_exists(tokenId), "ERC42069: URI query for nonexistent token");
+        // Implementation depends on how you want to store/generate URIs
+        return "";
+    }
+
+    function isRevoked(uint256 tokenId) external view override returns (bool) {
+        // Implementation depends on revokation system, example for revokation on burning
+        return !_exists(tokenId); 
+    }
+
+    /// @dev See {IERC165-supportsInterface}.
+    function supportsInterface(bytes4 interfaceId) public view virtual override(IERC165, ERC721) returns (bool) {
+        return interfaceId == bytes4(0x42069069) || super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Issues a new credential to an address
+    /// @param to The address to issue the credential to
+    /// @param tokenId The token ID of the credential
+    function issueCredential(address to, uint256 tokenId) external {
+        // Implement access control as needed
+        _mint(to, tokenId);
+        emit CredentialIssued(tokenId, to);
+    }
+
+    /// @notice Revokes an existing credential
+    /// @param tokenId The token ID of the credential to revoke
+    function revokeCredential(uint256 tokenId) external {
+        // Implement access control as needed
+        require(_exists(tokenId), "ERC42069: Cannot revoke nonexistent credential");
+        _burn(tokenId);
+        emit CredentialRevoked(tokenId);
+    }
+}
+```
+
+## Security Considerations
+Implementers of the ERC-42069 standard must enforce strict access control to ensure only authorized parties can issue or revoke credentials. Implementers must also carefully consider access control for setting credential properties, protecting the integrity of the collection's credential information.
+
+Credentials should be non-transferable to maintain authenticity and prevent unauthorized transfers. Override transfer functions to enforce this if needed.
+
+The credentialURI should not contain sensitive information, as it is publicly accessible. Sensitive data should be encrypted and stored off-chain, with the credentialURI pointing to the location of this encrypted data; encryption is essential for any sensitive data stored on public storage solutions like IPFS.
+
+## Copyright
+Copyright and related rights waived via CC0.
