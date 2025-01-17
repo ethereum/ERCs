@@ -10,6 +10,6 @@ sequenceDiagram
     Sender->>SourceGateway: sendMessage(...)
     SourceGateway-->>DestinationGateway: [underlying protocol]
     Receiver->>Receiver: f(...) starts execution
-    Receiver->>DestinationGateway: read(...)
+    Receiver->>DestinationGateway: receiveMessage(...)
     Receiver->>Receiver: f(...) ends execution
 
