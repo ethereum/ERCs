@@ -63,7 +63,7 @@ interface IDecryptionContract {
 
     /**
      * @notice Called from the sender of the amount to initiate completion of the payment transfer.
-     * @dev emits a {TransferKeyRequested} and {TransferKeyReleased} with keys depending on completion success.
+     * @dev emits a {TransferKeyRequested} with keys depending on completion success.
      * @param id the trade identifier of the trade.
      * @param amount the amount to be transferred.
      * @param to The address of the receiver of the payment. Note: the sender of the payment (from) is implicitly the message.sender.
@@ -74,11 +74,19 @@ interface IDecryptionContract {
 
     /**
      * @notice Called from the receiver of the amount to cancel payment transfer (cancels the incept transfer).
-     * @dev emits a {TransferKeyRequested} and {TransferKeyReleased}
+     * @dev emits a {TransferKeyRequested}
      * @param id the trade identifier of the trade.
      * @param from The address of the sender of the payment. Note: the receiver of the payment (to) is implicitly the message.sender.
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
     function cancelAndDecrypt(bytes32 id, address from, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
+
+    /*+
+     * @notice Called from the (possibly external) decryption oracle.
+     * @dev emits a {TransferKeyReleased} (if the call was eligible).
+     * @param id the trade identifier of the trade.
+     * @param key Decrypted key.
+     */
+    function releaseKey(bytes32 id, string memory key) external;
 }
