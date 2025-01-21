@@ -2,24 +2,12 @@
 title: Guidelines for Finalizing ERCs
 description: Tips for maximizing useful feedback and wide adoption for an ERC
 author: Bumblefudge (@bumblefudge), Yourname (here)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/new-erc-guidelines-for-writing-a-testable-adoptable-erc/22609
 status: Draft
 type: Informational
 category: ERC
 created: 2025-01-19
 ---
-
-<!--
-  READ EIP-1 (https://eips.ethereum.org/EIPS/eip-1) BEFORE USING THIS TEMPLATE!
-
-  This is the suggested template for new EIPs. After you have filled in the requisite fields, please delete these comments.
-
-  Note that an EIP number will be assigned by an editor. When opening a pull request to submit your EIP, please use an abbreviated title in the filename, `eip-draft_title_abbrev.md`.
-
-  The title should be 44 characters or less. It should not repeat the EIP number in title, irrespective of the category.
-
-  TODO: Remove this comment before submitting
--->
 
 ## Abstract
 
@@ -91,27 +79,11 @@ Note that URLs pointing to such materials are not allowed in the _text_ of ERCs 
 
 ## Rationale
 
-<!--
-  The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work, e.g. how the feature is supported in other languages.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
 This informational document was inspired by the exemplary coordination process behind ERC-4361 and EIP-6963, EIPIP discussions with EIP editors, and discussions in the Chain Agnostic Standards Alliance.
 
 TODO: update this section when exiting draft-PR stage to summarize additional conversations and influences
 
 ## Security Considerations
-
-<!--
-  All EIPs must contain a section that discusses the security implications/considerations relevant to the proposed change. Include information that might be important for security discussions, surfaces risks and can be used throughout the life cycle of the proposal. For example, include security-relevant design decisions, concerns, important discussions, implementation-specific guidance and pitfalls, an outline of threats and risks and how they are being addressed. EIP submissions missing the "Security Considerations" section will be rejected. An EIP cannot proceed to status "Final" without a Security Considerations discussion deemed sufficient by the reviewers.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
 
 Needs discussion.
 
