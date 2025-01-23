@@ -1,6 +1,6 @@
 ---
 eip: <EIP number to be assigned>
-title: CyberSoul Profile Standard
+title: Decentralised Profile Standard
 desription: A Standard for Decentralised Interoperable User Profiles
 author: Kumar Anirudha (@anistark)
 discussions-to: https://ethereum-magicians.org/t/add-erc-cybersoul-profile-standard/22610
@@ -12,7 +12,7 @@ created: 2025-01-22
 
 ## Abstract
 
-This EIP proposes a standard for decentralised, interoperable user profiles known as CyberSoul Profiles (CSPs). CSPs are implemented as **Soul Bound Tokens (SBTs)** that are immutable, non-transferable, and tied to unique identifiers across multiple blockchain networks. The standard provides a unified structure for user metadata, including dApp-specific customisation, default profiles, and seamless cross-chain compatibility. CSPs can be leveraged for identity management, reputation systems, and personalised dApp experiences.
+This EIP proposes a standard for decentralised, interoperable user profiles known as Decentralised Profiles. Profiles are implemented as **Soul Bound Tokens (SBTs)** that are immutable, non-transferable, and tied to unique identifiers across multiple blockchain networks. The standard provides a unified structure for user metadata, including dApp-specific customisation, default profiles, and seamless cross-chain compatibility. CSPs can be leveraged for identity management, reputation systems, and personalised dApp experiences.
 
 ## Motivation
 
@@ -29,7 +29,7 @@ Existing solutions for decentralised identity and user profiles lack cross-chain
 
 ### Unique Profile Identifiers
 
-#### CyberSoul Profile (CSP)
+#### Decentralised Profile (CSP)
 Each profile is identified by:
 
 ```
@@ -38,7 +38,7 @@ Each profile is identified by:
 
 - `username`: User-defined, chain-unique string.
 - `network_slug`: Short identifier for the chain (e.g., `eth`, `polygon`, `xion`).
-- `soul`: Fixed suffix indicating CyberSoul compliance.
+- `soul`: Fixed suffix indicating soul bound token.
 
 Example:
 `john@eth.soul`
@@ -97,14 +97,14 @@ The profile metadata structure is designed to balance extensibility, usability, 
 
 ## Rationale
 
-The design of the CyberSoul Profile Standard (CSP) was guided by the need for a unified, interoperable user profile system that can operate seamlessly across all blockchain networks. Current solutions, such as ENS profiles or Gravatar, either lack cross-chain functionality, are centralised, or do not allow users to customise profiles for specific dApps. This standard addresses these shortcomings while ensuring simplicity, security, and scalability. 
+The design of the Decentralised Profile Standard was guided by the need for a unified, interoperable user profile system that can operate seamlessly across all blockchain networks. Current solutions, such as ENS profiles or Gravatar, either lack cross-chain functionality, are centralised, or do not allow users to customise profiles for specific dApps. This standard addresses these shortcomings while ensuring simplicity, security, and scalability. 
 
 ### Design Decisions
 
 1. **Decentralised Identifiers (DIDs)**
    - Using the `did:<chain>:<address>` format provides a globally unique identifier for profiles. This aligns with the decentralised identity movement and ensures compatibility with broader DID frameworks.
 
-2. **CyberSoul Profile (CSP)**
+2. **Decentralised Profile**
    - The CSP format (`username@networkslug.soul`) makes profiles human-readable and chain-specific while maintaining a universal structure. The `.soul` suffix clearly identifies profiles compliant with this standard.
 
 3. **dApp-Specific Avatars**
@@ -174,13 +174,13 @@ The design balances simplicity, extensibility, and user control, making it well-
 
 The standard includes the following interface:
 
-### ICyberSoulProfile
+### ISoulProfile
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.19;
 
-interface ICyberSoulProfile {
+interface ISoulProfile {
     struct Metadata {
         string username;
         string avatar;
@@ -219,7 +219,7 @@ interface ICyberSoulProfile {
 
 ### Reference Implementation
 
-#### CyberSoulProfile
+#### SoulProfile
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
@@ -227,9 +227,9 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "./ICyberSoulProfile.sol";
+import "./ISoulProfile.sol";
 
-contract CyberSoulProfile is Ownable, ICyberSoulProfile {
+contract SoulProfile is Ownable, ISoulProfile {
     mapping(address => Metadata) private profiles;
 
     modifier onlyProfileOwner(address user) {
@@ -299,9 +299,9 @@ Of course, this can be extended to prepare a full registry and resolver accordin
 
 ## Backwards Compatibility
 
-The CyberSoul Profile system is designed to ensure smooth integration with existing decentralized applications (dApps) and platforms, while offering an upgrade path for future enhancements. Below are key considerations for backwards compatibility:
+The Decentralised Profile system is designed to ensure smooth integration with existing decentralized applications (dApps) and platforms, while offering an upgrade path for future enhancements. Below are key considerations for backwards compatibility:
 
-- **EIP-137 Compatibility**: The system adheres to the naming conventions and standards specified in EIP-137 (Ethereum Name Service). This ensures that any dApps or tools already using ENS-compatible names can easily integrate CyberSoul profiles without additional changes.
+- **EIP-137 Compatibility**: The system adheres to the naming conventions and standards specified in EIP-137 (Ethereum Name Service). This ensures that any dApps or tools already using ENS-compatible names can easily integrate profiles without additional changes.
 
 - **Flexible dApp Identification**: By using wallet addresses to identify dApps, the system avoids the need for centralized registration of dApps. Any existing or new dApp that interacts with Ethereum or compatible chains can use the standard by simply passing its address as a parameter.
 
@@ -313,7 +313,7 @@ The CyberSoul Profile system is designed to ensure smooth integration with exist
 
 ## Security Considerations
 
-The CyberSoul Profile system prioritizes robust security to protect user data and prevent unauthorized access.
+Profile system should prioritise robust security to protect user data and prevent unauthorized access.
 
 1. **Access Control**: Users can set visibility for their avatars (public or private). This is enforced at both the resolver and registry levels to ensure unauthorized entities cannot access private avatars. Functions that modify state (e.g., setDefaultAvatar, setDappAvatar) are protected with access controls, ensuring only the profile owner can make changes.
 
@@ -335,7 +335,7 @@ The CyberSoul Profile system prioritizes robust security to protect user data an
 
 10. **dApp Address Verification**: All dApps interacting with the system must be identified by a valid address. This ensures that unauthorized or spoofed entities cannot manipulate profiles or fetch restricted data.
 
-11. **Phishing Mitigation**: User-facing dApps are encouraged to clearly display information about interactions with the CyberSoul system. Users should be warned about potential phishing attacks and advised to interact only with verified dApps.
+11. **Phishing Mitigation**: User-facing dApps are encouraged to clearly display information about interactions on-chain. Users should be warned about potential phishing attacks and advised to interact only with verified dApps.
 
 12. **Gas Optimization**: Operations are optimized to prevent gas exhaustion during execution, which could lead to incomplete transactions. This ensures that even on congested networks, the system remains functional.
 
