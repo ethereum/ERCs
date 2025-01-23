@@ -50,6 +50,8 @@ struct Identifier {
     uint256 transactionIndex;
     uint256 logIndex;
     uint256 chainid;
+
+    // optional fields
 }
 ```
 
@@ -80,14 +82,17 @@ Chained settlement means:
 
 ## Rationale
 
+Logs or events are used as the `Identifier` due to shorter proofs and execution costs when compared to storage writes and storage proofs.
 
-
+Additionally, only fields that contribute to the verifiability of the source of the cross rollup input are included. Fields that inform messaging mechanics such as `destinationChainId` (e.g. p2p vs. broadcast) are intentionally left out but can be included by implementors as optional fields.
 
 ## Backwards Compatibility
 
+Exsiting rollup framework settlement mechanism's execution result contains a state root and addiional information. This ERC proposes that the execution results be extended to include unvalidated "cross rollup links" that must be matched to a valid origin or source.
 
 ## Security Considerations
 
+The security of the underlying proof systems determine how secure cross rollup communication is. Within a rollup cluster, communication is as secure as the settlement mechanism of the most insecure rollup.
 
 ## Copyright
 
