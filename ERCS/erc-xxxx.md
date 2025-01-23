@@ -3,7 +3,7 @@ eip: <EIP number to be assigned>
 title: Decentralised Profile Standard
 desription: A Standard for Decentralised Interoperable User Profiles
 author: Kumar Anirudha (@anistark)
-discussions-to: https://ethereum-magicians.org/t/add-erc-cybersoul-profile-standard/22610
+discussions-to: https://ethereum-magicians.org/t/add-erc-decentralised-profile-standard/22610
 status: Draft
 type: Standards Track
 category: ERC
