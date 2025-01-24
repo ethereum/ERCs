@@ -7,12 +7,14 @@ discussions-to: TBD
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-10-14
+created: 2025-01-23
 ---
 
 ## Abstract
 
-A cross rollup input identifier contains information that uniquely identifies its source or origin.
+Interoperability between Ethereum rollups should be ultimately secured by the L1. This means that cross rollup transactions need to be verifiable at settlement time.
+
+We propose cross rollup input identifiers that contain information uniquely identifying its source or origin.
 
 This informs the underlying native or non native proof system which transactions contain cross rollup inputs that need to be verified.
 
@@ -20,7 +22,7 @@ This ERC does not cover messaging mechanics (e.g. push or pull) or attempt to es
 
 The identifier format for cross rollup inputs should be agnostic to the rollup framework, proof system and messaging mechanics used. 
 
-We propose using a pointer to a generic log or event emitted on the origin rollup as an identifier. These pointers form "cross rollup links" which can be cryptographically linked to the block headers of communicating rollups and validated at settlement time.
+We propose using a pointer to a generic log or event emitted on the origin rollup or a storage key as an identifier. These pointers form "cross rollup links" which can be cryptographically linked to the block headers of communicating rollups and validated at settlement time.
 
 ## Motivation
 
@@ -37,32 +39,50 @@ Settlement time validation of cross rollup inputs in a rollup cluster means that
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-### Identifier
+### Identifiers
 
-The `Identifier` specification below borrows heavily from Optimism's [message identifier](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/messaging.md#message-identifier) format. It uniquely identifies a log emitted on the origin rollup.
+The `LogIdentifier` specification below borrows heavily from Optimism's [message identifier](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/messaging.md#message-identifier) format. It uniquely identifies a log emitted on the origin rollup.
 
-The `Identifier` is able to be cryptographically linked to the block header produced by communicating rollups (and the L1). The creation of an `Identifier` creates a "cross rollup link" between the execution of the origin and the destination rollup. This cross rollup link can either be pessimistically or optimistically validated depending on the type of proof system used.
+Both identifiers should be verifiable by cryptographically linking them to the execution results (e.g. block header) produced by communicating rollups (and the L1). The creation of either identifier creates a "cross rollup link" between the execution of the origin and the destination rollup. This cross rollup link can either be pessimistically or optimistically validated depending on the type of proof system used.
 
 ```solidity
-struct Identifier {
-    address origin;
-    uint256 blocknumber;
-    uint256 transactionIndex;
-    uint256 logIndex;
+struct LogIdentifier {
     uint256 chainid;
-
-    // optional fields
+    uint256 blocknumber;
+    address account;
+    uint256 txIndex;
+    uint256 logIndex;
 }
 ```
 
 | Name          | Type      | Description                                                                     |
 |---------------|-----------|---------------------------------------------------------------------------------|
-| `origin`      | `address` | Account that emits the log                                                      |
+| `chainid`     | `uint256` | The chain id of the rollup that emitted the log                                 |
 | `blocknumber` | `uint256` | Block number in which the log was emitted                                       |
+| `account`     | `address` | Account that emits the log                                                      |
 | `txIndex`     | `uint256` | The index of the transaction in the array of all transactions in the block      |
 | `logIndex`    | `uint256` | The index of the log in the array of all logs emitted in the transaction        |
-| `chainid`     | `uint256` | The chain id of the rollup that emitted the log                                  |
 
+
+```solidity
+struct StorageIdentifier {
+    uint256 chainid;
+    address origin;
+    uint256 blocknumber;
+    bytes32 storageKey;
+}
+```
+
+| Name          | Type      | Description                                                                     |
+|---------------|-----------|---------------------------------------------------------------------------------|
+| `chainid`     | `uint256` | The chain id of the rollup with the specified storage key                       |
+| `blocknumber` | `uint256` | Block number in which the log was emitted                                       |
+| `account`     | `address` | Account that emits the log                                                      |
+| `storagekey`  | `bytes32` | The key in the state tree of a rollup                                           |
+
+The value of either log or storage identifiers is a opaque `byte` payload which is considered a validated cross chain input after the identifier is checked.
+
+Note that `LogIdentifier` is better suited for intra block interoperability due to `StorageIdentifier` requiring intra block state roots which most execution environments do not provide (this greatly increases execution overhead).
 
 ### Settlement
 
@@ -82,9 +102,11 @@ Chained settlement means:
 
 ## Rationale
 
-Logs or events are used as the `Identifier` due to shorter proofs and execution costs when compared to storage writes and storage proofs.
+We include both log and storage identifiers which cover two types of execution results - ephemeral and persistent. Logs are ephemeral execution results since they are tied to the transaction and specific block. Storage writes are persistent execution results since they are persisted to disk and across blocks.
 
-Additionally, only fields that contribute to the verifiability of the source of the cross rollup input are included. Fields that inform messaging mechanics such as `destinationChainId` (e.g. p2p vs. broadcast) are intentionally left out but can be included by implementors as optional fields.
+Additionally, only fields that contribute to the verifiability of the source of the cross rollup input are included. Fields that inform messaging mechanics such as `destinationChainId` (e.g. p2p vs. broadcast) are intentionally left out.
+
+Both a transaction index and a log index are included in the `LogIdentifier` due to increased indexing requirements to determine a block level log index. 
 
 ## Backwards Compatibility
 
