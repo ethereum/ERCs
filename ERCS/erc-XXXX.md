@@ -1,7 +1,7 @@
 ---
 eip: XXXX
-title: Cross Rollup Links
-description: An identifier for uniquely identifying the source of a cross rollup input and corresponding shared settlement mechanism.
+title: Verifiable Cross Rollup Links
+description: Identifiers for verifying the source of cross rollup inputs and corresponding shared settlement mechanisms.
 author: Bo Du (@notbdu), Ian Norden (@i-norden)
 discussions-to: TBD
 status: Draft
