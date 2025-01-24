@@ -12,28 +12,24 @@ created: 2025-01-23
 
 ## Abstract
 
-Interoperability between Ethereum rollups should be ultimately secured by the L1. This means that cross rollup transactions need to be verifiable at settlement time.
+Interoperability between Ethereum rollups should be secured by the L1. This means that cross rollup transactions need to be verifiable at settlement time.
 
 We propose cross rollup input identifiers that contain information uniquely identifying its source or origin.
 
 This informs the underlying native or non native proof system which transactions contain cross rollup inputs that need to be verified.
 
-This ERC does not cover messaging mechanics (e.g. push or pull) or attempt to establish a messaging interface. It aims to be flexible enough that any form of interoperability UX can be applied on top.
+The identifier formats for cross rollup inputs aim to be agnostic to the rollup framework, proof system and messaging mechanics used. 
 
-The identifier format for cross rollup inputs should be agnostic to the rollup framework, proof system and messaging mechanics used. 
-
-We propose using a pointer to a generic log or event emitted on the origin rollup or a storage key as an identifier. These pointers form "cross rollup links" which can be cryptographically linked to the block headers of communicating rollups and validated at settlement time.
+We propose using a pointer to a generic log emitted on or storage key written on the origin rollup as an identifier. These pointers form "cross rollup links" which can be cryptographically linked to the execution results of communicating rollups and validated at settlement time.
 
 ## Motivation
 
-Currently, there is no standard way for different rollup frameworks to: 
+Rollup stacks today cannot settle cross rollup transactions together on the L1. There is no standard way for different rollup frameworks to: 
 
 - Specify which transactions contain cross rollup inputs.
-- Verify that the source of a cross rollup input is valid.
+- Verify that the source of a cross rollup input is valid at settlement time.
 
-This means that different rollup stacks today cannot settle cross rollup transactions together on the L1.
-
-Settlement time validation of cross rollup inputs in a rollup cluster means that intra-cluster interoperability becomes fully trust-minimized. This would enable rollups of different rollup frameworks to join or leave the clusters they want to share fast trust-minimized communication with. 
+Settlement time validation of cross rollup inputs enables rollups of different rollup frameworks to join or leave the rollup clusters they want to share fast trust-minimized communication with. This allows the formation of secure rollup economic zones on top of Ethereum.
 
 ## Specification
 
@@ -41,9 +37,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Identifiers
 
-The `LogIdentifier` specification below borrows heavily from Optimism's [message identifier](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/messaging.md#message-identifier) format. It uniquely identifies a log emitted on the origin rollup.
+We propose a log and storage key identiifer. Both are verifiable by cryptographically linking them to the execution results (e.g. block header) produced by communicating rollups (and the L1). The creation of either identifier creates a "cross rollup link" between the execution of the origin and the destination rollup. These cross rollup links can either be pessimistically or optimistically validated depending on the type of proof system used.
 
-Both identifiers should be verifiable by cryptographically linking them to the execution results (e.g. block header) produced by communicating rollups (and the L1). The creation of either identifier creates a "cross rollup link" between the execution of the origin and the destination rollup. This cross rollup link can either be pessimistically or optimistically validated depending on the type of proof system used.
+The `LogIdentifier` specification below borrows heavily from Optimism's [message identifier](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/messaging.md#message-identifier) format. It uniquely identifies a log emitted on the origin rollup.
 
 ```solidity
 struct LogIdentifier {
@@ -67,7 +63,7 @@ struct LogIdentifier {
 ```solidity
 struct StorageIdentifier {
     uint256 chainid;
-    address origin;
+    address account;
     uint256 blocknumber;
     bytes32 storageKey;
 }
@@ -76,8 +72,8 @@ struct StorageIdentifier {
 | Name          | Type      | Description                                                                     |
 |---------------|-----------|---------------------------------------------------------------------------------|
 | `chainid`     | `uint256` | The chain id of the rollup with the specified storage key                       |
-| `blocknumber` | `uint256` | Block number in which the log was emitted                                       |
-| `account`     | `address` | Account that emits the log                                                      |
+| `blocknumber` | `uint256` | Block number in which the storage key exists                                    |
+| `account`     | `address` | Account that owns the storage key                                               |
 | `storagekey`  | `bytes32` | The key in the state tree of a rollup                                           |
 
 The value of either log or storage identifiers is a opaque `byte` payload which is considered a validated cross chain input after the identifier is checked.
