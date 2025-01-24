@@ -37,7 +37,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Identifiers
 
-We propose a log and storage key identiifer. Both are verifiable by cryptographically linking them to the execution results (e.g. block header) produced by communicating rollups (and the L1). The creation of either identifier creates a "cross rollup link" between the execution of the origin and the destination rollup. These cross rollup links can either be pessimistically or optimistically validated depending on the type of proof system used.
+We propose a log and storage key identifier. Both are verifiable by cryptographically linking them to the execution results (e.g. block header) produced by communicating rollups (and the L1). The creation of either identifier creates a "cross rollup link" between the execution of the origin and the destination rollup. These cross rollup links can either be pessimistically or optimistically validated depending on the type of proof system used.
 
 The `LogIdentifier` specification below borrows heavily from Optimism's [message identifier](https://github.com/ethereum-optimism/specs/blob/main/specs/interop/messaging.md#message-identifier) format. It uniquely identifies a log emitted on the origin rollup.
 
