@@ -23,19 +23,17 @@ contract ERC7007Zkml is ERC165, IERC7007, ERC721URIStorage {
         verifier = verifier_;
     }
 
-    /**
-     * @dev See {IERC7007-mint}.
-     */
     function mint(
         address to,
         bytes calldata prompt,
         bytes calldata aigcData,
         string calldata uri,
         bytes calldata proof
-    ) public virtual override returns (uint256 tokenId) {
-        require(verify(prompt, aigcData, proof), "ERC7007: invalid proof");
+    ) public virtual returns (uint256 tokenId) {
         tokenId = uint256(keccak256(prompt));
         _safeMint(to, tokenId);
+        addAigcData(tokenId, prompt, aigcData, proof);
+
         string memory tokenUri = string(
             abi.encodePacked(
                 "{",
@@ -48,7 +46,20 @@ contract ERC7007Zkml is ERC165, IERC7007, ERC721URIStorage {
             )
         );
         _setTokenURI(tokenId, tokenUri);
-        emit Mint(to, tokenId, prompt, aigcData, uri, proof);
+    }
+
+    /**
+     * @dev See {IERC7007-addAigcData}.
+     */
+    function addAigcData(
+        uint256 tokenId,
+        bytes calldata prompt,
+        bytes calldata aigcData,
+        bytes calldata proof
+    ) public virtual override {
+        require(ownerOf(tokenId) != address(0), "ERC7007: nonexistent token");
+        require(verify(prompt, aigcData, proof), "ERC7007: invalid proof");
+        emit AigcData(tokenId, prompt, aigcData, proof);
     }
 
     /**
