@@ -76,7 +76,7 @@ struct StorageIdentifier {
 | `account`     | `address` | Account that owns the storage key                                               |
 | `storagekey`  | `bytes32` | The key in the state tree of a rollup                                           |
 
-The value of either log or storage identifiers is a opaque `byte` payload which is considered a validated cross chain input after the identifier is checked.
+The value that either log or storage identifiers map to is an opaque `byte` payload which is considered a validated cross chain input after the identifier is checked. This is an arbitrary log in the case of `LogIdentifier` or an arbitrary storage value in the case of `StorageIdentifier`.
 
 Note that `LogIdentifier` is better suited for intra block interoperability due to `StorageIdentifier` requiring intra block state roots which most execution environments do not provide (this greatly increases execution overhead).
 
