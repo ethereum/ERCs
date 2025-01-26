@@ -192,6 +192,18 @@ EIPs may have a `requires` header, indicating the EIP numbers that this EIP depe
 
 A `requires` dependency is created when the current EIP cannot be understood or implemented without a concept or technical element from another EIP. Merely mentioning another EIP does not necessarily create such a dependency.
 
+### `implementation-status` header
+
+The `implementation-status` header is used to provide extra context regarding usage or highlight popular example implementation of a EIP. This information should be light and concise.
+
+This field is optional and to be used sparingly.
+
+### `implementation-status-url` header
+
+The `implentation-status-url` header can be used when combined with the `implementation-status` header to provide a link to an external resource that provides more information about the current implementation status of an EIP.
+
+Keep in mind that linkage to external resources requires extra consideration and could be rejected by EIP Editors.
+
 ## Linking to External Resources
 
 Other than the specific exceptions listed below, links to external resources **SHOULD NOT** be included. External resources may disappear, move, or change unexpectedly.
