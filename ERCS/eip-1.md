@@ -417,6 +417,20 @@ The top-level URL field must resolve to a copy of the referenced document which 
 
 References to other EIPs should follow the format `EIP-N` where `N` is the EIP number you are referring to.  Each EIP that is referenced in an EIP **MUST** be accompanied by a relative markdown link the first time it is referenced, and **MAY** be accompanied by a link on subsequent references.  The link **MUST** always be done via relative paths so that the links work in this GitHub repository, forks of this repository, the main EIPs site, mirrors of the main EIP site, etc.  For example, you would link to this EIP as `./eip-1.md`.
 
+```markdown
+[EIP-1](./eip-1.md)
+```
+
+Which renders to:
+
+[EIP-1](./eip-1.md)
+
+Links to other EIPs must be relative paths and match this regular expression:
+
+```regex
+^(./eip-[0-9]+\.md)$
+```
+
 ## Auxiliary Files
 
 Images, diagrams and auxiliary files should be included in a subdirectory of the `assets` folder for that EIP as follows: `assets/eip-N` (where **N** is to be replaced with the EIP number). When linking to an image in the EIP, use relative links such as `../assets/eip-1/image.png`.
@@ -489,7 +503,7 @@ The `description` field in the preamble:
 
 ### EIP numbers
 
-When referring to an EIP with a `category` of `ERC`, it must be written in the hyphenated form `ERC-X` where `X` is that EIP's assigned number. When referring to EIPs with any other `category`, it must be written in the hyphenated form `EIP-X` where `X` is that EIP's assigned number.
+When referring to an EIP with a `category` of `ERC`, it must be written in the hyphenated form `ERC-X` where `X` is that EIP's assigned number. When referring to EIPs with any other `category`, it must be written in the hyphenated form `EIP-X` where `X` is that EIP's assigned number. With regards to linking see the [Linking to other EIPs](#linking-to-other-eips) section.
 
 ### RFC 2119 and RFC 8174
 
