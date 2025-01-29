@@ -69,7 +69,10 @@ type SignResult = {
 
 ##### Request Interfaces
 
-Below are `request` interfaces for the `signed_data` `version`s specified in [EIP-191](./eip-191.md) at time of writing.
+Below are `request` interfaces for the `signed_data` `version`s specified in [EIP-191](./eip-191.md) at time of writing. These include:
+* `0x00` - Data with intended validator
+* `0x01` - [EIP-712](./eip-712.md) Typed Data
+* `0x45` - Personal Sign
 
 Any new `request` interfaces corresponding to new `signed_data` `version`s SHOULD be defined in their own ERCs.
 
