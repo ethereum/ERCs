@@ -16,7 +16,7 @@ pragma solidity >=0.7.0;
  * This is the locking contracts interface.
  *
  * The rationale is that the token is locked with with two encrypted keys
- * or a hashes of keys associated with two different adresses (buyer/seller).
+ * or hashes of keys associated with two different adresses (buyer/seller).
  *
  * The asset in transfered to the address of the buyer, if the buyer's key is presented.
  *
@@ -31,7 +31,7 @@ interface ILockingContract {
      * @param id the trade identifier of the trade.
      * @param from The address of the seller.
      * @param to The address of the buyer.
-     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
+     * @param keyEncryptedSeller Encryption (or, alternatively, hash) of the key that can be used by the seller to (re-)claim the token.
      */
     event TransferIncepted(bytes32 id, int amount, address from, address to, string keyEncryptedSeller);
 
@@ -41,7 +41,7 @@ interface ILockingContract {
      * @param amount the number of tokens to be transfered.
      * @param from The address of the seller.
      * @param to The address of the buyer.
-     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
+     * @param keyEncryptedBuyer Encryption (or, alternatively, hash) of the key that can be used by the buyer to claim the token.
      */
     event TransferConfirmed(bytes32 id, int amount, address from, address to, string keyEncryptedBuyer);
 
@@ -67,7 +67,7 @@ interface ILockingContract {
      * @param id the trade identifier of the trade.
      * @param amount the number of tokens to be transfered.
      * @param from The address of the seller (the address of the buyer is message.sender).
-     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
+     * @param keyEncryptedSeller Encryption (or, alternatively, hash) of the key that can be used by the seller to (re-)claim the token.
      */
     function inceptTransfer(bytes32 id, int amount, address from, string memory keyEncryptedSeller) external;
 
@@ -77,7 +77,7 @@ interface ILockingContract {
      * @param id the trade identifier of the trade.
      * @param amount the number of tokens to be transfered.
      * @param to The address of the buyer (the address of the seller is message.sender).
-     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
+     * @param keyEncryptedBuyer Encryption (or, alternatively, hash) of the key that can be used by the buyer to claim the token.
      */
     function confirmTransfer(bytes32 id, int amount, address to, string memory keyEncryptedBuyer) external;
 
