@@ -1,7 +1,8 @@
 ---
 EIP: TBD
-Title: Program-Derived Addresses (PDAs) for Ethereum Smart Contracts
-Author: John Crunch, https://github.com/JohnCrunch
+Title: Program-Derived Addresses (PDAs) 
+Author: John Crunch, @JohnCrunch
+Discussions-to: TBD
 Status: Draft
 Type: Standards Track
 Category: ERC
