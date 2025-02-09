@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
-import "../utils/DataPoints.sol";
+import {DataPoint} from "../utils/DataPoints.sol";
+import {IIDManager} from "./IIDManager.sol";
+import {IDataObject} from "./IDataObject.sol";
 
 /**
  * @title Data Index interface
  * @notice The interface defines functions to manage the access control of DataManagers to
  *         DataPoints as well as to the data related to these DataPoints in specific dataObjects
  */
-interface IDataIndex {
-   /**
+interface IDataIndex is IIDManager {
+    /**
      * @notice Verifies if DataManager is allowed to write in specific DataPoint
      * @param dp Identifier of the DataPoint
      * @param dm Address of DataManager
@@ -34,7 +36,7 @@ interface IDataIndex {
      * @param data Operation-specific data
      * @return Operation-specific data
      */
-    function read(address dobj, DataPoint dp, bytes4 operation, bytes calldata data) external view returns (bytes memory);
+    function read(IDataObject dobj, DataPoint dp, bytes4 operation, bytes calldata data) external view returns (bytes memory);
 
     /**
      * @notice Stores data
@@ -45,5 +47,5 @@ interface IDataIndex {
      * @return Operation-specific data (can be empty)
      * @dev Function SHOULD be restricted to allowed DMs only
      */
-    function write(address dobj, DataPoint dp, bytes4 operation, bytes calldata data) external returns (bytes memory);
+    function write(IDataObject dobj, DataPoint dp, bytes4 operation, bytes calldata data) external returns (bytes memory);
 }
