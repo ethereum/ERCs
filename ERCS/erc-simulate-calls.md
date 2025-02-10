@@ -41,7 +41,7 @@ type Request = {
       value?: `0x${string}`,
       capabilities?: Record<string, any>;
     }[],
-    // ERC-5792 Capabilities.
+    // ERC-5792 Capabilities request.
     capabilities?: Record<string, any>;
     // Target chain ID to simulate calls on.
     chainId: `0x${string}`,
@@ -69,7 +69,7 @@ type Response = {
     data: `0x${string}`;
     topics: `0x${string}`[];
   }[];
-  // Capabilities used by the calls.
+  // ERC-5792 Capabilities results.
   capabilities?: Record<string, any>;
   // Error that occurred during simulation.
   error?: {
@@ -83,6 +83,8 @@ type Response = {
 ```
 
 #### Example
+
+##### Successful Simulation
 
 ```ts
 const response = await provider.request({
@@ -113,6 +115,37 @@ console.log(response);
  *    ],
  *  }],
  *  status: 200,
+ * }
+ */
+```
+
+##### Failed Simulation
+
+```ts
+const response = await provider.request({
+  method: 'wallet_simulateCalls',
+  params: [{
+    calls: [{
+      to: '0xba11ba11ba11ba11ba11ba11ba11ba11ba11ba11',
+      data: '0xbabebabe0000000000000000000000000000000000000000000000000000000000000001',
+    }],
+    chainId: '0x1',
+    from: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+    version: '1',
+  }],
+});
+
+console.log(response);
+/**
+ * {
+ *  chainId: '0x1',
+ *  gasUsed: '0xe208',
+ *  error: {
+ *    data: '0x08c379a0',
+ *    code: 3,
+ *    message: 'Token ID is taken.',
+ *  },
+ *  status: 400,
  * }
  */
 ```
