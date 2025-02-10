@@ -1,6 +1,6 @@
 ---
 title: Wallet Call Simulation API
-description: Adds a JSON-RPC method for simulating execution of calls on a wallet
+description: Adds a JSON-RPC method for simulating execution of calls on a Wallet
 author: Jake Moxey (@jxom), Adam Hodges (@ajhodges)
 discussions-to: 
 status: Draft
@@ -12,7 +12,7 @@ requires: 5792
 
 ## Abstract
 
-This ERC proposes a new JSON-RPC method for simulating the execution of calls on a wallet. The method is designed to be used by wallets to simulate the execution of calls before sending them to the network, allowing for gas estimation, log extraction, and call validation.
+This ERC proposes a new JSON-RPC method for simulating the execution of calls on a Wallet. The method is designed to be used by Wallets to simulate the execution of calls before sending them to the network, allowing for gas estimation, log extraction, and call validation.
 
 ## Motivation
 
@@ -123,7 +123,7 @@ console.log(response);
 
 ### `eth_simulateV1` vs `wallet_simulateCalls`
 
-The [`eth_simulateV1` Execution API method](https://github.com/ethereum/execution-apis/pull/484) is very similar to `wallet_simulateCalls` in that they both simulate the execution of calls on a wallet. However, the fundamental differences are that `eth_simulateV1`: is not account agnostic, is an Execution API method (not a Wallet API method), and assumes that regular transactions will be executed. It does not have knowledge of the implementation details of how the wallet constructs transactions (ie. they could be wrapped as an [ERC-4337 User Operation](https://eips.ethereum.org/EIPS/eip-4337#useroperation) with a Paymaster, or wrapped as another type of abstraction, which consequently would affect the simulation results).
+The [`eth_simulateV1` Execution API method](https://github.com/ethereum/execution-apis/pull/484) is very similar to `wallet_simulateCalls` in that they both simulate the execution of calls on a Wallet. However, the fundamental differences are that `eth_simulateV1`: is not account agnostic, is an Execution API method (not a Wallet API method), and assumes that regular transactions will be executed. It does not have knowledge of the implementation details of how the Wallet constructs transactions (ie. they could be wrapped as an [ERC-4337 User Operation](https://eips.ethereum.org/EIPS/eip-4337#useroperation) with a Paymaster, or wrapped as another type of abstraction, which consequently would affect the simulation results).
 
 `wallet_simulateCalls` is account agnostic, meaning that it is aware of the implementation details of how the Wallet constructs transactions. As the Wallet handles `wallet_simulateCalls` and returns a response to the Application, this means that the Wallet can simulate the calls with the full context of its implementation details (ie. simulate as a regular transaction, a [ERC-4337 User Operation](https://eips.ethereum.org/EIPS/eip-4337#useroperation), or something else entirely).
 
