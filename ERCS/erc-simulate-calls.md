@@ -26,8 +26,6 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 Instructs a Wallet to simulate execution of a set of calls, and return metadata such as: the gas used, logs, status, and failure reason (if applicable).
 
-> It is RECOMMENDED that Wallet's utilize the `eth_simulateV1` execution API to simulate calls, to retain accuracy of the simulation.
-
 #### Request
 
 Accepts exact parameters as per [ERC-5792 `wallet_sendCalls`](https://eips.ethereum.org/EIPS/eip-5792#wallet_sendcalls).
