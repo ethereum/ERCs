@@ -1,5 +1,5 @@
 .PHONY: default test
-default: test ;
+default: test
 
 test:
 	docker build -t bequeath-test .
