@@ -53,7 +53,11 @@ type Request = {
     // Sender address.
     from?: `0x${string}`;
     // ERC-7836 signature.
-    signature?: `0x${string}`;
+    signature?: {
+      publicKey: `0x${string}`,
+      type: string,
+      value: `0x${string}`
+    };
     // Version.
     version: string;
   }]
