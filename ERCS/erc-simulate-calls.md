@@ -7,7 +7,7 @@ status: Draft
 type: Standards Track
 category: Interface
 created: 2025-02-10
-requires: 5792
+requires: 5792, 7836
 ---
 
 ## Abstract
@@ -48,11 +48,11 @@ type Request = {
     chainId: `0x${string}`,
     // ERC-5792 Capabilities request.
     capabilities?: Record<string, any>;
-    // Simulation context (ERC-7836).
+    // ERC-7836 context.
     context?: unknown;
     // Sender address.
     from?: `0x${string}`;
-    // Signature (ERC-7836).
+    // ERC-7836 signature.
     signature?: `0x${string}`;
     // Version.
     version: string;
