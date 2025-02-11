@@ -16,11 +16,11 @@ pragma solidity >=0.7.0;
  * This is the locking contracts interface.
  *
  * The rationale is that the token is locked with with two encrypted keys
- * or a hashes of keys associated with two different adresses (buyer/seller).
+ * or a hashes of keys associated with two different addresses (buyer/seller).
  *
- * The asset in transfered to the address of the buyer, if the buyer's key is presented.
+ * The asset in transferred to the address of the buyer, if the buyer's key is presented.
  *
- * The asset in (re-)transfered to the address of the seller, if the seller's key is presented.
+ * The asset in (re-)transferred to the address of the seller, if the seller's key is presented.
  */
 interface ILockingContract {
 
@@ -38,12 +38,13 @@ interface ILockingContract {
     /**
      * @dev Emitted  when the transfer for the token is incepted
      * @param id the trade identifier of the trade.
-     * @param amount the number of tokens to be transfered.
+     * @param amount the number of tokens to be transferred.
      * @param from The address of the seller.
      * @param to The address of the buyer.
-     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
+     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to reclaim the token in case of cancellation or failed payment.
+     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token in case of a successful payment.
      */
-    event TransferConfirmed(bytes32 id, int amount, address from, address to, string keyEncryptedBuyer);
+    event TransferConfirmed(bytes32 id, int amount, address from, address to, string keyEncryptedSeller, string keyEncryptedBuyer);
 
     /**
      * @dev Emitted when the token was successfully claimed (forward to buyer).
@@ -65,7 +66,7 @@ interface ILockingContract {
      * @notice Called from the buyer of the token to initiate token transfer.
      * @dev emits a {TransferIncepted}
      * @param id the trade identifier of the trade.
-     * @param amount the number of tokens to be transfered.
+     * @param amount the number of tokens to be transferred.
      * @param from The address of the seller (the address of the buyer is message.sender).
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token.
      */
@@ -75,7 +76,7 @@ interface ILockingContract {
      * @notice Called from the seller of the token to confirm token transfer. Locks the token.
      * @dev emits a {TransferConfirmed}
      * @param id the trade identifier of the trade.
-     * @param amount the number of tokens to be transfered.
+     * @param amount the number of tokens to be transferred.
      * @param to The address of the buyer (the address of the seller is message.sender).
      * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token.
      */
