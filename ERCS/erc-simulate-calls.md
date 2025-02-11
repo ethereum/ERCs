@@ -28,7 +28,10 @@ Instructs a Wallet to simulate execution of a set of calls, and return metadata 
 
 #### Request
 
-- Accepts exact parameters as per [ERC-5792 `wallet_sendCalls`](https://eips.ethereum.org/EIPS/eip-5792#wallet_sendcalls).
+- Consumers MUST provide exact parameters as per [ERC-5792 `wallet_sendCalls`](https://eips.ethereum.org/EIPS/eip-5792#wallet_sendcalls).
+- Consumers MAY OPTIONALLY provide [ERC-7836](https://eips.ethereum.org/ERCs/eip-7836) `context` and `signature` values from a "prepared" call.
+  - `context` is the result of `wallet_prepareCalls`.
+  - `signature` is the result of signing a [ERC-7836](https://eips.ethereum.org/ERCs/eip-7836) `digest` with the sender's private key.
 
 ```ts 
 type Request = {
@@ -41,12 +44,16 @@ type Request = {
       value?: `0x${string}`,
       capabilities?: Record<string, any>;
     }[],
-    // ERC-5792 Capabilities request.
-    capabilities?: Record<string, any>;
     // Target chain ID to simulate calls on.
     chainId: `0x${string}`,
+    // ERC-5792 Capabilities request.
+    capabilities?: Record<string, any>;
+    // Simulation context (ERC-7836).
+    context?: unknown;
     // Sender address.
     from?: `0x${string}`;
+    // Signature (ERC-7836).
+    signature?: `0x${string}`;
     // Version.
     version: string;
   }]
@@ -58,9 +65,9 @@ type Request = {
 - The `status` code complies with the [ERC-5792 Status Codes](https://github.com/ethereum/EIPs/blob/2dcee4d0e2fc1cea488c12ba88e9a93d5925043b/EIPS/eip-5792.md#status-codes-for-status-field).
 - A JSON-RPC `error` object is returned if the simulation fails.
   - The `error` object MAY be present if the `status` code is `4xx | 5xx | 6xx`.
-  - `error.message` is a short human-readable message of the error.
-  - `error.details` is low-level details of the error.
-  - `error.data` is the error selector if the `status` code is an onchain failure (`5xx | 6xx`).
+  - `error.message` MUST be a short human-readable message of the error.
+  - `error.details` MAY contain low-level details of the error.
+  - `error.data` MUST be an hex-encoded error (selector) if the `status` code is an onchain failure (`5xx | 6xx`).
 
 ```ts
 type Response = {
@@ -187,11 +194,11 @@ console.log(response);
 
 ### `traceAssetChanges` Capability
 
-Needs discussion.
+Capability to trace ERC20 & Native asset changes. Needs discussion.
 
 ### `traceMalicious` Capability
 
-Needs discussion.
+Capability to trace malicious calls. Needs discussion.
 
 ## Rationale
 
