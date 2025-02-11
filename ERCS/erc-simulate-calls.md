@@ -28,7 +28,7 @@ Instructs a Wallet to simulate execution of a set of calls, and return metadata 
 
 #### Request
 
-Accepts exact parameters as per [ERC-5792 `wallet_sendCalls`](https://eips.ethereum.org/EIPS/eip-5792#wallet_sendcalls).
+- Accepts exact parameters as per [ERC-5792 `wallet_sendCalls`](https://eips.ethereum.org/EIPS/eip-5792#wallet_sendcalls).
 
 ```ts 
 type Request = {
@@ -78,7 +78,7 @@ type Response = {
     message?: string;
   },
   // Status code of the simulation. 
-  status?: number;
+  status: number;
 }
 ```
 
@@ -149,6 +149,14 @@ console.log(response);
  * }
  */
 ```
+
+### `traceAssetChanges` Capability
+
+Needs discussion.
+
+### `traceMalicious` Capability
+
+Needs discussion.
 
 ## Rationale
 
