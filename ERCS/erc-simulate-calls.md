@@ -201,6 +201,8 @@ The [`eth_simulateV1` Execution API method](https://github.com/ethereum/executio
 
 `wallet_simulateCalls` is account agnostic, meaning that it is aware of the implementation details of how the Wallet constructs transactions. As the Wallet handles `wallet_simulateCalls` and returns a response to the Application, this means that the Wallet can simulate the calls with the full context of its implementation details (ie. simulate as a regular transaction, a [ERC-4337 User Operation](https://eips.ethereum.org/EIPS/eip-4337#useroperation), or something else entirely).
 
+It is very well possible that a Wallet can "build" the transaction with their preferred account implementation, use `eth_simulateV1` internally to simulate the calls, and use it to build the response for `wallet_simulateCalls`.
+
 ## Backwards Compatibility
 
 Needs discussion.
