@@ -2,7 +2,7 @@
 title: Wallet Call Simulation API
 description: Adds a JSON-RPC method for simulating execution of calls on a Wallet
 author: Jake Moxey (@jxom), Adam Hodges (@ajhodges)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/new-erc-wallet-call-simulation-api/22818
 status: Draft
 type: Standards Track
 category: Interface
