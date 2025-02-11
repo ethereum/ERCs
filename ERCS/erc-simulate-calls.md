@@ -56,6 +56,11 @@ type Request = {
 #### Response
 
 - The `status` code complies with the [ERC-5792 Status Codes](https://github.com/ethereum/EIPs/blob/2dcee4d0e2fc1cea488c12ba88e9a93d5925043b/EIPS/eip-5792.md#status-codes-for-status-field).
+- A JSON-RPC `error` object is returned if the simulation fails.
+  - The `error` object MAY be present if the `status` code is `4xx | 5xx | 6xx`.
+  - `error.message` is a short human-readable message of the error.
+  - `error.details` is low-level details of the error.
+  - `error.data` is the error selector if the `status` code is an onchain failure (`5xx | 6xx`).
 
 ```ts
 type Response = {
@@ -73,9 +78,9 @@ type Response = {
   capabilities?: Record<string, any>;
   // Error that occurred during simulation.
   error?: {
+    message: string;
     data?: `0x${string}`;
-    code?: number;
-    message?: string;
+    details?: string;
   },
   // Status code of the simulation. 
   status: number;
@@ -119,7 +124,7 @@ console.log(response);
  */
 ```
 
-##### Failed Simulation
+##### Failed Simulation (Onchain Failure)
 
 ```ts
 const response = await provider.request({
@@ -141,9 +146,39 @@ console.log(response);
  *  chainId: '0x1',
  *  gasUsed: '0xe208',
  *  error: {
- *    data: '0x08c379a0',
- *    code: 3,
  *    message: 'Token ID is taken.',
+ *    details: 'execution reverted: TokenIdUnavailable()',
+ *    data: '0x08c379a0',
+ *  },
+ *  status: 500,
+ * }
+ */
+```
+
+##### Failed Simulation (Offchain Failure)
+
+```ts
+const response = await provider.request({
+  method: 'wallet_simulateCalls',
+  params: [{
+    calls: [{
+      to: '0xba11ba11ba11ba11ba11ba11ba11ba11ba11ba11',
+      data: '0xbabebabe0000000000000000000000000000000000000000000000000000000000000001',
+    }],
+    chainId: '0x1',
+    from: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+    version: '1',
+  }],
+});
+
+console.log(response);
+/**
+ * {
+ *  chainId: '0x1',
+ *  gasUsed: '0xe208',
+ *  error: {
+ *    message: 'Paymaster balance is insufficient.',
+ *    details: 'useroperation reverted during simulation with reason: aa26',
  *  },
  *  status: 400,
  * }
