@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+// This implementation is a variation of https://github.com/erc6551/reference/blob/main/src/ERC6551Registry.sol
+// Original authors: Jayden Windle @jaydenwindle and Vectorized @vectorized
+// Adapted by: Francesco Sullo @sullof
+
 contract ERC7656Registry is IERC7656Registry {
   function create(
     address implementation,
@@ -110,4 +114,3 @@ contract ERC7656Registry is IERC7656Registry {
   }
 }
 
-// This implementation is a variation of https://github.com/erc6551/reference/blob/main/src/ERC6551Registry.sol
