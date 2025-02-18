@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
 import {DataPoint} from "../utils/DataPoints.sol";
 
@@ -19,9 +19,9 @@ interface IIDManager {
 
     /**
      * @notice Provides information about owner of specific DataIndex id
-     * @param diid DataIndex id to get info for
+     * @param diid_ DataIndex id to get info for
      * @return chainid of owner's address
      * @return owner's address
      */
-    function ownerOf(bytes32 diid) external view returns (uint32, address);
+    function ownerOf(bytes32 diid_) external view returns (uint32, address);
 }
