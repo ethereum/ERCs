@@ -2,7 +2,7 @@
 eip: x
 title: Cancelation for ERC-7540 Tokenized Vaults
 description: Extension of ERC-7540 with cancelation support
-author: Jeroen Offerijns (@hieronx)
+author: Jeroen Offerijns (@hieronx), Vikram Arun (@vikramarun)
 discussions-to: TODO
 status: Draft
 type: Standards Track
