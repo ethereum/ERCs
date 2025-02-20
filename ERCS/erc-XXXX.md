@@ -1,6 +1,6 @@
 ---
 eip: XXXX
-title: Cross-Chain Broadcaster
+title: Crosschain Broadcaster
 description: Trustless cross-chain storage-based message broadcasting for rollups.
 author: Henry Arneson (@godzillaba), Chris Buckland (@yahgwai)
 discussions-to: https://ethereum-magicians.org/t/
