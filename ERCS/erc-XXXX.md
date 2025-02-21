@@ -1,9 +1,9 @@
 ---
 eip: XXXX
 title: Crosschain Broadcaster
-description: Trustless cross-chain storage-based message broadcasting for rollups.
+description: Trustless crosschain storage-based message broadcasting for rollups.
 author: Henry Arneson (@godzillaba), Chris Buckland (@yahgwai)
-discussions-to: https://ethereum-magicians.org/t/
+discussions-to: https://ethereum-magicians.org/t/new-erc-cross-chain-broadcaster/22927
 status: Draft
 type: Standards Track
 category: ERC
@@ -20,7 +20,7 @@ The Ethereum ecosystem is experiencing a rapid growth in the number of rollup ch
 
 Many classes of applications could benefit from a unified system for broadcasting messages across chains. Some examples include:
 
-- **Intent-Based Protocols:** These protocols enable "fillers" to quickly execute cross-chain actions on behalf of users, followed by slower, trustless messaging to settle these actions. However, due to the lack of a simple, unified interface for sending settlement messages, intent protocols often develop proprietary methods. This raises adoption barriers for fillers, integrators, and new protocols. A pluggable, standardized messaging solution that works across rollup stacks would allow developers and standards authors to focus on other components of the intent stack, such as fulfillment constraints, order formats, and escrow.
+- **Intent-Based Protocols:** These protocols enable "fillers" to quickly execute crosschain actions on behalf of users, followed by slower, trustless messaging to settle these actions. However, due to the lack of a simple, unified interface for sending settlement messages, intent protocols often develop proprietary methods. This raises adoption barriers for fillers, integrators, and new protocols. A pluggable, standardized messaging solution that works across rollup stacks would allow developers and standards authors to focus on other components of the intent stack, such as fulfillment constraints, order formats, and escrow.
 - **Governance of multichain apps:** Multichain apps often have a single chain where core governance contracts are located. A standardized broadcast messaging system simplifies the dissemination of proposal results to all instances of a multichain app.
 - **Multichain Oracles:** Some classes of oracles may benefit from being able to post their data to a single chain, while having that same data easily accessible across many other chains.
 
@@ -371,7 +371,7 @@ Since the ERC only uses finalized blocks, messages may take a long time to propa
 
 ## Example: Publisher and Subscriber Burn and Mint Bridge
 
-The following is an example of a one-way cross-chain token migrator. The burn side of the migrator is a publisher which sends burn messages through a Broadcaster. The mint side subscribes to these burn messages through a Receiver on another chain.
+The following is an example of a one-way crosschain token migrator. The burn side of the migrator is a publisher which sends burn messages through a Broadcaster. The mint side subscribes to these burn messages through a Receiver on another chain.
 
 ```solidity
 /// @notice Message format for the burn and mint migrator.
@@ -478,4 +478,4 @@ Copyright and related rights waived via [CC0](/LICENSE).
 ## Citation
 Please cite this document as:
 
-Henry Arneson (@godzillaba), Chris Buckland (@yahgwai), "ERC-XXXX: Cross-Chain Broadcaster [DRAFT]," Ethereum Improvement Proposals, no. XXXX, February 2025. [Online serial]. Available: https://eips.ethereum.org/EIPS/eip-XXXX.
+Henry Arneson (@godzillaba), Chris Buckland (@yahgwai), "ERC-XXXX: Crosschain Broadcaster [DRAFT]," Ethereum Improvement Proposals, no. XXXX, February 2025. [Online serial]. Available: https://eips.ethereum.org/EIPS/eip-XXXX.
