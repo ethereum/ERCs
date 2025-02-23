@@ -4,31 +4,19 @@ description: This standard introduces a structured way for smart contracts to de
 author: DD Zhou (https://daism.io/en/smartcommons/actor/0xDD@daism.io), Changchun Chen (https://daism.io/smartcommons/actor/0xfeng@daism.io), Aranna (https://daism.io/smartcommons/actor/0xDD%40daism.io)
 discussions-to: https://ethereum-magicians.org/t/scc0-smart-creative-commons-zero-a-license-for-public-decentralized-applications/22958
 status: Draft
-type: <Standards Track, Meta, or Informational>
-category: <Core, Networking, Interface, or ERC> # Only required for Standards Track. Otherwise, remove this field.
-created: <date created on, in ISO 8601 (yyyy-mm-dd) format>
-requires: <EIP number(s)> # Only required when you reference an EIP in the `Specification` section. Otherwise, remove this field.
+type: Standards Track
+category: ERC
+created: 2025-02-22
 ---
-
-<!--
-  READ EIP-1 (https://eips.ethereum.org/EIPS/eip-1) BEFORE USING THIS TEMPLATE!
-
-  This is the suggested template for new EIPs. After you have filled in the requisite fields, please delete these comments.
-
-  Note that an EIP number will be assigned by an editor. When opening a pull request to submit your EIP, please use an abbreviated title in the filename, `eip-draft_title_abbrev.md`.
-
-  The title should be 44 characters or less. It should not repeat the EIP number in title, irrespective of the category.
-
-  TODO: Remove this comment before submitting
--->
 
 ## Abstract
 
-<!--
-  The Abstract is a multi-sentence (short paragraph) technical summary. This should be a very terse and human-readable version of the specification section. Someone should be able to read only the abstract to get the gist of what this specification does.
+SCC0 (Smart Creative Commons Zero) is the first public goods license tailored for decentralized public applications (Smart Commons), including dApps, dAIpps(AIs). This standard introduces a structured way for smart contracts to declare SCC0 compliance, enabling automated on-chain verification and governance integration.
 
-  TODO: Remove this comment before submitting
--->
+Two versions of SCC0 have been deployed by DAism, and anyone can deploy additional versions to further expand its applications. The declaration of any dApp/dAIpp is as simple as:
+
+<pre><code class="language-solidity">address public constant LICENSE = contract_address;
+</code></pre>
 
 ## Motivation
 
