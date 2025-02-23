@@ -1,7 +1,7 @@
 ---
-title: <The EIP title is a few words, not a complete sentence>
-description: <Description is one full (short) sentence>
-author: <a comma separated list of the author's or authors' name + GitHub username (in parenthesis), or name and email (in angle brackets).  Example, FirstName LastName (@GitHubUsername), FirstName LastName <foo@bar.com>, FirstName (@GitHubUsername) and GitHubUsername (@GitHubUsername)>
+title: SCC0: Smart Creative Commons Zero - A License for Public Decentralized Applications
+description: This standard introduces a structured way for smart contracts to declare SCC0 compliance, enabling automated on-chain verification and governance integration.
+author: [DD](https://daism.io/en/smartcommons/actor/0xDD@daism.io)
 discussions-to: <URL>
 status: Draft
 type: <Standards Track, Meta, or Informational>
