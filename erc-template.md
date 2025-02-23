@@ -1,7 +1,7 @@
 ---
 title: <SCC0: Smart Creative Commons Zero - A License for Public Decentralized Applications>
 description: <This standard introduces a structured way for smart contracts to declare SCC0 compliance, enabling automated on-chain verification and governance integration.>
-author: [DD Zhou](<a href="https://daism.io/en/smartcommons/actor/0xDD@daism.io"  target="_blank">0xDD@daism.io</a>)
+author: DD Zhou
 discussions-to: <URL>
 status: Draft
 type: <Standards Track, Meta, or Informational>
