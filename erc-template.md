@@ -2,7 +2,7 @@
 title: SCC0 (Smart Creative Commons Zero) - A License for Public Decentralized Applications
 description: This standard introduces a structured way for smart contracts to declare SCC0 compliance, enabling automated on-chain verification and governance integration.
 author: DD Zhou
-discussions-to: [<URL>](https://ethereum-magicians.org/t/scc0-smart-creative-commons-zero-a-license-for-public-decentralized-applications/22958)
+discussions-to: https://ethereum-magicians.org/t/scc0-smart-creative-commons-zero-a-license-for-public-decentralized-applications/22958
 status: Draft
 type: <Standards Track, Meta, or Informational>
 category: <Core, Networking, Interface, or ERC> # Only required for Standards Track. Otherwise, remove this field.
