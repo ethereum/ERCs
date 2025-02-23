@@ -151,7 +151,7 @@ This EIP does not introduce breaking changes but provides an opt-in mechanism fo
 - Developers must ensure contract logic aligns with SCC0's principles.
 - The `onlySCC0` modifier enforces compliance in automated contract interactions.
 
-Some dAIpp will enforce the security by auditing every dApp/dAIpp once it's minted a smart common (v1) or deployed on-chain(v2).
+Some dAIpp will enforce the security by auditing every dApp/dAIpp once it's minted a smart common (SCC0 v1) or deployed on-chain(SCC0 v2).
 
 ## Copyright
 
