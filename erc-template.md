@@ -1,5 +1,5 @@
 ---
-title: SCC0:&nbsp;Smart Creative Commons Zero - A License for Public Decentralized Applications
+title: SCC0:Smart Creative Commons Zero - A License for Public Decentralized Applications
 description: This standard introduces a structured way for smart contracts to declare SCC0 compliance, enabling automated on-chain verification and governance integration.
 author: DD Zhou
 discussions-to: <URL>
