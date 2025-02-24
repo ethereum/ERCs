@@ -3,7 +3,7 @@ eip: TBD
 title: Clawback Transactions for EOAs
 description: Introduces a new Ethereum transaction type (0x05) enabling a clawback window before final settlement.
 author: Leon Africa (@Leon-Africa)
-discussions-to: <Ethereum Magicians thread link>
+discussions-to: https://ethereum-magicians.org/t/eip-discussion-clawback-transactions-0x05-a-new-typed-transaction-for-delayed-finalization/22976
 status: Draft
 type: Standards Track
 category: ERC
@@ -425,7 +425,7 @@ This EIP introduces clawback transactions (0x05), a novel transaction type that 
 
 We encourage **Ethereum developers, researchers, and community members** to review this proposal and provide feedback.  
 
-**Discussion Link:** [Ethereum Magicians Forum] (To be added)
+**Discussion Link:** [Ethereum Magicians Forum](https://ethereum-magicians.org/t/eip-discussion-clawback-transactions-0x05-a-new-typed-transaction-for-delayed-finalization/22976)
 
 With further refinement and community input, clawback transactions could become a vital security layer in Ethereum’s transaction framework.
 
