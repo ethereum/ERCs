@@ -12,7 +12,7 @@ import "./IERC20Settlement.sol";
 * @dev This token performs transfers on-chain.
 * Token is tied to one SDC address
 * Only SDC can call checkedTransfers
-* Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC perfoms next state change
+* Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC performs next state change
 */
 contract ERC20Settlement is ERC20, IERC20Settlement{
 
