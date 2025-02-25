@@ -21,7 +21,7 @@ interface IERC7858 {
 
     /**
      * @dev Checks whether a specific token is expired.
-     * @param Id The identifier representing the tokenId.
+     * @param tokenId The identifier representing the tokenId.
      * @return bool True if the token is expired, false otherwise.
      */
     function isTokenExpired(uint256 tokenId) external view returns (bool);
