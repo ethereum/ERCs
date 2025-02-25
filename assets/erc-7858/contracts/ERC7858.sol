@@ -37,7 +37,7 @@ contract ERC7858 is ERC721, IERC7858 {
         return IERC7858.EXPIRY_TYPE.BLOCK_BASED;
     }
 
-    function isTokenValid(uint256 tokenId) external view returns (bool) {
+    function isTokenExpired(uint256 tokenId) external view returns (bool) {
         uint256 startTimeCache = startTime(tokenId);
         uint256 endTimeCache = endTime(tokenId);
         if (startTimeCache == 0 && endTimeCache == 0) {
