@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "./interfaces/IERC7858.sol";
+import "../interfaces/IERC7858.sol";
 
 contract ERC7858 is ERC721, IERC7858 {
     constructor(
@@ -14,12 +14,15 @@ contract ERC7858 is ERC721, IERC7858 {
     mapping(uint256 => uint256) internal _startBlock;
     mapping(uint256 => uint256) internal _endBlock;
 
-    function _mintWithTimeStamp(address to, uint256 tokenId, uint256 startBlock, uint256 endBlock) internal {
-        _mint(to, tokenId);
+    // not allowing to passing {0, 0} use _mint instead.
+    function _updateTokenTimeStamp(uint256 tokenId, uint256 startBlock, uint256 endBlock) internal {
+        if (startBlock >= endBlock) {
+            revert ERC7858InvalidTimeStamp(startBlock, endBlock);
+        }
         // store data to mapping
         _startBlock[tokenId] = startBlock;
         _endBlock[tokenId] = endBlock;
-        
+
         emit TokenExpiryUpdated(tokenId, startBlock, endBlock);
     }
 
@@ -54,13 +57,6 @@ contract ERC7858 is ERC721, IERC7858 {
         } else {
             return block.number >= endTimeCache;
         }
-    }
-
-    function mint(address to, uint256 tokenId, uint256 startBlock, uint256 endBlock) public {
-        if ((endBlock <= startBlock ) && (endBlock != 0) && (startBlock != 0)) {
-            revert ERC7858InvalidTimeStamp(startBlock, endBlock);
-        }
-        _mintWithTimeStamp(to, tokenId, startBlock, endBlock);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
