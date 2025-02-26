@@ -34,10 +34,16 @@ contract ERC7858 is ERC721, IERC7858 {
     }
     
     function startTime(uint256 tokenId) public view returns (uint256) {
+        if (_ownerOf(tokenId) == address(0)) {
+            revert ERC721NonexistentToken(tokenId);
+        }
         return _startBlock[tokenId];
     }
 
     function endTime(uint256 tokenId) public view returns (uint256) {
+        if (_ownerOf(tokenId) == address(0)) {
+            revert ERC721NonexistentToken(tokenId);
+        }
         return _endBlock[tokenId];
     }
 
@@ -46,7 +52,7 @@ contract ERC7858 is ERC721, IERC7858 {
     }
 
     function isTokenExpired(uint256 tokenId) external view returns (bool) {
-        if (ownerOf(tokenId) == address(0)) {
+        if (_ownerOf(tokenId) == address(0)) {
             revert ERC721NonexistentToken(tokenId);
         }
         uint256 startTimeCache = startTime(tokenId);
