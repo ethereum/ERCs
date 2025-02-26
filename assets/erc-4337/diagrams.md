@@ -86,25 +86,29 @@ autonumber
 participant "EntryPoint" as ep
 participant "Account" as account
 participant "Paymaster" as pm
-participant "Account2" as account2
-[->ep++ #gold: handleOps(userOps[]):
+[->ep++ #gold: ""handleOps(userOps[])"":
 group Validation
-ep->account++ #blue: <font color=blue> validateUserOp
+|||
+ep->account++ #blue: <font color=blue> ""validateUserOp""
 deactivate account
-ep->pm++ #gray: validatePaymasterUserOp
+ep->pm++ #gray: ""validatePaymasterUserOp""
 deactivate pm
-ep->ep: deduct paymaster deposit
+ep->ep: deduct ""Paymaster"" deposit
+|||
 end
 group Execution
-ep->account++ #blue: <font color=blue> exec
+|||
+ep->account++ #blue: <font color=blue> ""executeUserOp""
     deactivate account
-ep->pm++ #gray: <font color=gray> postOp
+ep->pm++ #gray: ""postOp""
     deactivate pm
 ep->ep: refund paymaster
+|||
 end
-ep-->[: compensate(beneficiary)
+ep-->[: ""compensate(beneficiary)""
 hide footbox
 ```
+
 # Bundle Sequence Diagram (with Factory)
 ```plantuml
 @startuml
