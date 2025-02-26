@@ -15,14 +15,20 @@ contract ERC7858 is ERC721, IERC7858 {
     mapping(uint256 => uint256) internal _startBlock;
     mapping(uint256 => uint256) internal _endBlock;
 
-    // functional
-    function _mint(address to, uint256 tokenId, uint256 startBlock, uint256 endBlock) internal {
+    function _mintWithTimeStamp(address to, uint256 tokenId, uint256 startBlock, uint256 endBlock) internal {
         _mint(to, tokenId);
         // store data to mapping
         _startBlock[tokenId] = startBlock;
         _endBlock[tokenId] = endBlock;
         
         emit ExpirationUpdated(tokenId, startBlock, endBlock);
+    }
+
+    function _burnAndClearTimeStamp(uint256 tokenId) internal {
+        _burn(tokenId);
+        // clear data from mapping
+        delete _startBlock[tokenId];
+        delete _endBlock[tokenId];
     }
     
     function startTime(uint256 tokenId) public view returns (uint256) {
@@ -38,12 +44,15 @@ contract ERC7858 is ERC721, IERC7858 {
     }
 
     function isTokenExpired(uint256 tokenId) external view returns (bool) {
+        if (ownerOf(tokenId) == address(0)) {
+            revert ERC721NonexistentToken(tokenId);
+        }
         uint256 startTimeCache = startTime(tokenId);
         uint256 endTimeCache = endTime(tokenId);
         if (startTimeCache == 0 && endTimeCache == 0) {
             return false;
         } else {
-            return block.number > endTime(tokenId);
+            return block.number > endTimeCache;
         }
     }
 
@@ -51,7 +60,7 @@ contract ERC7858 is ERC721, IERC7858 {
         if (endBlock < startBlock) {
             revert ();
         }
-        _mint(to, tokenId,startBlock,endBlock);
+        _mintWithTimeStamp(to, tokenId, startBlock, endBlock);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
