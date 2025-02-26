@@ -57,7 +57,7 @@ The standard defines a comprehensive interface for solvency verification. Key fe
    - Protocol liabilities tracking
    - Real-time value updates
 
-```typescript
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -358,7 +358,7 @@ flowchart LR
 
 While not part of the core standard, implementations should consider including oracle management:
 
-```typescript
+```solidity
 // Recommended but not required
 event OracleUpdated(address indexed oracle, bool authorized);
 function setOracle(address oracle, bool authorized) external;
@@ -383,7 +383,7 @@ Based on conducted tests, it is recommended:
 
 2. Ratio Calculation:
 
-   ```typescript
+   ```solidity
    function calculateRatio(uint256 assets, uint256 liabilities) pure returns (uint256) {
        if (liabilities == 0) {
            return assets > 0 ? RATIO_DECIMALS * 2 : RATIO_DECIMALS;
@@ -426,7 +426,7 @@ Test cases are provided in the reference implementation demonstrating:
 
 ## Reference Implementation
 
-```typescript
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
