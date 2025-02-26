@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./interfaces/IERC7858.sol";
 
 contract ERC7858 is ERC721, IERC7858 {
-
     constructor(
         string memory name_, 
         string memory symbol_) 
@@ -21,7 +20,7 @@ contract ERC7858 is ERC721, IERC7858 {
         _startBlock[tokenId] = startBlock;
         _endBlock[tokenId] = endBlock;
         
-        emit ExpirationUpdated(tokenId, startBlock, endBlock);
+        emit TokenExpiryUpdated(tokenId, startBlock, endBlock);
     }
 
     function _burnAndClearTimeStamp(uint256 tokenId) internal {
@@ -49,16 +48,17 @@ contract ERC7858 is ERC721, IERC7858 {
         }
         uint256 startTimeCache = startTime(tokenId);
         uint256 endTimeCache = endTime(tokenId);
+        // if start and end is {0, 0} mean token non-expirable and return false.
         if (startTimeCache == 0 && endTimeCache == 0) {
             return false;
         } else {
-            return block.number > endTimeCache;
+            return block.number >= endTimeCache;
         }
     }
 
     function mint(address to, uint256 tokenId, uint256 startBlock, uint256 endBlock) public {
-        if (endBlock < startBlock) {
-            revert ();
+        if ((endBlock <= startBlock ) && (endBlock != 0) && (startBlock != 0)) {
+            revert ERC7858InvalidTimeStamp(startBlock, endBlock);
         }
         _mintWithTimeStamp(to, tokenId, startBlock, endBlock);
     }

@@ -7,11 +7,16 @@ interface IERC7858 {
         TIME_BASED // block.timestamp
     }
 
-    event ExpirationUpdated(
+    event TokenExpiryUpdated(
         uint256 indexed tokenId,
         uint256 indexed startTime,
         uint256 indexed endTime
     );
+
+    /**
+     * @notice error message/code are not strict.
+     */
+    error ERC7858InvalidTimeStamp(uint256 start, uint256 end);
     
     /**
      * @dev Returns the type of the expiry.
