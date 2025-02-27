@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// A fully runnalbe version can be found in https://github.com/ercref/ercref-contracts/tree/869843f23dc4da793f0d9d018ed92e3950da8f75
+// A fully runnable version can be found in https://github.com/ercref/ercref-contracts/tree/869843f23dc4da793f0d9d018ed92e3950da8f75
 pragma solidity ^0.8.17;
 
 import "./IERC5247.sol";
