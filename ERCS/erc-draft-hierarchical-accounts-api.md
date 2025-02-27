@@ -1,0 +1,236 @@
+---
+title: API for hierarchical accounts
+description: Adds JSON-RPC method for requesting a universal wallet to create or track another account that it owns
+authors: Wilson Cusack (@wilsoncusack), Jake Feldman (@jakefeldman), Montana Wong (@montycheese), Felix Zhang (@fan-zhang-sv)
+discussions-to: tbd
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-02-18
+---
+
+## Abstract
+
+This ERC introduces a new wallet RPC, wallet_addSubAccount, which allows an app to request a wallet to track a smart account that the wallet owns. It also allows apps to request the wallet to provision a new account, owned by the universal wallet with a signer provided by the caller. 
+
+
+## Motivation
+
+Embedded app accounts (onchain accounts specific to a single app) have led to a proliferation of user addresses, which can be difficult for users to keep track of. Many embedded app account users also have a universal wallet, which can be used across apps. With hierarchical ownership–where one smart account can own another–if the embedded app account is a smart account, it could be owned by the user’s universal wallet. This would allow users to be able to control an app account via their universal wallet. However, though hierarchical ownership is already possible today, there is no way for apps to tell universal wallets about embedded app accounts a user may have. The proposed RPC provides a path for this. 
+
+## Specification
+
+### Definitions
+Account - In this document, “account” means smart account. A smart contract that users transact from.
+Sub Account - An account that SHOULD have the main account as an owner of the sub-account. For instance, Account B is a sub-account of Account A if Account A is an owner, i.e. is a signer for Account B.
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### JSON-RPC Methods
+
+#### `wallet_addSubAccount`
+
+The wallet_addSubAccount RPC method allows applications to request that the connected account tracks the app account, creating a hierarchy between a universal account and app-embedded accounts. This RPC supports three different use cases.
+
+##### Request
+
+```typescript
+// Previously deployed account, i.e. wallet "imports" account 
+type DeployedAccount = {
+  type: "deployed";
+  // Required: address of the account
+  address: `0x${string}`;
+  keys: never;
+  chainId?: '0x{string}';
+  factory?: never;
+  factoryData?: never;
+}
+
+// Requester is agnostic to account type and only wants to ensure its signer is an owner
+type CreateAccount = {
+  type: "create";
+  keys: { 
+    type: "address" | "p256" | "webcrypto-p256" |  "webauthn-p256";
+    key: "0x...";
+  }[];
+}
+
+// Undeployed account, app creates the account
+type UndeployedAccount = {
+  type: "undeployed";
+  address: never;
+  keys: never;
+  chainId?: '0x{string}'; // in Hex
+  // Required: factory address to create the account
+  factory: `0x${string}`;
+  // Required: factory calldata for the account
+  factoryData: `0x${string}`;
+}
+
+type Request = {
+  method: "wallet_addSubAccount";
+  params: [{
+    // JSON-RPC method version
+    version: string;
+    // JSON-RPC method account 
+    account: CreateAccount | DeployedAccount | UndeployedAccount;
+  }],
+}
+```
+
+##### Response
+
+Factory data and factory address are OPTIONAL and SHOULD be returned when available. Deployed accounts MAY not have these fields.
+
+```typescript
+type Response = {
+  // Address of the account.
+  address: `0x${string}`;
+  // Optional: factory address
+  factory?: `0x${string}`;
+  // Optional: factory calldata
+  factoryData?: `0x${string}`;
+}
+```
+
+##### `CreateAccount`
+
+Allows the wallet to create a Sub Account with a list of known signers. This enables applications to provide a signer for the new account. A wallet SHOULD make the universal account an owner of the account, creating a hierarchical relationship between the newly created account and the universal account.
+
+```typescript
+type Parameters = {
+  address: never;
+  // Required: keys of the account to be created
+  keys: { 
+    type: "address" | "p256" | "webcrypto-p256" |  "webauthn-p256";
+    key: "0x...";
+  }[];
+  factory: never;
+  factoryData: never;
+}
+```
+
+##### UndeployedAccount
+
+An undeployed account is an account that an application has created, but has not yet deployed.. The wallet can decide whether or not it is appropriate to deploy it. Wallets SHOULD validate that the universal account is an owner. Either through decoding the factoryData or simulating the deployment that there is a hierarchy between the universal account and newly created account.
+
+Example: the application creates an account and generates the counterfactual address for the user to airdrop funds to. Once there is an account relationship with the universal account, the user wishes to perform a transaction, in which the wallet will deploy the account in order to execute the respective transaction.
+
+```typescript
+type Parameters = {
+  // Required: address of the account
+  address: `0x${string}`;
+  signers: never;
+  factory: never;
+  factoryData: never;
+}
+```
+
+##### `DeployedAccount`
+
+An existing account could be any smart that an app or user wants to track via their universal wallet. 
+
+Example: The user wants to define a hierarchical relationship between an existing app account and their universal wallet.
+
+```typescript
+// Previously deployed account "import"  
+type Parameters = {
+  // Required: address of the account
+  address: `0x${string}`;
+  signers: never;
+  factory: never;
+  factoryData: never;
+}
+```
+
+### External RPC Capabilities
+
+#### `wallet_connect`
+
+This ERC conforms to [EIP 7846] (https://eip.tools/eip/7846) which includes [EIP5792](https://eip.tools/eip/5792) capabilities specification and introduces two new capabilities for wallet_connect. 
+
+##### addSubAccount 
+
+```typescript
+type Request = {
+  addSubAccount: {
+    account: CreateAccount | DeployedAccount | UndeployedAccount;
+  }
+}
+
+type Response = {
+  addSubAccount: {
+    address: `0x${string}`;
+  }
+}
+```
+
+##### `getSubAccounts`
+
+```typescript
+type Request = {
+  getSubAccounts: boolean;
+}
+
+type Response = {
+  getSubAccounts: {
+    address: `0x${string}`;
+    factory?: `0x${string}`;
+    factoryData?: `0x${string}`;
+  }[];
+}
+```
+
+#### wallet_getCapabilities
+
+This ERC conforms with wallet_getCapabilities [ERC-5792](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities). The response will accommodate addSubAccount support for wallets that support it.
+
+```typescript
+type Response = {
+  addSubAccount: {
+    supported: true,
+    keyTypes: ("address" | "p256" | "webcrypto-p256" | "webauthn-p256")[];
+  }
+}
+
+
+// Example 
+const response = {
+  "0x2105": {
+    "addSubAccount": {
+      "supported": true,
+      "keyTypes": ["address", "webauthn-p256"];
+    },
+  },
+  "0x14A34": {
+    "addSubAccount": {
+      "supported": true,
+      "keyTypes": ["address", "webauthn-p256"];
+    },
+  }
+}
+```
+
+## Rationale
+
+### Naming
+
+Initial intent was to leverage existing RPCs, like `wallet_connect` (e.g. [EIP 7846] (https://eips.ethereum.org/EIPS/eip-7846)) with additional capabilities to add support for these new features, but these methods ultimately lacked flexibility. Then there were custom namespaced RPCs but this resulted with more fragmentation within the community.
+
+Method names explored `wallet_linkAccount`,  `wallet_importAddress`, `wallet_addAddress`, or something else. Multiple RPCs were explored as well, separating create and tracking as two separate RPCs. To consolidate on a single RPC `wallet_addSubAccount` was selected. This method is more inclusive for EOA use cases. 
+
+## Backwards Compatibility
+
+This standard builds on existing JSON-RPC methods and complements [ERC-5792](https://eips.ethereum.org/EIPS/eip-5792#wallet_getcapabilities) for future extensibility. Wallets can continue supporting legacy methods.
+
+## Security Considerations 
+
+As more capabilities are added, care should be taken to avoid unpredictable interactions. App specific accounts pose more risk for assets in those accounts. Having a universal account that maintains access to these accounts gives additional security to users and their funds.
+
+## Privacy Considerations
+
+Account data and any shared capabilities must be handled securely to avoid data leaks or man-in-the-middle attacks.
+
+## Copyright
+
+Copyright and related rights waived via CC0.  
