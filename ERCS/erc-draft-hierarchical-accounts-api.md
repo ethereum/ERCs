@@ -2,7 +2,7 @@
 title: API for hierarchical accounts
 description: Adds JSON-RPC method for requesting a universal wallet to create or track another account that it owns
 authors: Wilson Cusack (@wilsoncusack), Jake Feldman (@jakefeldman), Montana Wong (@montycheese), Felix Zhang (@fan-zhang-sv)
-discussions-to: tbd
+discussions-to: https://ethereum-magicians.org/t/wallet-addsubaccount/23013
 status: Draft
 type: Standards Track
 category: ERC
