@@ -272,4 +272,4 @@ Clear user interfaces and warnings SHOULD be provided to reduce phishing and soc
 Implementers SHOULD thoroughly test the registry and services on testnets (e.g., Goerli, Sepolia) to ensure correctness and security before deploying to mainnet.
 
 ## Copyright
-Copyright and related rights waived via CC0.
+Copyright and related rights waived via [CC0](../LICENSE.md).
