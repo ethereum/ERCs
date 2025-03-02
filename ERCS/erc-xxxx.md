@@ -1,6 +1,6 @@
 ---
 eip: TBD
-title: Generalized Wallet-Linked Services
+title: Generalized Wallet-Linked Services for Smart Accounts
 description: Define a registry for generic services linked to a specific [ERC-4337](./eip-4337.md) wallet
 author: Francesco Sullo (@sullof)
 discussions-to: https://ethereum-magicians.org/t/generalized-wallet-linked-services-for-erc-4337-wallets/23028
@@ -248,7 +248,7 @@ contract ERCXXXXRegistry is IERCXXXXRegistry {
 }
 ```
 ## Security Considerations
-###Ownership and Control
+### Ownership and Control
 Wallet-linked services MUST be controlled by the [ERC-4337](./eip-4337.md) wallet owner to prevent unauthorized access. Implementers SHOULD include safeguards against malicious or unverified implementations.
 
 ### Upgradeability Risks
