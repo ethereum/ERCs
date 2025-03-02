@@ -13,7 +13,7 @@ requires: 165, 1167, 4337, 6551, 7656
 
 ## Abstract
 
-This proposal defines a registry for generic services linked to specific [ERC-4337](./eip-4337.md) wallets, i.e., contracts extending a wallet's functionality, owned by the wallet itself. It leverages [ERC-1167](./eip-1167.md) minimal proxies and deterministic addressing to enable permissionless innovation while maintaining backward compatibility with existing [ERC-4337](./eip-4337.md) wallets. To reach its goal, it takes the concept introduced with [ERC-6551](./eip-6551.md) and [ERC-7656](./eip-7656.md) standards that work for NFTs, and applies it to wallets. 
+This proposal defines a registry for generic services linked to smart accounts, with a special focus on [ERC-4337](./eip-4337.md) wallets, where services are  contracts extending a wallet's functionality, owned by the wallet itself. It leverages [ERC-1167](./eip-1167.md) minimal proxies and deterministic addressing to enable permissionless innovation while maintaining backward compatibility with existing [ERC-4337](./eip-4337.md) wallets. To reach its goal, it takes the concept introduced with [ERC-6551](./eip-6551.md) and [ERC-7656](./eip-7656.md) standards that work for NFTs, and applies it to wallets. 
 
 ## Motivation
 
