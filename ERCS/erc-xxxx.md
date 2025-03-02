@@ -1,7 +1,7 @@
 ---
 eip: TBD
 title: Generalized Wallet-Linked Services for Smart Accounts
-description: Define a registry for generic services linked to a specific [ERC-4337](./eip-4337.md) wallet
+description: Define a registry for modular services linked to [ERC-4337](./eip-4337.md) wallets, enabling permissionless extensibility without modifying the wallet's core logic.
 author: Francesco Sullo (@sullof)
 discussions-to: https://ethereum-magicians.org/t/generalized-wallet-linked-services-for-erc-4337-wallets/23028
 status: Draft
@@ -269,7 +269,7 @@ Services interacting with external protocols SHOULD follow best practices to pre
 Clear user interfaces and warnings SHOULD be provided to reduce phishing and social engineering risks.
 
 ### Testing
-Implementers SHOULD thoroughly test the registry and services on testnets (e.g., Goerli, Sepolia) to ensure correctness and security before deploying to mainnet.
+Implementers SHOULD thoroughly test the registry and services on testnets to ensure correctness and security before deploying to mainnet.
 
 ## Copyright
 Copyright and related rights waived via [CC0](../LICENSE.md).
