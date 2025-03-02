@@ -13,7 +13,7 @@ interface IERC7858Epoch is IERC7858 {
      * @return uint256 The balance of the specified `epoch`.
      * @notice "MUST" return 0 if the specified `epoch` is expired.
      */
-    function balanceOfAtEpoch(
+    function unexpiredBalanceOfAtEpoch(
         uint256 epoch,
         address account
     ) external view returns (uint256);
