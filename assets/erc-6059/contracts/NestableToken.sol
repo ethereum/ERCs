@@ -202,7 +202,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC6059 {
     }
 
     /**
-     * @notice Used to safely transfer the token form `from` to `to`.
+     * @notice Used to safely transfer the token from `from` to `to`.
      * @dev The function checks that contract recipients are aware of the ERC721 protocol to prevent tokens from being
      *  forever locked.
      * @dev This internal function is equivalent to {safeTransferFrom}, and can be used to e.g. implement alternative
@@ -364,7 +364,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC6059 {
             if (!isNft) {
                 return;
             }
-            // Ff the current nft is an ancestor at some point, there is an inheritance loop
+            // If the current nft is an ancestor at some point, there is an inheritance loop
             if (nextOwner == address(this) && nextOwnerTokenId == currentId) {
                 revert NestableTransferToDescendant();
             }
@@ -846,7 +846,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC6059 {
 
     /**
      * @notice Used to add a child token to a given parent token.
-     * @dev This adds the iichild token into the given parent token's pending child tokens array.
+     * @dev This adds the child token into the given parent token's pending child tokens array.
      * @dev You MUST NOT call this method directly. To add a a child to an NFT you must use either
      *  `nestTransfer`, `nestMint` or `transferChild` to the NFT.
      * @dev Requirements:
@@ -1445,7 +1445,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC6059 {
     // HELPERS
 
     /**
-     * @notice Used to remove a specified child token form an array using its index within said array.
+     * @notice Used to remove a specified child token from an array using its index within said array.
      * @dev The caller must ensure that the length of the array is valid compared to the index passed.
      * @dev The Child struct consists of the following values:
      *  [
