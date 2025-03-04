@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @title ERC6123 - Settlement Token Interface
  * @dev Settlement Token Interface enhances the ERC20 Token by introducing an asynchronous (checked) transfer functionality which can be used to directly interact with an SDC.
  * Transfers can be conducted for single or multiple transactions where SDC will receive a success message whether the transfer was executed successfully or not.
- * The SDC or callbackContract needs to implemnt a function afterTransfer(bool success, uint256 transactionID, string memory transactionData)
+ * The SDC or callbackContract needs to implemnt a function afterSettlement(bool success, uint256 transactionID, string memory transactionData)
  */
 interface IERC20Settlement is IERC20 {
 
@@ -19,7 +19,7 @@ interface IERC20Settlement is IERC20 {
      * @param to the address to which to transfer
      * @param value the value to transfer
      * @param transactionID a transaction ID that may serve as correlation ID, will be passed to the callback.
-     * @param callbackContract a contract implementing afterTransfer
+     * @param callbackContract a contract implementing afterSettlement
      */
     event TransferRequested(address from, address to, uint256 value, uint256 transactionID, address callbackContract);
 
@@ -29,7 +29,7 @@ interface IERC20Settlement is IERC20 {
      * @param to the addresses to which to transfer
      * @param value the values to transfer
      * @param transactionID a transaction ID that may serve as correlation ID, will be passed to the callback.
-     * @param callbackContract a contract implementing afterTransfer
+     * @param callbackContract a contract implementing afterSettlement
      */
     event TransferBatchRequested(address[] from, address[] to, uint256[] value, uint256 transactionID, address callbackContract);
 
@@ -38,7 +38,7 @@ interface IERC20Settlement is IERC20 {
      * @param to - receiver
      * @param value - transfer amount
      * @param transactionID - an id that will be passed back to the callback
-     * @param callbackContract - a contract implementing the method afterTransfer(bool success, uint256 transactionID, string memory transactionData)
+     * @param callbackContract - a contract implementing the method afterSettlement(bool success, uint256 transactionID, string memory transactionData)
      */
     function transferAndCallback(address to, uint256 value, uint256 transactionID, address callbackContract) external;
 
@@ -48,7 +48,7 @@ interface IERC20Settlement is IERC20 {
      * @param to - receiver
      * @param value - transfer amount
      * @param transactionID - an id that will be passed back to the callback
-     * @param callbackContract - a contract implementing the method afterTransfer(bool success, uint256 transactionID, string memory transactionData)
+     * @param callbackContract - a contract implementing the method afterSettlement(bool success, uint256 transactionID, string memory transactionData)
      */
     function transferFromAndCallback(address from, address to, uint256 value, uint256 transactionID, address callbackContract) external ;
 
@@ -57,7 +57,7 @@ interface IERC20Settlement is IERC20 {
      * @param to - receivers
      * @param values - transfer amounts
      * @param transactionID - an id that will be passed back to the callback
-     * @param callbackContract - a contract implementing the method afterTransfer(bool success, uint256 transactionID, string memory transactionData)
+     * @param callbackContract - a contract implementing the method afterSettlement(bool success, uint256 transactionID, string memory transactionData)
      */
     function transferBatchAndCallback(address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) external;
 
@@ -67,7 +67,7 @@ interface IERC20Settlement is IERC20 {
      * @param to - receivers
      * @param values - transfer amounts
      * @param transactionID - an id that will be passed back to the callback
-     * @param callbackContract - a contract implementing the method afterTransfer(bool success, uint256 transactionID, string memory transactionData)
+     * @param callbackContract - a contract implementing the method afterSettlement(bool success, uint256 transactionID, string memory transactionData)
      */
     function transferBatchFromAndCallback(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID, address callbackContract) external;
 }

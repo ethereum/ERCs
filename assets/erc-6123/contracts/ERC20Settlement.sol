@@ -12,7 +12,7 @@ import "./IERC20Settlement.sol";
 * @dev This token performs transfers on-chain.
 * Token is tied to one SDC address
 * Only SDC can call checkedTransfers
-* Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC perfoms next state change
+* Settlement Token calls back the referenced SDC by calling "afterSettlement" with a success flag. Depending on this SDC perfoms next state change
 */
 contract ERC20Settlement is ERC20, IERC20Settlement{
 
@@ -38,11 +38,11 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
 
     function transferAndCallback(address to, uint256 value, uint256 transactionID, address callbackContract) public onlySDC{
         if ( balanceOf(msg.sender) < value) {
-            ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
+            ISDC(callbackContract).afterSettlement(false, transactionID, Strings.toString(transactionID));
         }
         else {
             _transfer(msg.sender,to,value);
-            ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
+            ISDC(callbackContract).afterSettlement(true, transactionID, Strings.toString(transactionID));
         }
     }
 
@@ -57,14 +57,14 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
             requiredBalance += values[i];
         }
         if (balanceOf(msg.sender) < requiredBalance){
-            ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
+            ISDC(callbackContract).afterSettlement(false, transactionID, Strings.toString(transactionID));
             return;
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
                 _transfer(msg.sender,to[i],values[i]);
             }
-            ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
+            ISDC(callbackContract).afterSettlement(true, transactionID, Strings.toString(transactionID));
         }
     }
 
@@ -79,7 +79,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
                     totalRequiredBalance += values[j];
             }
             if (balanceOf(fromAddress) <  totalRequiredBalance){
-                ISDC(callbackContract).afterTransfer(false, transactionID, Strings.toString(transactionID));
+                ISDC(callbackContract).afterSettlement(false, transactionID, Strings.toString(transactionID));
                 return;
             }
 
@@ -87,6 +87,6 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         for(uint256 i = 0; i < to.length; i++){
             _transfer(from[i],to[i],values[i]);
         }
-        ISDC(callbackContract).afterTransfer(true, transactionID, Strings.toString(transactionID));
+        ISDC(callbackContract).afterSettlement(true, transactionID, Strings.toString(transactionID));
     }
 }
