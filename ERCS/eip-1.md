@@ -192,6 +192,18 @@ EIPs may have a `requires` header, indicating the EIP numbers that this EIP depe
 
 A `requires` dependency is created when the current EIP cannot be understood or implemented without a concept or technical element from another EIP. Merely mentioning another EIP does not necessarily create such a dependency.
 
+### `implementation-status` header
+
+The `implementation-status` header is used to provide extra context regarding usage or highlight popular example implementation of a EIP. This information should be light and concise.
+
+This field is optional and to be used sparingly.
+
+### `implementation-status-url` header
+
+The `implentation-status-url` header can be used when combined with the `implementation-status` header to provide a link to an external resource that provides more information about the current implementation status of an EIP.
+
+Keep in mind that linkage to external resources requires extra consideration and could be rejected by EIP Editors.
+
 ## Linking to External Resources
 
 Other than the specific exceptions listed below, links to external resources **SHOULD NOT** be included. External resources may disappear, move, or change unexpectedly.
@@ -417,6 +429,20 @@ The top-level URL field must resolve to a copy of the referenced document which 
 
 References to other EIPs should follow the format `EIP-N` where `N` is the EIP number you are referring to.  Each EIP that is referenced in an EIP **MUST** be accompanied by a relative markdown link the first time it is referenced, and **MAY** be accompanied by a link on subsequent references.  The link **MUST** always be done via relative paths so that the links work in this GitHub repository, forks of this repository, the main EIPs site, mirrors of the main EIP site, etc.  For example, you would link to this EIP as `./eip-1.md`.
 
+```markdown
+[EIP-1](./eip-1.md)
+```
+
+Which renders to:
+
+[EIP-1](./eip-1.md)
+
+Links to other EIPs must be relative paths and match this regular expression:
+
+```regex
+^(./eip-[0-9]+\.md)$
+```
+
 ## Auxiliary Files
 
 Images, diagrams and auxiliary files should be included in a subdirectory of the `assets` folder for that EIP as follows: `assets/eip-N` (where **N** is to be replaced with the EIP number). When linking to an image in the EIP, use relative links such as `../assets/eip-1/image.png`.
@@ -489,7 +515,7 @@ The `description` field in the preamble:
 
 ### EIP numbers
 
-When referring to an EIP with a `category` of `ERC`, it must be written in the hyphenated form `ERC-X` where `X` is that EIP's assigned number. When referring to EIPs with any other `category`, it must be written in the hyphenated form `EIP-X` where `X` is that EIP's assigned number.
+When referring to an EIP with a `category` of `ERC`, it must be written in the hyphenated form `ERC-X` where `X` is that EIP's assigned number. When referring to EIPs with any other `category`, it must be written in the hyphenated form `EIP-X` where `X` is that EIP's assigned number. With regards to linking see the [Linking to other EIPs](#linking-to-other-eips) section.
 
 ### RFC 2119 and RFC 8174
 
