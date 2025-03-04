@@ -1,7 +1,7 @@
 ---
 eip:
-title: Set of Wallet Capabilities for Account Abstraction Applications
-description: A way for apps and Account Abstraction wallets to communicate more advanced parameters of Account Abstraction operations
+title: Wallet Capabilities for Account Abstraction
+description: New Wallet Capabilities providing a way for dApps and Account Abstraction wallets to communicate
 author: Yoav Weiss (@yoavw), Alex Forshtat (@forshtat), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn)
 discussions-to:
 status: Draft
@@ -22,19 +22,56 @@ comprehensive support for Account Abstraction.
 
 ## Motivation
 
+[ERC-4337](./eip-4337.md) introduced Account Abstraction and enabling Smart Contract Accounts to function as first-class citizens in Ethereum.
+However, while [ERC-4337](./eip-4337.md) and [ERC-7769](./eip-7769.md) defines a low-level RPC API for Account Abstraction,
+it does not specify a way for advanced AA-aware dApps to communicate their supported features and parameters to the advanced AA Wallet Applications.
+
+This ERC addresses the issue by defining a structured set of capabilities tailored for Account Abstraction dApps and Wallet Applications.
+
+It extends the [EIP-5792](./eip-5792) wallet capability model to encompass critical aspects of AA,
+ensuring dApps can seamlessly adapt to different AA Wallets without requiring custom solutions.
+
 ## Specification
 
-### Shared configuration
-
 All actions in Account Abstraction within the context of EIP-5792 must be done on a single chain and atomically.
-This means all requests to the `wallet_sendCalls` methods MUST be done:
 
-1. With the `atomicBatch` capability enabled
-2. With the `chainId` set to the same value in all calls
+We define the following list of new "capabilities" which together cover many features necessary for Account Abstraction.
+Note that use of Paymasters managed by a "paymaster web service" is described in [ERC-7677](./eip-7677).
+
+### Create [EIP-7702](./eip-7702) Authorization Capability
+
+This capability is designed to use with [EIP-7702](./eip-7702) and requests the Wallet Application to provide
+an EIP-7702 authorization tuple for the specified address as part of the AA transaction.
+
+Identifier:
+
+`eip7702Auth`
+
+Interface:
+
+```typescript
+type SetCodeForEOACapabilityParams = Record<
+  {
+    account: `0x${string}`,       // EOA address
+    delegation: `0x${string}`,    // delegation address
+  }
+>
+```
+
+Supporting Wallet Applications MUST generate an EIP-7702 compatible transaction that sets a code of the `account` EOA address
+to the code of `delegation` specified in the request.
+
+Attention! Wallet Applications MUST maintain a strict shortlist of well-known and publicly audited Smart Contract Account
+implementations that can be acceptable as `delegation`.
+Authorization is an extremely sensitive operation and any vulnerability or malicious code in `delegation` will
+result in complete draining of the `account`.
 
 ### Static Paymaster Configuration Capability
 
-Note that use of Paymasters managed by a "paymaster web service" is described in [ERC-7677](./eip-7677).
+The purpose of this capability is allowing applications to integrate with Paymasters that do not require
+the Wallet Application to resolve any dynamic configuration.
+
+The application may hard-code or resolve these parameters first and pass them with this capability.
 
 Identifier:
 
@@ -44,7 +81,6 @@ Interface:
 
 ```typescript
 type StaticPaymasterConfigurationCapabilityParams = Record<
-  `0x${string}`, // Chain ID
   {
     paymaster: string;
     paymasterData: string;
@@ -54,47 +90,10 @@ type StaticPaymasterConfigurationCapabilityParams = Record<
 >;
 ```
 
-### On-chain Query Paymaster Configuration Capability
-
-Identifier:
-
-`onChainQueryPaymasterConfiguration`
-
-Interface:
-
-```typescript
-type OnChainQueryPaymasterConfigurationCapabilityParams = Record<
-  `0x${string}`, // Chain ID
-  {
-    target: `0x${string}`, // contract to query for Paymaster configuration
-    context: `0x${string}`, // hex-encoded byte array to pass to the configuration provider
-  }
->
-```
-
-We then define the following Solidity interface:
-
-```solidity
-
-    struct PaymasterConfiguration {
-        address paymaster;
-        bytes paymasterData;
-        uint256 paymasterValidationGasLimit;
-        uint256 paymasterPostOpGasLimit;
-    }
-
-interface IPaymasterConfigurationResolver {
-    function getPaymasterConfiguration(bytes operation, bytes context) returns (PaymasterConfiguration);
-}
-
-```
-
-The wallet MUST perform an ABI-encoding of the entire `operation` object and make a view call
-to the `getPaymasterConfiguration` function of the `target` address.
-
-If the view call fails or returns an invalid data, the `wallet_sendCalls` method must fail and return with an error.
-
 ### Validity Time Range Capability
+
+The purpose of this capability is allowing the applications to explicitly specify the time range during which
+the requested operations will be valid after signing.
 
 Identifier:
 
@@ -104,7 +103,6 @@ Interface:
 
 ```typescript
 type ValidityTimeRangeCapabilityParams = Record<
-  `0x${string}`, // Chain ID
   {
     validAfter: `0x${string}`, // operation valid only after this timestamp, in seconds
     validUntil: `0x${string}`  // operation valid only before this timestamp, in seconds
@@ -112,10 +110,15 @@ type ValidityTimeRangeCapabilityParams = Record<
 >
 ```
 
-The wallet must then verify the time range [`validAfter`..`validUntil`] is valid and present it to the
+The Wallet Application MUST verify the time range [`validAfter`..`validUntil`] is valid and present it to the
 user in a human-readable way for confirmation as part of the transaction information.
 
+The Smart Contract Account MUST specify the time range [`validAfter`..`validUntil`] as the transaction validity range.
+
 ### Multidimensional Nonce Capability
+
+The purpose of this capability is allowing the applications to explicitly specify the components of the
+multidimensional nonce as defined in [ERC-4337](./eip-4337.md).
 
 Identifier:
 
@@ -125,7 +128,6 @@ Interface:
 
 ```typescript
 type MultiDimensionalNonceCapabilityParams = Record<
-  `0x${string}`, // Chain ID
   {
     nonceKey: `0x${string}`,
     nonceSequence: `0x${string}`
@@ -138,6 +140,15 @@ the wallet must specify these parameters during the actual on-chain execution of
 
 ### Account Abstraction Gas Parameters Override Capability
 
+The purpose of this capability is allowing the applications to override the Wallet Application's suggested values
+for all gas-related parameters.
+
+This capability provides very low-level access to the underlying Account Abstraction protocol and should only
+be used by applications closely coupled to a specific version of a specific protocol.
+It may also prove useful in the context of development and debugging.
+
+It is generally recommended that production dapps rely on higher-level features of Wallet Applications instead.
+
 Identifier:
 
 `accountAbstractionGasParamsOverride`
@@ -146,7 +157,6 @@ Interface:
 
 ```typescript
 type AAGasParamsOverrideCapabilityParams = Record<
-  `0x${string}`, // Chain ID
   {
     preVerificationGas?: `0x${string}`,
     verificationGasLimit?: `0x${string}`,
@@ -162,39 +172,29 @@ type AAGasParamsOverrideCapabilityParams = Record<
 Notice that all fields in the `AAGasParamsOverrideCapabilityParams` are optional.
 Only the values that callers want to override must be provided.
 
-In case `paymasterVerificationGasLimit` or `paymasterPostOpGasLimit` are provided,
-wallets should warn the users about this happening but use these values instead of
-the ones generated by any other capability.
-Wallets may choose to reject such configurations or request the user input in this case.
-Such a combination of features is only expected to be used in development and is very risky to use in production.
+Wallet Applications should warn the users about the overrides being supplied by the call and use these values instead.
 
-### Set Externally Owned Account Code Capability
-
-This capability is designed to use with [EIP-7702](./eip-7702) transactions.
-
-Identifier:
-
-`setCodeForEOA`
-
-Interface:
-
-```typescript
-type SetCodeForEOACapabilityParams = Record<
-  `0x${string}`, // Chain ID
-  {
-    codeAddress:   `0x${string}`, // implementation code address
-  }
->
-```
-
-Wallets should generate an EIP-7702 compatible transaction that sets a code of a `from` EOA address
-to the code of `codeAddress` specified in the request.
+Wallet Applications may choose to reject calls with conflicting configurations.
 
 ## Rationale
 
-## Reference Implementation
-
 ## Security Considerations
+
+### `eip7702Auth`
+
+This is by far the most sensitive capability in the document.
+There is no limit to the damage that can be done by signing the wrong capability.
+
+Wallet Applications MUST take extreme care when working with [EIP-7702](./eip-7702).
+
+### `staticPaymasterConfiguration`
+
+This capability has an opportunity to provide the `paymaster` and `paymasterData` values for the call.
+Incorrect or malicious values can be an attack vector.
+For example, a Paymaster contract may hold approvals for [ERC-20](./eip-20.md) tokens which may be drained this way.
+
+The Wallet Applications MUST make sure the provided values correspond to user intent.
+Fundamentally, this is not very different to how regular transactions' `calldata` must be verified.
 
 ## Copyright
 
