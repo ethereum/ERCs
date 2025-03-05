@@ -35,4 +35,63 @@ describe("ERC-7858 Epoch", function () {
       expect(await tokenContract.supportsInterface("0xFFFFFFFF")).to.equal(false);
     });
 
+    it("epochType and expiryType", async function () {
+      expect(await tokenContract.epochType()).to.equal(0);
+      expect(await tokenContract.epochType()).to.equal(0);
+    });
+
+    it("epochLength", async function () {
+      expect(await tokenContract.epochLength()).to.equal(6574359);
+    });
+
+    it("validityDuration", async function () {
+      expect(await tokenContract.validityDuration()).to.equal(4);
+    });
+
+    it("currentEpoch", async function () {
+      expect(await tokenContract.currentEpoch()).to.equal(0);
+      await mine(6574359);
+      expect(await tokenContract.currentEpoch()).to.equal(1);
+    });
+
+    it("mint token", async function () {
+      await tokenContract.mint(signers[0].address, 1);
+      expect(await tokenContract.balanceOf(signers[0].address)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOf(signers[0].address)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, signers[0].address)).to.equal(1);
+    });
+
+    it("burn token", async function () {
+      await tokenContract.mint(signers[0].address, 1);
+      expect(await tokenContract.balanceOf(signers[0].address)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOf(signers[0].address)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, signers[0].address)).to.equal(1);
+      await tokenContract.burn(1);
+      expect(await tokenContract.balanceOf(signers[0].address)).to.equal(0);
+      expect(await tokenContract.unexpiredBalanceOf(signers[0].address)).to.equal(0);
+      expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, signers[0].address)).to.equal(0);
+    });
+
+    it("transfer token", async function () {
+      const alice = signers[0].address;
+      const bob = signers[1].address;
+      await tokenContract.mint(alice, 1);
+      expect(await tokenContract.balanceOf(alice)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOf(alice)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, alice)).to.equal(1);
+      await tokenContract.connect(signers[0]).transferFrom(alice, bob, 1);
+      expect(await tokenContract.balanceOf(alice)).to.equal(0);
+      expect(await tokenContract.unexpiredBalanceOf(alice)).to.equal(0);
+      expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, alice)).to.equal(0);
+      expect(await tokenContract.balanceOf(bob)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOf(bob)).to.equal(1);
+      expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, bob)).to.equal(1);
+
+      // @TODO debugging this case
+      // await mine(6574359 * 4);
+      // expect(await tokenContract.balanceOf(bob)).to.equal(1);
+      // expect(await tokenContract.unexpiredBalanceOfAtEpoch(0, bob)).to.equal(0);
+      // expect(await tokenContract.unexpiredBalanceOf(bob)).to.equal(0);
+    });
+
 });

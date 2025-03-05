@@ -52,6 +52,7 @@ abstract contract ERC7858Epoch is
     ) {
         _name = name_;
         _symbol = symbol_;
+        _window.initializedBlock(block.number);
         _window.initializedState(blockTime_, windowSize_, false);
     }
 
@@ -91,7 +92,7 @@ abstract contract ERC7858Epoch is
         uint256 pointer,
         uint256 duration
     ) private view returns (uint256 balance) {
-        (uint256 element, uint256 value) = _findUnexpiredBalance(
+        (uint256 element, ) = _findUnexpiredBalance(
             account,
             epoch,
             pointer,
@@ -99,10 +100,9 @@ abstract contract ERC7858Epoch is
         );
         Epoch storage _account = _epochBalances[epoch][account];
         unchecked {
-            balance = value;
             while (element > 0) {
-                element = _account.list.next(element);
                 balance += _account.tokens[element].length;
+                element = _account.list.next(element);
             }
         }
         return balance;
@@ -202,13 +202,13 @@ abstract contract ERC7858Epoch is
         if (owner == address(0)) {
             revert ERC721InvalidOwner(address(0));
         }
-        uint256 pointer = _pointerProvider();
-        (uint256 fromEpoch, uint256 toEpoch) = _getWindowRage(pointer);
+        uint256 pointer = _blockProvider();
+        (uint256 fromEpoch, uint256 toEpoch) = _window.windowRange(pointer);
         uint256 balance = _computeBalanceAtEpoch(
             fromEpoch,
             owner,
             pointer,
-            _getPointersInWindow()
+            _window.blocksInWindow()
         );
         if (fromEpoch == toEpoch) {
             return balance;
@@ -306,7 +306,7 @@ abstract contract ERC7858Epoch is
 
     function _expired(uint256 epoch) internal view returns (bool) {
         unchecked {
-            (uint256 fromEpoch, ) = _getWindowRage(_pointerProvider());
+            (uint256 fromEpoch, ) = _window.windowRange(_blockProvider());
             if (epoch < fromEpoch) {
                 return true;
             }
@@ -328,7 +328,7 @@ abstract contract ERC7858Epoch is
         uint256 tokenId,
         address auth
     ) internal virtual returns (address) {
-        uint256 pointer = _pointerProvider(); // current block or timestamp
+        uint256 pointer = _blockProvider(); // current block or timestamp
         uint256 tokenPointer = _tokenPointers[tokenId];
         address from = _ownerOf(tokenId);
         // if the tokenId is not exist before minting it
@@ -342,12 +342,12 @@ abstract contract ERC7858Epoch is
             emit TokenExpiryUpdated(
                 tokenId,
                 pointer,
-                pointer + _getPointersInWindow()
+                pointer + _window.blocksInWindow()
             );
         } else {
             pointer = tokenPointer;
         }
-        uint256 epoch = _getEpoch(pointer);
+        uint256 epoch = _window.epoch(pointer);
 
         // Perform (optional) operator check
         if (auth != address(0)) {
@@ -518,8 +518,8 @@ abstract contract ERC7858Epoch is
             _computeBalanceAtEpoch(
                 epoch,
                 owner,
-                _pointerProvider(),
-                _getPointersInWindow()
+                _blockProvider(),
+                _window.blocksInWindow()
             );
     }
 
@@ -534,7 +534,7 @@ abstract contract ERC7858Epoch is
     function endTime(uint256 tokenId) external view returns (uint256) {
         if (_ownerOf(tokenId) == address(0))
             revert ERC721NonexistentToken(tokenId);
-        return _tokenPointers[tokenId] + _getPointersInWindow();
+        return _tokenPointers[tokenId] + _window.blocksInWindow();
     }
 
     /// @dev See {IERC7858-isTokenExpired}.
@@ -542,8 +542,8 @@ abstract contract ERC7858Epoch is
         if (_ownerOf(tokenId) == address(0))
             revert ERC721NonexistentToken(tokenId);
         return
-            _pointerProvider() >=
-            _tokenPointers[tokenId] + _getPointersInWindow();
+            _tokenPointers[tokenId] + _window.blocksInWindow() <=
+            _blockProvider();
     }
 
     /// @dev See {IERC7858-expiryType}.
@@ -553,12 +553,12 @@ abstract contract ERC7858Epoch is
 
     /// @dev See {IERC7858Epoch-currentEpoch}.
     function currentEpoch() public view virtual returns (uint256) {
-        return _getEpoch(_pointerProvider());
+        return _window.epoch(_blockProvider());
     }
 
     /// @dev See {IERC7858Epoch-epochLength}.
     function epochLength() public view virtual returns (uint256) {
-        return _getPointersInEpoch();
+        return _window.blocksInEpoch();
     }
 
     /// @dev See {IERC7858Epoch-epochType}.
@@ -568,7 +568,7 @@ abstract contract ERC7858Epoch is
 
     /// @dev See {IERC7858Epoch-validityDuration}.
     function validityDuration() public view virtual returns (uint256) {
-        return _getWindowSize();
+        return _window.windowSize;
     }
 
     /// @dev See {IERC7858Epoch-isEpochExpired}.
@@ -576,31 +576,7 @@ abstract contract ERC7858Epoch is
         return _expired(id);
     }
 
-    function _getEpoch(
-        uint256 pointer
-    ) internal view virtual returns (uint256) {
-        return _window.epoch(pointer);
-    }
-
-    function _getWindowRage(
-        uint256 pointer
-    ) internal view virtual returns (uint256 fromEpoch, uint256 toEpoch) {
-        return _window.safeWindowRange(pointer);
-    }
-
-    function _getWindowSize() internal view virtual returns (uint8) {
-        return _window.windowSize;
-    }
-
-    function _getPointersInEpoch() internal view virtual returns (uint40) {
-        return _window.blocksInEpoch();
-    }
-
-    function _getPointersInWindow() internal view virtual returns (uint40) {
-        return _window.blocksInWindow();
-    }
-
-    function _pointerProvider() internal view virtual returns (uint256) {
+    function _blockProvider() internal view returns (uint256) {
         return block.number;
     }
 }

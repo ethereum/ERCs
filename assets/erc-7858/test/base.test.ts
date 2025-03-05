@@ -33,6 +33,10 @@ describe("ERC-7858 Base", function () {
     expect(await tokenContract.supportsInterface("0xFFFFFFFF")).to.equal(false);
   });
 
+  it("expiryType", async function () {
+    expect(await tokenContract.expiryType()).to.equal(0);
+  });
+
   it("mint token and update timestamp", async function () {
     await tokenContract.mint(signers[0].address, 1);
     expect(await tokenContract.startTime(1)).to.equal(0);
