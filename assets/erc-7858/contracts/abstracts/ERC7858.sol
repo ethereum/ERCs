@@ -14,21 +14,19 @@ contract ERC7858 is ERC721, IERC7858 {
     mapping(uint256 => uint256) internal _startBlock;
     mapping(uint256 => uint256) internal _endBlock;
 
-    // not allowing to passing {0, 0} use _mint instead.
-    function _updateTokenTimeStamp(uint256 tokenId, uint256 startBlock, uint256 endBlock) internal {
-        if (startBlock >= endBlock) {
-            revert ERC7858InvalidTimeStamp(startBlock, endBlock);
+    function _updateTimeStamp(uint256 tokenId, uint256 start, uint256 end) internal {
+        if (_ownerOf(tokenId) == address(0)) revert ERC721NonexistentToken(tokenId);
+        if (start >= end) {
+            revert ERC7858InvalidTimeStamp(start, end);
         }
-        // store data to mapping
-        _startBlock[tokenId] = startBlock;
-        _endBlock[tokenId] = endBlock;
+        _startBlock[tokenId] = start;
+        _endBlock[tokenId] = end;
 
-        emit TokenExpiryUpdated(tokenId, startBlock, endBlock);
+        emit TokenExpiryUpdated(tokenId, start, end);
     }
 
-    function _burnAndClearTimeStamp(uint256 tokenId) internal {
-        _burn(tokenId);
-        // clear data from mapping
+    function _clearTimeStamp(uint256 tokenId) internal {
+        if (_ownerOf(tokenId) == address(0)) revert ERC721NonexistentToken(tokenId);
         delete _startBlock[tokenId];
         delete _endBlock[tokenId];
     }
