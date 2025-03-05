@@ -53,7 +53,9 @@ interface IERC7858Epoch is IERC7858 {
      * @param account The address of the account.
      * @return uint256 The amount of unexpired tokens owned by an account.
      */
-    function unexpiredBalanceOf(address account) external view returns (uint256);
+    function unexpiredBalanceOf(
+        address account
+    ) external view returns (uint256);
 
     /**
      * @dev Retrieves the validity duration of each token.

@@ -44,11 +44,15 @@ abstract contract ERC7858Epoch is
     mapping(address owner => mapping(address operator => bool))
         private _operatorApprovals;
 
-    // sliding window
-    constructor(string memory name_, string memory symbol_) {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint16 blockTime_,
+        uint8 windowSize_
+    ) {
         _name = name_;
         _symbol = symbol_;
-        // _window.initializedState(blockTime_, windowSize_, development_); // SlidingWindow
+        _window.initializedState(blockTime_, windowSize_, false);
     }
 
     /**
@@ -504,8 +508,8 @@ abstract contract ERC7858Epoch is
         emit ApprovalForAll(owner, operator, approved);
     }
 
-    /// @dev See {IERC7858-balanceOFAtEpoch}.
-    function balanceOfAtEpoch(
+    /// @dev See {IERC7858-unexpiredBalanceOfAtEpoch}.
+    function unexpiredBalanceOfAtEpoch(
         uint256 epoch,
         address owner
     ) external view returns (uint256) {
@@ -540,6 +544,11 @@ abstract contract ERC7858Epoch is
         return
             _pointerProvider() >=
             _tokenPointers[tokenId] + _getPointersInWindow();
+    }
+
+    /// @dev See {IERC7858-expiryType}.
+    function expiryType() public pure virtual returns (EXPIRY_TYPE) {
+        return IERC7858.EXPIRY_TYPE.BLOCK_BASED;
     }
 
     /// @dev See {IERC7858Epoch-currentEpoch}.

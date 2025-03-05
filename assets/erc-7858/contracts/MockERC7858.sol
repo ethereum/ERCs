@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import {ERC7858} from "./abstracts/ERC7858.sol";
 
-contract MockERC7858BLSW is ERC7858 {
+contract MockERC7858 is ERC7858 {
     constructor(string memory _name, string memory _symbol) ERC7858(_name, _symbol) {}
 
     function mint(address to, uint256 tokenId) public {
