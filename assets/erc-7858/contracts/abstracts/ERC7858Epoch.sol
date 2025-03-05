@@ -119,6 +119,9 @@ abstract contract ERC7858Epoch is
             element = list.head();
             unchecked {
                 while (pointer - element >= duration) {
+                    if (element == 0) {
+                        break;
+                    }
                     element = list.next(element);
                 }
             }
@@ -202,8 +205,8 @@ abstract contract ERC7858Epoch is
         if (owner == address(0)) {
             revert ERC721InvalidOwner(address(0));
         }
-        uint256 pointer = _blockProvider();
-        (uint256 fromEpoch, uint256 toEpoch) = _window.windowRange(pointer);
+        uint256 pointer = _blockNumberProvider();
+        (uint256 fromEpoch, uint256 toEpoch) = _window.safeWindowRange(pointer);
         uint256 balance = _computeBalanceAtEpoch(
             fromEpoch,
             owner,
@@ -306,7 +309,7 @@ abstract contract ERC7858Epoch is
 
     function _expired(uint256 epoch) internal view returns (bool) {
         unchecked {
-            (uint256 fromEpoch, ) = _window.windowRange(_blockProvider());
+            (uint256 fromEpoch, ) = _window.windowRange(_blockNumberProvider());
             if (epoch < fromEpoch) {
                 return true;
             }
@@ -328,14 +331,15 @@ abstract contract ERC7858Epoch is
         uint256 tokenId,
         address auth
     ) internal virtual returns (address) {
-        uint256 pointer = _blockProvider(); // current block or timestamp
         uint256 tokenPointer = _tokenPointers[tokenId];
+        uint256 pointer = tokenPointer;
         address from = _ownerOf(tokenId);
         // if the tokenId is not exist before minting it
         if (to == address(0)) {
             _tokenPointers[tokenId] = 0;
         }
         if (tokenPointer == 0) {
+            pointer = _blockNumberProvider(); // current block or timestamp
             tokenPointer = pointer;
             _tokenPointers[tokenId] = pointer;
 
@@ -344,8 +348,6 @@ abstract contract ERC7858Epoch is
                 pointer,
                 pointer + _window.blocksInWindow()
             );
-        } else {
-            pointer = tokenPointer;
         }
         uint256 epoch = _window.epoch(pointer);
 
@@ -518,32 +520,29 @@ abstract contract ERC7858Epoch is
             _computeBalanceAtEpoch(
                 epoch,
                 owner,
-                _blockProvider(),
+                _blockNumberProvider(),
                 _window.blocksInWindow()
             );
     }
 
     /// @dev See {IERC7858-startTime}.
     function startTime(uint256 tokenId) external view returns (uint256) {
-        if (_ownerOf(tokenId) == address(0))
-            revert ERC721NonexistentToken(tokenId);
+        _requireOwned(tokenId);
         return _tokenPointers[tokenId];
     }
 
     /// @dev See {IERC7858-endTime}.
     function endTime(uint256 tokenId) external view returns (uint256) {
-        if (_ownerOf(tokenId) == address(0))
-            revert ERC721NonexistentToken(tokenId);
+        _requireOwned(tokenId);
         return _tokenPointers[tokenId] + _window.blocksInWindow();
     }
 
     /// @dev See {IERC7858-isTokenExpired}.
     function isTokenExpired(uint256 tokenId) external view returns (bool) {
-        if (_ownerOf(tokenId) == address(0))
-            revert ERC721NonexistentToken(tokenId);
+        _requireOwned(tokenId);
         return
             _tokenPointers[tokenId] + _window.blocksInWindow() <=
-            _blockProvider();
+            _blockNumberProvider();
     }
 
     /// @dev See {IERC7858-expiryType}.
@@ -553,7 +552,7 @@ abstract contract ERC7858Epoch is
 
     /// @dev See {IERC7858Epoch-currentEpoch}.
     function currentEpoch() public view virtual returns (uint256) {
-        return _window.epoch(_blockProvider());
+        return _window.epoch(_blockNumberProvider());
     }
 
     /// @dev See {IERC7858Epoch-epochLength}.
@@ -576,7 +575,7 @@ abstract contract ERC7858Epoch is
         return _expired(id);
     }
 
-    function _blockProvider() internal view returns (uint256) {
+    function _blockNumberProvider() internal view returns (uint256) {
         return block.number;
     }
 }

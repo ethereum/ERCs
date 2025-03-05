@@ -15,7 +15,7 @@ contract ERC7858 is ERC721, IERC7858 {
     mapping(uint256 => uint256) internal _endBlock;
 
     function _updateTimeStamp(uint256 tokenId, uint256 start, uint256 end) internal {
-        if (_ownerOf(tokenId) == address(0)) revert ERC721NonexistentToken(tokenId);
+        _requireOwned(tokenId);
         if (start >= end) {
             revert ERC7858InvalidTimeStamp(start, end);
         }
@@ -26,7 +26,7 @@ contract ERC7858 is ERC721, IERC7858 {
     }
 
     function _clearTimeStamp(uint256 tokenId) internal {
-        if (_ownerOf(tokenId) == address(0)) revert ERC721NonexistentToken(tokenId);
+        _requireOwned(tokenId);
         delete _startBlock[tokenId];
         delete _endBlock[tokenId];
     }
