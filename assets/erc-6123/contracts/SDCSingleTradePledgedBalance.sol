@@ -92,10 +92,10 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
     }
 
     /*
-    * afterTransfer processes SDC depending on success of the respective payment and depending on the current trade state
+    * afterSettlement processes SDC depending on success of the respective payment and depending on the current trade state
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
-    function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external override  {
+    function afterSettlement(bool success, uint256 transactionID, string memory transactionData) external override  {
         if ( inStateConfirmed()){
             if (success){
                 setTradeState(TradeState.Settled);
@@ -130,7 +130,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
             }
         }
         else
-            revert("Trade State does not allow to call 'afterTransfer'");
+            revert("Trade State does not allow to call 'afterSettlement'");
     }
 
     /*

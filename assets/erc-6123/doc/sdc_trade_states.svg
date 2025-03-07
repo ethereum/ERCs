@@ -237,12 +237,12 @@
 					x="31.46" dy="1.2em" class="st17">by Counterparty2</tspan></text>		</g>
 		<g id="shape352-61" v:mID="352" v:groupContext="shape" v:layerMember="0" transform="translate(461.222,-476.398)">
 			<title>Dynamischer Verbinder.66</title>
-			<desc>tx: afterTransfer</desc>
+			<desc>tx: afterSettlement</desc>
 			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
 			<v:textRect cx="-7.33917" cy="616.844" width="62.7" height="17.6036"/>
 			<path d="M-6.26 595.28 L-6.26 613.28 L-7.91 613.28 L-7.91 632.36" class="st13"/>
 			<rect v:rectContext="textBkgnd" x="-33.7785" y="612.044" width="52.8788" height="9.59985" class="st15"/>
-			<text x="-33.78" y="619.24" class="st16" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>tx: afterTransfer</text>		</g>
+			<text x="-33.78" y="619.24" class="st16" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>tx: afterSettlement</text>		</g>
 		<g id="group353-68" transform="translate(543.968,-477.214)" v:mID="353" v:groupContext="group">
 			<v:userDefs>
 				<v:ud v:nameU="visVersion" v:prompt="" v:val="VT0(15):26"/>
