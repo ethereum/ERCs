@@ -1,0 +1,28 @@
+<footer class="py-4 mt-5 border-top">
+  <div class="container">
+    <div class="row row-cols-1 row-cols-md-2">
+      <div class="col">
+        <p class="lead">{{ site.title | escape }}</p>
+
+        <!-- Subscribe Section -->
+        <p class="d-flex align-items-center">
+          <a href="/rss/all.xml" class="text-decoration-none d-flex align-items-center">
+            <i class="bi bi-rss me-2"></i> Subscribe
+          </a>
+        </p>
+
+        <!-- GitHub Link Section -->
+        <p class="d-flex align-items-center">
+          <a href="https://github.com/ethereum/ERCs" class="text-decoration-none d-flex align-items-center">
+            <i class="bi bi-github me-2"></i> ethereum/ERCs
+          </a>
+        </p>
+      </div>
+
+      <!-- Second Column: Site Description -->
+      <div class="col">
+        <p>{{ site.description | escape }}</p>
+      </div>
+    </div>
+  </div>
+</footer>
