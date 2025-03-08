@@ -92,9 +92,10 @@ interface ILockingContract {
      * @param id the trade identifier of the trade.
      * @param amount the number of tokens to be transfered.
      * @param from The address of the seller (the address of the buyer is message.sender).
-     * @param keyEncryptedSeller Encryption (or, alternatively, hash) of the key that can be used by the seller to (re-)claim the token.
+     * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
+     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
      */
-    function cancelTransfer(bytes32 id, int amount, address from, string memory keyEncryptedSeller) external;
+    function cancelTransfer(bytes32 id, int amount, address from, string memory keyHashedSeller, string memory keyEncryptedSeller) external;
 
     /**
      * @notice Called from the buyer or seller to claim or (re-)claim the token. Unlocks the token.
