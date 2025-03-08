@@ -82,6 +82,16 @@ interface ILockingContract {
     function confirmTransfer(bytes32 id, int amount, address to, string memory keyEncryptedBuyer) external;
 
     /**
+     * @notice Called from the buyer of the token to cancel token transfer (cancels the incept transfer).
+     * @dev emits a {TransferKeyRequested}
+     * @param id the trade identifier of the trade.
+     * @param amount the number of tokens to be transfered.
+     * @param from The address of the seller (the address of the buyer is message.sender).
+     * @param keyEncryptedSeller Encryption (or, alternatively, hash) of the key that can be used by the seller to (re-)claim the token.
+     */
+    function cancelTransfer(bytes32 id, int amount, address from, string memory keyEncryptedSeller) external;
+
+    /**
      * @notice Called from the buyer or seller to claim or (re-)claim the token. Unlocks the token.
      * @dev emits a {TokenClaimed} or {TokenReclaimed}
      * @param id the trade identifier of the trade.
