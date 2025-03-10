@@ -52,7 +52,7 @@ interface IDecryptionContract {
 
     /**
      * @notice Called from the receiver of the amount to initiate payment transfer.
-     * @dev emits a {PaymentTransferIncepted}
+     * @dev emits a {TransferIncepted}
      * @param id the trade identifier of the trade.
      * @param amount the amount to be transferred.
      * @param from The address of the sender of the payment (the receiver ('to') is message.sender).
