@@ -2,13 +2,13 @@
 kind = "set-default-annotation"
 name = "status"
 value = "Stagnant"
-annotation_type = "warning"
+annotation_level = "warning"
 
 [[modifiers]]
 kind = "set-default-annotation"
 name = "status"
 value = "Withdrawn"
-annotation_type = "warning"
+annotation_level = "warning"
 
 [lints.markdown-re-eip-dash]
 kind = "markdown-regex"
@@ -34,11 +34,12 @@ mode = "excludes"
 pattern = ":"
 message = "preamble header `description` should not contain `:`"
 
-[lints.preamble-refs-description]
-kind = "preamble-proposal-ref"
-name = "description"
-prefix = "erc-"
-suffix = ".md"
+## Disabled due to EIP/ERC repo split.
+# [lints.preamble-refs-description]
+# kind = "preamble-proposal-ref"
+# name = "description"
+# prefix = "erc-"
+# suffix = ".md"
 
 [lints.preamble-enum-category]
 kind = "preamble-one-of"
@@ -115,6 +116,7 @@ names = [
 #         "Final",
 #         "Withdrawn",
 #         "Living",
+#         "Moved",
 #     ],
 # ]
 
@@ -145,6 +147,8 @@ exceptions = [
     '^https://(www\.)?github\.com/ethereum/yellowpaper/commit/[a-f0-9]{40}$',
     '^https://(www\.)?github\.com/ethereum/devp2p/(blob|tree)/[0-9a-f]{40}/.+$',
     '^https://(www\.)?github\.com/ethereum/devp2p/commit/[0-9a-f]{40}$',
+    '^https://(www\.)?github\.com/ethereum/portal-network-specs/(blob|tree)/[0-9a-f]{40}/.+$',
+    '^https://(www\.)?github\.com/ethereum/portal-network-specs/commit/[0-9a-f]{40}$',
     '^https://(www\.)?github\.com/bitcoin/bips/(blob|tree)/[0-9a-f]{40}/bip-[0-9]+\.mediawiki$',
     '^https://(www\.)?github\.com/ChainAgnostic/CAIPs/(blob|tree)/[a-f0-9]{40}/.+$',
     '^https://(www\.)?github\.com/ChainAgnostic/CAIPs/commit/[0-9a-f]{40}$',
@@ -778,24 +782,26 @@ sections = [
     "Copyright",
 ]
 
-[lints.markdown-link-status]
-prefix = "erc-"
-suffix = ".md"
-kind = "markdown-link-status"
-status = "status"
-flow = [
-    [
-    "Draft",
-    "Stagnant",
-],
-    ["Review"],
-    ["Last Call"],
-    [
-    "Final",
-    "Withdrawn",
-    "Living",
-],
-]
+## Disabled because of EIP/ERC repository split.
+# [lints.markdown-link-status]
+# prefix = "erc-"
+# suffix = ".md"
+# kind = "markdown-link-status"
+# status = "status"
+# flow = [
+#     [
+#     "Draft",
+#     "Stagnant",
+# ],
+#     ["Review"],
+#     ["Last Call"],
+#     [
+#     "Final",
+#     "Withdrawn",
+#     "Living",
+#     "Moved",
+# ],
+# ]
 
 [lints.preamble-re-title-colon]
 kind = "preamble-regex"
@@ -842,7 +848,7 @@ min = 1
 
 [lints.markdown-link-first]
 kind = "markdown-link-first"
-pattern = "(?i)(?:eip|erc)-[0-9]+"
+pattern = "(?i)(?:eip|erc)-([0-9])+"
 
 [lints.markdown-re-erc-dash]
 kind = "markdown-regex"
@@ -891,11 +897,12 @@ mode = "includes"
 pattern = "^https://ethereum-magicians.org/t/[^/]+/[0-9]+$"
 message = "preamble header `discussions-to` should point to a thread on ethereum-magicians.org"
 
-[lints.preamble-refs-title]
-kind = "preamble-proposal-ref"
-name = "title"
-prefix = "erc-"
-suffix = ".md"
+## Disabled due to EIP/ERC repo split.
+# [lints.preamble-refs-title]
+# kind = "preamble-proposal-ref"
+# name = "title"
+# prefix = "erc-"
+# suffix = ".md"
 
 [lints.preamble-enum-status]
 kind = "preamble-one-of"
@@ -925,4 +932,9 @@ name = "eip"
 prefix = "erc-"
 suffix = ".md"
 
+[lints.markdown-no-backticks]
+kind = "markdown-no-backticks"
+pattern = "(?i)(eip|erc)-[0-9]+"
 
+[lints.markdown-headings-space]
+kind = "markdown-headings-space"
