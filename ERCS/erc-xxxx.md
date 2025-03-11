@@ -14,21 +14,20 @@ requires: 5792, 7702
 ## Abstract
 
 [EIP-5792](./eip-5792) defines a baseline JSON-RPC API for a communication between wallets and dapps.
-With EIP-5792, apps and wallets can communicate about any advanced features using "capabilities" - extensions
+With EIP-5792, dapps and wallets can communicate advanced features using "capabilities" - extensions
 to the base protocol that must be defined in separate documents.
 
-This proposal defines a set of "capabilities" the wallets may want to implement in order to provide a
-comprehensive support for Account Abstraction.
+This proposal defines a set of "capabilities" the wallets may want to implement in order to provide a comprehensive support for Account Abstraction.
 
 ## Motivation
 
-[ERC-4337](./eip-4337.md) introduced Account Abstraction and enabling Smart Contract Accounts to function as first-class citizens in Ethereum.
+[ERC-4337](./eip-4337.md) introduced Account Abstraction, enabling Smart Contract Accounts to function as first-class citizens in Ethereum.
 However, while [ERC-4337](./eip-4337.md) and [ERC-7769](./eip-7769.md) defines a low-level RPC API for Account Abstraction,
 it does not specify a way for advanced AA-aware dApps to communicate their supported features and parameters to the advanced AA Wallet Applications.
 
-This ERC addresses the issue by defining a structured set of capabilities tailored for Account Abstraction dApps and Wallet Applications.
+This ERC addresses the issue by defining a structured set of capabilities tailored for AA-aware dApps and Wallet Applications.
 
-It extends the [EIP-5792](./eip-5792) wallet capability model to encompass critical aspects of AA,
+It utilises the [EIP-5792](./eip-5792) wallet capability model to express some of the critical aspects of AA,
 ensuring dApps can seamlessly adapt to different AA Wallets without requiring custom solutions.
 
 ## Specification
@@ -40,7 +39,7 @@ Note that use of Paymasters managed by a "paymaster web service" is described in
 
 ### Create [EIP-7702](./eip-7702) Authorization Capability
 
-This capability is designed to use with [EIP-7702](./eip-7702) and requests the Wallet Application to provide
+This capability is designed to be used with [EIP-7702](./eip-7702) and requests the Wallet Application to provide
 an EIP-7702 authorization tuple for the specified address as part of the AA transaction.
 
 Identifier:
@@ -62,7 +61,7 @@ Supporting Wallet Applications MUST generate an EIP-7702 compatible transaction 
 to the code of `delegation` specified in the request.
 
 Attention! Wallet Applications MUST maintain a strict shortlist of well-known and publicly audited Smart Contract Account
-implementations that can be acceptable as `delegation`.
+implementations that are acceptable as `delegation`.
 Authorization is an extremely sensitive operation and any vulnerability or malicious code in `delegation` will
 result in complete draining of the `account`.
 
@@ -118,7 +117,7 @@ The Smart Contract Account MUST specify the time range [`validAfter`..`validUnti
 ### Multidimensional Nonce Capability
 
 The purpose of this capability is allowing the applications to explicitly specify the components of the
-multidimensional nonce as defined in [ERC-4337](./eip-4337.md).
+semi-abstracted nonce as defined in [ERC-4337](./eip-4337.md).
 
 Identifier:
 
