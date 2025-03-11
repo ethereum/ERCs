@@ -3,7 +3,7 @@ eip:
 title: Wallet Capabilities for Account Abstraction
 description: New Wallet Capabilities providing a way for dApps and Account Abstraction wallets to communicate
 author: Yoav Weiss (@yoavw), Alex Forshtat (@forshtat), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn)
-discussions-to:
+discussions-to: https://ethereum-magicians.org/t/erc-wallet-capabilities-for-account-abstraction
 status: Draft
 type: Standards Track
 category: ERC
