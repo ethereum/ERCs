@@ -156,6 +156,7 @@ Regardless of the above, the failure modes associated with rate limits generally
     2. In the limit-based approach, the bridge will similarly not be able to complete the transaction on the destination domain until it has more capacity available. However, a limit approach provides some more reasonable guarantees to the user: (1) user have a much higher degree of predictability around time and pricing of the outputted transaction, (2) users would not receive some wrapped representation, and (3) bridges would have a simpler pathway for users to send the tokens back to the source domain or any other destination.
 
 ### Aggregation
+
 This proposal introduces new dynamics for aggregators that massively improve user safety and experience across chains.
 
 There are two unsolved mechanism design problems that currently exist around bridge aggregation:
@@ -213,7 +214,8 @@ In addition to the granular risk controls outlined in the [Rate Limits](#rate-li
 
 ### Mint/Burn Checks
 
-To reiterate security points from the [Token Interface](#token-interface) section:
+To reiterate security points from the [Token Interface](#token-interface-for-bridged-tokens) section:
+
 - `mint` MUST check that the caller's current available minting `limit` is greater than or equal to `_amount`
 - `mint` MUST increase the supply of the underlying ERC-20 token by `_amount` and reduce the current available `limit`
 - `burn` MUST check that the caller's current available burning `limit` is greater than or equal to `_amount`
