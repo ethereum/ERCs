@@ -1,6 +1,6 @@
 {
   "name": "@finmath.net/dvp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Solidity Conditional-upon-Transfer-Decryption for DvP",
   "author": "Christian Fries, Peter Kohl-Landgraf",
   "license": "ISC",
