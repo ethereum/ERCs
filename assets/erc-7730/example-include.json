@@ -1,6 +1,6 @@
 {
     "context": {
-        "$id": "Tether USD",
+        "$id": "Example USD",
         "contract" : {
             "deployments": [
                 {
@@ -14,15 +14,15 @@
     "includes": "./example-erc20.json",
     
     "metadata": {
-        "owner": "Tether",
+        "owner": "Example",
         "info": {
-            "legalName": "Tether Limited",
-            "url": "https://tether.to/",
+            "legalName": "Example Inc.",
+            "url": "https://example.io/",
             "deploymentDate": "2017-11-28T12:41:21Z"  
         },
         "token": {
-            "ticker": "USDT",
-            "name": "Tether USD",
+            "ticker": "EXA",
+            "name": "Example Stablecoin",
             "decimals": 6
         }
     },
