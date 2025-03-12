@@ -230,7 +230,7 @@ interface ISDC {
      * @param transactionData data associtated with the transfer, will be emitted via the events.
      * @dev emit a {SettlementTransferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
      */
-    function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external;
+    function afterSettlement(bool success, uint256 transactionID, string memory transactionData) external;
 
     /// Trade termination
 
