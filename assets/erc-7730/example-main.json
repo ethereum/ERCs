@@ -1,10 +1,10 @@
 {
-    "$schema": "https://github.com/LedgerHQ/clear-signing-erc7730-registry/blob/master/specs/erc7730-v1.schema.json",
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v1.schema.json",
 
     "context": {
-        "$id": "Tether USD",
+        "$id": "Example ERC-20",
         "contract" : {
-            "abi": "https://api.etherscan.io/api?module=contract&action=getabi&address=0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "abi": "https://api.example.io/api?module=contract&action=getabi&address=0xdac17f958d2ee523a2206206994597c13d831ec7",
             "deployments": [ 
                 {
                     "chainId": 1,
@@ -23,10 +23,10 @@
     }, 
 
     "metadata": {
-        "owner": "Tether",
+        "owner": "Example",
         "info": {
-            "legalName": "Tether Limited",
-            "url": "https://tether.to/",
+            "legalName": "Example Inc.",
+            "url": "https://example.io/",
             "deploymentDate": "2017-11-28T12:41:21Z"  
         }
     },
