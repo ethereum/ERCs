@@ -1,0 +1,27 @@
+governance:
+  - lightclient
+  - SamWilsn
+  - xinbenlv
+  - g11tech
+core:
+  - lightclient
+  - SamWilsn
+  - g11tech
+erc:
+  - SamWilsn
+  - xinbenlv
+  - g11tech
+networking:
+  - lightclient
+  - SamWilsn
+interface:
+  - lightclient
+  - SamWilsn
+meta:
+  - lightclient
+  - SamWilsn
+  - xinbenlv
+informational:
+  - lightclient
+  - SamWilsn
+  - xinbenlv
