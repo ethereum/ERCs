@@ -6,7 +6,7 @@ title: Deterministic Account Hierarchy In Treasury Management
 
 description: A standardized hierarchical deterministic (HD) wallet structure within the treasury management system, enforcing strict isolation between entities and departments through cryptographic key derivation paths.
 
-author: Xiaoyu Liu(@elizabethxiaoyu) <jiushi.lxy@antgroup.com>,Yuxiang Fu(@tmac4096)<kunfu.fyx@antgroup.com>,Siyuan Zheng(@andrewcoder666)<zhengsiyuan.zsy@antgroup.com>
+author: Xiaoyu Liu(@elizabethxiaoyu)<jiushi.lxy@antgroup.com>,Yuxiang Fu(@tmac4096)<kunfu.fyx@antgroup.com>,Yanyi Liang<eason.lyy@antgroup.com>,Hao Zou(@BruceZH0915)<situ.zh@antgroup.com>,Siyuan Zheng(@andrewcoder666)<zhengsiyuan.zsy@antgroup.com>,yuanshanhshan(@xunayuan)<yuanshanshan.yss@antgroup.com>
 
 discussions-to: https://ethereum-magicians.org/t/new-erc-deterministic-account-hierarchy-in-treasury-management/23073
 
@@ -22,17 +22,11 @@ created: 2025-03-07
 
 # Abstract
 
-This proposal aims to provide a standardized method for on-chain treasury management of institutional assets, ensuring
-secure private key generation, hierarchical management, and departmental permission isolation while supporting asset
-security and transaction efficiency in multi-chain environments. By defining a unified derivation path and security
-mechanisms, this proposal offers an efficient and secure solution for treasury management.
+This proposal aims to provide a standardized method for on-chain treasury management of institutional assets, ensuring secure private key generation, hierarchical management, and departmental permission isolation while supporting asset security and transaction efficiency in multi-chain environments. By defining a unified derivation path and security mechanisms, this proposal offers an efficient and secure solution for treasury management.
 
 # Motivation
 
-With the rapid development of blockchain and DeFi, secure management of on-chain assets has become critical. Traditional
-private key management struggles to meet the security demands of large organizations in complex scenarios, where
-hierarchical key management, permission controls, and multi-signature mechanisms are essential. This proposal provides a
-standardized solution for institutional treasury management, ensuring asset security and transaction efficiency.
+With the rapid development of blockchain and DeFi, secure management of on-chain assets has become critical. Traditional private key management struggles to meet the security demands of large organizations in complex scenarios, where hierarchical key management, permission controls, and multi-signature mechanisms are essential. This proposal provides a standardized solution for institutional treasury management, ensuring asset security and transaction efficiency.
 
 # Specification
 
@@ -87,7 +81,7 @@ To derive `entity_id` and `department_id`:
 
 ```python
 entity_hash = sha256(f"ENTITY:{entity}".encode()).digest()  
-entity_index = (int.from_bytes(entity_hash[:4], "big") % 2**31) + 2**31  # 2^31 ≤ index < 2^32
+entity_index = int.from_bytes(entity_hash[:4], "big") | 0x80000000   # 2^31 ≤ index < 2^32
 ```
 
 2. **Department Index Calculation**
@@ -96,7 +90,7 @@ entity_index = (int.from_bytes(entity_hash[:4], "big") % 2**31) + 2**31  # 2^31 
 
 ```python
 dept_hash = sha256(f"DEPT:{entity_hash}:{department}".encode()).digest()  
-dept_index = (int.from_bytes(dept_hash[:4], "big") % 2^31) + 2^31
+dept_index = int.from_bytes(dept_hash[:4], "big") | 0x80000000   # 2^31 ≤ index < 2^32
 ```
 
 3. **Output Constraints**
@@ -164,18 +158,10 @@ This specification is inspired by BIP-44 (`m/purpose'/coin_type'/account'/change
 
 The scenarios for which the proposal applies are:
 
-1. **Company and Department Isolation**: Different subsidiaries within the group, as well as different departments
-   within each subsidiary, can create isolated on-chain accounts. Enhanced derivation is used to isolate exposure risks.
-2. **Group Unified Management Authority**: The group administrator holds the master private key, which can derive all
-   subsidiary private keys, granting the highest authority to view and initiate transactions across the entire group,
-   facilitating unified management by the group administrator.
-3. **Shared Department Private Key**: If subsidiary A's administrator, Alice, needs to share accounts under subsidiary A
-   with a new administrator, Bob, she only needs to share the master private key of subsidiary A. Accounts from various
-   departments can then be derived from this key.
-4. **Shared Audit Public Key**: If the audit department needs to audit transactions under a specific department, the
-   extended public key of the specified department can be shared with the audit department. Through this extended public
-   key, all subordinate public keys under the department can be derived, allowing the audit department to track all
-   transactions associated with these public key addresses.
+1. **Company and Department Isolation**: Different subsidiaries within the group, as well as different departments within each subsidiary, can create isolated on-chain accounts. Enhanced derivation is used to isolate exposure risks.
+2. **Group Unified Management Authority**: The group administrator holds the master private key, which can derive all subsidiary private keys, granting the highest authority to view and initiate transactions across the entire group, facilitating unified management by the group administrator.
+3. **Shared Department Private Key**: If subsidiary A's administrator, Alice, needs to share accounts under subsidiary A with a new administrator, Bob, she only needs to share the master private key of subsidiary A. Accounts from various departments can then be derived from this key.
+4. **Shared Audit Public Key**: If the audit department needs to audit transactions under a specific department, the extended public key of the specified department can be shared with the audit department. Through this extended public key, all subordinate public keys under the department can be derived, allowing the audit department to track all transactions associated with these public key addresses.
 
 # Reference Implementation
 
@@ -220,12 +206,12 @@ class TreasurySystem:
         """
         # Entity hash
         entity_hash = hashlib.sha256(f"ENTITY:{entity}".encode()).digest()
-        entity_index = int.from_bytes(entity_hash[:4], 'big') % 2**31 + 2**31
+        entity_index = int.from_bytes(entity_hash[:4], 'big') | 0x80000000
         
         # Department hash (chained)
         dept_input = f"DEPT:{entity_hash.hex()}:{department}".encode()
         dept_hash = hashlib.sha256(dept_input).digest()
-        dept_index = int.from_bytes(dept_hash[:4], 'big') % 2**31 + 2**31
+        dept_index = int.from_bytes(dept_hash[:4], 'big') | 0x80000000
         
         return entity_index, dept_index
 
@@ -375,13 +361,10 @@ python stms.py
 
 output：
 
-![img](https://intranetproxy.alipay.com/skylark/lark/0/2025/png/180109/1741141841059-ad7f8218-c2f4-4853-be2d-ebe7d03f47cb.png)
-
+![img.png](../assets/erc-treasury_hd_wallet/img.png)
 # Security Considerations
 
-For treasury managers, hierarchical deterministic wallet management is more convenient, but it requires additional
-consideration of protective measures for the master key, such as schemes for splitting and storing mnemonic phrases or
-master keys.
+For treasury managers, hierarchical deterministic wallet management is more convenient, but it requires additional consideration of protective measures for the master key, such as schemes for splitting and storing mnemonic phrases or master keys.
 
 # Backwards Compatibility
 

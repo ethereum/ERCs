@@ -38,12 +38,12 @@ class TreasurySystem:
         """
         # Entity hash
         entity_hash = hashlib.sha256(f"ENTITY:{entity}".encode()).digest()
-        entity_index = int.from_bytes(entity_hash[:4], 'big') % 2**31 + 2**31
-        
+        entity_index = int.from_bytes(entity_hash[:4], 'big') | 0x80000000
+
         # Department hash (chained)
         dept_input = f"DEPT:{entity_hash.hex()}:{department}".encode()
         dept_hash = hashlib.sha256(dept_input).digest()
-        dept_index = int.from_bytes(dept_hash[:4], 'big') % 2**31 + 2**31
+        dept_index = int.from_bytes(dept_hash[:4], 'big') | 0x80000000
         
         return entity_index, dept_index
 
