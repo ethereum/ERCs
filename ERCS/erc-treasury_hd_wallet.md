@@ -361,7 +361,7 @@ python stms.py
 
 output：
 
-![img.png](../assets/erc-treasury_hd_wallet/img.png)
+![](../assets/erc-treasury_hd_wallet/img.png)
 # Security Considerations
 
 For treasury managers, hierarchical deterministic wallet management is more convenient, but it requires additional consideration of protective measures for the master key, such as schemes for splitting and storing mnemonic phrases or master keys.
