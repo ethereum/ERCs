@@ -90,6 +90,8 @@ library SignatureCheckerExtended {
 
 ## Rationale
 
+TODO
+
 ## Backwards Compatibility
 
 This ERC proposed a new contract interface, with no consequences to existing system.
