@@ -1,0 +1,111 @@
+---
+eip: XXXX
+title: Key Verifiers
+description: Standard  way to verify signatures by address-less key
+author: Hadrien Croubois (@Amxx), Ernesto García (@ernestognw), Francisco Giordano (@frangio)
+discussions-to: https://ethereum-magicians.org/t/<todo>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-03-21
+requires: 1271
+---
+
+## Abstract
+
+Externally Owned Accounts (EOA) can sign messages with their associated private keys. Additionally [ERC-1271](./eip-1271.md) defines a method for signature verification by smart accounts sur as multisig. In both cases the identity of the signer is an ethereum address. We propose a standard to extend this concept of signer description, and signature verification, to keys that do not have an ethereum identity of their own, in the sens that they don't have their own address to represent them.
+
+This new mechanism can be used to integrate new signers such as non-ethereum cryptographic curves, hardware devices or even email addresses. This is particularly relevant when dealing with things like social recovery of smart accounts.
+
+## Motivation
+
+With the development of account abstraction, there is an increasing need for non-ethereum signature verification. Cryptographic algorithm beside the natively supported secp256k1 are being used for controlling smart accounts. In particular, curves such as secp256r1 (supported by many mobile devices) and RSA keys (that are distributed by traditional institutions) are widely available. Beyond these 2 example, we also see the emergence of ZK solutions for signing with emails, or JWT from big Web2 services.
+
+All these signature mechanism have one thing in common: they do not have a canonical ethereum address to represent them onchain. While users could deploy ERC-1271 compatible contract for each key individually, this would be cumbersome and expensive. As account abstraction tries to separate account addresses (that hold assets) from the key that control them, giving fixed onchain addresses to keys (and possibly sending assets to these address by mistake) is not the right approach. Instead, using a small number of verifier contracts that can process signature in a standard way, and having the accounts rely on these verifiers, feels like the correct approach. This has the advantage that once the verifier is deployed, any key can be represented using a `(verifier, key)` pair without requiring any setup cost.
+
+The `(verifier, key)` pairs can be given permission to control a smart account, to perform social recovery, or to do any other operation without ever having a dedicated onchain address. Systems that want to adopt this approach need to transition away from the model were signers are identified by their address to a new model where signers may not have an address, and are identified by `bytes` object.
+
+This definition is backward compatible with EOA and ERC-1271 contract: in that case the we use the address of the identity (EOA or contract) as the verifier and the key is empty.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Nomenclature
+
+- Keys are described as a `bytes` object of arbitrary length. For example a P256 or RSA public key.
+- Verifiers are smart contracts in charge of signature verification for a given key. They have an ethereum address.
+- A signer is a `bytes` object that is the concatenation of the verifier's address, and the key: `verifier || key`. A signer is at least 20 bytes long.
+
+### Key Verifier interface
+
+Verifiers MUST implement the following interface
+
+```solidity
+interface IERCXXXXKeyVerifier {
+  /**
+   * @dev Helper returning wether a key is properly formatted. For example if the verifier verifies elliptic curve
+   * cryptography such as P256, this function will check that the key corresponds to a point on the curve.
+   */
+  function isValidKey(bytes calldata key) external view returns (bool);
+
+  /**
+   * @dev Main function that verifies if `signature` is a valid signature by `key` of `hash`.
+   *
+   * MUST return the bytes4 magic value IERCXXXXKeyVerifier.isValidKeySignature.selector if the signature is valid.
+   * SHOULD return 0xffffffff or revert if the signature is not valid.
+   */
+  function isValidKeySignature(bytes calldata key, bytes32 hash, bytes calldata signature) external view returns (bytes4);
+}
+```
+
+### Signature verification
+
+Given a signer `signer`, a message hash `hash` and a signature `sign`, verification is done as follows:
+
+- if `signer.length < 20`: verification fails;
+- split `signer` into `(verifier, key)` with `verifier` being the first 20 bytes and `key` being the rest (potentially empty)
+- if `key` is empty, then consider that `verifier` is the identity.
+  - verification is done using ERC-1271's isValidSignature if there is code at `verifier` address, or ecrecover otherwise
+- if `key` is not empty, call `IERCXXXXKeyVerifier(verifier).isValidKeySignature(key, hash, signature)`
+  - if the return value is the expected magic value () then verification is successfull,
+  - otherwise, verification fails.
+
+In solidity, that COULD be implemented in the following library
+
+```solidity
+import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
+
+/// @dev Extention of openzeppelin's SignatureChecker library
+library SignatureCheckerExtended {
+  function isValidSignatureNow(bytes calldata signer, bytes32 hash, bytes memory signature) internal view returns (bool) {
+      if (signer.length < 20 ) {
+        return false;
+      } else if (signer.length == 20) {
+        return SignatureChecker.isValidSignatureNow(address(bytes20(signer)), hash, signature);
+      } else {
+        try IERCXXXXKeyVerifier(address(bytes20(signer[0:20]))).isValidKeySignature(signer[20:], hash, signature) returns (bytes4 magic) {
+          return magic == IERCXXXXKeyVerifier.isValidKeySignature.selector;
+        } catch {
+          return false;
+        }
+      }
+  }
+}
+```
+
+## Rationale
+
+## Backwards Compatibility
+
+This ERC proposed a new contract interface, with no consequences to existing system.
+
+The signer format described here is backward compatible with EOA and ERC-1271 signers. Existing signers will be compatible with systems that adopt this new signer representation model.
+
+## Security Considerations
+
+TODO
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
