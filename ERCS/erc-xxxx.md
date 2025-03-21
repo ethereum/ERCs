@@ -44,12 +44,6 @@ Verifiers MUST implement the following interface
 ```solidity
 interface IERCXXXXKeyVerifier {
   /**
-   * @dev Helper returning wether a key is properly formatted. For example if the verifier verifies elliptic curve
-   * cryptography such as P256, this function will check that the key corresponds to a point on the curve.
-   */
-  function isValidKey(bytes calldata key) external view returns (bool);
-
-  /**
    * @dev Main function that verifies if `signature` is a valid signature by `key` of `hash`.
    *
    * MUST return the bytes4 magic value IERCXXXXKeyVerifier.isValidKeySignature.selector if the signature is valid.
