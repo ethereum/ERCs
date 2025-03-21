@@ -2,7 +2,7 @@
 eip: XXXX
 title: Key Verifiers
 description: Standard  way to verify signatures by address-less key
-author: Hadrien Croubois (@Amxx), Ernesto García (@ernestognw), Francisco Giordano (@frangio)
+author: Hadrien Croubois (@Amxx), Ernesto García (@ernestognw), Francisco Giordano (@frangio), Aryeh Greenberg (@ar00)
 discussions-to: https://ethereum-magicians.org/t/<todo>
 status: Draft
 type: Standards Track
