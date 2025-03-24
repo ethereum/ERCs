@@ -6,6 +6,10 @@ import {IERC165} from "./interfaces/IERC165.sol";
 
 import {ERC7656BytecodeLib} from "./lib/ERC7656BytecodeLib.sol";
 
+// Mutated from https://github.com/erc6551/reference
+// Original authors: Jayden Windle @jaydenwindle, @vectorized
+// Adapted by: Francesco Sullo @sullof
+
 contract ERC7656Factory is IERC165, IERC7656Factory {
   function create(
     address implementation,
