@@ -25,13 +25,16 @@ type MerkleProof = ReadonlyArray<`0x${string}`>;
  */
 async function eth_signTypedData_v5(args: {
   readonly privateKey: Buffer;
-  readonly messages: ReadonlyArray<Eip712TypedData>;
+  readonly messages: Eip712TypedData | ReadonlyArray<Eip712TypedData>;
 }): Promise<{
   readonly signature: `0x${string}`;
   readonly merkleRoot: `0x${string}`;
   readonly proofs: ReadonlyArray<MerkleProof>;
 }> {
-  const { privateKey, messages } = args;
+  const { privateKey } = args;
+  const messages = Array.isArray(args.messages)
+    ? args.messages
+    : [args.messages];
   const messageHashes: ReadonlyArray<Buffer> = messages.map(
     ({ message, domain, types }) => {
       const { EIP712Domain, ...typesWithoutDomain } = types;
@@ -301,7 +304,7 @@ async function main() {
 
   const singleMessage = await eth_signTypedData_v5({
     privateKey: Buffer.from(wallet.privateKey.slice(2), "hex"),
-    messages: [messages[0]],
+    messages: messages[0],
   });
 
   const singleMessageSig = sigUtil.signTypedData_v4(
