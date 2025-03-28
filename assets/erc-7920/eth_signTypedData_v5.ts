@@ -23,7 +23,7 @@ type MerkleProof = ReadonlyArray<`0x${string}`>;
  * @param args.messages - Array of EIP-712 typed data messages to include in the composite signature
  * @returns Object containing the signature, Merkle root, and proofs for each message
  */
-async function eth_signCompositeTypedData(args: {
+async function eth_signTypedData_v5(args: {
   readonly privateKey: Buffer;
   readonly messages: ReadonlyArray<Eip712TypedData>;
 }): Promise<{
@@ -74,7 +74,7 @@ async function eth_signCompositeTypedData(args: {
  * 2. Recovering the signer from the composite signature
  *
  * @param args - The arguments for the function
- * @param args.signature - The signature produced by eth_signCompositeTypedData
+ * @param args.signature - The signature produced by eth_signTypedData_v5
  * @param args.merkleRoot - The Merkle root of all signed messages
  * @param args.proof - The Merkle proof for the specific message being verified
  * @param args.message - The EIP-712 typed data message to verify
@@ -264,7 +264,7 @@ async function main() {
   };
 
   const wallet = ethers.Wallet.createRandom();
-  const result = await eth_signCompositeTypedData({
+  const result = await eth_signTypedData_v5({
     privateKey: Buffer.from(wallet.privateKey.slice(2), "hex"),
     messages,
   });
@@ -299,7 +299,7 @@ async function main() {
 
   console.log("Non-message not recovered ✅");
 
-  const singleMessage = await eth_signCompositeTypedData({
+  const singleMessage = await eth_signTypedData_v5({
     privateKey: Buffer.from(wallet.privateKey.slice(2), "hex"),
     messages: [messages[0]],
   });
