@@ -67,7 +67,7 @@ async function eth_signTypedData_v5(args: {
 }
 
 /**
- * Recovers the signer of a composite typed data signature.
+ * Recovers the signer of a composite message.
  *
  * This function verifies that a message was included in a composite signature by:
  * 1. Verifying the Merkle proof against the Merkle root
