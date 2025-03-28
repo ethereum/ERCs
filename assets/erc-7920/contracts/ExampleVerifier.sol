@@ -30,7 +30,7 @@ contract ExampleVerifier {
         bytes32 merkleRoot,
         bytes32[] calldata proof
     ) public {
-        bytes32 messageHash = keccak256(
+        bytes32 message = keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
@@ -40,7 +40,7 @@ contract ExampleVerifier {
 
         if (
             !_verifyCompositeSignature(
-                messageHash,
+                message,
                 proof,
                 merkleRoot,
                 signature,
@@ -54,25 +54,25 @@ contract ExampleVerifier {
     }
 
     function _verifyCompositeSignature(
-        bytes32 messageHash,
+        bytes32 message,
         bytes32[] calldata proof,
         bytes32 merkleRoot,
         bytes calldata signature,
         address expectedSigner
     ) internal view returns (bool) {
-        if (!_verifyMessageInclusion(messageHash, proof, merkleRoot)) {
+        if (!_verifyMerkleProof(message, proof, merkleRoot)) {
             revert NotInTree();
         }
 
         return _recover(merkleRoot, signature) == expectedSigner;
     }
 
-    function _verifyMessageInclusion(
-        bytes32 messageHash,
+    function _verifyMerkleProof(
+        bytes32 message,
         bytes32[] calldata proof,
         bytes32 root
     ) internal pure returns (bool) {
-        bytes32 computedRoot = messageHash;
+        bytes32 computedRoot = message;
         for (uint256 i = 0; i < proof.length; ++i) {
             if (computedRoot < proof[i]) {
                 computedRoot = keccak256(
@@ -107,7 +107,7 @@ contract ExampleVerifier {
         return ecrecover(digest, v, r, s);
     }
 
-    // Debug function to generate messageHash
+    // Debug function to generate message
     function debugGenerateMessageHash(
         bytes32 orderId,
         address user
