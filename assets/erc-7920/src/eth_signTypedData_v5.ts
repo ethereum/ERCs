@@ -20,7 +20,7 @@ type MerkleProof = ReadonlyArray<`0x${string}`>;
  *
  * @param args - The arguments for the function
  * @param args.privateKey - The private key to sign with
- * @param args.messages - Array of EIP-712 typed data messages to include in the composite signature
+ * @param args.messages - Single message or a list of EIP-712 typed data messages to include in the composite signature
  * @returns Object containing the signature, Merkle root, and proofs for each message
  */
 async function eth_signTypedData_v5(args: {
