@@ -4,7 +4,7 @@ description: A Simple Mechanism to Manage the Maximum Supply of Stablecoin Compl
 author: YuehuaZhang (@astroyhzcc) <ruoying.zyh@antgroup.com>, Yuxiang Fu (@tmac4096) <kunfu.fyx@antgroup.com>, Yanyi Liang <eason.lyy@antgroup.com>, Hao Zou (@BruceZH0915) <situ.zh@antgroup.com>, Siyuan Zheng (@andrewcoder666) <zhengsiyuan.zsy@antgroup.com>
 discussions-to:  https://ethereum-magicians.org/t/a-simple-mechanism-to-manage-the-maximum-supply-of-stable-coin-compliant-with-erc-20/23244
 category: ERC
-created: 2025-03-07
+created: 2025-03-21
 ---
 
 ## Abstract
