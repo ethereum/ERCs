@@ -8,6 +8,7 @@ import {
   publicToAddress,
   bytesToHex,
 } from "@ethereumjs/util";
+import * as sigUtil from "eth-sig-util";
 
 type MerkleProof = ReadonlyArray<`0x${string}`>;
 
@@ -297,6 +298,24 @@ async function main() {
   }
 
   console.log("Non-message not recovered ✅");
+
+  const singleMessage = await eth_signCompositeTypedData({
+    privateKey: Buffer.from(wallet.privateKey.slice(2), "hex"),
+    messages: [messages[0]],
+  });
+
+  const singleMessageSig = sigUtil.signTypedData_v4(
+    Buffer.from(wallet.privateKey.slice(2), "hex"),
+    {
+      data: messages[0],
+    }
+  );
+
+  if (singleMessage.signature != singleMessageSig) {
+    throw new Error("Single message signature does not match");
+  }
+
+  console.log("Single message signature matches ✅");
 }
 
 main();
