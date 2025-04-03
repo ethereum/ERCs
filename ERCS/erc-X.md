@@ -1,0 +1,220 @@
+---
+eip: X
+title: Interoperable Addresses
+description: An extensible binary format to refer to an address specific to one chain.
+author: Teddy (@0xteddybear), Joxes (@0xJoxess), Nick Johnson (@Arachnid)
+status: Draft
+discussions-to: 
+type: Standards Track
+category: ERC
+created: 2025-02-02
+requires: 
+---
+
+## Abstract
+Interoperable Addresses is a binary format to describe an address specific to one chain with an optional human-readable name representation.
+It is designed in a manner that allows the community extend it to support naming schemes (or other not-yet-imagined features) in the future, as well as to support arbitrary-length addresses and chainids.
+
+## Motivation
+The Ethereum ecosystem is rapidly expanding into a multi-chain environment encompassing L1s, L2s, sidechains, and rollups—some EVM‐compatible, others not. A simple address alone is not sufficient to describe a blockchain account, since it does not identify which chain the address belongs to, creating ambiguity for wallets, dApps, and users. At the same time, it is important for the format to be extensible to support both current standards for address naming and future standards for chain naming.
+
+The current standard ethereum address representation defined in EIP-55, with _optional_ retrofitted checksums implemented via selective capitalization of `a-f` characters, poses the following challenges:
+
+- Verification of the checksum by a client is optional, meaning that mistyped or erroneous addresses may be accepted by these clients. There is no way for a user to distinguish a correct address from an incorrect one processed by a client that does not do validation.
+- Addresses do not include any indication of the chain to which the address applies. This means chain information must be expressed out of band, and introduces the risk of an address being mistakenly used on a chain it is not valid for. This risk is particularly pronounced for addresses that represent smart contracts.
+- The existing address format provides no mechanism for extension, meaning that there is no natural method to add these features to the existing address format.
+
+Interoperable Addresses build on insights from ERC-7828, CAIP-10 and CAIP-50, offering a unified format which combines:
+- Binding chain specificity (via explicit chain identifiers) to the raw address.
+- Compact & canonical binary format for use on cross-chain message passing and intent declaration.
+- Checksums for name collision mitigation & user error prevention.
+
+Furthermore, we have taken this as an opportunity to add a few features that will make addresses interoperable with infrastructure at the edges of and beyond the ethereum ecosystem, by supporting the representation of addresses of non-evm chains as well, for the benefit of cross-chain liquidity movements and cross-chain message passing.
+
+## Concepts
+Interoperable Address
+: A binary payload which unambiguously identifies a target address and allows conversion to a human-readable name.
+
+Human-readable name
+: A string representation of an interoperable address, meant to be used by humans.
+
+Target address
+: The (address, chain ID) pair a particular Interoperable Address points to.
+
+## Guarantees provided by the standard
+- Any future Interoperable Address will be trivially convertible to Interoperable Address v1 (specified below), which, together with the point below, makes them a canonical representation for users who need to treat them opaquely.
+- Two Interoperable Addresses, converted to this canonical version, will be bitwise-equal iff they represent the same _target address_.
+- Checksums are short enough to be compared by humans, and allow for easy differentiation of _target addresses_ independently of any extra data the Interoperable Address may contain.
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Interoperable Address binary format definition
+In binary format addresses have the following encoding:
+
+```
+┌─────────┬────────────┬─────────┬─────────┬─────────┐
+│ Version │ Chainidlen │ Chainid │ Addrlen │ Address │
+└─────────┴────────────┴─────────┴─────────┴─────────┘
+```
+
+Where:
+
+Version
+: a 2-byte version identifier. In the current standard this must always be the big-endian unsigned int 1. Other versions should be defined in future ERCs.
+
+Chainidlen
+: a 1-byte integer encoding the length of Chainid in bytes.
+
+Chainid
+: Variable length, binary representation of CAIP-2 chain namespace & reference serialized as explained in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id) encoding the chain ID.
+
+Addrlen
+: 1-byte integer encoding the length of Address in bytes.
+
+Address
+: Variable length field containing the binary format of the address component. For EVM addresses this is always 20 bytes, for serialization details of other types of addresses see [Appendix B](#appendix-b-binary-encoding-of-addresses)
+
+#### Restrictions for all Interoperable Address versions
+- The Interoperable Address MUST include an address and specify the chain it belongs to, fully defining a target address. Any version adding an indirection layer between payload data and these two fields would violate this restriction.
+    - Furthermore, future versions MUST be serialized to v1 and use the same input data to the checksum algorithm as described below, so an Interoperable Address' checksum only represents its target address.
+- Interoperable Address versions MAY only be able to represent a subset of the CAIP-2 namespaces.
+- Interoperable Address versions MAY assign extra syntactic restrictions on the human-readable name, coupled to novel semantic meaning (e.g. use of ENS or other naming registries)
+- Interoperable Address versions MAY define extra fields for purposes such as storing information on how to display the addresses.
+
+### Human-readable name format definition
+This section is considered OPTIONAL.
+
+#### Syntax
+```bnf
+<human readable name> ::= <account>@<chain>#<checksum>
+<account>             ::= [-:_%a-zA-Z0-9]*
+<chain>               ::= [-:_a-zA-Z0-9]*
+<checksum>            ::= [0-9A-F]{8}
+```
+
+Where:
+
+Chain
+: String representation of CAIP-2 blockchain identifier, recovered from the binary representation described in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id)
+
+Address
+: Chain namespace specific text representation of the address from the binary representation. Mapping between the two described in [Appendix B](#appendix-b-binary-encoding-of-addresses)
+
+Checksum
+: 4-byte checksum calculated by computing the keccak256 hash of the concatenated `Chainidlen`, `Chainid`, `Addrlen` and `Address` fields of the binary representation (that is, the v1 binary representation skipping the `Version` field), and truncating all but the first 4 bytes of the output. Represented as a base16 string as defined in RFC-4648
+
+#### Rationale
+- Chain and account fields' syntax is deliberately chosen to be able to express CAIP-2 namespaces (by using the `@` symbol for the separator, freeing up `:`) and CAIP-10 account IDs, with the caveat that no length restriction is placed, so chains with longer address formats or full 256-bit EVM chainids can be represented.
+- Similarly, the account field includes `%` as a valid character to allow for url-encoding of any other characters.
+- While a fresh start on text-encoding schemes could e.g. make use of more characters with base58 or base64 to achieve greater information efficiency and/or abstract which chain the address exists on as an implementation detail, we chose a more familiar approach since:
+    - It makes the Interoperable Address <-> raw address relationship evident to the user, which will make the cases where the former are not (yet) supported by a dapp or hardware wallet easier to reason with, as users will evidently see the address is the same, but it's the chain&checksum that is being trimmed.
+    - Its extra human-readability will make it more useful as a a stopgap solution until a standard focused on chain and address names is finalized.
+
+## Appendix A: Binary encoding of CAIP-2 blockchain ID
+The first two bytes are the binary representation of CAIP-2 namespace (see table below), while the remaining bytes correspond to the CAIP-2 reference, whose encoding is namespace-specific and defined below.
+
+### CAIP-2 namespaces' binary representation table
+
+| Namespace | binary key |
+| ---       | ---        |
+| eip155    | `0x0000`   |
+| solana    | `0x0002`   |
+
+#### eip155
+The bare `chainid` encoded as a big-endian unsigned integer of the minimum necessary amount of bytes will be used [^1], and leading zeroes will be prohibited. 
+
+[^1]: This makes it possible to represent some chains using the full word as their chainid, which CAIP-2 does not support since the set of values representable with 32 `a-zA-Z0-9` characters has less than `type(uint256).max` elements. This is done in an effort to support chains whose ID is the output of `keccak256`, as proposed in ERC-7785.
+
+##### Examples
+Ethereum Mainnet: `0x000001` (1, encoded as uint8)
+
+Optimism Mainnet: `0x00000A` (10, encoded as uint8)
+
+Ethereum Sepolia: `0x0000aa36a7` (11155111, encoded as uint24)
+
+#### solana
+Solana networks are distinguished by its genesis blockhash, which is to be decoded from base58btc and stored raw in the binary representation and without removing any leading zeroes:
+
+In the human-readable name, it should be displayed in full and base58btc-encoded, as returned by the node.
+
+Note: CAIP-2 limits chain references to 32 characters and instructs to only use the first 32 characters of the base58btc-encoded genesis blockhash, therefore converting to it will require truncating the reference, so converting _from_ actual CAIP-2 to this standard is potentially ambiguous
+
+##### Examples
+Solana Mainnet
+: `0x000245296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0`
+: `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`
+
+## Appendix B: Binary encoding of addresses
+
+### eip155
+20 bytes of evm addresses trivially stored as the payload. For text representation, the EIP-55 format MUST be used.
+
+### solana
+base-58 encoded public keys should be decoded and stored as a 32 byte payload
+
+#### Examples
+`7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv` -> `0x5F90554BB3D8C2FC82B6EE59C49AAA143E77F7D49A83E956CE1DBEF17A43F805`
+
+`DYw8jCTfwHNRJhhmFcbXvVDTqWMEVFBX6ZKUmG5CNSKK` -> `0xBA7A74F374AB05B70D114A78112EF0D3F0695A819572C79710B5372000D81AE2`
+
+## Test cases
+
+### Example 1: Ethereum mainnet
+Chain: Ethereum Mainnet
+Address: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`
+
+Human-readable representation: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045@eip155:1#82255c07`
+
+Binary representation:
+```
+0x00010300000114D8DA6BF26964AF9D7EED9E03E53415D37AA96045
+  ^^^^-------------------------------------------------- Version:    decimal 1
+      ^^------------------------------------------------ Chainidlen: decimal 3
+        ^^^^^^------------------------------------------ Chainid:    2 bytes of CAIP-2 namespace + 1 byte to store uint8(1)
+              ^^---------------------------------------- Addrlen:    decimal 20
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:    20 bytes of ethereum address
+```
+keccak256 input for checksum: `0x0300000114d8da6bf26964af9d7eed9e03e53415d37aa96045`
+note the version field is removed before hashing
+
+### Example 2: Solana mainnet
+Chain: Solana Mainnet
+Address: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2`
+
+Human-readable representation: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d#aa7e9354`
+
+Binary representation:
+
+```
+0x000122000245296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5
+  ^^^^--------------------------------------------------------------------------------------------------------------------------------------- Version:     decimal 1
+      ^^------------------------------------------------------------------------------------------------------------------------------------- Chainidlen:  decimal 34
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------------------------------- Chainid:     2 bytes of CAIP-2 namespace + 32 bytes of solana genesis block
+                                                                            ^^--------------------------------------------------------------- Addrlen:     decimal 32
+                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:     32 bytes of solana address
+```
+keccak256 input for checksum: `0x22000245296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef02005333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`
+note the version field is removed before hashing
+
+## Rationale
+
+### Comparisons with other standards
+
+#### CAIP-10
+CAIP-10 proposes a standard text format to represent what in this document is defined as target addresses. 
+Since it's a text-only standard, it does not concern itself with the serialization/deserialization of the various chains' address formats, simply using the text representation of addresses already defined by the respective chains. This means it is trivial to add support for chains to CAIP-10, while doing so with this standard involves defining a serialization scheme.
+
+The above has the drawback of not being able to guarantee canonicity. That is, there could be multiple valid CAIP-10 addresses pointing to the same target address.
+
+Also, the text format is of little use for smart contracts involved with cross-chain liquidity transfers and message passing due to its reduced data efficiency and lack of canonicity.
+
+Human-readable names are convertible to CAIP-10 without even going through the binary representation, so backwards-compatibility with actors expecting CAIP-10 identifiers should not be an issue.
+
+#### ERC-7828
+ERC-7828 is a text-only representation of addresses with optional resolution into more human-readable strings by use of existing ENS infrastructure for address names, and both the centralized ethereum-lists/chains list and ERC-7785 for resolution of chain names, while this aims to be a simple but extendable binary-first format.
+
+We believe the interop roadmap is better served by having a standardized binary format for addresses first, which allows the message passing and intents verticals to move forward on a common interface, with a good-enough text representation which is familiar to users and useful for developers, and as a next step develop a chain & address name resolving standard on top of it, leveraging its uniformity and extensibility.
+
+## Copyright
+Copyright and related rights waived via [CC0](../LICENSE.md).
