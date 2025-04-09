@@ -2,7 +2,7 @@
 eip: X
 title: Interoperable Addresses
 description: An extensible binary format to refer to an address specific to one chain.
-author: Teddy (@0xteddybear), Joxes (@0xJoxess), Nick Johnson (@Arachnid)
+author: Teddy (@0xteddybear), Joxes (@0xJoxess), Nick Johnson (@Arachnid), Skeletor Spaceman (@skeletor-spaceman), Sam Kaufman (@SampkaML), Marco Stronati (@paracetamolo), Yuliya Alexiev (@yuliyaalexiev), Jeff Lau (@jefflau), Sam Wilson (@samwilsn), Vitalik Buterin (@vbuterin) 
 status: Draft
 discussions-to: 
 type: Standards Track
