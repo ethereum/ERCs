@@ -43,7 +43,7 @@ Target address
 
 ## Guarantees provided by the standard
 - Any future Interoperable Address will be trivially convertible to Interoperable Address v1 (specified below), which, together with the point below, makes them a canonical representation for users who need to treat them opaquely.
-- Two Interoperable Addresses, converted to this canonical version, will be bitwise-equal iff they represent the same _target address_.
+- Two Interoperable Addresses, converted to this canonical version, will be bitwise-equal if and only if they represent the same _target address_.
 - Checksums are short enough to be compared by humans, and allow for easy differentiation of _target addresses_ independently of any extra data the Interoperable Address may contain.
 
 ## Specification
@@ -87,8 +87,8 @@ This section is considered OPTIONAL.
 
 #### Syntax
 ```bnf
-<human readable name> ::= <account>@<chain>#<checksum>
-<account>             ::= [-:_%a-zA-Z0-9]*
+<human readable name> ::= <address>@<chain>#<checksum>
+<address>             ::= [-:_%a-zA-Z0-9]*
 <chain>               ::= [-:_a-zA-Z0-9]*
 <checksum>            ::= [0-9A-F]{8}
 ```
@@ -105,8 +105,8 @@ Checksum
 : 4-byte checksum calculated by computing the keccak256 hash of the concatenated `Chainidlen`, `Chainid`, `Addrlen` and `Address` fields of the binary representation (that is, the v1 binary representation skipping the `Version` field), and truncating all but the first 4 bytes of the output. Represented as a base16 string as defined in RFC-4648
 
 #### Rationale
-- Chain and account fields' syntax is deliberately chosen to be able to express CAIP-2 namespaces (by using the `@` symbol for the separator, freeing up `:`) and CAIP-10 account IDs, with the caveat that no length restriction is placed, so chains with longer address formats or full 256-bit EVM chainids can be represented.
-- Similarly, the account field includes `%` as a valid character to allow for url-encoding of any other characters.
+- Chain and address fields' syntax is deliberately chosen to be able to express CAIP-2 namespaces (by using the `@` symbol for the separator, freeing up `:`) and CAIP-10 account IDs, with the caveat that no length restriction is placed, so chains with longer address formats or full 256-bit EVM chainids can be represented.
+- Similarly, the address field includes `%` as a valid character to allow for url-encoding of any other characters.
 - While a fresh start on text-encoding schemes could e.g. make use of more characters with base58 or base64 to achieve greater information efficiency and/or abstract which chain the address exists on as an implementation detail, we chose a more familiar approach since:
     - It makes the Interoperable Address <-> raw address relationship evident to the user, which will make the cases where the former are not (yet) supported by a dapp or hardware wallet easier to reason with, as users will evidently see the address is the same, but it's the chain&checksum that is being trimmed.
     - Its extra human-readability will make it more useful as a a stopgap solution until a standard focused on chain and address names is finalized.
@@ -148,10 +148,11 @@ Solana Mainnet
 ## Appendix B: Binary encoding of addresses
 
 ### eip155
-20 bytes of evm addresses trivially stored as the payload. For text representation, the EIP-55 format MUST be used.
+Bytes of evm addresses are trivially stored as the payload. For text representation, the EIP-55 format MUST be used.
+It's worth noting that addresses are currently 20 bytes, but that might change in the future, most likely to 32 bytes, if the EVM Object Format is ever adopted.
 
 ### solana
-base-58 encoded public keys should be decoded and stored as a 32 byte payload
+base58btc-encoded public keys should be decoded and stored as a 32 byte payload
 
 #### Examples
 `7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv` -> `0x5F90554BB3D8C2FC82B6EE59C49AAA143E77F7D49A83E956CE1DBEF17A43F805`
