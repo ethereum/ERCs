@@ -13,6 +13,7 @@ requires:
 
 ## Abstract
 Interoperable Addresses is a binary format to describe an address specific to one chain with an optional human-readable name representation.
+
 It is designed in a manner that allows the community extend it to support naming schemes (or other not-yet-imagined features) in the future, as well as to support arbitrary-length addresses and chainids.
 
 ## Motivation
@@ -61,10 +62,10 @@ In binary format addresses have the following encoding:
 Where:
 
 Version
-: a 2-byte version identifier. In the current standard this must always be the big-endian unsigned int 1. Other versions should be defined in future ERCs.
+: A 2-byte version identifier. In the current standard this must always be the big-endian unsigned int 1. Other versions should be defined in future ERCs.
 
 Chainidlen
-: a 1-byte integer encoding the length of Chainid in bytes.
+: A 1-byte integer encoding the length of Chainid in bytes.
 
 Chainid
 : Variable length, binary representation of CAIP-2 chain namespace & reference serialized as explained in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id) encoding the chain ID.
@@ -73,7 +74,7 @@ Addrlen
 : 1-byte integer encoding the length of Address in bytes.
 
 Address
-: Variable length field containing the binary format of the address component. For EVM addresses this is always 20 bytes, for serialization details of other types of addresses see [Appendix B](#appendix-b-binary-encoding-of-addresses)
+: Variable length field containing the binary format of the address component. For EVM addresses this is always 20 bytes, for serialization details of other types of addresses see [Appendix B](#appendix-b-binary-encoding-of-addresses).
 
 #### Restrictions for all Interoperable Address versions
 - The Interoperable Address MUST include an address and specify the chain it belongs to, fully defining a target address. Any version adding an indirection layer between payload data and these two fields would violate this restriction.
@@ -96,13 +97,13 @@ This section is considered OPTIONAL.
 Where:
 
 Chain
-: String representation of CAIP-2 blockchain identifier, recovered from the binary representation described in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id)
+: String representation of CAIP-2 blockchain identifier, recovered from the binary representation described in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id).
 
 Address
-: Chain namespace specific text representation of the address from the binary representation. Mapping between the two described in [Appendix B](#appendix-b-binary-encoding-of-addresses)
+: Chain namespace specific text representation of the address from the binary representation. Mapping between the two described in [Appendix B](#appendix-b-binary-encoding-of-addresses).
 
 Checksum
-: 4-byte checksum calculated by computing the keccak256 hash of the concatenated `Chainidlen`, `Chainid`, `Addrlen` and `Address` fields of the binary representation (that is, the v1 binary representation skipping the `Version` field), and truncating all but the first 4 bytes of the output. Represented as a base16 string as defined in RFC-4648
+: 4-byte checksum calculated by computing the keccak256 hash of the concatenated `Chainidlen`, `Chainid`, `Addrlen` and `Address` fields of the binary representation (that is, the v1 binary representation skipping the `Version` field), and truncating all but the first 4 bytes of the output. Represented as a base16 string as defined in RFC-4648.
 
 #### Rationale
 - Chain and address fields' syntax is deliberately chosen to be able to express CAIP-2 namespaces (by using the `@` symbol for the separator, freeing up `:`) and CAIP-10 account IDs, with the caveat that no length restriction is placed, so chains with longer address formats or full 256-bit EVM chainids can be represented.
@@ -127,7 +128,7 @@ The first two bytes are the binary representation of CAIP-2 namespace (see table
 ```
 eip155:<number>
 ```
-Where `<number>` is the decimal representation of the chain's `chainid`, without leading zeroes
+Where `<number>` is the decimal representation of the chain's `chainid`, without leading zeroes.
 
 ##### Binary representation
 The bare `chainid` encoded as a big-endian unsigned integer of the minimum necessary amount of bytes will be used [^1], and leading zeroes will be prohibited.
@@ -159,7 +160,7 @@ The first 32 characters of the base58btc-encoded genesis blockhash are used. Thi
 
 ##### Binary representation
 To obtain the binary representation from the base58btc-encoded genesis blockhash, first truncate the base58btc-encoded text to its first 32 characters as described above and then decode it to raw bytes.
-It is worth noting that this does not correspond to simply slicing the first 23 bytes from the genesis blockhash.
+It is worth noting that while this yields a 23-byte long result, it does not correspond to simply slicing the first 23 bytes from the genesis blockhash.
 
 ##### Text -> binary conversion
 Text should be base58btc decoded into raw bytes
@@ -173,22 +174,22 @@ Solana Mainnet
 : `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b`
 
 Note that Solana Mainnet's blockhash is:
-: base58btc `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`
-: base16 `45296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0`
+- base58btc `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`
+- base16 `45296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0`
 
 ## Appendix B: Binary encoding of addresses
 
 ### eip155
-Bytes of evm addresses are trivially stored as the payload. 
+Bytes of EVM addresses are trivially stored as the payload. 
 It's worth noting that addresses are currently 20 bytes, but that might change in the future, most likely to 32 bytes, if the EVM Object Format is ever adopted.
 
 ##### Text representation
 For text representation, the 20 bytes of EVM addresses should be hexadecimal-encoded according to EIP-55.
-This standard deliberately does not define the text representation of EVM addresses if they are extended in the future, since it's not possible to know which human-readable representation will be more familiar to users in such hypothetical future. This responsibility is delegated to the relevant CASA profile.
+This standard deliberately does not define the text representation of EVM addresses if they are extended in the future, since it's not possible to know which human-readable representation will be more familiar to users in such hypothetical scenario. This responsibility is delegated to the relevant CASA profile.
 
 ##### Binary representation
 Bytes of evm addresses are trivially stored as the payload.
-It's worth noting that addresses are currently 20 bytes, but that might change in the future, most likely to 32 bytes, if the EVM Object Format is ever adopted.
+It's worth noting that addresses are currently 20 bytes, but that might change in the future, most likely to 32 bytes, if the EVM Object Format is adopted.
 
 ##### Text -> binary conversion
 Described in EIP-55
@@ -235,12 +236,12 @@ note the version field is removed before hashing
 
 ### Example 2: Solana mainnet
 Chain: Solana Mainnet
+
 Address: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2`
 
 Human-readable representation: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp#8b53d4fb`
 
 Binary representation:
-
 ```
 0x000100019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5
   ^^^^--------------------------------------------------------------------------------------------------------------------- Version:     decimal 1
@@ -249,8 +250,8 @@ Binary representation:
                                                          ^^--------------------------------------------------------------- Addrlen:     decimal 32
                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:     32 bytes of solana address
 ```
-keccak256 input for checksum: `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`
-note the version field is removed before hashing
+keccak256 input for checksum: `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`.
+Note the version field is removed before hashing
 
 ## Rationale
 
