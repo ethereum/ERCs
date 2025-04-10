@@ -2,7 +2,7 @@
 eip: X
 title: Interoperable Addresses
 description: An extensible binary format to refer to an address specific to one chain.
-author: Teddy (@0xteddybear), Joxes (@0xJoxess), Nick Johnson (@Arachnid), Skeletor Spaceman (@skeletor-spaceman), Sam Kaufman (@SampkaML), Marco Stronati (@paracetamolo), Yuliya Alexiev (@yuliyaalexiev), Jeff Lau (@jefflau), Sam Wilson (@samwilsn), Vitalik Buterin (@vbuterin) 
+author: Teddy (@0xteddybear), Joxes (@0xJoxess), Nick Johnson (@Arachnid), Francisco Giordano (@frangio), Skeletor Spaceman (@skeletor-spaceman), Sam Kaufman (@SampkaML), Marco Stronati (@paracetamolo), Yuliya Alexiev (@yuliyaalexiev), Jeff Lau (@jefflau), Sam Wilson (@samwilsn), Vitalik Buterin (@vbuterin)
 status: Draft
 discussions-to: 
 type: Standards Track
@@ -122,9 +122,23 @@ The first two bytes are the binary representation of CAIP-2 namespace (see table
 | solana    | `0x0002`   |
 
 #### eip155
-The bare `chainid` encoded as a big-endian unsigned integer of the minimum necessary amount of bytes will be used [^1], and leading zeroes will be prohibited. 
+
+##### Text representation
+```
+eip155:<number>
+```
+Where `<number>` is the decimal representation of the chain's `chainid`, without leading zeroes
+
+##### Binary representation
+The bare `chainid` encoded as a big-endian unsigned integer of the minimum necessary amount of bytes will be used [^1], and leading zeroes will be prohibited.
 
 [^1]: This makes it possible to represent some chains using the full word as their chainid, which CAIP-2 does not support since the set of values representable with 32 `a-zA-Z0-9` characters has less than `type(uint256).max` elements. This is done in an effort to support chains whose ID is the output of `keccak256`, as proposed in ERC-7785.
+
+##### Text -> binary conversion
+Encode the decimal integer as a big-endian unsigned integer using the minimum necessary amount of bytes.
+
+##### Binary -> text conversion
+Compute the decimal representation of the stored big-endian unsigned integer
 
 ##### Examples
 Ethereum Mainnet: `0x000001` (1, encoded as uint8)
@@ -134,25 +148,65 @@ Optimism Mainnet: `0x00000A` (10, encoded as uint8)
 Ethereum Sepolia: `0x0000aa36a7` (11155111, encoded as uint24)
 
 #### solana
-Solana networks are distinguished by its genesis blockhash, which is to be decoded from base58btc and stored raw in the binary representation and without removing any leading zeroes:
+Solana networks are distinguished by its genesis blockhash, which is normally represented as 44 base58btc characters, corresponding to 32 bytes. We chose to perform the same truncation as CAIP-2[^2] to keep representations trivially convertible between the two, making them also visually identical.
 
-In the human-readable name, it should be displayed in full and base58btc-encoded, as returned by the node.
+Truncating the base58btc-encoded representation instead of the binary data, however, means the binary representation will differ significantly from what the Solana node might store in its own memory 
 
-Note: CAIP-2 limits chain references to 32 characters and instructs to only use the first 32 characters of the base58btc-encoded genesis blockhash, therefore converting to it will require truncating the reference, so converting _from_ actual CAIP-2 to this standard is potentially ambiguous
+[^2]: CAIP-2 limits chain references to 32 characters, so the solana namespace instructs to only use the first 32 characters of the base58btc-encoded genesis blockhash.
+
+##### Text representation
+The first 32 characters of the base58btc-encoded genesis blockhash are used. This is consistent with the CAIP-2 representation.
+
+##### Binary representation
+To obtain the binary representation from the base58btc-encoded genesis blockhash, first truncate the base58btc-encoded text to its first 32 characters as described above and then decode it to raw bytes.
+It is worth noting that this does not correspond to simply slicing the first 23 bytes from the genesis blockhash.
+
+##### Text -> binary conversion
+Text should be base58btc decoded into raw bytes
+
+##### Binary -> text conversion
+Raw bytes should be base58btc encoded into text
 
 ##### Examples
 Solana Mainnet
-: `0x000245296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0`
-: `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`
+: `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`
+: `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b`
+
+Note that Solana Mainnet's blockhash is:
+: base58btc `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`
+: base16 `45296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0`
 
 ## Appendix B: Binary encoding of addresses
 
 ### eip155
-Bytes of evm addresses are trivially stored as the payload. For text representation, the EIP-55 format MUST be used.
+Bytes of evm addresses are trivially stored as the payload. 
 It's worth noting that addresses are currently 20 bytes, but that might change in the future, most likely to 32 bytes, if the EVM Object Format is ever adopted.
 
+##### Text representation
+For text representation, the 20 bytes of EVM addresses should be hexadecimal-encoded according to EIP-55.
+This standard deliberately does not define the text representation of EVM addresses if they are extended in the future, since it's not possible to know which human-readable representation will be more familiar to users in such hypothetical future. This responsibility is delegated to the relevant CASA profile.
+
+##### Binary representation
+Bytes of evm addresses are trivially stored as the payload.
+It's worth noting that addresses are currently 20 bytes, but that might change in the future, most likely to 32 bytes, if the EVM Object Format is ever adopted.
+
+##### Text -> binary conversion
+Described in EIP-55
+
+##### Binary -> text conversion
+Described in EIP-55
+
 ### solana
-base58btc-encoded public keys should be decoded and stored as a 32 byte payload
+Solana addresses are 32-byte public keys, usually shown to users as base58btc-encoded text
+
+##### Text representation
+base58btc-encoded text
+
+##### Binary representation
+32-byte public key
+
+##### Binary -> text conversion
+base58btc encoding
 
 #### Examples
 `7S3P4HxJpyyigGzodYwHtCxZyUQe9JiBMHyRWXArAaKv` -> `0x5F90554BB3D8C2FC82B6EE59C49AAA143E77F7D49A83E956CE1DBEF17A43F805`
@@ -183,19 +237,19 @@ note the version field is removed before hashing
 Chain: Solana Mainnet
 Address: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2`
 
-Human-readable representation: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d#aa7e9354`
+Human-readable representation: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp#8b53d4fb`
 
 Binary representation:
 
 ```
-0x000122000245296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef0205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5
-  ^^^^--------------------------------------------------------------------------------------------------------------------------------------- Version:     decimal 1
-      ^^------------------------------------------------------------------------------------------------------------------------------------- Chainidlen:  decimal 34
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------------------------------- Chainid:     2 bytes of CAIP-2 namespace + 32 bytes of solana genesis block
-                                                                            ^^--------------------------------------------------------------- Addrlen:     decimal 32
-                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:     32 bytes of solana address
+0x000100019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5
+  ^^^^--------------------------------------------------------------------------------------------------------------------- Version:     decimal 1
+      ^^------------------------------------------------------------------------------------------------------------------- Chainidlen:  decimal 25
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------------------------------- Chainid:     2 bytes of CAIP-2 namespace + 23 bytes of truncated solana genesis block
+                                                         ^^--------------------------------------------------------------- Addrlen:     decimal 32
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:     32 bytes of solana address
 ```
-keccak256 input for checksum: `0x22000245296998a6f8e2a784db5d9f95e18fc23f70441a1039446801089879b08c7ef02005333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`
+keccak256 input for checksum: `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`
 note the version field is removed before hashing
 
 ## Rationale
