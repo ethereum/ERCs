@@ -54,9 +54,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 In binary format addresses have the following encoding:
 
 ```
-┌─────────┬────────────┬─────────┬─────────┬─────────┐
-│ Version │ Chainidlen │ Chainid │ Addrlen │ Address │
-└─────────┴────────────┴─────────┴─────────┴─────────┘
+┌─────────┬───────────┬──────────────────────┬────────────────┬───────────────┬─────────┐
+│ Version │ ChainType │ ChainReferenceLength │ ChainReference │ AddressLength │ Address │
+└─────────┴───────────┴──────────────────────┴────────────────┴───────────────┴─────────┘
 ```
 
 Where:
@@ -64,22 +64,26 @@ Where:
 Version
 : A 2-byte version identifier. In the current standard this must always be the big-endian unsigned int 1. Other versions should be defined in future ERCs.
 
-Chainidlen
-: A 1-byte integer encoding the length of Chainid in bytes.
+ChainType
+: A 2-byte value from the table in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id), corresponding to a CAIP-2 _namespace_, which allows users to know how to interpret & display the other two fields.
 
-Chainid
+ChainReferenceLength
+: A 1-byte integer encoding the length of ChainReference in bytes. Note that it MAY be zero, in which the Interoperable Address will not include a chain reference.
+
+ChainReference
 : Variable length, binary representation of CAIP-2 chain namespace & reference serialized as explained in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id) encoding the chain ID.
 
-Addrlen
-: 1-byte integer encoding the length of Address in bytes.
+AddressLength
+: 1-byte integer encoding the length of Address in bytes. Note that it MAY be zero, in which the Interoperable Address will not include an address. It MUST NOT be zero if `ChainReferenceLength` is also zero.
 
 Address
 : Variable length field containing the binary format of the address component. For EVM addresses this is always 20 bytes, for serialization details of other types of addresses see [Appendix B](#appendix-b-binary-encoding-of-addresses).
 
 #### Restrictions for all Interoperable Address versions
-- The Interoperable Address MUST include an address and specify the chain it belongs to, fully defining a target address. Any version adding an indirection layer between payload data and these two fields would violate this restriction.
+- The Interoperable Address MUST define the mechanism to both include an address and specify the chain it belongs to directly in the payload, fully defining a target address. Any version adding an indirection layer between payload data and these two fields would violate this restriction.
+    - While it is possible that a given instance of an Interoperable Address to not include an address or a chain reference, every version must allow for both to be specified at the same time.
     - Furthermore, future versions MUST be serialized to v1 and use the same input data to the checksum algorithm as described below, so an Interoperable Address' checksum only represents its target address.
-- Interoperable Address versions MAY only be able to represent a subset of the CAIP-2 namespaces.
+- Interoperable Address versions MAY only be able to represent a subset of the CAIP namespaces.
 - Interoperable Address versions MAY assign extra syntactic restrictions on the human-readable name, coupled to novel semantic meaning (e.g. use of ENS or other naming registries)
 - Interoperable Address versions MAY define extra fields for purposes such as storing information on how to display the addresses.
 
@@ -97,13 +101,13 @@ This section is considered OPTIONAL.
 Where:
 
 Chain
-: String representation of CAIP-2 blockchain identifier, recovered from the binary representation described in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id).
+: String representation of CAIP namespace, recovered from the binary representation described in [Appendix A](#appendix-a-binary-encoding-of-caip-2-blockchain-id). In the case where `ChainReferenceLength` is zero, it should be the empty string.
 
 Address
-: Chain namespace specific text representation of the address from the binary representation. Mapping between the two described in [Appendix B](#appendix-b-binary-encoding-of-addresses).
+: Chain namespace specific text representation of the address from the binary representation. Mapping between the two described in [Appendix B](#appendix-b-binary-encoding-of-addresses). In the case where `AddressLength` is zero, it should be the empty string.
 
 Checksum
-: 4-byte checksum calculated by computing the keccak256 hash of the concatenated `Chainidlen`, `Chainid`, `Addrlen` and `Address` fields of the binary representation (that is, the v1 binary representation skipping the `Version` field), and truncating all but the first 4 bytes of the output. Represented as a base16 string as defined in RFC-4648.
+: 4-byte checksum calculated by computing the keccak256 hash of the concatenated `ChainType`, `ChainReferenceLength`, `ChainReference`, `AddressLength` and `Address` fields of the binary representation (that is, the v1 binary representation skipping the `Version` field), and truncating all but the first 4 bytes of the output. Represented as a base16 string as defined in RFC-4648.
 
 #### Rationale
 - Chain and address fields' syntax is deliberately chosen to be able to express CAIP-2 namespaces (by using the `@` symbol for the separator, freeing up `:`) and CAIP-10 account IDs, with the caveat that no length restriction is placed, so chains with longer address formats or full 256-bit EVM chainids can be represented.
@@ -113,9 +117,9 @@ Checksum
     - Its extra human-readability will make it more useful as a a stopgap solution until a standard focused on chain and address names is finalized.
 
 ## Appendix A: Binary encoding of CAIP-2 blockchain ID
-The first two bytes are the binary representation of CAIP-2 namespace (see table below), while the remaining bytes correspond to the CAIP-2 reference, whose encoding is namespace-specific and defined below.
+The `ChainType` field is the binary representation of the CAIP namespace (see table below), while the `ChainReference` contains the CAIP-2 reference, whose encoding is namespace-specific and defined below.
 
-### CAIP-2 namespaces' binary representation table
+### CAIP namespaces' binary representation table
 
 | Namespace | binary key |
 | ---       | ---        |
@@ -142,16 +146,16 @@ Encode the decimal integer as a big-endian unsigned integer using the minimum ne
 Compute the decimal representation of the stored big-endian unsigned integer
 
 ##### Examples
-Ethereum Mainnet: `0x000001` (1, encoded as uint8)
+Ethereum Mainnet: `0x01` (1, encoded as uint8)
 
-Optimism Mainnet: `0x00000A` (10, encoded as uint8)
+Optimism Mainnet: `0x0A` (10, encoded as uint8)
 
-Ethereum Sepolia: `0x0000aa36a7` (11155111, encoded as uint24)
+Ethereum Sepolia: `0xaa36a7` (11155111, encoded as uint24)
 
 #### solana
 Solana networks are distinguished by its genesis blockhash, which is normally represented as 44 base58btc characters, corresponding to 32 bytes. We chose to perform the same truncation as CAIP-2[^2] to keep representations trivially convertible between the two, making them also visually identical.
 
-Truncating the base58btc-encoded representation instead of the binary data, however, means the binary representation will differ significantly from what the Solana node might store in its own memory 
+Truncating the base58btc-encoded representation instead of the binary data, however, means the binary representation will differ significantly from what the Solana node might store in its own memory.
 
 [^2]: CAIP-2 limits chain references to 32 characters, so the solana namespace instructs to only use the first 32 characters of the base58btc-encoded genesis blockhash.
 
@@ -171,7 +175,7 @@ Raw bytes should be base58btc encoded into text
 ##### Examples
 Solana Mainnet
 : `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`
-: `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b`
+: `0x19e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b`
 
 Note that Solana Mainnet's blockhash is:
 - base58btc `5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d`
@@ -216,44 +220,85 @@ base58btc encoding
 
 ## Test cases
 
-### Example 1: Ethereum mainnet
+### Example 1: Ethereum mainnet address
 Chain: Ethereum Mainnet
 Address: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`
 
-Human-readable representation: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045@eip155:1#82255c07`
+Human-readable representation: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045@eip155:1#4CA88C9C`
 
 Binary representation:
 ```
-0x00010300000114D8DA6BF26964AF9D7EED9E03E53415D37AA96045
-  ^^^^-------------------------------------------------- Version:    decimal 1
-      ^^------------------------------------------------ Chainidlen: decimal 3
-        ^^^^^^------------------------------------------ Chainid:    2 bytes of CAIP-2 namespace + 1 byte to store uint8(1)
-              ^^---------------------------------------- Addrlen:    decimal 20
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:    20 bytes of ethereum address
+0x00010000010114D8DA6BF26964AF9D7EED9E03E53415D37AA96045
+  ^^^^-------------------------------------------------- Version:              decimal 1
+      ^^^^---------------------------------------------- ChainType:            2 bytes of CAIP namespace
+          ^^-------------------------------------------- ChainReferenceLength: decimal 1
+            ^^------------------------------------------ ChainReference:       1 byte to store uint8(1)
+              ^^---------------------------------------- AddressLength:        decimal 20
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:              20 bytes of ethereum address
 ```
-keccak256 input for checksum: `0x0300000114d8da6bf26964af9d7eed9e03e53415d37aa96045`
+keccak256 input for checksum: `0x0000010114D8DA6BF26964AF9D7EED9E03E53415D37AA96045`
 note the version field is removed before hashing
 
-### Example 2: Solana mainnet
+### Example 2: Solana mainnet address
 Chain: Solana Mainnet
 
 Address: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2`
 
-Human-readable representation: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp#8b53d4fb`
+Human-readable representation: `MJKqp326RZCHnAAbew9MDdui3iCKWco7fsK9sVuZTX2@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp#4A58ACC6`
 
 Binary representation:
 ```
-0x000100019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5
-  ^^^^--------------------------------------------------------------------------------------------------------------------- Version:     decimal 1
-      ^^------------------------------------------------------------------------------------------------------------------- Chainidlen:  decimal 25
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------------------------------- Chainid:     2 bytes of CAIP-2 namespace + 23 bytes of truncated solana genesis block
-                                                         ^^--------------------------------------------------------------- Addrlen:     decimal 32
-                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:     32 bytes of solana address
+0x0001000217e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b2005333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5
+  ^^^^---------------------------------------------------------------------------------------------------------------------- Version:              decimal 1
+      ^^^^------------------------------------------------------------------------------------------------------------------ ChainType:            2 bytes of CAIP namespace
+          ^^---------------------------------------------------------------------------------------------------------------- ChainReferenceLength: decimal 23
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------------------------------------------------ ChainReference:       23 bytes of truncated solana genesis block
+                                                          ^^---------------------------------------------------------------- AddressLength:        decimal 32
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--- Address:              32 bytes of solana address
 ```
-keccak256 input for checksum: `0x00019e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b205333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`.
-Note the version field is removed before hashing
+keccak256 input for checksum: `0x000217e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b2005333498d5aea4ae009585c43f7b8c30df8e70187d4a713d134f977fc8dfe0b5`.
+Note the version field is removed before hashing.
+
+### Example 3: EVM address without chainid
+Chain: Not specified.
+Address: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045`
+Human-readable representation: `0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045@#144A4B21`
+
+Binary representation:
+```
+0x000100000014D8DA6BF26964AF9D7EED9E03E53415D37AA96045
+  ^^^^------------------------------------------------ Version:              decimal 1
+      ^^^^-------------------------------------------- ChainType:            2 bytes of CAIP namespace
+          ^^------------------------------------------ ChainReferenceLength: zero, indicating no chainid
+            ^^---------------------------------------- AddressLength:        decimal 20
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Address:              20 bytes of ethereum address
+```
+keccak256 input for checksum: `0x000100000014D8DA6BF26964AF9D7EED9E03E53415D37AA96045`
+Note the version field is removed before hashing.
+
+### Example 4: Solana mainnet network, no address
+Chain: Solana Mainnet.
+
+Address: Not specified.
+
+Human-readable representation: `@solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp#DE9AAA3F`
+
+Binary representation:
+```
+0x0001000217e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b00
+  ^^^^------------------------------------------------------ Version:              decimal 1
+      ^^^^-------------------------------------------------- ChainType:            2 bytes of CAIP namespace
+          ^^------------------------------------------------ ChainReferenceLength: decimal 23
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-- ChainReference:       23 bytes of truncated solana genesis block
+                                                          ^^ AddressLength:        zero, indicating no address
+```
+keccak256 input for checksum: `0x000217e15de390a1bfea7ad6ed13c9898b4881b8aef9e705b31b00`.
+Note the version field is removed before hashing.
 
 ## Rationale
+
+### Zero-length addresses and chainids
+We chose to support zero-length addresses and chainids to be able to use just one standard to represent both potentially foreign _target addresses_ (e.g. the recipient of a cross-chain message) and also plain addresses or chainids (e.g. to specify the origin-chain hook address of a cross-chain message), for greater uniformity across implementations.
 
 ### Comparisons with other standards
 
