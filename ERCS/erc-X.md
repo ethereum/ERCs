@@ -93,8 +93,8 @@ This section is considered OPTIONAL.
 #### Syntax
 ```bnf
 <human readable name> ::= <address>@<chain>#<checksum>
-<address>             ::= [-:_%a-zA-Z0-9]*
-<chain>               ::= [-:_a-zA-Z0-9]*
+<address>             ::= [.-:_%a-zA-Z0-9]*
+<chain>               ::= [.-:_a-zA-Z0-9]*
 <checksum>            ::= [0-9A-F]{8}
 ```
 
