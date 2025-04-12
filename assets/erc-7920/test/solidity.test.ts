@@ -2,8 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { ExampleVerifier } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import { MerkleTree } from "merkletreejs";
-import { keccak256 } from "@ethersproject/keccak256";
+import { MerkleTree } from "../src/merkle";
 
 describe("SolidityTests", function () {
   let verifier: ExampleVerifier;
@@ -55,15 +54,13 @@ describe("SolidityTests", function () {
 
   it("should successfully place an order with a composite signature", async function () {
     const orderHashes = await Promise.all(orders.map(getOrderHash));
-    const tree = new MerkleTree(orderHashes, keccak256, {
-      sortPairs: true,
-    });
+    const tree = new MerkleTree(orderHashes);
     const merkleRoot = `0x${tree.getRoot().toString("hex")}`;
     const signature = signerWallet.signingKey.sign(tree.getRoot()).serialized;
 
     const proof = tree
       .getProof(orderHashes[0])
-      .map((p) => `0x${p.data.toString("hex")}`);
+      .map((p) => `0x${p.toString("hex")}`);
 
     await expect(
       verifier.placeOrder(
@@ -78,9 +75,7 @@ describe("SolidityTests", function () {
 
   it("should reject an order with invalid proof", async function () {
     const orderHashes = await Promise.all(orders.map(getOrderHash));
-    const tree = new MerkleTree(orderHashes, keccak256, {
-      sortPairs: true,
-    });
+    const tree = new MerkleTree(orderHashes);
     const merkleRoot = `0x${tree.getRoot().toString("hex")}`;
     const signature = signerWallet.signingKey.sign(tree.getRoot()).serialized;
 
@@ -88,7 +83,7 @@ describe("SolidityTests", function () {
     const invalidOrderId = ethers.id("invalid-order");
     const proof = tree
       .getProof(orderHashes[0])
-      .map((p) => `0x${p.data.toString("hex")}`);
+      .map((p) => `0x${p.toString("hex")}`);
 
     await expect(
       verifier.placeOrder(
@@ -108,7 +103,7 @@ describe("SolidityTests", function () {
       order.user
     );
     const leaf = Buffer.from(messageHash.slice(2), "hex");
-    const tree = new MerkleTree([leaf], keccak256, { sortPairs: true });
+    const tree = new MerkleTree([leaf]);
     const merkleRoot = `0x${tree.getRoot().toString("hex")}`;
     const signature = signerWallet.signingKey.sign(tree.getRoot()).serialized;
 
@@ -126,9 +121,7 @@ describe("SolidityTests", function () {
 
   it("should verify all orders with the same signature", async function () {
     const orderHashes = await Promise.all(orders.map(getOrderHash));
-    const tree = new MerkleTree(orderHashes, keccak256, {
-      sortPairs: true,
-    });
+    const tree = new MerkleTree(orderHashes);
     const merkleRoot = `0x${tree.getRoot().toString("hex")}`;
     const signature = signerWallet.signingKey.sign(tree.getRoot()).serialized;
 
@@ -136,7 +129,7 @@ describe("SolidityTests", function () {
     for (let i = 0; i < orders.length; i++) {
       const proof = tree
         .getProof(orderHashes[i])
-        .map((p) => `0x${p.data.toString("hex")}`);
+        .map((p) => `0x${p.toString("hex")}`);
 
       await expect(
         verifier.placeOrder(
@@ -152,9 +145,7 @@ describe("SolidityTests", function () {
 
   it("should reject a signature from a different signer", async function () {
     const orderHashes = await Promise.all(orders.map(getOrderHash));
-    const tree = new MerkleTree(orderHashes, keccak256, {
-      sortPairs: true,
-    });
+    const tree = new MerkleTree(orderHashes);
     const merkleRoot = `0x${tree.getRoot().toString("hex")}`;
 
     // Sign with the other wallet (different than the one in the order.user field)
@@ -164,7 +155,7 @@ describe("SolidityTests", function () {
 
     const proof = tree
       .getProof(orderHashes[0])
-      .map((p) => `0x${p.data.toString("hex")}`);
+      .map((p) => `0x${p.toString("hex")}`);
 
     await expect(
       verifier.placeOrder(

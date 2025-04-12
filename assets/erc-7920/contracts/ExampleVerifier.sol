@@ -31,7 +31,7 @@ contract ExampleVerifier {
         bytes32[] calldata proof
     ) public {
         bytes32 message = keccak256(
-            abi.encodePacked(
+            abi.encode(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
                 keccak256(abi.encode(MESSAGE_TYPEHASH, orderId, user))
@@ -68,20 +68,16 @@ contract ExampleVerifier {
     }
 
     function _verifyMerkleProof(
-        bytes32 message,
+        bytes32 leaf,
         bytes32[] calldata proof,
         bytes32 root
     ) internal pure returns (bool) {
-        bytes32 computedRoot = message;
+        bytes32 computedRoot = leaf;
         for (uint256 i = 0; i < proof.length; ++i) {
             if (computedRoot < proof[i]) {
-                computedRoot = keccak256(
-                    abi.encodePacked(computedRoot, proof[i])
-                );
+                computedRoot = keccak256(abi.encode(computedRoot, proof[i]));
             } else {
-                computedRoot = keccak256(
-                    abi.encodePacked(proof[i], computedRoot)
-                );
+                computedRoot = keccak256(abi.encode(proof[i], computedRoot));
             }
         }
 
@@ -114,7 +110,7 @@ contract ExampleVerifier {
     ) public view returns (bytes32) {
         return
             keccak256(
-                abi.encodePacked(
+                abi.encode(
                     "\x19\x01",
                     DOMAIN_SEPARATOR,
                     keccak256(abi.encode(MESSAGE_TYPEHASH, orderId, user))

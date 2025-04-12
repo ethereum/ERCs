@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-import { MerkleTree } from "merkletreejs";
 import { keccak256 } from "@ethersproject/keccak256";
 import { Eip712TypedData } from "web3";
 import {
@@ -9,6 +8,8 @@ import {
   bytesToHex,
 } from "@ethereumjs/util";
 import * as sigUtil from "eth-sig-util";
+
+import { MerkleTree } from "./merkle";
 
 type MerkleProof = ReadonlyArray<`0x${string}`>;
 
@@ -48,9 +49,7 @@ async function eth_signTypedData_v5(args: {
     }
   );
 
-  const tree = new MerkleTree(messageHashes as Array<Buffer>, keccak256, {
-    sortPairs: true,
-  });
+  const tree = new MerkleTree(messageHashes as Array<Buffer>);
 
   const merkleRoot = tree.getRoot();
   const wallet = new ethers.Wallet(`0x${privateKey.toString("hex")}`);
@@ -59,7 +58,7 @@ async function eth_signTypedData_v5(args: {
   const proofs: ReadonlyArray<MerkleProof> = messageHashes.map((hash) =>
     tree
       .getProof(hash)
-      .map((proof) => `0x${proof.data.toString("hex")}` as `0x${string}`)
+      .map((proof) => `0x${proof.toString("hex")}` as `0x${string}`)
   );
 
   return {
