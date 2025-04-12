@@ -5,7 +5,6 @@ export function _keccak256(data: Buffer): Buffer {
 }
 
 export class MerkleTree {
-  private readonly root: Buffer;
   private readonly messages: Buffer[];
   private readonly levels: Buffer[][];
 
@@ -30,7 +29,6 @@ export class MerkleTree {
       currentLevel = nextLevel;
       this.levels.push(nextLevel);
     }
-    this.root = currentLevel[0];
   }
 
   getProof(message: Buffer): readonly Buffer[] {
@@ -51,6 +49,6 @@ export class MerkleTree {
   }
 
   getRoot(): Buffer {
-    return this.root;
+    return this.levels[this.levels.length - 1][0];
   }
 }
