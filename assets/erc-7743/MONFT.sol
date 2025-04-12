@@ -88,23 +88,29 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         return EnumerableSet.length(_owners[tokenId]);
     }
 
-    function approve(address, uint256) external pure override {
-        revert("MO-NFT: Approve is forbidden");
+    // Overrides for approvals
+    function approve(address to, uint256 tokenId) public override {
+        revert("MO-NFT: approvals not supported");
     }
 
-    function getApproved(uint256) public pure override returns (address) {
-        revert("MO-NFT: Approve is forbidden");
+    function setApprovalForAll(
+        address operator,
+        bool approved
+    ) public override {
+        revert("MO-NFT: approvals not supported");
     }
 
-    function setApprovalForAll(address, bool) external pure override {
-        revert("MO-NFT: Approve is forbidden");
+    function getApproved(
+        uint256 tokenId
+    ) public view override returns (address) {
+        revert("MO-NFT: approvals not supported");
     }
 
     function isApprovedForAll(
-        address,
-        address
-    ) public pure override returns (bool) {
-        revert("MO-NFT: Approve is forbidden");
+        address owner,
+        address operator
+    ) public view override returns (bool) {
+        revert("MO-NFT: approvals not supported");
     }
 
     function transferFrom(
@@ -121,17 +127,71 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         _transfer(from, to, tokenId);
     }
 
-    function safeTransferFrom(address, address, uint256) public pure override {
-        revert("MO-NFT: safeTransferFrom is forbidden");
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override {
+        // 1. Perform the multi-owner transfer logic
+        transferFrom(from, to, tokenId);
+
+        // 2. Call the internal function to check if `to` can handle ERC-721 tokens
+        require(
+            _checkOnERC721Received(from, to, tokenId, ""),
+            "MO-NFT: transfer to non ERC721Receiver implementer"
+        );
     }
 
     function safeTransferFrom(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public pure override {
-        revert("MO-NFT: safeTransferFrom is forbidden");
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) public override {
+        // 1. Perform the multi-owner transfer logic
+        transferFrom(from, to, tokenId);
+
+        // 2. Call the internal function to check if `to` can handle ERC-721 tokens
+        require(
+            _checkOnERC721Received(from, to, tokenId, _data),
+            "MO-NFT: transfer to non ERC721Receiver implementer"
+        );
+    }
+
+    /**
+     * @dev Private helper to call `onERC721Received` on a target contract.
+     * Returns true if the target contract returns the correct function selector.
+     */
+    function _checkOnERC721Received(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) private returns (bool) {
+        // If `to` is not a contract, there's nothing to check.
+        if (to.code.length == 0) {
+            return true;
+        }
+
+        try
+            IERC721Receiver(to).onERC721Received(
+                msg.sender,
+                from,
+                tokenId,
+                _data
+            )
+        returns (bytes4 retval) {
+            return retval == IERC721Receiver.onERC721Received.selector;
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert("MO-NFT: transfer to non ERC721Receiver implementer");
+            } else {
+                // Bubble up any custom revert reason returned by the contract call
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
     }
 
     function _transfer(address from, address to, uint256 tokenId) internal {
