@@ -8,7 +8,8 @@ export class MerkleTree {
   private readonly messages: Buffer[];
   private readonly levels: Buffer[][];
 
-  constructor(messages: Buffer[]) {
+  constructor(_messages: readonly Buffer[]) {
+    const messages = [..._messages];
     let k = Math.ceil(Math.log2(messages.length));
     for (let i = messages.length; i < 1 << k; i++) {
       messages.push(Buffer.alloc(messages[0].length));
