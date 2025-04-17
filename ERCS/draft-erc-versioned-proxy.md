@@ -106,6 +106,7 @@ Version identifiers are specified as `bytes32` rather than semantic versioning s
 1. Provide flexibility in versioning schemes
 2. Reduce gas costs for storage and comparison
 3. Allow for both string-based versions (converted to bytes32) and numeric versions
+4. Allow for storing a Git commit identifier in SHA-1 or SHA-256
 
 ### Explicit Version Selection
 
