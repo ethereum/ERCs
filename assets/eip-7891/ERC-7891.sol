@@ -48,6 +48,20 @@ contract ERC7891 is ERC6150 {
         emit NFTMerged(newParentId, tokenIds);
         return newParentId;
     }
+
+    function sharePass(uint256 from,  uint256 to, uint8 _share) public  {
+        share[from] += _share;
+        share[to] -= _share ;
+    }
+
+    function burn(uint256 _tid) public {        
+        uint256 pid = parentOf(_tid);
+        if (pid == 0) share[_tid] = 0 ;
+        else          sharePass( _pid, tid, share[_tid]);
+        
+        _safeBurn(_tid);
+
+    }
   }
     
 
