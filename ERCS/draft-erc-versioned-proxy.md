@@ -3,7 +3,7 @@ eip: XXXX
 title: Versioned Proxy Contract Interface
 description: A standard interface for proxy contracts that allows callers to select implementation versions
 author: Raphina Liu (@Stamp9), Monica Jin (@mokita-j), Martin Monperrus (@monperrus)
-discussions-to: https://ethereum-magicians.org/t/TBD
+discussions-to: https://ethereum-magicians.org/t/new-erc-versioned-proxy-contract-interface/23743
 status: Draft
 type: Standards Track
 category: ERC
