@@ -14,7 +14,7 @@ contract ERC7891 is ERC6150, IERC7891 {
     mapping(uint256 => string) private _tokenURIs;
     mapping(uint256 => uint8) public share;
 
-    construct() ERC6150("ERC7891", "NFT") {}
+    constructor() ERC6150("ERC7891", "NFT") {}
 
     function mintParent(string memory tokenURI) external returns (uint256) {
         _tokenIds.increment();
