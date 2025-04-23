@@ -2,9 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "./ERC6150.sol";
+import "./IERC7891.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-contract ERC7891 is ERC6150 {
+
+contract ERC7891 is ERC6150, IERC7891 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
@@ -27,8 +30,7 @@ contract ERC7891 is ERC6150 {
         _tokenIds.increment();
         uint256 childId = _tokenIds.current();
         _safeMintWithParent(msg.sender, parentId, childId);
-        share[parentId] -= _share;
-        share[childId] = _share;
+        sharePass(parentId, childId, _share);
         _tokenURIs[childId] = _tokenURIs[parentId];
         emit NFTSplit(parentId, childId, _share);
         return childId;
@@ -57,11 +59,18 @@ contract ERC7891 is ERC6150 {
     function burn(uint256 _tid) public {        
         uint256 pid = parentOf(_tid);
         if (pid == 0) share[_tid] = 0 ;
-        else          sharePass( _pid, tid, share[_tid]);
+        else          sharePass( pid, _tid, share[_tid]);
         
         _safeBurn(_tid);
 
     }
+
+    /// @inheritdoc IERC165
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+     return 
+     interfaceId == type(IERC7891).interfaceId || super.supportsInterface(interfaceId);
+     }
+
   }
     
 
