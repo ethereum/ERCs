@@ -20,10 +20,26 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
     mapping(uint256 => address) private _tokenApprovals;
     mapping(address => mapping(address => bool)) private _operatorApprovals;
     mapping(address => uint256) private _balances;
+    // Mapping to track archived status for each token-owner pair
+    mapping(uint256 => mapping(address => bool)) private _archivedStatus;
+
+    // Modifier to check if the owner has archived the token's transfer ability
+    modifier isNotArchived(uint256 tokenId, address owner) {
+        require(
+            !_archivedStatus[tokenId][owner],
+            "MO-NFT: Owner's transfer ability is archived for this token"
+        );
+        _;
+    }
 
     event TokenMinted(uint256 tokenId, address owner);
     event TokenTransferred(uint256 tokenId, address from, address to);
-    event TokenBurned(uint256 tokenId, address owner); // New burn event
+    // Emit an event when the archived status is updated for a specific owner
+    event ArchivedStatusUpdated(
+        uint256 indexed tokenId,
+        address indexed owner,
+        bool archived
+    );
 
     constructor(address owner) Ownable(owner) {}
 
@@ -88,6 +104,14 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         return EnumerableSet.length(_owners[tokenId]);
     }
 
+    // Public function to check if a specific owner has archived their transfer ability for a token
+    function isArchived(
+        uint256 tokenId,
+        address owner
+    ) external view returns (bool) {
+        return _archivedStatus[tokenId][owner];
+    }
+
     // Overrides for approvals
     function approve(address to, uint256 tokenId) public override {
         revert("MO-NFT: approvals not supported");
@@ -117,7 +141,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         address from,
         address to,
         uint256 tokenId
-    ) public virtual override {
+    ) public virtual override isNotArchived(tokenId, from) {
         require(
             isOwner(tokenId, _msgSender()),
             "MO-NFT: Transfer from incorrect account"
@@ -131,7 +155,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         address from,
         address to,
         uint256 tokenId
-    ) public override {
+    ) public override isNotArchived(tokenId, from) {
         // 1. Perform the multi-owner transfer logic
         transferFrom(from, to, tokenId);
 
@@ -147,7 +171,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         address to,
         uint256 tokenId,
         bytes memory _data
-    ) public override {
+    ) public override isNotArchived(tokenId, from) {
         // 1. Perform the multi-owner transfer logic
         transferFrom(from, to, tokenId);
 
@@ -211,20 +235,19 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         emit TokenTransferred(tokenId, from, to);
     }
 
-    // New burn function
-    function burn(uint256 tokenId) external {
+    // Function to update the archived status for a specific owner of a token (permanent change)
+    function setArchivedStatus(uint256 tokenId, bool archived) external {
         require(
-            isOwner(tokenId, _msgSender()),
-            "MO-NFT: Only an owner can burn their ownership"
+            isOwner(tokenId, msg.sender),
+            "MO-NFT: Caller is not the owner of this token"
         );
-
-        // Remove the caller from the owners set
-        _owners[tokenId].remove(_msgSender());
-
-        // Decrement the balance of the owner
-        _balances[_msgSender()] -= 1;
-
-        emit TokenBurned(tokenId, _msgSender());
+        // Once archived, the status cannot be reversed
+        require(
+            archived == true,
+            "MO-NFT: Token can only be archived once for an owner"
+        );
+        _archivedStatus[tokenId][msg.sender] = archived;
+        emit ArchivedStatusUpdated(tokenId, msg.sender, archived);
     }
 
     function supportsInterface(
