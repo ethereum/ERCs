@@ -14,7 +14,7 @@ contract ERC7891 is ERC6150, IERC7891 {
 
     constructor() ERC6150("ERC7891", "NFT") {}
 
-    function mintParent(string memory tokenURI) external returns (uint256) {
+    function mintParent(string memory tokenURI) external payable override returns (uint256) {
         _tokenIds.increment();
         uint256 tokenId = _tokenIds.current();
         _safeMintWithParent(msg.sender, 0, tokenId);
@@ -23,7 +23,7 @@ contract ERC7891 is ERC6150, IERC7891 {
         return tokenId;
     }
 
-    function mintSplit(uint256 parentId, uint8 _share) external returns (uint256) {
+    function mintSplit(uint256 parentId, uint8 _share) external payable override returns (uint256) {
         require(share[parentId] >= _share, "Insufficient parent share");
         _tokenIds.increment();
         uint256 childId = _tokenIds.current();
@@ -34,7 +34,7 @@ contract ERC7891 is ERC6150, IERC7891 {
         return childId;
     }
 
-    function mintMerge(uint256 parentId, uint256[] memory tokenIds) external returns (uint256) {
+    function mintMerge(uint256 parentId, uint256[] memory tokenIds) external payable override returns (uint256) {
         uint8 totalShare = 0;
         for (uint256 i = 0; i < tokenIds.length; i++) {
             require(parentOf(tokenIds[i]) == parentId, "Not a child of the same parent");
@@ -50,14 +50,14 @@ contract ERC7891 is ERC6150, IERC7891 {
     }
 
     function sharePass(uint256 from,  uint256 to, uint8 _share) public  {
-        share[from] += _share;
-        share[to] -= _share ;
+        share[from] -= _share;
+        share[to] += _share ;
     }
 
     function burn(uint256 _tid) public {        
         uint256 pid = parentOf(_tid);
         if (pid == 0) share[_tid] = 0 ;
-        else          sharePass( pid, _tid, share[_tid]);
+        else          sharePass( _tid, pid, share[_tid]);
         
         _safeBurn(_tid);
 
