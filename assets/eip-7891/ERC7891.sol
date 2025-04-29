@@ -23,7 +23,7 @@ contract ERC7891 is ERC6150, IERC7891 {
         return tokenId;
     }
 
-    function mintSplit(uint256 parentId, uint8 _share) external payable override returns (uint256) {
+    function mintSplit(uint256 parentId, uint8 _share) public payable override returns (uint256) {
         require(share[parentId] >= _share, "Insufficient parent share");
         _tokenIds.increment();
         uint256 childId = _tokenIds.current();
@@ -34,19 +34,19 @@ contract ERC7891 is ERC6150, IERC7891 {
         return childId;
     }
 
-    function mintMerge(uint256 parentId, uint256[] memory tokenIds) external payable override returns (uint256) {
+    function mintMerge(uint256 parentId, uint256[] memory tokenIds) public payable override returns (uint256) {
+        require(tokenIds.length > 1, "At least two tokens are required for merging.");
         uint8 totalShare = 0;
         for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
             require(parentOf(tokenIds[i]) == parentId, "Not a child of the same parent");
             totalShare += share[tokenIds[i]];
-            _burn(tokenIds[i]);
+            burn(tokenId);
         }
-        _tokenIds.increment();
-        uint256 newParentId = _tokenIds.current();
-        _safeMintWithParent(msg.sender, parentId, newParentId);
-        share[newParentId] = totalShare;
-        emit Merged(newParentId, tokenIds);
-        return newParentId;
+
+        uint256 newTokenId = mintSplit(parentId, totalShare);
+        emit Merged(newTokenId, tokenIds);
+        return newTokenId;
     }
 
     function sharePass(uint256 from,  uint256 to, uint8 _share) public  {
