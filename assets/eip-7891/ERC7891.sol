@@ -50,6 +50,8 @@ contract ERC7891 is ERC6150, IERC7891 {
     }
 
     function sharePass(uint256 from,  uint256 to, uint8 _share) public  {
+        require(_exists(from), "Source token does not exist");
+        require(_exists(to), "Target token does not exist");
         share[from] -= _share;
         share[to] += _share ;
     }
@@ -72,7 +74,6 @@ contract ERC7891 is ERC6150, IERC7891 {
     function getInterfaceID() external pure returns (bytes4) {
         return type(IERC7891).interfaceId;
      }
-
   }
     
 
