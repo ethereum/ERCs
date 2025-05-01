@@ -13,11 +13,11 @@ requires: 165
 
 ## Abstract
 
-This EIP proposes "Universal RWA" (uRWA) standard, a minimal interface for all common tokens like [ERC-20](./erc-20.md), [ERC-721](./erc-721.md) or [ERC-1155](./erc-1155.md) based tokens, meant to be the primitive for the different classes of Real World Assets. It defines essential functions and events for regulatory compliance and enforcement actions common to RWAs. It also extends from [ERC-165](./erc-165.md) for introspection.
+This EIP proposes "Universal RWA" (uRWA) standard, a minimal interface for all common tokens like [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) or [ERC-1155](./eip-1155.md) based tokens, meant to be the primitive for the different classes of Real World Assets. It defines essential functions and events for regulatory compliance and enforcement actions common to RWAs. It also extends from [ERC-165](./eip-165.md) for introspection.
 
 ## Motivation
 
-The tokenization of Real World Assets introduces requirements often absent in purely digital assets, such as regulatory compliance checks, nuanced transfer controls, and potential enforcement actions. Existing token standards, primarily [ERC-20](./erc-20.md), [ERC-721](./erc-721.md) and [ERC-1155](./erc-1155.md), lack the inherent structure to address these needs directly within the standard itself.
+The tokenization of Real World Assets introduces requirements often absent in purely digital assets, such as regulatory compliance checks, nuanced transfer controls, and potential enforcement actions. Existing token standards, primarily [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md), lack the inherent structure to address these needs directly within the standard itself.
 
 Attempts at defining universal RWA standards historically imposed unnecessary complexity and gas overhead for simpler use cases that do not require the full spectrum of features like granular role-based access control, mandatory on-chain whitelisting, specific on-chain identity solutions or metadata handling solutions mandated by the standard.
 
@@ -97,9 +97,9 @@ interface IuRWA {
     - MUST emit both the standard `Transfer` event (from the base standard) and the `Recalled` event. 
     - SHOULD bypass standard transfer validation logic, including checks enforced by `isTransferAllowed` and `isUserAllowed`.
 
-Given the agnostic nature of the standard on the specific base token standard being used the implementation SHOULD use `tokenId = 0` for [ERC-20](./erc-20.md) based implementations, and `amount = 1` for [ERC-721](./erc-721.md) based implementations on `Recalled` event, `TransferNotAllowed` error and `recall` / `isTransferAllowed` functions. Integrators MAY decide to not enforce this, however the standard discourages it. This is considered a little tradeoff for having a unique standard interface for different token standards without overlapping syntaxes.
+Given the agnostic nature of the standard on the specific base token standard being used the implementation SHOULD use `tokenId = 0` for [ERC-20](./eip-20.md) based implementations, and `amount = 1` for [ERC-721](./eip-721.md) based implementations on `Recalled` event, `TransferNotAllowed` error and `recall` / `isTransferAllowed` functions. Integrators MAY decide to not enforce this, however the standard discourages it. This is considered a little tradeoff for having a unique standard interface for different token standards without overlapping syntaxes.
 
-Implementations of this interface MUST implement the necessary functions of their chosen base standard (e.g., [ERC-20](./erc-20.md), [ERC-721](./erc-721.md) and [ERC-1155](./erc-1155.md) functionalities) and MUST also restrict access to sensitive functions like `recall` using an appropriate access control mechanism (e.g., `onlyOwner`, Role-Based Access Control). The specific mechanism is NOT mandated by this interface standard.
+Implementations of this interface MUST implement the necessary functions of their chosen base standard (e.g., [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md) functionalities) and MUST also restrict access to sensitive functions like `recall` using an appropriate access control mechanism (e.g., `onlyOwner`, Role-Based Access Control). The specific mechanism is NOT mandated by this interface standard.
 
 Integrators MUST ensure their internal transfer logic (e.g., within `_update`, `_transfer`, `_mint`, `_burn`) respects the boolean outcomes of `isUserAllowed` and `isTransferAllowed`. Transfers, mints, or burns MUST NOT proceed and instead MUST revert with `UserNotAllowed` or `TransferNotAllowed` if and only if these checks indicate the action is disallowed according to the contract's specific policy.
 
@@ -107,21 +107,21 @@ Integrators MUST ensure their internal transfer logic (e.g., within `_update`, `
 
 *   **Minimalism:** Defines only the essential functions (`recall`, `isUserAllowed`, `isTransferAllowed`) and associated events/errors needed for common RWA compliance and control patterns, avoiding mandated complexity or opinionated features.
 *   **Flexibility:** Provides standard view functions (`isUserAllowed`, `isTransferAllowed`) for compliance checks without dictating *how* those checks are implemented internally by the token contract. This allows diverse compliance strategies.
-*   **Compatibility:** Designed as an interface layer compatible with existing base standards like [ERC-20](./erc-20.md), [ERC-721](./erc-721.md) and [ERC-1155](./erc-1155.md). Implementations extend from `IuRWA` alongside their base standard interface.
+*   **Compatibility:** Designed as an interface layer compatible with existing base standards like [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md). Implementations extend from `IuRWA` alongside their base standard interface.
 *   **RWA Essential:** Includes `recall` as a standard function, acknowledging its importance for regulatory enforcement in the RWA space, distinct from standard transfers. Mandates access control for this sensitive function.
-*   **[ERC-165](./erc-165.md):** Ensures implementing contracts can signal support for this interface.
+*   **[ERC-165](./eip-165.md):** Ensures implementing contracts can signal support for this interface.
 
-As an example, a Uniswap v4 pool can integrate with uRWA [ERC-20](./erc-20.md) tokens by calling `isUserAllowed` or `isTransferAllowed` within its before/after hooks to handle these assets in a compliant manner. Users can then expand these tokens with additional features to fit the specific needs of individual asset types, either with on-chain identity systems, historical balances tracking for dividend distributions, semi-fungibility with tokens metadata, etc.
+As an example, a Uniswap v4 pool can integrate with uRWA [ERC-20](./eip-20.md) tokens by calling `isUserAllowed` or `isTransferAllowed` within its before/after hooks to handle these assets in a compliant manner. Users can then expand these tokens with additional features to fit the specific needs of individual asset types, either with on-chain identity systems, historical balances tracking for dividend distributions, semi-fungibility with tokens metadata, etc.
 
 ## Backwards Compatibility
 
-This EIP defines a new interface standard and does not alter existing ones like [ERC-20](./erc-20.md), [ERC-721](./erc-721.md) and [ERC-1155](./erc-1155.md). Standard wallets and explorers can interact with the base token functionality of implementing contracts, subject to the rules enforced by that contract's implementation of `isUserAllowed` and `isTransferAllowed`. Full support for the `IuRWA` functions requires explicit integration.
+This EIP defines a new interface standard and does not alter existing ones like [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md). Standard wallets and explorers can interact with the base token functionality of implementing contracts, subject to the rules enforced by that contract's implementation of `isUserAllowed` and `isTransferAllowed`. Full support for the `IuRWA` functions requires explicit integration.
 
 ## Reference Implementation
 
-Examples of basic implementation for [ERC-20](./erc-20.md), [ERC-721](./erc-721.md) and [ERC-1155](./erc-1155.md) which includes a basic whitelist for users and an enumerable role based access control:
+Examples of basic implementation for [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md) which includes a basic whitelist for users and an enumerable role based access control:
 
-### [ERC-20](./erc-20.md) Example
+### [ERC-20](./eip-20.md) Example
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -192,7 +192,7 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IuRWA {
 }
 ```
 
-### [ERC-721](./erc-721.md) Example
+### [ERC-721](./eip-721.md) Example
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -250,7 +250,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IuRWA {
 }
 ```
 
-### [ERC-1155](./erc-1155.md) Example
+### [ERC-1155](./eip-1155.md) Example
 
 ```solidity
 // SPDX-License-Identifier: MIT
