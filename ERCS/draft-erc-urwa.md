@@ -115,6 +115,10 @@ As an example, a Uniswap v4 pool can integrate with uRWA ERC-20 tokens by callin
 
 This EIP defines a new interface standard and does not alter existing ones like ERC-20, ERC-721, ERC-1155. Standard wallets and explorers can interact with the base token functionality of implementing contracts, subject to the rules enforced by that contract's implementation of `isUserAllowed` and `isTransferAllowed`. Full support for the `IuRWA` functions requires explicit integration.
 
+## Reference Implementation
+
+An example of basic implementation for ERC-20, ERC-721 and ERC-1155 can be found at [uRWA](https://github.com/xaler5/urwa)
+
 ## Security Considerations
 
 *   **Access Control for `recall`:** The security of the mechanism chosen by the implementer to restrict access to the `recall` function is paramount. Unauthorized access could lead to asset theft. Secure patterns (multisig, timelocks) are highly recommended.
