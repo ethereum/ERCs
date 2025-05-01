@@ -7,7 +7,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-04-27
-requires: EIP-165
+requires: [ERC-165](./erc-165.md)
 ---
 
 ## Abstract
@@ -107,7 +107,7 @@ Integrators MUST ensure their internal transfer logic (e.g., within `_update`, `
 *   **Flexibility:** Provides standard view functions (`isUserAllowed`, `isTransferAllowed`) for compliance checks without dictating *how* those checks are implemented internally by the token contract. This allows diverse compliance strategies.
 *   **Compatibility:** Designed as an interface layer compatible with existing base standards like ERC-20, ERC-721 and ERC-1155. Implementations extend from `IuRWA` alongside their base standard interface.
 *   **RWA Essential:** Includes `recall` as a standard function, acknowledging its importance for regulatory enforcement in the RWA space, distinct from standard transfers. Mandates access control for this sensitive function.
-*   **EIP-165:** Ensures implementing contracts can signal support for this interface.
+*   **ERC-165:** Ensures implementing contracts can signal support for this interface.
 
 As an example, a Uniswap v4 pool can integrate with uRWA ERC-20 tokens by calling `isUserAllowed` or `isTransferAllowed` within its before/after hooks to handle these assets in a compliant manner. Users can then expand these tokens with additional features to fit the specific needs of individual asset types, either with on-chain identity systems, historical balances tracking for dividend distributions, semi-fungibility with tokens metadata, etc.
 
