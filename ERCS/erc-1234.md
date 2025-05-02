@@ -13,7 +13,7 @@ requires: 165
 
 ## Abstract
 
-This EIP proposes "Universal RWA" (uRWA) standard, a minimal interface for all common tokens like [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) or [ERC-1155](./eip-1155.md) based tokens, meant to be the primitive for the different classes of Real World Assets. It defines essential functions and events for regulatory compliance and enforcement actions common to RWAs. It also extends from [ERC-165](./eip-165.md) for introspection.
+This EIP proposes "Universal RWA" (uRWA) standard, a minimal interface for all common tokens like [ERC-20](./eip-20.md), [ERC-721](./eip-721.md) or [ERC-1155](./eip-1155.md) based tokens, meant to be the primitive for the different classes of Real World Assets. It defines essential functions and events for regulatory compliance and enforcement actions common to RWAs. It also adopts [ERC-165](./eip-165.md) for introspection.
 
 ## Motivation
 
@@ -40,7 +40,7 @@ The following defines the standard interface for an uRWA token contract.
 pragma solidity ^0.8.29;
 
 /// @title Interface for the uRWA Token Interface
-interface IuRWA {
+interface IuRWA /* is ERC165 */ {
     /// @notice Emitted when tokens are taken from one address and transferred to another.
     /// @param from The address from which tokens were taken.
     /// @param to The address to which seized tokens were transferred.
@@ -81,18 +81,16 @@ interface IuRWA {
     /// @param user The address to check.
     /// @return allowed True if the user is allowed, false otherwise.
     function isUserAllowed(address user) external view returns (bool allowed);
-
-    /// Derived from EIP-165
-    function supportsInterface(bytes4 interfaceID) external view returns (bool);
 }
 ```
 
+*   The contract MUST implement the [ERC-165](./eip-165.md) `supportsInterface` function and MUST return true for the `bytes4` value `0x4099785e` being it the `interfaceID` of the `uRWA`.
 *   The `isUserAllowed` and `isTransferAllowed` functions provide views into the implementing contract's compliance and transfer policy logic. The exact implementation of these checks (e.g., internal allowlist, external calls, complex logic) is NOT mandated by this interface standard. However these two functions:
     - MUST NOT revert. 
     - MUST NOT change the storage of the contract. 
     - MAY depend on context (e.g., current timestamp or block.number).
-*   The `recall` function provide a standard mechanism for forcing a transfer from a `from` to a `to` address. This is often known as either "confiscation" / "revocation" or even "recovery" which are all names related to the motivation being the feature itself. The name chose tries to abstract away the motivation and keep a general name. This function:
-    - MUST directly manipulate balances or ownership to transfer the asset from `from` to `to` either by transfering or burning from `from` and minting to `to`. 
+*   The `recall` function provides a standard mechanism for forcing a transfer from a `from` to a `to` address. This is often known as either "confiscation" / "revocation" or even "recovery" which are all names related to the motivation being the feature itself. The name chosen tries to abstract away the motivation and keep a general name. This function:
+    - MUST directly manipulate balances or ownership to transfer the asset from `from` to `to` either by transferring or burning from `from` and minting to `to`. 
     - MUST perform necessary validation checks (e.g., sufficient balance/ownership of a specific token).
     - MUST emit both the standard `Transfer` event (from the base standard) and the `Recalled` event. 
     - SHOULD bypass standard transfer validation logic, including checks enforced by `isTransferAllowed` and `isUserAllowed`.
@@ -207,6 +205,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IuRWA {
 
     function recall(address from, address to, uint256 tokenId, uint256) public virtual override onlyRole(RECALL_ROLE) {
         require(to != address(0), ERC721InvalidReceiver(address(0)));
+        require(isUserAllowed(to), UserNotAllowed(to));
         address previousOwner = super._update(to, tokenId, address(0)); // Skip _update override
         require(previousOwner != address(0), ERC721NonexistentToken(tokenId));
         require(previousOwner == from, ERC721IncorrectOwner(from, tokenId, previousOwner));
@@ -216,7 +215,9 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IuRWA {
     }
 
     function isUserAllowed(address user) public view virtual override returns (bool allowed) {
-        return isWhitelisted[user];
+        if (!isWhitelisted[user]) return false;
+        
+        return true;
     }
 
     function isTransferAllowed(address from, address to, uint256 tokenId, uint256) public view virtual override returns (bool allowed) {
@@ -277,7 +278,9 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IuRWA {
     }
 
     function isUserAllowed(address user) public view virtual override returns (bool allowed) {
-        return isWhitelisted[user];
+        if (!isWhitelisted[user]) return false;
+        
+        return true;
     }
 
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal virtual override {
