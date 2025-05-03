@@ -1,4 +1,5 @@
 ---
+eip: 7929
 title: PermaLink Asset Bound Token Standard
 description: An interface for PermaLink Asset Bound Tokens, also known as a PermaLink-ABTs.
 author: Mihai Onila (@MihaiORO), Nick Zeman (@NickZCZ), Narcis Cotaie (@NarcisCRO)
@@ -12,11 +13,11 @@ requires: 721, 721Enumerable
 
 ### Abstract
 
-This standard introduces a subclass of tokens known as **PermaLink Asset Bound Tokens (PermaLink-ABTs)** a specific implementation of the broader **Asset Bound Token (ABT)** concept. ABTs establish a novel ownership paradigm where **an asset can own another asset**, enabling composable, nested, and portfolio-like token structures that evolve together over time.
+This standard introduces a subclass of tokens known as **PermaLink Asset Bound Tokens (PermaLink-ABTs)**. They are a specific implementation of the broader **Asset Bound Token (ABT)** concept. ABTs establish a novel ownership paradigm where **an asset can own another asset**, enabling composable, nested, and portfolio-like token structures that evolve together over time.
 
-PermaLink-ABTs implement a permanent binding mechanism where a token in one smart contract is irreversibly linked to a token in another contract. These links mirror key state data such as `ownerOf`, `tokenId`, `totalSupply`, and `balanceOf` using the `assetBoundContract` interface. Traditional token transfer and approval functions are disabled to enforce immutability and structural cohesion between bound assets.
+PermaLink-ABTs implement a permanent binding mechanism where a token in one smart contract is irreversibly linked to a token in another contract. These links mirror key state data such as `ownerOf`, `tokenId`, `totalSupply`, and `balanceOf` using the `assetBoundContract` interface. Traditional token transfer and approval functions are omitted to enforce immutability and structural cohesion between bound assets.
 
-Instead of utilizing a `mint` function, PermaLink-ABTs employ a `reveal` mechanism that activates tokens from a predefined supply. This approach enables permissionless binding and significantly reduces gas costs. A single token can have multiple PermaLink-ABTs bound to it acting as multiple multiple subordinate assets, forming a unified, transferable unit that simplifies asset mobility across digital identities, NFTs, and real-world assets (RWAs).
+Instead of utilizing a `mint` function, PermaLink-ABTs employ a `reveal` mechanism that activates tokens from a predefined supply. This approach enables permissionless binding and significantly reduces gas costs. A single token can have multiple PermaLink-ABTs bound to it acting as multiple subordinate assets, forming a unified, transferable unit that simplifies asset mobility across digital identities, NFTs, and real-world assets (RWAs).
 
 By encouraging asset composability over competition, PermaLink-ABTs introduce a dynamic, future-proof model for on-chain asset evolution.
 
@@ -28,7 +29,7 @@ Traditional ownership models on Ethereum are inherently limited—only externall
 This standard proposes **Asset Bound Tokens (ABTs)** as a solution to this challenge. ABTs allow one token to be permanently bound to another across contracts, creating a dynamic, flexible, and composable ownership model. By enabling tokens to move and evolve together, ABTs pave the way for new possibilities in the on-chain economy. The following use cases illustrate why ABTs are needed:
 
 1. **On-Chain Identity Systems**  
- Governments and institutions worldwide are piloting or implementing blockchain-based identity systems—digital passports, national IDs, and verifiable credentials such as with the EBSI initiative. These systems often require credentials to be linked across multiple registries (e.g., healthcare, banking, voting). ABTs enable the binding of identity-linked tokens into a cohesive unit, so they move together instead of requiring manual coordination and transfers. This ensures that identity-linked assets remain interconnected and dynamic, making it easier to manage and update linked data as users interact with various systems.
+ Governments and institutions worldwide are piloting or implementing blockchain-based identity systems—digital passports, national IDs, and verifiable credentials such as with the ongoing European Blockchain Services Infrastructure (EBSI) initiatives. These systems often require credentials to be linked across multiple registries (e.g., healthcare, banking, voting). ABTs enable the binding of identity-linked tokens into a cohesive unit, so they move together instead of requiring manual coordination and transfers. This ensures that identity-linked assets remain interconnected and dynamic, making it easier to manage and update linked data as users interact with various systems.
 
 2. **Real-World Asset (RWA) Ownership Structures**  
  Tokenized businesses and assets (e.g., land, equipment, commodities) need flexible ownership models. These dynamic—businesses acquire, divest, and restructure their holdings and various assets. ABTs allow contracts to represent complex, evolving ownership hierarchies, where nested assets follow changes in their parent entity’s structure (e.g., a farming company acquiring new land or an IT firm merging with another and inheriting intellectual property). ABTs ensure businesses can efficiently manage and transfer assets on-chain without the constraints of rigid smart contracts.
@@ -40,11 +41,11 @@ This standard proposes **Asset Bound Tokens (ABTs)** as a solution to this chall
  NFT projects often expand by launching secondary collections (e.g., additional editions, special releases). Without ABTs, this leads to fragmented value and user confusion as older and newer assets compete. ABTs allow new NFTs to be bound to originals, enhancing their value while maintaining a unified ecosystem. This strengthens liquidity and preserves market metrics, ensuring that the value of the original collection is retained and supported by the newer assets, thus benefiting both creators and collectors.
 
 5. **New Opportunities for Creators**  
-   ABTs empower creators to build on top of existing assets permissionlessly—without needing ownership of or permission from the original smart contract. This enables a new wave of creative expression, where artists can augment and enhance NFTs (e.g., adding new visuals, audio, or interactive layers) and collaborate on existing collections. Such contributions can generate new revenue streams through shared royalties, consignment, or collaborative upgrades. Owners benefit as well, since bound enhancements can increase the inherent value of their holdings, particularly in projects involving established creators or cross-collection collaborations.
+   ABTs empower creators to build on top of existing assets permissionlessly without needing ownership of or permission from the original smart contract. This enables a new wave of creative expression, where artists can augment and enhance NFTs (e.g., adding new visuals, audio, or interactive layers) and collaborate on existing collections. Such contributions can generate new revenue streams through shared royalties, consignment, or collaborative upgrades. Owners benefit as well, since bound enhancements can increase the inherent value of their holdings, particularly in projects involving established creators or cross-collection collaborations.
 
 In essence, ABTs introduce a framework where tokens are linked rather than owned. This allows for dynamic and evolving asset systems, where assets move together in harmony. If a binding token moves, all associated ABTs move with it, ensuring seamless updates and reducing the need for manual transfers. This innovation transforms traditional smart contracts from static repositories into living, evolving systems capable of adapting to changing use cases, technologies, and business models.
 
-The **PermaLink-ABTs** implementation takes the ABT model further by enforcing a permanent binding between one token and another—whether it’s another ABT, NFT or NFKBT. This permanent binding ensures that tokens can be transferred as a single unit, reducing complexity and gas fees. Instead of relying on traditional minting, PermaLink-ABTs use a `reveal` mechanism, activating tokens from a predefined supply. This reduces gas costs and encourages efficient linking of assets, enabling greater composability across multiple sectors.
+The **PermaLink-ABTs** implementation takes the ABT model further by enforcing a permanent binding between one token and another—whether it's another ABT, NFT or NFKBT. This permanent binding ensures that tokens can be transferred as a single unit, reducing complexity and gas fees. Instead of relying on traditional minting, PermaLink-ABTs use a `reveal` mechanism, activating tokens from a predefined supply. This reduces gas costs and encourages efficient linking of assets, enabling greater composability across multiple sectors.
 
 PermaLink-ABTs consolidate asset value by allowing multiple subordinate tokens to be linked to a single binding token, providing enhanced composability and reducing fragmentation. By requiring only the binding token to be transferred, all associated assets move in sync, making it easier to manage portfolios and move groups of assets together. This approach fosters collaboration, value accrual, and compatibility across ecosystems, whether for digital identities, RWAs, NFTs, or other on-chain assets.
 
@@ -60,82 +61,34 @@ PermaLink-ABTs consolidate asset value by allowing multiple subordinate tokens t
 
 ```solidity
 interface IABT {
+    event AssetBoundContractSet(address assetBoundContract);
+    event TokenRevealed(uint256 tokenId);
+
     function ownerOf(uint256 tokenId) external view returns (address);
     function tokenExists(uint256 tokenId) external view returns (bool);
     function totalSupply() external view returns (uint256);
     function balanceOf(address owner) external view returns (uint256);
+
+    function reveal(uint256[] calldata tokenIds) external payable;
 }
 ```
 
-### `ABT` (Token Contract)
+### **Interface events**
+
+#### `AssetBoundContractSet` event
+
+Emitted when the contract is deployed and bound to `assetBoundContract`
+
 ```solidity
-contract ABT is ERC721Enumerable, Ownable, IABT {
-    ERC721Enumerable public assetBoundContract;
+event AssetBoundContractSet(address assetBoundContract);
+```
 
-    constructor(
-        address _assetBoundContract,
-        string memory _name,
-        string memory _symbol
-    ) ERC721(_name, _symbol) {
-        assetBoundContract = ERC721Enumerable(_assetBoundContract);
-    }
+#### `TokenRevealed` event
 
-    function ownerOf(
-        uint256 tokenId
-    ) public view override(ERC721, IABT, IERC721) returns (address) {
-        return assetBoundContract.ownerOf(tokenId);
-    }
+Emitted when the `tokenId` is revealed
 
-    function tokenExists(uint256 tokenId) public view returns (bool) {
-        return assetBoundContract.ownerOf(tokenId) != address(0);
-    }
-
-    function totalSupply() public view override returns (uint256) {
-        return assetBoundContract.totalSupply();
-    }
-
-    function balanceOf(
-        address owner
-    ) public view override(ERC721, IERC721) returns (uint256) {
-        return assetBoundContract.balanceOf(owner);
-    }
-
-    function approve(address, uint256) public pure override(ERC721, IERC721) {
-        revert("ABT: Approvals not allowed");
-    }
-
-    function setApprovalForAll(
-        address,
-        bool
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Approvals not allowed");
-    }
-
-    function transferFrom(
-        address,
-        address,
-        uint256
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Transfers not allowed");
-    }
-
-    function safeTransferFrom(
-        address,
-        address,
-        uint256
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Transfers not allowed");
-    }
-
-    function safeTransferFrom(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Transfers not allowed");
-    }
-}
+```solidity
+event TokenRevealed(uint256 tokenId);
 ```
 
 ### **Interface functions**
@@ -174,41 +127,25 @@ Returns the number of NFTs in the assetBoundContract that an owner has.
 function balanceOf(address owner) external view returns (uint256);
 ```
 
+### `reveal` function
+
+An optional `reveal` function MAY be implemented to allow pre-allocated tokens to be activated on demand.  
+This method reduces gas consumption compared to traditional minting and simplifies token activation mechanics.
+
+```solidity
+function reveal(uint256[] calldata tokenIds) external payable;
+```
+
 ## Rationale
 
-The design of PermaLink-ABTs centers around the goal of enabling permanent token binding while optimizing for gas efficiency, composability, and secure ownership structures. We chose to implement a `reveal` function in place of a traditional `mint` function to reduce gas costs and simplify on-chain state changes. Unlike minting, which creates tokens at runtime and incurs higher gas fees, the `reveal` function maps pre-allocated tokens stored in an array or mapping. This allows tokens to be activated on demand without the overhead of dynamic token creation. As a result, token issuers can prepare and store an entire supply in advance, with users later revealing and binding tokens when needed. This approach aligns with the use case of portfolio binding and asset hierarchies, where large numbers of tokens may need to be activated and bound efficiently. 
-
-We adopted the `assetBoundContract` interface to mirror essential metadata such as `ownerOf`, `tokenId`, `totalSupply`, and `balanceOf` from the binding token’s contract. This ensures that PermaLink-ABTs remain synchronized with the asset they are bound to, without duplicating logic or requiring manual updates. The mirroring also ensures traceability and visibility across contracts, allowing observers and off-chain systems to reliably interpret the token relationship. To preserve the permanent nature of the bond, standard `transfer` and `approve` methods are disabled. This immutability guarantees that PermaLink-ABTs cannot be separated from their bound asset once revealed. If the primary token moves, all attached PermaLink-ABTs move with it. This behavior supports composability, value aggregation, and consistent ownership logic.
+The design of PermaLink-ABTs centers around the goal of enabling permanent token binding while optimizing for gas efficiency, composability, and secure ownership structures. We adopted the `assetBoundContract` interface to mirror essential metadata such as `ownerOf`, `tokenId`, `totalSupply`, and `balanceOf` from the binding token’s contract. This ensures that PermaLink-ABTs remain synchronized with the asset they are bound to, without duplicating logic or requiring manual updates. The mirroring also ensures traceability and visibility across contracts, allowing observers and off-chain systems to reliably interpret the token relationship. To preserve the permanent nature of the bond, standard `transfer` and `approve` methods are omitted. This immutability guarantees that PermaLink-ABTs cannot be separated from their bound asset once revealed. If the primary token moves, all attached PermaLink-ABTs move with it. This behavior supports composability, value aggregation, and consistent ownership logic.
 
 An alternative considered was allowing flexible transfer mechanics via opt-in transfer functions or whitelisting. However, this introduced unnecessary complexity and undermined the core principle of permanence. It also increased the risk of token desynchronization, accidental fragmentation, and security vulnerabilities in contract implementations. By contrast, the current design provides a simpler and more robust foundation.
 
+By implementing an **optional** `reveal` function in place of a traditional `mint` function it reduce gas costs and simplifies on-chain state changes for both the deployer and owner of the token having an ABT bound to it. Unlike minting, which creates tokens at runtime and incurs higher gas fees, the `reveal` function maps pre-allocated tokens stored in an array or mapping. This allows tokens to be activated on demand without the overhead of dynamic token creation. As a result, token issuers can prepare and store an entire supply in advance, with users later revealing and binding tokens when needed. This approach aligns with the use case of portfolio binding and asset hierarchies, where large numbers of tokens may need to be activated and bound efficiently. 
+
 PermaLink-ABTs enforce strict one-way binding with immutable relationships, making them especially suitable for use cases like identity systems, real-world asset (RWA) structures, and portfolio-locked NFTs. They act as permanently attached extensions to existing tokens, reducing complexity and avoiding redundant contract logic. This approach also provides a cleaner and more secure way to augment existing assets while maintaining compatibility across various blockchain use cases. This standard is intentionally minimal to ensure wide compatibility and flexibility. Developers can extend the base logic for specialized use cases, such as embedding royalty splits, upgrade paths, or linking to dynamic data feeds, without altering the underlying PermaLink mechanism.
 
-## Backwards Compatibility
-
-<!--
-
-  This section is optional.
-
-  All EIPs that introduce backwards incompatibilities must include a section describing these incompatibilities and their severity. The EIP must explain how the author proposes to deal with these incompatibilities. EIP submissions without a sufficient backwards compatibility treatise may be rejected outright.
-
-  The current placeholder is acceptable for a draft.
-
-  TODO: Remove this comment before submitting
--->
-
-No backward compatibility issues found.
-
-## Test Cases
-
-<!--
-  This section is optional for non-Core EIPs.
-
-  The Test Cases section should include expected input/output pairs, but may include a succinct set of executable tests. It should not include project build files. No new requirements may be introduced here (meaning an implementation following only the Specification section should pass all tests here.)
-  If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed
-
-  TODO: Remove this comment before submitting
--->
 
 ## Reference Implementation
 
@@ -225,13 +162,10 @@ No backward compatibility issues found.
 
 PermaLink-ABTs are linked to another non-fungible token. If an individual loses access to this token—what we call the **binding token**—they also lose access to all PermaLink-ABTs that have been bound to it. This introduces a critical security consideration: the entire value of bound assets depends on the integrity and availability of the binding token.
 
-To mitigate this risk, we strongly recommend the use of standards like [ERC-6809](https://eips.ethereum.org/EIPS/eip-6809), a **Non-Fungible Key Bound Token**, which introduces on-chain two-factor authentication (2FA). ERC-6809 allows a user to bind sensitive tokens (like PermaLink-ABTs) to a secured identity layer, complete with recovery mechanisms. In the event that a user loses access to their original wallet or interacts with a malicious contract, ERC-6809 provides a safeFallback function to re-establish control.
+To mitigate this risk, we strongly recommend the use of standards like [ERC-6809](./eip-6809.md), a **Non-Fungible Key Bound Token**, which introduces on-chain two-factor authentication (2FA). ERC-6809 allows a user to bind sensitive tokens (like PermaLink-ABTs) to a secured identity layer, complete with recovery mechanisms. In the event that a user loses access to their original wallet or interacts with a malicious contract, ERC-6809 provides a safeFallback function to re-establish control.
 
 In essence, all of the security guarantees of ERC-6809 extend to any PermaLink-ABTs bound to it. This layered security model not only protects against loss but also ensures recoverability and long-term viability for high-value bound assets. It is strongly encouraged that developers implementing PermaLink-ABTs integrate this or similar standards to provide a robust security foundation for users.
 
-
-
-Needs discussion.
 
 ## Copyright
 
