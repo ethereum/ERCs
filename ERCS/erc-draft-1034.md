@@ -34,7 +34,7 @@ Returns the name of the token - e.g. `"MyConfidentialToken"` .
 
 OPTIONAL - This method can be used to improve usability, but interfaces and other contracts MUST NOT expect these values to be present.
 
-```
+```Solidity
 function name() public view returns (string)
 ```
 
@@ -44,7 +44,7 @@ Returns the symbol of the token. e.g. `"cHIX"` .
 
 OPTIONAL - This method can be used to improve usability, but interfaces and other contracts MUST NOT expect these values to be present.
 
-```
+```Solidity
 function symbol() public view returns (string)
 ```
 
@@ -54,7 +54,7 @@ Returns the number of decimals the token uses - e.g. `8` , means to divide the t
 
 OPTIONAL - This method can be used to improve usability, but interfaces and other contracts MUST NOT expect these values to be present.
 
-```
+```Solidity
 function decimals() public view returns (uint8)
 ```
 
@@ -62,7 +62,7 @@ function decimals() public view returns (uint8)
 
 Returns the account confidential balance of another account with address `owner` .
 
-```
+```Solidity
 function confidentialBalanceOf(address owner) 
 public view returns (bytes memory confidentialBalance)
 ```
@@ -80,7 +80,7 @@ Note:
   * The plaintext `value` behind `_confidentialTransferValue` is non-negative;
   * The caller's confidential balance is actually enough to pay the plaintext `value` behind `_confidentialTransferValue` .
 
-```
+```Solidity
 function confidentialTransfer(
   address _to,
   bytes memory _confidentialTransferValue, 
@@ -103,7 +103,7 @@ Note:
   * The plaintext `value` behind `_confidentialTransferValue` is non-negative;
   * The caller's confidential allowance is actually enough to pay the plaintext `value` behind `_confidentialTransferValue` .
 
-```
+```Solidity
 function confidentialTransferFrom(
   address _from,
   address _to,
@@ -125,7 +125,7 @@ Calling `confidentialApprove` splits the confidential balance of caller's accoun
 
 The values behind two parts above after calling `confidentialApprove` , and the value behind the original confidential balance of caller's account before calling `confidentialApprove` satisfy the equation:
 
- <img src="../assets/erc-draft-N/value_equation.png" width=690 height=27>
+ <img src="../assets/erc-draft-1034/value_equation.png" width=690 height=27>
 
 
 
@@ -149,7 +149,7 @@ Note:
   * The plaintext `value` behind `_confidentialValue` is non-negative;
   * The caller's confidential balance is actually enough to pay the plaintext `value` behind `_confidentialValue` .
 
-```
+```Solidity
 function confidentialApprove(
   address _spender,
   bytes memory _confidentialValue, 
@@ -161,7 +161,7 @@ function confidentialApprove(
 
 Returns the allowance part which `_spender` is still allowed to withdraw from `_owner` .
 
-```
+```Solidity
 functinon confidentialAllowance(address _owner, address _spender)
 public view returns (bytes memory _confidentialValue)
 ```
@@ -179,7 +179,7 @@ A confidential token contract,
 * which creates new tokens SHOULD trigger a `ConfidentialTransfer` with the `_from` address set to `0x0` when tokens are minted;
 * which destroys existent tokens SHOULD trigger a `ConfidentialTransfer` with the `_to` address set to `0x0` when tokens are burnt.
 
-```
+```Solidity
 event ConfidentialTransfer(
   address indexed _spender,
   address indexed _from, 
@@ -192,7 +192,7 @@ event ConfidentialTransfer(
 
 MUST trigger on any successful call to `confidentialApprove(address,bytes,bytes)` .
 
-```
+```Solidity
 event ConfidentialApproval(
   address indexed _owner,
   address indexed _spender,
@@ -217,7 +217,7 @@ Confidentiality of transfer amount makes it hard to support such field like `tot
 
 Contract implementation can optionally support `confidentialTotalSupply()` by evaluating if anti-money laundry (see next part) and audit are required. That would be much more plausible by making a small group of parties can know the plaintext total supply behind `confidentialTotalSupply()`.
 
-```
+```Solidity
 function confidentialTotalSupply() public view returns (bytes memory)
 ```
 
