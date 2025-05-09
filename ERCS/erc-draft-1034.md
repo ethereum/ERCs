@@ -119,7 +119,7 @@ Allows `_spender` to withdraw from caller's split part of balances multiple time
 
 Caution:
 
-This function behaves much **different from** `approve(address,uint256)` in [ERC20](./eip-20.md).
+This function behaves much **different from** `approve(address,uint256)` in [ERC20](./erc-20.md).
 
 Calling `confidentialApprove` splits the confidential balance of caller's account into *allowance part* and *the left part*.
 
@@ -213,7 +213,7 @@ Consequently, this proposal is to standardize the confidential transaction suppo
 
 ### Optional Accessor of "Confidential Total Supply"
 
-Confidentiality of transfer amount makes it hard to support such field like `totalSupply()` in [ERC20](./eip-20.md). Because when it comes to the token "mint" or "burn", if every user in this contract can access `totalSupply()` as well as decrypt it, these users will know the actual token value to be minted or burnt by comparing the `totalSupply()` before and after such operations, which means that confidentiality no longer exists.
+Confidentiality of transfer amount makes it hard to support such field like `totalSupply()` in [ERC20](./erc-20.md). Because when it comes to the token "mint" or "burn", if every user in this contract can access `totalSupply()` as well as decrypt it, these users will know the actual token value to be minted or burnt by comparing the `totalSupply()` before and after such operations, which means that confidentiality no longer exists.
 
 Contract implementation can optionally support `confidentialTotalSupply()` by evaluating if anti-money laundry (see next part) and audit are required. That would be much more plausible by making a small group of parties can know the plaintext total supply behind `confidentialTotalSupply()`.
 
@@ -229,11 +229,11 @@ For example in Zether-like implementation (see https://doi.org/10.1007/978-3-030
 
 ### Fat Token
 
-Confidential transactions supported token can also implement [ERC20](./eip-20.md) at the same time.
+Confidential transactions supported token can also implement [ERC20](./erc-20.md) at the same time.
 
-Token accounts in such tokens can hold 2 kinds of balances. Such token contracts can optionally provide methods to hind [ERC20](./eip-20.md) plaintext balances into confidential balances, and vice versa, to reveal confidential balances back to [ERC20](./eip-20.md) plaintext balances.
+Token accounts in such tokens can hold 2 kinds of balances. Such token contracts can optionally provide methods to hind [ERC20](./erc-20.md) plaintext balances into confidential balances, and vice versa, to reveal confidential balances back to [ERC20](./erc-20.md) plaintext balances.
 
-[ERC20](./eip-20.md) interfaces will bring much more usability and utilities to confidential transaction supported tokens, realizing general confidentiality meantime.
+[ERC20](./erc-20.md) interfaces will bring much more usability and utilities to confidential transaction supported tokens, realizing general confidentiality meantime.
 
 ## Backwards Compatibility
 
