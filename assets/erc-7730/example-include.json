@@ -1,0 +1,44 @@
+{
+    "context": {
+        "$id": "Example USD",
+        "contract" : {
+            "deployments": [
+                {
+                "chainId": 1,
+                "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+                }
+            ]
+        }
+    }, 
+
+    "includes": "./example-erc20.json",
+    
+    "metadata": {
+        "owner": "Example",
+        "info": {
+            "legalName": "Example Inc.",
+            "url": "https://example.io/",
+            "deploymentDate": "2017-11-28T12:41:21Z"  
+        },
+        "token": {
+            "ticker": "EXA",
+            "name": "Example Stablecoin",
+            "decimals": 6
+        }
+    },
+
+    "display": {
+        "formats": {
+            "approve(address _spender,uint256 _value)": {
+                "fields": [
+                    {
+                        "path": "_value",
+                        "params" : {
+                            "threshold": "0xFFFFFFFFFFFFFFFFFF"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
