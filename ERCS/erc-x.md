@@ -83,7 +83,7 @@ Emitted when the contract is deployed and bound to `assetBoundContract`
 event AssetBoundContractSet(address assetBoundContract);
 ```
 
-#### `TokenRevealed` event
+#### `TokenRevealed` Event
 
 Emitted when the `tokenId` is revealed
 
