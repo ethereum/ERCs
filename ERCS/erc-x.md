@@ -111,7 +111,7 @@ Returns true if the owner of the token is not the zero address (`0x0`)
 function tokenExists(uint256 tokenId) external view returns (bool);
 ```
 
-#### `totalSupply` function
+#### `totalSupply`
 
 Gets the total amount of tokens stored by the assetBoundContract
 
