@@ -127,7 +127,7 @@ Returns the number of NFTs in the assetBoundContract that an owner has.
 function balanceOf(address owner) external view returns (uint256);
 ```
 
-### `reveal` function
+### `reveal`
 
 An optional `reveal` function MAY be implemented to allow pre-allocated tokens to be activated on demand.  
 This method reduces gas consumption compared to traditional minting and simplifies token activation mechanics.
