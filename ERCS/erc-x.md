@@ -57,7 +57,6 @@ PermaLink-ABTs consolidate asset value by allowing multiple subordinate tokens t
 **NOTES**:
 
 - The following specifications use syntax from Solidity `0.8.27` (or above)
-- Callers MUST handle `false` from `returns (bool success)`. Callers MUST NOT assume that `false` is never returned!
 
 ```solidity
 interface IABT {
@@ -68,8 +67,6 @@ interface IABT {
     function tokenExists(uint256 tokenId) external view returns (bool);
     function totalSupply() external view returns (uint256);
     function balanceOf(address owner) external view returns (uint256);
-
-    function reveal(uint256[] calldata tokenIds) external payable;
 }
 ```
 
@@ -81,14 +78,6 @@ Emitted when the contract is deployed and bound to `assetBoundContract`
 
 ```solidity
 event AssetBoundContractSet(address assetBoundContract);
-```
-
-#### `TokenRevealed` Event
-
-Emitted when the `tokenId` is revealed
-
-```solidity
-event TokenRevealed(uint256 tokenId);
 ```
 
 ### Functions
@@ -103,9 +92,10 @@ Returns the owner of the NFT specified by the `tokenId`. Will read from the `ass
 function ownerOf(uint256 tokenId) external view returns (address);
 ```
 
-#### `tokenExists` function
+#### `tokenExists`
 
-Returns true if the owner of the token is not the zero address (`0x0`)
+Returns true if the token read from the `assetBoundContract` exists.
+Tokens usually start existing when minted and stop existing when burned.
 
 ```solidity
 function tokenExists(uint256 tokenId) external view returns (bool);
@@ -127,9 +117,38 @@ Returns the number of NFTs in the assetBoundContract that an owner has.
 function balanceOf(address owner) external view returns (uint256);
 ```
 
+### `IERC7929Reveal` (Optional Token Interface)
+
+**NOTES**:
+
+- The following specifications use syntax from Solidity `0.8.27` (or above)
+- The Reveal extension is OPTIONAL for ERC-7929 contracts
+  
+```solidity
+interface IERC7929Reveal is IERC7929 {
+    event TokenRevealed(uint256 tokenId);
+
+    function reveal(uint256[] calldata tokenIds) external payable;
+}
+```
+
+### Events
+
+#### `TokenRevealed` Event
+
+Emitted when the `tokenId` is revealed
+
+```solidity
+event TokenRevealed(uint256 tokenId);
+```
+
+### Functions
+
+The functions detailed below MUST be implemented.
+
 ### `reveal`
 
-An optional `reveal` function MAY be implemented to allow pre-allocated tokens to be activated on demand.  
+The `reveal` function should be implemented to allow pre-allocated tokens to be activated on demand.  
 This method reduces gas consumption compared to traditional minting and simplifies token activation mechanics.
 
 ```solidity
@@ -149,14 +168,15 @@ PermaLink-ABTs enforce strict one-way binding with immutable relationships, maki
 
 ## Reference Implementation
 
-### `ABT` (Token implementation)
+### `ERC7929` (Token implementation)
 
-**NOTES**: The interface ID of IABT is (`0xb249b1e6`)
+**NOTES**: 
+- The interface ID of IERC7929 is (`0x0b76916c`)
+- Callers MUST handle `false` from `returns (bool success)`. Callers MUST NOT assume that `false` is never returned!
 
 ```solidity
-contract ABT is IERC165, ERC721Enumerable, Ownable, IABT {
+contract ERC7929 is IERC165, ERC721Enumerable, Ownable, IERC7929 {
     ERC721Enumerable public assetBoundContract;
-    mapping(uint256 => bool) public isRevealed;
 
     constructor(
         address _assetBoundContract,
@@ -179,7 +199,7 @@ contract ABT is IERC165, ERC721Enumerable, Ownable, IABT {
         bytes4 interfaceId
     ) public view virtual override(ERC721Enumerable, IERC165) returns (bool) {
         return
-            interfaceId == type(IABT).interfaceId ||
+            interfaceId == type(IERC7929).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -193,17 +213,11 @@ contract ABT is IERC165, ERC721Enumerable, Ownable, IABT {
 
     modifier tokensMustExist(uint256[] calldata tokenIds) {
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            require(tokenExists(tokenIds[i]), "ABT: Token does not exist");
+            require(tokenExists(tokenIds[i]), "ERC7929: Token does not exist");
         }
         _;
     }
 
-    modifier tokensMustNotBeRevealed(uint256[] calldata tokenIds) {
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            require(!isRevealed[tokenIds[i]], "ABT: Token already revealed");
-        }
-        _;
-    }
     ///////////////////////////////////////////////////////////////
     // endregion Modifiers
     ///////////////////////////////////////////////////////////////
@@ -214,18 +228,25 @@ contract ABT is IERC165, ERC721Enumerable, Ownable, IABT {
 
     function ownerOf(
         uint256 tokenId
-    ) public view override(ERC721, IABT, IERC721) returns (address) {
+    )
+        public
+        view
+        virtual
+        override(ERC721, IERC7929, IERC721)
+        returns (address)
+    {
         return assetBoundContract.ownerOf(tokenId);
     }
 
-    function tokenExists(uint256 tokenId) public view returns (bool) {
+    function tokenExists(uint256 tokenId) public view virtual returns (bool) {
         return assetBoundContract.ownerOf(tokenId) != address(0);
     }
 
     function totalSupply()
         public
         view
-        override(ERC721Enumerable, IABT)
+        virtual
+        override(ERC721Enumerable, IERC7929)
         returns (uint256)
     {
         return assetBoundContract.totalSupply();
@@ -233,8 +254,149 @@ contract ABT is IERC165, ERC721Enumerable, Ownable, IABT {
 
     function balanceOf(
         address owner
-    ) public view override(ERC721, IABT, IERC721) returns (uint256) {
+    )
+        public
+        view
+        virtual
+        override(ERC721, IERC7929, IERC721)
+        returns (uint256)
+    {
         return assetBoundContract.balanceOf(owner);
+    }
+
+    ///////////////////////////////////////////////////////////////
+    //endregion
+    ///////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////
+    //region Disabling approve and transfer functions to prevent transfers of ABT tokens
+    ///////////////////////////////////////////////////////////////
+
+    function approve(address, uint256) public pure override(ERC721, IERC721) {
+        revert("ERC7929: Approvals not allowed");
+    }
+
+    function setApprovalForAll(
+        address,
+        bool
+    ) public pure override(ERC721, IERC721) {
+        revert("ERC7929: Approvals not allowed");
+    }
+
+    function transferFrom(
+        address,
+        address,
+        uint256
+    ) public pure override(ERC721, IERC721) {
+        revert("ERC7929: Transfers not allowed");
+    }
+
+    function safeTransferFrom(
+        address,
+        address,
+        uint256
+    ) public pure override(ERC721, IERC721) {
+        safeTransferFrom(address(0), address(0), 0, "");
+    }
+
+    function safeTransferFrom(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public pure override(ERC721, IERC721) {
+        revert("ERC7929: Transfers not allowed");
+    }
+
+    ///////////////////////////////////////////////////////////////
+    //endregion
+    ///////////////////////////////////////////////////////////////
+}
+```
+
+### `IERC7929Reveal` (Token implementation)
+
+**NOTES**: 
+- This is an OPTIONAL extension for ERC7929 contracts
+- The interface ID of IERC7929Reveal is (`0xb93f208a`)
+- Callers MUST handle `false` from `returns (bool success)`. Callers MUST NOT assume that `false` is never returned!
+
+```solidity
+contract ERC7929Reveal is ERC7929, IERC7929Reveal {
+    mapping(uint256 => bool) public isRevealed;
+
+    constructor(
+        address _assetBoundContract,
+        string memory _name,
+        string memory _symbol
+    ) ERC7929(_assetBoundContract, _name, _symbol) {}
+
+    ///////////////////////////////////////////////////////////////
+    // region EIP-165 Implementation
+    ///////////////////////////////////////////////////////////////
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
+        return
+            interfaceId == type(IERC7929Reveal).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+
+    ///////////////////////////////////////////////////////////////
+    // endregion
+    ///////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////
+    // region Modifiers
+    ///////////////////////////////////////////////////////////////
+
+    modifier tokensMustNotBeRevealed(uint256[] calldata tokenIds) {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            require(
+                !isRevealed[tokenIds[i]],
+                "ERC7929: Token already revealed"
+            );
+        }
+        _;
+    }
+
+    ///////////////////////////////////////////////////////////////
+    // endregion Modifiers
+    ///////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////
+    // region mirror functions
+    ///////////////////////////////////////////////////////////////
+
+    function ownerOf(
+        uint256 tokenId
+    ) public view override(ERC7929, IERC7929) returns (address) {
+        return super.ownerOf(tokenId);
+    }
+
+    function tokenExists(
+        uint256 tokenId
+    ) public view override(ERC7929, IERC7929) returns (bool) {
+        return super.tokenExists(tokenId);
+    }
+
+    function totalSupply()
+        public
+        view
+        override(ERC7929, IERC7929)
+        returns (uint256)
+    {
+        return super.totalSupply();
+    }
+
+    function balanceOf(
+        address owner
+    ) public view override(ERC7929, IERC7929) returns (uint256) {
+        return super.balanceOf(owner);
     }
 
     ///////////////////////////////////////////////////////////////
@@ -263,51 +425,7 @@ contract ABT is IERC165, ERC721Enumerable, Ownable, IABT {
     ///////////////////////////////////////////////////////////////
     //endregion
     ///////////////////////////////////////////////////////////////
-
-    ///////////////////////////////////////////////////////////////
-    //region Disabling approve and transfer functions to prevent transfers of ABT tokens
-    ///////////////////////////////////////////////////////////////
-
-    function approve(address, uint256) public pure override(ERC721, IERC721) {
-        revert("ABT: Approvals not allowed");
-    }
-
-    function setApprovalForAll(
-        address,
-        bool
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Approvals not allowed");
-    }
-
-    function transferFrom(
-        address,
-        address,
-        uint256
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Transfers not allowed");
-    }
-
-    function safeTransferFrom(
-        address,
-        address,
-        uint256
-    ) public pure override(ERC721, IERC721) {
-        safeTransferFrom(address(0), address(0), 0, "");
-    }
-
-    function safeTransferFrom(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public pure override(ERC721, IERC721) {
-        revert("ABT: Transfers not allowed");
-    }
-
-    ///////////////////////////////////////////////////////////////
-    //endregion
-    ///////////////////////////////////////////////////////////////
-}
+}    
 ```
 
 ## Security Considerations
