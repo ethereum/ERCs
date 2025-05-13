@@ -75,7 +75,7 @@ interface IABT {
 
 ### Events
 
-#### `AssetBoundContractSet` event
+#### `AssetBoundContractSet` Event
 
 Emitted when the contract is deployed and bound to `assetBoundContract`
 
