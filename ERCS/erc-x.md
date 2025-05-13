@@ -91,7 +91,7 @@ Emitted when the `tokenId` is revealed
 event TokenRevealed(uint256 tokenId);
 ```
 
-### **Interface functions**
+### Functions
 
 The functions detailed below MUST be implemented.
 
