@@ -1,7 +1,7 @@
 ---
 eip: 7929
 title: PermaLink Asset Bound Token Standard
-description: An interface for PermaLink Asset Bound Tokens, also known as a PermaLink-ABTs.
+description: Asset-bound Tokens (ABT) permanently bound to another token, known as PermaLink-ABTs.
 author: Mihai Onila (@MihaiORO), Nick Zeman (@NickZCZ), Narcis Cotaie (@NarcisCRO)
 discussions-to: https://ethereum-magicians.org/t/non-fungible-asset-bound-token/23175
 status: Draft
