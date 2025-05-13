@@ -95,7 +95,7 @@ event TokenRevealed(uint256 tokenId);
 
 The functions detailed below MUST be implemented.
 
-#### `ownerOf` function
+#### `ownerOf`
 
 Returns the owner of the NFT specified by the `tokenId`. Will read from the `assetBoundContract` the owner and return it.
 
