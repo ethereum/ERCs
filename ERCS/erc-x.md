@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-04-01
-requires: 721, 721Enumerable
+requires: 721
 ---
 
 ### Abstract
