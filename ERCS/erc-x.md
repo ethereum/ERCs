@@ -119,7 +119,7 @@ Gets the total amount of tokens stored by the assetBoundContract
 function totalSupply() external view returns (uint256);
 ```
 
-#### `balanceOf` function
+#### `balanceOf`
 
 Returns the number of NFTs in the assetBoundContract that an owner has.
 
