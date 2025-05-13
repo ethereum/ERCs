@@ -73,7 +73,7 @@ interface IABT {
 }
 ```
 
-### **Interface events**
+### Events
 
 #### `AssetBoundContractSet` event
 
