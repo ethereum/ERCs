@@ -603,7 +603,7 @@ contract EquippableToken is
                 // At this point we know pendingRecursiveBurns must be at least 1
                 pendingRecursiveBurns = maxChildrenBurns - totalChildBurns;
             }
-            // We substract one to the next level to count for the token being burned, then add it again on returns
+            // We subtract one to the next level to count for the token being burned, then add it again on returns
             // This is to allow the behavior of 0 recursive burns meaning only the current token is deleted.
             totalChildBurns +=
                 IERC6059(children[i].contractAddress).burn(
@@ -788,7 +788,7 @@ contract EquippableToken is
      *  ]
      * @param parentId ID of the parent token for which the pending child token is being retrieved
      * @param index Index of the child token in the parent token's pending child tokens array
-     * @return struct A Child struct containting data about the specified child
+     * @return struct A Child struct containing data about the specified child
      */
     function pendingChildOf(
         uint256 parentId,
@@ -1398,7 +1398,7 @@ contract EquippableToken is
 
     /**
      * @notice Rejects all assets from the pending array of a given token.
-     * @dev Effecitvely deletes the pending array.
+     * @dev Effectively deletes the pending array.
      * @dev Requirements:
      *
      *  - The caller must own the token or be approved to manage the token's assets
@@ -1419,7 +1419,7 @@ contract EquippableToken is
      * @notice Sets a new priority array for a given token.
      * @dev The priority array is a non-sequential list of `uint16`s, where the lowest value is considered highest
      *  priority.
-     * @dev Value `0` of a priority is a special case equivalent to unitialized.
+     * @dev Value `0` of a priority is a special case equivalent to uninitialized.
      * @dev Requirements:
      *
      *  - The caller must own the token or be approved to manage the token's assets
@@ -1575,7 +1575,7 @@ contract EquippableToken is
     /**
      * @notice Used to reject all of the pending assets for the given token.
      * @dev When rejecting all assets, the pending array is indiscriminately cleared.
-     * @dev If the number of pending assets is greater than the value of `maxRejections`, the exectuion will be
+     * @dev If the number of pending assets is greater than the value of `maxRejections`, the execution will be
      *  reverted.
      * @param tokenId ID of the token to reject all of the pending assets.
      * @param maxRejections Maximum number of expected assets to reject, used to prevent from
@@ -1775,7 +1775,7 @@ contract EquippableToken is
      * @dev If the `Slot` already has an item equipped, the execution will be reverted.
      * @dev If the child can't be used in the given `Slot`, the execution will be reverted.
      * @dev If the catalog doesn't allow this equip to happen, the execution will be reverted.
-     * @dev The `IntakeEquip` stuct contains the following data:
+     * @dev The `IntakeEquip` struct contains the following data:
      *  [
      *      tokenId,
      *      childIndex,
@@ -2269,7 +2269,7 @@ contract EquippableToken is
      *  ]
      * @dev To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      * @param parentId ID of the token that has accepted a pending child token
-     * @param childIndex Index of the child token that was accpeted in the given parent token's pending children array
+     * @param childIndex Index of the child token that was accepted in the given parent token's pending children array
      * @param childAddress Address of the collection smart contract of the child token that was expected to be located
      *  at the specified index of the given parent token's pending children array
      * @param childId ID of the child token that was expected to be located at the specified index of the given parent
