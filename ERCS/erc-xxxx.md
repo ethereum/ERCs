@@ -111,7 +111,7 @@ This EIP is fully backwards compatible.
 There are several security concerns to point out:
 
 - It is up to a smart account developer to properly access control `addRecoveryProvider` and `removeRecoveryProvider` functions.
-- A smart account user may be "fished" to add a malicious recovery provider to their account (a provider may be an ERC20 token in disguise). Then by calling a `recoverOwnership` function, a `proof` may be concealed as a `transfer` operation that drains a user's account.
+- A smart account user may be "phished" to add a malicious recovery provider to their account (a provider may be an ERC20 token in disguise). Then by calling the `recoverOwnership` function, a `proof` may be concealed as a `transfer` operation that drains a user's account.
 - The `recoverOwnership` function is non-view and calling the passed `provider` may potentially have critical side-effects. 
 
 ## Copyright
