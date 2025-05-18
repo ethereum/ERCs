@@ -236,17 +236,17 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
     }
 
     // Function to update the archived status for a specific owner of a token (permanent change)
-    function setArchivedStatus(uint256 tokenId, bool archived) external {
+    function archive(uint256 tokenId) external {
         require(
             isOwner(tokenId, msg.sender),
             "MO-NFT: Caller is not the owner of this token"
         );
         // Once archived, the status cannot be reversed
         require(
-            archived == true,
+            _archivedStatus[tokenId][msg.sender] == false,
             "MO-NFT: Token can only be archived once for an owner"
         );
-        _archivedStatus[tokenId][msg.sender] = archived;
+        _archivedStatus[tokenId][msg.sender] = true;
         emit ArchivedStatusUpdated(tokenId, msg.sender, archived);
     }
 
