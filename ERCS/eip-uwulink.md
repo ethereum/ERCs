@@ -3,7 +3,7 @@ eip: 7946
 title: Unidirectional Wallet Uplink aka UWULink
 description: Unidirectional app to wallet communication for private construction of transactions
 author: Moody Salem (@moodysalem), Tina Zheng (@tinaszheng)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-7946-unidirectional-wallet-uplink-aka-uwulink/24282
 status: Draft
 type: Standards Track
 category: ERC
