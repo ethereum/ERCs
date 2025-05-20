@@ -1,4 +1,5 @@
 ---
+eip: 7946
 title: Unidirectional Wallet Uplink aka UWULink
 description: Unidirectional app to wallet communication for private construction of transactions
 author: Moody Salem (@moodysalem), Tina Zheng (@tinaszheng)
