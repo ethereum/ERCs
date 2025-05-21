@@ -7,7 +7,6 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-05-10
-requires: 155
 ---
 
 ## Abstract
@@ -23,7 +22,8 @@ Such strings can then be used, for example, in a forwarder service that forwards
 ## Specification
 
 The encoded string has three components:
-- A chain ID, denoted as `chainId`. The used chain id MUST be based on [EIP-155](./eip-155.md) and the chain ID repository stated in that EIP.
+
+- A chain ID, denoted as `chainId`. The used chain id MUST be based on EIP-155 and the chain ID repository stated in that EIP.
 - A transaction hash, denoted as `txHash`. The hash MUST include the `0x` prefix.
 - A static string `tx`, acting as a type identifier.
 
