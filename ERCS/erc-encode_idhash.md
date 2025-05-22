@@ -1,4 +1,5 @@
 ---
+eip: 7950
 title: Encode chain id with transaction hash
 description: A standard for encoding a chain ID and transaction hash into a unique string format
 author: Lauri Peltonen (@microbecode)
