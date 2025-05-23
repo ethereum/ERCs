@@ -44,7 +44,7 @@ Keep a carefully guarded secret key and use it to sign transactions to deploy CR
 - This requires carefully guarding a secret key; if it is exposed or lost, deployments are no longer guaranteed on new chains.
 - If the first transaction is not a successful CREATE2 factory deployment, then it is no longer possible to have a CREATE2 factory at the common address; this can happen by human error, for example.
 
-#### 3. CREATE2 deployment factories
+#### 3. Preinstalls
 
 Have popular CREATE2 deployment factories deployed on new chains by default. This is, for example, what OP Stack does as part of their [preinstalls](https://github.com/ethereum-optimism/optimism/blob/12c5398a1725a2aafc3e7abb0711cf761a2b20b1/packages/contracts-bedrock/src/libraries/Preinstalls.sol), including the CREATE2 factory contracts mentioned above. This ensures that the CREATE2 factory contracts have known addresses and codes.
 
