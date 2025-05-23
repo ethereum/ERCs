@@ -154,7 +154,7 @@ The `CREATE2_FACTORY_SALT` was chosen as the **first** salt value starting from 
 
 ### CREATE2 Factory Bytecode
 
-The CREATE2 factory has a similar interface to existing implementations. Namely, it accepts `salt || init_code` as input, which is a 32-byte `salt` value concatenated with the `init_code` of the contract to deploy. It will execute a `CREATE2` with the specified `salt` and `init_code`, deploying a contract with `init_code` to `keccak256(0xff || CREATE2_FACTORY_ADDRESS || salt ++ keccak256(init_code))[12:]`.
+The CREATE2 factory has a similar interface to existing implementations. Namely, it accepts `salt || init_code` as input, which is a 32-byte `salt` value concatenated with the `init_code` of the contract to deploy. It will execute a `CREATE2` with the specified `salt` and `init_code`, deploying a contract with `init_code` to `keccak256(0xff || CREATE2_FACTORY_ADDRESS || salt || keccak256(init_code))[12:]`.
 
 Note that this contract returns the address of the created contract padded to 32 bytes. This differs from some existing implementations, but was done to maintain consistency with the 32-byte word size on the EVM (same encoding as `ecrecover` precompile for example). A product of this is that the return data from CREATE2 factory is compatible with the Solidity ABI.
 
