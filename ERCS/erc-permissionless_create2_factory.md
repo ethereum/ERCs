@@ -36,7 +36,7 @@ Use Nick's method to randomly generate a signature for a transaction **without**
 
 #### 2. Secret private key
 
-Keep a carefully guarded secret key and use it to sign transactions to deploy CREATE2 factory contracts. The resulting contract will have a deterministic address and code on all chains where the first transaction of the deployer account is a CREATE2 factory deployment, which can be verified post-deployment to ensure trustlessness. This is the strategy used by [safe-global/safe-singleton-factory](https://github.com/safe-global/safe-singleton-factory) and [pcaversaccio/createx](https://github.com/pcaversaccio/createx). 
+Keep a carefully guarded secret key and use it to sign transactions to deploy CREATE2 factory contracts. The resulting contract will have a deterministic address and code on all chains where the first transaction of the deployer account is a CREATE2 factory deployment, which can be verified post-deployment to ensure trustlessness. Additionally, this method does not have the same gas sensitivity downsides as Nick's method, as the private key can sign a creation transaction with appropriate gas parameters at the time of exection. This is the strategy used by [safe-global/safe-singleton-factory](https://github.com/safe-global/safe-singleton-factory) and [pcaversaccio/createx](https://github.com/pcaversaccio/createx).
 
 **Downsides**:
 
