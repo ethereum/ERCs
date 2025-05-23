@@ -2,7 +2,7 @@
 title: Permissionless CREATE2 Factory
 description: A permissionless method for the cross-chain deployment of a universal CREATE2 factory.
 author: Nicholas Rodrigues Lordello (@nlordell), Richard Meissner (@rmeissner), Valentin Seehausen (@vseehausen)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/multi-chain-deployment-process-for-a-permissionless-contract-factory/24318
 status: Draft
 type: Standards Track
 category: ERC
