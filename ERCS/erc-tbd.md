@@ -1,0 +1,466 @@
+# EIP: ERC-KeyHashToken: Key Hash-Based Token Standard
+
+## EIP Header
+
+- **EIP**: TBD (Assigned upon merging to EIP repository)
+- **Title**: ERC-KeyHashToken: Key Hash-Based Token Standard
+- **Author**: Alex Tian (@dugubuyan)
+- **Type**: Standards Track
+- **Category**: ERC
+- **Status**: Draft
+- **Created**: 2025-05-16
+- **Requires**: None
+- **Replaces**: None
+
+## Abstract
+
+This EIP proposes two token standards: **ERC-KeyHash721** for non-fungible tokens (NFTs) and **ERC-KeyHash20** for fungible tokens (similar to ERC-20). Both use a cryptographic key hash (`keyHash`, i.e., `keccak256(hashKey)`) to manage ownership instead of Ethereum addresses, enhancing privacy by allowing ownership verification via signatures without exposing addresses. The standards separate ownership from transaction initiation, enabling third parties to pay gas fees without controlling tokens, suitable for batch transactions or gas sponsorship. Key functions (`transfer`, `mint`, `destroy`) are defined with robust signature verification and nonce checks to prevent message tampering and replay attacks by relayers.
+
+## Motivation
+
+Traditional ERC-721 and ERC-20 tokens bind ownership to Ethereum addresses, which are publicly visible and may be linked to identities, compromising privacy. The key hash-based ownership model allows owners to prove control without exposing addresses, ideal for anonymous collectibles, private transactions, or decentralized identity use cases. Additionally, separating ownership from gas fee payment enables third-party gas sponsorship, improving user experience in high-gas or batch transaction scenarios. This standard aligns with the privacy principles of [EIP-5564](https://eips.ethereum.org/EIPS/eip-5564) (Stealth Addresses) and extends them to token ownership.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://tools.ietf.org/html/rfc2119).
+
+### Overview
+
+This standard defines two token interfaces:
+- **ERC-KeyHash721**: For non-fungible tokens (NFTs), each identified by a unique `tokenId`, with ownership managed via `keyHash` (`keccak256(hashKey)`).
+- **ERC-KeyHash20**: For fungible tokens, with balances associated with `keyHash`.
+
+Token operations (`transfer`, `destroy`) require the owner's hash key and ECDSA signature to prove ownership, ensuring only legitimate owners can execute actions. The `mint` function's access control is implementation-defined, typically restricted to the contract owner. Signatures follow [EIP-712](https://eips.ethereum.org/EIPS/eip-712) structured data hashing to prevent message tampering, with per-keyHash nonces and deadlines to prevent replay attacks.
+
+### ERC-KeyHash721: Non-Fungible Token Standard
+
+#### Interface
+
+```solidity
+interface IERCKeyHash721 {
+    // Events
+    event Transfer(uint256 indexed tokenId, bytes32 indexed fromKeyHash, bytes32 indexed toKeyHash);
+    event TokenDestroyed(uint256 indexed tokenId, bytes32 ownerKeyHash);
+
+    // View functions (aligned with ERC-721)
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+    function totalSupply() external view returns (uint256);
+    function ownerOf(uint256 tokenId) external view returns (bytes32);
+
+    // State-changing functions
+    function mint(uint256 tokenId, bytes32 keyHash) external;
+    function transfer(uint256 tokenId, bytes32 toKeyHash, bytes memory hashKey, bytes memory signature, uint256 deadline) external;
+    function destroy(uint256 tokenId, bytes memory hashKey, bytes memory signature, uint256 deadline) external;
+}
+```
+
+#### Function Descriptions
+
+- **transfer(uint256 tokenId, bytes32 toKeyHash, bytes memory hashKey, bytes memory signature, uint256 deadline)**  
+  **Description**: Transfers the specified token from the current owner's `keyHash` to `toKeyHash`. The caller provides the owner's hash key and ECDSA signature to prove ownership. The signature is verified using [EIP-712](https://eips.ethereum.org/EIPS/eip-712) structured data.  
+  **Parameters**:
+    - `tokenId`: `uint256` - The token ID to transfer.
+    - `toKeyHash`: `bytes32` - The new owner's key hash.
+    - `hashKey`: `bytes` - The current owner's hash key, which must be kept confidential.
+    - `signature`: `bytes` - ECDSA signature proving ownership.
+    - `deadline`: `uint256` - Signature expiration timestamp (Unix seconds).  
+  **Signature Message**: [EIP-712](https://eips.ethereum.org/EIPS/eip-712) structured data:  
+    ```solidity
+    struct Transfer {
+        uint256 tokenId;
+        bytes32 toKeyHash;
+        uint256 chainId;
+        uint256 nonce;
+        uint256 deadline;
+    }
+    ```  
+  **Events**: Emits `Transfer(tokenId, fromKeyHash, toKeyHash)`.  
+  **Requirements**:
+    - Token MUST exist (non-zero `keyHash`, not destroyed).
+    - `keccak256(hashKey)` MUST equal the current `keyHash`.
+    - Signature MUST be valid, signed by the owner of `hashKey`.
+    - `block.timestamp` MUST be <= `deadline`.
+    - `toKeyHash` MUST NOT be zero.
+    - Updates ownership to `toKeyHash`.
+
+- **destroy(uint256 tokenId, bytes memory hashKey, bytes memory signature, uint256 deadline)**  
+  **Description**: Destroys the specified token, removing it from circulation. Requires the owner's hash key and signature.  
+  **Parameters**:
+    - `tokenId`: `uint256` - The token ID to destroy.
+    - `hashKey`: `bytes` - The current owner's hash key, which must be kept confidential.
+    - `signature`: `bytes` - ECDSA signature proving ownership.
+    - `deadline`: `uint256` - Signature expiration timestamp.  
+  **Signature Message**: [EIP-712](https://eips.ethereum.org/EIPS/eip-712) structured data:  
+    ```solidity
+    struct Destroy {
+        uint256 tokenId;
+        uint256 chainId;
+        uint256 nonce;
+        uint256 deadline;
+    }
+    ```  
+  **Events**:
+    - `TokenDestroyed(tokenId, ownerKeyHash)`.
+    - `Transfer(tokenId, ownerKeyHash, bytes32(0))`.  
+  **Requirements**:
+    - Token MUST exist.
+    - `keccak256(hashKey)` MUST equal the current `keyHash`.
+    - Signature MUST be valid.
+    - `block.timestamp` MUST be <= `deadline`.
+    - Marks token as destroyed and decrements `totalSupply`.
+
+- **mint(uint256 tokenId, bytes32 keyHash)**  
+  **Description**: Mints a new token and assigns it to `keyHash`. Access control is implementation-defined (e.g., restricted to contract owner).  
+  **Parameters**:
+    - `tokenId`: `uint256` - The new token ID.
+    - `keyHash`: `bytes32` - The owner's key hash.  
+  **Events**: Emits `Transfer(tokenId, bytes32(0), keyHash)`.  
+  **Requirements**:
+    - `tokenId` MUST NOT exist.
+    - Increments `totalSupply`.
+
+- **Other Functions**: `name`, `symbol`, `tokenURI`, and `totalSupply` align with ERC-721. `ownerOf` returns `bytes32` (keyHash) instead of an address.
+
+#### Key Concepts
+- **Key Hash (`keyHash`)**: A `bytes32` value representing `keccak256(hashKey)`, identifying ownership without exposing addresses.
+- **Hash Key**: The confidential ECDSA key (typically derived from a private key), hashed to form `keyHash`, revealed only during operations and MUST be kept secret.
+- **Token Existence**: A token exists if its `keyHash` is non-zero and it is not destroyed.
+
+### ERC-KeyHash20: Fungible Token Standard
+
+#### Interface
+
+```solidity
+interface IERCKeyHash20 {
+    // Events
+    event Transfer(bytes32 indexed fromKeyHash, bytes32 indexed toKeyHash, uint256 amount);
+
+    // View functions (aligned with ERC-20)
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function decimals() external view returns (uint8);
+    function totalSupply() external view returns (uint256);
+    function balanceOf(bytes32 keyHash) external view returns (uint256);
+
+    // State-changing functions
+    function mint(bytes32 keyHash, uint256 amount) external;
+    function transfer(bytes32 fromKeyHash, bytes32 toKeyHash, uint256 amount, bytes memory hashKey, bytes memory signature, uint256 deadline, bytes32 leftKeyHash) external;
+}
+```
+
+#### Function Descriptions
+
+- **transfer(bytes32 fromKeyHash, bytes32 toKeyHash, uint256 amount, bytes memory hashKey, bytes memory signature, uint256 deadline, bytes32 leftKeyHash)**  
+  **Description**: Transfers `amount` tokens from `fromKeyHash` to `toKeyHash`, with remaining balance assigned to `leftKeyHash` (controlled by the sender). Requires the owner's hash key and signature, verified via [EIP-712](https://eips.ethereum.org/EIPS/eip-712). Mimics Bitcoin's UTXO model for partial transfers.  
+  **Parameters**:
+    - `fromKeyHash`: `bytes32` - Sender's key hash.
+    - `toKeyHash`: `bytes32` - Recipient's key hash.
+    - `amount`: `uint256` - Amount to transfer.
+    - `hashKey`: `bytes` - Sender's hash key, which must be kept confidential.
+    - `signature`: `bytes` - ECDSA signature.
+    - `deadline`: `uint256` - Signature expiration timestamp.
+    - `leftKeyHash`: `bytes32` - Key hash for remaining balance (`balance - amount`).  
+  **Signature Message**: [EIP-712](https://eips.ethereum.org/EIPS/eip-712) structured data:  
+    ```solidity
+    struct Transfer {
+        bytes32 fromKeyHash;
+        bytes32 toKeyHash;
+        uint256 amount;
+        uint256 chainId;
+        uint256 nonce;
+        uint256 deadline;
+        bytes32 leftKeyHash;
+    }
+    ```  
+  **Events**: Emits `Transfer(fromKeyHash, toKeyHash, amount)`.  
+  **Requirements**:
+    - `fromKeyHash` MUST have sufficient balance (`balanceOf[fromKeyHash] >= amount`).
+    - `keccak256(hashKey)` MUST equal `fromKeyHash`.
+    - Signature MUST be valid.
+    - `block.timestamp` MUST be <= `deadline`.
+    - `toKeyHash` and `leftKeyHash` MUST NOT be zero.
+    - Updates balances: `balanceOf[fromKeyHash] -= amount`, `balanceOf[toKeyHash] += amount`, `balanceOf[leftKeyHash] += (original balance - amount)`.
+
+- **mint(bytes32 keyHash, uint256 amount)**  
+  **Description**: Mints `amount` tokens to `keyHash`. Access control is implementation-defined.  
+  **Parameters**:
+    - `keyHash`: `bytes32` - Recipient's key hash.
+    - `amount`: `uint256` - Amount to mint.  
+  **Events**: Emits `Transfer(bytes32(0), keyHash, amount)`.  
+  **Requirements**:
+    - Increases `totalSupply` and `balanceOf[keyHash]` by `amount`.
+
+- **Other Functions**: `name`, `symbol`, `decimals`, and `totalSupply` align with ERC-20. `balanceOf` uses `bytes32` parameter.
+
+### Signature Verification
+
+For `transfer` and `destroy`:
+1. Verify `keccak256(hashKey) == current keyHash`.
+2. Compute [EIP-712](https://eips.ethereum.org/EIPS/eip-712) message hash:
+   ```solidity
+   bytes32 digest = keccak256(abi.encodePacked(
+       "\x19\x01",
+       DOMAIN_SEPARATOR,
+       keccak256(abi.encode(
+           TYPE_HASH, // Struct-specific type hash
+           params // Struct fields (e.g., tokenId, toKeyHash, chainId, nonce, deadline)
+       ))
+   ));
+   ```
+3. Recover signer address using `ecrecover(digest, signature)`.
+4. Verify recovered address matches `address(uint160(uint256(keccak256(hashKey)) >> 96))`.
+5. Increment `_keyNonces[keyHash]` to prevent replay.
+6. Verify `block.timestamp <= deadline`.
+
+### Requirements
+
+- Contracts MUST maintain mappings:
+  - ERC-KeyHash721: `tokenId` to `keyHash`, destruction status.
+  - ERC-KeyHash20: `keyHash` to balance.
+- MUST use per-keyHash nonces (`mapping(bytes32 => uint256) _keyNonces`) for replay protection.
+- MUST implement [EIP-712](https://eips.ethereum.org/EIPS/eip-712) for signature hashing.
+- MUST enforce `deadline` to limit signature validity.
+- MUST verify signatures and hash keys in `transfer` and `destroy`.
+
+## Rationale
+
+### Advantages of Key Hash
+- **Privacy**: `ownerOf` and `balanceOf` return `keyHash`, not addresses. Users can use unique key pairs per token or balance, reducing linkability.
+- **Gas Fee Separation**: Anyone can call `transfer` with a valid signature, paying gas fees, enabling batch transactions or gas sponsorship.
+- **Flexibility**: Aligns with [EIP-5564](https://eips.ethereum.org/EIPS/eip-5564) stealth addresses, extending privacy to tokens.
+
+### Transfer and Destroy Design
+- Open to any caller with valid signatures, ensuring only owners operate while allowing gas sponsorship.
+- [EIP-712](https://eips.ethereum.org/EIPS/eip-712) signatures prevent message tampering by including all critical parameters.
+- Per-keyHash nonces and deadlines prevent replay attacks.
+
+### Mint Flexibility
+- Access control is implementation-defined, supporting centralized (e.g., owner-only) or open minting.
+
+## Backward Compatibility
+
+This standard is not compatible with ERC-721 or ERC-20 due to `bytes32` key hashes instead of addresses. Adapters can bridge to existing systems for privacy-focused use cases.
+
+## Reference Implementation
+
+### ERC-KeyHash721 Implementation
+
+```solidity
+pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
+contract KeyHashERC721 is EIP712 {
+    using ECDSA for bytes32;
+
+    string public name;
+    string public symbol;
+    mapping(uint256 => bytes32) private _tokenKeyHashes;
+    mapping(uint256 => bool) private _destroyedTokens;
+    uint256 public totalSupply;
+    mapping(bytes32 => uint256) private _keyNonces;
+
+    bytes32 private constant TRANSFER_TYPEHASH = keccak256(
+        "Transfer(uint256 tokenId,bytes32 toKeyHash,uint256 chainId,uint256 nonce,uint256 deadline)"
+    );
+    bytes32 private constant DESTROY_TYPEHASH = keccak256(
+        "Destroy(uint256 tokenId,uint256 chainId,uint256 nonce,uint256 deadline)"
+    );
+
+    constructor(string memory _name, string memory _symbol)
+        EIP712("KeyHashERC721", "1")
+    {
+        name = _name;
+        symbol = _symbol;
+    }
+
+    function ownerOf(uint256 tokenId) external view returns (bytes32) {
+        require(_tokenKeyHashes[tokenId] != 0 && !_destroyedTokens[tokenId], "Token does not exist");
+        return _tokenKeyHashes[tokenId];
+    }
+
+    function mint(uint256 tokenId, bytes32 keyHash) external {
+        require(_tokenKeyHashes[tokenId] == 0, "Token already exists");
+        _tokenKeyHashes[tokenId] = keyHash;
+        totalSupply++;
+        emit Transfer(tokenId, bytes32(0), keyHash);
+    }
+
+    function transfer(
+        uint256 tokenId,
+        bytes32 toKeyHash,
+        bytes memory hashKey,
+        bytes memory signature,
+        uint256 deadline
+    ) external {
+        require(toKeyHash != bytes32(0), "Invalid recipient hash");
+        require(_tokenKeyHashes[tokenId] != 0 && !_destroyedTokens[tokenId], "Token does not exist");
+        require(block.timestamp <= deadline, "Signature expired");
+        bytes32 currentKeyHash = _tokenKeyHashes[tokenId];
+        require(keccak256(hashKey) == currentKeyHash, "Invalid hashKey");
+
+        bytes32 structHash = keccak256(abi.encode(
+            TRANSFER_TYPEHASH,
+            tokenId,
+            toKeyHash,
+            block.chainid,
+            _keyNonces[currentKeyHash]++,
+            deadline
+        ));
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = digest.recover(signature);
+        address expectedAddress = address(uint160(uint256(keccak256(hashKey)) >> 96));
+        require(signer == expectedAddress, "Invalid signature");
+
+        _tokenKeyHashes[tokenId] = toKeyHash;
+        emit Transfer(tokenId, currentKeyHash, toKeyHash);
+    }
+
+    function destroy(
+        uint256 tokenId,
+        bytes memory hashKey,
+        bytes memory signature,
+        uint256 deadline
+    ) external {
+        require(_tokenKeyHashes[tokenId] != 0 && !_destroyedTokens[tokenId], "Token does not exist");
+        require(block.timestamp <= deadline, "Signature expired");
+        bytes32 currentKeyHash = _tokenKeyHashes[tokenId];
+        require(keccak256(hashKey) == currentKeyHash, "Invalid hashKey");
+
+        bytes32 structHash = keccak256(abi.encode(
+            DESTROY_TYPEHASH,
+            tokenId,
+            block.chainid,
+            _keyNonces[currentKeyHash]++,
+            deadline
+        ));
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = digest.recover(signature);
+        address expectedAddress = address(uint160(uint256(keccak256(hashKey)) >> 96));
+        require(signer == expectedAddress, "Invalid signature");
+
+        _destroyedTokens[tokenId] = true;
+        totalSupply--;
+        emit TokenDestroyed(tokenId, currentKeyHash);
+        emit Transfer(tokenId, currentKeyHash, bytes32(0));
+    }
+
+    function getNonce(bytes32 keyHash) external view returns (uint256) {
+        return _keyNonces[keyHash];
+    }
+
+    event Transfer(uint256 indexed tokenId, bytes32 indexed fromKeyHash, bytes32 indexed toKeyHash);
+    event TokenDestroyed(uint256 indexed tokenId, bytes32 ownerKeyHash);
+}
+```
+
+### ERC-KeyHash20 Implementation
+
+```solidity
+pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
+contract KeyHashERC20 is EIP712 {
+    using ECDSA for bytes32;
+
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+    mapping(bytes32 => uint256) public balanceOf;
+    uint256 public totalSupply;
+    mapping(bytes32 => uint256) private _keyNonces;
+
+    bytes32 private constant TRANSFER_TYPEHASH = keccak256(
+        "Transfer(bytes32 fromKeyHash,bytes32 toKeyHash,uint256 amount,uint256 chainId,uint256 nonce,uint256 deadline,bytes32 leftKeyHash)"
+    );
+
+    constructor(string memory _name, string memory _symbol)
+        EIP712("KeyHashERC20", "1")
+    {
+        name = _name;
+        symbol = _symbol;
+        decimals = 18;
+    }
+
+    function mint(bytes32 keyHash, uint256 amount) external {
+        balanceOf[keyHash] += amount;
+        totalSupply += amount;
+        emit Transfer(bytes32(0), keyHash, amount);
+    }
+
+    function transfer(
+        bytes32 fromKeyHash,
+        bytes32 toKeyHash,
+        uint256 amount,
+        bytes memory hashKey,
+        bytes memory signature,
+        uint256 deadline,
+        bytes32 leftKeyHash
+    ) external {
+        require(balanceOf[fromKeyHash] >= amount, "Insufficient balance");
+        require(toKeyHash != bytes32(0), "Invalid recipient hash");
+        require(leftKeyHash != bytes32(0), "Invalid leftKeyHash");
+        require(block.timestamp <= deadline, "Signature expired");
+        require(keccak256(hashKey) == fromKeyHash, "Invalid hashKey");
+
+        bytes32 structHash = keccak256(abi.encode(
+            TRANSFER_TYPEHASH,
+            fromKeyHash,
+            toKeyHash,
+            amount,
+            block.chainid,
+            _keyNonces[fromKeyHash]++,
+            deadline,
+            leftKeyHash
+        ));
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = digest.recover(signature);
+        address expectedAddress = address(uint160(uint256(keccak256(hashKey)) >> 96));
+        require(signer == expectedAddress, "Invalid signature");
+
+        uint256 remaining = balanceOf[fromKeyHash] - amount;
+        balanceOf[fromKeyHash] = 0;
+        balanceOf[toKeyHash] += amount;
+        balanceOf[leftKeyHash] += remaining;
+        emit Transfer(fromKeyHash, toKeyHash, amount);
+    }
+
+    function getNonce(bytes32 keyHash) external view returns (uint256) {
+        return _keyNonces[keyHash];
+    }
+
+    event Transfer(bytes32 indexed fromKeyHash, bytes32 indexed toKeyHash, uint256 amount);
+}
+```
+
+## Security Considerations
+
+- **Replay Attacks**:
+  - **Mitigation**: Per-keyHash nonces (`_keyNonces[keyHash]`) increment after each operation, invalidating old signatures. `chainId` prevents cross-chain replays.
+  - **Design**: Similar to [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) permit mechanism, ensuring owner-controlled nonce sequences.
+- **Message Tampering**:
+  - **Mitigation**: [EIP-712](https://eips.ethereum.org/EIPS/eip-712) structured signatures include all critical parameters (`tokenId`, `toKeyHash`, `amount`, `leftKeyHash`, etc.), preventing relayer tampering. Signatures are function-specific (`TRANSFER_TYPEHASH`, `DESTROY_TYPEHASH`).
+  - **Audit**: Contracts MUST be audited to ensure no parameter omissions or hash collisions.
+- **Signature Expiration**:
+  - **Mitigation**: `deadline` parameter ensures signatures expire, reducing risks of leaked signatures.
+- **Privacy Limitations**:
+  - **Issue**: Hash keys are revealed during transfers, allowing potential address derivation if not managed securely.
+  - **Recommendation**: Use new key pairs per token or balance to minimize linkability. Store `hashKey` securely, as it is sensitive.
+- **Key Management**:
+  - **Risk**: Lost private keys or compromised `hashKey` result in loss of token control.
+  - **Recommendation**: Use hardware wallets or secure key management systems to protect `hashKey`.
+- **Gas Costs**:
+  - **Issue**: Signature verification and [EIP-712](https://eips.ethereum.org/EIPS/eip-712) hashing increase gas costs.
+  - **Recommendation**: Optimize implementations and consider gas sponsorship to offset costs.
+
+## References
+
+- Tian, Alex (@dugubuyan). "ERC-KeyHashToken: Key Hash-Based Token Standard." Ethereum Improvement Proposal, Number TBD, May 2025.
+- [EIP-1: EIP Purpose and Guidelines](https://eips.ethereum.org/EIPS/eip-1)
+- [EIP-712: Typed structured data hashing and signing](https://eips.ethereum.org/EIPS/eip-712)
+- [EIP-5564: Stealth Addresses](https://eips.ethereum.org/EIPS/eip-5564)
+- [EIP-2612: permit Extension for ERC-20](https://eips.ethereum.org/EIPS/eip-2612)
+- [RFC 2119: Key words for use in RFCs](https://tools.ietf.org/html/rfc2119)
