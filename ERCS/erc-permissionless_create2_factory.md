@@ -24,7 +24,7 @@ However, there is a bootstrapping problem: how do you get a CREATE2 factory cont
 
 There are currently three main approaches to this problem:
 
-#### 1. Nick's method
+#### 1. Nick's Method
 
 Use Nick's method to randomly generate a signature for a transaction **without** [EIP-155](./eip-155.md) replay protection that deploys the CREATE2 factory. Nick's method ensures that there is no known private key for an account that deploys the CREATE2 factory, meaning that the resulting contract will have a deterministic address and code on all chains. This strategy is used by [Arachnid/deterministic-deployment-proxy](https://github.com/Arachnid/deterministic-deployment-proxy), one of the most widely used CREATE2 factory contracts.
 
@@ -34,7 +34,7 @@ Use Nick's method to randomly generate a signature for a transaction **without**
 - It is sensitive to changes in gas parameters on the target chain since the gas price and limit in the deployment transaction is sealed, and a new one cannot be signed without a private key.
 - Reverts due to alternative gas schedules make the CREATE2 factory no longer deployable.
 
-#### 2. Secret private key
+#### 2. Secret Private Key
 
 Keep a carefully guarded secret key and use it to sign transactions to deploy CREATE2 factory contracts. The resulting contract will have a deterministic address and code on all chains where the first transaction of the deployer account is a CREATE2 factory deployment, which can be verified post-deployment to ensure trustlessness. Additionally, this method does not have the same gas sensitivity downsides as Nick's method, as the private key can sign a creation transaction with appropriate gas parameters at the time of execution. This is the strategy used by [safe-global/safe-singleton-factory](https://github.com/safe-global/safe-singleton-factory) and [pcaversaccio/createx](https://github.com/pcaversaccio/createx).
 
@@ -54,7 +54,7 @@ Have popular CREATE2 deployment factories deployed on new chains by default. Thi
 - It is permissioned as a chain can choose not to include a specific CREATE2 factory contract preinstalled.
 - Attempts to standardize this with [RIP-7740](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7740.md) have not been successful.
 
-### Proposal: Using type-4 transactions
+### Proposal: Using EIP-7702 Type `0x4` Transactions
 
 This ERC proposes a permissionless alternative fourth mechanism to the existing ones described above with none of their downsides. Additionally, it standardizes a set of deployment parameters for a **universal** CREATE2 factory deployment. This ensures a common CREATE2 factory for the community instead of multiple competing copies with slightly different codes at different addresses. This single CREATE2 factory copy can bootstrap additional deterministic deployment infrastructure (such as the comprehensive CreateX universal contract deployer).
 
