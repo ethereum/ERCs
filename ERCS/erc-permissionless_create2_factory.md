@@ -18,7 +18,7 @@ This ERC defines a permissionless and deterministic deployment mechanism across 
 
 Ensuring that contracts share the same address and code on multiple chains is a hard problem. It is typically done by having a known CREATE2 factory contract at a specific address that can further deterministically deploy new contracts using the `CREATE2 (0xf5)` opcode.
 
-However, there is a bootstrapping problem: how do you get a CREATE2 factory contract with a specific address and code? 
+However, there is a bootstrapping problem: how do you get a CREATE2 factory contract with a specific address and code?
 
 ### Existing Solutions
 
@@ -36,11 +36,11 @@ Use Nick's method to randomly generate a signature for a transaction **without**
 
 #### 2. Secret private key
 
-Keep a carefully guarded secret key and use it to sign transactions to deploy CREATE2 factory contracts. The resulting contract will have a deterministic address and code on all chains where the first transaction of the deployer account is a CREATE2 factory deployment, which can be verified post-deployment to ensure trustlessness. Additionally, this method does not have the same gas sensitivity downsides as Nick's method, as the private key can sign a creation transaction with appropriate gas parameters at the time of exection. This is the strategy used by [safe-global/safe-singleton-factory](https://github.com/safe-global/safe-singleton-factory) and [pcaversaccio/createx](https://github.com/pcaversaccio/createx).
+Keep a carefully guarded secret key and use it to sign transactions to deploy CREATE2 factory contracts. The resulting contract will have a deterministic address and code on all chains where the first transaction of the deployer account is a CREATE2 factory deployment, which can be verified post-deployment to ensure trustlessness. Additionally, this method does not have the same gas sensitivity downsides as Nick's method, as the private key can sign a creation transaction with appropriate gas parameters at the time of execution. This is the strategy used by [safe-global/safe-singleton-factory](https://github.com/safe-global/safe-singleton-factory) and [pcaversaccio/createx](https://github.com/pcaversaccio/createx).
 
 **Downsides**:
 
-- It is permissioned: the party that holds the secret key has the ultimate say on which chains will get the CREATE2 factory deployments. 
+- It is permissioned: the party that holds the secret key has the ultimate say on which chains will get the CREATE2 factory deployments.
 - This requires carefully guarding a secret key; if it is exposed or lost, deployments are no longer guaranteed on new chains.
 - If the first transaction is not a successful CREATE2 factory deployment, then it is no longer possible to have a CREATE2 factory at the common address; this can happen by human error, for example.
 
@@ -94,7 +94,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Bootstrap Contract
 
-The _bootstrap contract_ MUST execute the following or equivalent _bootstrapping code_ as an [EIP-7702](./eip-7702.md) delegation target for the _deployer_ account:
+The _bootstrap contract_ MUST execute the following or equivalent _bootstrapping code_ as an EIP-7702 delegation target for the _deployer_ account:
 
 ```solidity
 bytes memory initCode = CREATE2_FACTORY_INIT_CODE;
