@@ -11,6 +11,19 @@
 - **Created**: 2025-05-16
 - **Requires**: None
 - **Replaces**: None
+---
+eip: 
+title: Key Hash-Based Token Standard
+description: Extends privacy to ERC-721 and ERC-20 tokens.
+author: Alex Tian (@dugubuyan),Geoffrey(geoffrey@datadance.ai),liyingxuan(liyingxuan@datadance.ai)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-05-16
+requires: None
+replaces: None
+---
 
 ## Abstract
 
