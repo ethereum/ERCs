@@ -70,20 +70,20 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Parameters
 
-| Parameter                   | Value                                                                  |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `DEPLOYER_PRIVATE_KEY`      | `0x942ba639ec667bdded6d727ad2e483648a34b584f916e6b826fdb7b512633731`   |
-| `CREATE2_FACTORY_INIT_CODE` | `0x7860205f3581360380835f375f34f58060145790fd5b5f525ff35f5260196007f3` |
-| `CREATE2_FACTORY_SALT`      | `0x0000000000000000000000000000000000000000000000000000000000057a67`   |
+| Parameter                   | Value                                                                |
+| --------------------------- | -------------------------------------------------------------------- |
+| `DEPLOYER_PRIVATE_KEY`      | `0x942ba639ec667bdded6d727ad2e483648a34b584f916e6b826fdb7b512633731` |
+| `CREATE2_FACTORY_INIT_CODE` | `0x7760203d3d3582360380843d373d34f580601457fd5b3d52f33d5260186008f3` |
+| `CREATE2_FACTORY_SALT`      | `0x000000000000000000000000000000000000000000000000000000000019e078` |
 
 ### Derived Parameters
 
 | Derived Parameter              | Value                                                                |
 | ------------------------------ | -------------------------------------------------------------------- |
 | `DEPLOYER_ADDRESS`             | `0x962560A0333190D57009A0aAAB7Bfa088f58461C`                         |
-| `CREATE2_FACTORY_ADDRESS`      | `0xC0DE8E984dF1846E6AdE500972641ce0a9669e1b`                         |
-| `CREATE2_FACTORY_RUNTIME_CODE` | `0x60205f3581360380835f375f34f58060145790fd5b5f525ff3`               |
-| `CREATE2_FACTORY_CODE_HASH`    | `0xf3ee84f262524054463f2deab3d163dd9217d59231bd95b3b39df74b998cda6e` |
+| `CREATE2_FACTORY_ADDRESS`      | `0xC0DE945918F144DcdF063469823a4C51152Df05D`                         |
+| `CREATE2_FACTORY_RUNTIME_CODE` | `0x60203d3d3582360380843d373d34f580601457fd5b3d52f3`                 |
+| `CREATE2_FACTORY_CODE_HASH`    | `0xeac13dde1a2c9b8dc8a7aded29ad0af5d57c811b746f7909ea841cbfc6ef3adc` |
 
 ### Definitions
 
@@ -158,18 +158,20 @@ The CREATE2 factory has a similar interface to existing implementations. Namely,
 
 Note that this contract returns the address of the created contract padded to 32 bytes. This differs from some existing implementations, but was done to maintain consistency with the 32-byte word size on the EVM (same encoding as `ecrecover` precompile for example). A product of this is that the return data from CREATE2 factory is compatible with the Solidity ABI.
 
+Throughout both the CREATE2 factory contract initialization and runtime code, we use `RETURNDATASIZE (0x3d)` to push `0` onto the stack instead of the dedicated `PUSH0 (0x5f)` opcode. This is done to increase compatibility with chains that support EIP-7702 but not [EIP-3855](./eip-3855.md), while remaining a 1-byte and 2-gas opcode.
+
 The `CREATE2_FACTORY_INIT_CODE` corresponds to the following assembly:
 
 ```
 ### Constructor Code ###
 
-0x0000: PUSH25 0x60205f3581360380835f375f34f5806014575ffd5b5f525ff3
+0x0000: PUSH24 0x60203d3d3582360380843d373d34f580601457fd5b3d52f3
                         # Stack: [runcode]                      | Push the CREATE2 factory runtime code
-0x001a: PUSH0           # Stack: [0; runcode]                   | Push the offset in memory to store the code
-0x001b: MSTORE          # Stack: []                             | The runtime code is now in `memory[7:32]`
-0x001c: PUSH1 25        # Stack: [25]                           | Push the code length
-0x001e: PUSH1 7         # Stack: [7; 25]                        | Push the memory offset of the start of code
-0x0020: RETURN          # Stack: []                             | Return the runtime code
+0x0019: RETURNDATASIZE  # Stack: [0; runcode]                   | Push the offset in memory to store the code
+0x001a: MSTORE          # Stack: []                             | The runtime code is now in `memory[8:32]`
+0x001b: PUSH1 25        # Stack: [24]                           | Push the code length
+0x001d: PUSH1 7         # Stack: [8; 24]                        | Push the memory offset of the start of code
+0x001f: RETURN          # Stack: []                             | Return the runtime code
 ```
 
 The `CREATE2_FACTORY_RUNTIME_CODE` corresponds to the following assembly:
@@ -177,57 +179,60 @@ The `CREATE2_FACTORY_RUNTIME_CODE` corresponds to the following assembly:
 ```
 ### Runtime Code ###
 
-# Push a useful value onto the stack: 32 - this allows us to save a couple bytes
-# of code by using a 1-byte `DUP*` instead of a 2-byte `PUSH1 0x20`.
-0x0000: PUSH1 32
+# Prepare our stack, push 32, a value we will use a lot and can summon with
+# `DUP*` to save on one byte of code (over `PUSH1 32`), and a 0 which will
+# be used by either the `RETURN` or `REVERT` branches at the end.
+0x0000: PUSH1 32        # Stack: [32]
+0x0002: RETURNDATASIZE  # Stack: [0; 32]
 
 # First, load the salt value and compute the actual code size for the CREATE2
 # call, this is the calldata length minus 32 for the salt prefix.
-0x0002: PUSH0           # Stack: [0; 32]                        | Push the calldata offset of the `salt` parameter
-0x0003: CALLDATALOAD    # Stack: [salt; 32]                     | Load the `salt` from calldata
-0x0004: DUP2            # Stack: [32; salt; 32]                 | Push 32 to the stack
-0x0005: CALLDATASIZE    # Stack: [msg.data.len; 32; salt; 32]   | Followed by the calldata length
-0x0006: SUB             # Stack: [code.len; salt; 32]           | Compute `msg.data.length - 32`, which is the length of
+                        # Stack: [0; 32]
+0x0003: RETURNDATASIZE  # Stack: [0; 0; 32]                     | Push the calldata offset 0 of the `salt` parameter
+0x0004: CALLDATALOAD    # Stack: [salt; 0; 32]                  | Load the `salt` from calldata
+0x0005: DUP3            # Stack: [32; salt; 0; 32]              | Push 32 to the stack
+0x0006: CALLDATASIZE    # Stack: [msg.data.len; 32; salt; ...]  | Followed by the calldata length
+0x0007: SUB             # Stack: [code.len; salt; 0; 32]        | Compute `msg.data.length - 32`, which is the length of
                                                                 # the init `code`
 
 # Copy the init code to memory offset 0.
-                        # Stack: [code.len; salt; 32]
-0x0007: DUP1            # Stack: [code.len; code.len; salt; 32] | Duplicate the length of the init code
-0x0008: DUP4            # Stack: [32; code.len; ...]            | Push the offset in calldata of the code, which is 32
+                        # Stack: [code.len; salt; 0; 32]
+0x0008: DUP1            # Stack: [code.len; .; salt; 0; 32]     | Duplicate the length of the init code
+0x0009: DUP5            # Stack: [32; code.len; ...]            | Push the offset in calldata of the code, which is 32
                                                                 # as it comes immediately after the 32-byte `salt`; use
                                                                 # the 32 value at the bottom of the stack
-0x0009: PUSH0           # Stack: [0; 32; code.len; ...]         | Push the offset in memory to copy the code to
-0x000a: CALLDATACOPY    # Stack: [code.len; salt; 32]           | Copy the init code, `memory[0:code.len]` contains the
+0x000a: RETURNDATASIZE  # Stack: [0; 32; code.len; ...]         | Push the offset (0) in memory to copy the code to
+0x000b: CALLDATACOPY    # Stack: [code.len; salt; 0; 32]        | Copy the init code, `memory[0:code.len]` contains the
                                                                 # init `code`
 
 # Deploy the contract.
-                        # Stack: [code.len; salt; 32]
-0x000b: PUSH0           # Stack: [0; code.len; salt; 32]        | Push the offset in memory starting of the start of
+                        # Stack: [code.len; salt; 0; 32]
+0x000c: RETURNDATASIZE  # Stack: [0; code.len; salt; 0; 32]     | Push the offset in memory starting of the start of
                                                                 # init `code`, which is 0
-0x000c: CALLVALUE       # Stack: [v; 0; code.len; salt; 32]     | Forward the call value to the contract constructor
-0x000d: CREATE2         # Stack: [address; 32]                  | Do `create2(v, code, salt)`, which leaves the address
+0x000d: CALLVALUE       # Stack: [v; 0; code.len; salt; 0; 32]  | Forward the call value to the contract constructor
+0x000e: CREATE2         # Stack: [address; 0; 32]               | Do `create2(v, code, salt)`, which leaves the address
                                                                 # of the contract on the stack, or 0 if the contract
                                                                 # creation reverted
 
 # Verify the deployment was successful and return the address.
-                        # Stack: [address; 32]
-0x000e: DUP1            # Stack: [address; address; 32]         | Duplicate the address value
-0x000f: PUSH1 0x14      # Stack: [0x0014; address; address; 32] | Push the jump destination offset for the code which
+                        # Stack: [address; 0; 32]
+0x000f: DUP1            # Stack: [address; .; 0; 32]            | Duplicate the address value
+0x0010: PUSH1 0x14      # Stack: [0x0014; address; .; 0; 32]    | Push the jump destination offset for the code which
                                                                 # handles successful deployments
-0x0011: JUMPI           # Stack: [address; 32]                  | Jump if `address != 0`, i.e. `CREATE2` succeeded
+0x0012: JUMPI           # Stack: [address; 0; 32]               | Jump if `address != 0`, i.e. `CREATE2` succeeded
 
 # CREATE2 reverted.
-                        # Stack: [address = 0; 32]
-0x0012: SWAP1           # Stack: [32; 0]                        | Swap the stack elements
-0x0013: REVERT          # Stack: []                             | Revert with empty data `memory[32:32]`
+                        # Stack: [address = 0; 0; 32]
+0x0013: REVERT          # Stack: []                             | Revert with empty data `memory[0:0]`
 
 # CREATE2 succeeded.
-0x0014: JUMPDEST        # Stack: [address; 32]
-0x0015: PUSH0           # Stack: [0; address; 32]               | Push the memory offset to store return data at
-0x0016: MSTORE          # Stack: [32]                           | Store the address in memory, `memory[0:32]` contains
+0x0014: JUMPDEST        # Stack: [address; 0; 32]
+0x0015: RETURNDATASIZE  # Stack: [0; address; 0; 32]            | Push the memory offset (0) to store return data at,
+                                                                # we use `RETURNDATASIZE` becaues contract creation was
+                                                                # successful, and therefore the return data has size 0
+0x0016: MSTORE          # Stack: [0; 32]                        | Store the address in memory, `memory[0:32]` contains
                                                                 # the `address` left padded to 32-bytes
-0x0017: PUSH0           # Stack: [0; 32]                        | Push the offset in memory of the return data (0)
-0x0018: RETURN          # Stack: []                             | Return `memory[0:32]`, i.e. the address
+0x0017: RETURN          # Stack: []                             | Return `memory[0:32]`, i.e. the address
 ```
 
 ## Backwards Compatibility
@@ -257,10 +262,10 @@ pragma solidity ^0.8.29;
 
 contract Bootstrap {
     address private constant _DEPLOYER_ADDRESS = 0x962560A0333190D57009A0aAAB7Bfa088f58461C;
-    address private constant _CREATE2_FACTORY_ADDRESS = 0xC0DE8E984dF1846E6AdE500972641ce0a9669e1b;
-    bytes32 private constant _CREATE2_FACTORY_CODE_HASH = hex"f3ee84f262524054463f2deab3d163dd9217d59231bd95b3b39df74b998cda6e";
-    bytes private constant _CREATE2_FACTORY_INIT_CODE = hex"7860205f3581360380835f375f34f58060145790fd5b5f525ff35f5260196007f3";
-    bytes32 private constant _CREATE2_FACTORY_SALT = hex"0000000000000000000000000000000000000000000000000000000000057a67";
+    address private constant _CREATE2_FACTORY_ADDRESS = 0xC0DE945918F144DcdF063469823a4C51152Df05D;
+    bytes32 private constant _CREATE2_FACTORY_CODE_HASH = hex"eac13dde1a2c9b8dc8a7aded29ad0af5d57c811b746f7909ea841cbfc6ef3adc";
+    bytes private constant _CREATE2_FACTORY_INIT_CODE = hex"7760203d3d3582360380843d373d34f580601457fd5b3d52f33d5260186008f3";
+    bytes32 private constant _CREATE2_FACTORY_SALT = hex"000000000000000000000000000000000000000000000000000000000019e078";
 
     error InvalidDelegation();
     error CreationFailed();
@@ -297,14 +302,13 @@ A minimal bootstrap contract implementation is also possible (although this has 
 pragma solidity ^0.8.29;
 
 contract MiniBootstrap {
-    bytes private constant _CREATE2_FACTORY_INIT_CODE = hex"7860205f3581360380835f375f34f58060145790fd5b5f525ff35f5260196007f3";
-    bytes32 private constant _CREATE2_FACTORY_SALT = hex"0000000000000000000000000000000000000000000000000000000000057a67";
+    bytes32 private constant _CREATE2_FACTORY_INIT_CODE = hex"7760203d3d3582360380843d373d34f580601457fd5b3d52f33d5260186008f3";
+    bytes32 private constant _CREATE2_FACTORY_SALT = hex"000000000000000000000000000000000000000000000000000000000019e078";
 
     fallback() external {
-        bytes memory initCode = _CREATE2_FACTORY_INIT_CODE;
-        bytes32 salt = _CREATE2_FACTORY_SALT;
         assembly ("memory-safe") {
-            pop(create2(0, add(initCode, 32), mload(initCode), salt))
+            mstore(0, _CREATE2_FACTORY_INIT_CODE)
+            pop(create2(0, 0, 32, _CREATE2_FACTORY_SALT))
         }
     }
 }
