@@ -1,16 +1,3 @@
-# EIP: ERC-KeyHashToken: Key Hash-Based Token Standard
-
-## EIP Header
-
-- **EIP**: TBD (Assigned upon merging to EIP repository)
-- **Title**: ERC-KeyHashToken: Key Hash-Based Token Standard
-- **Author**: Alex Tian (@dugubuyan)
-- **Type**: Standards Track
-- **Category**: ERC
-- **Status**: Draft
-- **Created**: 2025-05-16
-- **Requires**: None
-- **Replaces**: None
 ---
 eip: 
 title: Key Hash-Based Token Standard
