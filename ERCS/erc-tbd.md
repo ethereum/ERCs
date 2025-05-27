@@ -4,7 +4,7 @@
 
 - **EIP**: TBD (Assigned upon merging to EIP repository)
 - **Title**: ERC-KeyHashToken: Key Hash-Based Token Standard
-- **Author**: Alex Tian (@dugubuyan)
+- **Author**: Alex Tian (@dugubuyan),DataDanceChain(@DataDanceChain)
 - **Type**: Standards Track
 - **Category**: ERC
 - **Status**: Draft
