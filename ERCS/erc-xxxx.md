@@ -2,7 +2,7 @@
 eip: 
 title: Key Hash-Based Token Standard
 description: Extends privacy to ERC-721 and ERC-20 tokens.
-author: Alex Tian (@dugubuyan),Geoffrey(geoffrey@datadance.ai),liyingxuan(liyingxuan@datadance.ai)
+author: Alex Tian (@dugubuyan),Zhixiong Pan(@nake13),Geoffrey(geoffrey@datadance.ai),liyingxuan(liyingxuan@datadance.ai)
 discussions-to: 
 status: Draft
 type: Standards Track
