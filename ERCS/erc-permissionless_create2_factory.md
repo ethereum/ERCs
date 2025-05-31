@@ -125,7 +125,7 @@ Assuming successful execution of the _bootstrapping code_ without reverting in t
 
 The deployment mechanism was chosen such that it is uniquely parameterized by the `DEPLOYER_ADDRESS` (which itself is derived from the `DEPLOYER_PRIVATE_KEY` and is therefore deterministic), the `CREATE2_FACTORY_INIT_CODE` and the `CREATE2_FACTORY_SALT` which are both fixed and deterministic. Additionally, since the `DEPLOYER_ADDRESS` will deploy the CREATE2 factory contract with the `CREATE2 (0xf5)` opcode, this guarantees that the address and code of the contract are deterministic.
 
-The use of a publicly known private key enables this mechanism, as anyone can permissionlessly generate a delegation signature to **any** bootstrap contract that would cause the `DEPLOYER_ADDRESS` to execute the specified `CREATE2 (0xf5)` operation and deploy the factory contract to a completely deterministic address. Because of the use of `CREATE2 (0xf5)`, the CREATE2 factory will be deployed to `CREATE2_FACTORY_ADDRESS` if and only it is deployed with `CREATE2_FACTORY_INIT_CODE`, thus guaranteeing a deployed code hash of `CREATE2_FACTORY_CODE_HASH`. Additionally, the semantics of `CREATE2 (0xf5)` make it so no transaction executed by `DEPLOYER_ADDRESS` can permanently block the deployment of the CREATE2 factory contract.
+The use of a publicly known private key enables this mechanism, as anyone can permissionlessly generate a delegation signature to **any** bootstrap contract that would cause the `DEPLOYER_ADDRESS` to execute the specified `CREATE2 (0xf5)` operation and deploy the factory contract to a completely deterministic address. Because of the use of `CREATE2 (0xf5)`, the CREATE2 factory will be deployed to `CREATE2_FACTORY_ADDRESS` if and only if it is deployed with `CREATE2_FACTORY_INIT_CODE`, thus guaranteeing a deployed code hash of `CREATE2_FACTORY_CODE_HASH`. Additionally, the semantics of `CREATE2 (0xf5)` make it so no transaction executed by `DEPLOYER_ADDRESS` can permanently block the deployment of the CREATE2 factory contract.
 
 One issue with this method is that because the `DEPLOYER_PRIVATE_KEY` is public, anyone can sign alternative delegations or transactions and front-run a legitimate CREATE2 factory deployment. We consider this to not be a serious issue however, as:
 
@@ -228,7 +228,7 @@ The `CREATE2_FACTORY_RUNTIME_CODE` corresponds to the following assembly:
 # CREATE2 succeeded.
 0x0014: JUMPDEST        # Stack: [address; 0; 32]
 0x0015: RETURNDATASIZE  # Stack: [0; address; 0; 32]            | Push the memory offset (0) to store return data at,
-                                                                # we use `RETURNDATASIZE` becaues contract creation was
+                                                                # we use `RETURNDATASIZE` because contract creation was
                                                                 # successful, and therefore the return data has size 0
 0x0016: MSTORE          # Stack: [0; 32]                        | Store the address in memory, `memory[0:32]` contains
                                                                 # the `address` left padded to 32-bytes
