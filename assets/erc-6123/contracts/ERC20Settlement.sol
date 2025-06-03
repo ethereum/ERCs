@@ -10,9 +10,8 @@ import "./IAsyncTransfer.sol";
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------
 * @title Reference (example) Implementation for Settlement Token Interface
 * @dev This token performs transfers on-chain.
-* Token is tied to one SDC address
-* Only SDC can call checkedTransfers
-* Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC performs next state change
+* Token is tied to one SDC address and only that SDC can call transfers.
+* Settlement Token calls back the referenced IAsyncTransfer contract by calling "afterTransfer" with a success flag.
 */
 contract ERC20Settlement is ERC20, IAsyncTransfer{
 
