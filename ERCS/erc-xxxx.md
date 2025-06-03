@@ -457,8 +457,6 @@ contract KeyHashERC20 is EIP712 {
   - **Recommendation**: Optimize implementations and consider gas sponsorship to offset costs.
 
 ## References
-
-- Tian, Alex (@dugubuyan). "ERC-KeyHashToken: Key Hash-Based Token Standard." Ethereum Improvement Proposal, Number TBD, May 2025.
 - [EIP-1: EIP Purpose and Guidelines](https://eips.ethereum.org/EIPS/eip-1)
 - [EIP-712: Typed structured data hashing and signing](https://eips.ethereum.org/EIPS/eip-712)
 - [EIP-5564: Stealth Addresses](https://eips.ethereum.org/EIPS/eip-5564)
