@@ -294,7 +294,7 @@ contract EquipRenderUtils {
      * @return metadataURI Metadata URI of the asset
      * @return equippableGroupId Equippable group ID of the asset
      * @return catalogAddress Address of the catalog to which the asset belongs to
-     * @return fixedParts An array of fixed parts respresented by the `FixedPart` structs present on the asset
+     * @return fixedParts An array of fixed parts represented by the `FixedPart` structs present on the asset
      * @return slotParts An array of slot parts represented by the `EquippedSlotPart` structs present on the asset
      */
     function composeEquippables(
