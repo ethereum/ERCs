@@ -64,7 +64,7 @@ import "./IAsyncTransferCallback.sol";
  *  </li>
  * </ol>
  *
- * The ISDC interface is split into three parts: ISDCTrade, ISDCSettlement, ISDCTransferCallback
+ * The ISDC interface is split into three parts: ISDCTrade, ISDCSettlement, IAsyncTransferCallback
  * <dl>
  *  <dd>ISDCTrade</dd>
  *  <dt>Functions related to trade inception, confirmation and termination.</dt>
@@ -76,9 +76,9 @@ import "./IAsyncTransferCallback.sol";
  *  <dt>Function representing the callback upon successful (external) transfer (of the settlement amount(s)).</dt>
  * </dl>
  *
- * The ISDCTransferCallback is associated with the ISDCTransfer.
+ * The IAsyncTransferCallback is associated with the IAsyncTransfer.
  * <dl>
- *  <dd>ISDCTransfer</dd>
+ *  <dd>IAsyncTransferCallback</dd>
  *  <dt>Function representing netted batch transfers (with a callback) tok upon successful (external) transfer (of the settlement amount(s)).</dt>
  * </dl>
  */
