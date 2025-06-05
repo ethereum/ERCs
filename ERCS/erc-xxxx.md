@@ -85,6 +85,10 @@ This ERC is fully backward compatible with [ERC-7803]. Applications that don't s
 
 **Account Validation**: Applications should verify the signing account exists on each chain where the signature is used. An account that exists on Ethereum but not Polygon should not have signatures accepted on Polygon. For counterfactual accounts that have not been deployed yet, applications should follow [ERC-6492](./eip-6492.md) to validate signatures.
 
+**Atomicity**: Cross-chain signatures do not guarantee atomic execution across all chains. A signature may be partially executed on some chains while becoming unexecutable on others. This can leave users with funds pending to fulfill their intent. Developers should implement mechanisms that ensure recoverability in case of partial execution. Consider using an [ERC-7786](./eip-7786.md) gateway for routing messages and managing cross-chain state.
+
+**Signature Expiration**: Signatures that weren't executed on some chains may remain executable for an indefinite period. Protocols must implement native expiration or invalidation mechanisms to prevent sudden use of dangling signatures. This is especially important for signatures with `chainId: 0` domains, as they remain valid across all chains where the account exists.
+
 ## Reference Implementation
 
 A collection of examples of how to use this ERC to fulfill the _Motivation_ use cases.
