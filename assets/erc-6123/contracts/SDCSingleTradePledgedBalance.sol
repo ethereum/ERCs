@@ -88,7 +88,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         from[0] = settlementPayer; to[0] = otherParty(settlementPayer); amounts[0] = transferAmount;
         emit SettlementDetermined(msg.sender, settlementAmount, _settlementData);
         setTradeState(TradeState.InTransfer);
-        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, address(this));
+        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, IAsyncTransferCallback(this));
     }
 
     /*
@@ -109,11 +109,11 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         else if ( inStateTransfer() ){
             if (success){
                 setTradeState(TradeState.Settled);
-                emit SettlementTransferred(transactionID, "Settlement Settled - Pledge Transfer");
+                emit SettlementTransferred(transactionID, transactionData);
             }
             else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
                 setTradeState(TradeState.InTermination);
-                emit SettlementFailed(transactionID, "Settlement Failed - Pledge Transfer");
+                emit SettlementFailed(transactionID, transactionData);
                 int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 processTerminationWithPledge(settlementAmount);
                 emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
@@ -164,7 +164,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         from[1] = party2;       to[1] = address(this);              amounts[1] = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );
         from[2] = upfrontPayer; to[2] = otherParty(upfrontPayer);   amounts[2] = upfrontPayment;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, address(this));      // Batched Transfer
+        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, IAsyncTransferCallback(this));      // Batched Transfer
     }
 
     /*
@@ -180,7 +180,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         from[1] = address(this);       to[1] = party2;              amounts[1] = uint(marginRequirements[party2].buffer + marginRequirements[party2].terminationFee );  // Release buffers
         from[2] = terminationFeePayer; to[2] = otherParty(terminationFeePayer);   amounts[2] = terminationAmount;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(from,to,amounts)));
-        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, address(this));    // Batched Transfer
+        settlementToken.transferBatchFromAndCallback(from,to,amounts,transactionID, IAsyncTransferCallback(this));    // Batched Transfer
     }
 
     /* function which perfoms the "Pledged Booking" in case of failed settlement, transferring open settlement amount as well as termination fee from sdc's own balance
@@ -194,7 +194,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         to[1] = settlementReceiver; amounts[1] = marginRequirements[settlementReceiver].terminationFee + marginRequirements[settlementReceiver].buffer; // Release
         to[2] = settlementPayer; amounts[2] = marginRequirements[settlementPayer].buffer-transferAmount; // Release of Buffer
         uint256 transactionID = uint256(keccak256(abi.encodePacked(to,amounts)));
-        settlementToken.transferBatchAndCallback(to,amounts,transactionID, address(this));
+        settlementToken.transferBatchAndCallback(to,amounts,transactionID, IAsyncTransferCallback(this));
     }
 
 }

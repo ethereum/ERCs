@@ -72,7 +72,7 @@ interface IERC3475 {
     /**
      * @dev allows the transfer of any number of bond types from an address to another.
      * The calling of this function needs to be restricted to bond issuer contract.
-     * @param _from is the address of the holder whose balance about to decrees.
+     * @param _from is the address of the holder whose balance about to decrease.
      * @param _transactions is the object defining {class,nonce and amount of the bonds to be redeemed for given whitelisted bond}.
      */
     function burn(address _from, Transaction[] calldata _transactions) external;

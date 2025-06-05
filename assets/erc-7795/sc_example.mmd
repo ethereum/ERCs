@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant D as DApp
+    participant W as Wallet
+    actor U as User
+    participant CA as Chain A
+    participant CB as Chain B
+    participant BA as Bundler A
+    participant BB as Bundler B
+    D->>+W: wallet_sendCalls
+    W->>W: Compute solutions for requirements
+    par Single interaction
+        W->>U: Prompt sign bridge from A to B
+        W->>U: Prompt sign swap from Y to Z
+        W->>U: Prompt sign intended transaction
+    end
+    U-->>W: Approved
+    par In parallel
+        W->>BA: Send bridge transaction
+        W->>BB: Send swap transaction
+        W->>BB: Send main transaction
+    end
+    activate BB
+    BB-->>BB: Wait for requirements
+    BA->>CA: Execute bridge transaction 
+    CA-->>BA: Receipt
+    BA-->>W: Receipt
+    BB-->>BB: Got requirements for swap
+    deactivate BB
+    BB->>CB: Execute swap transaction
+    CB-->>BB: Receipt
+    BB-->>BB: Wait for requirements
+    BB->>CB: Execute main transaction
+    CB-->>BB: Receipt
+    BB-->>W: Receipt
+    W-->>-D: Done
