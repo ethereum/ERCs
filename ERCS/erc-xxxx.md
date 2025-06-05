@@ -1,7 +1,7 @@
 ---
 eip: xxx
 title: Universal Cross-Chain Signatures for Account Abstraction
-description: Extends ERC-7803 to support cross-chain account operations using chainId 0 for universal validity.
+description: Support EIP-712 signatures for cross-chain account operations using chainId 0.
 author: Ernesto García (@ernestognw)
 discussions-to: https://ethereum-magicians.org/t/universal-cross-chain-signatures-for-account-abstraction/24452
 status: Draft
