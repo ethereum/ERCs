@@ -3,11 +3,11 @@ eip: xxx
 title: Universal Cross-Chain Signatures for Account Abstraction
 description: Extends ERC-7803 to support cross-chain account operations using chainId 0 for universal validity.
 author: Ernesto García (@ernestognw)
-discussions-to: https://ethereum-magicians.org/t/erc-xxx-cross-chain-signing-domains/
+discussions-to: https://ethereum-magicians.org/t/universal-cross-chain-signatures-for-account-abstraction/24452
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-01-15
+created: 2025-06-05
 requires: 7803
 ---
 
