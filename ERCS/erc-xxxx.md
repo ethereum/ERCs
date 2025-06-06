@@ -42,7 +42,7 @@ Receivers of broadcast messages SHOULD validate the source and authenticity of m
 
 ### Storage Proof Attributes
 
-This specification defines the following [ERC-7786] attributes for storage proof messaging. Gateways MUST return true if `supportsAttribute` is called with the selector.
+This specification defines the following [ERC-7786] attributes for storage proof messaging. Gateways MUST return true if `supportsAttribute` is called with the selector for supported attributes.
 
 #### `route((address,bytes,uint256)[])`
 
@@ -70,7 +70,9 @@ abi.encodeWithSignature("storageProof(bytes)", storageProofData);
 
 Specifies the block number on the source chain where the message was stored.
 
-ERC-7786 receivers SHOULD validate the target block is finalized to ensure the proof cannot be invalidated by chain reorganizations.
+ERC-7786 receivers MAY validate the target block for freshness or finality requirements according to their security policies. Receivers MAY ignore this attribute if not needed for their use case.
+
+When provided, this attribute SHOULD correspond to the block whose state is proven by the storage proof.
 
 ```solidity
 abi.encodeWithSignature("targetBlock(uint256)", blockNumber);
@@ -92,11 +94,11 @@ Gateways MAY choose to write messages to storage locations that cannot be delete
 
 Message verification follows these steps:
 
-1. Parse the `route`, `storageProof`, and `targetBlock` attributes from the message
+1. Parse the `route` and `storageProof` attributes from the message, and optionally `targetBlock` if provided
 2. Validate all required attributes are present and well-formed
 3. For each route step, verify block hash transition using the paired proof and validate version requirements if specified (non-zero)
-4. Obtain the target block hash for the specified `targetBlock` on the source chain
-5. Use the `storageProof` to verify that message data exists in the source chain's state at the target block
+4. Use the `storageProof` to verify that message data exists in the source chain's state at the target block obtained from the route verification
+5. Optionally validate the `targetBlock` for freshness or finality requirements if the attribute is provided and the receiver chooses to validate it
 6. Execute the message if all verifications pass
 
 ## Rationale
@@ -109,7 +111,7 @@ The empty string `""` is used for broadcast addressing because it cannot collide
 
 ### Attribute Design
 
-The three core attributes balance completeness, flexibility, and implementation ease. Combining route information into a single tuple maintains type safety while separating storage verification from chain state transitions allows independent optimization.
+The two required attributes provide the essential functionality for storage proof verification, while the optional `targetBlock` attribute enables additional freshness and finality validation when needed. Combining route information into a single tuple maintains type safety while separating storage verification from chain state transitions allows independent optimization. The optional nature of `targetBlock` provides implementation flexibility without adding unnecessary complexity to basic use cases.
 
 ### Caching
 
@@ -153,11 +155,11 @@ Hop[] memory hops = new Hop[](2);
 hops[0] = Hop(gateway1, proof1, 1); // Require version 1
 hops[1] = Hop(gateway2, proof2, 0); // Any version acceptable
 
-// Sending a broadcast message
+// Sending a broadcast message with optional targetBlock
 bytes[] memory attributes = new bytes[](3);
 attributes[0] = abi.encodeWithSignature("route((address,bytes,uint256)[])", hops);
 attributes[1] = abi.encodeWithSignature("storageProof(bytes)", storageProofData);
-attributes[2] = abi.encodeWithSignature("targetBlock(uint256)", blockNumber);
+attributes[2] = abi.encodeWithSignature("targetBlock(uint256)", blockNumber); // Optional
 
 gateway.sendMessage(
     "eip155:42161",
