@@ -3,11 +3,11 @@ eip: XXXX
 title: Storage Proof Broadcasting for Cross-Chain Messaging Gateways
 description: Cross-chain messaging that leverages storage proofs and standardized gateway attributes to enable cryptographic verification of messages between chains.
 author: Ernesto García (@ernestognw)
-discussions-to: TODO
+discussions-to: https://ethereum-magicians.org/t/storage-proof-broadcasting-for-cross-chain-messaging-gateways
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-01-XX
+created: 2025-06-06
 requires: 7786
 ---
 
