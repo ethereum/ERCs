@@ -76,6 +76,10 @@ ERC-7786 receivers SHOULD validate the target block is finalized to ensure the p
 abi.encodeWithSignature("targetBlock(uint256)", blockNumber);
 ```
 
+### Relationship to Existing Storage Proof Protocols
+
+This ERC provides standard attributes that enable protocols like [ERC-7888] to implement [ERC-7786] gateways without rebuilding their core verification logic. For example, an [ERC-7888] Broadcaster MAY expose an [ERC-7786] interface using these attributes while maintaining its existing storage proof architecture.
+
 ### Caching
 
 Gateways implementing this specification MAY implement caching mechanisms to optimize repeated proof verifications.
