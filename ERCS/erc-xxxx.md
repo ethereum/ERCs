@@ -15,7 +15,7 @@ requires: 7803
 
 This ERC extends [ERC-7803] to enable cross-chain account abstraction by reserving `chainId` 0 for universal signature validity, following the same pattern established in [EIP-7702]. It allows accounts to sign messages that authorize operations across multiple chains through a single signature, enabling cross-chain intents, multi-chain DAO voting, and unified account management.
 
-[ERC-7803]: ./erc-7803.md
+[ERC-7803]: ./eip-7803.md
 [EIP-7702]: ./eip-7702.md
 
 ## Motivation
@@ -241,7 +241,7 @@ This vote signature can be submitted to DAO contracts on both Ethereum and Polyg
 
 A user wants to add a new signer to their multisig account deployed across multiple chains using an [ERC-7579] module:
 
-[ERC-7579]: ./erc-7579.md
+[ERC-7579]: ./eip-7579.md
 
 ```javascript
 {
