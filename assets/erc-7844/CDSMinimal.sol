@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicensed
+// SPDX-License-Identifier: CC0-1.0
 
 /**
  * @title Consolidated Dynamic Storage - Basic Example
