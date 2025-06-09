@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.22;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/Arrays.sol";
-import "../interfaces/IIDManager.sol";
-import "../interfaces/IFungibleFractionsOperations.sol";
-import "../interfaces/IDataPointRegistry.sol";
-import "../interfaces/IDataIndex.sol";
-import "../interfaces/IDataObject.sol";
-import "../utils/OmnichainAddresses.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {Arrays} from "@openzeppelin/contracts/utils/Arrays.sol";
+import {IFungibleFractionsOperations} from "../interfaces/IFungibleFractionsOperations.sol";
+import {IDataPointRegistry} from "../interfaces/IDataPointRegistry.sol";
+import {IDataIndex} from "../interfaces/IDataIndex.sol";
+import {IDataObject} from "../interfaces/IDataObject.sol";
+import {DataPoints, DataPoint} from "../utils/DataPoints.sol";
+import {ChainidTools} from "../utils/ChainidTools.sol";
 
 /**
  * @title Minimalistic Fungible Fractions Data Object
@@ -40,7 +40,7 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
      * @param dp The DataPoint identifier
      */
     error UninitializedDataPoint(DataPoint dp);
-    
+
     /// @dev Error thrown when the operation arguments are wrong
     error WrongOperationArguments();
 
@@ -55,7 +55,7 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
      * @param selector The operation selector
      */
     error UnknownWriteOperation(bytes4 selector);
-    
+
     /**
      * @notice Error thrown when the balance is insufficient
      * @param diid The DataIndex identifier
@@ -76,6 +76,12 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
 
     /// @dev Error thrown when the params length mismatch
     error ArrayLengthMismatch();
+
+    /**
+     * @dev Error thrown when id couldn't be removed.
+     * @param id The id of the token
+     **/
+    error DiidIdNotFound(uint256 id);
 
     /**
      * @notice Event emitted when the DataIndex implementation is set
@@ -119,7 +125,7 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
     }
 
     /// @dev Mapping of DataPoint to DataPointStorage
-    mapping(DataPoint => DataPointStorage) private dpStorages;
+    mapping(DataPoint => DataPointStorage) private _dpStorages;
 
     /**
      * @notice Modifier to check if the caller is the DataIndex implementation set for the DataPoint
@@ -132,17 +138,13 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
     }
 
     /// @inheritdoc IDataObject
-    function setDIImplementation(DataPoint dp, IDataIndex newImpl) external {
-        DataPointStorage storage dps = dpStorages[dp];
-        if (address(dps.dataIndexImplementation) == address(0)) {
-            // Registering new DataPoint
-            // Should be called by DataPoint Admin
-            if (!_isDataPointAdmin(dp, msg.sender)) revert InvalidCaller(dp, msg.sender);
-        } else {
-            // Updating the DataPoint
-            // Should be called by current DataIndex or DataPoint Admin
-            if ((address(dps.dataIndexImplementation) != msg.sender) && !_isDataPointAdmin(dp, msg.sender)) revert InvalidCaller(dp, msg.sender);
-        }
+    function setDataIndexImplementation(DataPoint dp, IDataIndex newImpl) external {
+        // Registering new DataPoint
+        // Should be called by DataPoint Admin
+        if (!_isDataPointAdmin(dp, msg.sender)) revert InvalidCaller(dp, msg.sender);
+
+        DataPointStorage storage dps = _dpStorages[dp];
+
         dps.dataIndexImplementation = newImpl;
         emit DataIndexImplementationSet(dp, address(newImpl));
     }
@@ -209,15 +211,16 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
     }
 
     function _balanceOfBatchAccounts(DataPoint dp, address[] memory accounts, uint256[] memory ids) internal view returns (uint256[] memory balances) {
-        if (accounts.length != ids.length) revert ArrayLengthMismatch();
-        balances = new uint256[](accounts.length);
-        for (uint256 i; i < accounts.length; i++) {
-            uint256 id = ids.unsafeMemoryAccess(i);
+        uint256 length = accounts.length;
+        if (length != ids.length) revert ArrayLengthMismatch();
+        balances = new uint256[](length);
+        for (uint256 i; i < length; i++) {
             address account = accounts.unsafeMemoryAccess(i);
             bytes32 diid = _tryDiid(dp, account);
             if (diid == 0) {
                 balances[i] = 0;
             } else {
+                uint256 id = ids.unsafeMemoryAccess(i);
                 (bool success, DiidData storage od) = _tryDiidData(dp, diid);
                 balances[i] = success ? od.balances[id] : 0;
             }
@@ -278,12 +281,13 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
     }
 
     function _batchTransferFrom(DataPoint dp, address from, address to, uint256[] memory ids, uint256[] memory values) internal virtual {
-        if (ids.length != values.length) revert ArrayLengthMismatch();
+        uint256 length = ids.length;
+        if (length != values.length) revert ArrayLengthMismatch();
         bytes32 diidFrom = _diid(dp, from);
         bytes32 diidTo = _diid(dp, to);
         DiidData storage diiddFrom = _diidData(dp, diidFrom);
         DiidData storage diiddTo = _diidData(dp, diidTo);
-        for (uint256 i; i < ids.length; i++) {
+        for (uint256 i; i < length; i++) {
             uint256 id = ids.unsafeMemoryAccess(i);
             uint256 value = values.unsafeMemoryAccess(i);
             _decreaseBalance(diiddFrom, id, value, dp, diidFrom);
@@ -300,14 +304,13 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
         uint256 diidBalance = diidd.balances[id];
         if (diidBalance < value) {
             revert InsufficientBalance(diidFrom, id, diidBalance, value);
-        } else {
-            unchecked {
-                diidBalance -= value;
-            }
-            diidd.balances[id] = diidBalance;
-            if (diidBalance == 0) {
-                diidd.ids.remove(id);
-            }
+        }
+        unchecked {
+            diidBalance -= value;
+        }
+        diidd.balances[id] = diidBalance;
+        if (diidBalance == 0) {
+            if (!diidd.ids.remove(id)) revert DiidIdNotFound(id);
         }
     }
 
@@ -320,11 +323,14 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
     }
 
     function _diid(DataPoint dp, address account) internal view returns (bytes32) {
-        return IIDManager(msg.sender).diid(account, dp);
+        DataPointStorage storage dps = _dataPointStorage(dp);
+        return dps.dataIndexImplementation.diid(account, dp);
     }
 
     function _tryDiid(DataPoint dp, address account) internal view returns (bytes32) {
-        try IIDManager(msg.sender).diid(account, dp) returns (bytes32 diid) {
+        DataPointStorage storage dps = _dpStorages[dp];
+        if (address(dps.dataIndexImplementation) == address(0)) return 0;
+        try dps.dataIndexImplementation.diid(account, dp) returns (bytes32 diid) {
             return diid;
         } catch {
             return 0;
@@ -363,15 +369,15 @@ contract MinimalisticFungibleFractionsDO is IDataObject {
     }
 
     function _dataPointStorage(DataPoint dp) private view returns (DataPointStorage storage) {
-        DataPointStorage storage dps = dpStorages[dp];
+        DataPointStorage storage dps = _dpStorages[dp];
         if (address(dps.dataIndexImplementation) == address(0)) {
             revert UninitializedDataPoint(dp);
         }
-        return dpStorages[dp];
+        return _dpStorages[dp];
     }
 
     function _tryDataPointStorage(DataPoint dp) private view returns (bool success, DataPointStorage storage) {
-        DataPointStorage storage dps = dpStorages[dp];
+        DataPointStorage storage dps = _dpStorages[dp];
         if (address(dps.dataIndexImplementation) == address(0)) {
             return (false, dps);
         }

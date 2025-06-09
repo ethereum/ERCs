@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.7.0;
 
 import "./ISDC.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "./IERC20Settlement.sol";
-
-contract ERC20Settlement is ERC20, IERC20Settlement{
+import "./IAsyncTransfer.sol";
 
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------
 * @title Reference (example) Implementation for Settlement Token Interface
 * @dev This token performs transfers on-chain.
-* Token is tied to one SDC address
-* Only SDC can call checkedTransfers
-* Settlement Token calls back the referenced SDC by calling "afterTransfer" with a success flag. Depending on this SDC perfoms next state change
+* Token is tied to one SDC address and only that SDC can call transfers.
+* Settlement Token calls back the referenced IAsyncTransfer contract by calling "afterTransfer" with a success flag.
 */
-
+contract ERC20Settlement is ERC20, IAsyncTransfer{
 
     modifier onlySDC() {
         require(msg.sender == sdcAddress, "Only allowed to be called from SDC Address"); _;
@@ -38,36 +35,45 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         _mint(to, amount);
     }
 
-    function checkedTransfer(address to, uint256 value, uint256 transactionID) public onlySDC{
-        if ( balanceOf(sdcAddress) < value)
-            ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
-        else
-            ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
+    function transferAndCallback(address to, uint256 value, uint256 transactionID, IAsyncTransferCallback callbackContract) public onlySDC{
+        if ( balanceOf(msg.sender) < value) {
+            callbackContract.afterTransfer(false, transactionID, Strings.toString(transactionID));
+        }
+        else {
+            _transfer(msg.sender,to,value);
+            callbackContract.afterTransfer(true, transactionID, Strings.toString(transactionID));
+        }
     }
 
-    function checkedTransferFrom(address from, address to, uint256 value, uint256 transactionID) external view onlySDC {
-        revert("not implemented");
+    function transferFromAndCallback(address from, address to, uint256 value, uint256 transactionID, IAsyncTransferCallback callbackContract) public onlySDC {
+        if ( balanceOf(from) < value) {
+            callbackContract.afterTransfer(false, transactionID, Strings.toString(transactionID));
+        }
+        else {
+            _transfer(from,to,value);
+            callbackContract.afterTransfer(true, transactionID, Strings.toString(transactionID));
+        }
     }
 
-    function checkedBatchTransfer(address[] memory to, uint256[] memory values, uint256 transactionID ) public onlySDC{
+    function transferBatchAndCallback(address[] memory to, uint256[] memory values, uint256 transactionID, IAsyncTransferCallback callbackContract) public onlySDC{
         require (to.length == values.length, "Array Length mismatch");
         uint256 requiredBalance = 0;
-        for(uint256 i = 0; i < values.length; i++)
+        for(uint256 i = 0; i < values.length; i++) {
             requiredBalance += values[i];
+        }
         if (balanceOf(msg.sender) < requiredBalance){
-            ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+            callbackContract.afterTransfer(false, transactionID, Strings.toString(transactionID));
             return;
         }
         else{
             for(uint256 i = 0; i < to.length; i++){
-                _transfer(sdcAddress,to[i],values[i]);
+                _transfer(msg.sender,to[i],values[i]);
             }
-            ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
+            callbackContract.afterTransfer(true, transactionID, Strings.toString(transactionID));
         }
     }
 
-
-    function checkedBatchTransferFrom(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID ) public onlySDC{
+    function transferBatchFromAndCallback(address[] memory from, address[] memory to, uint256[] memory values, uint256 transactionID, IAsyncTransferCallback callbackContract) public onlySDC{
         require (from.length == to.length, "Array Length mismatch");
         require (to.length == values.length, "Array Length mismatch");
         for(uint256 i = 0; i < from.length; i++){
@@ -78,7 +84,7 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
                     totalRequiredBalance += values[j];
             }
             if (balanceOf(fromAddress) <  totalRequiredBalance){
-                ISDC(sdcAddress).afterTransfer(false, Strings.toString(transactionID));
+                callbackContract.afterTransfer(false, transactionID, Strings.toString(transactionID));
                 return;
             }
 
@@ -86,7 +92,6 @@ contract ERC20Settlement is ERC20, IERC20Settlement{
         for(uint256 i = 0; i < to.length; i++){
             _transfer(from[i],to[i],values[i]);
         }
-        ISDC(sdcAddress).afterTransfer(true, Strings.toString(transactionID));
+        callbackContract.afterTransfer(true, transactionID, Strings.toString(transactionID));
     }
-
 }
