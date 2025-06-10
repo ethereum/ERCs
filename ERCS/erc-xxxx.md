@@ -48,7 +48,7 @@ This specification defines the following [ERC-7786] attributes for storage proof
 
 Specifies the verification path from destination to source chain with corresponding proofs and version requirements. Each tuple contains an address that enables verification of the next chain's state, the cryptographic proof required for that verification step, and the expected version of the verification logic (0 means any version is acceptable).
 
-When a non-zero version is specified, gateways MUST reject messages if the route address does not support the exact required version. Route addresses SHOULD implement version querying mechanisms to enable compatibility checking.
+When a non-zero version is specified, gateways MUST reject messages if the route address does not support the exact required version (unless `0`). Route addresses SHOULD implement version querying mechanisms to enable compatibility checking.
 
 The route MUST form a valid path where each step represents a direct relationship between chains that enables state verification. Gateways MUST reject messages with invalid or incomplete proof data.
 
