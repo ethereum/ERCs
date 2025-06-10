@@ -48,9 +48,9 @@ This specification defines the following [ERC-7786] attributes for storage proof
 
 Specifies the verification path from destination to source chain with corresponding proofs and version requirements. Each tuple contains an address that enables verification of the next chain's state, the cryptographic proof required for that verification step, and the expected version of the verification logic (0 means any version is acceptable).
 
-The route MUST form a valid path where each step represents a direct relationship between chains that enables state verification. Gateways MUST reject messages with invalid or incomplete proof data.
+When a non-zero version is specified, gateways MUST reject messages if the route address does not support the exact required version. Route addresses SHOULD implement version querying mechanisms to enable compatibility checking.
 
-ERC-7786 receivers MUST validate the proof for their current route step and version requirements if specified.
+The route MUST form a valid path where each step represents a direct relationship between chains that enables state verification. Gateways MUST reject messages with invalid or incomplete proof data.
 
 ```solidity
 abi.encodeWithSignature("route((address,bytes,uint256)[])", hops, proof, version);
@@ -97,7 +97,7 @@ Message verification follows these steps:
 1. Parse the `route` and `storageProof` attributes from the message, and optionally `targetBlock` if provided
 2. Validate all required attributes are present and well-formed
 3. For each route step, verify block hash transition using the paired proof and validate version requirements if specified (non-zero)
-4. Use the `storageProof` to verify that message data exists in the source chain's state at the target block obtained from the route verification
+4. Use the `storageProof` to verify that message data exists in the source chain's state at the target block obtained from the route verification. The source chain SHOULD correspond to the final validated step in the route verification process
 5. Optionally validate the `targetBlock` for freshness or finality requirements if the attribute is provided and the receiver chooses to validate it
 6. Execute the message if all verifications pass
 
