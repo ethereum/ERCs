@@ -9,18 +9,17 @@ created: 2025-05-13
 
 Proposed by Ant International: https://www.ant-intl.com/en/
 
-# Simple Summary
-Extend ERC-20 so that a token transfer is **valid only when an external "Transfer Oracle" pre-approves it**. Approvals reference an off-chain ISO 20022 payment instruction (pain.001 instruction) that is proven on-chain via a **zero-knowledge proof**. The scheme is issuer-agnostic, proof-system-agnostic, and network-agnostic (L1/L2).
-
 # Abstract
-This EIP standardises:
 
-+ `ITransferOracle` – a minimal interface that any ERC-20-compatible contract can consult to decide whether `transfer` / `transferFrom`should succeed.
-+ `approveTransfer` flow – whereby an _issuer_ (token owner) deposits a one-time approval in the oracle, accompanied by a zk-proof attesting that the approval matches a canonicalised ISO 20022 payment message.
-+ `canTransfer` query – whereby the token contract atomically consumes an approval when the holder initiates the transfer.
-+ Generic data structures, events, and hooks that allow alternative permissioning logics (KYC lists, travel-rule attestations, CBDC quotas) to share the same plumbing.
+This EIP extends ERC-20 tokens with oracle-permissioned transfers validated by zero-knowledge proofs. Token transfers are only valid when an external "Transfer Oracle" pre-approves them using off-chain ISO 20022 payment instructions (pain.001) proven on-chain via ZK proofs.
 
-Reference implementation, SDKs, and Solidity templates are provided using RISC Zero as the proving system, but the standard admits **any zk-proof system** and any JSON (or future XML) schema.
+The standard defines:
++ `ITransferOracle` – a minimal interface that any ERC-20-compatible contract can consult to decide whether transfers should succeed
++ `approveTransfer` flow – whereby an issuer deposits a one-time approval in the oracle with a ZK-proof attesting that the approval matches a canonicalized ISO 20022 payment message  
++ `canTransfer` query – whereby the token contract atomically consumes an approval when the holder initiates the transfer
++ Generic data structures, events, and hooks that allow alternative permissioning logics (KYC lists, travel-rule attestations, CBDC quotas) to share the same plumbing
+
+The scheme is issuer-agnostic, proof-system-agnostic, and network-agnostic (L1/L2). Reference implementation uses RISC Zero as the proving system, but the standard admits any ZK-proof system and any JSON (or future XML) schema.
 
 # Motivation
 Institutional tokenisation requires _both_ ERC-20 fungibility **and** legally enforceable control over who may send value to whom and why.  
@@ -43,9 +42,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 struct TransferApproval {
     address  sender;
     address  recipient;
-    uint256  minAmt;
-    uint256  maxAmt;
-    uint256  expiry;      // UNIX seconds; 0 == never
+    uint256  minAmt;      // Minimum allowed transfer amount (inclusive)
+    uint256  maxAmt;      // Maximum allowed transfer amount (inclusive)
+    uint256  expiry;      // UNIX seconds; 0 == never expires
     bytes32  proofId;     // keccak256(root‖debtorHash‖creditorHash)
 }
 
@@ -83,6 +82,27 @@ emit TransferValidated(proofId);
 ```
 
 `ORACLE` is an immutable constructor argument. (up to design)
+
+### Validation Requirements
+
+The oracle implementation **MUST** enforce the following validation rules when processing `approveTransfer`:
+
+```solidity
+require(minAmt <= maxAmt, "Invalid amount range");
+require(sender != address(0), "Invalid sender address");
+require(recipient != address(0), "Invalid recipient address");
+require(expiry > block.timestamp || expiry == 0, "Approval already expired");
+```
+
+### Approval Consumption Behavior
+
+**Single-Use Policy**: Each approval is consumed entirely when a matching transfer occurs. Approvals **CANNOT** be partially consumed or reused for multiple transfers.
+
+**Amount Matching**: A transfer with `amount` is valid if and only if `minAmt <= amount <= maxAmt` (both bounds inclusive).
+
+**Best-Match Selection**: When multiple valid approvals exist for the same (issuer, sender, recipient) triplet, the oracle **SHOULD** consume the approval with the smallest amount range to preserve larger approvals for potentially larger transfers.
+
+**Expiry Handling**: Expired approvals (where `block.timestamp >= expiry` and `expiry != 0`) **MUST** be ignored during transfer validation but **MAY** remain in storage for auditing purposes.
 
 ### Events
 ```solidity
@@ -155,6 +175,10 @@ However, implementations **MAY** use any ZK proof system (Groth16, PLONK, STARKs
 Keeping oracle logic out of the token contract preserves fungibility and lets one oracle serve hundreds of issuers. `TransferApproval` uses _amount ranges_ so issuers can sign a single approval before the final FX quote is known. `canTransfer` returns the `proofId`, enabling downstream analytics and regulators to join on-chain transfers with off-chain SWIFT messages.
 
 The Merkle proof requirement ensures that all approval data comes from the same authentic pain.001 message, preventing field substitution attacks where an attacker might try to combine legitimate data from different transactions.
+
+**Amount Range Design**: The `minAmt`/`maxAmt` bounds accommodate scenarios where the exact transfer amount is unknown at approval time (e.g., currency conversion with fluctuating exchange rates). The inclusive bounds (`minAmt <= amount <= maxAmt`) provide clear validation semantics, while the single-use consumption policy prevents approval reuse attacks.
+
+**Best-Match Selection**: When multiple approvals overlap, selecting the approval with the smallest range optimizes for approval preservation, allowing issuers to create both broad approvals (e.g., 0-1000 tokens) and specific approvals (e.g., 100-110 tokens) without the specific approval being wastefully consumed by small transfers.
 
 ## Backwards Compatibility
 Existing ERC-20 consumers remain unaffected; a failed `transfer` simply reverts. Wallets and exchanges **should** surface the oracle's revert messages so users know they lack approval.
