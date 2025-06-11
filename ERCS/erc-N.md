@@ -7,8 +7,6 @@ author: Siyuan Zheng (@andrewcoder666) <zhengsiyuan.zsy@antgroup.com>, Xiaoyu Li
 created: 2025-05-13
 ---
 
-Proposed by Ant International: https://www.ant-intl.com/en/
-
 # Abstract
 
 This EIP extends ERC-20 tokens with oracle-permissioned transfers validated by zero-knowledge proofs. Token transfers are only valid when an external "Transfer Oracle" pre-approves them using off-chain ISO 20022 payment instructions (pain.001) proven on-chain via ZK proofs.
