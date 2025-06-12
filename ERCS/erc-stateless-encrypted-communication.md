@@ -1,21 +1,14 @@
-# ERC-XXXX: Stateless Encrypted Communication Standard
-
-**Description:** A log-based protocol for encrypted communication between two addresses on EVM chains.
-
-**Author:** S.E. <sewing848@gmail.com>  
-
-**Discussions-to:** https://ethereum-magicians.org/t/erc-stateless-encrypted-communication-standard
-
-**Status:** Draft
-
-**Type:** Standards Track
-
-**Category:** ERC
-
-**Created:** 2025-06-10
-
-**Requires:**
-
+---
+eip: XXXX
+title: Stateless Encrypted Communication Standard
+description: A log-based protocol for encrypted communication between two addresses on EVM chains.
+author: S.E. <sewing848@gmail.com>
+discussions-to: https://ethereum-magicians.org/t/erc-stateless-encrypted-communication-standard
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-06-10
+license: CC0-1.0
 ---
 
 ## Abstract
