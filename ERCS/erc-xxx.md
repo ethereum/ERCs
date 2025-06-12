@@ -3,7 +3,7 @@ eip: XXXX
 title: DKIM Registry Interface
 description: A standard interface for registering and validating DKIM public key hashes onchain.
 author: Mike Fu (@fumeng00mike), Matthew Yu (@0xknon), Ernesto García (@ernestognw)
-discussions-to: XXXX
+discussions-to: https://ethereum-magicians.org/t/new-erc-dkim-registry-interface/24530
 status: Draft
 type: Standards Track
 category: ERC
