@@ -1,0 +1,156 @@
+# ERC-XXXX: Stateless Encrypted Communication Standard
+
+**Description:** A log-based protocol for encrypted communication between two addresses on EVM chains.
+
+**Author:** S.E. <sewing848@gmail.com>  
+
+**Discussions-to:** https://ethereum-magicians.org/t/erc-stateless-encrypted-communication-standard
+
+**Status:** Draft
+
+**Type:** Standards Track
+
+**Category:** ERC
+
+**Created:** 2025-06-10
+
+**Requires:**
+
+---
+
+## Abstract
+
+This ERC defines the Stateless Encrypted Communication Standard, a minimal, non-financial, gas-efficient communication protocol. It enables encrypted peer-to-peer communication through a single emitted event. The protocol maintains no on-chain state and avoids economic constructs. It assumes the use of an ECDH key exchange to establish a shared symmetric key for secure encrypted data transfer. All message semantics are interpreted and enforced off-chain by client applications.
+
+---
+
+## Motivation
+
+This ERC proposes a shared, minimal primitive for encrypted messaging over EVM-compatible blockchains. The intent is not merely to introduce a new protocol, but to establish a foundational **standard**—a universal, gas-efficient interface that can serve as the default on-chain transport layer for peer-to-peer encrypted communication.
+
+Rather than prescribing a complete protocol with architectural decisions about key management, encryption algorithms, or session handling, this ERC defines only the essential primitives needed to transmit encrypted messages. This minimal approach enables maximum flexibility: applications can implement their own key exchange strategies, choose their preferred encryption methods, and add economic or spam-prevention mechanisms as needed—while maintaining interoperability through the standardized event structure.
+
+Existing token-based and messaging systems typically rely on state mutation, require financial interactions, or assume specific application logic. There is currently no minimal, stateless messaging standard that can serve as a common substrate for decentralized communication.
+
+This standard defines a simple, composable interface that:
+
+- Supports ECDH-based encrypted communication and connection setup
+- Emits only one event for all message types
+- Leaves interpretation and enforcement to off-chain clients
+- Enables privacy-preserving and censorship-resistant messaging applications
+
+By converging on a stateless, event-based design, this ERC aims to provide a stable and composable core that enables interoperability among messaging clients, libraries, and extensions. Applications requiring additional features—such as on-chain key registries, structured session management, or protocol-enforced encryption algorithms—can layer these capabilities on top of this foundational standard while maintaining compatibility with the basic message emission interface.
+
+---
+
+## Specification
+
+### Contract Interface
+
+Implementations of this protocol MUST define an event named by concatenating the contract name with "Transfer".
+Implementations SHOULD expose the contract and event names as public constant strings.
+
+```solidity
+
+string public constant CONTRACT_NAME = "ContractName";  // Implementation-specific
+string public constant EVENT_NAME = "ContractNameTransfer"; // Implementation-specific
+
+// Implementers MUST define an event using the specified structure, with an implementation-specific name exposed via `eventName`.
+event ContractNameTransfer(
+    address indexed from,
+    address indexed to,
+    uint256 indexed messageType,
+    bytes data
+);
+
+function sendMessage(address to, uint256 messageType, bytes calldata data) external;
+```
+
+- **from**: the sender of the message (automatically `msg.sender`)
+- **to**: the intended recipient
+- **messageType**: a message classifier indicating how the data payload should be interpreted
+- **data**: an opaque binary payload, formatted off-chain by convention
+
+### Message Type Semantics
+
+The protocol defines message types by convention.
+
+| messageType | Meaning                        | Payload                                 |
+|-------------|--------------------------------|-----------------------------------------|
+| 0           | Connection Request             | Public key + encrypted request body     |
+| 1           | Connection Request Response    | Public key + encrypted response body    |
+| 2           | Encrypted Text Message         | AES-GCM encrypted message data          |
+| >= 3        | Not defined here               | Not defined here                        |
+
+Clients MUST handle encoding/encryption and decoding/decryption off-chain.
+
+A handshake protocol uses public keys to establish a shared symmetric encryption key via Elliptic Curve Diffie-Hellman (ECDH).
+
+## Rationale
+
+This core protocol is intended for encrypted communication between two addresses. Multiple message types can be filtered using eth_getLogs or eth_subscribe without needing contract storage. The core protocol omits economic interactions and access controls. By emitting only a single event, the protocol reduces on-chain complexity and minimizes gas fees.
+
+## Backwards Compatibility
+
+This standard is new and does not overlap with existing ERC standards.
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.30;
+
+/// @title Stateless Encrypted Communication Standard
+/// @notice Stateless messaging protocol for encrypted peer-to-peer communication via event emission
+/// @dev This contract does not store any state and emits all communication as logs.
+/// @dev All semantics are interpreted off-chain.
+
+contract Ataraxia {
+
+    /// @notice The name of the protocol
+    string public constant CONTRACT_NAME = "Ataraxia";
+
+    /// @notice The name of the data-carrying event
+    string public constant EVENT_NAME = "AtaraxiaTransfer";
+
+    /// @notice Emitted when a message is sent using the protocol
+    /// @param from The sender of the message (automatically msg.sender)
+    /// @param to The recipient of the message
+    /// @param messageType The classifier of the message
+    /// @param data Encrypted or structured message content, interpreted off-chain
+    event AtaraxiaTransfer(
+        address indexed from,
+        address indexed to,
+        uint256 indexed messageType,
+        bytes data
+    );
+
+    /// @notice Send a message of the given type to the specified recipient
+    /// @param to The recipient address
+    /// @param messageType The classifier of the message
+    /// @param data The encrypted or structured payload
+    function sendMessage(address to, uint256 messageType, bytes calldata data) external {
+        emit AtaraxiaTransfer(msg.sender, to, messageType, data);
+    }
+
+}
+```
+
+## Security Considerations
+
+- The protocol emits all messages publicly as logs.
+- Public keys are broadcast to establish a secure connection using ECDH key exchange and AES-GCM encryption.
+- All encryption and identity management must be handled off-chain.
+- Messages are publicly visible; encryption is mandatory for confidentiality.
+- The core protocol does not include any on-chain spam prevention mechanisms. Implementers can extend the protocol with anti-spam measures by requiring token transfers or native currency payments alongside message emission.
+
+## Copyright
+
+Copyright and related rights waived via CC0.
+
+## References
+
+- [ECDH - Elliptic Curve Diffie-Hellman (Wikipedia)](https://en.wikipedia.org/wiki/Elliptic-curve_Diffie–Hellman)
+- [AES-GCM Authenticated Encryption (NIST Special Publication 800-38D)](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf)
+- [eth_getLogs — Ethereum JSON-RPC](https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_getlogs)
+- [eth_subscribe — Ethereum JSON-RPC via WebSocket](https://geth.ethereum.org/docs/rpc/pubsub)
