@@ -147,11 +147,5 @@ contract Ataraxia {
 
 ## Copyright
 
-Copyright and related rights waived via CC0.
+Copyright and related rights waived via [CC0](/LICENSE).
 
-## References
-
-- [ECDH - Elliptic Curve Diffie-Hellman (Wikipedia)](https://en.wikipedia.org/wiki/Elliptic-curve_Diffie–Hellman)
-- [AES-GCM Authenticated Encryption (NIST Special Publication 800-38D)](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf)
-- [eth_getLogs — Ethereum JSON-RPC](https://ethereum.org/en/developers/docs/apis/json-rpc/#eth_getlogs)
-- [eth_subscribe — Ethereum JSON-RPC via WebSocket](https://geth.ethereum.org/docs/rpc/pubsub)
