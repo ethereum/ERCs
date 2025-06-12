@@ -2,13 +2,12 @@
 eip: XXXX
 title: Stateless Encrypted Communication Standard
 description: A log-based protocol for encrypted communication between two addresses on EVM chains.
-author: S.E. <sewing848@gmail.com>
+author: Scott Ewing (@sewing848) <sewing848@gmail.com>
 discussions-to: https://ethereum-magicians.org/t/erc-stateless-encrypted-communication-standard
 status: Draft
 type: Standards Track
 category: ERC
 created: 2025-06-10
-license: CC0-1.0
 ---
 
 ## Abstract
@@ -19,7 +18,7 @@ This ERC defines the Stateless Encrypted Communication Standard, a minimal, non-
 
 ## Motivation
 
-This ERC proposes a shared, minimal primitive for encrypted messaging over EVM-compatible blockchains. The intent is not merely to introduce a new protocol, but to establish a foundational **standard**—a universal, gas-efficient interface that can serve as the default on-chain transport layer for peer-to-peer encrypted communication.
+This ERC proposes a shared, minimal primitive for encrypted messaging over EVM-compatible blockchains. The intent is not merely to introduce a new protocol, but to establish a foundational **standard**—an interoperable, gas-efficient interface that can serve as the default on-chain transport layer for peer-to-peer encrypted communication.
 
 Rather than prescribing a complete protocol with architectural decisions about key management, encryption algorithms, or session handling, this ERC defines only the essential primitives needed to transmit encrypted messages. This minimal approach enables maximum flexibility: applications can implement their own key exchange strategies, choose their preferred encryption methods, and add economic or spam-prevention mechanisms as needed—while maintaining interoperability through the standardized event structure.
 
@@ -38,10 +37,12 @@ By converging on a stateless, event-based design, this ERC aims to provide a sta
 
 ## Specification
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
 ### Contract Interface
 
 Implementations of this protocol MUST define an event named by concatenating the contract name with "Transfer".
-Implementations SHOULD expose the contract and event names as public constant strings.
+Implementations SHOULD expose the contract and event names as public constant strings to support introspection and off-chain tooling.
 
 ```solidity
 
@@ -66,26 +67,33 @@ function sendMessage(address to, uint256 messageType, bytes calldata data) exter
 
 ### Message Type Semantics
 
-The protocol defines message types by convention.
+The protocol reserves the following `messageType` values for standardized encrypted communication primitives:
 
 | messageType | Meaning                        | Payload                                 |
 |-------------|--------------------------------|-----------------------------------------|
 | 0           | Connection Request             | Public key + encrypted request body     |
 | 1           | Connection Request Response    | Public key + encrypted response body    |
 | 2           | Encrypted Text Message         | AES-GCM encrypted message data          |
-| >= 3        | Not defined here               | Not defined here                        |
 
-Clients MUST handle encoding/encryption and decoding/decryption off-chain.
 
-A handshake protocol uses public keys to establish a shared symmetric encryption key via Elliptic Curve Diffie-Hellman (ECDH).
+Client applications MUST interpret message types 0, 1, and 2 according to the above semantics to ensure basic interoperability.
+
+These types are intended to follow this general RECOMMENDED cryptographic model:
+
+- A shared symmetric key is derived using Elliptic Curve Diffie-Hellman (ECDH) from the sender and recipient key pairs.
+- Payloads are encrypted using an authenticated encryption scheme, typically AES-GCM.
+
+Implementers MAY vary the details of symmetric key derivation (e.g., direct use of shared secret, use of HKDF, or key rotation strategies) and encryption parameters (e.g., nonce generation), so long as the overall structure and intent are preserved. However, if substantial deviations from ECDH-based key exchange or AES-GCM semantics are used, it is RECOMMENDED to define a new messageType (e.g., >= 3) to avoid misinterpretation by other clients.
+
+All encryption, decryption, and key exchange logic MUST be handled off-chain.
 
 ## Rationale
 
-This core protocol is intended for encrypted communication between two addresses. Multiple message types can be filtered using eth_getLogs or eth_subscribe without needing contract storage. The core protocol omits economic interactions and access controls. By emitting only a single event, the protocol reduces on-chain complexity and minimizes gas fees.
+This core protocol is intended for encrypted communication between two addresses. Multiple message types can be filtered using `eth_getLogs` or `eth_subscribe` without needing contract storage. The core protocol omits economic interactions and access controls. By emitting only a single event, the protocol reduces on-chain complexity and minimizes gas fees.
 
 ## Backwards Compatibility
 
-This standard is new and does not overlap with existing ERC standards.
+No backward compatibility issues found.
 
 ## Reference Implementation
 
@@ -134,8 +142,8 @@ contract Ataraxia {
 - The protocol emits all messages publicly as logs.
 - Public keys are broadcast to establish a secure connection using ECDH key exchange and AES-GCM encryption.
 - All encryption and identity management must be handled off-chain.
-- Messages are publicly visible; encryption is mandatory for confidentiality.
-- The core protocol does not include any on-chain spam prevention mechanisms. Implementers can extend the protocol with anti-spam measures by requiring token transfers or native currency payments alongside message emission.
+- Messages are publicly visible; therefore, encryption is essential to preserve confidentiality.
+- The core protocol does not include any on-chain spam prevention mechanisms. Implementers can extend the protocol with anti-spam measures by requiring token transfers, or native currency payments alongside message emission.
 
 ## Copyright
 
