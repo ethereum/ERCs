@@ -247,7 +247,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
             "MO-NFT: Token can only be archived once for an owner"
         );
         _archivedStatus[tokenId][msg.sender] = true;
-        emit ArchivedStatusUpdated(tokenId, msg.sender, archived);
+        emit ArchivedStatusUpdated(tokenId, msg.sender, true);
     }
 
     function supportsInterface(
