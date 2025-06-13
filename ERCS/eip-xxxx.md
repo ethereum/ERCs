@@ -32,7 +32,7 @@ Note: The interface and implementation below can be extended to include KYC leve
 
 ### High level Architecture
 
-TBD
+![Universal Compliance Router](../assets/eip-xxxx.md/Universal-compliance-router.png)
 
 ### Interface
 
