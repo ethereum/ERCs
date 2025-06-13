@@ -34,7 +34,7 @@ Note: The interface and implementation below can be extended to include KYC leve
 
 ![Universal Compliance Router](../assets/eip-xxxx.md/Universal-compliance-router.png)
 
-### Interface
+Interface
 
 ```solidity
 
