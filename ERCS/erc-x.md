@@ -31,9 +31,7 @@ Tokenized RWAs such as real estate, equities, and bonds must comply with jurisdi
 Note: The interface and implementation below can be extended to include KYC levels and other KYC/AML checks as parameters in the isCompliant function. The core idea is to allow the registration of compliance frameworks or sub-proxies within the Universal Compliance Router, each exposing a unified callable selector for a specific category of compliance contracts.The registered sub-router/proxy or compliance contract counts in the Universal Compliance Router should be optimized to reduce the computational cost associated with looping operations.
 
 ### High level Architecture
-
-![image] (../assets/erc-x/Universal-compliance-router.png)
-
+TBD
 ### Interface
 
 ```solidity
