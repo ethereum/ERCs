@@ -80,7 +80,7 @@ Implementations with additional decay logic SHOULD expose sufficient data or doc
 It is RECOMMENDED to include ERC-165 support for interface detection:
 
 ``` solidity
-function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
     return interfaceId == type(INET).interfaceId || super.supportsInterface(interfaceId);
 }
 ```
@@ -116,20 +116,20 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 /// @dev Supporting ERC-165 is RECOMMENDED but NOT REQUIRED.
 interface INET is IERC165 {
     /// @notice A short name to identify the resource
-    /// @return name The name of the resource
-    function name() external view returns (string memory name);
+    /// @return The name of the resource
+    function name() external view returns (string memory);
     
     /// @notice A short symbol to identify the resource
-    /// @return symbol The symbol of the resource
-    function symbol() external view returns (string memory symbol);
+    /// @return The symbol of the resource
+    function symbol() external view returns (string memory);
     
     /// @notice The number of decimals used to represent amounts
-    /// @return decimals The number of decimals
-    function decimals() external view returns (uint8 decimals);
+    /// @return The number of decimals
+    function decimals() external view returns (uint8);
 
     /// @notice The rate of decay of tokens at a location address
-    /// @return decayRate The rate of linear decay in token-WEI per second
-    function decayRate() external view returns (uint256 decayRate);
+    /// @return The rate of linear decay in token-WEI per second
+    function decayRate() external view returns (uint256);
     
     /// @notice Returns the decayed amount of resource at a given address
     /// @param location The address to query
@@ -154,18 +154,18 @@ interface INET is IERC165 {
 }
 
 contract NETToken is INET, ERC165 {
-    /// @inheritdoc INET
-    string public constant NAME = "GenericResource";
 
-    /// @inheritdoc INET
-    string public constant SYMBOL = "GEN";
-
-    /// @inheritdoc INET
-    uint8 public constant DECIMALS = 18;
-
-    /// @inheritdoc INET
-    /// Sample setting - the decay rate can be any uint256
-    uint256 public constant DECAY_RATE = 1e15;
+    /// @dev The human-readable name of this token resource
+    string private constant NAME = "GenericResource";
+    
+    /// @dev The short symbol identifier for this token resource  
+    string private constant SYMBOL = "GEN";
+    
+    /// @dev Number of decimal places for token amounts (fixed at 18)
+    uint8 private constant DECIMALS = 18;
+    
+    /// @dev Rate of linear decay in token-wei per second
+    uint256 private constant DECAY_RATE = 1e15;
 
     /// @notice The total raw (pre-decay) amount of resource across all accounts
     uint256 public totalAmount;
@@ -177,11 +177,35 @@ contract NETToken is INET, ERC165 {
     mapping(address => uint256) internal lastUpdated;
 
     /// @inheritdoc INET
+    function name() external pure returns (string memory) {
+        return NAME;
+    }
+
+    /// @inheritdoc INET
+    function symbol() external pure returns (string memory) {
+        return SYMBOL;
+    }
+
+    /// @inheritdoc INET
+    function decimals() external pure returns (uint8) {
+        return DECIMALS;
+    }
+
+    /// @inheritdoc INET
+    function decayRate() external pure returns (uint256) {
+        return DECAY_RATE;
+    }
+
+    /// @inheritdoc INET
     function amountAt(address location) public view returns (uint256) {
+        if (lastUpdated[location] == 0) {
+            return 0;
+        }
+
         uint256 timeElapsed = block.timestamp - lastUpdated[location];
         uint256 raw = rawAmounts[location];
 
-        uint256 decay = decayRate * timeElapsed;
+        uint256 decay = DECAY_RATE * timeElapsed;
         return decay >= raw ? 0 : raw - decay;
     }
 
@@ -233,8 +257,20 @@ contract NETToken is INET, ERC165 {
     /// @notice Indicates support for the INET interface via ERC-165
     /// @param interfaceId The interface identifier, as specified in ERC-165
     /// @return true if the contract implements the specified interface
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
         return interfaceId == type(INET).interfaceId || super.supportsInterface(interfaceId);
+    }
+
+    /// @notice Returns the interface identifier for the INET standard
+    /// @return The bytes4 interface identifier for INET
+    function getINETInterfaceId() external pure returns (bytes4) {
+        return type(INET).interfaceId;
+    }
+
+    /// @notice Returns true if this contract implements the INET standard
+    /// @return True if this contract supports the INET interface
+    function isNET() external pure returns (bool) {
+        return true;
     }
 }
 ```
