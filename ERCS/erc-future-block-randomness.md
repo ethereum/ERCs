@@ -1,13 +1,14 @@
 ---
+eip: XXXX
 title: Future-block based oracleless randomness in smart contracts
-description: Proposal that describes relatively secure application of blockhashes to derive randomness in smart contracts.
-author: Nik Rykov (@angrymouse)
-discussions-to: 
+description: Practically secure application of blockhashes to derive randomness in smart contracts.
+author: Nik Rykov <nik@hns.is>
+discussions-to: https://ethereum-magicians.org/
 status: Draft
 type: Standards Track
 category: ERC
 created: 2025-06-16
-requires: 
+license: CC0-1.0
 ---
 
 ## Abstract
