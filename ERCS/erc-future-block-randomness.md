@@ -1,0 +1,90 @@
+---
+eip: xxxx
+title: Future-block based oracleless randomness in smart contracts
+description: Proposal that describes relatively secure application of blockhashes to derive randomness in smart contracts.
+author: Nik Rykov (@angrymouse)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-06-16
+requires: 
+---
+
+## Summary
+
+This document describes a scheme for generating on-chain randomness. The scheme's methodology involves aggregating entropy from multiple future blockhashes and slicing each hash into smaller, uniform components to dilute the influence of any single block producer.
+
+## Abstract
+
+This EIP details a decentralized randomness generation scheme intended for direct implementation within smart contracts. The scheme is designed to mitigate manipulation by block producers by sourcing entropy from a series of future blocks. Its core feature is "entropy slicing," where each 256-bit blockhash is partitioned into 32 distinct 8-bit components. These components are then added to produce a final random value. This partitioning method ensures that the influence of any single block is granular and distributed, significantly increasing the cost, time and difficulty of manipulating the outcome, requiring malicious validator to spend significant resource in case of wanted outcome grinding.
+
+This document serves as a blueprint for developers to implement a robust, on-chain randomness source without introducing external dependencies.
+
+## Motivation
+
+On-chain applications requiring unpredictability, such as games or lotteries, face a fundamental challenge: sources of entropy like `block.timestamp` or `blockhash(block.number)` are controllable by the block producer. A malicious producer can withhold a block if the resulting randomness is unfavorable, an attack known as "grinding."
+
+The primary goals of this scheme are:
+
+1.  **To Distribute Trust:** By sourcing entropy from multiple future blocks, the scheme forces an attacker to control a consecutive sequence of blocks to gain significant influence.
+2.  **To Granularize Influence:** By slicing each blockhash into many small parts, the scheme prevents an attacker from targeting high-value bits in the final output. Control over one block's entropy is fractured into dozens of low-impact components, making grinding favorable MSBs computationally expensive.
+3.  **To Be Self-Contained:** The scheme operates entirely on-chain, eliminating the need for external oracles, their associated trust assumptions, and potential operational costs.
+
+## Specification of the Scheme
+
+The Multi-Block Entropy Slicing scheme is defined by a set of parameters, a state management flow, and a computational algorithm.
+
+### Parameters
+
+Implementations of this scheme should define the following parameters:
+
+-   `BLOCK_WINDOW`: The number of consecutive future blocks used as an entropy source. A recommended value is **16**. A larger window increases security but also increases the delay and gas cost of finalization.
+-   `ENTROPY_SLICES_PER_BLOCK`: The number of uniform slices each blockhash is divided into. A recommended value is **32**, corresponding to byte-sized slices.
+
+### State Management Flow
+
+The scheme follows a three-phase lifecycle for each randomness request.
+
+1.  **Request Phase**:
+    *   An actor initiates a request for a random number.
+    *   The system should record the the block number of the request and a unique `requestId`.
+    *   The `requestId` should be unique and acts as nonce to mix with randomness shards.
+
+2.  **Waiting Period (Liveness Delay)**:
+    *   A mandatory waiting period of `BLOCK_WINDOW` blocks must pass after request's block number.
+    *   During this time, the future blockhashes required for computation are produced by the network. The outcome remains undetermined.
+
+3.  **Finalization Phase**:
+    *   After the waiting period, a function can be called to execute the computation algorithm using the now-available blockhashes.
+
+### Computation Algorithm
+
+The core of the scheme is its two-stage entropy aggregation algorithm. To compute the randomness for a given `requestId` originating from `requestBlockNumber`:
+
+1.  **Initialize**: An accumulator, `randomness_accumulator`, is initialized to zero.
+
+2.  **Aggregate**: The algorithm MUST perform the following loop:
+    *   For each block `i` in the range from `requestBlockNumber + 1` to `requestBlockNumber + BLOCK_WINDOW`:
+        a.  **Source the blockhash**: Fetch the `blockhash(i)`.
+        b.  **Bind to request**: Create a request-specific hash to prevent cross-request contamination: `intermediate_hash = keccak256(abi.encodePacked(blockhash(i), requestId))`.
+        c.  **Slice and Sum**: Treat the 256-bit `intermediate_hash` as an array of `ENTROPY_SLICES_PER_BLOCK` (e.g., 32) slices. Add the numerical value of each slice to `randomness_accumulator`. For 8-bit slices, this means iterating through each of the 32 bytes and adding its `uint8` value to the accumulator. 
+
+The final value of `randomness_accumulator` is the resulting random number.
+
+## Rationale
+
+*   **Future Blockhashes as Entropy Source**: Using future blocks is critical. The hashes are not known at the time of the request, forcing a potential attacker to act *after* the request is committed.
+*   **Entropy Slicing as an Anti-Grinding Mechanism**: A simple aggregation (e.g., `keccak256` of all blockhashes) would be vulnerable to an attacker controlling the *last* block in the window, as they could grind that block's hash to manipulate the final outcome. By slicing and summing, the influence of each bit from a single blockhash is significantly diluted. It is computationally infeasible to precisely control the final sum by manipulating one of the 512 additive parts.
+*   **Request-Specific Hashing**: Binding the `requestId` into each `intermediate_hash` ensures that each randomness generation is an isolated process. This prevents scenarios where two requests in the same block could be manipulated simultaneously or produce identical results.
+
+## Security Considerations
+
+Implementers of this scheme must be aware of the following security characteristics:
+
+*   **Collusion Threat**: The scheme's security is proportional to the decentralization of block production. A cartel of producers controlling a significant fraction of blocks within the `BLOCK_WINDOW` could collaborate to influence the outcome. The slicing mechanism acts as a strong economic deterrent by making this influence imprecise and costly to coordinate, requiring strong hardware capabilities for efficient grinding, however validators still might have small unfair edge.
+*   **Liveness of `blockhash`**: The `blockhash` opcode can only access the 256 most recent blocks. Any implementation must ensure that finalization occurs before `requestBlockNumber + 256`. Requests not finalized within this period will become unfulfillable. 
+*   **Finalization Incentive**: The scheme relies on an external actor to trigger the finalization phase. While this can be the original requester, robust applications should consider incentives for third-party finalization to ensure liveness if the original requester abandons the request.
+
+## Copyright
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
