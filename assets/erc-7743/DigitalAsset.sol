@@ -70,9 +70,10 @@ contract DigitAsset is MultiOwnerNFT, IDigitalAsset {
         uint256 size,
         bytes32 fileHash,
         address provider,
-        uint256 transferValue
+        uint256 transferValue,
+        address mintTo
     ) external returns (uint256) {
-        uint256 assetId = mintToken();
+        uint256 assetId = mintTokenTo(mintTo);
         _assets[assetId] = DigitAssetInfo({
             assetId: assetId,
             assetName: assetName,
@@ -113,7 +114,35 @@ contract DigitAsset is MultiOwnerNFT, IDigitalAsset {
         );
         require(to != address(0), "MO-NFT: Transfer to the zero address");
 
+        // Standard ERC721 transfer - no payment required
+        _transferWithoutPayment(from, to, tokenId);
+    }
+
+    // Payable version for transfers with royalty payments
+    function transferFromWithPayment(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public payable {
+        require(
+            isOwner(tokenId, msg.sender), // Ensure that `msg.sender` is an owner
+            "MO-NFT: Transfer from incorrect account"
+        );
+        require(to != address(0), "MO-NFT: Transfer to the zero address");
+
         _transferWithProviderPayment(from, to, tokenId);
+    }
+
+    function _transferWithoutPayment(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal {
+        // Call the internal transfer function in MultiOwnerNFT
+        _transfer(from, to, tokenId);
+
+        DigitAssetInfo storage asset = _assets[tokenId];
+        emit AssetTransferred(from, to, tokenId, 0); // No payment made
     }
 
     function _transferWithProviderPayment(
@@ -123,12 +152,21 @@ contract DigitAsset is MultiOwnerNFT, IDigitalAsset {
     ) internal {
         DigitAssetInfo storage asset = _assets[tokenId];
 
-        // Pay the provider the transferValue for this asset
+        // User must send enough ETH to cover the transfer value
         require(
-            address(this).balance >= asset.transferValue,
-            "Insufficient contract balance for provider payment"
+            msg.value >= asset.transferValue,
+            "Insufficient payment for provider royalty"
         );
-        payable(asset.provider).transfer(asset.transferValue);
+
+        // Pay provider from user's sent ETH (only if transfer value > 0)
+        if (asset.transferValue > 0) {
+            payable(asset.provider).transfer(asset.transferValue);
+        }
+
+        // Return excess ETH to sender if any
+        if (msg.value > asset.transferValue) {
+            payable(msg.sender).transfer(msg.value - asset.transferValue);
+        }
 
         // Call the internal transfer function in MultiOwnerNFT
         _transfer(from, to, tokenId);
