@@ -39,7 +39,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Initial State vs Final State
 
-![Versus](./versus.png)
+![Versus](./svg/versus.svg)
 
 ### Solvency Metrics During Crash
 
@@ -53,11 +53,11 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Test Case: Price Movement Tracking
 **Steps Executed**:
-![price-movement-tracking](./price-movement-tracking-steps.png)
+![price-movement-tracking](./svg/price-movement-tracking-steps.svg)
 
 ### Price Movement Tracking
 
-![price-movement-tracking](./price-movement-tracking.png)
+![price-movement-tracking](./svg/price-movement-tracking.svg)
 
 ### Price Evolution Summary
 | Step | ETH Price | BTC Price | Change % | Health Status |
@@ -80,7 +80,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Volatility Measurements
 
-![volatility-measurements](./volatility-measurements.png)
+![volatility-measurements](./svg/volatility-measurements.svg)
 
 ## Volatility Analysis Implementation
 
@@ -149,7 +149,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Performance Metrics
 
-![performance-metrics](performance-metrics.png)
+![performance-metrics](./svg/performance-metrics.svg)
 
 ## Risk Threshold Breaches
 
@@ -161,7 +161,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### System Response Timeline
 
-![system-response-timeline](system-response-timeline.png)
+![system-response-timeline](./svg/system-response-timeline.svg)
 
 ## Test Coverage Summary
 
