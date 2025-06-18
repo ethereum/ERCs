@@ -35,6 +35,11 @@ contract DigitAsset is MultiOwnerNFT, IDigitalAsset {
         uint256 oldTransferValue,
         uint256 newTransferValue
     );
+    event ProviderFreeTransfer(
+        uint256 indexed assetId,
+        address indexed provider,
+        address indexed to
+    );
 
     constructor() payable MultiOwnerNFT(msg.sender) {}
 
@@ -133,6 +138,60 @@ contract DigitAsset is MultiOwnerNFT, IDigitalAsset {
         _transferWithProviderPayment(from, to, tokenId);
     }
 
+    // Smart transfer function that automatically chooses free or paid transfer
+    function smartTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public payable {
+        require(
+            isOwner(tokenId, msg.sender), // Ensure that `msg.sender` is an owner
+            "MO-NFT: Transfer from incorrect account"
+        );
+        require(to != address(0), "MO-NFT: Transfer to the zero address");
+
+        // If sender is the provider or transfer value is 0, use free transfer
+        if (msg.sender == _assets[tokenId].provider || _assets[tokenId].transferValue == 0) {
+            _transferWithoutPayment(from, to, tokenId);
+            
+            // Return any sent ETH since no payment is needed
+            if (msg.value > 0) {
+                payable(msg.sender).transfer(msg.value);
+            }
+        } else {
+            // Use paid transfer for non-providers
+            _transferWithProviderPayment(from, to, tokenId);
+        }
+    }
+
+    // Check if a transfer would be free for the caller
+    function isTransferFreeForCaller(
+        uint256 assetId,
+        address caller
+    ) external view returns (bool) {
+        require(_exists(assetId), "Asset: Asset does not exist");
+        DigitAssetInfo storage asset = _assets[assetId];
+        
+        // Transfer is free if caller is the provider or transfer value is 0
+        return (caller == asset.provider || asset.transferValue == 0);
+    }
+
+    // Get the required payment amount for a transfer by a specific caller
+    function getTransferCost(
+        uint256 assetId,
+        address caller
+    ) external view returns (uint256) {
+        require(_exists(assetId), "Asset: Asset does not exist");
+        DigitAssetInfo storage asset = _assets[assetId];
+        
+        // No cost if caller is the provider
+        if (caller == asset.provider) {
+            return 0;
+        }
+        
+        return asset.transferValue;
+    }
+
     function _transferWithoutPayment(
         address from,
         address to,
@@ -152,7 +211,21 @@ contract DigitAsset is MultiOwnerNFT, IDigitalAsset {
     ) internal {
         DigitAssetInfo storage asset = _assets[tokenId];
 
-        // User must send enough ETH to cover the transfer value
+        // If the sender is the provider (original author), no payment required
+        if (msg.sender == asset.provider) {
+            // Provider transfers their own token - no fee required
+            _transfer(from, to, tokenId);
+            emit AssetTransferred(from, to, tokenId, 0); // No payment made
+            emit ProviderFreeTransfer(tokenId, asset.provider, to);
+            
+            // Return any sent ETH back to provider since no payment is needed
+            if (msg.value > 0) {
+                payable(msg.sender).transfer(msg.value);
+            }
+            return;
+        }
+
+        // For non-provider transfers, require payment
         require(
             msg.value >= asset.transferValue,
             "Insufficient payment for provider royalty"
