@@ -43,7 +43,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
 
     constructor(address owner) Ownable(owner) {}
 
-    function mintToken() public onlyOwner returns (uint256) {
+    function mintToken() public returns (uint256) {
         _nextTokenId++;
 
         // Add the sender to the set of owners for the new token
@@ -113,27 +113,27 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
     }
 
     // Overrides for approvals
-    function approve(address to, uint256 tokenId) public override {
+    function approve(address /* to */, uint256 /* tokenId */) public pure override {
         revert("MO-NFT: approvals not supported");
     }
 
     function setApprovalForAll(
-        address operator,
-        bool approved
-    ) public override {
+        address /* operator */,
+        bool /* approved */
+    ) public pure override {
         revert("MO-NFT: approvals not supported");
     }
 
     function getApproved(
-        uint256 tokenId
-    ) public view override returns (address) {
+        uint256 /* tokenId */
+    ) public pure override returns (address) {
         revert("MO-NFT: approvals not supported");
     }
 
     function isApprovedForAll(
-        address owner,
-        address operator
-    ) public view override returns (bool) {
+        address /* owner */,
+        address /* operator */
+    ) public pure override returns (bool) {
         revert("MO-NFT: approvals not supported");
     }
 
@@ -247,7 +247,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
             "MO-NFT: Token can only be archived once for an owner"
         );
         _archivedStatus[tokenId][msg.sender] = true;
-        emit ArchivedStatusUpdated(tokenId, msg.sender, archived);
+        emit ArchivedStatusUpdated(tokenId, msg.sender, true);
     }
 
     function supportsInterface(
