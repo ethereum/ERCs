@@ -43,7 +43,7 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
 
     constructor(address owner) Ownable(owner) {}
 
-    function mintToken() public onlyOwner returns (uint256) {
+    function mintToken() public returns (uint256) {
         _nextTokenId++;
 
         // Add the sender to the set of owners for the new token
@@ -53,19 +53,6 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         _balances[_msgSender()] += 1;
 
         emit TokenMinted(_nextTokenId, _msgSender());
-        return _nextTokenId;
-    }
-
-    function mintTokenTo(address to) public onlyOwner returns (uint256) {
-        _nextTokenId++;
-
-        // Add the specified address to the set of owners for the new token
-        _owners[_nextTokenId].add(to);
-
-        // Increment the balance of the owner
-        _balances[to] += 1;
-
-        emit TokenMinted(_nextTokenId, to);
         return _nextTokenId;
     }
 

@@ -15,4 +15,21 @@ interface IDigitalAsset {
         address provider;
         uint256 transferValue;
     }
+
+    // Direct minting by provider/author - the only minting method
+    function provide(
+        string memory assetName,
+        uint256 size,
+        bytes32 fileHash,
+        uint256 transferValue
+    ) external returns (uint256);
+
+    // Platform fee management
+    function setPlatformFeeRatio(uint256 newRatio) external;
+    function setPlatformFeeRecipient(address newRecipient) external;
+    function getPlatformFeeRatio() external view returns (uint256);
+    function getPlatformFeeRecipient() external view returns (address);
+    function calculatePlatformFee(uint256 transferValue) external view returns (uint256);
+    function getTransferCostBreakdown(uint256 assetId, address caller) 
+        external view returns (uint256 providerFee, uint256 platformFee, uint256 totalCost);
 }
