@@ -143,6 +143,15 @@ interface INFTBoundValidator is IERC7579Module {
     ) external returns (uint256 validationData);
 
     /**
+     * @notice Validates a signature according to ERC-1271
+     * @dev MUST check that the signer owns the controlling NFAT
+     * @param hash The hash of the data to validate
+     * @param signature The signature to validate
+     * @return magicValue ERC-1271 magic value (0x1626ba7e) if valid, 0xffffffff if invalid
+     */
+    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4 magicValue);
+
+    /**
      * @notice Returns the NFAT that controls this NBA
      * @param account The NBA address
      * @return nftContract The NFAT contract address
@@ -174,7 +183,7 @@ Other fields (image, Chain ID, Deployment Status, etc.) are optional.
 
 * **Lost NFAT ⇒ Lost NBA** – losing or burning the NFT forfeits wallet control; UIs MUST warn users.
 * **Cross‑chain replay** – bridging without burn can duplicate control; bridge implementations MUST lock originals.
-* **Module reset on transfer** – wallet MUST uninstall all modules except the validator when ownership changes.
+* **Module reset on transfer** – wallet MUST uninstall all modules except the validator when ownership changes to ensure the previous owner cannot access the wallet through additional validators or other modules.
 * **Initial gas** – forwarding `msg.value` provides first‑transaction funding.
 * **Recovery** – guardian or social‑recovery modules are out of scope.
 
