@@ -17,8 +17,8 @@ A singleton contract which allows standard EOAs to perform batch calls to compat
 ## Motivation
 
 The ERC-7702 allows EOAs to became powerful smart contract accounts (SCA) which address many UX issues we've faced so far like the usual double `approve` + `transferFrom` transactions.
-This new possibility that will probably reach wider adoption over time, meanwhile, we need a way to improve UX for the EOAs that don't have code attached to them.
-The `Operator` approach brings new possibilities for contracts which support it. For instance, it improves usage of pull oracles (where the price data must be update on-chain before the actual call).
+While this new tecnhology is still reaching wider adoption over time, we need a way to improve UX for the users that decide to not have code attached to their EOAs.
+The `Operator` approach brings new possibilities for contracts which support it. For instance, it makes pull oracles (where the price data must be update on-chain before the actual call) usage smoothly.
 
 ## Specification
 
