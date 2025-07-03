@@ -57,18 +57,18 @@ interface IOperator {
 `execute`
 Execute the calls sent by the actual sender.
 
-MUST revert if any of the calls fail.
+MUST revert if any of the calls fail.  
 MUST return data from the calls.
 
 `onBehalfOf`
 Used by the target contract to get the actual caller.
 
-MUST return the actual `msg.sender` when called in the context of a call.
+MUST return the actual `msg.sender` when called in the context of a call.  
 MUST revert when called outside of the context of a call.
 
 ### Operated
 
-The target contract when checking who the sender is, let's assume the sender is the `operator.onBehalfOf()` when `msg.sender == operator`. This behavior fits well with the usage of the `_msgSender()` function from the `ERC-2771`.
+Compatible target contracts (a.k.a. `Operated`) MUST assume the sender is the `operator.onBehalfOf()` when `msg.sender == operator`. This behavior fits well with the usage of the `_msgSender()` function from the []`ERC-2771`](./erc-2771.md).
 
 ## Reference Implementation
 
@@ -129,7 +129,7 @@ contract Operator is IOperator, ReentrancyGuardTransient {
 }
 ```
 
-Worth noting that the usage of transient storage (EIP-1153) for storing msg.sender is highly RECOMMENDED.
+Worth noting that the usage of transient storage ([EIP-1153](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1153.md)) for storing the `msg.sender` is highly RECOMMENDED.
 
 ### Operated
 
