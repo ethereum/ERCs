@@ -93,7 +93,19 @@ MUST emit the `OperatorSet` event.
 function setOperator(address operator, uint48 until) external
 ```
 
-#### confidentialTransfer
+#### confidentialTransfer(address, bytes32)
+
+Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
+
+Returns the actual amount that was transferred.
+
+MUST emit the `ConfidentialTransfer` event.
+
+```solidity
+function confidentialTransfer(address to, bytes32 amount) external returns (bytes32)
+```
+
+#### confidentialTransfer(address, bytes32, bytes)
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
@@ -107,7 +119,21 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransfer(address to, bytes32 amount, bytes calldata data) external returns (bytes32)
 ```
 
-#### confidentialTransferFrom
+#### confidentialTransferFrom(address, address, bytes32)
+
+Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
+
+Returns the actual amount that was transferred.
+
+MUST revert if the caller is not an operator for `from`.
+
+MUST emit the `ConfidentialTransfer` event.
+
+```solidity
+function confidentialTransferFrom(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
+```
+
+#### confidentialTransferFrom(address, address, bytes32, bytes)
 
 Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
 
@@ -123,7 +149,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransferFrom(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
 ```
 
-#### confidentialTransferAndCall
+#### confidentialTransferAndCall(address, address, bytes32, bytes)
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
@@ -136,10 +162,42 @@ Returns the actual amount that was transferred.
 MUST emit the `ConfidentialTransfer` event.
 
 ```solidity
-function confidentialTransferAndCall(address to, bytes32 amount, bytes calldata data) external returns (bytes32)
+function confidentialTransferAndCall(address to, bytes32 amount, bytes calldata callData) external returns (bytes32)
 ```
 
-#### confidentialTransferFromAndCall
+#### confidentialTransferAndCall(address, address, bytes32, bytes, bytes)
+
+Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
+
+The `data` parameter contains implementation-specific information such as cryptographic proofs.
+
+See [Callback Details](#callback-details) below for details on the callback flow.
+
+Returns the actual amount that was transferred.
+
+MUST emit the `ConfidentialTransfer` event.
+
+```solidity
+function confidentialTransferAndCall(address to, bytes32 amount, bytes calldata data, bytes calldata callData) external returns (bytes32)
+```
+
+#### confidentialTransferFromAndCall(address, address, bytes32, bytes)
+
+Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
+
+See [Callback Details](#callback-details) below for details on the callback flow.
+
+Returns the actual amount that was transferred.
+
+MUST revert if the caller is not an operator for `from`.
+
+MUST emit the `ConfidentialTransfer` event.
+
+```solidity
+function confidentialTransferFromAndCall(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
+```
+
+#### confidentialTransferFromAndCall(address, address, bytes32, bytes, bytes)
 
 Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
 
@@ -154,7 +212,7 @@ MUST revert if the caller is not an operator for `from`.
 MUST emit the `ConfidentialTransfer` event.
 
 ```solidity
-function confidentialTransferFromAndCall(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
+function confidentialTransferFromAndCall(address from, address to, bytes32 amount, bytes calldata data, bytes calldata callData) external returns (bytes32)
 ```
 
 ### Events
@@ -187,7 +245,7 @@ event AmountDisclosed(bytes32 indexed handle, uint256 amount)
 
 ### Callback Details
 
-Transfer functions suffixed with `andCall` execute a callback to the `to` address AFTER all transfer logic is completed. The callback flow is as follows:
+Transfer functions suffixed with `andCall` execute a callback to the `to` address AFTER all transfer logic is completed. The callback calls the `onConfidentialTokenReceived` function with the from address, actual amount sent, and given `callData` bytes (the last parameter for `andCall` functions). The callback flow is as follows:
 
 - If `address(to).code.length == 0` the callback is a no-op and returns successfully.
 - Call [`onConfidentialTokenReceived(address, bytes32, bytes)`](#onconfidentialtokenreceived) on `to`.
@@ -196,7 +254,7 @@ Transfer functions suffixed with `andCall` execute a callback to the `to` addres
 
 ### Contract Receivers
 
-Contracts that need to be able to receive transfers with callbacks MUST implement the `onConfidentialTokenReceived` function:
+For a contract to receive a transfer with a callback, it MUST implement the `onConfidentialTokenReceived` function:
 
 #### onConfidentialTokenReceived
 
