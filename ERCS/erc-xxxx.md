@@ -69,7 +69,7 @@ The attribute value COULD default to `0x` when not specified, equivalent to infi
 
 Specifies how execution failures MUST be handled. This attribute uses selector `0x9e521a77`, representing the first 4 bytes of `keccak256("revertBehavior(uint8)")`.
 
-The value is encoded as an ABI-encoded uint8 with three possible values: `0` for silent failure (the default behavior), `1` for reverting the transaction, and `2` for emitting a failure event and continuing execution. When not specified, the attribute defaults to `0`.
+The value is encoded as an ABI-encoded uint8 with three possible values: `0` for reverting the transaction (the default behavior), `1` for emitting a failure event and continuing execution, and `2` for silent failure. When not specified, the attribute defaults to `0`.
 
 #### `dependsOn(bytes32[])`
 
