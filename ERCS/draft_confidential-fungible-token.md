@@ -3,7 +3,7 @@ eip: XXXX
 title: Confidential Fungible Token Standard
 description: A standard interface for confidential fungible tokens
 author: Aryeh Greenberg (@arr00), Ernesto García (@ernestognw), Hadrien Croubois (@Amxx)
-discussions-to:
+discussions-to: https://ethereum-magicians.org/t/new-erc-confidential-fungible-token-standard/24735
 status: Draft
 type: Standards Track
 category: ERC
