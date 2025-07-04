@@ -3,7 +3,7 @@ eip: XXXX
 title: Confidential Fungible Token Standard
 description: A standard interface for confidential fungible tokens
 author: Aryeh Greenberg (@arr00), Ernesto García (@ernestognw), Hadrien Croubois (@Amxx)
-discussions-to: 
+discussions-to:
 status: Draft
 type: Standards Track
 category: ERC
@@ -20,13 +20,14 @@ A standard interface allows pointer based confidential tokens on Ethereum to be 
 
 ## Specification
 
-The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “NOT RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
 
 ### Nomenclature
+
 - All amounts in this ERC are pointer based amounts represented by `bytes32` pointers unless otherwise specified. The resolution and manipulation of these pointers is implementation specific.
 
 ### Token
- 
+
 ### Methods
 
 Compliant tokens MUST implement the following methods, unless otherwise specified:
@@ -258,7 +259,7 @@ For a contract to receive a transfer with a callback, it MUST implement the `onC
 
 #### onConfidentialTokenReceived
 
-If the callback is unsuccessful, the function SHOULD revert or return a pointer to the false boolean. 
+If the callback is unsuccessful, the function SHOULD revert or return a pointer to the false boolean.
 
 The token will attempt to return tokens from the receiver to the sender if false is returned. Note that this reversal may fail if the receiver spends tokens as part of the callback.
 
@@ -274,7 +275,7 @@ Using `bytes32` allows implementations using pointer based systems and privacy m
 
 ### Operator Model
 
-Time-limited operators provide granular control while enabling DeFi protocol integration and natural permission expiration. This approach reduces the load on the external system by removing the need to track approval amounts. 
+Time-limited operators provide granular control while enabling DeFi protocol integration and natural permission expiration. This approach reduces the load on the external system by removing the need to track approval amounts.
 
 ### Data Parameter
 
