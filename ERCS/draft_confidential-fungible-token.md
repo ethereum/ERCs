@@ -258,7 +258,9 @@ For a contract to receive a transfer with a callback, it MUST implement the `onC
 
 #### onConfidentialTokenReceived
 
-If the callback is unsuccessful, MUST revert or return a pointer to the false boolean. The token will attempt to return tokens from the receiver to the sender if false is returned. Note that this reversal may fail if the receiver spends tokens as part of the callback.
+If the callback is unsuccessful, the function SHOULD revert or return a pointer to the false boolean. 
+
+The token will attempt to return tokens from the receiver to the sender if false is returned. Note that this reversal may fail if the receiver spends tokens as part of the callback.
 
 ```solidity
 function onConfidentialTokenReceived(address from, bytes32 amount, bytes calldata data) external returns (bytes32 success);
