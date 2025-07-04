@@ -47,7 +47,7 @@ The attribute value is encoded as an ABI-encoded boolean, and COULD default to `
 
 #### `timeout(uint256)`
 
-Specifies a timestamp after which the message is automatically cancelled. This attribute uses selector `0x08148f7a`, derived from the first 4 bytes of `keccak256("timeout(uint256)")`.
+Specifies a timestamp after which the message cannot be executed. This attribute uses selector `0x08148f7a`, derived from the first 4 bytes of `keccak256("timeout(uint256)")`.
 
 The value is encoded as an ABI-encoded Unix timestamp, and COULD default to `0` when not specified. Gateways MUST NOT execute messages after the timeout timestamp unless `0` is specified, which MUST be interpreted as no timeout.
 
