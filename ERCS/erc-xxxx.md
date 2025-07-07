@@ -13,11 +13,13 @@ requires: 7786
 
 ## Abstract
 
-This ERC defines standard attributes for ERC-7786 cross-chain messaging gateways to enable consistent cancellation, timeout, retry, dependency, and delivery control mechanisms across implementations. These attributes provide applications with predictable control over message lifecycle, ordering, and delivery requirements.
+This ERC defines standard attributes for [ERC-7786] cross-chain messaging gateways to enable consistent cancellation, timeout, retry, dependency, and delivery control mechanisms across implementations. These attributes provide applications with predictable control over message lifecycle, ordering, and delivery requirements.
+
+[ERC-7786]: ./erc-7786.md
 
 ## Motivation
 
-ERC-7786 introduces an extensible attribute system for cross-chain messaging, but leaves attribute standardization to follow-up specifications. As cross-chain applications mature, consistent patterns for message control have emerged as essential requirements:
+[ERC-7786] introduces an extensible attribute system for cross-chain messaging, but leaves attribute standardization to follow-up specifications. As cross-chain applications mature, consistent patterns for message control have emerged as essential requirements:
 
 1. **Cancellation**: Applications need to cancel pending messages due to changed conditions
 2. **Timeouts**: Automatic cancellation prevents indefinite pending states
@@ -35,7 +37,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Standard Attributes
 
-This specification defines standard attributes for ERC-7786 cross-chain messaging gateways. The word "delivery" (or "deliver") is used to refer to the process of delivering a message to the destination chain, similar to its usage in ERC-7786.
+This specification defines standard attributes for [ERC-7786] cross-chain messaging gateways. The word "delivery" (or "deliver") is used to refer to the process of delivering a message to the destination chain, similar to its usage in [ERC-7786].
 
 Gateways MAY implement attributes independently. Gateways MUST validate the attribute's encoding for each attribute they implement and revert the transaction if the encoding is invalid.
 
@@ -114,7 +116,7 @@ The byte-encoded retry policy allows for extensible parameters without requiring
 
 ## Backwards Compatibility
 
-This specification extends ERC-7786 without breaking changes. Gateways not supporting these attributes will operate normally per the base specification's requirement to handle unknown attributes gracefully.
+This specification extends [ERC-7786] without breaking changes. Gateways not supporting these attributes will operate normally per the base specification's requirement to handle unknown attributes gracefully.
 
 ## Security Considerations
 
