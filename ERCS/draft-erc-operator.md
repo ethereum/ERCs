@@ -1,0 +1,176 @@
+---
+title: Operator contract for non delegated EOAs
+description: A standard for operating batch executions on behalf of non delegated EOAs
+author: Marcelo Morgado (@marcelomorgado), Manoj Patidar (@patidarmanoj10)
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-07-02
+requires: EIP-1153, ERC-2771
+---
+
+## Abstract
+
+A contract which allows standard EOAs to perform batch calls to compatible contracts.
+
+## Motivation
+
+The [ERC-7702](https://eips.ethereum.org/EIPS/eip-7702) allows EOAs to became powerful smart contract accounts (SCA), which solves many UX issues, like the double `approve` + `transferFrom` transactions.  
+While this new tecnhology is still reaching wider adoption over time, we need a way to improve UX for the users that decide to not have code attached to their EOAs.  
+This approach allows any EOA to perform batch call on contracts that are compatible.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+### Definitions
+
+- Operator: The contract that executes calls on the sender's behalf.
+- Operated: The contract that supports calls throught the Operator.
+
+It's OPTIONAL but HIGHLY RECOMMENDED to have the `Operator` contract as a singleton.
+
+### Operator
+
+```solidity
+pragma solidity ^0.8.24;
+
+interface IOperator {
+    struct Call {
+        address target;
+        uint256 value;
+        bytes callData;
+    }
+
+    /// @notice Execute calls
+    /// @param calls An array of Call structs
+    /// @return returnData An array of bytes containing the responses
+    function execute(Call[] calldata calls) external payable returns (bytes[] memory returnData);
+
+    /// @notice The address which initiated the executions
+    /// @return sender The actual sender of the calls
+    function onBehalfOf() external view returns (address sender);
+}
+```
+
+### Methods
+
+`execute`
+Execute the calls sent by the actual sender.
+
+MUST revert if any of the calls fail.  
+MUST return data from the calls.
+
+`onBehalfOf`
+Used by the target contract to get the actual caller.
+
+MUST return the actual `msg.sender` when called in the context of a call.  
+MUST revert when called outside of the context of a call.
+
+### Operated
+
+Compatible target contracts (a.k.a. `Operated`) MUST assume the sender is the `operator.onBehalfOf()` when `msg.sender == operator`. This behavior fits well with the usage of the `_msgSender()` function from [`ERC-2771`](./erc-2771.md).
+
+## Reference Implementation
+
+### Operator
+
+```solidity
+pragma solidity ^0.8.24;
+
+import {TransientSlot} from "@openzeppelin/contracts/utils/TransientSlot.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {IOperator} from "./interfaces/IOperator.sol";
+
+/// @title Operator contract
+/// @dev Allows standard EOAs to perform batch calls
+contract Operator is IOperator, ReentrancyGuardTransient {
+    using TransientSlot for *;
+    using Address for address;
+
+    // keccak256(abi.encode(uint256(keccak256("operator.actual.sender")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant MSG_SENDER_STORAGE = 0x0de195ebe01a7763c35bcc87968c4e65e5a5ea50f2d7c33bed46c98755a66000;
+
+    modifier setMsgSender() {
+        MSG_SENDER_STORAGE.asAddress().tstore(msg.sender);
+        _;
+        MSG_SENDER_STORAGE.asAddress().tstore(address(0));
+    }
+
+    /// @inheritdoc IOperator
+    function onBehalfOf() external view returns (address _actualMsgSender) {
+        _actualMsgSender = MSG_SENDER_STORAGE.asAddress().tload();
+        require(_actualMsgSender != address(0), "outside-call-context");
+    }
+
+    /// @inheritdoc IOperator
+    function execute(
+        Call[] calldata calls_
+    ) external payable override nonReentrant setMsgSender returns (bytes[] memory _returnData) {
+        uint256 _length = calls_.length;
+        _returnData = new bytes[](_length);
+
+        uint256 _sumOfValues;
+        Call calldata _call;
+        for (uint256 i; i < _length; ) {
+            _call = calls_[i];
+            uint256 _value = _call.value;
+            unchecked {
+                _sumOfValues += _value;
+            }
+            _returnData[i] = _call.target.functionCallWithValue(_call.callData, _value);
+            unchecked {
+                ++i;
+            }
+        }
+
+        require(msg.value == _sumOfValues, "value-mismatch");
+    }
+}
+```
+
+Worth noting that the usage of transient storage ([EIP-1153](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1153.md)) for storing the `msg.sender` is highly RECOMMENDED.
+
+### Operated
+
+```solidity
+pragma solidity ^0.8.24;
+
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
+import { IOperator } from "./interfaces/IOperator.sol";
+
+/// @title Operated contract
+/// @dev Supports calls throught the Operator
+abstract contract Operated is Context {
+    IOperator public immutable operator;
+
+    constructor(address operator_) {
+        operator = IOperator(operator_);
+    }
+
+    /// @inheritdoc Context
+    function _msgSender() internal view virtual override returns (address) {
+        if (msg.sender == address(operator)) {
+            return operator.onBehalfOf();
+        }
+
+        return msg.sender;
+    }
+}
+
+```
+
+## Backwards Compatibility
+
+The main limitation of this ERC is that only contracts that implements the `Operated` logic will be able to receive calls thorught the `Operator`.
+
+## Security Considerations
+
+- The `execute` function MUST implement reentracy control to avoid having a callback call overriding the sender's storage.
+- The `Operated` contract MUST interact with a trusted `Operator` contract.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
