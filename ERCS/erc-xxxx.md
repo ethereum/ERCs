@@ -25,7 +25,7 @@ ERC-7786 introduces an extensible attribute system for cross-chain messaging, bu
 4. **Revert Behavior**: Consistent error semantics across gateways
 5. **Message Dependencies**: Ensuring correct ordering when messages must deliver in sequence
 6. **Gas Requirements**: Preventing delivery failures due to insufficient gas
-7. **Execution Timing**: Controlling when messages can be delivered for scheduling and coordination
+7. **Delivery Timing**: Controlling when messages can be delivered for scheduling and coordination
 
 Without standardized attributes, each gateway implements these features differently, fragmenting the ecosystem and requiring application-specific integration logic.
 
