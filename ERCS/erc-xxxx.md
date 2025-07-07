@@ -35,7 +35,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Standard Attributes
 
-This specification defines standard attributes for ERC-7786 cross-chain messaging gateways.
+This specification defines standard attributes for ERC-7786 cross-chain messaging gateways. The word "delivery" (or "deliver") is used to refer to the process of delivering a message to the destination chain, similar to its usage in ERC-7786.
 
 Gateways MAY implement attributes independently. Gateways MUST validate the attribute's encoding for each attribute they implement and revert the transaction if the encoding is invalid.
 
@@ -101,8 +101,6 @@ Specifies the minimum gas limit required for message delivery. This attribute us
 The value is encoded as an ABI-encoded uint256 representing the minimum gas units required. Gateways MUST ensure at least this amount of gas is available before attempting message delivery. When not specified, gateways MAY use their default gas allocation strategies.
 
 ## Rationale
-
-These attributes build upon ERC-7786's fundamental message lifecycle (sent via `MessageSent` event, then delivered via `receiveMessage` call) by adding delivery control and lifecycle management. While status tracking implementation is gateway-specific, gateways implementing these attributes must maintain sufficient state to enforce behavioral requirements such as cancellation state, dependency completion, retry attempts, and delivery timing constraints.
 
 These attributes address the most common cross-chain message control requirements:
 
