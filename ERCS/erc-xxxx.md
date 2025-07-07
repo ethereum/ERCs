@@ -45,17 +45,17 @@ Indicates whether a message can be cancelled after submission. This attribute us
 
 The attribute value is encoded as an ABI-encoded boolean, and MAY default to `false` when not specified. When set to `true`, gateways MUST provide a cancellation mechanism to allow applications to cancel pending messages due to changed conditions or requirements.
 
-#### `timeout(uint256)`
+#### `deliverBefore(uint256)`
 
-Specifies a timestamp after which the message cannot be delivered. This attribute uses selector `0x08148f7a`, derived from the first 4 bytes of `keccak256("timeout(uint256)")`.
+Specifies a timestamp after which the message cannot be delivered. This attribute uses selector `0x3e97d7ee`, derived from the first 4 bytes of `keccak256("deliverBefore(uint256)")`.
 
-The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT deliver messages after the timeout timestamp unless `0` is specified, which MUST be interpreted as no timeout.
+The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT deliver messages after the expiration timestamp unless `0` is specified, which MUST be interpreted as no expiration.
 
-#### `earliestExecTime(uint256)`
+#### `deliverAfter(uint256)`
 
-Specifies the earliest timestamp at which the message can be delivered. This attribute uses selector `0x6c5875a2`, derived from the first 4 bytes of `keccak256("earliestExecTime(uint256)")`.
+Specifies the earliest timestamp at which the message can be delivered. This attribute uses selector `0x745910eb`, derived from the first 4 bytes of `keccak256("deliverAfter(uint256)")`.
 
-The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT deliver messages before the earliestExecTime timestamp unless `0` is specified, which MUST be interpreted as no delay. When combined with `timeout(uint256)`, this creates an delivery time window.
+The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT deliver messages before the delivery timestamp unless `0` is specified, which MUST be interpreted as no delay. When combined with `deliverBefore(uint256)`, this creates a delivery time window.
 
 #### `retryPolicy(bytes)`
 
@@ -105,7 +105,7 @@ The value is encoded as an ABI-encoded uint256 representing the minimum gas unit
 These attributes address the most common cross-chain message control requirements:
 
 - **Lifecycle control** via cancellation and timeout mechanisms
-- **Delivery timing** through earliest delivery time and timeout windows
+- **Delivery timing** through delivery time windows
 - **Failure handling** via retry policies and revert behavior
 - **Message ordering** through dependency chains
 - **Delivery guarantees** via minimum gas requirements
