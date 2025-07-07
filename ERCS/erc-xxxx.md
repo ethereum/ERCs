@@ -43,19 +43,19 @@ Gateways MAY implement attributes independently. Gateways MUST validate the attr
 
 Indicates whether a message can be cancelled after submission. This attribute uses selector `0xde986d7f`, which represents the first 4 bytes of `keccak256("cancellable(bool)")`.
 
-The attribute value is encoded as an ABI-encoded boolean, and COULD default to `false` when not specified. When set to `true`, gateways MUST provide a cancellation mechanism to allow applications to cancel pending messages due to changed conditions or requirements.
+The attribute value is encoded as an ABI-encoded boolean, and MAY default to `false` when not specified. When set to `true`, gateways MUST provide a cancellation mechanism to allow applications to cancel pending messages due to changed conditions or requirements.
 
 #### `timeout(uint256)`
 
 Specifies a timestamp after which the message cannot be executed. This attribute uses selector `0x08148f7a`, derived from the first 4 bytes of `keccak256("timeout(uint256)")`.
 
-The value is encoded as an ABI-encoded Unix timestamp, and COULD default to `0` when not specified. Gateways MUST NOT execute messages after the timeout timestamp unless `0` is specified, which MUST be interpreted as no timeout.
+The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT execute messages after the timeout timestamp unless `0` is specified, which MUST be interpreted as no timeout.
 
 #### `earliestExecTime(uint256)`
 
 Specifies the earliest timestamp at which the message can be executed. This attribute uses selector `0x6c5875a2`, derived from the first 4 bytes of `keccak256("earliestExecTime(uint256)")`.
 
-The value is encoded as an ABI-encoded Unix timestamp, and COULD default to `0` when not specified. Gateways MUST NOT execute messages before the earliestExecTime timestamp unless `0` is specified, which MUST be interpreted as no delay. When combined with `timeout(uint256)`, this creates an execution time window.
+The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT execute messages before the earliestExecTime timestamp unless `0` is specified, which MUST be interpreted as no delay. When combined with `timeout(uint256)`, this creates an execution time window.
 
 #### `retryPolicy(bytes)`
 
@@ -63,13 +63,30 @@ Defines retry behavior for failed message execution. Using selector `0xf002c055`
 
 The format follows `abi.encodePacked(uint16(maxRetries), uint32(retryDelay), uint32(backoffMultiplier))`, where `maxRetries` specifies the maximum number of retry attempts (with 0 indicating no retries), `retryDelay` defines the initial delay between retries in seconds, and `backoffMultiplier` provides the multiplier for exponential backoff in basis points (with 10000 representing 1x multiplier).
 
-The attribute value COULD default to `0x` when not specified, equivalent to infinite retries, no delay, and no backoff (or `maxRetries = 0`, `retryDelay = 0`, and `backoffMultiplier = 0`).
+The attribute value MAY default to `0x` when not specified, equivalent to infinite retries, no delay, and no backoff (or `maxRetries = 0`, `retryDelay = 0`, and `backoffMultiplier = 0`).
 
 #### `revertBehavior(uint8)`
 
 Specifies how execution failures MUST be handled. This attribute uses selector `0x9e521a77`, representing the first 4 bytes of `keccak256("revertBehavior(uint8)")`.
 
-The value is encoded as an ABI-encoded uint8 with three possible values: `0` for reverting the transaction (the default behavior), `1` for emitting a failure event and continuing execution, and `2` for silent failure. When not specified, the attribute defaults to `0`.
+The value is encoded as an ABI-encoded uint8 with the following possible values:
+
+**`0` – Revert on Failure**
+
+- Gateways MUST revert the entire message execution when any failure occurs.
+- Gateways SHOULD propagate the original failure reason when reverting.
+
+**`1` – Emit-and-Continue**
+
+- Gateways MUST emit a `MessageFailed(bytes32 messageId, string reason)` event upon failure.
+- Gateways MUST continue execution of subsequent messages or operations.
+
+**`2` – Silent Failure**
+
+- Gateways MUST NOT revert the transaction
+- Gateways MUST NOT emit any failure-related events.
+
+When not specified, the attribute MUST default to `0`.
 
 #### `dependsOn(bytes32[])`
 
@@ -84,6 +101,8 @@ Specifies the minimum gas limit required for message execution. This attribute u
 The value is encoded as an ABI-encoded uint256 representing the minimum gas units required. Gateways MUST ensure at least this amount of gas is available before attempting message execution. When not specified, gateways MAY use their default gas allocation strategies.
 
 ## Rationale
+
+These attributes build upon ERC-7786's fundamental message lifecycle (posted via `MessagePosted` event, then executed via `executeMessage` call) by adding execution control and lifecycle management. While status tracking implementation is gateway-specific, gateways implementing these attributes must maintain sufficient state to enforce behavioral requirements such as cancellation state, dependency completion, retry attempts, and execution timing constraints.
 
 These attributes address the most common cross-chain message control requirements:
 
