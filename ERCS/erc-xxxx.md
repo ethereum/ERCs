@@ -1,7 +1,7 @@
 ---
 eip: XXXX
 title: Gateway Attributes for Message Control
-description: Gateway attributes for cancellation, timeout, retry, dependencies, and execution control in cross-chain messaging.
+description: Gateway attributes for cancellation, timeout, retry, dependencies, and delivery control in cross-chain messaging.
 author: Ernesto García (@ernestognw), Kalman Lajko (@LajkoKalman), Valera Grinenko (@0xValera)
 discussions-to: TODO
 status: Draft
@@ -13,7 +13,7 @@ requires: 7786
 
 ## Abstract
 
-This ERC defines standard attributes for ERC-7786 cross-chain messaging gateways to enable consistent cancellation, timeout, retry, dependency, and execution control mechanisms across implementations. These attributes provide applications with predictable control over message lifecycle, ordering, and execution requirements.
+This ERC defines standard attributes for ERC-7786 cross-chain messaging gateways to enable consistent cancellation, timeout, retry, dependency, and delivery control mechanisms across implementations. These attributes provide applications with predictable control over message lifecycle, ordering, and delivery requirements.
 
 ## Motivation
 
@@ -23,9 +23,9 @@ ERC-7786 introduces an extensible attribute system for cross-chain messaging, bu
 2. **Timeouts**: Automatic cancellation prevents indefinite pending states
 3. **Retry Logic**: Standardized failure handling improves reliability
 4. **Revert Behavior**: Consistent error semantics across gateways
-5. **Message Dependencies**: Ensuring correct ordering when messages must execute in sequence
-6. **Gas Requirements**: Preventing execution failures due to insufficient gas
-7. **Execution Timing**: Controlling when messages can be executed for scheduling and coordination
+5. **Message Dependencies**: Ensuring correct ordering when messages must deliver in sequence
+6. **Gas Requirements**: Preventing delivery failures due to insufficient gas
+7. **Execution Timing**: Controlling when messages can be delivered for scheduling and coordination
 
 Without standardized attributes, each gateway implements these features differently, fragmenting the ecosystem and requiring application-specific integration logic.
 
@@ -47,19 +47,19 @@ The attribute value is encoded as an ABI-encoded boolean, and MAY default to `fa
 
 #### `timeout(uint256)`
 
-Specifies a timestamp after which the message cannot be executed. This attribute uses selector `0x08148f7a`, derived from the first 4 bytes of `keccak256("timeout(uint256)")`.
+Specifies a timestamp after which the message cannot be delivered. This attribute uses selector `0x08148f7a`, derived from the first 4 bytes of `keccak256("timeout(uint256)")`.
 
-The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT execute messages after the timeout timestamp unless `0` is specified, which MUST be interpreted as no timeout.
+The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT deliver messages after the timeout timestamp unless `0` is specified, which MUST be interpreted as no timeout.
 
 #### `earliestExecTime(uint256)`
 
-Specifies the earliest timestamp at which the message can be executed. This attribute uses selector `0x6c5875a2`, derived from the first 4 bytes of `keccak256("earliestExecTime(uint256)")`.
+Specifies the earliest timestamp at which the message can be delivered. This attribute uses selector `0x6c5875a2`, derived from the first 4 bytes of `keccak256("earliestExecTime(uint256)")`.
 
-The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT execute messages before the earliestExecTime timestamp unless `0` is specified, which MUST be interpreted as no delay. When combined with `timeout(uint256)`, this creates an execution time window.
+The value is encoded as an ABI-encoded Unix timestamp, and MAY default to `0` when not specified. Gateways MUST NOT deliver messages before the earliestExecTime timestamp unless `0` is specified, which MUST be interpreted as no delay. When combined with `timeout(uint256)`, this creates an delivery time window.
 
 #### `retryPolicy(bytes)`
 
-Defines retry behavior for failed message execution. Using selector `0xf002c055` from the first 4 bytes of `keccak256("retryPolicy(bytes)")`, this attribute encodes retry parameters as ABI-encoded bytes.
+Defines retry behavior for failed message delivery. Using selector `0xf002c055` from the first 4 bytes of `keccak256("retryPolicy(bytes)")`, this attribute encodes retry parameters as ABI-encoded bytes.
 
 The format follows `abi.encodePacked(uint16(maxRetries), uint32(retryDelay), uint32(backoffMultiplier))`, where `maxRetries` specifies the maximum number of retry attempts (with 0 indicating no retries), `retryDelay` defines the initial delay between retries in seconds, and `backoffMultiplier` provides the multiplier for exponential backoff in basis points (with 10000 representing 1x multiplier).
 
@@ -67,19 +67,19 @@ The attribute value MAY default to `0x` when not specified, equivalent to infini
 
 #### `revertBehavior(uint8)`
 
-Specifies how execution failures MUST be handled. This attribute uses selector `0x9e521a77`, representing the first 4 bytes of `keccak256("revertBehavior(uint8)")`.
+Specifies how delivery failures MUST be handled. This attribute uses selector `0x9e521a77`, representing the first 4 bytes of `keccak256("revertBehavior(uint8)")`.
 
 The value is encoded as an ABI-encoded uint8 with the following possible values:
 
 **`0` – Revert on Failure**
 
-- Gateways MUST revert the entire message execution when any failure occurs.
+- Gateways MUST revert the entire message delivery when any failure occurs.
 - Gateways SHOULD propagate the original failure reason when reverting.
 
 **`1` – Emit-and-Continue**
 
 - Gateways MUST emit a `MessageFailed(bytes32 sendId, string reason)` event upon failure.
-- Gateways MUST continue execution of subsequent messages or operations.
+- Gateways MUST continue delivery of subsequent messages or operations.
 
 **`2` – Silent Failure**
 
@@ -90,27 +90,27 @@ When not specified, the attribute MUST default to `0`.
 
 #### `dependsOn(bytes32[])`
 
-Specifies message dependencies that must be executed before this message. This attribute uses selector `0xa9fed7b9`, derived from the first 4 bytes of `keccak256("dependsOn(bytes32[])")`.
+Specifies message dependencies that must be delivered before this message. This attribute uses selector `0xa9fed7b9`, derived from the first 4 bytes of `keccak256("dependsOn(bytes32[])")`.
 
-The value is encoded as an ABI-encoded array of message identifiers. Gateways MUST NOT execute a message until all messages specified in the `dependsOn` array have been successfully executed. When not specified or empty, the message has no dependencies. This ensures correct ordering and prevents out-of-order delivery issues.
+The value is encoded as an ABI-encoded array of message identifiers. Gateways MUST NOT deliver a message until all messages specified in the `dependsOn` array have been successfully delivered. When not specified or empty, the message has no dependencies. This ensures correct ordering and prevents out-of-order delivery issues.
 
 #### `minGasLimit(uint256)`
 
-Specifies the minimum gas limit required for message execution. This attribute uses selector `0x39f87ba1`, derived from the first 4 bytes of `keccak256("minGasLimit(uint256)")`.
+Specifies the minimum gas limit required for message delivery. This attribute uses selector `0x39f87ba1`, derived from the first 4 bytes of `keccak256("minGasLimit(uint256)")`.
 
-The value is encoded as an ABI-encoded uint256 representing the minimum gas units required. Gateways MUST ensure at least this amount of gas is available before attempting message execution. When not specified, gateways MAY use their default gas allocation strategies.
+The value is encoded as an ABI-encoded uint256 representing the minimum gas units required. Gateways MUST ensure at least this amount of gas is available before attempting message delivery. When not specified, gateways MAY use their default gas allocation strategies.
 
 ## Rationale
 
-These attributes build upon ERC-7786's fundamental message lifecycle (sent via `MessageSent` event, then delivered via `receiveMessage` call) by adding execution control and lifecycle management. While status tracking implementation is gateway-specific, gateways implementing these attributes must maintain sufficient state to enforce behavioral requirements such as cancellation state, dependency completion, retry attempts, and execution timing constraints.
+These attributes build upon ERC-7786's fundamental message lifecycle (sent via `MessageSent` event, then delivered via `receiveMessage` call) by adding delivery control and lifecycle management. While status tracking implementation is gateway-specific, gateways implementing these attributes must maintain sufficient state to enforce behavioral requirements such as cancellation state, dependency completion, retry attempts, and delivery timing constraints.
 
 These attributes address the most common cross-chain message control requirements:
 
 - **Lifecycle control** via cancellation and timeout mechanisms
-- **Execution timing** through earliest execution time and timeout windows
+- **Delivery timing** through earliest delivery time and timeout windows
 - **Failure handling** via retry policies and revert behavior
 - **Message ordering** through dependency chains
-- **Execution guarantees** via minimum gas requirements
+- **Delivery guarantees** via minimum gas requirements
 
 The byte-encoded retry policy allows for extensible parameters without requiring additional attributes. The dependency mechanism enables complex multi-message workflows while maintaining simplicity for single-message scenarios.
 
