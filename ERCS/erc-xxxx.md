@@ -78,7 +78,7 @@ The value is encoded as an ABI-encoded uint8 with the following possible values:
 
 **`1` – Emit-and-Continue**
 
-- Gateways MUST emit a `MessageFailed(bytes32 messageId, string reason)` event upon failure.
+- Gateways MUST emit a `MessageFailed(bytes32 sendId, string reason)` event upon failure.
 - Gateways MUST continue execution of subsequent messages or operations.
 
 **`2` – Silent Failure**
@@ -102,7 +102,7 @@ The value is encoded as an ABI-encoded uint256 representing the minimum gas unit
 
 ## Rationale
 
-These attributes build upon ERC-7786's fundamental message lifecycle (posted via `MessagePosted` event, then executed via `executeMessage` call) by adding execution control and lifecycle management. While status tracking implementation is gateway-specific, gateways implementing these attributes must maintain sufficient state to enforce behavioral requirements such as cancellation state, dependency completion, retry attempts, and execution timing constraints.
+These attributes build upon ERC-7786's fundamental message lifecycle (sent via `MessageSent` event, then delivered via `receiveMessage` call) by adding execution control and lifecycle management. While status tracking implementation is gateway-specific, gateways implementing these attributes must maintain sufficient state to enforce behavioral requirements such as cancellation state, dependency completion, retry attempts, and execution timing constraints.
 
 These attributes address the most common cross-chain message control requirements:
 
