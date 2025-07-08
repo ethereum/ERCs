@@ -1,7 +1,7 @@
 ---
 eip: XXXX
-title: Confidential Fungible Token Standard
-description: A standard interface for confidential fungible tokens
+title: Confidential Fungible Token Interface
+description: An interface for confidential fungible tokens
 author: Aryeh Greenberg (@arr00), Ernesto García (@ernestognw), Hadrien Croubois (@Amxx)
 discussions-to: https://ethereum-magicians.org/t/new-erc-confidential-fungible-token-standard/24735
 status: Draft
@@ -32,7 +32,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 Compliant tokens MUST implement the following methods, unless otherwise specified:
 
-#### name
+#### `name()`
 
 Returns the name of the token - e.g. `"MyConfidentialToken"`.
 
@@ -94,7 +94,7 @@ MUST emit the `OperatorSet` event.
 function setOperator(address operator, uint48 until) external
 ```
 
-#### confidentialTransfer(address, bytes32)
+#### confidentialTransfer(address,bytes32)
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
