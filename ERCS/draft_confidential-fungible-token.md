@@ -60,7 +60,7 @@ Returns the number of decimals the token uses (e.g. `6`) as a plaintext `uint8`.
 function decimals() external view returns (uint8)
 ```
 
-#### totalSupply
+#### `confidentialTotalSupply()`
 
 Returns the total token supply.
 
@@ -68,7 +68,7 @@ Returns the total token supply.
 function totalSupply() external view returns (bytes32)
 ```
 
-#### balanceOf
+#### `confidentialBalanceOf()`
 
 Returns the balance of `account`.
 
