@@ -65,7 +65,7 @@ function decimals() external view returns (uint8)
 Returns the total token supply.
 
 ```solidity
-function totalSupply() external view returns (bytes32)
+function confidentialTotalSupply() external view returns (bytes32)
 ```
 
 #### `confidentialBalanceOf(address)`
