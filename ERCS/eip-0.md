@@ -12,7 +12,7 @@ created: 2025-07-08
 
 ## Abstract
 
-Minimal Avatar Smart Wallet (MASW) is an immutable delegate‑wallet that any EOA can designate via EIP-7702 (txType `0x04`). Once designated, the wallet's code remains active for every subsequent transaction until the owner sends a new `0x04` to clear or replace it. During each delegated call the EOA is the avatar and MASW's code executes as the delegate at the same address, enabling atomic batched calls (EIP-712 signed) and optional sponsor gas reinbursment in ETH or ERC-20.
+Minimal Avatar Smart Wallet (MASW) is an immutable delegate‑wallet that any EOA can designate via [EIP‑7702](./eip-7702) (txType `0x04`). Once designated, the wallet's code remains active for every subsequent transaction until the owner sends a new `0x04` to clear or replace it. During each delegated call the EOA is the avatar and MASW's code executes as the delegate at the same address, enabling atomic batched calls ([EIP‑712](./eip-712) signed) and optional sponsor gas reinbursment in ETH or [ERC‑20](./eip-20).
 
 The contract offers one primary function, `executeBatch`, plus two plug‑in hooks: a Policy Module for pre/post guards and a Recovery Module for alternate signature validation. Replay attacks are prevented by a global metaNonce, an expiry, and a chain‑bound `EIP‑712` domain separator. Standardising this seven‑parameter ABI removes wallet fragmentation while still allowing custom logic through modules.
 
@@ -92,14 +92,14 @@ DOMAIN_SEPARATOR = keccak256(
 
 ### Batch Execution (`executeBatch`)
 
-| Stage                 | Behaviour                                                                                                                                                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Validation**        | ‑ `targets.length == values.length == calldatas.length > 0`<br>‑ `block.timestamp ≤ expiry`<br>‑ `metaNonce` matches then increments<br>‑ EIP-712 digest recovers `owner` **or** is approved by `recoveryModule` |
-| **Policy pre‑hook**   | If `policyModule != address(0)`, `preCheck` **must** return `true`; a revert or `false` vetoes the batch                                                                                                         |
-| **Calls**             | For each index _i_: `targets[i].call{value:values[i]}(calldatas[i])`; revert on first failure                                                                                                                    |
-| **Policy post‑hook**  | Same semantics as pre‑hook                                                                                                                                                                                       |
-| **Fee reimbursement** | If `fee > 0`: native transfer (`token == address(0)`) or ERC‑20 `transfer` with OpenZeppelin‑style return‑value check                                                                                            |
-| **Emit**              | `BatchExecuted(structHash)`                                                                                                                                                                                      |
+| Stage                 | Behaviour                                                                                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Validation**        | ‑ `targets.length == values.length == calldatas.length > 0`<br>‑ `block.timestamp ≤ expiry`<br>‑ `metaNonce` matches then increments<br>‑ `EIP712` digest recovers `owner` **or** is approved by `recoveryModule` |
+| **Policy pre‑hook**   | If `policyModule != address(0)`, `preCheck` **must** return `true`; a revert or `false` vetoes the batch                                                                                                          |
+| **Calls**             | For each index _i_: `targets[i].call{value:values[i]}(calldatas[i])`; revert on first failure                                                                                                                     |
+| **Policy post‑hook**  | Same semantics as pre‑hook                                                                                                                                                                                        |
+| **Fee reimbursement** | If `fee > 0`: native transfer (`token == address(0)`) or `ERC20` `transfer` with OpenZeppelin‑style return‑value check                                                                                            |
+| **Emit**              | `BatchExecuted(structHash)`                                                                                                                                                                                       |
 
 #### Gas Sponsorship
 
@@ -149,15 +149,15 @@ Reference implementation can be found here [`MASW.sol`](../assets/eip-0/MASW.sol
 
 ## Security Considerations
 
-| Threat                      | Mitigation                                                                                        |
-| --------------------------- | ------------------------------------------------------------------------------------------------- |
-| Same‑chain replay           | Global `metaNonce`                                                                                |
-| Cross‑chain replay          | Chain‑bound domain separator                                                                      |
-| Fee grief / over‑charge     | Fee is part of signed data; front‑running risk sits with relayer                                  |
-| Batch gas grief             | Optional Policy can reject oversized batches                                                      |
-| ERC-20 non‑standard returns | OpenZeppelin SafeERC20 transfer check                                                             |
-| Re‑entrancy                 | `nonReentrant` guard; state mutated only before external calls (nonce++) and after (fee transfer) |
-| Malicious Module            | Core logic immutable; swapping modules needs an owner‑signed tx                                   |
+| Threat                       | Mitigation                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| Same‑chain replay            | Global `metaNonce`                                                                                |
+| Cross‑chain replay           | Chain‑bound domain separator                                                                      |
+| Fee grief / over‑charge      | Fee is part of signed data; front‑running risk sits with relayer                                  |
+| Batch gas grief              | Optional Policy can reject oversized batches                                                      |
+| `ERC20` non‑standard returns | OpenZeppelin `SafeERC20` transfer check                                                           |
+| Re‑entrancy                  | `nonReentrant` guard; state mutated only before external calls (nonce++) and after (fee transfer) |
+| Malicious Module             | Core logic immutable; swapping modules needs an owner‑signed tx                                   |
 
 ## Copyright
 
