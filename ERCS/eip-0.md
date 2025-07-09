@@ -8,12 +8,11 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-07-08
-requires: 712, 7702
 ---
 
 ## Abstract
 
-Minimal Avatar Smart Wallet (MASW) is an immutable delegate‑wallet that any EOA can designate via [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) (txType `0x04`). Once designated, the wallet's code remains active for every subsequent transaction until the owner sends a new `0x04` to clear or replace it. During each delegated call the EOA is the avatar and MASW's code executes as the delegate at the same address, enabling atomic batched calls (EIP‑712‑signed) and optional sponsor gas reinbursment in ETH or [ERC-20](https://eips.ethereum.org/EIPS/eip-20).
+Minimal Avatar Smart Wallet (MASW) is an immutable delegate‑wallet that any EOA can designate via EIP-7702 (txType `0x04`). Once designated, the wallet's code remains active for every subsequent transaction until the owner sends a new `0x04` to clear or replace it. During each delegated call the EOA is the avatar and MASW's code executes as the delegate at the same address, enabling atomic batched calls (EIP-712 signed) and optional sponsor gas reinbursment in ETH or ERC-20.
 
 The contract offers one primary function, `executeBatch`, plus two plug‑in hooks: a Policy Module for pre/post guards and a Recovery Module for alternate signature validation. Replay attacks are prevented by a global metaNonce, an expiry, and a chain‑bound `EIP‑712` domain separator. Standardising this seven‑parameter ABI removes wallet fragmentation while still allowing custom logic through modules.
 
@@ -95,7 +94,7 @@ DOMAIN_SEPARATOR = keccak256(
 
 | Stage                 | Behaviour                                                                                                                                                                                                        |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Validation**        | ‑ `targets.length == values.length == calldatas.length > 0`<br>‑ `block.timestamp ≤ expiry`<br>‑ `metaNonce` matches then increments<br>‑ EIP‑712 digest recovers `owner` **or** is approved by `recoveryModule` |
+| **Validation**        | ‑ `targets.length == values.length == calldatas.length > 0`<br>‑ `block.timestamp ≤ expiry`<br>‑ `metaNonce` matches then increments<br>‑ EIP-712 digest recovers `owner` **or** is approved by `recoveryModule` |
 | **Policy pre‑hook**   | If `policyModule != address(0)`, `preCheck` **must** return `true`; a revert or `false` vetoes the batch                                                                                                         |
 | **Calls**             | For each index _i_: `targets[i].call{value:values[i]}(calldatas[i])`; revert on first failure                                                                                                                    |
 | **Policy post‑hook**  | Same semantics as pre‑hook                                                                                                                                                                                       |
