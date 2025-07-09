@@ -42,7 +42,7 @@ OPTIONAL - This method can be used to improve usability, but interfaces and othe
 function name() external view returns (string memory)
 ```
 
-#### symbol
+#### `symbol()`
 
 Returns the symbol of the token - e.g. `"MCT"`.
 
@@ -52,7 +52,7 @@ OPTIONAL - This method can be used to improve usability, but interfaces and othe
 function symbol() external view returns (string memory)
 ```
 
-#### decimals
+#### `decimals()`
 
 Returns the number of decimals the token uses (e.g. `6`) as a plaintext `uint8`.
 
@@ -68,15 +68,15 @@ Returns the total token supply.
 function totalSupply() external view returns (bytes32)
 ```
 
-#### `confidentialBalanceOf()`
+#### `confidentialBalanceOf(address)`
 
 Returns the balance of `account`.
 
 ```solidity
-function balanceOf(address account) external view returns (bytes32)
+function confidentialBalanceOf(address account) external view returns (bytes32)
 ```
 
-#### isOperator
+#### `isOperator(address,address)`
 
 Returns `true` if `spender` is currently authorized to transfer tokens on behalf of `holder`.
 
@@ -84,7 +84,7 @@ Returns `true` if `spender` is currently authorized to transfer tokens on behalf
 function isOperator(address holder, address spender) external view returns (bool)
 ```
 
-#### setOperator
+#### `setOperator(address,uint48)`
 
 Authorizes `operator` to transfer tokens on behalf of the caller until timestamp `until`--passed as a plaintext `uint48`. An operator may transfer any amount of tokens on behalf of a holder while approved.
 
@@ -94,7 +94,7 @@ MUST emit the `OperatorSet` event.
 function setOperator(address operator, uint48 until) external
 ```
 
-#### confidentialTransfer(address,bytes32)
+#### `confidentialTransfer(address,bytes32)`
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
@@ -106,7 +106,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransfer(address to, bytes32 amount) external returns (bytes32)
 ```
 
-#### confidentialTransfer(address, bytes32, bytes)
+#### `confidentialTransfer(address,bytes32,bytes)`
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
@@ -120,7 +120,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransfer(address to, bytes32 amount, bytes calldata data) external returns (bytes32)
 ```
 
-#### confidentialTransferFrom(address, address, bytes32)
+#### `confidentialTransferFrom(address,address,bytes32)`
 
 Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
 
@@ -134,7 +134,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransferFrom(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
 ```
 
-#### confidentialTransferFrom(address, address, bytes32, bytes)
+#### `confidentialTransferFrom(address,address,bytes32,bytes)`
 
 Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
 
@@ -150,7 +150,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransferFrom(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
 ```
 
-#### confidentialTransferAndCall(address, address, bytes32, bytes)
+#### `confidentialTransferAndCall(address,bytes32,bytes)`
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
@@ -166,7 +166,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransferAndCall(address to, bytes32 amount, bytes calldata callData) external returns (bytes32)
 ```
 
-#### confidentialTransferAndCall(address, address, bytes32, bytes, bytes)
+#### `confidentialTransferAndCall(address,bytes32,bytes,bytes)`
 
 Transfers `amount` of tokens to address `to`. The function MAY revert if the caller's balance does not have enough tokens to spend.
 
@@ -182,7 +182,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransferAndCall(address to, bytes32 amount, bytes calldata data, bytes calldata callData) external returns (bytes32)
 ```
 
-#### confidentialTransferFromAndCall(address, address, bytes32, bytes)
+#### `confidentialTransferFromAndCall(address,address,bytes32,bytes)`
 
 Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
 
@@ -198,7 +198,7 @@ MUST emit the `ConfidentialTransfer` event.
 function confidentialTransferFromAndCall(address from, address to, bytes32 amount, bytes calldata data) external returns (bytes32)
 ```
 
-#### confidentialTransferFromAndCall(address, address, bytes32, bytes, bytes)
+#### `confidentialTransferFromAndCall(address,address,bytes32,bytes,bytes)`
 
 Transfers `amount` of tokens from address `from` to address `to`. The function MAY revert if the `from`'s account balance does not have enough tokens to spend.
 
