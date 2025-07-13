@@ -57,11 +57,13 @@ error ModuleIsNotAContract();
 interface IPolicyModule {
     function preCheck(
         address sender,
-        bytes calldata rawData
+        bytes calldata rawData,
+        uint256 value
     ) external view returns (bool);
     function postCheck(
         address sender,
-        bytes calldata rawData
+        bytes calldata rawData,
+        uint256 value
     ) external view returns (bool);
 }
 
@@ -151,16 +153,16 @@ contract MASW is IERC721Receiver, IERC1155Receiver {
     }
 
     /// @notice Applies policy module pre and post execution hooks if policy module is set
-    modifier policyCheck() {
+    modifier policyCheck(uint256 value) {
         address _policyModule = policyModule;
         if (_policyModule != address(0)) {
             require(
-                IPolicyModule(_policyModule).preCheck(msg.sender, msg.data),
+                IPolicyModule(_policyModule).preCheck(msg.sender, msg.data, value),
                 PreHookFailed()
             );
             _;
             require(
-                IPolicyModule(_policyModule).postCheck(msg.sender, msg.data),
+                IPolicyModule(_policyModule).postCheck(msg.sender, msg.data, value),
                 PostHookFailed()
             );
         } else {
@@ -294,7 +296,7 @@ contract MASW is IERC721Receiver, IERC1155Receiver {
         bytes[] calldata calldatas,
         address token,
         uint256 fee
-    ) internal policyCheck {
+    ) internal policyCheck(msg.value) {
         // Execute all calls in the batch
         for (uint256 i; i < targets.length; ++i) {
             (bool success, ) = targets[i].call{value: values[i]}(calldatas[i]);
@@ -375,6 +377,7 @@ contract MASW is IERC721Receiver, IERC1155Receiver {
         }
         return keccak256(abi.encodePacked(hashedItems));
     }
+
 
     // ------------------------------------ //
     //           TOKEN RECEIVERS            //
