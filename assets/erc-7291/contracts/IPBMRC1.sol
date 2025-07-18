@@ -134,7 +134,7 @@ interface IPBMRC1 is IERC173, IERC5679Ext1155 {
 
     /// @notice Transfers the PBM(NFT) from one wallet to another. 
     /// @dev This function extends the ERC-1155 standard in order to allow the PBM token to be freely transferred between wallet addresses due to 
-    /// widespread support accross wallet providers. Specific conditions and restrictions on whether a pbm can be moved across addresses can be incorporated in this function.
+    /// widespread support across wallet providers. Specific conditions and restrictions on whether a pbm can be moved across addresses can be incorporated in this function.
     /// Unwrap logic MAY also be placed within this function to be called.
     /// @param from The account from which the PBM (NFT) is moving from 
     /// @param to The account which is receiving the PBM (NFT)
@@ -145,7 +145,7 @@ interface IPBMRC1 is IERC173, IERC5679Ext1155 {
 
     /// @notice Transfers the PBM(NFT)(s) from one wallet to another. 
     /// @dev This function extends the ERC-1155 standard in order to allow the PBM token to be freely transferred between wallet addresses due to 
-    /// widespread support accross wallet providers.  Specific conditions and restrictions on whether a pbm can be moved across addresses can be incorporated in this function.
+    /// widespread support across wallet providers.  Specific conditions and restrictions on whether a pbm can be moved across addresses can be incorporated in this function.
     /// Unwrap logic MAY also be placed within this function to be called.
     /// If the receiving wallet is a whitelisted /redeemer wallet address, the PBM(NFT)(s) will be burnt and the underlying sovTokens will be transferred to the merchant/redeemer wallet instead.
     /// @param from The account from which the PBM (NFT)(s) is moving from 
@@ -157,7 +157,7 @@ interface IPBMRC1 is IERC173, IERC5679Ext1155 {
 
     /// @notice Unwraps the underlying ERC-20 compatible tokens to an intended end point (ie: merchant/redeemer) upon fulfilling the required PBM conditions.
     /// @dev Add implementation specific logic for the conditions under which a PBM processes and transfers the underlying tokens here.
-    /// e.g. If the receving wallet is a whitelisted merchant/redeemer wallet address, the PBM (NFT) MUST be burnt and the underlying sovTokens 
+    /// e.g. If the receiving wallet is a whitelisted merchant/redeemer wallet address, the PBM (NFT) MUST be burnt and the underlying sovTokens 
     /// will unwrapped to be transferred to the merchant/redeemer wallet.
     /// MUST emit the event {TokenUnwrapForTarget} on success
     /// @param from The account currently holding the PBM
