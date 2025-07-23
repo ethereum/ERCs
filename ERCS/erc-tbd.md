@@ -1,5 +1,4 @@
 ---
-eip: TBD
 title: Verifiable ML Model Inference (ZKML)
 description: Standard interfaces for registering ML model commitments and verifying zero-knowledge proofs of their inferences on-chain.
 author: Aryaethn (@aryaethn)
