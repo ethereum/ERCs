@@ -1,0 +1,295 @@
+---
+eip: TBD
+title: Verifiable ML Model Inference (ZKML)
+description: Standard interfaces for registering ML model commitments and verifying zero-knowledge proofs of their inferences on-chain.
+author: Aryaethn (@aryaethn)
+discussions-to: https://ethereum-magicians.org/t/erc-zkml-verifiable-ml-inference/0000
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-07-23
+requires: 165
+---
+
+## Abstract
+
+This ERC defines minimal, composable interfaces for (1) registering commitments to machine-learning (ML) models and (2) verifying zero-knowledge proofs (ZK proofs) of those models’ inferences. Off-chain actors execute potentially large and/or proprietary ML models, produce a ZK proof of correct execution, then submit the output plus proof on-chain. Smart contracts can trust the result without re-executing the model.
+
+## Motivation
+
+Smart contracts can’t run large ML models, and they can’t trust an oracle’s claim about a model’s output. 
+Today, projects either (1) trust a centralized server, (2) cripple models to fit on-chain, 
+or (3) rely on social committees. None provide cryptographic assurance.
+
+Zero-knowledge ML (ZKML) fixes the trust gap by letting a prover show—succinctly and 
+privately—that a specific model, with specific inputs, produced a specific output. 
+But without a shared interface, every dApp/verifier pair is bespoke: different ABIs, different registry schemas, poor composability.
+
+This ERC standardizes that on-chain boundary:
+- Registry: publish immutable commitments to model weights/architecture/circuits so callers know exactly which model they’re referencing.
+- Verifier: a uniform function to validate inference proofs, independent of proof system (Groth16, Plonk, STARKs, …).
+
+Benefits include:
+- Trustless, composable “AI oracles” for DeFi risk, prediction markets, insurance, etc.
+- Protection of proprietary models and private inputs while still guaranteeing correctness.
+- Deterministic, dispute-free settlement for complex computations.
+- Lower integration and audit overhead via consistent events, structs, and revert semantics.
+- Future-proofing as proving systems evolve—only implementations change, not integrators.
+- Clear security expectations (e.g., nonce usage to prevent replays) baked into the spec.
+
+In short, this ERC turns verifiable ML inference into a reusable primitive—doing for AI outputs what ERC-20/721 did for assets.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+### Terminology & IDs
+
+-	Model Commitment: A bundle of hashes that ties together the model’s weights, architecture, proving circuit/AIR, and verifying key.
+-	modelId (uint256): A unique identifier returned by the registry upon model registration.
+-	inputCommitment (bytes32): A hash commitment to all private inputs (and any declared public inputs) for an inference. Implementations **MUST** domain-separate and **SHOULD** include a nonce/salt when single-use or non-deterministic behavior is possible.
+-	output (bytes): ABI-encoded public outputs of the inference. Consumers **MUST** agree on its schema and **MAY** validate it via an outputCommitment (not included in the minimal interface).
+-	proof (bytes): The ZK proof blob.
+-	proofSystemId (bytes4): Identifier of the proving system + curve + version used by the circuit.
+
+`proofSystemId` **MUST** equal the first four bytes of:
+
+```bytes4(keccak256(abi.encodePacked(<canonical-proof-system-name-and-version>)))```
+
+Where `<canonical-proof-system-name-and-version>` is a lowercase, hyphen-separated string, e.g.:
+	-	"groth16-bn254-v1"
+	-	"plonk-bn254-v2"
+	-	"stark-airfoo-v1"
+
+This method ensures deterministic, collision-resistant identifiers across implementations.
+
+### Interfaces
+
+#### ZKML Registry 
+
+``` solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+interface IERCZKMLRegistry /* is IERC165 */ {
+    struct ModelCommitment {
+        bytes32 modelHash;     // weights + architecture hash
+        bytes32 circuitHash;   // arithmetic circuit / AIR hash
+        bytes32 vkHash;        // verifying key hash
+        bytes4  proofSystemId; // keccak-based identifier
+        string  uri;           // optional off-chain metadata (IPFS/HTTP)
+    }
+
+    event ModelRegistered(
+        uint256 indexed modelId,
+        address indexed owner,
+        ModelCommitment commitment
+    );
+
+    event ModelUpdated(
+        uint256 indexed modelId,
+        ModelCommitment oldCommitment,
+        ModelCommitment newCommitment
+    );
+
+    event ModelDeprecated(uint256 indexed modelId);
+
+    error ModelNotFound(uint256 modelId);
+    error NotModelOwner(uint256 modelId, address caller);
+    error ModelDeprecated(uint256 modelId);
+
+    function registerModel(ModelCommitment calldata commitment)
+        external
+        returns (uint256 modelId);
+
+    function updateModel(uint256 modelId, ModelCommitment calldata newCommitment)
+        external;
+
+    function deprecateModel(uint256 modelId) external;
+
+    function getModel(uint256 modelId)
+        external
+        view
+        returns (ModelCommitment memory commitment, bool deprecated, address owner);
+}
+```
+- `registerModel` **MUST** return a unique `modelId`.
+- `updateModel` and `deprecateModel` **MUST** only be callable by the model `owner`.
+-	`getModel` **MUST** return the current `commitment`, deprecation status, and `owner` address.
+-	Implementations **MAY** allow versioning under one `modelId` or require a new `modelId` per change. The chosen policy **MUST** be documented.
+
+#### ZKML Verifier
+
+``` solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+interface IERCZKMLVerifier /* is IERC165 */ {
+    event InferenceVerified(
+        uint256 indexed modelId,
+        bytes32 indexed inputCommitment,
+        bytes   output,
+        address indexed caller
+    );
+
+    error InvalidProof();
+    error ModelMismatch();            // proof verifies but not tied to given modelId
+    error InputCommitmentMismatch();
+    error OutputMismatch();           // if verifier checks output commitment/schema
+    error UnsupportedProofSystem(bytes4 proofSystemId);
+    error VerificationRefused_ModelDeprecated(uint256 modelId);
+
+    /**
+     * @notice Verifies a ZK proof for an inference.
+     * @dev MUST revert on any failure path. Successful execution implies validity.
+     * @param modelId         Registry model identifier
+     * @param inputCommitment Commitment to private inputs
+     * @param output          ABI-encoded public outputs
+     * @param proof           ZK proof bytes
+     */
+    function verifyInference(
+        uint256 modelId,
+        bytes32 inputCommitment,
+        bytes calldata output,
+        bytes calldata proof
+    ) external;
+
+    /// Optional helper views:
+    function proofSystemOf(uint256 modelId) external view returns (bytes4);
+    function registry() external view returns (address registryAddress);
+}
+```
+The `verifyInference`:
+
+- **MUST** fetch the model `commitment` from the registry and validate the `proof` against it.
+-	**MUST** revert on any failure (invalid proof, mismatched commitments, unsupported proof system, deprecated model, etc.).
+-	**SHOULD** emit  `InferenceVerified` on success.
+-	**SHOULD** remain stateless except for emitting events. Statefulness **MAY** be introduced by extensions.
+
+#### Optional Storage Extension 
+
+``` solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+interface IERCZKMLStorageExtension {
+    event InferenceStored(bytes32 indexed inferenceId);
+
+    /**
+     * @notice Verify and store an inference record.
+     * @dev MUST revert on invalid proof.
+     * @return inferenceId keccak256(abi.encodePacked(modelId, inputCommitment, output))
+     */
+    function verifyAndStoreInference(
+        uint256 modelId,
+        bytes32 inputCommitment,
+        bytes calldata output,
+        bytes calldata proof
+    ) external returns (bytes32 inferenceId);
+
+    function getInference(bytes32 inferenceId)
+        external
+        view
+        returns (uint256 modelId, bytes32 inputCommitment, bytes memory output);
+}
+```
+
+Replay Protection Note: Implementations that rely on 
+`inferenceId = keccak256(modelId, inputCommitment, output)` 
+**MUST** ensure that `inputCommitment` embeds a `nonce/salt` or other uniqueness source 
+if replays are a concern (e.g., non-deterministic models or single-use inferences).
+
+The registry interface exposes an `owner` per `modelId`. 
+Implementations **MUST** include some ownership/access-control mechanism 
+(e.g., simple owner storage, ERC-173, ERC-721 representation, or role-based control). 
+The returned `owner` address **SHOULD** be treated as the canonical authority to mutate or deprecate that model.
+
+
+## Rationale
+
+-	Void Return on `verifyInference`: Reverting on failure and returning nothing on success removes redundant gas-expensive booleans and matches modern Solidity patterns (e.g., OpenZeppelin’s `SafeERC20`).
+-	Separated Registry & Verifier: Encourages modularity—teams can upgrade verifiers or registries independently.
+-	Opaque bytes for Proof/Output: Avoids lock-in to a specific proof system or output schema.
+-	Deterministic `proofSystemId`: Prevents collisions and ambiguity; enables predictable dispatch in mixed-system verifiers.
+-	Nonce in `inputCommitment`: Explicitly mitigates replay attacks when inference uniqueness matters.
+
+
+## Backwards Compatibility
+
+Fully backwards compatible:
+
+- Uses ERC-165 like popular ERCs (721/1155) for discoverability.
+-	No dependency on token ownership standards; minimal collision with existing protocols.
+
+## Reference Implementation
+
+``` solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+import "./IERCZKMLRegistry.sol";
+import "./IERCZKMLVerifier.sol";
+
+contract ZKMLVerifier is IERCZKMLVerifier {
+    IERCZKMLRegistry public immutable override registry;
+
+    constructor(IERCZKMLRegistry _registry) {
+        registry = _registry;
+    }
+
+    function verifyInference(
+        uint256 modelId,
+        bytes32 inputCommitment,
+        bytes calldata output,
+        bytes calldata proof
+    ) external override {
+        (IERCZKMLRegistry.ModelCommitment memory cm, bool deprecated,) =
+            registry.getModel(modelId);
+
+        if (deprecated) revert ModelDeprecated(modelId);
+
+        // Dispatch based on proofSystemId. Example only.
+        // bool ok = VerifierLib.verify(proof, cm.vkHash, inputCommitment, output);
+        bool ok = _dummyVerify(proof, cm.vkHash, inputCommitment, output);
+        if (!ok) revert InvalidProof();
+
+        emit InferenceVerified(modelId, inputCommitment, output, msg.sender);
+    }
+
+    function proofSystemOf(uint256 modelId) external view override returns (bytes4) {
+        (IERCZKMLRegistry.ModelCommitment memory cm,,) = registry.getModel(modelId);
+        return cm.proofSystemId;
+    }
+
+    function _dummyVerify(
+        bytes calldata,
+        bytes32,
+        bytes32,
+        bytes calldata
+    ) private pure returns (bool) {
+        return true;
+    }
+}
+```
+
+
+## Security Considerations
+
+### Security
+
+- Replay Attacks: Inputs **MUST** embed a nonce/salt where uniqueness matters. Contracts **MAY** also track consumed `inferenceIds`.
+-	Model Commitment Drift: Updating commitments can invalidate proofs; consumers should pin specific `modelId` + `commitment` hashes or check deprecated.
+-	Hash Domain Separation: Use distinct prefixes (e.g., "ZKML_MODEL_V1") to avoid collisions across contexts.
+-	Output Ambiguity: Contracts **MUST** validate or commit to output schemas to avoid maliciously crafted bytes.
+-	DoS via Heavy Verification: Consider off-chain verification with on-chain succinct attestations, or batching/aggregation.
+
+### Gas
+
+- Proof verification can dominate gas costs; splitting verification-only calls from storage writes lets integrators choose.
+-	Events are cheaper than persistent storage for audit trails.
+
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
+
