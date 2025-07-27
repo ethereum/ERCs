@@ -16,7 +16,7 @@ pragma solidity >=0.7.0;
  * This is the locking contracts interface.
  *
  * The rationale is that the token is locked with two encrypted keys
- * or hashes of keys associated with two different adresses (buyer/seller).
+ * or hashes of keys associated with two different addresses (buyer/seller).
  *
  * The asset is transferred to the address of the buyer, if the buyer's key is presented.
  *
