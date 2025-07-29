@@ -30,10 +30,13 @@ Payroll tokens that unlock monthly and only for whitelisted vendors (e.g., banks
 This proposal generalizes and formalizes such use cases by layering unlocking conditions on top of the ERC20 standard.
 
 ## Specification
+
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “NOT RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
 ### Interface
+
 ```solidity
+
 pragma solidity 0.8.23;
 
 interface IPurposeBoundERC20 {
