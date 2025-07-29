@@ -60,7 +60,6 @@ interface IPurposeBoundERC20 {
 
     function isUnlocked(bytes32 bindingId) external view returns (bool);
 }
-
 ```
 
 ## Rationale
@@ -183,7 +182,6 @@ contract TimeConditionChecker is IConditionChecker {
         return block.timestamp >= unlockTime;
     }
 }
-
 ```
 
 ## Security Considerations
