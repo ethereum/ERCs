@@ -1,6 +1,6 @@
 ---
-eip: xxxx
-title: Standard for Encrypted Data Types, Validation, and Confidential Operations in Smart Contracts
+eip: 7995
+title: Encrypted Data
 description: A standard for representing, validating, and operating on encrypted data in Ethereum smart contracts using typed handles, validation proofs, and decryption oracles.
 author: Clément Danjou (@immortal-tofu), Ghazi Ben Armor (@GBAZama), Joseph-André Turk (@jatZama)
 discussions-to: xxxx
