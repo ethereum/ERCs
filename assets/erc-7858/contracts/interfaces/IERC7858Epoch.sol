@@ -33,12 +33,6 @@ interface IERC7858Epoch is IERC7858 {
     function epochLength() external view returns (uint256);
 
     /**
-     * @dev Returns the type of the epoch.
-     * @return EXPIRY_TYPE  Enum value indicating the unit of an epoch.
-     */
-    function epochType() external view returns (EXPIRY_TYPE);
-
-    /**
      * @dev Checks whether a specific `epoch` is expired.
      * @param epoch The `epoch` to check.
      * @return bool True if the token is expired, false otherwise.

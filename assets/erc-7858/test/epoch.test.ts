@@ -28,16 +28,15 @@ describe("ERC-7858 Epoch", function () {
   });
 
   it("supportsInterface ERC-7858Epoch", async function () {
-    expect(await tokenContract.supportsInterface("0x8f55b98a")).to.equal(true);
+    expect(await tokenContract.supportsInterface("0xec7ffd66")).to.equal(true);
   });
 
   it("supportsInterface unknown", async function () {
     expect(await tokenContract.supportsInterface("0xFFFFFFFF")).to.equal(false);
   });
 
-  it("epochType and expiryType", async function () {
-    expect(await tokenContract.epochType()).to.equal(0);
-    expect(await tokenContract.epochType()).to.equal(0);
+  it("expiryType", async function () {
+    expect(await tokenContract.expiryType()).to.equal(0);
   });
 
   it("epochLength", async function () {
