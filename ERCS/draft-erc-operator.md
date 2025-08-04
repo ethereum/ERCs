@@ -12,13 +12,13 @@ requires: EIP-1153, ERC-2771
 
 ## Abstract
 
-A contract which allows standard EOAs to perform batch calls to compatible contracts.
+This standard defines a contract interface that enables externally owned accounts (EOAs) to perform batch call executions via a standard Operator contract, without requiring them to delegate control or convert into smart contract accounts.
 
 ## Motivation
 
-The [ERC-7702](https://eips.ethereum.org/EIPS/eip-7702) allows EOAs to became powerful smart contract accounts (SCA), which solves many UX issues, like the double `approve` + `transferFrom` transactions.  
-While this new tecnhology is still reaching wider adoption over time, we need a way to improve UX for the users that decide to not have code attached to their EOAs.  
-This approach allows any EOA to perform batch call on contracts that are compatible.
+The [ERC-7702](https://eips.ethereum.org/EIPS/eip-7702) allows EOAs to become powerful smart contract accounts (SCA), which solves many UX issues, like the double `approve` + `transferFrom` transactions.  
+While this new technology is still reaching wider adoption over time, we need a way to improve UX for the users that decide to not have code attached to their EOAs.  
+This proposal introduces a lightweight, backward-compatible mechanism to enhance UX for such users. By leveraging a standardized Operator contract, EOAs can batch multiple contract calls into a single transaction—assuming the target contracts are compatible (i.e., implement the Operated pattern).
 
 ## Specification
 
@@ -27,14 +27,14 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ### Definitions
 
 - Operator: The contract that executes calls on the sender's behalf.
-- Operated: The contract that supports calls throught the Operator.
+- Operated: The contract that supports calls through the Operator.
 
 It's OPTIONAL but HIGHLY RECOMMENDED to have the `Operator` contract as a singleton.
 
 ### Operator
 
 ```solidity
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.29;
 
 interface IOperator {
     struct Call {
@@ -70,14 +70,46 @@ MUST revert when called outside of the context of a call.
 
 ### Operated
 
-Compatible target contracts (a.k.a. `Operated`) MUST assume the sender is the `operator.onBehalfOf()` when `msg.sender == operator`. This behavior fits well with the usage of the `_msgSender()` function from [`ERC-2771`](./erc-2771.md).
+```solidity
+pragma solidity ^0.8.29;
+
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
+import { IOperator } from "./interfaces/IOperator.sol";
+
+/// @title Operated contract
+/// @dev Supports calls through the Operator
+abstract contract Operated is Context {
+    IOperator public immutable operator;
+
+    constructor(address operator_) {
+        operator = IOperator(operator_);
+    }
+
+    /// @inheritdoc Context
+    function _msgSender() internal view virtual override returns (address) {
+        if (msg.sender == address(operator)) {
+            return operator.onBehalfOf();
+        }
+
+        return msg.sender;
+    }
+}
+```
+Any contract can become compatible to execute the batch call by EOA using operator if it extends the `Operated` contract. The `Operated` contract overrides `_msgSender()` to return `operator.onBehalfOf()` when the call originates from the Operator. This ensures that the target contract recognizes the EOA initiating the batch execution, preserving correct sender context.
+
+This behavior fits well with the usage of the _msgSender() function from ERC-2771.
+
+### Methods
+
+`_msgSender`
+Returns `msg.sender` or `operator.onBehalfOf()`
 
 ## Reference Implementation
 
 ### Operator
 
 ```solidity
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.29;
 
 import {TransientSlot} from "@openzeppelin/contracts/utils/TransientSlot.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
@@ -136,27 +168,35 @@ Worth noting that the usage of transient storage ([EIP-1153](https://github.com/
 ### Operated
 
 ```solidity
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.29;
 
-import { Context } from "@openzeppelin/contracts/utils/Context.sol";
-import { IOperator } from "./interfaces/IOperator.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IOperator} from "./interfaces/IOperator.sol";
+import {Operated} from "./Operated.sol";
 
 /// @title Operated contract
-/// @dev Supports calls throught the Operator
-abstract contract Operated is Context {
-    IOperator public immutable operator;
+/// @dev Supports calls through the Operator
+contract OperatorCompatible is Operated {
+    error InsufficientBalance();
 
-    constructor(address operator_) {
-        operator = IOperator(operator_);
+    mapping(address => mapping(address => uint256)) public balance;
+
+    constructor(address operator_) Operated(operator_) {}
+
+     function deposit(address token_, uint256 amount_) public payable {
+        if (token_ == address(0)) revert InvalidToken();
+        address _sender = _msgSender();
+        IERC20(token_).transferFrom(_sender, address(this), amount_);
+        balance[token_][_sender] += amount_;
     }
 
-    /// @inheritdoc Context
-    function _msgSender() internal view virtual override returns (address) {
-        if (msg.sender == address(operator)) {
-            return operator.onBehalfOf();
-        }
-
-        return msg.sender;
+    function withdraw(address token_, uint256 amount_) public {
+        if (token_ == address(0)) revert InvalidToken();
+        address _sender = _msgSender();
+        if (balance[token_][_sender] < amount_) revert InsufficientBalance();
+        balance[token_][_sender] -= amount_;
+        IERC20(token_).transfer(_sender, amount_);
     }
 }
 
@@ -164,7 +204,7 @@ abstract contract Operated is Context {
 
 ## Backwards Compatibility
 
-The main limitation of this ERC is that only contracts that implements the `Operated` logic will be able to receive calls thorught the `Operator`.
+The main limitation of this ERC is that only contracts that implements the `Operated` logic will be able to receive calls through the `Operator`.
 
 ## Security Considerations
 
