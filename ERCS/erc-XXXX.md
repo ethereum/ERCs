@@ -3,11 +3,11 @@ eip: XXXX
 title: Simplified Payment Verification Gateway
 description: Trustless singleton contract for on-chain verification of Bitcoin transactions through block headers
 author: Artem Chystiakov (@arvolear), Oleh Komendant (@Hrom131)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/eip-xxxx-simplified-payment-verification-gateway/25038
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-07-31
+created: 2025-08-07
 ---
 
 ## Abstract
