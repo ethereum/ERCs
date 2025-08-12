@@ -7,7 +7,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-07-17
-updated: 2025-08-09
+updated: 2025-08-11
 requires: ERC-20
 ---
 
