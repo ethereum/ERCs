@@ -1,5 +1,5 @@
 ---
-erc: TBD
+erc: 8003
 title: ERC-20 Pre-initialization Extension (Sentinel Storage)
 author: German Maria Abal Bazzano (@ariutokintumi)
 discussions-to: https://ethereum-magicians.org/t/erc-tbd-erc-20-pre-initialization-extension-sentinel-storage-gas-savings-for-first-time-token-receivers/24993
