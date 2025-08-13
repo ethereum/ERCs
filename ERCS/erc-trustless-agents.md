@@ -198,7 +198,7 @@ This protocol enables:
 
 ## Reference Implementation
 
-[*Sumeet Chougule*](https://t.me/sumeetchougule) *(Nethermind) is working on it. If you would like to contribute, reach out*.
+*Sumeet Chougule <sumeet.chougule@nethermind.io> is working on it. If you would like to contribute, reach out*.
 
 ## Security Considerations
 
@@ -213,4 +213,4 @@ Copyright and related rights waived via [CC0](https://creativecommons.org/public
 
 As this ERC undergoes public discussion, we will work closely with the Linux Foundation and A2A ecosystem stakeholders to refine and improve the specifications of this extension.
 
-*The authors acknowledge Dayan Brunie (Consensys), Sumeet Chougule (Nethermind), Jordan Ellis (Google), Nicola Greco (Deepcrypto), David Minarsch (Olas), Barnabé Monnot (Ethereum Foundation), Regan Peng (PIN AI), David Shi (Operator Labs), Pratyush Ranjan Tiwari (Freysa / Eternis), Nima Vaziri (Eigen Labs) for their technical feedback and contributions.*
+*The authors acknowledge Dayan Brunie (Consensys), Sumeet Chougule (Nethermind), Jordan Ellis (Google), Nicola Greco (Deepcrypto), David Minarsch (Olas), Barnabé Monnot (Ethereum Foundation), Regan Peng (PIN AI), David Shi (Operator Labs), Pratyush Ranjan Tiwari (Freysa / Eternis), Nima Vaziri (Eigen Labs), Austin Griffith (Ethereum Foundation) for their technical feedback and contributions.*
