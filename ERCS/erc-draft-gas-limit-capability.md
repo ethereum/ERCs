@@ -2,7 +2,7 @@
 title: Gas Limit Override Capability
 description: A way for apps to communicate call gas limits to wallets
 author: Adam Hodges (@ajhodges)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/new-erc-gas-limit-override-capability/25159
 status: Draft
 type: Standards Track
 category: ERC
