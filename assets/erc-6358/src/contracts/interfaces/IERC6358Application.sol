@@ -12,7 +12,7 @@ interface IERC6358Application {
 
     /**
      * @notice From the `_payload`, calculate the raw data which is used to generate signature
-     * @param _payload Original data committed by synchronizers, and stored in hostorical transaction list
+     * @param _payload Original data committed by synchronizers, and stored in historical transaction list
      * @return Returns The raw data of `_payload`
      */
     function getPayloadRawData(bytes memory _payload) external pure returns (bytes memory);

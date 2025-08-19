@@ -1428,7 +1428,7 @@ contract AttributesRepository is IERC7508, Context {
     }
 
     /**
-     * @notice Function to check if the caller is authorized to mamage a given parameter.
+     * @notice Function to check if the caller is authorized to manage a given parameter.
      * @param collection The address of the collection.
      * @param key Key of the attribute.
      * @param tokenId The ID of the token.

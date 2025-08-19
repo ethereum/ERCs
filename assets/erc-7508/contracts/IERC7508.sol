@@ -89,7 +89,7 @@ interface IERC7508 is IERC165 {
     /**
      * @notice Used to notify listeners that a new collection has been registered to use the repository.
      * @param collection Address of the collection
-     * @param owner Address of the owner of the collection; the addess authorized to manage the access control
+     * @param owner Address of the owner of the collection; the address authorized to manage the access control
      * @param registeringAddress Address that registered the collection
      * @param useOwnable A boolean value indicating whether the collection uses the Ownable extension to verify the
      *  owner (`true`) or not (`false`)
@@ -478,7 +478,7 @@ interface IERC7508 is IERC165 {
     ) external view returns (int256[] memory attributes);
 
     /**
-     * @notice Used to get multiple sting parameter values for a token.
+     * @notice Used to get multiple string parameter values for a token.
      * @param collections Addresses of the collections, in the same order as the attribute keys. If all tokens are from the same collection the array can contain a single element with the collection address.
      * @param tokenIds IDs of the tokens, in the same order as the attribute keys. If all attributes are for the same token the array can contain a single element with the token ID.
      * @param attributeKeys An array of string keys to retrieve
