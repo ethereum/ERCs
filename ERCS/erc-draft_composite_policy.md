@@ -1,8 +1,9 @@
 ---
+eip: 8006
 title: Universal Policy Engine
 description: Composite onchain policy engine utilizing generic rule artifacts within DAG evaluator
 author: Vlad Pryadko <vpriadko@guardianlabs.org>, Vitali Grabovski <v.grabovski@guardianlabs.org>
-discussions-to: https://ethereum-magicians.org/t/new-erc-universal-policy-engine-a-composable-on-chain-compliance-policy-built-from-reusable-artifacts/25155
+discussions-to: https://ethereum-magicians.org/t/erc-8006-universal-policy-engine/25155
 status: Draft
 type: Standards Track
 category: ERC
