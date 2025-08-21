@@ -70,7 +70,6 @@ Given inputs `(account: address, digest: bytes32, wrapped_signature: bytes)`, ve
         1. If success, return the result
         2. If failure, attempt `ecrecover` verification.
         3. (or if ERC-6492 `MAGIC` is found instead, attempt 6492 verification)
-    2. Do not continue to Step 2.
 3. If `MAGIC` is found:
     1. Split `wrappedSignature` at the `MAGIC` boundary:
         - `signature = wrapped_signature[0:magicIndex]`
@@ -78,8 +77,7 @@ Given inputs `(account: address, digest: bytes32, wrapped_signature: bytes)`, ve
     2. Decode the `tail`:
         - `(initData, authorization) = abi.decode(tail, (bytes, bytes))`
         - `(chain_id, delegation, nonce, y_parity, r, s) = abi.decode(authorization, (uint256, address, uint64, uint8, bytes32, bytes32))`
-
-        c. Continue to Step 2.
+    3. Continue to [Step 2](#step-2-check-if-already-delegated).
 
 ### Step 2: Check if already delegated
 
@@ -89,7 +87,7 @@ Check if the account is already delegated to the target `delegation`, and if so,
     1. Perform ERC-1271 verification: `account.isValidSignature(digest, signature)` 
         1. If success, return the result. 
         2. If failure, attempt `ecrecover` verification. 
-- Otherwise, continue to Step 3
+- Otherwise, continue to [Step 3](#step-3-simulate-delegation-and-validate).
 
 ### Step 3: Simulate delegation and validate
 
