@@ -103,7 +103,7 @@ If the account is not delegated yet, we will simulate the delegation and validat
 ### Requirements
 
 - Verifiers MUST follow the verification procedure as specified
-- Verifiers MAY use a (pre)deployed multicall contract or a deployless multicall mechanism to perform validation
+- Verifiers MAY use a (pre)deployed multicall contract (for Step 3), a deployless multicall mechanism (for Step 3), or a deployless contract to batch both steps (for Step 2 + Step 3)
 
 ## Rationale
 
