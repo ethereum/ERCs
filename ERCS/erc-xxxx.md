@@ -1,24 +1,25 @@
 ---
 eip: xxxx
 title: Signature Verification for Pre-delegated Accounts
-description: Signature verification for pre-delegated accounts
+description: Enables ERC-1271 signature verification for accounts that intend to delegate via EIP-7702 before the delegation occurs onchain
 author: Jake Moxey (@jxom)
 discussions-to: TBD
 status: Draft
 type: Standards Track
 category: ERC
 created: 2025-08-21
+requires: 1271, 7702
 ---
 
 # Signature Verification for Pre-delegated Accounts
 
 ## Abstract
 
-This ERC defines a signature verification procedure that enables signature validation for accounts that intend to delegate via EIP-7702 before onchain delegation occurs. The standard introduces a detectable signature wrapper containing an EIP-7702 authorization and initialization data, allowing verifiers to simulate the delegation and validate signatures through ERC-1271 in a single atomic operation.
+This ERC defines a signature verification procedure that enables signature validation for accounts that intend to delegate via [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) before onchain delegation occurs. The standard introduces a detectable signature wrapper containing an [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) authorization and initialization data, allowing verifiers to simulate the delegation and validate signatures through [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) in a single atomic operation.
 
 ## Motivation
 
-EIP-7702 enables EOAs to delegate execution to contract code, but signatures are often generated before onchain delegation occurs. Current verification methods cannot validate these pre-delegation signatures against the intended delegate logic.
+[EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) enables EOAs to set code in their account, but signatures are often generated before onchain delegation occurs. Current verification methods cannot validate these pre-delegation signatures against the intended delegate logic.
 
 This proposal addresses this limitation by:
 
