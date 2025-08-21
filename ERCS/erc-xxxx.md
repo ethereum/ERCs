@@ -3,7 +3,7 @@ eip: xxxx
 title: Signature Verification for Pre-delegated Accounts
 description: Enables ERC-1271 signature verification for accounts that intend to delegate via EIP-7702 before the delegation occurs onchain
 author: Jake Moxey (@jxom)
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/new-erc-signature-verification-for-pre-delegated-accounts/25201
 status: Draft
 type: Standards Track
 category: ERC
