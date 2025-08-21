@@ -1,0 +1,299 @@
+---
+eip: xxxx
+title: Proxy Clear Signing
+description: Permissionless singleton contract that proxies smart-contract calls and enforces transaction constraints specified by the end user
+author: Mark Virchenko (@borseno), Ilya Kubariev (@gymnasy55), Daniel Nagy (@nagydani)
+discussions-to: https://ethereum-magicians.org/t/TODO
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-08-19
+---
+
+## Abstract
+
+Introduce a singleton, stateless contract that proxies arbitrary smart‑contract calls and enforces user‑supplied outcome constraints. The proxy supports **absolute post‑balance thresholds** and **balance‑difference (delta) checks** over native ETH and ERC‑20 balances. Calls that violate the declared constraints MUST revert.
+
+## Motivation
+
+Current hardware wallets struggle to present meaningful transaction information when interacting with unknown or newly deployed smart contracts. Without prior knowledge of a contract’s ABI or address, these devices can only display raw hexadecimal calldata - an unreadable and unsafe experience for most users. This practice, known as blind signing, leaves users vulnerable to unintentionally approving malicious or incorrect transactions. This vulnerability has already been exploited in high-value attacks.
+
+Instead of parsing transaction calldata, the proposed approach focuses on verifying expected balance differences after execution. This proposal introduces an alternative path to clear signing - defined here as the ability for users to verify the outcome of a transaction before signing, without requiring ABI knowledge. By routing calls through a singleton proxy contract that enforces these expectations on-chain, hardware wallets can reliably display the “balance after transaction” values to the user, taken from the smart-contract parameters. This enables a permissionless, scalable, and understandable transaction confirmation experience, even for unknown contracts.
+
+## Specification
+
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+### Contract Overview
+
+A singleton, stateless permissionless proxy contract deployed once per network.
+
+The contract accepts transaction execution requests containing:
+
+1. **Target call data** — Encoded calldata for the intended interaction.
+2. **Approvals** — Optional ERC‑20 pull‑and‑approve instructions executed **before** the target call (pull from `msg.sender` into the proxy, then `approve` a spender).
+3. **Withdrawals** — Optional ETH/ERC‑20 transfers executed **after** the target call (from the proxy to specified recipients).
+4. **Balance rules** — One of:
+   - **Post‑balance rules:** minimum absolute balances after execution; or
+   - **Balance‑difference rules:** minimum required deltas between pre‑ and post‑execution balances.
+
+The contract MUST NOT store persistent state. Multiple independent users MAY reuse the same instance without interference.
+
+### BalanceProxy
+
+The `BalanceProxy` MUST implement the following interface:
+
+```solidity
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.27;
+
+/// @title IBalanceProxy
+/// @notice Interface for the BalanceProxy contract
+/// @dev This interface is used to proxy calls to a target contract with specified balances and approvals
+interface IBalanceProxy {
+    /// @notice Struct to represent balance or value of specific token by target address
+    /// @param target Target address
+    /// @param token Token address
+    /// @param balance Balance
+    struct Balance {
+        address target;
+        address token;
+        int256 balance;
+    }
+
+    /// @notice Error when actual diff != expected
+    /// @param token    Token address
+    /// @param target   Target address
+    /// @param expected Expected diff
+    /// @param actual   Actual diff
+    error UnexpectedBalanceDiff(
+        address token,
+        address target,
+        int256 expected,
+        int256 actual
+    );
+
+    /// @notice Struct to represent metadata of a balance
+    /// @param target Target address
+    /// @param token Token address
+    /// @param balance Balance struct
+    /// @param symbol Symbol of the token
+    /// @param decimals Decimals of the token
+    struct BalanceMetadata {
+        Balance balance;
+        string symbol;
+        uint8 decimals;
+    }
+
+    /// @notice Error thrown when a balance is insufficient
+    /// @param token Token address
+    /// @param target Target address
+    /// @param balance Balance
+    error InsufficientBalance(
+        address token,
+        address target,
+        int256 balance,
+        uint256 actual
+    );
+
+    /// @notice Error thrown when a call fails
+    /// @param target Target address
+    /// @param data Data passed to the target contract
+    /// @param returnData Return data from the target contract
+    error CallFailed(address target, bytes data, bytes returnData);
+
+    /// @notice Error thrown when metadata is invalid
+    /// @param token Token address
+    /// @param expectedSymbol Expected symbol of the token
+    /// @param expectedDecimals Expected decimals of the token
+    /// @param actualSymbol Actual symbol of the token
+    /// @param actualDecimals Actual decimals of the token
+    error InvalidMetadata(
+        address token,
+        string expectedSymbol,
+        uint8 expectedDecimals,
+        string actualSymbol,
+        uint8 actualDecimals
+    );
+
+    /// @notice Proxy call to a target contract with specified balances and approvals
+    /// @param postBalances Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return Result of the call
+    function proxyCall(
+        Balance[] memory postBalances,
+        Balance[] memory approvals,
+        address target,
+        bytes memory data,
+        Balance[] memory withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Calldata version of proxy call to a target contract with specified balances and approvals
+    /// @param postBalances Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return result Result of the call
+    function proxyCallCalldata(
+        Balance[] calldata postBalances,
+        Balance[] calldata approvals,
+        address target,
+        bytes calldata data,
+        Balance[] calldata withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Proxy call to a target contract with specified balances and approvals
+    /// @param postBalances Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return Result of the call
+    function proxyCallMetadata(
+        BalanceMetadata[] memory postBalances,
+        BalanceMetadata[] memory approvals,
+        address target,
+        bytes memory data,
+        BalanceMetadata[] memory withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Calldata version of proxy call to a target contract with specified balances and approvals
+    /// @param postBalances Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return result Result of the call
+    function proxyCallMetadataCalldata(
+        BalanceMetadata[] calldata postBalances,
+        BalanceMetadata[] calldata approvals,
+        address target,
+        bytes calldata data,
+        BalanceMetadata[] calldata withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Proxy call to a target contract with specified balances and approvals
+    /// @param diffs Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return Result of the call
+    function proxyCallDiffs(
+        Balance[] memory diffs,
+        Balance[] memory approvals,
+        address target,
+        bytes memory data,
+        Balance[] memory withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Calldata version of proxy call to a target contract with specified balances and approvals
+    /// @param diffs Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return result Result of the call
+    function proxyCallCalldataDiffs(
+        Balance[] calldata diffs,
+        Balance[] calldata approvals,
+        address target,
+        bytes calldata data,
+        Balance[] calldata withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Proxy call to a target contract with specified balances and approvals
+    /// @param diffs Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return Result of the call
+    function proxyCallMetadataDiffs(
+        BalanceMetadata[] memory diffs,
+        BalanceMetadata[] memory approvals,
+        address target,
+        bytes memory data,
+        BalanceMetadata[] memory withdrawals
+    ) external payable returns (bytes memory);
+
+    /// @notice Calldata version of proxy call to a target contract with specified balances and approvals
+    /// @param diffs Balances to check after the call
+    /// @param approvals Approvals to make before the call
+    /// @param target Target contract to call
+    /// @param data Data to pass to the target contract
+    /// @param withdrawals Withdrawals to make after the call
+    /// @return result Result of the call
+    function proxyCallMetadataCalldataDiffs(
+        BalanceMetadata[] calldata diffs,
+        BalanceMetadata[] calldata approvals,
+        address target,
+        bytes calldata data,
+        BalanceMetadata[] calldata withdrawals
+    ) external payable returns (bytes memory);
+}
+```
+
+This standard defines a singleton, stateless proxy that:
+
+1. Pulls and approves ERC-20 amounts to the proxy for a designated spender (approvals),
+2. Proxies a call to a target contract,
+3. Optionally performs withdrawals from the proxy (withdrawals),
+4. Enforces user-specified post-execution balance checks (postBalances).
+
+If any check fails or the proxied call fails, the transaction MUST revert.
+
+### Semantics
+
+Execution MUST proceed in this order:
+
+1. Approvals
+2. Target call
+3. Withdrawals
+4. Post-balance checks (if provided) OR diff checks (if provided)
+
+For absolute rules, balances are compared using `actual >= abs(required)`. 
+For diff rules, deltas are computed as `after - before` and compared to the signed requirement.
+
+## Rationale
+
+Several design decisions have been made to maximize reusability, reduce integration overhead, and simplify the verification model:
+
+1. Stateless – The contract holds no persistent state. All parameters, including balance requirements, approvals, and transfers, are supplied per call. This removes per-user deployment and initialization steps, avoids migrations, and keeps the execution path auditable.
+2. Protocol-agnostic – The proxy forwards arbitrary calldata without protocol-specific parsing or allowlists. It applies only generic balance and transfer rules, making it immediately usable with any newly deployed contract that transfers tokenized assets.
+3. Singleton and permissionless – One deployment per network serves all users. No “wallet contracts” or account-specific deployments are required. A single, well-known address simplifies hardware wallet support and minimizes operational complexity.
+4. UI-focused - the contract contains enough information in the parameters so that hardware wallets can parse it and display it to the user. This includes, besides all the mandatory for functioning information, such information as token's decimals and symbol - this data helps hardware wallet display what token is being changed and values to be displayed with a proper formatting.
+
+These choices yield a contract that is simple to integrate, predictable to verify, and easy to reuse across applications. 
+
+The limitation of this solution is that enforcement is limited to tokenized balances (ETH or ERC-20) and cannot apply to non-transferable state stored within other contracts, such as staking positions or lending positions.
+
+An additional "preBalances" parameter was discussed to be introduced into the contract, for the use case when a transaction is only relevant to be executed when an arbitrary address has certain balance. Because of how rare the use case is, it has been decided not to include this parameter into the contract. 
+
+## Backwards Compatibility
+
+This EIP introduces a new contract standard and does not modify existing standards. No backwards-compatibility issues are expected.
+
+## Test Cases
+
+Test Cases can be found [here](../assets/erc-xxxx/test/BalanceProxy.test.ts).
+
+## Reference Implementation
+
+A reference implementation of the `BalanceProxy` contract can be found [here](../assets/erc-xxxx/contracts/BalanceProxy.sol).
+
+> Please note that the reference implementation depends on the `@openzeppelin/contracts v5.3.0`
+
+## Security Considerations
+
+1. **Third-party funding.** Absolute balance checks only assert that an address holds at least a specified amount after execution. They do not constrain where those funds came from. An attacker (or any third party) can top up the account during the transaction to satisfy the condition. Where provenance matters, balance-difference checks SHOULD be used instead.
+
+2. **Residual balances.** Because the proxy is stateless, any assets transferred into it that are not withdrawn within the same transaction remain stuck in the contract. These residual balances are not tracked or attributed. They may later be withdrawn by anyone, intentionally or otherwise.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
