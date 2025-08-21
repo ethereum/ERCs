@@ -3,7 +3,7 @@ eip: xxxx
 title: Proxy Clear Signing
 description: Permissionless singleton contract that proxies smart-contract calls and enforces transaction constraints specified by the end user
 author: Mark Virchenko (@borseno), Ilya Kubariev (@gymnasy55), Daniel Nagy (@nagydani)
-discussions-to: https://ethereum-magicians.org/t/TODO
+discussions-to: https://ethereum-magicians.org/t/new-erc-proxy-clear-signing/25199
 status: Draft
 type: Standards Track
 category: ERC
