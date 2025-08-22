@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
 import { ArtifactBase } from "./ArtifactBase.sol";
-import { ARTIFACT_NOT_INITED_ERR, ARTIFACT_IS_INITED_ERR } from "../../constants/Export.sol";
+import { ARTIFACT_NOT_INITED_ERR, ARTIFACT_IS_INITED_ERR } from "../../constants/ErrorCodes.sol";
 
 abstract contract StatefulArtifactBase is ArtifactBase {
     bool internal isInited;

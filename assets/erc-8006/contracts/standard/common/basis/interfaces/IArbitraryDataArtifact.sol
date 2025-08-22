@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
 interface IArbitraryDataArtifact {
     function exec(bytes[] memory data) external returns (bytes memory);

@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
-import { AUTH_ADMIN_ERR } from "./Errors.sol";
+import { AUTH_ADMIN_ERR } from "../constants/ErrorCodes.sol";
 
 contract OwnerBase {
     address private adminUser;

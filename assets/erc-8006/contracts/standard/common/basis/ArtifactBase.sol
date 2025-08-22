@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
-import { IArbitraryDataArtifact } from "./interfaces/Export.sol";
-import { INCORRECT_EXEC_ARGUMENTS_LIST_LENGTH_ERR } from "../../constants/Export.sol";
+import { IArbitraryDataArtifact } from "./interfaces/IArbitraryDataArtifact.sol";
+import { INCORRECT_EXEC_ARGUMENTS_LIST_LENGTH_ERR } from "../../constants/ErrorCodes.sol";
 
 abstract contract ArtifactBase is IArbitraryDataArtifact {
     function init(bytes memory data) external virtual {

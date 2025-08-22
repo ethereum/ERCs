@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
-import { IArbitraryDataArtifact } from "./pre-defined/common/basis/interfaces/Export.sol";
+import { IArbitraryDataArtifact } from "../standard/common/basis/Export.sol";
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 uint256 constant MAX_NODES_LENGTH = 256;

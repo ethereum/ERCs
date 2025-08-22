@@ -1,107 +1,99 @@
 //SPDX-License-Identifier: Unlicensed
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.30;
 
+import { ExecVariables, InitParams as PolicyInitParams } from "./types/MainTypes.sol";
+import { ExecVarsMetadata } from "./types/UtilTypes.sol";
+import "./utils/ValidationUtils.sol" as PolicyHandlerValidator;
+import { OwnerBase } from "./utils/OwnerBase.sol";
+import { MAX_NODES_LENGTH } from "./constants/Constants.sol";
+import { DAGWithPolicyMetadata } from "./inheritance/DAGWithPolicyMetadata.sol";
+import "./utils/MiscUtils.sol" as HelperUtils;
 import {
-    DUPLICATED_ROOT_NODE_ERR,
-    MISSING_ROOT_NODE_ERR,
+    POLICY_DOES_NOT_HAVE_ANY_ARTIFACT_ERR,
     INIT_NODES_LIST_IS_LARGER_THAN_MAX_LENGTH_ERR,
-    GRAPH_ALREADY_INITIALIZED_ERR,
-    GRAPH_NOT_INITIALIZED_ERR
-} from "./Errors.sol";
-import { Node, Variables, GraphInitParams, CacheRecord, NamedTypedVariables } from "./Types.sol";
-import { ArtifactNodes } from "./ArtifactNodes.sol";
-import { OwnerBase } from "./OwnerBase.sol";
-import { MAX_NODES_LENGTH } from "./Constants.sol";
-import "./Utilities.sol" as Utils;
+    POLICY_ALREADY_INITIALIZED_ERR,
+    POLICY_NOT_INITIALIZED_ERR
+} from "./constants/ErrorCodes.sol";
+import { IPolicyHandler } from "./interfaces/IPolicyHandler.sol";
 
-contract PolicyHandler is OwnerBase {
-    // todo: design to support ArtifactNodes[] list;
-    ArtifactNodes private graph;
-    bytes32 private rootNodeId;
+/// @title Policy Handler
+/// @notice Handles policy initialization, reset, and evaluation with rule-based artifact processing
+/// @dev Main contract for managing and evaluating policy rules using DAG-based artifact relationships:
+///      - Implements IPolicyHandler interface
+///      - Extends OwnerBase for access control
+contract PolicyHandler is IPolicyHandler, OwnerBase {
+    DAGWithPolicyMetadata internal dag;
     bool private isInitialized = false;
 
-    event Evaluated(bool indexed result, bytes32 indexed rootNode);
-
+    /// @notice Initializes the PolicyHandler with an admin user
+    /// @dev Sets up the contract with owner-based access control
+    /// @param _adminUser The address that will have admin privileges
     constructor(address _adminUser) OwnerBase(_adminUser) {}
 
-    // todo: consider the scenario when explicit constructor is skipped
-    // function init (address _adminUser) public {
-    //     require(!isInited, "ERROR");
-    //     adminUser = _adminUser;
-    //     graph = new ArtifactNodes(adminUser);
-    //     isInited = true;
-    // }
+    /// @notice Initializes policy handler with rules (list of linked artifacts)
+    /// @param params Policy initialization parameters containing nodes and configuration
+    /// @dev Creates new DAG instance and sets up policy configuration for the first time:
+    ///      - Emits Set event with root node ID and number of nodes
+    function set(PolicyInitParams memory params) public onlyOwner {
+        PolicyHandlerValidator.boolIsFalsyWithErr(isInitialized, POLICY_ALREADY_INITIALIZED_ERR);
 
-    function set(GraphInitParams memory params) public onlyOwner returns (address) {
-        require(!isInitialized, GRAPH_ALREADY_INITIALIZED_ERR);
+        _set(params);
 
-        return _set(params);
+        emit Set(dag.rootNodeId(), params.nodes.length);
     }
 
-    function reset(GraphInitParams memory params) public onlyOwner returns (address) {
-        require(isInitialized, GRAPH_NOT_INITIALIZED_ERR);
+    /// @notice Re-initializes policy handler with rules (list of linked artifacts)
+    /// @param params Policy initialization parameters containing nodes and configuration
+    /// @dev Abandons previous configuration and creates new policy setup:
+    ///      - Emits Upgraded event with new root node ID and number of nodes
+    function reset(PolicyInitParams memory params) public onlyOwner {
+        PolicyHandlerValidator.boolIsTruthyWithErr(isInitialized, POLICY_NOT_INITIALIZED_ERR);
 
-        return _set(params);
+        _set(params);
+
+        emit Upgraded(dag.rootNodeId(), params.nodes.length);
     }
 
-    function evaluate(Variables[] memory variables) public onlyOwner returns (bool result) {
-        Node memory rootNode = graph.getNodeById(rootNodeId);
+    /// @notice Evaluates the policy check result by traversing all graph starting from root node
+    /// @param variables Array of execution variables to be passed to policy artifacts
+    /// @return result Boolean result of the policy evaluation
+    /// @dev Artifact input params "variables" are forwarded to respective artifacts during evaluation:
+    ///      - Emits Evaluated event with result and root node ID
+    function evaluate(ExecVariables[] memory variables) public onlyOwner returns (bool result) {
+        bytes memory encodedResult = dag.evaluateRecursively(dag.rootNodeId(), variables);
 
-        uint256 lastCacheRecord = 0;
-        CacheRecord[] memory cache = new CacheRecord[](graph.nodesCount());
+        result = abi.decode(encodedResult, (bool));
 
-        bytes memory encodedResult = graph.evaluateRecursively(
-            rootNode,
-            variables,
-            cache,
-            lastCacheRecord
+        emit Evaluated(result, dag.rootNodeId());
+    }
+
+    /// @notice Returns arguments list for runtime-supplied parameters to particular nodes
+    /// @dev Retrieves variable descriptions from all nodes in the DAG structure (relate only to those node that require run-time supplied args)
+    /// @return list Array of execution variable metadata for runtime parameters
+    function getVariablesList() public view returns (ExecVarsMetadata[] memory list) {
+        PolicyHandlerValidator.boolIsTruthyWithErr(isInitialized, POLICY_NOT_INITIALIZED_ERR);
+
+        list = HelperUtils.getVarsDesriptionList(dag.getNodes());
+    }
+
+    /// @notice Internal function to set up policy configuration
+    /// @dev Creates new DAG instance with policy metadata and initializes it
+    /// @param params Policy initialization parameters containing nodes and configuration
+    function _set(PolicyInitParams memory params) internal onlyOwner {
+        PolicyHandlerValidator.boolIsTruthyWithErr(
+            params.nodes.length > 0,
+            POLICY_DOES_NOT_HAVE_ANY_ARTIFACT_ERR
         );
-
-        // note: implicitness
-        bool decodedResult = abi.decode(encodedResult, (bool));
-
-        result = decodedResult;
-
-        emit Evaluated(result, rootNodeId);
-    }
-
-    // note: this should return what run-time arguments has to be supplied to Node;
-    // the arguments consists of node.variables and node.substitutions
-    function getVariablesList() public view returns (NamedTypedVariables[] memory) {
-        return Utils.getVariablesListInternal(graph.getNodes());
-    }
-
-    function _set(GraphInitParams memory params) internal onlyOwner returns (address) {
-        // note: solves https://ethereum.stackexchange.com/questions/142102/solidity-1024-call-stack-depth as ad-hoc
-        // todo: bring instead sophisticated check
-        require(
+        // Prevents call stack depth overflow by limiting nodes length
+        // link: https://ethereum.stackexchange.com/questions/142102/solidity-1024-call-stack-depth
+        PolicyHandlerValidator.boolIsTruthyWithErr(
             params.nodes.length <= MAX_NODES_LENGTH,
             INIT_NODES_LIST_IS_LARGER_THAN_MAX_LENGTH_ERR
         );
-        graph = new ArtifactNodes(address(this));
 
-        _addNodes(params);
-
-        // todo: add the way to validate graph.node[params.rootNode] evaluates as bool
-        rootNodeId = params.rootNode;
+        dag = new DAGWithPolicyMetadata(address(this));
+        dag.init(params);
 
         isInitialized = true;
-
-        return address(graph);
-    }
-
-    function _addNodes(GraphInitParams memory params) private {
-        uint256 rootNodeIncludeCount;
-
-        for (uint256 i = 0; i < params.nodes.length; i++) {
-            graph.addNode(params.nodes[i]);
-
-            if (params.rootNode == params.nodes[i].id) {
-                rootNodeIncludeCount++;
-            }
-        }
-
-        require(rootNodeIncludeCount != 0, MISSING_ROOT_NODE_ERR);
-        require(rootNodeIncludeCount == 1, DUPLICATED_ROOT_NODE_ERR);
     }
 }
