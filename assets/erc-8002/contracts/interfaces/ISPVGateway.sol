@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {BlockHeaderData} from "../libs/BlockHeader.sol";
-import {TxMerkleProof} from "../libs/TxMerkleProof.sol";
+import {BlockHeader} from "@solarity/solidity-lib/libs/bitcoin/BlockHeader.sol";
 
 /**
  * @notice Interface for an SPV (Simplified Payment Verification) gateway contract.
@@ -124,18 +123,20 @@ interface ISPVGateway {
     function addBlockHeader(bytes calldata blockHeaderRaw) external;
 
     /**
-     * @notice Checks that given txId is included in the specified block
+     * @notice Checks that given txId is included in the specified block with a minimum number of confirmations.
+     * @param merkleProof The array of hashes used to build the Merkle root
      * @param blockHash The hash of the block in which to verify the transaction
      * @param txId The transaction id to verify
-     * @param merkleProof The array of hashes used to build the Merkle root
-     * @param directions The array indicating the hashing directions for the Merkle proof
-     * @return True if the txId is present in the block's Merkle tree, false otherwise
+     * @param txIndex The index of the transaction in the block's Merkle tree
+     * @param minConfirmationsCount The minimum number of confirmations required for the block
+     * @return True if the txId is present in the block's Merkle tree and the block has at least minConfirmationsCount confirmations, false otherwise
      */
     function checkTxInclusion(
+        bytes32[] calldata merkleProof,
         bytes32 blockHash,
         bytes32 txId,
-        bytes32[] calldata merkleProof,
-        TxMerkleProof.HashDirection[] calldata directions
+        uint256 txIndex,
+        uint256 minConfirmationsCount
     ) external view returns (bool);
 
     /**
@@ -165,7 +166,9 @@ interface ISPVGateway {
      * @param blockHash The hash of the block
      * @return The block header data
      */
-    function getBlockHeader(bytes32 blockHash) external view returns (BlockHeaderData memory);
+    function getBlockHeader(
+        bytes32 blockHash
+    ) external view returns (BlockHeader.HeaderData memory);
 
     /**
      * @notice Returns the current status of a given block
