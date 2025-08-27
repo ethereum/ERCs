@@ -10,14 +10,23 @@ We provide the essential steps to compile the contracts and run the provided uni
 
 ### Provided Contracts and Tests
 
+#### Interfaces
+
 - `contracts/ISDC.sol` - Interface contract (aggregation of `ISDCTrade`, `ISDCSettlement`, `IAsyncTransferCallback`)
-- `contracts/ISDCTrade.sol`
-- `contracts/ISDCSettlement.sol`
-- `contracts/IAsyncTransferCallback.sol`
+- `contracts/ISDCTrade.sol` - Interface related to trade incept/confirm/terminate
+- `contracts/ISDCSettlement.sol` - Interface related to settlement initiate/perform/after
+- `contracts/IAsyncTransferCallback.sol` - Interface related to transfer.
+- 
+- `contracts/IAsyncTransfer.sol` - Interface (extending the ERC-20) for settlement tokens used in `SDCPledgedBalance`.
+
+#### Implementations
+
 - `contracts/SDCSingleTrade.sol` - SDC abstract contract for an OTC Derivative (single trade case only)
 - `contracts/SDCSingleTradePledgedBalance.sol` - SDC full implementation for an OTC Derivative (single trade case only)
-- `contracts/IERC20Settlement.sol` - Interface (extending the ERC-20) for settlement tokens used in `SDCPledgedBalance`.
 - `contracts/ERC20Settlement.sol` - Mintable settlement token contract implementing `IERC20Settlement` for unit tests
+
+#### Tests
+
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
 
 ### Compile and run tests with Hardhat
