@@ -67,7 +67,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
     function initiateSettlement() external override onlyCounterparty onlyWhenSettled {
         address initiator = msg.sender;
         setTradeState(TradeState.Valuation);
-        emit SettlementRequested(initiator, tradeData, settlementData[settlementData.length - 1]);
+        emit SettlementRequested(initiator, tradeData, "" /* no settlement spec */, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -96,28 +96,30 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
     function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external override  {
-        if ( inStateConfirmed()){
-            if (success){
+        if (inStateConfirmed()) {
+            if (success) {
                 setTradeState(TradeState.Settled);
                 emit TradeActivated(getTradeID());
             }
-            else{
+            else {
                 setTradeState(TradeState.Terminated);
                 emit TradeTerminated(tradeID, "Upfront Transfer Failure");
             }
         }
-        else if ( inStateTransfer() ){
-            if (success){
+        else if (inStateTransfer()) {
+            if (success) {
                 setTradeState(TradeState.Settled);
                 emit SettlementTransferred(transactionID, transactionData);
             }
-            else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
+            else {  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
                 setTradeState(TradeState.InTermination);
                 emit SettlementFailed(transactionID, transactionData);
                 int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 processTerminationWithPledge(settlementAmount);
                 emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
             }
+            // To adher to the protocol we call afterSettlement (but all work is done)
+            afterSettlement(success, "");
         }
         else if( inStateTermination() ){
             if (success){
@@ -131,6 +133,13 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         }
         else
             revert("Trade State does not allow to call 'afterTransfer'");
+    }
+
+    /*
+     * afterTransfer processes SDC depending on success of the respective payment and depending on the current trade state
+     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
+     */
+    function afterSettlement(bool success, string memory nextSettlementSpec) external override  {
     }
 
     /*

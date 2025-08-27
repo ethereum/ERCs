@@ -16,14 +16,22 @@ interface ISDCSettlement {
 
     /**
      * @dev Emitted when a settlement gets requested
+     *     The argument `settlementSpec` is the one that was passed after a previous settlement
+     *     in `afterSettlement`. It may be used to pass updated settlement specific information
+     *     to the valuation oracle, e.g., when margin buffer amounts are a function of market
+     *     parameters and are determined by an external oracle (e.g. the valuation oracle).
+     *     In that case the external oracle can pass the `settlementSpec` via `afterSettlement`
+     *     and pick it up in the `SettlementRequested` event (allows for stateless external oracles).
+     *     For the initial settlement such data should be part of `tradeData`.
      * @param initiator the address of the requesting party
      * @param tradeData holding the stored trade data
+     * @param settlementSpec holding additional specification for the settlement (e.g., updated margin buffer values)
      * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
      */
-    event SettlementRequested(address initiator, string tradeData, string lastSettlementData);
+    event SettlementRequested(address initiator, string tradeData, string settlementSpec, string lastSettlementData);
 
     /**
-     * @dev Emitted when Settlement has been valued and settlement phase is initiated
+     * @dev Emitted when Settlement has been valued and settlement phase is initiated.
      * @param initiator the address of the requesting party
      * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
@@ -69,6 +77,8 @@ interface ISDCSettlement {
      *   An implementation that checked a static pre-funding upon confirmation of the trade might not require this step.
      *   In any case, the method may trigger termination if the settlement failed.
      *   emits a {SettlementTransferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
+     * @param success may be used, in case an external oracle performs checks required for the next settlement phase.
+     * @param nextSettlementSpec may be used to update settlement specification that is passed with the next {SettlementRequested} event.
      */
-    function afterSettlement() external;
+    function afterSettlement(bool success, string memory nextSettlementSpec) external;
 }
