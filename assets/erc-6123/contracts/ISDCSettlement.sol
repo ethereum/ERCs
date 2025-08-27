@@ -5,9 +5,9 @@ pragma solidity >=0.7.0;
 
 /**
  * @title ERC6123 Smart Derivative Contract - Settlement Events and Settlement Functions.
- * @dev Interface specification for a Smart Derivative Contract - Settlement Specific Part. See ISDC interface documentation for a more detailed description.
+ * @dev Interface specification for a Smart Derivative Contract - Settlement Specific Part.
+ *   See ISDC interface documentation for a more detailed description.
  */
-
 interface ISDCSettlement {
 
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
@@ -61,4 +61,14 @@ interface ISDCSettlement {
      * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
      */
     function performSettlement(int256 settlementAmount, string memory settlementData) external;
+
+    /**
+     * @notice Called to prepare the next settlement and move to that phase. May trigger optional checks (e.g. pre-funding check).
+     * @dev Depending on the implementation, this method may be called automatically at the end of performSettlement or called externally.
+     *   An implementation that used adjusting of pre-funding can check the pre-funding within this method.this.
+     *   An implementation that checked a static pre-funding upon confirmation of the trade might not require this step.
+     *   In any case, the method may trigger termination if the settlement failed.
+     *   emits a {SettlementTransferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
+     */
+    function afterSettlement() external;
 }
