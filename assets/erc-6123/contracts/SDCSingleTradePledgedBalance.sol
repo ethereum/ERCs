@@ -35,7 +35,7 @@ import "./ERC20Settlement.sol";
  *-------------------------------------*
 */
 
-contract SDCSingleTradePledgedBalance is SDCSingleTrade {
+contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
 
     struct MarginRequirement {
         uint256 buffer;
@@ -118,8 +118,10 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
                 processTerminationWithPledge(settlementAmount);
                 emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
             }
+
             // To adher to the protocol we call afterSettlement (but all work is done)
-            afterSettlement(success, "");
+            // - this is for illustration, removing the line may save gas
+            this.afterSettlement(success, "");
         }
         else if( inStateTermination() ){
             if (success){
