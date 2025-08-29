@@ -47,8 +47,6 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
     int256[] private settlementAmounts;
     string[] private settlementData;
 
-    string currentSettlementSpec = "";
-
     constructor(
         address _party1,
         address _party2,
@@ -69,7 +67,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
     function initiateSettlement() external override onlyCounterparty onlyWhenSettled {
         address initiator = msg.sender;
         setTradeState(TradeState.Valuation);
-        emit SettlementRequested(initiator, tradeData, currentSettlementSpec, settlementData[settlementData.length - 1]);
+        emit SettlementRequested(initiator, tradeData, settlementData[settlementData.length - 1]);
     }
 
     /*
@@ -78,12 +76,11 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
      * Checks Settlement amount according to valuationViewParty: If SettlementAmount is > 0, valuationViewParty receives
      * can be called only when ProcessState = ValuationAndSettlement
      */
-    function performSettlement(int256 settlementAmount, string memory _settlementData, string memory nextSettlementSpec) onlyWhenValuation external override {
+    function performSettlement(int256 settlementAmount, string memory _settlementData) onlyWhenValuation external override {
         (address settlementPayer,uint256 transferAmount) = determineTransferAmountAndPayerAddress(settlementAmount);
         int cappedSettlementAmount = settlementPayer == receivingParty ? -int256(transferAmount) : int256(transferAmount);
         settlementData.push(_settlementData);
         settlementAmounts.push(cappedSettlementAmount); // save the capped settlement amount
-        currentSettlementSpec = nextSettlementSpec;
         uint256 transactionID = uint256(keccak256(abi.encodePacked(settlementPayer,otherParty(settlementPayer), transferAmount, block.timestamp)));
         address[] memory from = new address[](1);
         address[] memory to = new address[](1);

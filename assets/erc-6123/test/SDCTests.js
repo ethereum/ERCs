@@ -260,7 +260,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
      await expect(initSettlementPhase).to.emit(sdc, "SettlementRequested");
 
-     const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount, "settlementData", "settlementSpec");
+     const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount, "settlementData");
      await expect(performSettlementCall).to.emit(sdc, "SettlementDetermined");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
      await expect(trade_state).equal(TradeState.Settled);
@@ -290,7 +290,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
         await expect(initSettlementPhase).to.emit(sdc, "SettlementRequested");
 
-        const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount, "settlementData", "settlementSpec");
+        const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount, "settlementData");
         await expect(performSettlementCall).to.emit(sdc, "SettlementDetermined");
         let trade_state =  await sdc.connect(counterparty1).getTradeState();
         let sdc_balance = await token.connect(counterparty1).balanceOf(sdc.address);
