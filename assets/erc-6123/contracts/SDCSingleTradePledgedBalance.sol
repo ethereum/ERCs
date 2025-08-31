@@ -100,6 +100,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
             if (success) {
                 setTradeState(TradeState.Settled);
                 emit TradeActivated(getTradeID());
+                emit SettlementAwaitingInitiation("Awaiting Initiation of Settlement");
             }
             else {
                 setTradeState(TradeState.Terminated);
@@ -141,6 +142,7 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
      * afterSettlement - time tricker to verify that the contract has been prepared for the next settlement.
      */
     function afterSettlement() external override  {
+        emit SettlementAwaitingInitiation("Awaiting Initiation of next Settlement");
     }
 
     /*
