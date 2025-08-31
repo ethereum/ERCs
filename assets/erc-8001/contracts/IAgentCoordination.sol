@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.26;
 
+enum Status { None, Proposed, Ready, Executed, Cancelled, Expired }
+
 interface IAgentCoordination {
     struct AgentIntent {
         bytes32 payloadHash;
@@ -68,7 +70,7 @@ interface IAgentCoordination {
     external
     view
     returns (
-        uint8 status,
+        Status status,
         address proposer,
         address[] memory participants,
         address[] memory acceptedBy,
