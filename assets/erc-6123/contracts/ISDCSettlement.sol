@@ -15,6 +15,12 @@ interface ISDCSettlement {
     /* Events related to the settlement process */
 
     /**
+     * @dev Emitted when all pre-conditions of a settlement are met and the contracts waits for initateSettlement.
+     * @param settlementSpec Optional information on the next settlement.
+     */
+    event SettlementAwaitingInitiation(string settlementSpec);
+
+    /**
      * @dev Emitted when a settlement gets requested
      *     The argument `lastSettlementData` is the one that was passed to {performSettlement} after a previous settlement.
      *     It may/should contain the market information associated with the previous settlment to calculate the margin (difference).
