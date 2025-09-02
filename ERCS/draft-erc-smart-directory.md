@@ -4,7 +4,7 @@ title: Directory of certified smart-contracts
 status: Draft
 type: Standards Track
 description: Allows a recognized entity to list the valid smart-contract addresses of the actors in its ecosystem.
-author: Jose Luu &lt;jose.luu@bpce.fr&gt;, Cyril Vignet &lt;cyril.vignet@bpce.fr&gt;, Vincent Griffault &lt;vincent.griffault@cera.fr&gt;
+author: Jose Luu <jose.luu@bpce.fr>, Cyril Vignet <cyril.vignet@bpce.fr>, Vincent Griffault <vincent.griffault@cera.caisse-epargne.fr>, Frederic Faure <frederic.faure@banque-france.fr>, Clement Delaneau <clement.delaneau@banque-france.fr>
 created: 2025-9-2
 ---
 
