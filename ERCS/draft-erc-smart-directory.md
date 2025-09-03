@@ -8,7 +8,7 @@ author: Jose Luu <jose.luu@bpce.fr>, Cyril Vignet <cyril.vignet@bpce.fr>, Vincen
 created: 2025-9-2
 ---
 
-## Preliminary notes
+## Preliminary note
 
 The ERC presented here originates from a project named "**SmartDirectory**", for convenience in the draft redaction the term "SmartDirectory" is used to designate the smart-contract used as the entry point for the functionality described here.
 
@@ -43,10 +43,10 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
   - Once registered, a registrant can deploy smart contracts for their services and record their addresses in the references list. 
   - The registrant must provide its own URL (Uniform Resource Locator) for clients to consult service terms and possibly register for services. 
   - The registrant's address can be an EOA or another smart contract. 
-* **References**
-  - A list of smart contract addresses issued by registrants. 
+* **Reference**
+  - A smart contract addresse issued by a registrant. 
   - The core data held within the SmartDirectory's "references table," which contains all declared smart contract addresses; these can also be EOAs. 
-  - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status history. 
+  - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status. 
 * **Administrator**
   - The deployer of the SmartDirectory designates administrators (up to two addresses), who can also be the deployer themselves. 
   - Administrators have the authority to add or invalidate registrants on the "registrants list".
@@ -64,25 +64,97 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 
 
 ### Interface
+#### constructor and creation APIs
+##### constructor parameters
+- _parentAddress1 (address):
+    ◦ The address of the first SmartDirectory administrator.
+    ◦ One of two addresses designated as creators/administrators, with rights to add or invalidate registrants.
+    ◦ Must be different from _parentAddress2 and not address(0).
+- _parentAddress2 (address):
+    ◦ The address of the second SmartDirectory administrator.
+    ◦ Similar to _parentAddress1, it has administrative rights.
+    ◦ Must be different from _parentAddress1 and not address(0).
+- _contractUri (string):
+    A non-modifiable string URI that describes the SmartDirectory contract itself. 
+    This URI allows the recognized authority to provide descriptive information about itself to the users.
+
+##### setActivationCode(uint256 activationCode) to be made optional ?
+ Changes the activationCode of the SmartDirectory (e.g., from "pending" to "active" or "closed")
+ This can only be called by one of the administrators
+
+##### createRegistrant(address registrantAddress)
+ Creates a new registrant. This can only be called by one of the administrators.
+
+##### disableRegistrant(address registrantAddress)
+ Disables a registrant by setting its index to 0, preventing them from creating new references. 
+ This can only be called by one of the administrators
+ 
+##### createReference(address referenceAddress, string projectId, string referenceType, string referenceVersion, string status)
+ Creates a new reference by a registrant giving an initial status. 
+ Registrant must have been created by the administrator, the msg.sender is implicitly used as registrantAddress
+
+##### updateRegistrantUri(string registrantUri):
+ Allows a registrant (msg.sender) to update their registrant_uri.
+
+#### information API (getters)
+
+##### getReferenceStatus(address referenceAddress)
+ Returns the latest status and timestamp of a reference
+ This is the main information entry
+
+##### getContractUri() String
+ Returns the URI given at contract deployment time
+ This URI informs the user of the identity of the recognized authority managing the contract
+ see also: **Security Considerations**
+
 ### Required Behavior
+TBD
 ### Optional Extensions
+#### consultable audit trail for the reference statuses
+##### getReferenceLastStatusIndex(address referenceAddress)
+ In the optional case where an audit trail of the status changes is recorded
+ This allows to retrieve all the changes by iterating **getReferenceStatusAtIndex**
+##### getReferenceStatusAtIndex(address referenceAddress, uint256 statusIndex)
+ Returns the status and timestamp at a specific index in the statusHistory
+##### updateReferenceStatus(address referenceAddress, string newStatus)
+ Adds a new status and timestamp to a reference's statusHistory
+#### set/getActivationCode ?
+#### admincode for open/closed management of the contract ?
+#### getContractVersion for version management
+#### fonctions for enumerating the contents
+##### getRegistrantLastIndex()
+ Returns the last index used in the registrants list
+ This allows to retrieve all the registrants
+##### getRegistrantAtIndex(uint256 index)
+ Returns the address and URI of a declarant at a specific index
+##### getReferencesList(address registrantAddress)
+ Returns an array of references for a given declarant
 
 
 ## Rationale
-### Admin Considerations
+This contract ERC offers a solution to the growing complexity of blockchain interactions by providing a standardized, on-chain, and dynamically verifiable mechanism for managing trusted addresses and smart contracts, thereby enhancing security, flexibility, and operational efficiency within decentralized applications and tokenized economies.
+### Administration Considerations
+The deploying recognized authority needs to have an adminstrative off-chain process for organizations to apply and be vetted as registrants, as well as maintain the vetted registrant status. The registrant list must be updated acccordingly, possibly disabling registrants at some point when the no longer match the vetting requirements.
+
+Each registrant organization is sole responsible of its own references (contract addresses), this includes
+keeping each URI alive with user oriented information, keeping the version number and status updated to reflect the state of its publicly reachable contracts addresses.
+
 ### Parameter Selection and Degenerate Cases
 ### Considered Alternatives
 
-## Backwards Compatibility
 ## Reference Implementation
+TBD
 
 ## Security Considerations
 ### URI cross references
-When consulting the administrator URI, the data served should contain the address of the SmartDirectory contract as meta-data in machine readable format and possibly in human readable format. The purpose of this cross reference is to avoid a rogue contract claiming having been issued by a recognized authority.
-example:
+#### recognized authority URI
+When consulting the recognized authority URI, the data served should contain the address of the SmartDirectory contract as meta-data in machine readable format and possibly in human readable format. The purpose of this cross reference is to avoid a rogue contract claiming having been issued by a recognized authority.
+example of cross reference data:
 X-Blockchain-Addresses: {"1": "0x1234567890abcdef1234567890abcdef12345678", "56": "0xabcdef1234567890abcdef1234567890abcdef12"}
-If the administrator has deployed the SmartDirectory contract at the same address on all blockchains the "*" number must be used instead of an actual blockchain number.
-When consulting the registrant URI, the data served should contain the address of the registrant.
+If the recognized authority has deployed the SmartDirectory contract at the same address on all blockchains the "*" number must be used instead of an actual blockchain number.
+In order to prevent alteration, the URI is supplied at contract deployment time to the solidity constructor and cannot be changed later.
+#### registrant URI
+When consulting the registrant URI, the data served at the URI should contain the address of the registrant as meta-data such as X-Blockchain-Address: "0x1234567890abcdef1234567890abcdef12345678"
 
 
 ## Copyright
