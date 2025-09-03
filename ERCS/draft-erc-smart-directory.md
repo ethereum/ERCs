@@ -107,6 +107,9 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
  This URI informs the user of the identity of the recognized authority managing the contract
  see also: **Security Considerations**
 
+#### Status values 
+TBD
+
 ### Required Behavior
 TBD
 ### Optional Extensions
