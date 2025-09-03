@@ -347,13 +347,13 @@ pattern:
 ```solidity
 function callbackExample(
   uint256 requestID,
-  uint256[] cleartexts,
+  bytes memory cleartexts,
   bytes memory decryptionProof
 ) external;
 ```
 
 - First parameter is the requestID.
-- Followed by decrypted values in the same order as handles.
+- Followed by ABI encoded decrypted values in the same order as handles.
 - Final parameter is an array of metadata (e.g., ZK proofs or signatures).
 
 The callback function **SHOULD** verify the decrypted result by checking the proof by calling
