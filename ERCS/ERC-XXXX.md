@@ -1,0 +1,130 @@
+---
+eip: XXXX
+title: Minimal Wallet-Managed Auto-Login for SIWE
+description: Defines a wallet-local allowlist for automatic signing of EIP-4361 messages when simple, deterministic match rules succeed. Policies are created and managed only by the wallet/user.
+author: Ivo Georgiev <ivo@ambire.com>, Vijay Krishnavanshi <vijay@fileverse.io>
+discussions-to: https://ethereum-magicians.org/t/wallet-managed-auto-login-for-siwe-minimal/XXXX
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-00-02
+requires: 4361
+---
+
+## Abstract
+
+Defines a wallet-local allowlist for automatic signing of EIP-4361 messages when simple, deterministic match rules succeed. Policies are created and managed only by the wallet/user.
+
+## Motivation
+
+Users repeatedly sign identical SIWE messages for trusted apps. A small, explicit match policy enables zero-prompt login without involving apps.
+
+Users already get prompted by their wallets if they trust a certain app when they initially connect to it - this flow can also authorize auto-login if applicable.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+The term “wallet” refers to wallet user interfaces, regardless of whether mobile, web-based or browser extensions.
+
+### Overview
+
+Each allow-policy is defined as:
+
+```json
+{
+  "domain": "example.com",                  // exact match to SIWE domain
+  "uriPrefix": "https://example.com/",      // SIWE URI MUST start with this
+  "allowedChains": [1],                     // list of allowed chainIds
+  "allowedResources": ["https://example.com/login"] // exact set match
+  "supportsEIP6492": true,                   // required for smooth UX when using hardware wallets
+  "defaultExpiration": 2592000              // default policy expiration in seconds
+}
+```
+
+### Auto-sign rule
+
+Given a parsed EIP-4361 message `M`, the wallet **MAY** auto-sign **if**:
+
+1. `M.domain == policy.domain`
+2. `M.uri` **startsWith** `policy.uriPrefix`
+3. If M.chainId present: `M.chainId` is in `policy.allowedChains`
+4. If policy.allowedResources non-empty:
+    the set of `M.resources` is a subset of `policy.allowedResources` (order does not matter); otherwise no resources will be allowed at all
+5. If this policy has been used before, internally check whether it hasn’t expired. If it’s never been used or has expired, prompt the user whether they want to auto-login.
+
+All other SIWE validations (nonce uniqueness, time validity, signature domain binding) remain as per [EIP-4361](./eip-4361.md) and MUST be enforced by the wallet.
+
+### Management of policies
+
+Policies are created, listed, updated, and deleted **only** within the wallet UI - wallets decide how much control they want to give to users over this.
+
+It’s recommended that each wallet:
+
+* includes a default list of policies for popular apps
+* automatically creates policies for apps that it considers safe, after the first SIWE signature, with user consent - this implies a different flow where, upon receiving the SIWE message sign request, the wallet will not go through the regular message signing flow, but prompt the user “App X wants to log-in with your account” with a checkbox to “Automatically sign into <app hostname> in the future”
+
+There’s no app-provided hints or headers that influence policy creation.
+
+### Hardware wallet compatibility and ERC-6492
+
+Auto-signing is not viable with hardware wallet accounts, as the user will be prompted without context or expectation to sign the login message.
+
+This is why we include the `supportsEIP6492` property. If it is set to `false`, the wallet MUST not auto-login if the account's primary signer is a hardware wallet, as the app has no way of verifying a smart contract signature.
+
+However, if it's set to `true`, the wallet MAY perform auto-login as long as 1) it can enable [EIP-7702](./eip-7702.md) on the account OR the account is a smart account 2) it can authorize a limited-scope session key or delegation just for the auto-login. If said conditions are met, the wallet MAY generate a login signature without prompting the user on their hardware device. That said, enabling EIP-7702 and the session key/delegation will require prompting the user, so it's up to the wallet to walk the user through it. The exact mechanism of how wallets should manage the session key/delegation is out of scope of this ERC, but [ERC-7710](./erc-7710.md) may be used.
+
+### RPC method
+
+Wallets MAY implement an RPC method, `wallet_getCurrentAutoLoginPolicy`, which has no parameters and returns an object describing the current policy:
+
+```json
+{
+  "activePolicy": null, // the object that describes the active policy, or null
+  "expires":  0, // UNIX time, or 0 if no policy is in place
+  "willingToCreatePolicy": false, // true if the wallet may auto-create a policy upon the first login
+}
+```
+
+## Rationale
+
+* This ERC is designed with minimal modifications to existing apps in mind
+* From a security perspective, it's much easier to "outsource" the job of determining which apps to enable to this policy for to wallets - most wallets already maintain lists of "trusted" apps
+* [EIP-712](./eip-712.md) (typed data) is out of scope due to SIWE deciding to build on plain text (rationale here: [https://blog.spruceid.com/sign-in-with-ethereum-wallet-support-eip-191-vs-eip-712/](https://blog.spruceid.com/sign-in-with-ethereum-wallet-support-eip-191-vs-eip-712/))
+
+## Backwards Compatibility
+
+Backwards compatibility is one of the main goals of this ERC, and it requires no changes to existing apps, building upon [EIP-4361](./eip-4361.md) as-is.
+
+To fully take advantage of this ERC, apps need to self-initiate the login request rather than expecting users to press a log-in button (TODO: should wallets somehow signal compatibility so that apps know to be aggressive)
+
+## Reference Implementation
+
+```js
+function shouldAutoSign(M, P) {
+  if (M.domain !== P.domain) return false;
+  if (!M.uri.startsWith(P.uriPrefix)) return false;
+  if (!P.allowedChains.includes(M.chainId)) return false;
+  if (M.resources) {
+    const allowList = P.allowedResources || []
+    if (!M.resources.every(resource => allowList.includes(resource))) return false;
+  }
+  // Also enforce standard SIWE validations here.
+  return true;
+}
+```
+
+## Security Considerations
+
+* Managing policies it out of scope of this ERC, as most wallets already manage trusted app lists - however, the recommended best practice is to:
+    * Include a default list of policies for popular apps
+    * Auto-create policies for other apps if the user consents to it
+    * If a policy has never been used before or has expired, prompt the user whether they want to continue with auto log-in
+* Standard SIWE checks (fresh nonce, correct domain binding, time validity) should still be enforced.
+* `uriPrefix` should be kept specific (e.g., `/login`) to avoid over-broad matches.
+* It's recommended to include a top-level setting in each wallet that can disable this ERC.
+* Always match `M.domain` against the top-level origin of each app, to avoid auto-login working in iframes that are included in a malicious top-level origin.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://eips.ethereum.org/LICENSE).
