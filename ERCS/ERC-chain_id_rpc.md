@@ -14,7 +14,7 @@ This EIP defines a standardized URL format that RPC providers **MUST** expose to
 
 ## Motivation
 
-Node RPC providers are an intregral part of the ecosystem, enabling applications and users to interact with Ethereum and L2s. However, they often use custom URL format for each chain. This causes applications to hardcode many URLs, which is very fragile. Also many applications tend to hardcode node RPC URLs rather than let users customise them, to avoid giving too many input boxes to the users.
+Node RPC providers are an intregral part of the ecosystem, enabling applications and users to interact with Ethereum and L2s. However, they often use custom URL format for each chain which is based on name slugs. And these slugs are not consistent across providers (e.g. `opt` used by alchemy while `optimism` by ankr). This causes applications to hardcode many URLs, which is fragile. Also many applications tend to hardcode node RPC URLs rather than let users customise them, to avoid giving too many input boxes to the users.
 
 There is also friction when an application wants to decrease trust by integrating with multiple node RPC providers to ensure reliability and integrity, since they have to input URLs for many networks for many node RPC providers.
 
