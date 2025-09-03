@@ -10,21 +10,21 @@ created: 2025-9-2
 
 ## Preliminary note
 
-The ERC presented here originates from a project named "**SmartDirectory**", for convenience in the draft redaction the term "SmartDirectory" is used to designate the smart-contract used as the entry point for the functionality described here.
+The ERC presented here originates from a project named "**SmartDirectory**", for convenience in the draft redaction the term "SmartDirectory" is used to designate the smart-contract model subject of this ERC.
 
 ## Abstract
 
-The SmartDirectory is an **administered blockchain whitelist** that addresses the proliferation of addresses by ensuring their authenticity for important transactions. It allows an organisation, called a **registrant**, to list the valid smart contract addresses of the actors in its ecosystem. Once an administrator approves a registrant, that registrant can then deploy and record their service-related smart contract addresses in the **"references" list**. This facilitates on-chain verification and the identification and management of smart contract ecosystems.
+The SmartDirectory is an **administered blockchain whitelist** that addresses the proliferation of addresses by ensuring their authenticity for important transactions. It allows an organisation, called a **registrant**, to list the valid smart contract addresses it has deployed. Once an administrator of the recognized authority approves a registrant, that registrant can then record their service-related smart contract addresses in the **"references" list**. Overall the "SmartDirectory" facilitates on-chain verification and the identification and management of smart contract ecosystems.
 
 ## Motivation
 
 The rapid proliferation of smart contract addresses poses a critical challenge to users and other smart contracts, necessitating robust mechanisms for **authenticity verification** for any transactions using them. The SmartDirectory emerges as an essential **administered blockchain whitelist**, directly addressing this issue by providing a structured solution for managing trust on-chain.
 
-Its core purpose is to enable organisations, known as **registrants**, to securely list and maintain the valid smart contract addresses that they create and maintain. Through a streamlined process, administrators approve registrants, who then gain the ability to deploy and record their service-related smart contracts in a dedicated **"references" list**. The SmartDirectory is vital for enhancing security, transparency, and operational efficiency in an increasingly complex world. For newcommers as well as for seasonned users, it greatly facilitates and brings certainty to the "do you homework" address validation phase.
+Its core purpose is to enable organisations, known as **registrants**, to securely list and maintain the valid smart contract addresses that they create and maintain. Through a streamlined process, administrators of a regognized authority approve registrants, who then gain the ability to deploy and record their service-related smart contracts in a dedicated **"references" list**. The SmartDirectory is vital for enhancing security, transparency, and operational efficiency in an increasingly complex world. For newcommers as well as for seasonned users, it greatly facilitates and brings certainty to the "do your homework" address validation phase.
 
 In terms of automation, the directory allows **on-chain verification** by allowing:
 * smart wallets to check and validate the addresses upon usage
-* other smart contracts to perform crucial checks
+* other smart contracts to perform crucial addresses checks
 
 ## Specification
 
@@ -33,19 +33,19 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 ### Definitions
 
 * **recognized authority**
-  - An organisation which is well known by its users who decides to deploy a SmartDirectory contract subject to this ERC. Such organisations can be major token issuers, exchanges, state regulators, non profit foundations, industry consortia ...
+  - An organisation which is well known by potential users who decides to deploy a SmartDirectory contract subject to this ERC. Such organisations can be major token issuers, exchanges, state regulators, non profit foundations, industry consortia ...
 * **SmartDirectory**
   - An administered blockchain whitelist smart-contract that serves as a shared, on-chain repository for lists of addresses, which can be either Externally Owned Accounts (EOA) or smart contracts. 
   - It functions as a decentralized directory composed of references (smart contract addresses) and their issuers (registrants). 
 * **Registrant**
   - A service provider who, after receiving approval from an administrator of the recognized authority, is registered by that administrator in the SmartDirectory.
-  - The registrant must have blockchain access and signing capability in order to write records into the SmartDirectory to build address lists. 
-  - Once registered, a registrant can deploy smart contracts for their services and record their addresses in the references list. 
-  - The registrant must provide its own URL (Uniform Resource Locator) for clients to consult service terms and possibly register for services. 
+  - The registrant must have blockchain access and signing capability in order to write address records into the SmartDirectory to build its references list. 
+  - Once registered, a registrant can deploy smart contracts for the purpose of their services and record their addresses in the references list. 
+  - The registrant must provide and keep updated its own URI for its clients to consult service terms and possibly register for services. 
   - The registrant's address can be an EOA or another smart contract. 
 * **Reference**
   - A smart contract addresse issued by a registrant. 
-  - The core data held within the SmartDirectory's "references table," which contains all declared smart contract addresses; these can also be EOAs. 
+  - The core data is held within the SmartDirectory's "references table," which contains all declared smart contract addresses; these can also be EOAs. 
   - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status. 
 * **Administrator**
   - The deployer of the SmartDirectory designates administrators (up to two addresses), who can also be the deployer themselves. 
