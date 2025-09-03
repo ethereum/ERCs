@@ -54,7 +54,7 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 * **ReferenceStatus**
   - A component within the statusHistory of a reference, tracking its evolution over time. 
   - It contains a status (a free-text string describing the current state, e.g., "in production," "pending," "abandoned") and a timeStamp (the exact time of the status update). 
-- SmartTokens
+- **SmartTokens**
   - A concept where a token (fungible or non-fungible) is programmed to consult a SmartDirectory to filter addresses for transactions (e.g., transfers, minting). 
   - This allows for access control mechanisms within token ecosystems; if the list of references in the SmartDirectory changes, the SmartToken does not need to be modified.
   - They are configured with smart\_directory and registrant\_address variables to enable this consultation functionality. 
