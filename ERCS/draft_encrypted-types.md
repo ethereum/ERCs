@@ -2,7 +2,7 @@
 eip: 7995
 title: Encrypted Data
 description: A standard for representing, validating, and operating on encrypted data in Ethereum smart contracts using typed handles, validation proofs, and decryption oracles.
-author: Clément Danjou (@immortal-tofu), Ghazi Ben Armor (@GBAZama), Joseph-André Turk (@jatZama)
+author: Clément Danjou (@immortal-tofu), Ghazi Ben Armor (@GBAZama), Joseph-André Turk (@jatZama), Nicolas Pasquier (@npasquie)
 discussions-to: xxxx
 status: Draft
 type: Standards Track
