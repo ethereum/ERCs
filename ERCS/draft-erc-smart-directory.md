@@ -131,9 +131,9 @@ TBD
 ##### setActivationCode(_activationCode) external;
 ##### getActivationCode()
  _activation code values: 
-  0 notActivated (initial value at deployment time)
-  1 activated
-  2 endOfLife
+-  0 notActivated (initial value at deployment time)
+-  1 activated
+-  2 endOfLife
 
 
 #### admincode for open/closed management of the contract ?
