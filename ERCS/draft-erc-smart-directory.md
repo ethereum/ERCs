@@ -113,26 +113,26 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 #### Status values 
 TBD
 
-### Required Behavior
+###   Required Behavior
 TBD
-### Optional Extensions
-#### consultable audit trail for the reference statuses
-##### getReferenceLastStatusIndex(address referenceAddress)
+###   Optional Extensions
+####    consultable audit trail for the reference statuses
+#####     getReferenceLastStatusIndex(address referenceAddress)
  In the optional case where an audit trail of the status changes is recorded
  This allows to retrieve all the changes by iterating **getReferenceStatusAtIndex**
-##### getReferenceStatusAtIndex(address referenceAddress, uint256 statusIndex)
+#####     getReferenceStatusAtIndex(address referenceAddress, uint256 statusIndex)
  Returns the status and timestamp at a specific index in the statusHistory
-##### updateReferenceStatus(address referenceAddress, string newStatus)
+#####     updateReferenceStatus(address referenceAddress, string newStatus)
  Adds a new status and timestamp to a reference's statusHistory
 
 
-> ####     post-deployment activation
+####     post-deployment activation
 
  The contract is inactive until setActivationCode is called
  setActivationCode can also be used to deactivate definitively the contract (end-of-life)
 
->> #####      setActivationCode(_activationCode) external;
->> #####      getActivationCode()
+#####      setActivationCode(_activationCode) external;
+#####      getActivationCode()
  _activation code values: 
 -  0 notActivated (initial value at deployment time)
 -  1 activated
