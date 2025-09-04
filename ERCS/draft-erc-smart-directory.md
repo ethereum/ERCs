@@ -47,7 +47,6 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
   - A smart contract addresse issued by a registrant. 
   - The core data is held within the SmartDirectory's "references table," which contains all declared smart contract addresses; these can also be EOAs. 
   - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status.
-  - Once written, only the status could change trough the statusHistory
 * **Administrator**
   - The deployer of the SmartDirectory designates administrators (up to two addresses), who can also be the deployer themselves. 
   - Administrators have the authority to add or invalidate registrants on the "registrants list".
@@ -87,17 +86,20 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
  Creates a new registrant. This can only be called by one of the administrators.
 
 ##### disableRegistrant(address registrantAddress)
- Disables a registrant by setting its index to 0, preventing them from creating new references. 
+ Disables a registrant by setting its status to invalid, preventing them from creating new references. 
  This can only be called by one of the administrators
- Once disbled, the regsitrant could not be enabled
+ Once disabled, the registrant cannot not be re-enabled unless the optional registrant status audit trail is implemented
  
 ##### createReference(address referenceAddress, string projectId, string referenceType, string referenceVersion, string status)
  Creates a new reference by a registrant giving an initial status. 
  Registrant must have been created by the administrator, the msg.sender is implicitly used as registrantAddress
- The registrant must not be disabled
+ The registrant must not be disabled for the reference to be created
 
 ##### updateRegistrantUri(string registrantUri):
  Allows a registrant (msg.sender) to update their registrant_uri.
+
+ #####     updateReferenceStatus(address referenceAddress, string newStatus)
+ Adds a new status and timestamp to a reference's statusHistory
 
 #### information API (getters)
 
@@ -116,6 +118,12 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 #### Status values 
 TBD
 
+##### Contract Activation code
+
+##### Registrant status
+
+##### Reference status
+
 ###   Required Behavior
 TBD
 ###   Optional Extensions
@@ -125,8 +133,7 @@ TBD
  This allows to retrieve all the changes by iterating **getReferenceStatusAtIndex**
 #####     getReferenceStatusAtIndex(address referenceAddress, uint256 statusIndex)
  Returns the status and timestamp at a specific index in the statusHistory
-#####     updateReferenceStatus(address referenceAddress, string newStatus)
- Adds a new status and timestamp to a reference's statusHistory
+
 
  je pense que cette fonction ne doit pas être optionelle
 
@@ -143,6 +150,12 @@ TBD
 -  1 activated
 -  2 endOfLife
 
+####    registrant status management
+##### isValidRegistrant (_registrantAddress)
+ An implementation may want to distinguish between non existent registrants and invalid registrants
+ This returns wether the registrant is disabled, a non existent registrant will raise an error
+##### registrant status audit trail
+ 
 
 #### admincode for open/closed management of the contract ?
 #### getContractVersion for version management
