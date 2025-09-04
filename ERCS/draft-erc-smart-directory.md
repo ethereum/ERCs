@@ -100,12 +100,15 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 
 ##### getReferenceStatus(address referenceAddress)
  Returns the latest status and timestamp of a reference
- This is the main information entry
+ This is the main information entry for the public
 
 ##### getContractUri() String
  Returns the URI given at contract deployment time
  This URI informs the user of the identity of the recognized authority managing the contract
  see also: **Security Considerations**
+
+##### getDisabledRegistrants() address[]
+ Returns an address table listing all the registrants that are disabled
 
 #### Status values 
 TBD
@@ -121,7 +124,18 @@ TBD
  Returns the status and timestamp at a specific index in the statusHistory
 ##### updateReferenceStatus(address referenceAddress, string newStatus)
  Adds a new status and timestamp to a reference's statusHistory
-#### set/getActivationCode ?
+#### post-deployment activation
+ The contract is inactive until setActivationCode is called
+ setActivationCode can also be used to deactivate definitively the contract (end-of-life)
+
+##### setActivationCode(_activationCode) external;
+##### getActivationCode()
+ _activation code values: 
+  0 notActivated (initial value at deployment time)
+  1 activated
+  2 endOfLife
+
+
 #### admincode for open/closed management of the contract ?
 #### getContractVersion for version management
 #### fonctions for enumerating the contents
