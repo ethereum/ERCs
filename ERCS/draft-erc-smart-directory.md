@@ -46,7 +46,8 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 * **Reference**
   - A smart contract addresse issued by a registrant. 
   - The core data is held within the SmartDirectory's "references table," which contains all declared smart contract addresses; these can also be EOAs. 
-  - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status. 
+  - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status.
+  - Once written, only the status could change
 * **Administrator**
   - The deployer of the SmartDirectory designates administrators (up to two addresses), who can also be the deployer themselves. 
   - Administrators have the authority to add or invalidate registrants on the "registrants list".
