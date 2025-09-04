@@ -125,8 +125,9 @@ TBD
 ##### updateReferenceStatus(address referenceAddress, string newStatus)
  Adds a new status and timestamp to a reference's statusHistory
 
-
+<div style="margin-left: 20px;">
 ####     post-deployment activation
+</div>
  The contract is inactive until setActivationCode is called
  setActivationCode can also be used to deactivate definitively the contract (end-of-life)
 
