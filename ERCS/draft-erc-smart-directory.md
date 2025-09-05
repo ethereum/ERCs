@@ -112,8 +112,6 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
  This URI informs the user of the identity of the recognized authority managing the contract
  see also: **Security Considerations**
 
-##### getDisabledRegistrants() address[]
- Returns an address table listing all the registrants that are disabled
 
 #### Status values 
 TBD
@@ -148,7 +146,10 @@ TBD
 
 #### admincode for open/closed management of the contract ?
 #### getContractVersion for version management
+
 #### fonctions for enumerating the contents
+##### getDisabledRegistrants() address[]
+ Returns an address table listing all the registrants that are disabled
 ##### getRegistrantLastIndex()
  Returns the last index used in the registrants list
  This allows to retrieve all the registrants
