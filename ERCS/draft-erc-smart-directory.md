@@ -59,8 +59,8 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
   - This allows for access control mechanisms within token ecosystems; if the list of references in the SmartDirectory changes, the SmartToken does not need to be modified.
   - They are configured with smart\_directory and registrant\_address variables to enable this consultation functionality. 
 * **URI**
-- A string that a registrant can provide and update to offer additional information about their services, accessible to clients (Web2 entry point). 
-- The SmartDirectory itself can have a contractUri at deployment, describing the contract. 
+  - A string that a registrant can provide and update to offer additional information about their services, accessible to clients (Web2 entry point). 
+  - The SmartDirectory itself can have a contractUri at deployment, describing the contract. 
 
 
 ### Interface
@@ -81,6 +81,8 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 ##### setActivationCode(uint256 activationCode) to be made optional ?
  Changes the activationCode of the SmartDirectory (e.g., from "pending" to "active" or "closed")
  This can only be called by one of the administrators
+
+ je pense que l'activatioCode est obligatoire car il est sous la responsabilité unique de parent1 ou de parent2 et dans le cas contraire c'est le déployeur qui déploie mais sans le consentement initial des administrateurs.
 
 ##### createRegistrant(address registrantAddress)
  Creates a new registrant. This can only be called by one of the administrators.
@@ -112,8 +114,6 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
  This URI informs the user of the identity of the recognized authority managing the contract
  see also: **Security Considerations**
 
-##### getDisabledRegistrants() address[]
- Returns an address table listing all the registrants that are disabled
 
 #### Status values 
 TBD
@@ -159,7 +159,10 @@ TBD
 
 #### admincode for open/closed management of the contract ?
 #### getContractVersion for version management
+
 #### fonctions for enumerating the contents
+##### getDisabledRegistrants() address[]
+ Returns an address table listing all the registrants that are disabled
 ##### getRegistrantLastIndex()
  Returns the last index used in the registrants list
  This allows to retrieve all the registrants
