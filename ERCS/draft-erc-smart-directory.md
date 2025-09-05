@@ -83,6 +83,8 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
  Changes the activationCode of the SmartDirectory (e.g., from "pending" to "active" or "closed")
  This can only be called by one of the administrators
 
+ je pense que l'activatioCode est obligatoire car il est sous la responsabilité unique de parent1 ou de parent2 et dans le cas contraire c'est le déployeur qui déploie mais sans le consentement initial des administrateurs.
+
 ##### createRegistrant(address registrantAddress)
  Creates a new registrant. This can only be called by one of the administrators.
 
