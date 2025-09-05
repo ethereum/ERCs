@@ -20,7 +20,7 @@ The SmartDirectory is an **administered blockchain whitelist** that addresses th
 
 The rapid proliferation of smart contract addresses poses a critical challenge to users and other smart contracts, necessitating robust mechanisms for **authenticity verification** for any transactions using them. The SmartDirectory emerges as an essential **administered blockchain whitelist**, directly addressing this issue by providing a structured solution for managing trust on-chain.
 
-Its core purpose is to enable organisations, known as **registrants**, to securely list and maintain the valid smart contract addresses that they create and maintain. Through a streamlined process, administrators of a regognized authority approve registrants, who then gain the ability to deploy and record their service-related smart contracts in a dedicated **"references" list**. The SmartDirectory is vital for enhancing security, transparency, and operational efficiency in an increasingly complex world. For newcommers as well as for seasonned users, it greatly facilitates and brings certainty to the "do your homework" address validation phase.
+Its core purpose is to enable organisations, known as **registrants**, to securely expose and maintain the valid smart contract addresses that they operate. Through a streamlined process, administrators of a regognized authority approve registrants, who then gain the ability to deploy and record their service-related smart contracts in a dedicated **"references" list**. The SmartDirectory is vital for enhancing security, transparency, and operational efficiency in an increasingly complex world. For newcommers as well as for seasonned users, it greatly facilitates and brings certainty to the "do your homework" address validation phase.
 
 In terms of automation, the directory allows **on-chain verification** by allowing:
 * smart wallets to check and validate the addresses upon usage
@@ -48,9 +48,11 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
   - The core data is held within the SmartDirectory's "references table," which contains all declared smart contract addresses; these can also be EOAs. 
   - Each reference includes: the registrant's address, the reference's address, a project ID, the reference type, the reference version, and a status.
 * **Administrator**
-  - The deployer of the SmartDirectory designates administrators (up to two addresses), who can also be the deployer themselves. 
+  - The SmartDirectory contract is operated from one or several administrator addresses.
+  - In its simple form the SmartDirectory contract administrator address is the contract deployer address usually called the "owner"
+  - Provision is made to allow several distinct administrator addresses (see Optional Features)
   - Administrators have the authority to add or invalidate registrants on the "registrants list".
-  - These specific addresses are responsible for deploying, activating, configuring, and managing the decentralized directory. 
+  - Administrators addresses are responsible for (de)activating, configuring, and managing the decentralized directory. 
 * **ReferenceStatus**
   - A component within the statusHistory of a reference, tracking its evolution over time. 
   - It contains a status (a free-text string describing the current state, e.g., "in production," "pending," "abandoned") and a timeStamp (the exact time of the status update). 
@@ -64,25 +66,18 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 
 
 ### Interface
-#### constructor and creation APIs
+#### constructor, creation and setter APIs
 ##### constructor parameters
-- _parentAddress1 (address):
-    ◦ The address of the first SmartDirectory administrator.
-    ◦ One of two addresses designated as creators/administrators, with rights to add or invalidate registrants.
-    ◦ Must be different from _parentAddress2 and not address(0).
-- _parentAddress2 (address):
-    ◦ The address of the second SmartDirectory administrator.
-    ◦ Similar to _parentAddress1, it has administrative rights.
-    ◦ Must be different from _parentAddress1 and not address(0).
 - _contractUri (string):
     A non-modifiable string URI that describes the SmartDirectory contract itself. 
     This URI allows the recognized authority to provide descriptive information about itself to the users.
 
-##### setActivationCode(uint256 activationCode) to be made optional ?
- Changes the activationCode of the SmartDirectory (e.g., from "pending" to "active" or "closed")
- This can only be called by one of the administrators
-
- je pense que l'activatioCode est obligatoire car il est sous la responsabilité unique de parent1 ou de parent2 et dans le cas contraire c'est le déployeur qui déploie mais sans le consentement initial des administrateurs.
+#####      setActivationCode(uint256 _activationCode)
+ _activation code values: 
+-  0 notActivated (initial value at deployment time)
+-  1 activated
+-  2 endOfLife
+It is important to signal to the users that a SmartDirectory has reached end of life so that they don't inadvertently rely on outdated information
 
 ##### createRegistrant(address registrantAddress)
  Creates a new registrant. This can only be called by one of the administrators.
@@ -109,10 +104,21 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
  Returns the latest status and timestamp of a reference
  This is the main information entry for the public
 
+##### getReference(address referenceAddress)
+ Returns all the informations known about a reference:
+  -       address registrantAddress,
+  -      uint256 registrantIndex,
+ -       string memory projectId,
+  -      string memory referenceType,
+  -      string memory referenceVersion,
+  -      string memory status,
+
 ##### getContractUri() String
  Returns the URI given at contract deployment time
  This URI informs the user of the identity of the recognized authority managing the contract
  see also: **Security Considerations**
+
+#####      getActivationCode()
 
 
 #### Status values 
@@ -126,8 +132,23 @@ TBD
 
 ###   Required Behavior
 TBD
-###   Optional Extensions
+###   Optional Features
+####  distinct supplementary administrator addresses
+ This feature allows the deployer to give adminstration power to other addresses specified at deployement time
+ This may help if the organization of the recognized authority requires such separation
+ In this case, the constructor needs receive the administration addresses as parameters:
+- _parentAddress1 (address):
+    ◦ The address of the first SmartDirectory administrator.
+    ◦ One of two addresses designated as creators/administrators, with rights to add or invalidate registrants.
+    ◦ Must be different from _parentAddress2 and not address(0).
+- _parentAddress2 (address):
+    ◦ The address of the second SmartDirectory administrator.
+    ◦ Similar to _parentAddress1, it has administrative rights.
+    ◦ Must be different from _parentAddress1 and not address(0).
 ####    consultable audit trail for the reference statuses
+ This feature allows recording and exposing to the user all the past status changes of a reference
+#####     getReference(address referenceAddress) see full descrption above
+returns an additional information: the timestamp of the status
 #####     getReferenceLastStatusIndex(address referenceAddress)
  In the optional case where an audit trail of the status changes is recorded
  This allows to retrieve all the changes by iterating **getReferenceStatusAtIndex**
@@ -135,31 +156,17 @@ TBD
  Returns the status and timestamp at a specific index in the statusHistory
 
 
- je pense que cette fonction ne doit pas être optionelle
-
-
-####     post-deployment activation
-
- The contract is inactive until setActivationCode is called
- setActivationCode can also be used to deactivate definitively the contract (end-of-life)
-
-#####      setActivationCode(_activationCode) external;
-#####      getActivationCode()
- _activation code values: 
--  0 notActivated (initial value at deployment time)
--  1 activated
--  2 endOfLife
-
 ####    registrant status management
 ##### isValidRegistrant (_registrantAddress)
  An implementation may want to distinguish between non existent registrants and invalid registrants
  This returns wether the registrant is disabled, a non existent registrant will raise an error
 ##### registrant status audit trail
- 
+ In the optional case where an audit trail of the registrant status changes is recorded
+ This feature is used if registrant drop out of compliance and needs to be reenacted later
 
 #### admincode for open/closed management of the contract ?
-#### getContractVersion for version management
-
+#### getContractVersion
+  This feature allows to track code versions of the contract
 #### fonctions for enumerating the contents
 ##### getDisabledRegistrants() address[]
  Returns an address table listing all the registrants that are disabled
