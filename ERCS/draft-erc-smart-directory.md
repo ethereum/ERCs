@@ -60,8 +60,8 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
   - This allows for access control mechanisms within token ecosystems; if the list of references in the SmartDirectory changes, the SmartToken does not need to be modified.
   - They are configured with smart\_directory and registrant\_address variables to enable this consultation functionality. 
 * **URI**
-- A string that a registrant can provide and update to offer additional information about their services, accessible to clients (Web2 entry point). 
-- The SmartDirectory itself can have a contractUri at deployment, describing the contract. 
+  - A string that a registrant can provide and update to offer additional information about their services, accessible to clients (Web2 entry point). 
+  - The SmartDirectory itself can have a contractUri at deployment, describing the contract. 
 
 
 ### Interface
