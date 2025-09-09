@@ -1,0 +1,8 @@
+sequenceDiagram
+    Note over Client: calldata = encode(func(...args))
+    rect rgb(220, 240, 220)
+        Note over Client,L1 Contract: view call
+        Client ->> L1 Contract: getOperationHandler(calldata)
+        L1 Contract -->> Client: revert OperationHandledOnchain(chainId, contract)
+    end
+    Client ->> L2 Contract: call(calldata)
