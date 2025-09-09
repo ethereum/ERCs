@@ -351,7 +351,7 @@ describe("MultiAsset", async () => {
   });
 
   describe("Overwriting assets", async function () {
-    it("can add asset to token overwritting an existing one", async function () {
+    it("can add asset to token overwriting an existing one", async function () {
       const resId = 1;
       const resId2 = 2;
       const tokenId = 1;
