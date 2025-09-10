@@ -99,14 +99,15 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 ##### updateRegistrantUri(string registrantUri):
  Allows a registrant (msg.sender) to update their registrant_uri.
 
- #####     updateReferenceStatus(address referenceAddress, string newStatus)
- Adds a new status and timestamp to a reference's statusHistory
+#####     updateReferenceStatus(address referenceAddress, string newStatus)
+ Adds a new status and timestamp to a reference status
+ see also: **Options** for a possible audit trail
 
 #### information API (getters)
 
 ##### getReferenceStatus(address referenceAddress)
  Returns the latest status and timestamp of a reference
- This is the main information entry for the public
+ This is the simplest and main information entry for the public
 
 ##### getReference(address referenceAddress)
  Returns all the informations known about a reference:
@@ -121,27 +122,40 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 ##### getContractUri() String
  Returns the URI given at contract deployment time
  This URI informs the user of the identity of the recognized authority managing the contract
- see also: **Security Considerations**
+ see also: **Security Considerations** for impersonation prevention
 
-#####      getActivationCode()
+##### getActivationCode()
+ If the contract became end of lived, it will report errors to any other calls.
+ This call allows to ascertain that a valid contract address is used but that the contract is no longer in use.
 
-
-#### Status values 
-TBD
+#### constant values
 
 ##### Contract Activation code
+-  0 notActivated (initial value at deployment time)
+-  1 activated
+-  2 endOfLife
 
 ##### Registrant status
+ - 0 registrant exists (initial value at registrant creation time)
+ - 1 registrant is disabled
 
 ##### Reference status
+ - 0 reference created but contract is not to be used
+ - 1 contract in beta test
+ - 2 contract is use
+ - 3 contract being deprecated, can still be used
+ - 4 contract end of life, should not be used
 
 ###   Required Behavior
 TBD
+
+
+
 ###   Optional Features
 ####  distinct supplementary administrator addresses
  This feature allows the deployer to give adminstration power to other addresses specified at deployement time
  This may help if the organization of the recognized authority requires such separation
- In this case, the constructor needs receive the administration addresses as parameters:
+ In this case, the constructor receives the administration addresses as parameters:
 - _parentAddress1 (address):
     ◦ The address of the first SmartDirectory administrator.
     ◦ One of two addresses designated as creators/administrators, with rights to add or invalidate registrants.
@@ -150,13 +164,15 @@ TBD
     ◦ The address of the second SmartDirectory administrator.
     ◦ Similar to _parentAddress1, it has administrative rights.
     ◦ Must be different from _parentAddress1 and not address(0).
+
 ####    consultable audit trail for the reference statuses
- This feature allows recording and exposing to the user all the past status changes of a reference
+ This feature allows recording and exposing to the requesting user all the past status changes of a reference.
+ This is meant to ease administration or for forensics
 #####     getReference(address referenceAddress) see full description above
-returns an additional information: the timestamp of the status
+ when the optional audit trail is implemented getReference returns an additional information: the timestamp of the status
 #####     getReferenceLastStatusIndex(address referenceAddress)
- In the optional case where an audit trail of the status changes is recorded
- This allows to retrieve all the changes by iterating **getReferenceStatusAtIndex**
+ when the optional audit trail is implemented, returning the last index
+ allows to retrieve all the changes by iterating **getReferenceStatusAtIndex**
 #####     getReferenceStatusAtIndex(address referenceAddress, uint256 statusIndex)
  Returns the status and timestamp at a specific index in the statusHistory
 
@@ -169,10 +185,10 @@ returns an additional information: the timestamp of the status
  In the optional case where an audit trail of the registrant status changes is recorded
  This feature is used if registrant drop out of compliance and needs to be reenacted later
 
-#### admincode for open/closed management of the contract ?
 #### getContractVersion
   This feature allows to track code versions of the contract
-#### fonctions for enumerating the contents
+
+#### fonctions for enumerating the registrant and reference lists
 ##### getDisabledRegistrants() address[]
  Returns an address table listing all the registrants that are disabled
 ##### getRegistrantLastIndex()
@@ -181,6 +197,7 @@ returns an additional information: the timestamp of the status
 ##### getRegistrantAtIndex(uint256 index)
  Returns the address and URI of a declarant at a specific index
 ##### getReferencesList(address registrantAddress)
+ Note: doit on passer par les index pour lister (par coherence) ?
  Returns an array of references for a given declarant
 
 
