@@ -25,6 +25,7 @@ Its core purpose is to enable organisations, known as **registrants**, to secure
 In terms of automation, the directory allows **on-chain verification** by allowing:
 * smart wallets to check and validate the addresses upon usage
 * other smart contracts to perform crucial addresses checks
+* update dynamically the addresses list to be checked 
 
 ## Specification
 
@@ -113,6 +114,9 @@ It is important to signal to the users that a SmartDirectory has reached end of 
   -      string memory referenceVersion,
   -      string memory status,
 
+Ma proposition serait de modifier "projectID" en "referenceDescription". Le rationel est que refernceDescription comporte un JSON qui puisse inclure referenceTtitel, referenceMetadata, codeHash, ABI, referenceDocumentation (proposés par BdF) plus tout autre balise que le regsitrant peut vouloir. 
+Les éléments isolés (referenceType, referenceVersion) sont les éléments qui peuvent être vérifiés par un smartContract. l'idée est d'éviter que le smartContract fasse du parsinG
+
 ##### getContractUri() String
  Returns the URI given at contract deployment time
  This URI informs the user of the identity of the recognized authority managing the contract
@@ -147,7 +151,7 @@ TBD
     ◦ Must be different from _parentAddress1 and not address(0).
 ####    consultable audit trail for the reference statuses
  This feature allows recording and exposing to the user all the past status changes of a reference
-#####     getReference(address referenceAddress) see full descrption above
+#####     getReference(address referenceAddress) see full description above
 returns an additional information: the timestamp of the status
 #####     getReferenceLastStatusIndex(address referenceAddress)
  In the optional case where an audit trail of the status changes is recorded
