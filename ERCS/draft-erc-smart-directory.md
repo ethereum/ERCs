@@ -22,10 +22,11 @@ The rapid proliferation of smart contract addresses poses a critical challenge t
 
 Its core purpose is to enable organisations, known as **registrants**, to securely expose and maintain the valid smart contract addresses that they operate. Through a streamlined process, administrators of a regognized authority approve registrants, who then gain the ability to deploy and record their service-related smart contracts in a dedicated **"references" list**. The SmartDirectory is vital for enhancing security, transparency, and operational efficiency in an increasingly complex world. For newcommers as well as for seasonned users, it greatly facilitates and brings certainty to the "do your homework" address validation phase.
 
-In terms of automation, the directory allows **on-chain verification** by allowing:
+In terms of automation, the directory allows **on-chain verification** allowing:
 * smart wallets to check and validate the addresses upon usage
-* other smart contracts to perform crucial addresses checks
-* update dynamically the addresses list to be checked 
+* other smart contracts to perform addresses checks within their code
+
+Information is maintained by the stake holders and therefore always uptodate.
 
 ## Specification
 
@@ -88,10 +89,12 @@ It is important to signal to the users that a SmartDirectory has reached end of 
  This can only be called by one of the administrators
  Once disabled, the registrant cannot not be re-enabled unless the optional registrant status audit trail is implemented
  
-##### createReference(address referenceAddress, string projectId, string referenceType, string referenceVersion, string status)
+##### createReference(address referenceAddress, string referenceDescription, string referenceType, string referenceVersion, string status)
  Creates a new reference by a registrant giving an initial status. 
  Registrant must have been created by the administrator, the msg.sender is implicitly used as registrantAddress
  The registrant must not be disabled for the reference to be created
+ The intent for referenceDescription is to hold a JSON structure with fields such as title, metadata, codeHash, API, documentation URI ...
+ referenceType, referenceVersion, status are meant to be predefined value strings such that they can be verified by a smart contract without parsing
 
 ##### updateRegistrantUri(string registrantUri):
  Allows a registrant (msg.sender) to update their registrant_uri.
@@ -107,15 +110,13 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 
 ##### getReference(address referenceAddress)
  Returns all the informations known about a reference:
-  -       address registrantAddress,
+  -      address registrantAddress,
   -      uint256 registrantIndex,
- -       string memory projectId,
+  -      string memory referenceDescription,
   -      string memory referenceType,
   -      string memory referenceVersion,
   -      string memory status,
 
-Ma proposition serait de modifier "projectID" en "referenceDescription". Le rationel est que refernceDescription comporte un JSON qui puisse inclure referenceTtitel, referenceMetadata, codeHash, ABI, referenceDocumentation (proposés par BdF) plus tout autre balise que le regsitrant peut vouloir. 
-Les éléments isolés (referenceType, referenceVersion) sont les éléments qui peuvent être vérifiés par un smartContract. l'idée est d'éviter que le smartContract fasse du parsinG
 
 ##### getContractUri() String
  Returns the URI given at contract deployment time
