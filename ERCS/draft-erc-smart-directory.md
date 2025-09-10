@@ -151,7 +151,7 @@ TBD
     ◦ Must be different from _parentAddress1 and not address(0).
 ####    consultable audit trail for the reference statuses
  This feature allows recording and exposing to the user all the past status changes of a reference
-#####     getReference(address referenceAddress) see full descrption above
+#####     getReference(address referenceAddress) see full description above
 returns an additional information: the timestamp of the status
 #####     getReferenceLastStatusIndex(address referenceAddress)
  In the optional case where an audit trail of the status changes is recorded
