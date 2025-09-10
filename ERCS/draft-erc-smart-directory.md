@@ -25,6 +25,7 @@ Its core purpose is to enable organisations, known as **registrants**, to secure
 In terms of automation, the directory allows **on-chain verification** by allowing:
 * smart wallets to check and validate the addresses upon usage
 * other smart contracts to perform crucial addresses checks
+* update dynamically the addresses list to be checked 
 
 ## Specification
 
@@ -112,6 +113,9 @@ It is important to signal to the users that a SmartDirectory has reached end of 
   -      string memory referenceType,
   -      string memory referenceVersion,
   -      string memory status,
+
+Ma proposition serait de modifier "projectID" en "referenceDescription". Le rationel est que refernceDescription comporte un JSON qui puisse inclure referenceTtitel, referenceMetadata, codeHash, ABI, referenceDocumentation (proposés par BdF) plus tout autre balise que le regsitrant peut vouloir. 
+Les éléments isolés (referenceType, referenceVersion) sont les éléments qui peuvent être vérifiés par un smartContract. l'idée est d'éviter que le smartContract fasse du parsinG
 
 ##### getContractUri() String
  Returns the URI given at contract deployment time
