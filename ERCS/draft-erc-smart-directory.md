@@ -81,44 +81,6 @@ The following interface and rules are normative. The key words "MUST", "MUST NOT
 -  2 endOfLife
 It is important to signal to the users that a SmartDirectory has reached end of life so that they don't inadvertently rely on outdated information
 
-##### createRegistrant(address registrantAddress)
- Creates a new registrant. This can only be called by one of the administrators.
-
-##### disableRegistrant(address registrantAddress)
- Disables a registrant by setting its status to invalid, preventing them from creating new references. 
- This can only be called by one of the administrators
- Once disabled, the registrant cannot not be re-enabled unless the optional registrant status audit trail is implemented
- 
-##### createReference(address referenceAddress, string referenceDescription, string referenceType, string referenceVersion, string status)
- Creates a new reference by a registrant giving an initial status. 
- Registrant must have been created by the administrator, the msg.sender is implicitly used as registrantAddress
- The registrant must not be disabled for the reference to be created
- The intent for referenceDescription is to hold a JSON structure with fields such as title, metadata, codeHash, API, documentation URI ...
- referenceType, referenceVersion, status are meant to be predefined value strings such that they can be verified by a smart contract without parsing
-
-##### updateRegistrantUri(string registrantUri):
- Allows a registrant (msg.sender) to update their registrant_uri.
-
-#####     updateReferenceStatus(address referenceAddress, string newStatus)
- Adds a new status and timestamp to a reference status
- see also: **Options** for a possible audit trail
-
-#### information API (getters)
-
-##### getReferenceStatus(address referenceAddress)
- Returns the latest status and timestamp of a reference
- This is the simplest and main information entry for the public
-
-##### getReference(address referenceAddress)
- Returns all the informations known about a reference:
-  -      address registrantAddress,
-  -      uint256 registrantIndex,
-  -      string memory referenceDescription,
-  -      string memory referenceType,
-  -      string memory referenceVersion,
-  -      string memory status,
-
-
 ##### getContractUri() String
  Returns the URI given at contract deployment time
  This URI informs the user of the identity of the recognized authority managing the contract
@@ -127,6 +89,48 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 ##### getActivationCode()
  If the contract became end of lived, it will report errors to any other calls.
  This call allows to ascertain that a valid contract address is used but that the contract is no longer in use.
+
+##### createRegistrant(address registrantAddress)
+ Creates a new registrant. This can only be called by one of the administrators.
+
+##### disableRegistrant(address registrantAddress)
+ Disables a registrant by setting its status to invalid, preventing them from creating new references. 
+ This can only be called by one of the administrators
+ Once disabled, the registrant cannot not be re-enabled unless the optional registrant status audit trail is implemented
+
+##### updateRegistrantUri(string registrantUri):
+ Allows a registrant (msg.sender) to update their registrant_uri.
+
+##### createReference(address referenceAddress, string referenceDescription, string referenceType, string referenceVersion, string status)
+ Creates a new reference by a registrant giving an initial status. 
+ Registrant must have been created by the administrator, the msg.sender is implicitly used as registrantAddress
+ The registrant must not be disabled for the reference to be created
+ The intent for referenceDescription is to hold a JSON structure with fields such as title, metadata, codeHash, API, documentation URI ...
+ referenceType, referenceVersion, status are meant to be predefined value strings such that they can be verified by a smart contract without parsing
+
+#####     updateReferenceStatus(address referenceAddress, string newStatus)
+ Adds a new status and timestamp to a reference status
+ see also: **Options** for a possible audit trail
+
+#### information API (getters)
+
+##### getRegistrantUri(address _registrantAddress) external view returns (string memory);
+ Returns the information URI from the given registrant, this allows a user to confirm
+ the web identify of a contract owner.
+
+##### getReferenceStatus(address referenceAddress)
+ Returns the latest status and timestamp of a reference
+ This is the simplest and main information entry for the public
+
+##### getReference(address referenceAddress)
+ Returns all the informations known about a reference:
+  -      address registrantAddress,
+  -      string memory referenceDescription,
+  -      string memory referenceType,
+  -      string memory referenceVersion,
+  -      string memory status,
+
+
 
 #### constant values
 
@@ -145,6 +149,10 @@ It is important to signal to the users that a SmartDirectory has reached end of 
  - 2 contract is use
  - 3 contract being deprecated, can still be used
  - 4 contract end of life, should not be used
+
+### Public Interface
+
+[ISmartDirectoryERC.sol](https://github.com/BPCE/smart-directory/blob/main/contracts/ISmartDirectoryERC.sol)
 
 ###   Required Behavior
 TBD
@@ -204,13 +212,10 @@ TBD
 ## Rationale
 This contract ERC offers a solution to the growing complexity of blockchain interactions by providing a standardized, on-chain, and dynamically verifiable mechanism for managing trusted addresses and smart contracts, thereby enhancing security, flexibility, and operational efficiency within decentralized applications and tokenized economies.
 ### Administration Considerations
-The deploying recognized authority needs to have an adminstrative off-chain process for organizations to apply and be vetted as registrants, as well as maintain the vetted registrant status. The registrant list must be updated acccordingly, possibly disabling registrants at some point when the no longer match the vetting requirements.
+The deploying recognized authority needs to have an adminstrative off-chain process for organizations to apply and be vetted as registrants, as well as maintain the vetted registrant status. The registrant list must be updated acccordingly, possibly disabling registrants at some point when they no longer match the vetting requirements.
 
-Each registrant organization is sole responsible of its own references (contract addresses), this includes
-keeping each URI alive with user oriented information, keeping the version number and status updated to reflect the state of its publicly reachable contracts addresses.
+Each registrant organization is then sole responsible of its own references (contract addresses), this includes keeping each URI alive with user oriented information, keeping the version number and status updated to reflect the state of its publicly reachable contracts addresses.
 
-### Parameter Selection and Degenerate Cases
-### Considered Alternatives
 
 ## Reference Implementation
 TBD
@@ -221,11 +226,16 @@ TBD
 When consulting the recognized authority URI, the data served should contain the address of the SmartDirectory contract as meta-data in machine readable format and possibly in human readable format. The purpose of this cross reference is to avoid a rogue contract claiming having been issued by a recognized authority.
 example of cross reference data:
 X-Blockchain-Addresses: {"1": "0x1234567890abcdef1234567890abcdef12345678", "56": "0xabcdef1234567890abcdef1234567890abcdef12"}
-If the recognized authority has deployed the SmartDirectory contract at the same address on all blockchains the "*" number must be used instead of an actual blockchain number.
+Addresses are indexed by their EIP-155 chainIDs
+To avoid rogue deployements on newer blockchains, addresses from all blockchains IDs must be enumerated even if the contract is deployed at the same address on every blockchain known to the recognized authority.
 In order to prevent alteration, the URI is supplied at contract deployment time to the solidity constructor and cannot be changed later.
 #### registrant URI
 When consulting the registrant URI, the data served at the URI should contain the address of the registrant as meta-data such as X-Blockchain-Address: "0x1234567890abcdef1234567890abcdef12345678"
-
+#### reference owner
+The declaring registrant of a reference may be coerced by the createReference function to also be
+the owner of the reference. When needed, this extra check ensures that only contracts that are
+controlled by the registrant can be listed. Note that this also prevents registrants to declare
+"friendly" contracts that are not theirs as references.
 
 ## Copyright
 
