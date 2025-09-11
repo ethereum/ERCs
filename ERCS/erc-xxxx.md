@@ -1,0 +1,211 @@
+---
+eip: XXXX
+title: Transaction Attribution Standard
+description: A standardized method for attributing transactions to applications and wallets through data suffixes, enabling interoperable attribution tracking and reward distribution.
+author: Conner Swenberg (@ilikesymmetry)
+discussions-to: https://t.me/+eGryX6DeFWMwYmMx
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-09-11
+requires: 5792
+---
+
+## Abstract
+
+This ERC defines a standardized method for attributing transactions to applications, wallets, and other entities through structured data suffixes appended to transaction calldata. The standard enables interoperable attribution tracking, supports multiple entity attribution per transaction, and provides a mechanism for reward distribution through registered payout addresses.
+
+## Motivation
+
+Currently, applications informally append "data suffixes" to transactions to indicate their origin, typically using the first 4 bytes of a hash representing the application name. For example, Coinbase Smart Wallet adds `keccak256("CoinbaseSmartWallet")` to transactions from keys.coinbase.com, and platforms like Zora and OpenSea employ similar approaches.
+
+This ad-hoc approach presents several limitations:
+
+1. **Non-interoperable attribution**: Each application uses custom suffix formats, requiring explicit checks for specific patterns to detect attributions
+2. **Opaque identification**: Hash-based suffixes obscure the actual application identity, making attribution analysis difficult
+3. **Reward distribution challenges**: Even when an application is identified, there's no standardized way to determine where to send rewards
+4. **Limited multi-entity support**: No clear mechanism for attributing transactions to multiple entities (e.g., both application and wallet)
+5. **Lack of extensibility**: No standardized way to query additional metadata about attributed entities
+
+This standard addresses these issues by providing a structured, extensible format for transaction attribution that supports multiple entities, reward distribution, and metadata discovery.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Data Suffix Schema
+
+This standard defines a structured data suffix format appended to transaction calldata. The suffix consists of the following components (ordered from end of calldata backwards):
+
+1. **ercSuffix** (TBD bytes): A special identifier value indicating use of this standard
+2. **version** (1 byte): Schema version number enabling forward compatibility
+3. **codeRegistryAddress** (20 bytes): Address of a smart contract implementing `ICodeRegistry` (version 0x00 only)
+4. **codesLength** (1 byte): Length of the codes array in bytes, including delimiters
+5. **codes** (variable length): Array of attribution codes using ASCII encoding with comma (0x2C) as delimiter
+
+The complete suffix format is:
+```
+{transaction_calldata}{codes}{codesLength}{codeRegistryAddress}{version}{ercSuffix}
+```
+
+#### Examples
+
+Single entity attribution:
+```
+{txData}baseapp{7}{0xCodeRegistry}{0x00}{0xERCSUFFIX}
+```
+
+Multiple entity attribution:
+```
+{txData}baseapp,morpho{14}{0xCodeRegistry}{0x00}{0xERCSUFFIX}
+```
+
+### Parsing Algorithm
+
+Offchain parsers MUST implement the following algorithm:
+
+1. Extract the last TBD bytes as `ercSuffix` and verify it matches the standard identifier
+2. Extract the previous byte as `version`
+3. If `version` is `0x00`:
+   a. Extract the previous 20 bytes as `codeRegistryAddress`
+   b. Extract the previous byte as `codesLength`
+   c. Extract the previous `codesLength` bytes as `codes`
+   d. Parse `codes` using ASCII decoding with comma (`0x2C`) as separator
+   e. For each code, query the registry at `codeRegistryAddress`
+4. If `version` is not `0x00`, parsing SHOULD terminate (unknown version)
+
+### ICodeRegistry Interface
+
+The `codeRegistryAddress` MUST point to a contract implementing the following interface:
+
+```solidity
+interface ICodeRegistry {
+    /// @notice Returns the payout address for incentive distribution
+    /// @param code The attribution code to query
+    /// @return The address to receive rewards for this code
+    function payoutAddress(string memory code) external view returns (address);
+    
+    /// @notice Returns the metadata URI for additional information
+    /// @param code The attribution code to query  
+    /// @return uri The URI pointing to metadata about this code
+    function codeURI(string memory code) external view returns (string memory uri);
+    
+    /// @notice Checks if a code is valid and registered
+    /// @param code The attribution code to validate
+    /// @return True if the code is valid, false otherwise
+    function isValidCode(string memory code) external view returns (bool);
+}
+```
+
+### ERC-5792 Integration
+
+Applications using ERC-5792's `wallet_sendCalls` RPC method MUST communicate attribution data through a new capability:
+
+```typescript
+interface DataSuffixCapability {
+  dataSuffix: string; // Hex-encoded bytes to append as suffix
+}
+```
+
+Wallets implementing this capability MUST append the provided `dataSuffix` bytes to the transaction calldata. Wallets MAY optionally insert their own attribution code before the application's suffix if they understand this standard.
+
+### ERC-4337 User Operation Implementation
+
+For ERC-4337 compliant smart accounts, the implementation differs from normal Ethereum transactions:
+
+**Normal Transactions**: The attribution suffix is appended to the `data` field of the top-level Ethereum transaction.
+
+**ERC-4337 User Operations**: The attribution suffix MUST be appended to the `userOp.callData` field instead of the transaction-level data field, since smart account transactions are executed through the EntryPoint contract where the actual call data is contained within the user operation structure.
+
+When implementing attribution for smart accounts:
+
+1. Applications SHOULD append the suffix to `userOp.callData` when constructing user operations
+2. Parsers MUST examine the `callData` field of user operations rather than transaction data when processing ERC-4337 transactions
+3. Wallets supporting both EOA and smart account transactions MUST handle suffix appending appropriately based on the account type
+
+This ensures attribution data remains accessible and parseable regardless of whether the transaction originates from an externally owned account (EOA) or a smart contract account following ERC-4337.
+
+## Rationale
+
+### Design Decisions
+
+**Reverse-order parsing**: The suffix format is designed for parsing from the end of calldata backwards, enabling efficient detection of attribution without requiring knowledge of the original calldata length.
+
+**Version byte**: Including a version field enables future extensions while maintaining backward compatibility with parsers that only understand version 0x00.
+
+**Registry pattern**: Using a registry contract allows entities to update their payout addresses and metadata without requiring transaction format changes.
+
+**ASCII encoding**: Using human-readable ASCII codes improves debuggability and allows for meaningful code names rather than opaque hashes.
+
+**ERC-5792 integration**: The capability-based approach aligns with ERC-5792's extensible design while providing a clean separation of concerns between applications and wallets.
+
+### Alternative Approaches Considered
+
+**Customizable registry**: While a single global registry was considered, the flexible registry approach allows different ecosystems to maintain their own attribution systems.
+
+**Fixed-length codes**: A fixed-length encoding was considered but rejected to allow for flexible, human-readable identifiers.
+
+**ERC-721 dependency**: While codes may be implemented as ERC-721 NFTs, reducing strict dependencies makes this proposal more flexible and clarifies the minimal interface truly required for attribution.
+
+**Structured ERC-5792 capability**: A generic bytes `dataSuffix` minimizes the effort on wallets to integrate and maintain support for new versions, increasing chances of wide adoption.
+
+## Backwards Compatibility
+
+This standard is fully backward compatible with existing transaction formats. Transactions without attribution suffixes continue to function normally, and the presence of attribution data does not affect transaction execution.
+
+Existing applications using informal attribution methods can migrate to this standard while maintaining their current functionality during the transition period.
+
+## Security Considerations
+
+### Parsing Safety
+
+Parsers MUST validate the suffix format before processing to prevent malformed data from causing errors. Invalid suffixes SHOULD be ignored rather than causing parsing failures.
+
+### Registry Trust
+
+The security of attribution data depends on the trustworthiness of the registry contract. Users and applications SHOULD verify the registry implementation and governance before relying on its data.
+
+### Data Integrity
+
+Since attribution data is appended to calldata, it could potentially be modified by intermediaries. Applications requiring cryptographic proof of attribution should implement additional signature-based verification mechanisms.
+
+### Privacy Considerations
+
+Attribution data is publicly visible on-chain. Applications handling sensitive user information SHOULD NOT include identifying information in attribution codes.
+
+## Test Cases
+
+### Valid Suffix Parsing
+
+```
+Input: 0x1234567890baseapp0x07{registry_address}0x00{erc_suffix}
+Expected: 
+- version: 0x00
+- registry: {registry_address}  
+- codes: ["baseapp"]
+```
+
+### Multiple Entity Attribution
+
+```
+Input: 0x1234567890baseapp,wallet0x0d{registry_address}0x00{erc_suffix}
+Expected:
+- version: 0x00
+- registry: {registry_address}
+- codes: ["baseapp", "wallet"]
+```
+
+### Invalid Version Handling
+
+```
+Input: 0x1234567890somedata0x01{erc_suffix}
+Expected: Parsing stops, unknown version
+```
+
+## Reference Implementation
+
+A reference implementation including the registry contract and parsing library is available at [implementation link to be added].
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
