@@ -17,7 +17,7 @@ This ERC defines a standardized method for attributing transactions to applicati
 
 ## Motivation
 
-Currently, applications informally append "data suffixes" to transactions to indicate their origin, typically using the first 4 bytes of a hash representing the application name. For example, Coinbase Smart Wallet adds `keccak256("CoinbaseSmartWallet")` to transactions from keys.coinbase.com, and platforms like Zora and OpenSea employ similar approaches.
+Currently, applications informally append "data suffixes" to transactions to indicate their origin, typically using the first 4 bytes of a hash representing the application name. For example, Coinbase adds `keccak256("CoinbaseSmartWallet")` to transactions from keys.coinbase.com, and platforms like Zora and OpenSea employ similar approaches.
 
 This ad-hoc approach presents several limitations:
 
@@ -70,7 +70,7 @@ Offchain parsers MUST implement the following algorithm:
    a. Extract the previous 20 bytes as `codeRegistryAddress`
    b. Extract the previous byte as `codesLength`
    c. Extract the previous `codesLength` bytes as `codes`
-   d. Parse `codes` using ASCII decoding with comma (`0x2C`) as separator
+   d. Parse `codes` using ASCII decoding with comma (`0x2C`) as delimiter
    e. For each code, query the registry at `codeRegistryAddress`
 4. If `version` is not `0x00`, parsing SHOULD terminate (unknown version)
 
@@ -188,11 +188,11 @@ Expected:
 ### Multiple Entity Attribution
 
 ```
-Input: 0x1234567890baseapp,wallet0x0d{registry_address}0x00{erc_suffix}
+Input: 0x1234567890baseapp,zora0x0d{registry_address}0x00{erc_suffix}
 Expected:
 - version: 0x00
 - registry: {registry_address}
-- codes: ["baseapp", "wallet"]
+- codes: ["baseapp", "zora"]
 ```
 
 ### Invalid Version Handling
