@@ -124,12 +124,11 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 
 ##### getReference(address referenceAddress)
  Returns all the informations known about a reference:
-  -      address registrantAddress,
-  -      string memory referenceDescription,
-  -      string memory referenceType,
-  -      string memory referenceVersion,
-  -      string memory status,
-
+ - address registrantAddress
+ - string memory referenceDescription
+ - string memory referenceType
+ - string memory referenceVersion
+ - string memory status
 
 
 #### constant values
