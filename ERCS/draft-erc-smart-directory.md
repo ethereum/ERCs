@@ -149,7 +149,7 @@ It is important to signal to the users that a SmartDirectory has reached end of 
  - 3 contract being deprecated, can still be used
  - 4 contract end of life, should not be used
 
-### Public Interface
+### Public Interface in solidity
 
 [ISmartDirectoryERC.sol](https://github.com/BPCE/smart-directory/blob/main/contracts/ISmartDirectoryERC.sol)
 
@@ -217,7 +217,8 @@ Each registrant organization is then sole responsible of its own references (con
 
 
 ## Reference Implementation
-TBD
+
+[SmartDirectoryERC.sol](https://github.com/BPCE/smart-directory/blob/main/contracts/SmartDirectoryERC.sol)
 
 ## Security Considerations
 ### URI cross references
