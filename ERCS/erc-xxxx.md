@@ -1,0 +1,123 @@
+---
+eip: xxxx
+title: Multi-step Contract Ownership
+description: Multi-step contract ownership for secure smart contract ownership management
+author: David Kim(@PowerStream3604)
+discussions-to: https://ethereum-magicians.org/t/erc-multi-step-contract-ownership/25475
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-09-16
+requires: 
+---
+
+## Abstract
+
+We define a Multi-Stepped contract ownership interface for a more secure contract ownership management. This makes the ownership transfer into 3 distinct steps. With the first 2 steps, performed by the original owner (initiate → confirm) and the remaining 1 step performed by the new owner (accept).
+
+We enforce an optional time window between initiate and confirm stage to give additional room for review, and make ownership key compromise scenario less fatal.
+
+## Motivation
+
+Ownership management is crucial in on-chain security and a significant portion of the security assumptions of defi protocols, smart contract wallets and on chain utilities rely on the contract ownership.
+
+The single-step `transferOwnership()` style ownership mechanism has been in the industry for a long time, by [ERC-173](./erc-173.md) and has been used ubiquitously as an industry standard. As the industry evolve and attacks get more sophisticated there is a strong need for a multi-step, time gated ownership management to enhance the ecosystem’s contract ownership to be more reviewable, stoppable, thorough and secure.
+
+## Specification
+
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+
+```solidity
+/// @title Multistep Ownership Standard
+contract MultiStepOwnable {
+
+	event OwnershipTransferInitiated(address indexed prevOwner, address indexed newOwner);	
+	event OwnershipTransferConfirmed(address indexed prevOwner, address indexed newOwner);
+	event OwnwershipTransferred(address indexed prevOwner, address indexed newOwner);
+
+	/// @dev initiate the ownership transfer. First step of ownership transfer.
+	/// moves the newOwner to the preConfirmed stage.
+	/// 
+	/// @param newOwner the address of the new owner of the contract.
+	/// stored as preConfirmedOwner.
+	function initiateOwnershipTransfer(address newOwner) external;
+	
+	/// @dev confirm the ownership transfer. Second step of ownership transfer.
+	/// confirmation can only be done after the transfer-buffer period from initiation.
+	/// newOwner should match with the initiation step's newOwner.
+	/// To initiate ownership transfer to a different newOwner, initiation step should be re-conducted.
+	///
+	/// @param newOwner the address of the new owner of the contract.
+	/// stored as pendingOwner.
+	function confirmOwnershipTransfer(address newOwner) external;
+	
+	/// @dev accepts the ownership transfer. Final step of ownership transfer.
+	/// This function can only be called by the newOwner that was confirmed in step 2.
+	/// The contract should perform access control e.g.,
+	/// msg.sender == pendingOwner()
+	function acceptOwnershipTransfer() external;
+	
+	/// @notice only the address returned by owner() has authority as the owner.
+	/// pendingOwner() and preConfirmedOwner() should not possess any
+	/// authority/access/right.
+	/// @dev returns the owner of the contract
+	function owner() external view returns (address);
+	
+	/// @dev returns the pending owner of the account.
+	/// pending owner should not have any authority/access/right.
+	function pendingOwner() external view returns (address);
+	
+	/// @dev returns the pre-confirmed owner of the account.
+	/// pre-confirmed owner should not have any authority/access/right.
+	function preConfirmedOwner() external view returns (address);
+	
+	/// @dev returns the ownership transfer buffer time (in seconds).
+	/// the buffer is enforced between initiation <> confirmation of ownership transfer. 
+	/// the standard does not enforce the value range. it is highly recommended to be between 2 <> 14 days.
+	function getOwnershipTransferBuffer() external view returns (uint256);
+}
+```
+
+The `MultiStepOwnable` contract MAY implement the `UpdateableOwnershipTransferBuffer` interface to enable buffer period modification.
+
+The contract should MUST update of the buffer period to be initiated and then confirmed after the existing buffer period.
+
+```solidity
+/// @title UpdateableOwnershipTransferBuffer. Extension of MultiStepOwnable.
+contract UpdateableOwnershipTransferBuffer {
+
+	/// @dev initiates the update of ownership transfer time buffer.
+	function initiateOwnershipBufferUpdate(uint256 newBuffer) external;
+	
+	/// @dev confirms the update of ownership transfer time buffer.
+	/// confirmation SHOULD revert if existing time buffer did not pass since
+	/// initiation of ownership transfer time buffer.
+	function confirmOwnershipBufferUpdate(uint256 newBuffer) external;
+}
+```
+
+## Rationale
+
+We define the main objective of this standard to make ownership more secure and handled in a multi-stepped approach that enables the operation to be conducted with more caution and lesser operational mistakes, while being immune to potential scam attacks.
+
+Key factors taken into consideration for the standard:
+
+1. Reduce probability of operational mistakes.
+2. Foster on-chain reviewal practice for ownership transfer.
+3. Ability to rollback ownership transfer, during the transfer process.
+4. Simplicity.
+
+**1. Reduce probability of operational mistakes:** The standard makes the ownership transfer stage into 3 different clear steps. Initiation → Confirmation → Acceptance. The owner will have the enforced ability to review the newOwner address secured by the pre-set buffer time. Also to reduce any operational mistakes or possible scams (e.g., address poisoning) the address is required as the parameter in each Initiation & Confirmation stage.
+
+**2. Foster on-chain reviewal practice for ownership transfer:** We not only targets this as a contract interface and implementation methodology, but also hopes to foster an ecosystem-level awareness and security practice to thoroughly review, confirm the ownership transfer. The standard helps operators of Smart Contract to review newOwner address on-chain, and further confirm again if the address is indeed correct.
+
+**3. Ability to rollback ownership transfer, during the transfer process:** Whether through an operational mistake or private key leak of owner account, or other reasons, the ability to rollback ownership transfer within the time buffer highly increases the security and operational burden.
+
+Even in the extreme case of owner private key leak, if the buffer time is set enough, the original owner can earn time to evacuate the funds from the protocol, and possibly prohibit ownership transfer through DoS of ownership (attack → initiate , original owner(defender) → re initiate. which will reset the time back to 0).
+
+**4. Simplicity:** `MultistepOwnable` is targeted to be a simple contract given the diverse use cases and scenarios it could be applied. The process for ownership transfer is concise but thorough enough to allow owners review each step. This is the rationale behind making the ownership transfer time buffer and buffer time update capability optional.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
