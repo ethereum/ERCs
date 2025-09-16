@@ -212,6 +212,127 @@ This standard can be fully EIP-721 compatible by adding an extension function se
 
 The new functions introduced in this standard add minimal overhead to the existing EIP-721 interface, which should make adoption straightforward and quick for developers.
 
+## Test Cases
+
+The following tests are based on Foundry.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.29;
+
+import "forge-std/Test.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IPermit2} from "@permit2/interfaces/IPermit2.sol";
+
+import {DeployPermit2} from "./utils/DeployPermit2.sol";
+import {Permit2Utils} from "./utils/Permit2Utils.sol";
+import {SubNFTMock} from "../src/mocks/SubNFTMock.sol";
+import {ISubNFT} from "../src/ISubNFT.sol";
+
+contract SubNFTTest is Test, Permit2Utils {
+    address[] users = new address[](2);
+    address serviceProvider = makeAddr("serviceProvider");
+
+    // ...
+
+    function setUp() public {
+        uint256[] memory planPrices = new uint256[](1);
+        planPrices[0] = defaultPrice;
+
+        permit2 = IPermit2(deployPermit2.deployPermit2());
+        PERMIT2_DOMAIN_SEPARATOR = permit2.DOMAIN_SEPARATOR();
+        testERC20 = new TestERC20();
+
+        ISubNFT.SubscriptionConfig memory subscriptionConfig = ISubNFT.SubscriptionConfig({
+            paymentToken: address(testERC20),
+            serviceProvider: serviceProvider,
+            intervalInSec: defaultInterval,
+            planPrices: planPrices
+        });
+        subNFT = new SubNFTMock("SubNFTMock", "SubNFT", subscriptionConfig, address(permit2));
+
+        setUpUsers();
+        vm.warp(0);
+    }
+
+    function testRenewSubscription_ERC20Payment() public {
+        uint256 user1BalanceBefore = testERC20.balanceOf(users[0]);
+        uint256 serviceProviderBalanceBefore = testERC20.balanceOf(serviceProvider);
+
+        vm.startPrank(users[0]);
+        testERC20.approve(address(subNFT), type(uint256).max);
+        vm.expectEmit(true, true, false, true);
+        emit ISubNFT.SubscriptionExtended(tokenId, defaultPlanIdx, defaultInterval * defaultNumOfIntervals);
+        subNFT.renewSubscription(tokenId, defaultPlanIdx, defaultNumOfIntervals);
+        vm.stopPrank();
+
+        uint256 user1BalanceAfter = testERC20.balanceOf(users[0]);
+        uint256 serviceProviderBalanceAfter = testERC20.balanceOf(serviceProvider);
+
+        assertEq(subNFT.getSubscriptionDetails(tokenId).planIdx, defaultPlanIdx);
+        assertEq(subNFT.expiresAt(tokenId), defaultInterval * defaultNumOfIntervals);
+        assertEq(user1BalanceAfter, user1BalanceBefore - defaultPrice * defaultNumOfIntervals);
+        assertEq(serviceProviderBalanceAfter, serviceProviderBalanceBefore + defaultPrice * defaultNumOfIntervals);
+    }
+
+    function testSignalAutoSubscription() public {
+        uint256 totalAmount = defaultPrice * defaultNumOfIntervals;
+
+        IPermit2.PermitSingle memory permitSingle = defaultERC20PermitAllowance(
+            address(testERC20),
+            uint160(totalAmount),
+            uint48(block.timestamp + defaultInterval * defaultNumOfIntervals),
+            uint48(defaultNonce),
+            address(subNFT)
+        );
+
+        ISubNFT.Permit2Data memory permit2Data = ISubNFT.Permit2Data({
+            permitSingle: permitSingle,
+            signature: getPermitSignature(permitSingle, user1PrivateKey, PERMIT2_DOMAIN_SEPARATOR)
+        });
+
+        vm.prank(users[0]);
+        vm.expectEmit(true, true, false, true);
+        emit ISubNFT.AutoSubscriptionSignaled(tokenId, defaultPlanIdx, defaultNumOfIntervals);
+        subNFT.signalAutoSubscription(tokenId, defaultPlanIdx, defaultNumOfIntervals, permit2Data);
+
+        (uint160 amount, uint48 expiration, uint48 nonce) =
+            permit2.allowance(users[0], address(testERC20), address(subNFT));
+        assertEq(amount, totalAmount);
+        assertEq(expiration, block.timestamp + defaultInterval * defaultNumOfIntervals);
+        assertEq(nonce, defaultNonce + 1);
+    }
+
+
+    function testChargeAutoSubscription() public {
+        testSignalAutoSubscription();
+        vm.warp(1);
+
+        uint256 user1BalanceBefore = testERC20.balanceOf(users[0]);
+        uint256 serviceProviderBalanceBefore = testERC20.balanceOf(serviceProvider);
+
+        vm.prank(users[1]);
+        vm.expectEmit(true, true, false, true);
+        emit ISubNFT.AutoSubscriptionCharged(tokenId);
+        subNFT.chargeAutoSubscription(tokenId);
+
+        uint256 user1BalanceAfter = testERC20.balanceOf(users[0]);
+        uint256 serviceProviderBalanceAfter = testERC20.balanceOf(serviceProvider);
+
+        assertEq(subNFT.expiresAt(tokenId), defaultInterval * 1 + 1);
+        assertEq(user1BalanceAfter, user1BalanceBefore - defaultPrice);
+        assertEq(serviceProviderBalanceAfter, serviceProviderBalanceBefore + defaultPrice);
+
+        (uint160 amount, uint48 expiration, uint48 nonce) =
+            permit2.allowance(users[0], address(testERC20), address(subNFT));
+        // 1 month of subscription is charged so deduct 1 month
+        assertEq(amount, defaultPrice * defaultNumOfIntervals - defaultPrice);
+        assertEq(expiration, block.timestamp + defaultInterval * defaultNumOfIntervals - 1);
+        assertEq(nonce, defaultNonce + 1);
+    }
+}
+```
+
 ## Reference Implementation
 
 ### `SubNFT.sol`
@@ -356,6 +477,7 @@ contract SubNFT is ERC721, ISubNFT {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(ISubNFT).interfaceId || super.supportsInterface(interfaceId);
     }
+}
 ```
 
 ## Security Considerations
