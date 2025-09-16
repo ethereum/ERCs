@@ -339,6 +339,8 @@ contract SubNFTTest is Test, Permit2Utils {
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.29;
+
 contract SubNFT is ERC721, ISubNFT {
     IPermit2 public immutable PERMIT2;
 
