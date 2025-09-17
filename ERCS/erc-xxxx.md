@@ -1,9 +1,9 @@
 ---
 eip: xxxx
-title: One-off & Recurring Subscription NFTs (SubNFTs)
-description: A framework to enable one-off and recurring subscription with auto expiration for ERC-721 tokens
+title: Manual & Recurring Subscription NFTs (SubNFTs)
+description: A framework to enable manual and recurring subscription with auto expiration for ERC-721 tokens
 author: ant (0xdevant), cygaar (@cygaar)
-discussions-to:
+discussions-to: https://ethereum-magicians.org/t/erc-manual-recurring-subscription-nfts-subnfts/25482
 status: Draft
 type: Standards Track
 category: ERC
@@ -13,7 +13,7 @@ requires: 721
 
 ## Abstract
 
-This standard is an extension of [EIP-721](./eip-721.md). It proposes a framework and interface for NFTs to enable one-off and recurring subscription service with auto expiration i.e. Subscription NFTs (hereinafter SubNFTs). The interface includes functions to renew subscription, signal for recurring subscription by signing via Permit2, charge subscription fee automatically as service provider, and cancel the subscription by revoking Permit2 allowance.
+This standard is an extension of [EIP-721](./eip-721.md). It proposes a framework and interface for NFTs to enable manual and recurring subscription service with auto expiration i.e. Subscription NFTs (hereinafter SubNFTs). The interface includes functions to renew subscription, signal for recurring subscription by signing via Permit2, charge subscription fee automatically as service provider, and cancel the subscription by revoking Permit2 allowance.
 
 ## Motivation
 
@@ -77,7 +77,7 @@ interface ISubNFT {
     /// @param tokenId The NFT to cancel the auto subscription for
     event AutoSubscriptionCancelled(uint256 indexed tokenId);
 
-    /// @notice Renews a one-off subscription for an NFT by directly transferring native token or ERC20 token to the service provider
+    /// @notice Manually renews a subscription for an NFT by directly transferring native token or ERC20 token to the service provider
     /// @dev Throws if `tokenId` does not exist
     /// @dev Throws if `planIdx` is not a valid plan index
     /// @dev Throws if `numOfIntervals` is not greater than 0
@@ -180,11 +180,11 @@ The `supportsInterface` method MUST return `true` when called with `0xb6795b57`.
 
 ## Rationale
 
-This standard aims to make on-chain one-off and recurring subscriptions as generic and as easy to integrate with as possible by having minimal configurations for the subscription and compatible with any ERC20s for implementing on-chain subscriptions. It is important to note that in this interface, the service provider should be configuring the subscription during deployment - the standard supports multiple plans to enable tierd subscription plans and only using ERC20 as payment token will enable recurring subscription The NFT itself represents ownership of a subscription, there is no facilitation of how the NFT should be minted or transferred.
+This standard aims to make on-chain manual and recurring subscriptions as generic and as easy to integrate with as possible by having minimal configurations for the subscription and compatible with any ERC20s for implementing on-chain subscriptions. It is important to note that in this interface, the service provider should be configuring the subscription during deployment - the standard supports multiple plans to enable tierd subscription plans and only using ERC20 as payment token will enable recurring subscription The NFT itself represents ownership of a subscription, there is no facilitation of how the NFT should be minted or transferred.
 
 ### Subscription Management
 
-- **One-off subscription:** Users should be able to renew their subscriptions by directly transferring either native or ERC20 tokens to the service provider hence the `renewSubscription` function. Users will specify the index of subscription plan i.e. `planIdx` and the number of interval to subscribe for i.e. `numOfIntervals`.
+- **Manual subscription:** Users should be able to renew their subscriptions by directly transferring either native or ERC20 tokens to the service provider hence the `renewSubscription` function. Users will specify the index of subscription plan i.e. `planIdx` and the number of interval to subscribe for i.e. `numOfIntervals`.
 
 - **Recurring subscription:** Users will start by signing a Permit2 permit to signal the service provider their intent for recurring subscription hence the `signalAutoSubscription` - at this stage the subscription is not active yet, it just indicates the user has approved this contract the total funds needed for the subscription. The service provider will then be able to charge subscription fee automatically by `interval` via `chargeAutoSubscription` to start the subscription for users, no extra subscription fee should be sent to service provider as per the standard's implementation. If the users don't want to continue the subscription they can use `cancelAutoSubscription` to revoke Permit2 allowance, or they can just directly move the funds out from the wallet they signed the permit with.
 
@@ -200,7 +200,7 @@ This standard aims to make on-chain one-off and recurring subscriptions as gener
 
 ### Easy Integration
 
-Since this standard is fully EIP-721 compliant, existing protocols will be able to facilitate the transfer of SubNFTs out of the box. With only a minimal configuration and few functions to add, protocols will be able to enable one-off or recurring subscription services, fully manage all SubNFTs' subscriptions, check whether a subscription is expired, and decide whether it can be renewed etc.
+Since this standard is fully EIP-721 compliant, existing protocols will be able to facilitate the transfer of SubNFTs out of the box. With only a minimal configuration and few functions to add, protocols will be able to enable manual or recurring subscription services, fully manage all SubNFTs' subscriptions, check whether a subscription is expired, and decide whether it can be renewed etc.
 
 ### Compatible with any ERC20s
 
