@@ -10,7 +10,7 @@ created: 2025-9-2
 
 ## Preliminary note
 
-The ERC presented here originates from a project named "**SmartDirectory**", for convenience in the draft redaction the term "SmartDirectory" is used to designate the smart-contract model subject of this ERC.
+The ERC presented here originates from a project: [SmartDirectory](https://github.com/BPCE/smart-directory), for convenience in the draft redaction the term "SmartDirectory" is used to designate the smart-contract model subject of this ERC.
 
 ## Abstract
 
