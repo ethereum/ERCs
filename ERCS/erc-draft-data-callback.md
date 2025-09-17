@@ -1,0 +1,233 @@
+---
+eip: XXXX
+title: Data Callback Capability
+description: A way for apps to request user data from wallets
+author: Lukas Rosario (@lukasrosario), Arjun Dureja (@arjun-dureja), Spencer Stock (@spencerstock), Cody Crozier (@wcrozier12), Conner Swenberg (@ilikesymmetry), Sam Luo (@sluo10)
+discussions-to: https://ethereum-magicians.org/t/erc-proposal-data-callback-capability/25496
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-09-17
+requires: 5792
+---
+
+## Abstract
+
+This proposal defines an EIP-5792 capability that allows apps to request user data. Additionally, this proposal specifies how wallets communicate with an app-provided callback URL so apps can check users' information and optionally modify transaction requests before users approve them.
+
+## Motivation
+
+Apps often need user data such as contact and shipping information as part of a transaction request. Today, there is no standard for:
+
+- How apps describe the data they need from wallets.
+- How apps can validate user information before allowing them to proceed with a transaction (for example, ensuring a merchant can ship to a user's address before allowing them to complete a payment).
+- How wallets provide app-requested information, both during pre-signing validation and after a transaction request has been signed and submitted by a user.
+- How apps can update transaction requests based on user-provided information (for example, updating a payment request to include a shipping fee).
+
+This capability provides a way for apps and wallets to communicate about this information.
+
+## Specification
+
+One new EIP-5792 wallet capability is defined.
+
+### `dataCallback` Capability
+
+The `dataCallback` capability is implemented by both apps and wallets.
+
+#### App → Wallet
+
+Apps include the capability when invoking `wallet_sendCalls`.
+
+Capability object shape:
+
+```typescript
+type DataCallbackType =
+  | "email"
+  | "phoneNumber"
+  | "physicalAddress"
+  | "name"
+  | "onchainAddress";
+
+type DataCallbackRequest = {
+  type: DataCallbackType;
+  optional?: boolean; // default false
+};
+
+type DataCallbackCapability = {
+  callbackURL?: string; // Optional; if provided, MUST be HTTPS
+  requests: DataCallbackRequest[]; // MUST be non-empty, no duplicate types
+};
+```
+
+Constraints:
+
+- `callbackURL` is optional. If provided, it MUST be a valid HTTPS URL.
+- `requests` MUST be a non-empty array without duplicate `type` entries.
+- Each `optional` MUST be a boolean if present (defaults to false).
+- If `type` is `onchainAddress`, it MUST NOT be marked optional.
+
+Examples:
+
+```json
+{
+  "capabilities": {
+    "dataCallback": {
+      "callbackURL": "https://example.com/callback",
+      "requests": [
+        { "type": "email" },
+        { "type": "physicalAddress", "optional": true }
+      ]
+    }
+  }
+}
+```
+
+#### Wallet → Service (HTTP Interface)
+
+If a `callbackURL` is provided, the wallet MUST (prior to finalizing the user operation) send an HTTPS POST to `callbackURL` with a JSON body as defined below. If `callbackURL` is omitted, the wallet MUST NOT make this HTTP call and SHOULD proceed without service-mediated updates. The wallet MAY first collect missing data via its UI or user profile. Users MAY intentionally leave optional fields blank; wallets MUST omit intentionally blank fields from `requestedInfo`.
+
+Request body (wallet → `callbackURL`):
+
+```typescript
+type RequestedInfo = {
+  email?: string;
+  name?: { firstName: string; lastName: string };
+  onchainAddress?: `0x${string}`;
+  physicalAddress?: {
+    address1: string;
+    address2?: string;
+    city: string;
+    state?: string;
+    postalCode: string;
+    countryCode: string; // ISO 3166-1 alpha-2
+    name?: { firstName: string; familyName: string };
+  };
+  phoneNumber?: { number: string; country: string }; // E.164 number and ISO country code
+};
+
+type DataCallbackUpdateRequest = {
+  requestedInfo: RequestedInfo; // only keys requested and available are included
+  capabilities: Record<string, unknown>; // original capabilities passed by the app
+  calls: {
+    to: `0x${string}`;
+    data?: `0x${string}`;
+    value?: `0x${string}`;
+  }[]; // original calls passed by the app
+  chainId: `0x${string}`; // hex string (e.g., '0x1')
+};
+```
+
+Response body (service → wallet):
+
+```typescript
+type DataCallbackErrors = {
+  email?: string;
+  phoneNumber?: { country?: string; number?: string };
+  physicalAddress?: {
+    address1?: string;
+    address2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  name?: { firstName?: string; lastName?: string };
+  onchainAddress?: string;
+};
+
+type DataCallbackUpdateResponse = {
+  request: {
+    calls: {
+      to: `0x${string}`;
+      data?: `0x${string}`;
+      value?: `0x${string}`;
+    }[]; // updated (or original) calls
+    capabilities?: Record<string, unknown>; // updated (or original) capabilities
+    chainId?: `0x${string}`; // updated (or original) chain id
+  };
+  errors?: DataCallbackErrors; // optional validation messages per field
+};
+```
+
+Notes:
+
+- Services MAY return `errors` to indicate field-level validation issues. Wallets SHOULD prompt users to correct fields before retrying.
+- Services MUST return either original or updated request fields (calls, capabilities, chain id). If no updates are required, services are expected to return original values.
+- Serivces MAY modify capabilities during a request, but they MUST NOT modify the `dataCallback` capability. I.e. regardless of if a request is updated or not, the `dataCallback` capability value MUST stay constant throughout the request flow.
+
+#### Wallet Behavior
+
+- Wallets MUST indicate support for this capability per chain in their `wallet_getCapabilities` response.
+- When `dataCallback` is present, wallets MUST invoke the `callbackURL` if present once the required data is collected, before finalizing the user operation.
+- Wallets MUST only send keys in `requestedInfo` that were requested and available (after user consent).
+- Wallets MUST pass the current `calls`, `capabilities`, and `chainId` to the service and MUST accept updated `calls`/`capabilities`/`chainId` from the response.
+- If the user intentionally leaves an optional field blank, wallets MUST omit it from `requestedInfo`.
+- Wallets MUST reject `dataCallback` requests that violate the constraints above.
+- If `errors` are present in the service response, wallets MUST NOT let users proceed with the transaction request until errors are resolved.
+
+#### Wallet → App: Final user information in `wallet_sendCalls` response
+
+If a `dataCallback` capability is present in the request, wallets MUST include the final user information they used under `capabilities.dataCallback` in the `wallet_sendCalls` response. The value MUST reflect the final set of keys used (respecting omitted optional fields).
+
+```typescript
+type WalletSendCallsResponseAugmentation = {
+  capabilities?: {
+    dataCallback?: RequestedInfo; // final user info provided
+  };
+};
+```
+
+##### Example
+
+```json
+{
+  "id": "0x...",
+  "capabilities": {
+    "dataCallback": {
+      "email": "hello@example.com"
+    }
+  }
+}
+```
+
+#### `wallet_getCapabilities` Response
+
+```typescript
+type DataCallbackCapabilitySupport = {
+  supported: boolean;
+};
+```
+
+Example:
+
+```json
+{
+  "0x1": { "dataCallback": { "supported": true } },
+  "0x2105": { "dataCallback": { "supported": true } }
+}
+```
+
+### Rationale
+
+- HTTPS-only callback URLs minimize the risk of data interception or downgrade attacks.
+- The request/response shapes are narrowly scoped to the data types wallets commonly manage, and the transformation rules avoid leaking internal profile constructs.
+- `onchainAddress` is not meaningfully optional. Once a user submits a transaction, the app can infer the user's onchain address by polling the resulting `callsId` and associated receipt; marking it optional would not prevent its disclosure.
+
+### Backwards Compatibility
+
+- The capability is additive to EIP-5792 and does not change existing method semantics.
+
+### Security Considerations
+
+- If provided, `callbackURL` MUST be HTTPS. Wallets MUST validate the scheme.
+- Apps are encouraged to use a backend they control as the `callbackURL` and proxy to third-party services if needed, avoiding leakage of service API keys.
+- Wallets MUST minimize the `requestedInfo` to only what was requested and consented to by the user.
+- Services SHOULD validate inputs and return clear field-level errors rather than failing the entire request.
+
+### Privacy Considerations
+
+- Wallets SHOULD provide UI to review and optionally omit optional fields. Omitted optional fields MUST NOT be sent.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
