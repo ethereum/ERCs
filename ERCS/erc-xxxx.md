@@ -1,9 +1,9 @@
 ---
-eip: xxxx
+eip: 8027
 title: Manual & Recurring Subscription NFTs (SubNFTs)
 description: A framework to enable manual and recurring subscription with auto expiration for ERC-721 tokens
 author: ant (0xdevant), cygaar (@cygaar)
-discussions-to: https://ethereum-magicians.org/t/erc-manual-recurring-subscription-nfts-subnfts/25482
+discussions-to: https://ethereum-magicians.org/t/erc-8027-manual-recurring-subscription-nfts-subnfts/25482
 status: Draft
 type: Standards Track
 category: ERC
