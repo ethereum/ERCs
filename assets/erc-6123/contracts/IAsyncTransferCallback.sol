@@ -35,7 +35,7 @@ interface IAsyncTransferCallback {
      * @param success tells the protocol whether transfer was successful
      * @param transactionID a transaction id
      * @param transactionData data associtated with the transfer, will be emitted via the events.
-     * @dev emit a {SettlementTransferred} or a {SettlementFailed} event. May emit a {TradeTerminated} event.
+     * @dev emits a {TransferSucceeded} or a {TransferFailed} event.
      */
     function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external;
 }
