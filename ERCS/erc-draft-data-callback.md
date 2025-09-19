@@ -3,7 +3,7 @@ eip: 8026
 title: Data Callback Capability
 description: A way for apps to request user data from wallets
 author: Lukas Rosario (@lukasrosario), Arjun Dureja (@arjun-dureja), Spencer Stock (@spencerstock), Cody Crozier (@wcrozier12), Conner Swenberg (@ilikesymmetry), Sam Luo (@sluo10), Wilson Cusack (@wilsoncusack)
-discussions-to: https://ethereum-magicians.org/t/erc-proposal-data-callback-capability/25496
+discussions-to: https://ethereum-magicians.org/t/erc-8026-data-callback-capability/25496
 status: Draft
 type: Standards Track
 category: ERC
