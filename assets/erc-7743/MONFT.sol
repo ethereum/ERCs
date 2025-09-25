@@ -20,10 +20,26 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
     mapping(uint256 => address) private _tokenApprovals;
     mapping(address => mapping(address => bool)) private _operatorApprovals;
     mapping(address => uint256) private _balances;
+    // Mapping to track archived status for each token-owner pair
+    mapping(uint256 => mapping(address => bool)) private _archivedStatus;
+
+    // Modifier to check if the owner has archived the token's transfer ability
+    modifier isNotArchived(uint256 tokenId, address owner) {
+        require(
+            !_archivedStatus[tokenId][owner],
+            "MO-NFT: Owner's transfer ability is archived for this token"
+        );
+        _;
+    }
 
     event TokenMinted(uint256 tokenId, address owner);
     event TokenTransferred(uint256 tokenId, address from, address to);
-    event TokenBurned(uint256 tokenId, address owner); // New burn event
+    // Emit an event when the archived status is updated for a specific owner
+    event ArchivedStatusUpdated(
+        uint256 indexed tokenId,
+        address indexed owner,
+        bool archived
+    );
 
     constructor(address owner) Ownable(owner) {}
 
@@ -88,30 +104,44 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         return EnumerableSet.length(_owners[tokenId]);
     }
 
-    function approve(address, uint256) external pure override {
-        revert("MO-NFT: Approve is forbidden");
+    // Public function to check if a specific owner has archived their transfer ability for a token
+    function isArchived(
+        uint256 tokenId,
+        address owner
+    ) external view returns (bool) {
+        return _archivedStatus[tokenId][owner];
     }
 
-    function getApproved(uint256) public pure override returns (address) {
-        revert("MO-NFT: Approve is forbidden");
+    // Overrides for approvals
+    function approve(address to, uint256 tokenId) public override {
+        revert("MO-NFT: approvals not supported");
     }
 
-    function setApprovalForAll(address, bool) external pure override {
-        revert("MO-NFT: Approve is forbidden");
+    function setApprovalForAll(
+        address operator,
+        bool approved
+    ) public override {
+        revert("MO-NFT: approvals not supported");
+    }
+
+    function getApproved(
+        uint256 tokenId
+    ) public view override returns (address) {
+        revert("MO-NFT: approvals not supported");
     }
 
     function isApprovedForAll(
-        address,
-        address
-    ) public pure override returns (bool) {
-        revert("MO-NFT: Approve is forbidden");
+        address owner,
+        address operator
+    ) public view override returns (bool) {
+        revert("MO-NFT: approvals not supported");
     }
 
     function transferFrom(
         address from,
         address to,
         uint256 tokenId
-    ) public virtual override {
+    ) public virtual override isNotArchived(tokenId, from) {
         require(
             isOwner(tokenId, _msgSender()),
             "MO-NFT: Transfer from incorrect account"
@@ -121,17 +151,71 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         _transfer(from, to, tokenId);
     }
 
-    function safeTransferFrom(address, address, uint256) public pure override {
-        revert("MO-NFT: safeTransferFrom is forbidden");
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override isNotArchived(tokenId, from) {
+        // 1. Perform the multi-owner transfer logic
+        transferFrom(from, to, tokenId);
+
+        // 2. Call the internal function to check if `to` can handle ERC-721 tokens
+        require(
+            _checkOnERC721Received(from, to, tokenId, ""),
+            "MO-NFT: transfer to non ERC721Receiver implementer"
+        );
     }
 
     function safeTransferFrom(
-        address,
-        address,
-        uint256,
-        bytes memory
-    ) public pure override {
-        revert("MO-NFT: safeTransferFrom is forbidden");
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) public override isNotArchived(tokenId, from) {
+        // 1. Perform the multi-owner transfer logic
+        transferFrom(from, to, tokenId);
+
+        // 2. Call the internal function to check if `to` can handle ERC-721 tokens
+        require(
+            _checkOnERC721Received(from, to, tokenId, _data),
+            "MO-NFT: transfer to non ERC721Receiver implementer"
+        );
+    }
+
+    /**
+     * @dev Private helper to call `onERC721Received` on a target contract.
+     * Returns true if the target contract returns the correct function selector.
+     */
+    function _checkOnERC721Received(
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory _data
+    ) private returns (bool) {
+        // If `to` is not a contract, there's nothing to check.
+        if (to.code.length == 0) {
+            return true;
+        }
+
+        try
+            IERC721Receiver(to).onERC721Received(
+                msg.sender,
+                from,
+                tokenId,
+                _data
+            )
+        returns (bytes4 retval) {
+            return retval == IERC721Receiver.onERC721Received.selector;
+        } catch (bytes memory reason) {
+            if (reason.length == 0) {
+                revert("MO-NFT: transfer to non ERC721Receiver implementer");
+            } else {
+                // Bubble up any custom revert reason returned by the contract call
+                assembly {
+                    revert(add(32, reason), mload(reason))
+                }
+            }
+        }
     }
 
     function _transfer(address from, address to, uint256 tokenId) internal {
@@ -151,20 +235,19 @@ contract MultiOwnerNFT is Context, ERC165, IERC721, Ownable {
         emit TokenTransferred(tokenId, from, to);
     }
 
-    // New burn function
-    function burn(uint256 tokenId) external {
+    // Function to update the archived status for a specific owner of a token (permanent change)
+    function archive(uint256 tokenId) external {
         require(
-            isOwner(tokenId, _msgSender()),
-            "MO-NFT: Only an owner can burn their ownership"
+            isOwner(tokenId, msg.sender),
+            "MO-NFT: Caller is not the owner of this token"
         );
-
-        // Remove the caller from the owners set
-        _owners[tokenId].remove(_msgSender());
-
-        // Decrement the balance of the owner
-        _balances[_msgSender()] -= 1;
-
-        emit TokenBurned(tokenId, _msgSender());
+        // Once archived, the status cannot be reversed
+        require(
+            _archivedStatus[tokenId][msg.sender] == false,
+            "MO-NFT: Token can only be archived once for an owner"
+        );
+        _archivedStatus[tokenId][msg.sender] = true;
+        emit ArchivedStatusUpdated(tokenId, msg.sender, archived);
     }
 
     function supportsInterface(
