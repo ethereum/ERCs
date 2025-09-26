@@ -18,20 +18,18 @@ participant SettlementToken [
 ]
 
 participant EventHandler
-participant ValuationService
+participant ValuationOracle
 
 activate EventHandler
-'activate SettlementToken
-activate ValuationService
-
 activate CP1
 activate CP2
 
 group Initialize Trade
 CP1 ->SettlementToken: allocate balances
 CP2 ->SettlementToken: allocate balances
-activate SDC #8080FF
+
 CP1 ->SDC: tx '**deploy**' a SDC with token address
+activate SDC #8080FF
 
 CP1 ->SDC:                 tx '**inceptTrade**'
 
@@ -52,7 +50,7 @@ activate SDC #8080FF
     deactivate SDC
     activate SettlementToken #FF8080
 
-==  TradeState '**inTransfer**' ==
+==  TradeState '**InTransfer**' ==
 
     SettlementToken->SDC: callback tx '**afterTransfer**'
     deactivate SettlementToken
@@ -65,11 +63,11 @@ activate SDC #8080FF
     SDC-->EventHandler: emit SettlementAwaitingInitiation
     deactivate SDC
 
-==ProcessState '**Settled**' ==
-
 end
 
 loop Every Settlement
+
+== TradeState '**Settled**' ==
 
     CP1->SDC: tx: '**initiateSettlement**'
     activate SDC #8080FF
@@ -78,8 +76,10 @@ loop Every Settlement
 SDC-->EventHandler:emit SettlementRequested
     deactivate SDC
 
-EventHandler->ValuationService: request valuation data
-ValuationService->EventHandler: return valuation data
+    EventHandler->ValuationOracle: request valuation data
+    activate ValuationOracle #C0C000
+    ValuationOracle->EventHandler: return valuation data
+    deactivate ValuationOracle
 
 EventHandler->SDC: callback: tx '**performSettlement**'
     activate SDC #8080FF
@@ -92,7 +92,7 @@ SDC-->EventHandler: emit SettlementDetermined
     deactivate SDC
     activate SettlementToken #FF8080
 
-== TradeState '**inTransfer**' ==
+== TradeState '**InTransfer**' ==
 
 alt Transfer Check
 
@@ -171,7 +171,10 @@ else fail
 == TradeState '**Terminated**' ==
 end
 
-
 end
+
+deactivate EventHandler
+deactivate CP1
+deactivate CP2
 
 @enduml
