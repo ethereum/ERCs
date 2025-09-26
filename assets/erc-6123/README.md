@@ -63,3 +63,4 @@ npx hardhat test
 ### 0.8.0
 
 - Re-introduced the method `afterSettlement` that can be used to check pre-conditions of the next settlement cycle, e.g., triggered by a time-oracle.
+- Added the event `SettlementAwaitingInitiation` which should be issued when the trade goes active and when `afterSettlement` veryfied that the trade is ready for the next settlement.
