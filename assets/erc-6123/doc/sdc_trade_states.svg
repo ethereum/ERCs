@@ -298,14 +298,14 @@
 			</g>
 			<g id="shape381-85" v:mID="381" v:groupContext="shape" transform="translate(0,0.435219)">
 				<title>Sheet.381</title>
-				<desc>inTransfer</desc>
+				<desc>InTransfer</desc>
 				<v:userDefs>
 					<v:ud v:nameU="UmlRole" v:prompt="" v:val="VT4(Title)"/>
 				</v:userDefs>
 				<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
 				<v:textRect cx="35.4331" cy="584.074" width="70.87" height="22.4037"/>
 				<path d="M0 595.28 L70.87 595.28 L70.87 572.87 L0 572.87 L0 595.28 Z" class="st18"/>
-				<text x="10.61" y="587.67" class="st7" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>inTransfer</text>			</g>
+				<text x="10.61" y="587.67" class="st7" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>InTransfer</text>			</g>
 		</g>
 		<g id="shape398-88" v:mID="398" v:groupContext="shape" v:layerMember="0" transform="translate(470.318,-409.182)">
 			<title>Dynamischer Verbinder.398</title>
