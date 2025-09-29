@@ -2,7 +2,7 @@
 title: Agent Council Oracles
 description: Multi-agent councils to resolve information queries decentralized
 author: Rohan Parikh (@phiraml), Jon Michael Ross (@jonmross)
-discussions-to: [Link will be added]
+discussions-to: Link will be added
 status: Draft
 type: Standards Track  
 category: ERC  
