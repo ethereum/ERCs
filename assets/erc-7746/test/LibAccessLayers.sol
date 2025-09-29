@@ -6,7 +6,7 @@ library LibAccessLayers {
     bytes32 constant ACCESS_LAYERS_STORAGE_POSITION = keccak256("lib.access.layer.storage");
 
     struct LayerStruct {
-        address layerAddess;
+        address layerAddress;
         bytes4 beforeSig;
         bytes4 afterSig;
         bytes layerConfigData;
@@ -27,7 +27,7 @@ library LibAccessLayers {
         bytes4 afterCallMethodSignature
     ) internal {
         LayerStruct[] storage ls = accessLayersStorage();
-        ls[layerIndex].layerAddess = layerAddress;
+        ls[layerIndex].layerAddress = layerAddress;
         ls[layerIndex].layerConfigData = layerConfigData;
         ls[layerIndex].beforeSig = beforeCallMethodSignature;
         ls[layerIndex].afterSig = afterCallMethodSignature;
@@ -52,7 +52,7 @@ library LibAccessLayers {
     ) internal {
         LayerStruct[] storage ls = accessLayersStorage();
         LayerStruct memory newLayer = LayerStruct({
-            layerAddess: layerAddress,
+            layerAddress: layerAddress,
             layerConfigData: layerConfigData,
             beforeSig: beforeCallMethodSignature,
             afterSig: afterCallMethodSignature
@@ -91,7 +91,7 @@ library LibAccessLayers {
         bytes memory data,
         uint256 value
     ) internal returns (bytes memory) {
-        bytes memory retval = ILayer(layer.layerAddess).beforeCallValidation(
+        bytes memory retval = ILayer(layer.layerAddress).beforeCallValidation(
             layer.layerConfigData,
             _selector,
             sender,
@@ -138,7 +138,7 @@ library LibAccessLayers {
         uint256 value,
         bytes memory beforeCallReturnValue
     ) internal {
-        ILayer(layer.layerAddess).afterCallValidation(
+        ILayer(layer.layerAddress).afterCallValidation(
             layer.layerConfigData,
             _selector,
             sender,
