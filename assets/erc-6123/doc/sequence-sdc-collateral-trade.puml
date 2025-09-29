@@ -1,0 +1,91 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+title SmartDerivativeContract (ERC-6123). Trade Initialization. Variant with CollateralToken
+
+actor CP1
+actor CP2
+
+participant SDC [
+    **SDC** :
+    ----
+    ""ISDC, IAsyncTransferCallback""
+]
+
+participant CashToken [
+    **CashToken** :
+    ----
+    ""IAsyncTransfer""
+]
+
+participant CollateralToken [
+    **CollateralToken** :
+    ----
+    ""IAsyncTransfer""
+]
+
+participant EventHandler
+
+activate EventHandler
+'activate CashToken
+
+activate CP1
+activate CP2
+
+group Initialize Trade
+CP1 ->CashToken: allocate balances
+CP1 ->CollateralToken: allocate balances
+CP2 ->CashToken: allocate balances
+CP2 ->CollateralToken: allocate balances
+
+CP1 ->SDC: tx '**deploy**' a SDC with token address
+activate SDC #8080FF
+
+CP1 ->SDC:                 tx '**inceptTrade**'
+
+SDC-->EventHandler: emit TradeIncepted
+
+== TradeState '**Incepted**' ==
+deactivate SDC
+
+    CP2->SDC: tx '**confirmTrade**'
+activate SDC #8080FF
+    SDC->SDC: validate tradedata
+
+    SDC-->EventHandler: emit TradeConfirmed
+
+== TradeState '**Confirmed**' ==
+
+    group Initialize Tokens
+
+    SDC -> CollateralToken: tx '**transferBatchAndCallback**' \n- transfer margin buffers and termination fees to SDC address for CP1 and CP2\n- transfer optional <color:green>Initial Collateral</color> from Paying to Receiving Party
+    deactivate SDC
+    activate CollateralToken #40C040
+
+    CollateralToken->SDC: callback tx '**afterTransfer**'
+    deactivate CollateralToken
+    activate SDC #8080FF
+
+    SDC -> CashToken: tx '**transferBatchAndCallback**' \n-  transfer optional <color:red>Upfront Fee</color> from Paying to Receiving Party
+    deactivate SDC
+    activate CashToken #FF8080
+    CashToken->SDC: callback tx '**afterTransfer**'
+    deactivate CashToken
+    activate SDC #8080FF
+
+    |||
+    SDC-->EventHandler: emit TradeActivated
+
+end
+
+
+== TradeState '**Settled**' ==
+SDC-->EventHandler: emit SettlementAwaitingInitiation
+
+end
+
+deactivate SDC
+deactivate EventHandler
+deactivate CP1
+deactivate CP2
+
+@enduml

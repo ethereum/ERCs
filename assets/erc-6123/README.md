@@ -10,11 +10,23 @@ We provide the essential steps to compile the contracts and run the provided uni
 
 ### Provided Contracts and Tests
 
-- `contracts/ISDC.sol` - Interface contract
+#### Interfaces
+
+- `contracts/ISDC.sol` - Interface contract (aggregation of `ISDCTrade`, `ISDCSettlement`, `IAsyncTransferCallback`)
+- `contracts/ISDCTrade.sol` - Interface related to trade incept/confirm/terminate
+- `contracts/ISDCSettlement.sol` - Interface related to settlement initiate/perform/after
+- `contracts/IAsyncTransferCallback.sol` - Interface related to transfer.
+
+- `contracts/IAsyncTransfer.sol` - Interface (extending the ERC-20) for settlement tokens used in `SDCPledgedBalance`.
+
+#### Implementations
+
 - `contracts/SDCSingleTrade.sol` - SDC abstract contract for an OTC Derivative (single trade case only)
 - `contracts/SDCSingleTradePledgedBalance.sol` - SDC full implementation for an OTC Derivative (single trade case only)
-- `contracts/IERC20Settlement.sol` - Interface (extending the ERC-20) for settlement tokens used in `SDCPledgedBalance`.
 - `contracts/ERC20Settlement.sol` - Mintable settlement token contract implementing `IERC20Settlement` for unit tests
+
+#### Tests
+
 - `test/SDCTests.js` - Unit tests for the life-cycle of the sdc implementation
 
 ### Compile and run tests with Hardhat
@@ -34,7 +46,6 @@ Run all tests:
 npx hardhat test
 ```
 
-
 ### Configuration files
 
 - `package.js` - Javascript package definition.
@@ -46,3 +57,10 @@ npx hardhat test
 - `chai`: Chai is an assertion library and provides functions like expect.
 - `ethers`: This is a popular Ethereum client library. It allows you to interface with blockchains that implement the Ethereum API.
 - `solidity-coverage`: This library gives you coverage reports on unit tests with the help of Istanbul.
+
+## Version history / release notes
+
+### 0.8.0
+
+- Re-introduced the method `afterSettlement` that can be used to check pre-conditions of the next settlement cycle, e.g., triggered by a time-oracle.
+- Added the event `SettlementAwaitingInitiation` which should be issued when the trade goes active and when `afterSettlement` veryfied that the trade is ready for the next settlement.

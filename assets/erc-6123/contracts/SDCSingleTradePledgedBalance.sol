@@ -35,7 +35,7 @@ import "./ERC20Settlement.sol";
  *-------------------------------------*
 */
 
-contract SDCSingleTradePledgedBalance is SDCSingleTrade {
+contract SDCSingleTradePledgedBalance is SDCSingleTrade, ISDC {
 
     struct MarginRequirement {
         uint256 buffer;
@@ -96,28 +96,33 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
     * Good Case: state will be settled, failed settlement will trigger the pledge balance transfer and termination
     */
     function afterTransfer(bool success, uint256 transactionID, string memory transactionData) external override  {
-        if ( inStateConfirmed()){
-            if (success){
+        if (inStateConfirmed()) {
+            if (success) {
                 setTradeState(TradeState.Settled);
                 emit TradeActivated(getTradeID());
+                emit SettlementAwaitingInitiation("Awaiting Initiation of Settlement");
             }
-            else{
+            else {
                 setTradeState(TradeState.Terminated);
                 emit TradeTerminated(tradeID, "Upfront Transfer Failure");
             }
         }
-        else if ( inStateTransfer() ){
-            if (success){
+        else if (inStateTransfer()) {
+            if (success) {
                 setTradeState(TradeState.Settled);
                 emit SettlementTransferred(transactionID, transactionData);
             }
-            else{  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
+            else {  // Settlement & Pledge Case: transferAmount is transferred from SDC balance (i.e. pledged balance).
                 setTradeState(TradeState.InTermination);
                 emit SettlementFailed(transactionID, transactionData);
                 int256 settlementAmount = settlementAmounts[settlementAmounts.length-1];
                 processTerminationWithPledge(settlementAmount);
                 emit TradeTerminated(tradeID, "Settlement Failed - Pledge Transfer");
             }
+
+            // To adher to the protocol we call afterSettlement (but all work is done)
+            // - this is for illustration, removing the line may save gas
+            this.afterSettlement();
         }
         else if( inStateTermination() ){
             if (success){
@@ -131,6 +136,13 @@ contract SDCSingleTradePledgedBalance is SDCSingleTrade {
         }
         else
             revert("Trade State does not allow to call 'afterTransfer'");
+    }
+
+    /*
+     * afterSettlement - time tricker to verify that the contract has been prepared for the next settlement.
+     */
+    function afterSettlement() external override  {
+        emit SettlementAwaitingInitiation("Awaiting Initiation of next Settlement");
     }
 
     /*
