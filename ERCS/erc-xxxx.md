@@ -1,16 +1,13 @@
-# ERC-XXXX: Agent Council Oracles
-
-**Author:** Rohan Parikh (@phiraml), Jon Michael Ross (@jonmross)
-
-**Discussions-To:** [Link will be added]
-
-**Status:** Draft
-
-**Type:** Standards Track  
-
-**Category:** ERC  
-
-**Created:** 2025-09-28  
+---
+title: Agent Council Oracles
+description: Multi-agent councils to resolve information queries decentralized
+author: Rohan Parikh (@phiraml), Jon Michael Ross (@jonmross)
+discussions-to: [Link will be added]
+status: Draft
+type: Standards Track  
+category: ERC  
+created: 2025-09-28  
+---
 
 ## Abstract
 
