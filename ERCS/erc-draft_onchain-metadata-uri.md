@@ -51,6 +51,13 @@ onchain-metadata:?keys=...
 - `onchain-metadata` is the scheme.
 - The `keys` parameter is a comma-separated list of key names to fetch via getMetadata.
 
+**Base URI Example** (ERC-721):
+```
+onchain-metadata:
+```
+
+When clients encounter this base URI, they will resolve the `name`, `description`, and `image` keys from the `getMetadata` function.
+
 **Example** (backslash-wrapped for readability):
 ```
 onchain-metadata:?keys= \
