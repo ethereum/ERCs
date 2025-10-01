@@ -1,4 +1,5 @@
 ```
+eip:
 title: Royalty Standard for Referable NFTs
 description: A standalone royalty standard for Referable NFTs, supporting multiple recipients, reference-based royalty distribution.
 author: Ruiqiang Li (@richard-620) <richard.620.research@gmail.com>, Qin Wang <qin.wang@data61.csiro.au>, Shiping Chen <shiping.chen@data61.csiro.au>, Saber Yu (@OniReimu), Brian Yecies <byecies@uow.edu.au>, John Le <johnle@uow.edu.au>
