@@ -47,7 +47,6 @@ If implemented, tokenURI(tokenId) MAY return:
 ```
 onchain-metadata:?keys=...
 ```
-
 - `onchain-metadata` is the scheme.
 - The `keys` parameter is a comma-separated list of key names to fetch via getMetadata.
 
@@ -88,25 +87,31 @@ When implementing this ERC with ERC-8004 Identity Registries, the following addi
 
 #### ERC-8004 Required Fields (implicit keys)
 
-Along with `name`, `description`, and `image`, the following field is always resolved from the ERC-8004 registries and MUST NOT appear in the URI:
+Along with `name`, `description`, and `image`, the `type` field is always resolved from the ERC-8004 registries and MUST NOT appear in the URI:
 
 - `getMetadata(tokenId, bytes("type"))`
 
 #### Endpoints Format
 
-ERC-8004 implementations MUST support the endpoints array format when implementing endpoint metadata:
+ERC-8004 implementations MUST support the endpoints format when implementing endpoint metadata:
 
-**Required format**: Endpoings are encoded using dash-separated key names with explicit numeric indexes for each endpoint:
+**Endpoint key format**: Endpoints are encoded using dash-separated key names with explicit numeric indexes for each endpoint:
+
 - `endpoints-0-name, endpoints-0-endpoint, endpoints-0-version`
 - `endpoints-1-name, endpoints-1-endpoint, endpoints-1-version`
 
-**Implementation requirement**: ERC-8004 contracts implementing endpoint metadata MUST use the dash-separated array format with dense, sequential indexes starting from 0.
+Each endpoint key follows the pattern `endpoints-{index}-{field}` where:
+- `{index}` is a sequential number starting from 0
+- `{field}` is one of: `name`, `endpoint`, `version`
+- Indexes MUST be sequential without gaps (0, 1, 2, 3, ...)
+- Required fields (`name`, `endpoint`) MUST be present for each endpoint
+- Optional field (`version`) MAY be present for each endpoint
 
 #### Trust Model Keys
 
 ERC-8004 implementations MAY support trust model keys. If implemented, they MUST follow the canonical format defined below:
 
-**Canonical keys** (examples shown for dense array indexes):
+**Canonical keys** (examples shown in unordered list format):
 - `supportedTrust-reputation`
 - `supportedTrust-crypto-economic`
 - `supportedTrust-tee-attestation`
