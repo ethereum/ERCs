@@ -51,20 +51,19 @@ onchain-metadata:?keys=...
 - `onchain-metadata` is the scheme.
 - The `keys` parameter is a comma-separated list of key names to fetch via getMetadata.
 
-**Base URI Example** (ERC-721):
+### Required Fields (implicit keys)
+
+The following fields, `name`, `description`, and `image`, are always resolved from the contract and MUST NOT appear in the URI:
+
+- `getMetadata(tokenId, bytes("name"))` 
+- `getMetadata(tokenId, bytes("description"))`
+- `getMetadata(tokenId, bytes("image"))`
+
+**ERC-721 Base URI Example** (ERC-721):
 ```
 onchain-metadata:
 ```
-
 When clients encounter this base URI, they will resolve the `name`, `description`, and `image` keys from the `getMetadata` function.
-
-**Example** (backslash-wrapped for readability):
-```
-onchain-metadata:?keys= \
-  endpoints-0-name, \
-  endpoints-0-endpoint, \
-  endpoints-0-version
-```
 
 **ERC-8004 Example** (includes optional trust model keys):
 ```
@@ -72,42 +71,24 @@ onchain-metadata:?keys= \
   endpoints-0-name, \
   endpoints-0-endpoint, \
   endpoints-0-version, \
-  supportedTrust-0-reputation, \
-  supportedTrust-1-crypto-economic, \
-  supportedTrust-2-tee-attestation
+  supportedTrust-reputation, \
+  supportedTrust-crypto-economic, \
+  supportedTrust-tee-attestation
 ```
-
-### Required Fields (implicit)
-
-The following fields are always resolved from the contract and MUST NOT appear in the URI:
-
-- `getMetadata(tokenId, bytes("name"))`
-- `getMetadata(tokenId, bytes("description"))`
-- `getMetadata(tokenId, bytes("image"))`
 
 ### Keys, Encoding, and Return Values
 
-- Key names in `keys=` are limited to `[a-z0-9-]`; when calling the contract they are provided as `bytes(keyName)`.
+- Key names in `keys=` are limited to `[a-z0-9-]` UTF-8 encoded; when calling the contract they are provided as `bytes(keyName)`.
 - Return type: unless specified otherwise, `getMetadata(tokenId, key)` MUST return a bytes value containing a UTF-8 string.
 
-### Arrays
-
-Arrays are encoded using dash-separated key names with explicit numeric indexes:
-
-- **Form**: `<arrayName>-<index>-<field>` (e.g., `endpoints-0-endpoint`)
-- Indexes MUST start at 0, be sequential with no holes (0,1,2,…,n), and appear in ascending order in keys.
-
-**Example keys for endpoints**:
-- `endpoints-0-name, endpoints-0-endpoint, endpoints-0-version`
-- `endpoints-1-name, endpoints-1-endpoint, endpoints-1-version`
 
 ### ERC-8004 Implementation
 
 When implementing this ERC with ERC-8004 Identity Registries, the following additional specifications apply:
 
-#### Required Fields (implicit)
+#### ERC-8004 Required Fields (implicit keys)
 
-The following field is always resolved from the contract and MUST NOT appear in the URI:
+Along with `name`, `description`, and `image`, the following field is always resolved from the ERC-8004 registries and MUST NOT appear in the URI:
 
 - `getMetadata(tokenId, bytes("type"))`
 
@@ -115,7 +96,7 @@ The following field is always resolved from the contract and MUST NOT appear in 
 
 ERC-8004 implementations MUST support the endpoints array format when implementing endpoint metadata:
 
-**Required format**: Arrays are encoded using dash-separated key names with explicit numeric indexes:
+**Required format**: Endpoings are encoded using dash-separated key names with explicit numeric indexes for each endpoint:
 - `endpoints-0-name, endpoints-0-endpoint, endpoints-0-version`
 - `endpoints-1-name, endpoints-1-endpoint, endpoints-1-version`
 
@@ -126,9 +107,9 @@ ERC-8004 implementations MUST support the endpoints array format when implementi
 ERC-8004 implementations MAY support trust model keys. If implemented, they MUST follow the canonical format defined below:
 
 **Canonical keys** (examples shown for dense array indexes):
-- `supportedTrust-0-reputation`
-- `supportedTrust-1-crypto-economic`
-- `supportedTrust-2-tee-attestation`
+- `supportedTrust-reputation`
+- `supportedTrust-crypto-economic`
+- `supportedTrust-tee-attestation`
 
 **Value type**: bytes used as a boolean flag:
 - `0x01` = supported
