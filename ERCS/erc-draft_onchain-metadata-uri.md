@@ -62,7 +62,7 @@ When clients encounter this base URI, they will resolve the `name`, `description
 ```
 onchain-metadata:?keys= \
   endpoints-0-name, \
-  endpoints-0-uri, \
+  endpoints-0-endpoint, \
   endpoints-0-version
 ```
 
@@ -70,7 +70,7 @@ onchain-metadata:?keys= \
 ```
 onchain-metadata:?keys= \
   endpoints-0-name, \
-  endpoints-0-uri, \
+  endpoints-0-endpoint, \
   endpoints-0-version, \
   supportedTrust-0-reputation, \
   supportedTrust-1-crypto-economic, \
@@ -94,12 +94,12 @@ The following fields are always resolved from the contract and MUST NOT appear i
 
 Arrays are encoded using dash-separated key names with explicit numeric indexes:
 
-- **Form**: `<arrayName>-<index>-<field>` (e.g., `endpoints-0-uri`)
+- **Form**: `<arrayName>-<index>-<field>` (e.g., `endpoints-0-endpoint`)
 - Indexes MUST start at 0, be sequential with no holes (0,1,2,…,n), and appear in ascending order in keys.
 
 **Example keys for endpoints**:
-- `endpoints-0-name, endpoints-0-uri, endpoints-0-version`
-- `endpoints-1-name, endpoints-1-uri, endpoints-1-version`
+- `endpoints-0-name, endpoints-0-endpoint, endpoints-0-version`
+- `endpoints-1-name, endpoints-1-endpoint, endpoints-1-version`
 
 ### ERC-8004 Implementation
 
@@ -116,8 +116,8 @@ The following field is always resolved from the contract and MUST NOT appear in 
 ERC-8004 implementations MUST support the endpoints array format when implementing endpoint metadata:
 
 **Required format**: Arrays are encoded using dash-separated key names with explicit numeric indexes:
-- `endpoints-0-name, endpoints-0-uri, endpoints-0-version`
-- `endpoints-1-name, endpoints-1-uri, endpoints-1-version`
+- `endpoints-0-name, endpoints-0-endpoint, endpoints-0-version`
+- `endpoints-1-name, endpoints-1-endpoint, endpoints-1-version`
 
 **Implementation requirement**: ERC-8004 contracts implementing endpoint metadata MUST use the dash-separated array format with dense, sequential indexes starting from 0.
 
