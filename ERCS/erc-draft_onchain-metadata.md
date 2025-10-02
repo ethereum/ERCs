@@ -1,6 +1,6 @@
 ---
 title: Onchain Metadata for Multicoin and NFT Registries
-description: A key-value store interface that allows contracts to store and retrieve arbitrary bytes as metadata directly onchain, eliminating the need for offchain JSON metadata.
+description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain, eliminating the need for offchain JSON metadata.
 author: nxt3d (@nxt3d)
 discussions-to: <URL>
 status: Draft
@@ -24,7 +24,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Scope
 
-This ERC is an optional extension that MAY be implemented by any ERC-721, ERC-6909, or ERC-8004 compliant contracts.
+This ERC is an optional extension that MAY be implemented by any ERC-721, ERC-6909, or ERC-8004 compliant registries.
 
 ### Required Metadata Function
 
@@ -65,14 +65,14 @@ If not otherwise specified, the key and value should be a bytes encoding of a UT
 
 The inspiration for this standard was trustless AI agents. An example of how this could be used is with a key for onchain context data, designed to be consumed by AI agents.
 
-#### Example: "root-context" Key for LLM-Facing Agent Metadata
+#### Example: Context for LLM-Facing Agent Metadata
 
-A typical usage for LLM-facing agents is to provide a "root-context" key that contains a concise, machine-readable description of the agent's identity, purpose, and capabilities. This context can be used by LLMs or other AI systems as a first point of connection to bootstrap interactions with the agent.
+A typical usage for LLM-facing agents is to provide context that contains machine-readable descriptions of the agent's identity, purpose, and capabilities. For example, using a key like `bytes("root-context")` to store agent information. This context can be used by LLMs or other AI systems as a first point of connection to bootstrap interactions with the agent.
 
 **Example:**
 
-- Key: `root-context`
-- Value (UTF-8 string, unstructured text, markdown, JSON, etc.):
+- Key: `bytes("context")`
+- Value: `bytes("AI agent specialized in DeFi analysis and trading recommendations")`
 
 #### Example: Biometric Identity for Proof of Personhood
 
