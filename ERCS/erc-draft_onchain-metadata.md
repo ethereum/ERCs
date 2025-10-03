@@ -1,7 +1,7 @@
 ---
 title: Onchain Metadata for Multicoin and NFT Registries
 description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain, eliminating the need for offchain JSON metadata.
-author: nxt3d (@nxt3d)
+author: Prem Makeig (@nxt3d)
 discussions-to: <URL>
 status: Draft
 type: Standards Track
@@ -12,11 +12,11 @@ requires: 165
 
 ## Abstract
 
-This ERC defines the onchain-metadata standard for multicoin and NFT registries including ERC-721, ERC-6909, and ERC-8004. The standard provides a key-value store allowing for arbitrary bytes to be stored onchain.
+This ERC defines an onchain metadata standard for multicoin and NFT registries including ERC-721, ERC-1155, ERC-6909, and ERC-8004. The standard provides a key-value store allowing for arbitrary bytes to be stored onchain.
 
 ## Motivation
 
-This ERC addresses the need for fully onchain metadata while maintaining compatibility with existing ERC-721, ERC-6909, and ERC-8004 standards. It has been a long-felt need for developers to store metadata onchain for NFTs and other multitoken contracts; however, there has been no uniform standard way to do this. Some projects have used the tokenURI field to store metadata using Data URLs, which is not ideal, as this introduces gas inefficiencies, and has other downstream effects (for example making storage proofs more complex). This standard provides a uniform way to store metadata onchain, and is backwards compatible with existing ERC-721, ERC-6909, and ERC-8004 standards.
+This ERC addresses the need for fully onchain metadata while maintaining compatibility with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards. It has been a long-felt need for developers to store metadata onchain for NFTs and other multitoken contracts; however, there has been no uniform standard way to do this. Some projects have used the tokenURI field to store metadata onchain using Data URLs, which is not ideal, as this introduces gas inefficiencies, and has other downstream effects (for example making storage proofs more complex). This standard provides a uniform way to store metadata onchain, and is backwards compatible with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards.
 
 ## Specification
 
@@ -24,16 +24,19 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Scope
 
-This ERC is an optional extension that MAY be implemented by any ERC-721, ERC-6909, or ERC-8004 compliant registries.
+This ERC is an optional extension that MAY be implemented by any ERC-721, ERC-1155, ERC-6909, or ERC-8004 compliant registries.
 
-### Required Metadata Function
+### Required Metadata Function and Event
 
-Contracts implementing this ERC MUST expose the following function:
+Contracts implementing this ERC MUST implement the following interface:
 
 ```solidity
 interface IOnchainMetadata {
     /// @notice Get metadata value for a key (bytes of UTF-8 unless specified otherwise).
     function getMetadata(uint256 tokenId, bytes calldata key) external view returns (bytes memory);
+    
+    /// @notice Emitted when metadata is set for a token.
+    event OnchainMetadataSet(uint256 indexed tokenId, bytes key, bytes32 value);
 }
 ```
 
@@ -52,7 +55,7 @@ The interface ID for `IOnchainMetadata` is `0x8476e84b`.
 Contracts implementing this ERC MUST emit the following event when metadata is set:
 
 ```solidity
-event MetadataSet(uint256 indexed tokenId, bytes key, bytes32 value);
+event OnchainMetadataSet(uint256 indexed tokenId, bytes key, bytes32 value);
 ```
 
 ### Key/Value Pairs
@@ -71,8 +74,8 @@ A typical usage for LLM-facing agents is to provide context that contains machin
 
 **Example:**
 
-- Key: `bytes("context")`
-- Value: `bytes("AI agent specialized in DeFi analysis and trading recommendations")`
+- Key: `bytes("root-context")`
+- Value: `bytes("This ERC-8004 AI agent is specialized in DeFi analysis and trading recommendations.")`
 
 #### Example: Biometric Identity for Proof of Personhood
 
@@ -85,16 +88,16 @@ A biometric identity system using open source hardware to create universal proof
 
 ## Rationale
 
-This design prioritizes simplicity and flexibility by using a bytes-based key-value store that allows any data type to be stored without encoding restrictions. The minimal interface with a single `getMetadata` function provides all necessary functionality while remaining backwards compatible with existing ERC-721, ERC-6909, and ERC-8004 standards. The optional `setMetadata` function enables flexible access control for metadata updates. The required `MetadataSet` event provides transparent audit trails and efficient offchain indexing. This makes the standard suitable for diverse use cases including AI agents, proof of personhood systems, and custom metadata storage.
+This design prioritizes simplicity and flexibility by using a bytes-based key-value store that allows any data type to be stored without encoding restrictions. The minimal interface with a single `getMetadata` function provides all necessary functionality while remaining backwards compatible with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards. The optional `setMetadata` function enables flexible access control for metadata updates. The required `OnchainMetadataSet` event provides transparent audit trails and efficient offchain indexing. This makes the standard suitable for diverse use cases including AI agents, proof of personhood systems, and custom metadata storage.
 
 ## Backwards Compatibility
 
-- Fully compatible with ERC-721, ERC-6909, and ERC-8004.
+- Fully compatible with ERC-721, ERC-1155, ERC-6909, and ERC-8004.
 - Non-supporting clients can ignore the scheme.
 
 ## Reference Implementation
 
-The interface is defined in the Required Metadata Function section above. Implementations should follow the standard ERC-721, ERC-6909, or ERC-8004 patterns while adding the required metadata function.
+The interface is defined in the Required Metadata Function and Event section above. Implementations should follow the standard ERC-721, ERC-1155, ERC-6909, or ERC-8004 patterns while adding the required metadata function and event.
 
 ## Security Considerations
 
