@@ -55,7 +55,7 @@ The interface ID for `IOnchainMetadata` is `0x8476e84b`.
 Contracts implementing this ERC MUST emit the following event when metadata is set:
 
 ```solidity
-event OnchainMetadataSet(uint256 indexed tokenId, bytes key, bytes32 value);
+event OnchainMetadataSet(uint256 indexed tokenId, bytes key, bytes indexed value);
 ```
 
 ### Key/Value Pairs
@@ -97,7 +97,40 @@ This design prioritizes simplicity and flexibility by using a bytes-based key-va
 
 ## Reference Implementation
 
-The interface is defined in the Required Metadata Function and Event section above. Implementations should follow the standard ERC-721, ERC-1155, ERC-6909, or ERC-8004 patterns while adding the required metadata function and event.
+The interface is defined in the Required Metadata Function and Event section above. Here is a reference implementation:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IOnchainMetadata.sol";
+
+contract OnchainMetadataExample is IOnchainMetadata {
+    // Mapping from tokenId => key => value
+    mapping(uint256 => mapping(bytes => bytes)) private _metadata;
+    
+    /// @notice Get metadata value for a key
+    function getMetadata(uint256 tokenId, bytes calldata key) 
+        external view override returns (bytes memory) {
+        return _metadata[tokenId][key];
+    }
+    
+    /// @notice Set metadata for a token (optional implementation)
+    function setMetadata(uint256 tokenId, bytes calldata key, bytes calldata value) 
+        external {
+        _metadata[tokenId][key] = value;
+        emit OnchainMetadataSet(tokenId, key, value);
+    }
+    
+    /// @notice ERC-165 interface detection
+    function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
+        return interfaceId == type(IOnchainMetadata).interfaceId || 
+               super.supportsInterface(interfaceId);
+    }
+}
+```
+
+Implementations should follow the standard ERC-721, ERC-1155, ERC-6909, or ERC-8004 patterns while adding the required metadata function and event.
 
 ## Security Considerations
 
