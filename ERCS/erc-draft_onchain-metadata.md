@@ -1,6 +1,6 @@
 ---
 title: Onchain Metadata for Multicoin and NFT Registries
-description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain, eliminating the need for offchain JSON metadata.
+description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain.
 author: Prem Makeig (@nxt3d)
 discussions-to: <URL>
 status: Draft
@@ -16,7 +16,7 @@ This ERC defines an onchain metadata standard for multicoin and NFT registries i
 
 ## Motivation
 
-This ERC addresses the need for fully onchain metadata while maintaining compatibility with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards. It has been a long-felt need for developers to store metadata onchain for NFTs and other multitoken contracts; however, there has been no uniform standard way to do this. Some projects have used the tokenURI field to store metadata onchain using Data URLs, which is not ideal, as this introduces gas inefficiencies, and has other downstream effects (for example making storage proofs more complex). This standard provides a uniform way to store metadata onchain, and is backwards compatible with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards.
+This ERC addresses the need for fully onchain metadata while maintaining compatibility with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards. It has been a long-felt need for developers to store metadata onchain for NFTs and other multitoken contracts; however, there has been no uniform standard way to do this. Some projects have used the tokenURI field to store metadata onchain using Data URLs, which introduces gas inefficiencies and has other downstream effects (for example making storage proofs more complex). This standard provides a uniform way to store metadata onchain, and is backwards compatible with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards.
 
 ## Specification
 
@@ -134,7 +134,7 @@ Implementations should follow the standard ERC-721, ERC-1155, ERC-6909, or ERC-8
 
 ## Security Considerations
 
-None. This ERC is designed to put metadata onchain, eliminating the security risks associated with offchain metadata.
+This ERC is designed to put metadata onchain, providing security benefits through onchain storage.
 
 ## Copyright
 
