@@ -1,5 +1,5 @@
 ---
-title: Onchain Metadata for Multicoin and NFT Registries
+title: Onchain Metadata for Multi-Token and NFT Registries
 description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain.
 author: Prem Makeig (@nxt3d)
 discussions-to: <URL>
@@ -12,7 +12,7 @@ requires: 165
 
 ## Abstract
 
-This ERC defines an onchain metadata standard for multicoin and NFT registries including ERC-721, ERC-1155, ERC-6909, and ERC-8004. The standard provides a key-value store allowing for arbitrary bytes to be stored onchain.
+This ERC defines an onchain metadata standard for multi-token and NFT registries including ERC-721, ERC-1155, ERC-6909, and ERC-8004. The standard provides a key-value store allowing for arbitrary bytes to be stored onchain.
 
 ## Motivation
 
