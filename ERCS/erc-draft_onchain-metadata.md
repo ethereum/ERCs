@@ -50,12 +50,6 @@ Contracts implementing this ERC MUST emit the following event when metadata is s
 event MetadataSet(uint256 indexed agentId, string indexed indexedKey, string key, bytes value);
 ```
 
-### ERC-165 Interface Detection
-
-Contracts implementing this ERC MUST implement ERC-165 and return `true` when `supportsInterface(0xcb4799f2)` is called.
-
-The interface ID for `IOnchainMetadata` is `0xcb4799f2`.
-
 ### Key/Value Pairs
 
 This ERC specifies that the key is a string type and the value is bytes type. This provides flexibility for storing any type of data while maintaining an intuitive string-based key interface.
@@ -79,9 +73,9 @@ Examples of keys are "agentWallet" or "agentName".
 
 A biometric identity system using open source hardware to create universal proof of personhood tokens.
 
-- Key: `"biometric_hash"` → Value: `bytes32(identity_commitment)`
-- Key: `"verification_time"` → Value: `bytes(uint256(timestamp))`
-- Key: `"device_proof"` → Value: `bytes32(device_attestation)`
+- Key: `"biometric_hash"` → Value: `bytes(bytes32(identity_commitment))`
+- Key: `"verification_time"` → Value: `bytes(bytes32(timestamp))`
+- Key: `"device_proof"` → Value: `bytes(bytes32(device_attestation))`
 
 
 ## Rationale
@@ -118,12 +112,6 @@ contract OnchainMetadataExample is IOnchainMetadata {
         external {
         _metadata[agentId][key] = value;
         emit MetadataSet(agentId, key, key, value);
-    }
-    
-    /// @notice ERC-165 interface detection
-    function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
-        return interfaceId == type(IOnchainMetadata).interfaceId || 
-               super.supportsInterface(interfaceId);
     }
 }
 ```
