@@ -7,7 +7,7 @@ discussions-to: https://ethereum-magicians.org/t/add-erc-contract-level-onchain-
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-10-02
+created: 2025-10-10
 ---
 
 ## Abstract
