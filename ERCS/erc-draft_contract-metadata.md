@@ -103,8 +103,9 @@ contract MyContract is IERCXXXX {
         mapping(string key => bytes value) metadata;
     }
 
+    // keccak256(abi.encode(uint256(keccak256("contract.metadata")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CONTRACT_METADATA_STORAGE_LOCATION =
-        keccak256(abi.encode(uint256(keccak256("contract.metadata")) - 1)) & ~bytes32(uint256(0xff));
+        0x5ef4383c549a33d0f2cb88bef8be6c7996af4b88e104ed307324efc569798d00;
 
     function _getContractMetadataStorage() private pure returns (ContractMetadataStorage storage $) {
         bytes32 location = CONTRACT_METADATA_STORAGE_LOCATION;
