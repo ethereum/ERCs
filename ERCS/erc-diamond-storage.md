@@ -3,11 +3,11 @@ EIP: TBA
 title: Diamond Storage
 description: Define storage locations for structs using human-readable, meaningful strings.
 author: Nick Mudge (@mudgen)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-tba-diamond-storage/25718
 status: Draft
 type: Standards Track
-category: ERC # Only required for Standards Track. Otherwise, remove this field.
-created: <date created on, in ISO 8601 (yyyy-mm-dd) format>
+category: ERC
+created: 2025-10-11
 requires: EIP-7201
 ---
 
