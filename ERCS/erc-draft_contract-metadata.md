@@ -1,7 +1,7 @@
 ---
 eip: TBD
 title: Contract-Level Onchain Metadata
-description: A standard for storing contract-level metadata onchain using ERC-7201 namespaced storage for predictable storage locations.
+description: A standard for storing contract-level metadata onchain using Diamond Storage pattern for predictable storage locations.
 author: Prem Makeig (@nxt3d)
 discussions-to: https://ethereum-magicians.org/t/add-erc-contract-level-onchain-metadata/25656
 status: Draft
@@ -12,11 +12,11 @@ created: 2025-10-10
 
 ## Abstract
 
-This ERC defines a standard for storing contract-level metadata onchain using ERC-7201 namespaced storage. It extends ERC-7572's contract-level metadata concept by providing onchain storage with predictable storage locations, enabling cross-chain compatibility and supporting upgradable contracts.
+This ERC defines a standard for storing contract-level metadata onchain using Diamond Storage pattern. It extends ERC-7572's contract-level metadata concept by providing onchain storage with predictable storage locations, enabling cross-chain compatibility and supporting upgradable contracts.
 
 ## Motivation
 
-ERC-7572 provides a standard for contract-level metadata via contractURI(), but it primarily focuses on offchain metadata storage. This ERC extends that concept by providing onchain storage with predictable storage locations using ERC-7201 namespaced storage, enabling cross-chain compatibility and supporting upgradable contracts with consistent storage layout.
+ERC-7572 provides a standard for contract-level metadata via contractURI(), but it primarily focuses on offchain metadata storage. This ERC extends that concept by providing onchain storage with predictable storage locations using Diamond Storage pattern, enabling cross-chain compatibility and supporting upgradable contracts with consistent storage layout.
 
 ## Specification
 
@@ -52,7 +52,7 @@ event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value
 
 ### Storage Layout
 
-Contracts implementing this ERC MUST use ERC-7201 namespaced storage with the namespace ID `"contract.metadata"`.
+Contracts implementing this ERC MUST use Diamond Storage pattern with the namespace ID `"ercXXXX.contract.metadata.storage"`.
 
 ### Key/Value Pairs
 
@@ -83,7 +83,7 @@ This allows clients to discover the contract's ENS name and resolve it to get ad
 
 ## Rationale
 
-This design prioritizes simplicity and flexibility by using a string-key, bytes-value store that provides an intuitive interface for any type of contract metadata. The minimal interface with a single `getContractMetadata` function provides all necessary functionality while leveraging ERC-7201 namespaced storage for predictable storage locations. The optional `setContractMetadata` function enables flexible access control for metadata updates. The required `ContractMetadataUpdated` event provides transparent audit trails with indexed key for efficient filtering. This makes the standard suitable for diverse use cases including contract identification, collaboration tracking, and custom metadata storage.
+This design prioritizes simplicity and flexibility by using a string-key, bytes-value store that provides an intuitive interface for any type of contract metadata. The minimal interface with a single `getContractMetadata` function provides all necessary functionality while leveraging Diamond Storage pattern for predictable storage locations. The optional `setContractMetadata` function enables flexible access control for metadata updates. The required `ContractMetadataUpdated` event provides transparent audit trails with indexed key for efficient filtering. This makes the standard suitable for diverse use cases including contract identification, collaboration tracking, and custom metadata storage.
 
 ## Backwards Compatibility
 
@@ -98,14 +98,13 @@ pragma solidity ^0.8.20;
 import "./IERCXXXX.sol";
 
 contract MyContract is IERCXXXX {
-    /// @custom:storage-location erc7201:contract.metadata
     struct ContractMetadataStorage {
         mapping(string key => bytes value) metadata;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("contract.metadata")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256("ercXXXX.contract.metadata.storage")
     bytes32 private constant CONTRACT_METADATA_STORAGE_LOCATION =
-        0x5ef4383c549a33d0f2cb88bef8be6c7996af4b88e104ed307324efc569798d00;
+        keccak256("ercXXXX.contract.metadata.storage");
 
     function _getContractMetadataStorage() private pure returns (ContractMetadataStorage storage $) {
         bytes32 location = CONTRACT_METADATA_STORAGE_LOCATION;
@@ -129,7 +128,7 @@ contract MyContract is IERCXXXX {
 
 ## Security Considerations
 
-This ERC uses ERC-7201 namespaced storage to prevent storage collisions and ensure predictable storage locations. Implementers should also consider the security considerations of ERC-721.
+This ERC uses Diamond Storage pattern to prevent storage collisions and ensure predictable storage locations. Implementers should also consider the security considerations of ERC-721.
 
 ## Copyright
 
