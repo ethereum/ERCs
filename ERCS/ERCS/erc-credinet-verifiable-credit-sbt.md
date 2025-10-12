@@ -1,5 +1,5 @@
 ---
-eip: 7xxx
+eip: 7999
 title: CrediNet Verifiable Credit SBT
 description: ERC-721–compatible, non-transferable credit credential with verifiable snapshot anchoring, revoke/replace lifecycle, optional expiry, and DID/VC hooks for privacy-preserving verification.
 author: CrediNet Core Team <zc040809@gmail.com>
