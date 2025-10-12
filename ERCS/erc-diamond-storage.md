@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-10-11
-requires: EIP-7201
+requires: 7201
 ---
 
 ## Abstract
