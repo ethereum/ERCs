@@ -1,9 +1,9 @@
 ---
-EIP: TBA
+EIP: 8042
 title: Diamond Storage
 description: Define storage locations for structs using human-readable, meaningful strings.
 author: Nick Mudge (@mudgen)
-discussions-to: https://ethereum-magicians.org/t/erc-tba-diamond-storage/25718
+discussions-to: https://ethereum-magicians.org/t/erc-8042-diamond-storage/25718
 status: Draft
 type: Standards Track
 category: ERC
@@ -16,7 +16,7 @@ This standard formalizes the diamond storage pattern originally introduced by ER
 
 Diamond storage defines struct locations in contract storage using the `keccak256` hash of human-readable identifiers.
 
-ERC-8035 standardizes this simple and production-proven approach, offering a lightweight alternative to ERC-7201 for new and existing projects.
+ERC-8042 standardizes this simple and production-proven approach, offering a lightweight alternative to ERC-7201 for new and existing projects.
 
 
 ## Motivation
@@ -25,9 +25,9 @@ On March 10, 2020, a change to the Solidity compiler introduced the ability to a
 
 Later, on June 20, 2023, ERC-7201 was introduced to standardize this general storage pattern. However, the formula that ERC-7201 proposed for generating storage locations differed from the one already established and in active use by diamond storage.
 
-ERC-8035 standardizes diamond storage for new projects and validates past diamond storage implementations.
+ERC-8042 standardizes diamond storage for new projects and validates past diamond storage implementations.
 
-While ERC-7201 defines a generalized mechanism for storage namespaces, ERC-8035 preserves the simplicity and backward compatibility of the diamond storage convention already deployed in production across many projects.
+While ERC-7201 defines a generalized mechanism for storage namespaces, ERC-8042 preserves the simplicity and backward compatibility of the diamond storage convention already deployed in production across many projects.
 
 Developers may prefer diamond storage for its simplicity, restricted ASCII identifiers, and direct hash-based computation of storage locations.
 
@@ -72,11 +72,11 @@ The location of a diamond storage struct is determined by the `keccak256` hash o
    Including the space (`0x20`) character in diamond storage identifiers is not recommended, as it may interfere with tooling such as the NatSpec tag described next.
 
 
-### ERC-8035 NatSpec tag
+### ERC-8042 NatSpec tag
 
 ERC-7201 defines the NatSpec tag `@custom:storage-location <FORMULA_ID>:<NAMESPACE_ID>`, where `<FORMULA_ID>` identifies a formula used to compute the storage location of a struct based on the namespace id.
 
-The formula identified by `erc8035` is defined as `erc8035(id: string literal) = keccak256(id)`. In Solidity, this corresponds to the expression `keccak256(id)`. When using this formula the annotation becomes `@custom:storage-location erc8035:<NAMESPACE_ID>`. For example, `@custom:storage-location erc8035:myproject.erc721.registry` annotates diamond storage with id `"myproject.erc721.registry"` rooted at `erc8035("myproject.erc721.registry")`.
+The formula identified by `erc8042` is defined as `erc8042(id: string literal) = keccak256(id)`. In Solidity, this corresponds to the expression `keccak256(id)`. When using this formula the annotation becomes `@custom:storage-location erc8042:<NAMESPACE_ID>`. For example, `@custom:storage-location erc8042:myproject.erc721.registry` annotates diamond storage with id `"myproject.erc721.registry"` rooted at `erc8042("myproject.erc721.registry")`.
 
 
 ## Rationale
@@ -87,13 +87,13 @@ In March 2020, diamond storage established a way to do this and has been in use 
 
 In June 2023, ERC-7201 standardized the general pattern but has looser restrictions on namespace ids and a more complicated formula for calculating storage locations. Some people may prefer using ERC-7201, especially if they may auto-generate machine-readable or random strings for their namespace ids.
 
-Some people may prefer ERC-8035 for its ASCII-enforced, human-readable, meaningful strings and simple calculation of storage locations.
+Some people may prefer ERC-8042 for its ASCII-enforced, human-readable, meaningful strings and simple calculation of storage locations.
 
-ERC-8035 depends conceptually on ERC-2535 Diamonds, which first introduced the pattern of distinct storage areas for modular contracts. ERC-7201 later standardized the idea. ERC-8035 standardizes the original, simpler diamond storage variant for new projects and legacy compatibility.
+ERC-8042 depends conceptually on ERC-2535 Diamonds, which first introduced the pattern of distinct storage areas for modular contracts. ERC-7201 later standardized the idea. ERC-8042 standardizes the original, simpler diamond storage variant for new projects and legacy compatibility.
 
-ERC-8035 does not introduce new syntax or compiler features. It standardizes an existing convention, making it compatible with all Solidity versions supporting `keccak256` and user-defined storage slots.
+ERC-8042 does not introduce new syntax or compiler features. It standardizes an existing convention, making it compatible with all Solidity versions supporting `keccak256` and user-defined storage slots.
 
-### Comparing ERC-8035 and ERC-7201
+### Comparing ERC-8042 and ERC-7201
 
 #### ERC-7201
 
@@ -105,13 +105,13 @@ ERC-7201 uses the following formula, given in Solidity, to generate a storage lo
 
    2. The last part of ERC-7201, `& ~bytes32(uint256(0xff))` ensures that the final storage location is a multiple of 256 which may provide a gas optimization in the future.
 
-#### ERC-8035
+#### ERC-8042
 
-ERC-8035 identifiers can only contain printable ASCII characters and recommends using Solidity's string literals which enforces this constraint.
+ERC-8042 identifiers can only contain printable ASCII characters and recommends using Solidity's string literals which enforces this constraint.
 
-ERC-8035 recommends human-readable, meaningful strings for diamond storage identifiers. 
+ERC-8042 recommends human-readable, meaningful strings for diamond storage identifiers. 
 
-ERC-8035 uses the following formula, given in Solidity, to generate a storage location: `keccak256(string literal)`.
+ERC-8042 uses the following formula, given in Solidity, to generate a storage location: `keccak256(string literal)`.
 
 ## Backwards Compatibility
 
@@ -130,8 +130,8 @@ library ERC721RegistryLib {
   bytes32 constant STORAGE_POSITION = 
     keccak256("myproject.erc721.registry");
 
-  // Storage defined using the ERC-8035 standard
-  // @custom:storage-location erc8035:myproject.erc721.registry
+  // Storage defined using the ERC-8042 standard
+  // @custom:storage-location erc8042:myproject.erc721.registry
   struct ERC721RegistryStorage {
     address[] erc721Contracts;
     uint256 registryLimit;    
