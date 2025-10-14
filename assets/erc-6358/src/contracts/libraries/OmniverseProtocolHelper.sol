@@ -46,7 +46,7 @@ enum VerifyResult {
  * @notice The library is mainly responsible for omniverse transaction verification and
  * provides some basic methods.
  * NOTE The verification method is for reference only, and developers can design appropriate
- * verification mechanism based on their bussiness logic.
+ * verification mechanism based on their business logic.
  */
 library OmniverseProtocolHelper {
     /**
