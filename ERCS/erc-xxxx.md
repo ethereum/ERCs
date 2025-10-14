@@ -1,7 +1,7 @@
 ---
 eip: XXXX
-title: Atomic Module Installation for ERC-7579 Smart Accounts
-description: Standard for installing and using ERC-7579 modules within a single user operation
+title: Enable Mode for module installation in ERC-7579 Smart Accounts
+description: Install and use ERC-7579 modules within a single user operation
 author: Ernesto Garcia (@ernestognw), Taek Lee (@leekt)
 discussions-to: TBD
 status: Draft
@@ -13,7 +13,7 @@ requires: 712, 1271, 4337, 7579
 
 ## Abstract
 
-This ERC defines a standard mechanism for [ERC-7579] compliant smart accounts to install and immediately use modules within a single user operation. The standard specifies a magic nonce prefix, signature encoding format, and [EIP-712] domain structure to enable atomic module installation while maintaining security through account owner authorization.
+This ERC defines a standard mechanism for [ERC-7579] compliant smart accounts to install and immediately use modules within a single user operation. The standard specifies a magic nonce prefix, signature encoding format, and [EIP-712] domain structure to authorize _enable mode_ to install the module during the validation phase of the user operation while maintaining security through account owner authorization.
 
 [ERC-7579]: ./eip-7579.md
 [EIP-712]: ./eip-712.md
@@ -23,13 +23,12 @@ This ERC defines a standard mechanism for [ERC-7579] compliant smart accounts to
 
 ## Motivation
 
-Current [ERC-7579] implementations require separate transactions for module installation and usage, creating friction in user experience. Common use cases like session key modules and spending limit modules would benefit from atomic installation and immediate usage.
+Current [ERC-7579] implementations require separate transactions for module installation and usage, creating friction in user experience. Common use cases like session key modules and spending limit modules would benefit from _enable mode_ and immediate usage.
 
 This standard addresses several key issues:
 
 - **User Experience**: Reduces transaction count from 2+ to 1 for module installation and usage
-- **Gas Efficiency**: Eliminates separate installation transactions
-- **Interoperability**: Provides a standard pattern that works across different [ERC-7579] account implementations
+- **Consistency across implementations**: Provides a standard pattern that works across different [ERC-7579] account implementations
 - **Security**: Maintains strong authorization through [EIP-712] signatures from account owners
 
 Real-world usage in production systems like Kernel has validated the need and feasibility of this pattern, particularly for session key management and dynamic module installation.
@@ -40,31 +39,30 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Definitions
 
-- **Atomic Module Installation**: The process of installing and using an [ERC-7579] module within a single user operation
-- **Enable Mode**: The operational mode triggered by the atomic module prefix in the nonce
-- **Installation Signature**: An [EIP-712] signature authorizing module installation
+- **Enable Mode**: The logic branch triggered during the validation phase allowing to install and use an [ERC-7579] module within a single user operation
+- **Installation Signature**: An [EIP-712] signature authorizing module installatio
 - **User Operation Signature**: The signature for validating the user operation itself
 
 ### Magic Nonce Prefix
 
-Smart accounts implementing this standard MUST detect atomic module installation by checking for the magic prefix `0x01` in the most significant byte of the user operation nonce.
+Smart accounts implementing this standard MUST detect enable mode by checking for the magic prefix `0x01` in the most significant byte of the user operation nonce.
 
 ```solidity
-bytes1 constant ATOMIC_MODULE_PREFIX = 0x01;
+bytes1 constant ENABLE_MODE_PREFIX = 0x01;
 
 bytes1 result;
 uint256 nonce = userOp.nonce;
 assembly ("memory-safe") {
     result := and(nonce, shl(248, not(0)))
 }
-if (result == ATOMIC_MODULE_PREFIX) {
-    // Enter atomic module installation mode
+if (result == ENABLE_MODE_PREFIX) {
+    // Enter enable mode
 }
 ```
 
 ### Signature Encoding Format
 
-When the atomic module prefix is detected, the user operation signature MUST be encoded as:
+When the enable mode prefix is detected, the user operation signature MUST be encoded as:
 
 ```solidity
 abi.encode(
@@ -77,6 +75,7 @@ abi.encode(
 ```
 
 Where:
+
 - `moduleTypeId`: The [ERC-7579] module type identifier
 - `module`: The address of the module to install
 - `initData`: Initialization data to pass to the module's `onInstall` function
@@ -88,8 +87,8 @@ Where:
 The message structure MUST be:
 
 ```solidity
-bytes32 constant INSTALL_MODULE_TYPEHASH = keccak256(
-    "InstallAtomicModule(uint256 moduleTypeId,address module,bytes initData,uint256 nonce)"
+bytes32 constant ENABLE_MODULE_TYPEHASH = keccak256(
+    "EnableAtomicModule(uint256 moduleTypeId,address module,bytes initData,uint256 nonce)"
 );
 ```
 
@@ -97,18 +96,19 @@ bytes32 constant INSTALL_MODULE_TYPEHASH = keccak256(
 
 Smart accounts implementing this standard on top of [ERC-4337]'s `validateUserOp` function:
 
-1. MUST detect the atomic module prefix (`0x01`) in user operation nonces
+1. MUST detect the enable mode prefix (`0x01`) in user operation nonces
 2. MUST decode the signature according to the specified format
 3. MUST validate the EIP-712 `installationSignature` using `isValidSignature`
 4. SHOULD install the module using the standard ERC-7579 `installModule` flow using the `moduleTypeId`, `module`, and `initData`
 5. MUST continue with normal user operation validation using the extracted `userOpSignature`
-6. MUST return `SIG_VALIDATION_FAILED` (`1`) if signature decoding fails or installation signature is invalid
+6. MUST return `SIG_VALIDATION_FAILED` (`1`) if signature decoding fails or enabling signature is invalid
 
 ## Rationale
 
 ### Magic Nonce Prefix Choice
 
 The prefix `0x01` was chosen because:
+
 - It's unlikely to conflict with existing nonce usage patterns
 - It's easily detectable with bitwise operations
 - It follows the pattern established by successful implementations like Kernel
@@ -116,6 +116,7 @@ The prefix `0x01` was chosen because:
 ### Signature Structure Design
 
 The signature encoding separates concerns cleanly:
+
 - Module installation data is explicitly structured
 - Installation authorization is separate from user operation validation
 - The format is extensible for future enhancements
@@ -123,6 +124,7 @@ The signature encoding separates concerns cleanly:
 ### EIP-712 Integration
 
 Using EIP-712 for installation authorization provides:
+
 - Strong cryptographic guarantees
 - Human-readable signature requests in wallets
 - Standard domain separation
@@ -131,6 +133,7 @@ Using EIP-712 for installation authorization provides:
 ### Compatibility with ERC-7579
 
 This standard extends ERC-7579 without breaking existing functionality:
+
 - Normal user operations continue to work unchanged
 - Standard module installation flows remain available
 - All ERC-7579 security guarantees are preserved
@@ -155,11 +158,11 @@ import {PackedUserOperation} from "@openzeppelin/contracts/interfaces/draft-IERC
 import {ERC4337Utils} from "@openzeppelin/contracts/account/utils/draft-ERC4337Utils.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
-abstract contract AtomicModuleAccount is AccountERC7579, ... {
-    bytes1 private constant ATOMIC_MODULE_PREFIX = 0x01;
-    bytes32 private constant INSTALL_MODULE_TYPEHASH =
+abstract contract EnableModeAccount is AccountERC7579, ... {
+    bytes1 private constant ENABLE_MODE_PREFIX = 0x01;
+    bytes32 private constant ENABLE_MODULE_TYPEHASH =
         keccak256(
-            "InstallAtomicModule(uint256 moduleTypeId,address module,bytes initData,uint256 nonce)"
+            "EnableAtomicModule(uint256 moduleTypeId,address module,bytes initData,uint256 nonce)"
         );
 
     function _validateUserOp(
@@ -171,13 +174,13 @@ abstract contract AtomicModuleAccount is AccountERC7579, ... {
         assembly ("memory-safe") {
             result := and(nonce, shl(248, not(0)))
         }
-        if (result == ATOMIC_MODULE_PREFIX) {
-            return _validateAtomicModule(userOp, userOpHash);
+        if (result == ENABLE_MODE_PREFIX) {
+            return _validateEnableMode(userOp, userOpHash);
         }
         return super._validateUserOp(userOp, userOpHash);
     }
 
-    function _validateAtomicModule(
+    function _validateEnableMode(
         PackedUserOperation calldata userOp,
         bytes32 userOpHash
     ) internal returns (uint256) {
@@ -188,7 +191,7 @@ abstract contract AtomicModuleAccount is AccountERC7579, ... {
             bytes calldata initData,
             bytes calldata installationSignature,
             bytes calldata userOpSignature
-        ) = _tryDecodeAtomicModule(userOp.signature);
+        ) = _tryDecodeEnableMode(userOp.signature);
 
         if (!success) {
             return ERC4337Utils.SIG_VALIDATION_FAILED;
@@ -206,7 +209,7 @@ abstract contract AtomicModuleAccount is AccountERC7579, ... {
             IERC1271.isValidSignature.selector
         ) {
             _installModule(moduleTypeId, module, initData);
-            
+
             // Create modified userOp with extracted signature
             PackedUserOperation memory modifiedUserOp = PackedUserOperation({
                 sender: userOp.sender,
@@ -219,7 +222,7 @@ abstract contract AtomicModuleAccount is AccountERC7579, ... {
                 paymasterAndData: userOp.paymasterAndData,
                 signature: userOpSignature
             });
-            
+
             return super._validateUserOp(modifiedUserOp, userOpHash);
         }
 
@@ -232,8 +235,7 @@ abstract contract AtomicModuleAccount is AccountERC7579, ... {
 
 ## Security Considerations
 
-- **Authorization**: Only account owners can authorize module installation through EIP-712 signatures
-- **Signature Separation**: Installation authorization and user operation validation use separate signatures
+- **Authorization**: Only _account owners_ can authorize module installation through EIP-712 signatures
 - **Replay Protection**: Nonce inclusion in EIP-712 message prevents replay attacks
 - **Module Validation**: Standard ERC-7579 module validation applies (type checking, duplicate prevention)
 
