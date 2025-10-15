@@ -1,6 +1,6 @@
 ---
 eip: 7777
-title: SuperFuse — Atomic Liquidity Booster
+title: Atomic Liquidity Booster
 author: Ali Boulkemh (@BoulkemhA)
 discussions-to: https://twitter.com/BoulkemhA
 status: Draft
@@ -10,25 +10,27 @@ created: 2025-10-11
 requires: ERC-20
 ---
 
+# EIP-7777: Atomic Liquidity Booster
+
 ## Simple Summary
-A new DeFi standard that allows atomic fusion of multiple liquidity operations — swapping, vault movement, and liquidity provision — in one secure transaction.
+A new DeFi standard that allows **atomic fusion** of multiple liquidity operations — swapping, vault movement, and liquidity provision — in one secure transaction.
 
 ---
 
 ## Abstract
-**EIP-7777: SuperFuse** introduces a unified smart-contract interface that lets protocols and users execute complex DeFi flows atomically.  
-It reduces gas costs and eliminates multi-transaction complexity while maintaining compatibility with ERC-20 and standard DEX routers.
+**EIP-7777** introduces a unified smart-contract interface that enables protocols and users to execute complex DeFi flows atomically.  
+It reduces gas costs, removes multi-transaction complexity, and maintains compatibility with ERC-20 and standard DEX routers.
 
 ---
 
 ## Motivation
-Most DeFi protocols require users to manually execute multiple steps:
+Most DeFi protocols require users to manually execute several steps:
 1. Withdraw tokens from a vault  
 2. Swap tokens on a DEX  
 3. Add liquidity or re-deposit into a vault  
 
-This approach is inefficient and expensive.  
-SuperFuse standardizes the process into one atomic transaction, improving composability, efficiency, and UX.
+This approach is inefficient and costly.  
+**EIP-7777** unifies the process into one atomic transaction, improving composability, efficiency, and user experience.
 
 ---
 
@@ -36,7 +38,7 @@ SuperFuse standardizes the process into one atomic transaction, improving compos
 
 ### Interface
 ```solidity
-function superFuse(
+function atomicBoost(
     address vault,
     address router,
     address tokenIn,
@@ -48,7 +50,7 @@ function superFuse(
     bool toVault,
     uint256 deadline
 ) external nonReentrant;
-```
+
 
 ### Behavior
 1. If `fromVault` is true, withdraws from the vault.  
@@ -64,10 +66,11 @@ event VaultInteraction(address indexed vault, address indexed user, bool fromVau
 
 ---
 
-## Rationale
-By merging vault, swap, and liquidity operations into one atomic action,  
-SuperFuse simplifies DeFi interactions and allows developers to compose complex flows safely and cheaply.  
-This pattern also enables on-chain strategies, smart wallets, and DeFi aggregators to become more gas-efficient.
+Rationale
+
+By merging vault, swap, and liquidity operations into a single atomic action,
+EIP-7777 simplifies DeFi interactions and allows developers to compose complex flows safely and cheaply.
+It also enables on-chain strategies, smart wallets, and DeFi aggregators to achieve better gas efficiency.
 
 ---
 
