@@ -1,0 +1,130 @@
+---
+eip: xxxx
+title: Forest - Forensic Token
+description: Discover agents and establish trust through reputation and validation
+author: Sirawit Techavanitch (@MASDXI)
+discussions-to: https://ethereum-magicians.org/t/discussion-for-forest-forensic-token/25786
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-15
+requires: 165, 1155, 3525
+---
+
+## Abstract 
+
+Forest is a DAG-inspired token model designed to enhance traceability and regulatory compliance in digital currency or e-Money systems. By introducing hierarchical token tracking, it enables efficient enforcement on any token linked to suspicious activity with level/root. Enforcement actions, such as freezing specific tokens or partitioning all tokens with relational links, are optimized to operate at O(1) complexity.
+
+## Motivation
+
+The Central Bank Digital Currency (CBDC) and Private Money concept aims to utilize the advantages of blockchain or Distributed Ledger Technology (DLT) that provide immutability, transparency, and security, and it adopts smart contracts, which play a key role in creating programmable money. However, technology itself gives an advantage and eliminates the ideal problem of compliance with the regulator and the Anti-Money Laundering and Countering the Financing of Terrorism (AML/CFT) standard, but it does not seem practical to be done in the real world and is not efficiently responsible for the financial crime or incidents that occur in the open network of economics.
+
+## Specification
+
+The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “NOT RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+```
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity >=0.8.0 <0.9.0;
+
+/**
+ * @title Interface for Forest - Forensic Token
+ */
+
+interface IERC-XXXX {
+    // events
+    event TransactionCreated(bytes32 indexed root, bytes32 id, address indexed from);
+    event TransactionSpent(bytes32 indexed id, uint256 value);
+
+    // errors
+    error TransactionNotExist();
+    error TransactionInsufficient(uint256 value, uint256 spend);
+    error TransactionZeroValue();
+
+    // functions
+    function hierarchyOfGraph(bytes32 tokenId) external view returns (uint256);
+    function levelOfToken(bytes32 tokenId) external view returns (uint256);
+    function ownerOfToken(bytes32 tokenId) external view returns (address);
+    function parentOfToken(bytes32 tokenId) external view returns (bytes32);
+    function rootOfToken(bytes32 tokenId) external view returns (bytes32);
+    function tokenExists(bytes32 tokenId) external view returns (bool);
+    function valueOfToken(bytes32 tokenId) external view returns (uint256);
+}
+```
+
+### Function Behavior
+
+#### Create Transaction  
+- The value of the transaction MUST NOT be zero. If value is zero, the function MUST revert.
+- The transaction MUST be assigned a unique id. The id SHOULD be derived using the deterministic hashing function.  
+- The new transaction MUST include the correct parent field:
+If the transaction is derived (e.g., created by the spender), the parent field MUST reference the id of the original transaction.
+If the transaction is a root, the parent field MUST be set to zero.
+- The events TransactionCreated MUST emit when a new transaction is created.  
+  
+#### Spend Transaction  
+- The spending action MUST verify that the transaction with the given id exists. If not, the function SHOULD return false or revert.
+- The value to be spent MUST NOT exceed the value of the transaction. If it does, the function MUST revert.
+- The hierarchy of the transaction’s root MUST be incremented if the new transaction’s level exceeds the current hierarchy.
+- The events TransactionSpent MUST emit when spending transaction.  
+  
+#### Merging Transaction  
+- To merge two or multiple transactions into new one transaction, all transactions MUST have the same transaction root
+new transaction from merging will be
+  - $tx^k$: The highest transaction level from transactions that will be merging.
+  - $tx^l$: The transaction level of the merged transaction.  
+
+## Rationale
+
+`UTXO` facing challenge to combine multiple UnspentTransaction and spent as one,
+in case, user want to spend value that greater that selected UnspentTransaction. Possible solution prepare and batch as an array.
+`UTXO` maintain the amount of money or group of money in each individual transaction.  
+Each `UnspentTransaction` is not underlying to any account storage,
+so to spend the transaction, the caller needs to be the owner of the transaction that needs to be spent.  
+`Forest` use to modify an existing state rather than create a new transaction, like in `UTXO` do,
+it allows spending the transaction multiple times till it’s met 0, The `Forest` model enables tracking of child/subtree structures. providing a hierarchical view of token flows and relationships, which is not possible in traditional token standards like [ERC-20], and [ERC-3643]().
+
+<div align="center">
+  <img src="../asset/eip-xxxx/Forest.svg" width="800"/>
+</div>
+
+<div align="center">
+  <img src="../asset/eip-xxxx/Forest_Sort.svg" width="400"/>
+</div>
+
+`Forest` provides reverse topological sorting natively because each Transaction stores the parent transaction, so it can iterate parent back to the root of the DAG.
+
+## Backwards Compatibility
+This standard is ideally fully compatible with [ERC-1155](./eip-1155.md) and [ERC-3525](./eip-3525.md)
+
+## Reference Implementation
+
+<!-- TODO WIP -->
+
+## Security Considerations
+
+**Denial Of Service**  
+Run out of gas problem due to the operation consuming higher gas if transferring multiple groups of small tokens or loop transfer.
+
+**Gas Limit Vulnerabilities**  
+Exceeds block gas limit if the blockchain has a block gas limit lower than the gas used in the transaction.
+
+**Data Fragmentation**  
+The Forest model tracks all assets within the system, which can be represented mathematically as
+
+$A^d:$ The decimals of the asset.
+$A^t:$ The total supply of the asset.
+$A^s:$ The possible asset represent in transaction.
+
+A^s = A^t \times A^d
+While this ensures precision, the high granularity can increase storage needs.
+Traditional finance often uses simpler decimals like 2, 4 or 6, avoiding excessive detail.
+Adopting similar strategies could help balance granularity with efficiency. Or limit value as MINIMUM spending.
+
+**Confidentiality**  
+Maybe it can be linked to identity. from spending and behavior usage
+
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
