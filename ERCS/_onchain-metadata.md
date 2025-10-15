@@ -3,7 +3,7 @@ eip: XXXX
 title: Onchain Metadata for Multi-Token and NFT Registries
 description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain.
 author: Prem Makeig (@nxt3d)
-discussions-to: https://ethereum-magicians.org/t/add-erc-onchain-metadata-for-multi-token-and-nft-registries/25656
+discussions-to: https://ethereum-magicians.org/t/add-erc-onchain-metadata-for-multi-token-and-nft-registries/25820
 status: Draft
 type: Standards Track
 category: ERC
