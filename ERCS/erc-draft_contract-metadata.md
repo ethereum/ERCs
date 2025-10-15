@@ -8,11 +8,12 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-10-10
+requires: 8042
 ---
 
 ## Abstract
 
-This ERC defines a standard for storing contract-level metadata onchain using Diamond Storage pattern. It extends ERC-7572's contract-level metadata concept by providing onchain storage with predictable storage locations, enabling cross-chain compatibility and supporting upgradable contracts.
+This ERC defines a standard for storing contract-level metadata onchain using ERC-8042's Diamond Storage pattern. It extends ERC-7572's contract-level metadata concept by providing onchain storage with predictable storage locations, enabling cross-chain compatibility and supporting upgradable contracts.
 
 ## Motivation
 
@@ -128,7 +129,7 @@ contract MyContract is IERCXXXX {
 
 ## Security Considerations
 
-This ERC uses Diamond Storage pattern to prevent storage collisions and ensure predictable storage locations. Implementers should also consider the security considerations of ERC-721.
+This ERC uses Diamond Storage pattern to prevent storage collisions and ensure predictable storage locations. Implementers should also consider the security considerations of ERC-8042.
 
 ## Copyright
 
