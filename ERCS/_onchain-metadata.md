@@ -1,0 +1,127 @@
+---
+eip: XXXX
+title: Onchain Metadata for Multi-Token and NFT Registries
+description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain.
+author: Prem Makeig (@nxt3d)
+discussions-to: https://ethereum-magicians.org/t/add-erc-onchain-metadata-for-multi-token-and-nft-registries/25656
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-2
+---
+
+## Abstract
+
+This ERC defines an onchain metadata standard for multi-token and NFT registries including ERC-721, ERC-1155, ERC-6909, and ERC-8004. The standard provides a key-value store allowing for arbitrary bytes to be stored onchain.
+
+## Motivation
+
+This ERC addresses the need for fully onchain metadata while maintaining compatibility with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards. It has been a long-felt need for developers to store metadata onchain for NFTs and other multitoken contracts; however, there has been no uniform standard way to do this. Some projects have used the tokenURI field to store metadata onchain using Data URLs, which introduces gas inefficiencies and has other downstream effects (for example making storage proofs more complex). This standard provides a uniform way to store metadata onchain, and is backwards compatible with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Scope
+
+This ERC is an optional extension that MAY be implemented by any ERC-721, ERC-1155, ERC-6909, or ERC-8004 compliant registries.
+
+### Required Metadata Function and Event
+
+Contracts implementing this ERC MUST implement the following interface:
+
+```solidity
+interface IOnchainMetadata {
+    /// @notice Get metadata value for a key.
+    function getMetadata(uint256 agentId, string calldata key) external view returns (bytes memory);
+    
+    /// @notice Emitted when metadata is set for a token.
+    event MetadataSet(uint256 indexed agentId, string indexed indexedKey, string key, bytes value);
+}
+```
+
+- `getMetadata(agentId, key)`: Returns the metadata value for the given agent ID and key as bytes
+
+Contracts implementing this ERC MAY also expose a `setMetadata(uint256 agentId, string calldata key, bytes calldata value)` function to allow metadata updates, with write policy determined by the contract.
+
+Contracts implementing this ERC MUST emit the following event when metadata is set:
+
+```solidity
+event MetadataSet(uint256 indexed agentId, string indexed indexedKey, string key, bytes value);
+```
+
+### Key/Value Pairs
+
+This ERC specifies that the key is a string type and the value is bytes type. This provides flexibility for storing any type of data while maintaining an intuitive string-based key interface.
+
+### Examples
+
+The inspiration for this standard was trustless AI agents. The registry extends ERC-721 by adding getMetadata and setMetadata functions for optional extra on-chain agent metadata.
+
+#### Example: Context for LLM-Facing Agent Metadata
+
+Examples of keys are "agentWallet" or "agentName".
+
+**Example:**
+
+- Key: `"agentWallet"`
+- Value: `bytes("0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6")`
+- Key: `"agentName"`
+- Value: `bytes("DeFi Trading Agent")`
+
+#### Example: Biometric Identity for Proof of Personhood
+
+A biometric identity system using open source hardware to create universal proof of personhood tokens.
+
+- Key: `"biometric_hash"` → Value: `bytes(bytes32(identity_commitment))`
+- Key: `"verification_time"` → Value: `bytes(bytes32(timestamp))`
+- Key: `"device_proof"` → Value: `bytes(bytes32(device_attestation))`
+
+
+## Rationale
+
+This design prioritizes simplicity and flexibility by using a string-key, bytes-value store that provides an intuitive interface for any type of metadata. The minimal interface with a single `getMetadata` function provides all necessary functionality while remaining backwards compatible with existing ERC-721, ERC-1155, ERC-6909, and ERC-8004 standards. The optional `setMetadata` function enables flexible access control for metadata updates. The required `MetadataSet` event provides transparent audit trails with indexed agentId and indexedKey for efficient filtering. This makes the standard suitable for diverse use cases including AI agents, proof of personhood systems, and custom metadata storage.
+
+## Backwards Compatibility
+
+- Fully compatible with ERC-721, ERC-1155, ERC-6909, and ERC-8004.
+- Non-supporting clients can ignore the scheme.
+
+## Reference Implementation
+
+The interface is defined in the Required Metadata Function and Event section above. Here is a reference implementation:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IOnchainMetadata.sol";
+
+contract OnchainMetadataExample is IOnchainMetadata {
+    // Mapping from agentId => key => value
+    mapping(uint256 => mapping(string => bytes)) private _metadata;
+    
+    /// @notice Get metadata value for a key
+    function getMetadata(uint256 agentId, string calldata key) 
+        external view override returns (bytes memory) {
+        return _metadata[agentId][key];
+    }
+    
+    /// @notice Set metadata for a token (optional implementation)
+    function setMetadata(uint256 agentId, string calldata key, bytes calldata value) 
+        external {
+        _metadata[agentId][key] = value;
+        emit MetadataSet(agentId, key, key, value);
+    }
+}
+```
+
+Implementations should follow the standard ERC-721, ERC-1155, ERC-6909, or ERC-8004 patterns while adding the required metadata function and event.
+
+## Security Considerations
+
+This ERC is designed to put metadata onchain, providing security benefits through onchain storage.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
