@@ -50,7 +50,7 @@ function atomicBoost(
     bool toVault,
     uint256 deadline
 ) external nonReentrant;
-
+```
 
 ### Behavior
 1. If `fromVault` is true, withdraws from the vault.  
