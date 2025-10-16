@@ -377,6 +377,9 @@
                             "intent": {
                                 "$ref": "#/$display/intent"
                             },
+                            "interpolatedIntent": {
+                                "$ref": "#/$display/interpolatedIntent"
+                            },
                             "fields": {
                                 "$ref": "#/$display/fields"
                             },
@@ -425,6 +428,11 @@
                 }
 
             ]
+        },
+        "interpolatedIntent": {
+            "title": "Interpolated intent message",
+            "description": "An optional intent string with embedded field values using {path} interpolation syntax. This provides a dynamic, contextual description by embedding actual transaction/message values directly in the intent string. Wallets should prefer displaying interpolatedIntent when available and fall back to intent if interpolation fails. See the specification for detailed formatting behavior and security considerations.",
+            "type": "string"
         },
         "required": {
             "title": "Required fields",
