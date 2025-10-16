@@ -23,6 +23,7 @@
         "formats": {
             "approve(address _spender,uint256 _value)": {
                 "intent": "Approve",
+                "interpolatedIntent": "Approve {_spender} to spend {_value}",
                 "fields": [
                     {
                         "path": "_spender",
