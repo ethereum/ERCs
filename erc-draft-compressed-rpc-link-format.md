@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: TBD
 title: Compressed RPC Link Format with Method-Specific Shortcuts
 description: A link-encodable format for JSON-RPC requests using Protocol Buffers, optional Brotli compression, and Base64url encoding. Defines shortcuts for wallet_sendCalls and wallet_sign with optimized transaction type encodings.
 author: Bruno Barbieri (@brunobar79), Jake Feldman (@jakefeldman), Lukas Rosario (@lukasrosario)
@@ -7,7 +7,7 @@ discussions-to: https://ethereum-magicians.org/t/compressed-rpc-link-format-with
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-10-16
+created: 2025-10-13
 requires: 5792, 7871
 ---
 
@@ -83,6 +83,7 @@ Values `0x02`–`0xFF` are reserved. Decoders MUST reject unknown values.
 - Encoders SHOULD use `0x01` if the compressed size (including the flag byte) is strictly smaller than uncompressed
 
 **Recommended encoder settings (informative):**
+
 - Quality: 4-6 (balances speed and compression ratio)
 - Window size: 22 bits (4 MB) - sufficient for typical payloads
 - Mode: GENERIC (works well for mixed text/binary data)
@@ -127,6 +128,7 @@ message RpcLinkPayload {
 **Implementation guidance (informative):**
 
 Mature proto3 libraries for common platforms:
+
 - TypeScript/JS: `@bufbuild/protobuf` ≥ 1.7
 - Go: `google.golang.org/protobuf` ≥ v1.33
 - Rust: `prost` ≥ 0.12
@@ -185,6 +187,7 @@ message GenericJsonRpc {
 1. Validate `shortcut_id = 0`
 2. Parse `method` and `params_json` (UTF-8 decode, then JSON parse)
 3. Reconstruct JSON-RPC request:
+
    ```json
    {
      "jsonrpc": rpc_version || "2.0",
@@ -196,6 +199,7 @@ message GenericJsonRpc {
 ### Example
 
 **Input:**
+
 ```json
 {
   "method": "eth_sendTransaction",
@@ -209,6 +213,7 @@ message GenericJsonRpc {
 ```
 
 **Encoding (pseudocode):**
+
 ```typescript
 const payload: RpcLinkPayload = {
   protocolVersion: 1,
@@ -327,6 +332,7 @@ Encoders MUST detect transaction types in this order:
      - `value = amount` (as hex with `0x` prefix)
    - **Generic**: Use calls as-is
 3. Reconstruct EIP-5792 request:
+
    ```json
    {
      "method": "wallet_sendCalls",
@@ -343,6 +349,7 @@ Encoders MUST detect transaction types in this order:
 ### Example: ERC20 Transfer
 
 **Input (EIP-5792):**
+
 ```json
 {
   "method": "wallet_sendCalls",
@@ -359,6 +366,7 @@ Encoders MUST detect transaction types in this order:
 ```
 
 **Encoded (pseudocode):**
+
 ```typescript
 {
   protocolVersion: 1,
@@ -463,12 +471,14 @@ Encoders MUST detect signature types for EIP-712 typed data in this order:
 ### Encoding Algorithm
 
 **Type field normalization**: The `type` field in EIP-7871 requests indicates EIP-712 typed data. Encoders MUST accept the following variants as equivalent to EIP-712:
+
 - String `"0x01"` (canonical)
 - String `"0x1"` (no leading zero)
 - Number `1`
 - Missing type field (assume EIP-712 if `data` contains typed data structure)
 
 **Chain ID validation**: EIP-712 typed data contains `chainId` in both the params and the domain. Encoders MUST:
+
 - Verify that `params.chainId` (hex string) and `domain.chainId` (number or hex string) represent the same chain
 - Reject requests where these values conflict
 - Use the params-level `chainId` for the `RpcLinkPayload.chain_id` field
@@ -490,6 +500,7 @@ Encoders MUST detect signature types for EIP-712 typed data in this order:
 2. Switch on `type` and reconstruct EIP-712 typed data:
    
    **SpendPermission**:
+
    ```json
    {
      "types": {
@@ -533,6 +544,7 @@ Encoders MUST detect signature types for EIP-712 typed data in this order:
    ```
 
    **ReceiveWithAuthorization**:
+
    ```json
    {
      "types": {
@@ -572,6 +584,7 @@ Encoders MUST detect signature types for EIP-712 typed data in this order:
    **Generic**: Parse `typed_data_json` directly as the EIP-712 TypedData structure
 
 3. Reconstruct EIP-7871 request:
+
    ```json
    {
      "method": "wallet_sign",
@@ -588,6 +601,7 @@ Encoders MUST detect signature types for EIP-712 typed data in this order:
 ### Example: SpendPermission
 
 **Input (EIP-7871):**
+
 ```json
 {
   "method": "wallet_sign",
@@ -633,6 +647,7 @@ Encoders MUST detect signature types for EIP-712 typed data in this order:
 ```
 
 **Encoded (pseudocode):**
+
 ```typescript
 {
   protocolVersion: 1,
@@ -721,6 +736,7 @@ All shortcuts MUST follow these encoding rules:
 - **Malformed data**: Invalid UTF-8 or JSON syntax errors MUST cause rejection
 
 **Example capability encodings:**
+
 ```typescript
 // Example 1: Object value
 { "dataCallback": { "callbackURL": "https://example.com", "events": ["initiated"] } }
@@ -805,6 +821,7 @@ This standard includes an extension point for metadata via the `capabilities` ma
 The `dataCallback` capability enables wallet→server event notifications for enhanced UX and allows apps to request user data. It is defined in [ERC-8026](https://github.com/ethereum/ERCs/pull/1216).
 
 **Structure:**
+
 - `callbackURL`: HTTPS URL for webhook events
 - `events`: Array of event objects, each with:
   - `type`: One of `"initiated"`, `"preSign"`, or `"postSign"`
@@ -812,6 +829,7 @@ The `dataCallback` capability enables wallet→server event notifications for en
   - `requests`: Optional array for `preSign` events (specifies what user data to collect)
 
 **Encoding example with data requests:**
+
 ```json
 {
   "capabilities": {
@@ -840,6 +858,7 @@ The `dataCallback` capability enables wallet→server event notifications for en
 ```
 
 **Simpler example (notifications only):**
+
 ```json
 {
   "capabilities": {
@@ -855,6 +874,7 @@ The `dataCallback` capability enables wallet→server event notifications for en
 ```
 
 **Security requirements:**
+
 - Wallets MUST use HTTPS for callback URLs
 - Wallets SHOULD implement timeouts and retry logic with exponential backoff
 
@@ -898,11 +918,13 @@ Wallets MUST treat decoded requests as untrusted input and apply standard safety
 ### Front-Running and MEV
 
 This format is suitable for:
+
 - Simple transfers and payments
 - Signatures with fixed parameters
 - Idempotent operations
 
 This format is NOT suitable for:
+
 - Competitive flows (DEX trades, auctions, liquidations)
 - Time-sensitive operations with variable outcomes
 - Any transaction where public visibility before execution creates exploitable MEV
@@ -950,6 +972,7 @@ Brotli was selected as the optional compression layer because:
 - **Optimized for text**: Works well with protobuf's wire format
 
 Optional compression supports:
+
 - Environments without Brotli (use `0x00`)
 - Very small payloads where compression overhead exceeds benefits
 - Applications prioritizing speed over size
@@ -1012,6 +1035,7 @@ Applications requiring metadata can use the `capabilities` map without modifying
 ### Test Vector 1: ERC20 Transfer (Shortcut 1)
 
 **Input (EIP-5792):**
+
 ```json
 {
   "method": "wallet_sendCalls",
@@ -1028,6 +1052,7 @@ Applications requiring metadata can use the `capabilities` map without modifying
 ```
 
 **Protobuf representation (before serialization):**
+
 ```
 protocol_version: 1
 chain_id: 8453
@@ -1045,9 +1070,11 @@ wallet_send_calls {
 ```
 
 **Expected output (Base64url, Brotli-compressed):**
+
 ```
 AQj1QRABGgQxLjBSORIUgzWJ_NbttpgvHHMtT3cbVL2gKRMaFP4hA0eUpapXS5T-_RbgBfHJblUiA0xLQA
 ```
+
 *(Note: Actual output may vary slightly depending on Brotli implementation; decoders must produce the same protobuf structure)*
 
 ---
@@ -1055,6 +1082,7 @@ AQj1QRABGgQxLjBSORIUgzWJ_NbttpgvHHMtT3cbVL2gKRMaFP4hA0eUpapXS5T-_RbgBfHJblUiA0xL
 ### Test Vector 2: Native Transfer (Shortcut 1)
 
 **Input (EIP-5792):**
+
 ```json
 {
   "method": "wallet_sendCalls",
@@ -1071,6 +1099,7 @@ AQj1QRABGgQxLjBSORIUgzWJ_NbttpgvHHMtT3cbVL2gKRMaFP4hA0eUpapXS5T-_RbgBfHJblUiA0xL
 ```
 
 **Protobuf representation:**
+
 ```
 protocol_version: 1
 chain_id: 1
@@ -1087,6 +1116,7 @@ wallet_send_calls {
 ```
 
 **Expected output (Base64url, Brotli-compressed):**
+
 ```
 AQgBEAEaBC4wWh0SFP4hA0eUpapXS5T-_RbgBfHJblUaCQjgtrOn4AAAA
 ```
@@ -1096,6 +1126,7 @@ AQgBEAEaBC4wWh0SFP4hA0eUpapXS5T-_RbgBfHJblUaCQjgtrOn4AAAA
 ### Test Vector 3: SpendPermission (Shortcut 2)
 
 **Input (EIP-7871):**
+
 ```json
 {
   "method": "wallet_sign",
@@ -1141,6 +1172,7 @@ AQgBEAEaBC4wWh0SFP4hA0eUpapXS5T-_RbgBfHJblUaCQjgtrOn4AAAA
 ```
 
 **Protobuf representation:**
+
 ```
 protocol_version: 1
 chain_id: 84532
@@ -1167,6 +1199,7 @@ wallet_sign {
 ```
 
 **Expected output (Base64url, Brotli-compressed):**
+
 ```
 AQi0lAUQAhoBMVJWCAESFKqqqqqqqqqqqqqqqqqqqqqqqqqqGhSJ-TSTI8mRnlzhPfJ9CkC0p0R-qiIDNs6cAzZL1TOFY0Zmbu5JljHpM-gv0sXvjGXa0_I-EMiALWaIqulDX7katpH-6U7zPfhui6HAXHkyNHrpK3X_SRRTcGVuZCBQZXJtaXNzaW9uIE1hbmFnZXJaATFiBPiJELISzFDML0d3ukVobaAdybn2rQ
 ```
