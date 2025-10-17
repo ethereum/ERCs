@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8049
 title: Contract-Level Onchain Metadata
 description: A standard for storing contract-level metadata onchain using Diamond Storage pattern for predictable storage locations.
 author: Prem Makeig (@nxt3d)
