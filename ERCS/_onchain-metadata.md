@@ -3,7 +3,7 @@ eip: 8048
 title: Onchain Metadata for Token Registries
 description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain.
 author: Prem Makeig (@nxt3d)
-discussions-to: https://ethereum-magicians.org/t/add-erc-onchain-metadata-for-multi-token-and-nft-registries/25820
+discussions-to: https://ethereum-magicians.org/t/erc-8048-onchain-metadata-for-multi-token-and-nft-registries/25820
 status: Draft
 type: Standards Track
 category: ERC
