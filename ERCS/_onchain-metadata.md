@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8048
 title: Onchain Metadata for Token Registries
 description: A key-value store interface that allows registries to store and retrieve arbitrary bytes as metadata directly onchain.
 author: Prem Makeig (@nxt3d)
