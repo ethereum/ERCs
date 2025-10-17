@@ -1,0 +1,265 @@
+---
+eip: XXXX
+title: Forkable ERC-20 Token
+description: Checkpoint-based ERC-20 tokens that can be efficiently forked to distribute new tokens to existing holders.
+author: Kevin (@kevzzsk), Fuxing (@fuxingloh)
+discussions-to: https://ethereum-magicians.org/t/forkable-erc-20-token/25853
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-10
+requires: [20](./eip-20.md)
+---
+
+# Forkable ERC-20 Token (Draft)
+
+## Abstract
+
+This standard extends [ERC-20](./eip-20.md) to enable efficient token forking through checkpoint-based balance tracking.
+A forkable ERC-20 token records balance snapshots at each state change.
+A forked ERC-20 token inherits all balances from a specific checkpoint in the source token,
+allowing instant, gas-free distribution to holders without airdrops or claiming mechanisms.
+
+## Motivation
+
+Current methods for distributing new tokens based on existing ERC-20 token balances are inefficient:
+1. **Manual airdrops**: Taking snapshots and transferring tokens to each holder individually is expensive and gas-intensive.
+2. **Merkle-based claims**: While cheaper for deployers,
+   this approach requires users to pay gas fees to claim tokens and provides poor UX due to claimer needing to provide proofs.
+
+Both approaches are inefficient as they rely on off-chain data construction outside the protocol's trust domain,
+introducing potential inconsistencies and allowing for collusion within the Merkle structure.
+
+This EIP proposes a standard for forkable ERC-20 tokens that:
+- Enable zero-gas distribution to token holders
+- Eliminate manual claiming processes
+- Provide verifiable on-chain balance inheritance
+- Maintain full ERC-20 compatibility
+
+By implementing checkpointed balances, tokens can be efficiently forked at any historical point,
+with new token balances automatically derived from the source token without any state duplication or expensive operations.
+
+## Use Cases
+
+### Airdrops
+
+Airdrops are a common use case for forkable tokens.
+Without forkable ERC-20 tokens, manual snapshotting and merkle root creation are required.
+Then users must manually claim the new ERC-20 token costing gas borne by the claimer.
+
+With forkable ERC-20 tokens, users do not have to claim the new ERC-20 token.
+The forked ERC-20 token is automatically transferred (via inheritance)
+to the users who have positive balance at the fork point.
+
+### Tokenized Risk and Yield
+
+[ERC-4626](./eip-4626.md) is a popular standard for yield-bearing vaults that manage an underlying ERC-20 asset.
+Risk and yield are commonly rebased on the same underlying asset,
+and this works very well for single-dimensional yield and risk
+(Liquid PoS ETH).
+
+However, for multidimensional yield and risk vaults,
+the underlying asset may be used for different yield-generating purposes each with their own risk profile.
+Forkable ERC-20 tokens allow for tokenization of risk and yield to its immediate beneficiaries.
+While this is not a foreign concept in the space,
+its implementation has so far been off-chain—with their own trust domain separate from the chain.
+
+### Token Migration
+
+Protocol upgrades, tokenomics changes, or contract improvements often require migrating to a new token.
+
+Without forkable ERC-20 tokens, migration requires complex processes:
+- Taking manual snapshots of all holder balances
+- Deploying the new token contract
+- Either airdropping to all holders (expensive) or requiring users to manually claim their tokens via merkle proofs
+  (poor UX)
+
+With forkable ERC-20 tokens, migration becomes seamless:
+- The new token is forked from the old token at a specific checkpoint
+- All holder balances are automatically inherited from the checkpoint
+- Users can immediately interact with the new token without claiming
+- No gas costs for holders, no manual snapshot management required
+
+### Governance Token Derivatives
+
+Create governance tokens or voting power derivatives based on historical token holdings without affecting the original token's utility or requiring users to lock or migrate their holdings.
+
+### Rewards and Loyalty Programs
+
+Distribute loyalty or reward tokens proportional to historical holdings or activity,
+tracked via checkpoints, without complex off-chain calculation and distribution logic.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",
+"NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Forkable ERC-20 tokens (Source Token)
+
+Forkable ERC-20 tokens are ERC-20 compliant tokens that have their balances and total supply saved at every state-changing operation.
+Each checkpoint is associated with a monotonically increasing nonce.
+
+All forkable ERC-20 tokens:
+- MUST implement ERC20
+- MUST implement optional ERC20 metadata that includes:
+    - name (string)
+    - symbol (string)
+    - decimals (uint8)
+
+#### interface
+
+```solidity
+interface IERC20Checkpointed is IERC20, IERC20Metadata {
+
+    /**
+     * @dev Returns the amount of tokens in existence at specified checkpoint.
+     * @param checkpoint The checkpoint to get the total supply at.
+     */
+    function totalSupplyAt(uint256 checkpoint) external view virtual returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account` at specified checkpoint.
+     * @param account The account to get the balance of.
+     * @param checkpoint The checkpoint to get the balance at.
+     */
+    function balanceOfAt(address account, uint256 checkpoint) public view virtual returns (uint256);
+
+    /**
+     * @dev Returns the current checkpoint nonce.
+     */
+    function checkpointNonce() external view returns (uint256);
+}
+```
+
+#### Behavior Specifications
+
+- `totalSupplyAt(checkpoint)` MUST return the total supply of tokens at the specified checkpoint.
+- `balanceOfAt(account, checkpoint)` MUST return the balance of tokens owned by `account` at the specified checkpoint.
+- `totalSupply()` MUST return the latest checkpointed total supply of tokens.
+- `balanceOf(account)` MUST return the latest checkpointed balance of token held by the account.
+- Any state changes (transfer, mint, burn) MUST push the latest checkpoint balances and total supply.
+- Checkpoint nonces MUST be monotonically increasing.
+- Querying a future checkpoint MUST return the latest known value.
+
+### Forked ERC-20 tokens
+
+Forked ERC-20 tokens are ERC-20 compliant tokens that are forked from a checkpointed token at a specific checkpoint nonce.
+They inherit all balances from that checkpoint.
+
+All forked ERC-20 tokens:
+
+- MUST implement ERC20
+- MUST implement optional ERC20 metadata that includes:
+    - `name` (string)
+    - `symbol` (string)
+    - `decimals` (uint8)
+- MUST take as constructor (or initializer) inputs:
+    - `name` (string) - The name of the forked token
+    - `symbol` (string) - The symbol of the forked token
+    - `checkpointedNonce` (uint256) - The checkpoint at which to fork
+    - `checkpointedToken` (address) - The address of the source token implementing `IERC20Checkpointed`
+- MUST set `decimals` equal to the source token’s `decimals`.
+- checkpointed nonce supplied for the fork MUST be in the past or equal to the most recent checkpoint nonce.
+- Initial `totalSupply` MUST equal `IERC20Checkpointed(totalSupplyAt(checkpointedNonce))`.
+- For any account A, the forked token’s initial balance MUST equal
+  `IERC20Checkpointed(balanceOfAt(A, checkpointedNonce))`.
+- MAY implement `IERC20Checkpointed`, enabling recursive forking.
+- Allowances and nonces are NOT carried over,
+  integrators should treat the fork as a fresh ERC-20 for approvals and permits.
+- If the source token does not implement `IERC20Checkpointed`, the fork mechanism is out-of-scope of this standard.
+
+#### Behavior Specifications
+
+- `balanceOf(account)` MUST return `checkpointedToken.balanceOfAt(account, checkpointedNonce)` if no state changes have occurred for that account in the forked token since its creation.
+- `balanceOf(account)` MUST return the forked token's own recorded balance if any state change has occurred for that account since the fork.
+- `balanceOf(account)` MUST NOT query the source token for any checkpoint other than `checkpointedNonce`.
+- `totalSupply()` MUST accurately reflect state changes in the forked token, independent of the source token.
+- Any state changes MUST NOT affect the source token.
+
+## Rationale
+
+### Why Checkpoints?
+
+Checkpoints enable efficient point-in-time queries.
+By recording only when changes happens, the system maintains a compact, queryable history.
+
+Checkpoints are also trustless and verifiable, albeit at higher gas cost for state updates.
+
+### Why Not Use Merkle Trees?
+
+Merkle trees introduce complexity and off-chain dependencies.
+They require users to provide proofs, which complicates UX and increases the risk of errors.
+
+Merkle trees are also inefficient for continuous updates.
+
+### Lazy Balance Loading
+
+For forked tokens,
+querying balances from the source token only when needed (lazy loading)
+significantly reduces gas costs during fork creation and initial operations.
+
+### Checkpoint Nonce Design
+
+Using block numbers or timestamps as checkpoints can lead to vulnerability to reorgs and MEV attacks.
+On the fork block, transactions can be re-ordered to allow balance manipulation before the fork balance is finalized.
+
+Using a monotonically increasing nonce (rather than block numbers or timestamps)
+ensures that the fork point is unambiguous and not susceptible to such manipulations.
+This is because each state update is recorded with a unique nonce, the fork can be precisely defined.
+
+### Gas Cost Considerations
+
+Forkable tokens MAY incur higher per-transaction costs due to checkpoint storage.
+
+This trade-off could be acceptable for tokens where forkability provides significant value (airdrops, governance, migrations).
+
+## Backwards Compatibility
+
+This EIP is fully backwards compatible with ERC-20. Forked tokens behave as standard ERC-20 tokens to any consumer.
+Forkable tokens add checkpoint functionality but maintain all ERC-20 behaviors.
+
+Existing contracts and wallets that interact with ERC-20 tokens will work without modification with both forkable and forked tokens.
+
+## Reference Implementation
+
+TBA
+
+## Security Considerations
+
+### Approvals
+
+Approvals are not inherited.
+When a token is forked, all allowances reset to zero.
+Users and dApps MUST re-approve spending for the forked token.
+
+### Non-Standard ERC-20 Tokens
+
+Tokens with non-standard behaviors (rebasing, fee-on-transfer, deflationary mechanisms) may not fork correctly:
+- **Rebasing tokens**: Balance changes after the checkpoint may not be reflected in the fork
+- **Fee-on-transfer tokens**: Forked balances will not account for fees incurred after the checkpoint
+
+Auditors and integrators SHOULD carefully review source token mechanics before forking
+
+### Decimals Consistency
+
+Forked tokens MUST use the same decimals as the source token to prevent balance inconsistencies and loss of precision.
+Mismatched decimals MAY lead to incorrect balances and loss of precision.
+
+### Future Checkpoints
+
+Forking at a future checkpoint SHOULD be prevented by implementations.
+If allowed, forked token balances MAY become inconsistent and lead to accounting errors.
+
+### Checkpoint Nonce Overflow
+
+Implementations should consider the implications of checkpoint nonce overflow when using a smaller uint type.
+
+## Reference Tests
+
+TBA
+
+## Copyright
+
+This work is made available under CC0-1.0.
+See LICENSE for repository licensing.
+
