@@ -3,7 +3,7 @@ eip: 8049
 title: Contract-Level Onchain Metadata
 description: A standard for storing contract-level metadata onchain using Diamond Storage pattern for predictable storage locations.
 author: Prem Makeig (@nxt3d)
-discussions-to: https://ethereum-magicians.org/t/add-erc-contract-level-metadata-with-diamond-storage/25819
+discussions-to: https://ethereum-magicians.org/t/erc-8049-contract-level-metadata-with-diamond-storage/25819
 status: Draft
 type: Standards Track
 category: ERC
