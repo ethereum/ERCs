@@ -1,6 +1,6 @@
 ---
 eip: XXXX
-title: Forkable ERC-20 Token
+title: Forkable [ERC-20](./eip-20.md) Token
 description: Checkpoint-based ERC-20 tokens that can be efficiently forked to distribute new tokens to existing holders.
 author: Kevin (@kevzzsk), Fuxing (@fuxingloh)
 discussions-to: https://ethereum-magicians.org/t/forkable-erc-20-token/25853
@@ -8,10 +8,8 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-10-10
-requires: [20](./eip-20.md)
+requires: 20
 ---
-
-# Forkable ERC-20 Token (Draft)
 
 ## Abstract
 
@@ -100,8 +98,8 @@ Forkable ERC-20 tokens are ERC-20 compliant tokens that have their balances and 
 Each checkpoint is associated with a monotonically increasing nonce.
 
 All forkable ERC-20 tokens:
-- MUST implement ERC20
-- MUST implement optional ERC20 metadata that includes:
+- MUST implement ERC-20
+- MUST implement optional ERC-20 metadata that includes:
     - name (string)
     - symbol (string)
     - decimals (uint8)
@@ -148,8 +146,8 @@ They inherit all balances from that checkpoint.
 
 All forked ERC-20 tokens:
 
-- MUST implement ERC20
-- MUST implement optional ERC20 metadata that includes:
+- MUST implement ERC-20
+- MUST implement optional ERC-20 metadata that includes:
     - `name` (string)
     - `symbol` (string)
     - `decimals` (uint8)
@@ -261,5 +259,4 @@ TBA
 ## Copyright
 
 This work is made available under CC0-1.0.
-See LICENSE for repository licensing.
 
