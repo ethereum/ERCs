@@ -27,6 +27,6 @@ Consider any document not published at <https://eips.ethereum.org/> as a working
 
 ## ERC-8040 — ESG Tokenization Protocol
 
-- Release: https://github.com/agronetlabs/ERCs/releases/tag/v1.0.0
+- Reference implementation release (external): https://github.com/agronetlabs/ERCs/releases/tag/v1.0.0
 - Discussion (Magicians): https://ethereum-magicians.org/t/erc-8040-esg-tokenization-protocol/25846
 - Spec file: ERCS/erc-8040.md
