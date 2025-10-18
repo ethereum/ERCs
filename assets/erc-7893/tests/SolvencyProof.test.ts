@@ -173,6 +173,9 @@ describe("SolvencyProof Real World Scenarios", function () {
         await mockPriceOracle.setPrice(await protocolToken.getAddress(), 5n * (10n ** PRICE_DECIMALS));
 
         await solvencyProof.setOracle(await oracle.getAddress(), true);
+        
+        // Enable test mode for backward compatibility
+        await solvencyProof.setTestMode(true);
 
         return {
             solvencyProof,
