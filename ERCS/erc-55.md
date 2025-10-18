@@ -1,4 +1,5 @@
 ---
+---
 eip: 8040
 title: ESG Tokenization Protocol
 description: ESG-compliant, AI-native asset tokenization with quantum auditability and lifecycle integrity.
@@ -119,3 +120,4 @@ Note that the input to the Keccak256 hash is the lowercase hexadecimal string (i
 0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB
 0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb
 ```
+---
