@@ -35,6 +35,7 @@
         "formats": {
             "transfer(address _to,uint256 _value)": {
                 "intent": "Send",
+                "interpolatedIntent": "Send {_value} to {_to}",
                 "fields": [
                     {
                         "path": "_to",
