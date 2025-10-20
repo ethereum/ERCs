@@ -1,9 +1,9 @@
 ---
-eip: TBD
+eip: 8050
 title: Compressed RPC Link Format with Method-Specific Shortcuts
 description: A link-encodable format for JSON-RPC requests using Protocol Buffers, optional Brotli compression, and Base64url encoding. Defines shortcuts for wallet_sendCalls and wallet_sign with optimized transaction type encodings.
 author: Bruno Barbieri (@brunobar79), Jake Feldman (@jakefeldman), Lukas Rosario (@lukasrosario)
-discussions-to: https://ethereum-magicians.org/t/compressed-rpc-link-format-with-method-specific-shortcuts/25832
+discussions-to: https://ethereum-magicians.org/t/erc-8050-compressed-rpc-link-format-with-method-specific-shortcuts/25832
 status: Draft
 type: Standards Track
 category: ERC
