@@ -1,26 +1,4 @@
-/**
- * SPDX-License-Identifier: MIT
- *
- * Copyright (c) 2020 CENTRE SECZ
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.12;
 
@@ -28,7 +6,7 @@ import { IERC20Internal } from "./IERC20Internal.sol";
 import { EIP712Domain } from "./EIP712Domain.sol";
 import { EIP712 } from "./EIP712.sol";
 
-abstract contract EIP3009 is IERC20Internal, EIP712Domain {
+abstract contract ERC3009 is IERC20Internal, EIP712Domain {
     // keccak256("TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
     bytes32
         public constant TRANSFER_WITH_AUTHORIZATION_TYPEHASH = 0x7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267;
@@ -53,9 +31,9 @@ abstract contract EIP3009 is IERC20Internal, EIP712Domain {
     );
 
     string
-        internal constant _INVALID_SIGNATURE_ERROR = "EIP3009: invalid signature";
+        internal constant _INVALID_SIGNATURE_ERROR = "ERC3009: invalid signature";
     string
-        internal constant _AUTHORIZATION_USED_ERROR = "EIP3009: authorization is used";
+        internal constant _AUTHORIZATION_USED_ERROR = "ERC3009: authorization is used";
 
     /**
      * @notice Returns the state of an authorization
@@ -136,7 +114,7 @@ abstract contract EIP3009 is IERC20Internal, EIP712Domain {
         bytes32 r,
         bytes32 s
     ) external {
-        require(to == msg.sender, "EIP3009: caller must be the payee");
+        require(to == msg.sender, "ERC3009: caller must be the payee");
 
         _transferWithAuthorization(
             RECEIVE_WITH_AUTHORIZATION_TYPEHASH,
@@ -198,8 +176,8 @@ abstract contract EIP3009 is IERC20Internal, EIP712Domain {
         bytes32 r,
         bytes32 s
     ) internal {
-        require(now > validAfter, "EIP3009: authorization is not yet valid");
-        require(now < validBefore, "EIP3009: authorization is expired");
+        require(now > validAfter, "ERC3009: authorization is not yet valid");
+        require(now < validBefore, "ERC3009: authorization is expired");
         require(!_authorizationStates[from][nonce], _AUTHORIZATION_USED_ERROR);
 
         bytes memory data = abi.encode(
