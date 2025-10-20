@@ -1,13 +1,3 @@
----
-eip: 8040
-title: ERC-8040 Off-Chain Proof Bundle (ATF-AI)
-author: Leandro Lemos (@agronetlabs) <leandro@agronet.io>
-status: Draft
-type: Informational
-category: ERC
-created: 2025-10-20
-requires: 8040
----
 // Copyright 2022 The Sigstore Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
