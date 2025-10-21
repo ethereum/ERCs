@@ -1,0 +1,126 @@
+---
+eip: TBA
+title: Series Accounting for Incentivised Vaults
+description: A standard to implement Series Accounting method for collecting performance fees in ERC-7540 type vaults.
+author: Yash Saraswat (0xpanicError)
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-21
+requires: 7540, 4626
+---
+
+## Abstract
+
+The following standard formalizes the Series Accounting Method for ERC-7540 type vaults, enabling them to collect performance fees on yields without introducing the free-ride problem.
+
+It defines the necessary architectural specification for implementing Series Accounting by requiring an independent Series to track each batch of claimed deposit requests within the vault with its unique `totalAssets`, `totalShares`,  `sharesOf` and `highwaterMark` values.
+
+## Motivation
+
+Current ERC-7540 vault implementations typically implement a Highwater Mark based on the highest recorded price-per-share (the ratio of total assets to total shares of the vault) to ensure performance fees are not collected for recovering losses. But relying on a single vault-wide highwater mark introduces the free-ride problem.
+
+A free-ride occurs when a user's deposit is claimed at a price-per-share below the vault's current highwater mark. When the vault later reaches a new highwater mark, the user doesn’t pay a performance fee on all yield accrued between their initial entry price and the new highwater mark, effectively diminishing returns for existing users.
+
+This standard implements the series accounting method where all batches of deposit requests are claimed in a series which maintains a unique highwater mark for those deposits. This allows for the protocol to accurately account for performance fees across all user deposits fairly.
+
+## Specification
+
+The general architecture of an ERC-7540 vault remains the same with
+- users requiring to submit a request to enter or exit the vault
+- vault implementing a method to move request from “pending” to “claimable” state
+
+However, the structure in which `assets` and `shares` are maintained in the vault is altered to accommodate for series accounting. Traditionally, the vault will store a global value for `totalAssets` and `totalShares`, but to follow this spec, the following states MUST be maintained individually for each series:
+- total assets
+- total shares
+- shares of users
+- list of users
+- highwater mark
+
+ERC-TBA vaults must override the ERC-4626 specification as follows:
+`totalAssets` MUST revert for all callers and inputs
+`convertToShares` MUST revert for all callers and inputs
+`convertToAssets` MUST revert for all callers and inputs
+
+### Definitions
+
+- series: a series is like a sub-vault where a set of all deposit requests that are claimed together are accounted for.
+- price-per-share: ratio of total assets to total shares in a series.
+- highwater mark: the highest price-per-share (also referred as exchange price) of a given series.
+- oracle: the entity responsible of setting the price-per-share for a given set of deposit or redeem requests to be claimable.
+- settle: the act of claiming the deposit requests performed by the oracle in a series id, determined by the logic specified in this standard.
+- lead series: each vault MUST have a default series called the lead series where the first set of deposit requests will be claimed.
+- outstanding series: a series apart from the lead series which contains user shares.
+- consolidation: the process where all user shares are transferred from outstanding series to the lead series.
+- consolidated series: an empty series from which user shares were transferred during consolidation.
+
+#### Deposit Flow
+
+Following the ERC-7540 standard, users make requests to deposit into the vault. When the `oracle` provides the price-per-share at which the deposits must be claimed, the standard defines in which series id the requests be `settled` as follows:
+
+```
+Series_Accounting_Logic:
+├──> if the current highwater mark of lead series is greater than the price-per-share of the lead series
+│   └──> MUST create a new series with a unique series id and settle all pending deposit requests in this series
+└──> else MUST settle all pending deposit requests in the lead series
+    └──> if the number of outstanding series is greater than zero
+        └──> MUST consolidate all outstanding series into the lead series
+```
+
+#### Redeem Flow
+
+ERC-TBA MUST override ERC-7540 specifications by overriding the `requestRedeem` method to accept `assets` instead of `shares` as input.
+
+The vault is RECOMMENDED to store the proportion of total `assets` for that user in the redeem request.
+
+When the request is to be settled, the redemption MAY follow the FIFO method. At the time of settling a redeem request for a given price-per-share, the amount is to be redeemed from the lead series first. If the total user assets in lead series is not sufficient to fulfill the request, the remaining amount should be redeemed from the outstanding series with the lowest series Id. This process must be continued until the entire request is fulfilled. The portion of redemption that takes place in a given series is called a Redeem Slice.
+
+
+## Rationale
+
+The standard extends the ERC-7540 standard as the “free-ride” problem is prevalent in vaults that derive their yields from RWAs. Reflecting performance from off-chain assets like hedge or liquid fund portfolios can vary drastically from each rebalancing/settlement cycle. 
+
+This can cause large fluctuations in exchange rates (price-per-share) of a vault resulting in inaccurate performance fee collection from users. Series Accounting is a very common and standard method of accounting portfolios in traditional funds but lacks any formal implementation in DeFi.
+
+### Using “assets” instead of “shares” for redemption
+
+We cannot use `shares` to specify the amount a user wishes to redeem because shares are non-fungible across series. A user who can have assets across multiple series cannot specify a single share value in the request to represent all user assets.
+
+If requests are made for a given series, `shares` can be used but then:
+- user must make multiple requests if they wish to redeem more than what they own in a given series
+- if the series gets consolidated, the redemption may take place from lead series but price-per-share information must be stored which makes implementation very complicated and can introduce security risks
+
+The best solution presented to be users specifying `assets` instead of `shares` when making a redeem request. While processing the request, the implementation can store the proportion of total user assets across all series that they wish to redeem. 
+
+This solves the issues of non-fungible shares and accounting across multiple series.
+
+### Consolidating Series
+
+Each new set of deposit requests may require its own series. This can cause the number of outstanding series to increase in number drastically if vault periodically has periods of poor performance.
+
+This can cause following problems:
+- having many outstanding series may result in any implementation processing them to exceed the block gas limit eventually which can render the vault unusable.
+- traditional fund managers that expect to fetch vault data for their accounting reports are not pleased with having bloated NAV/AUM sheets with multiple series.
+
+After the lead series reaches a new highwater mark, all subsequent outstanding series also reach new highwater marks. When this happens, each existing user has paid their fair share of performance and their no longer exists a need to maintain these deposits separately.
+
+Hence, consolidating all outstanding series during this point can help a vault never exceed block gas limit and also keeps accounting reports for traditional managers clean and concise.
+
+## Backwards Compatibility
+
+ERC-TBA is fully backwards compatible with ERC-7540.
+
+## Reference Implementation
+
+See: [Aleph-Finance](https://github.com/AlephFi/smart-contracts)
+
+## Security Considerations
+
+The fee calculation for yield bearing vaults can be complex as there can be multiple fixed and variable charges applied before performance fee. This can cause mismatch from expected and realised fee collections. 
+
+Protocols must be careful and thoroughly analyse the accounting resulting from their implementations to ensure they match expectations, and should provide clear documentation of all fee calculations.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
