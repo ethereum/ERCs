@@ -42,8 +42,8 @@ Guardian Shield tokens are designed to fight back. Each token is serialized, mon
   - Maintained by Guardian Shield Administration
   - Monitored by autonomous agents for security
 - **Batch Minting**:
-  - Tokens minted in batches of 300 million
-  - Each batch assigned a monitoring agent with logging duties
+  - Tokens are minted in configurable batch sizes (recommended default: 300 million)
+  - Each batch is assigned a monitoring agent with logging duties
 - **Purchasing Model**:
   - Guardian Shield tokens are available to anyone
   - Initial price: $0.005 per token
