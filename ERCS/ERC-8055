@@ -68,14 +68,65 @@ By inheriting from [ERC-20](https://eips.ethereum.org/EIPS/eip-20), [ERC-8055](h
 
 ## Reference Implementation
 
-The implementation will support open-access purchasing via a decentralized exchange or smart contract interface. Users can acquire Guardian Shield tokens using ETH, BTC, or other recognized tokens. The initial price is set at $0.005 per token, but pricing will fluctuate based on liquidity and market conditions. The system will include:
+Below is a minimal Solidity reference implementation demonstrating the required interfaces, methods, and events for ERC-8055. This example inherits from ERC-20 and adds serial tracking, burn/remint logic, and agent monitoring.
 
-- A token swap interface supporting multi-token input
-- Price oracle integration for real-time valuation and liquidity tracking
-- Logging of purchase transactions and batch assignments
-- Agent monitoring for each minted batch
-- Treasury reminting logic triggered by verified burn events
+```solidity
+// SPDX-License-Identifier: CC0
+pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+interface IERC8055 {
+    event SerialAssigned(address indexed to, uint256 indexed serial);
+    event TokenBurned(address indexed from, uint256 amount, uint256[] serials);
+    event TokenReminted(address indexed to, uint256 amount, uint256[] serials);
+    event AgentMonitored(address indexed agent, uint256 batchId, string status);
+
+    function assignSerial(address to, uint256 serial) external;
+    function burnWithSerial(uint256 amount, uint256[] calldata serials) external;
+    function remint(address to, uint256 amount, uint256[] calldata serials) external;
+}
+
+contract GuardianShield is ERC20, IERC8055 {
+    mapping(uint256 => address) public serialOwner;
+    mapping(uint256 => bool) public burnedSerials;
+
+    constructor() ERC20("Guardian Shield", "GSHLD") {
+        _mint(msg.sender, 1000000 * 10 ** decimals());
+    }
+
+    function assignSerial(address to, uint256 serial) external override {
+        require(serialOwner[serial] == address(0), "Serial already assigned");
+        serialOwner[serial] = to;
+        emit SerialAssigned(to, serial);
+    }
+
+    function burnWithSerial(uint256 amount, uint256[] calldata serials) external override {
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
+        for (uint i = 0; i < serials.length; i++) {
+            require(serialOwner[serials[i]] == msg.sender, "Not owner of serial");
+            burnedSerials[serials[i]] = true;
+        }
+        _burn(msg.sender, amount);
+        emit TokenBurned(msg.sender, amount, serials);
+    }
+
+    function remint(address to, uint256 amount, uint256[] calldata serials) external override {
+        // Only authorized treasury/agent logic should be here (omitted for brevity)
+        for (uint i = 0; i < serials.length; i++) {
+            require(burnedSerials[serials[i]], "Serial not burned");
+            serialOwner[serials[i]] = to;
+            burnedSerials[serials[i]] = false;
+        }
+        _mint(to, amount);
+        emit TokenReminted(to, amount, serials);
+    }
+
+    function agentMonitor(uint256 batchId, string calldata status) external {
+        // Agent monitoring logic (authorization omitted for brevity)
+        emit AgentMonitored(msg.sender, batchId, status);
+    }
+}
 ## Security Considerations
 
 - Burn triggers require strict validation to prevent abuse
