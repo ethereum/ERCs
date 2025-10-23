@@ -1,0 +1,30 @@
+---
+eip: 8055
+title: Guardian Shield Security Token
+description: A security token framework for Guardian Shield
+discussions-to: https://github.com/ethereum/EIPs/issues/8055
+author:
+  - rexjaden
+type: Standards Track
+category: core
+status: Draft
+created: 2025-10-22
+requires: []
+---
+
+[ERC-8055](./eip-8055.md) introduces a security token to be hosted exclusively by Guardian Shield Administration. It is designed to enforce transparency, fraud resistance, and real-time monitoring across decentralized ecosystems.
+
+[This is the role of [ERC-8055](./eip-8055.md)] is more than a token. It is a framework that security, transparency, and justice can be built upon.
+
+By inheriting from [ERC-20](./eip-20.md), [ERC-8055](./eip-8055.md) maintains compatibility with existing token infrastructure while introducing enhanced security primitives.
+
+- [ERC-20](./eip-20.md) inherits core functionality from [ERC-20](./eip-20.md)
+- Optionally integrates [ERC-721](./eip-721.md)
+
+[ERC-8055](./eip-8055.md) is more than a proposal. It’s a statement: that security, transparency, and justice are not optional—they are foundational.
+
+[ERC-8055](./eip-8055.md) is a standalone specification that does not depend on other proposals. It may optionally integrate with [ERC-721](./eip-721.md) for NFT-based access control.
+
+[ERC-8055](./eip-8055.md)
+
+[ERC-8055](./eip-8055.md)
