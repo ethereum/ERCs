@@ -1,0 +1,31 @@
+## Abstract
+
+Defines a token with native protection.
+
+## Motivation
+
+Improve token security.
+
+## Specification
+
+To be defined.
+
+## Rationale
+
+To reduce risk.
+
+## Backwards Compatibility
+
+Compatible with ERC-20.
+
+## Reference Implementation
+
+None yet.
+
+## Security Considerations
+
+Security logic must be reviewed.
+
+## Copyright
+
+© 2025 Rex Jaden. CC0.
