@@ -1,48 +1,259 @@
 ---
 eip: 8055
 title: GuardianShield Security Token Standard
-author: Rexjaden
-discussions-to: https://ethereum-magicians.org/t/erc-8055-guardianshield/8055
+description: A revolutionary self-protecting token standard with autonomous theft protection and recovery mechanisms
+author: Rexjaden (@rexjaden)
+discussions-to: https://ethereum-magicians.org/t/erc-8055-guardianshield-security-token/8055
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-10-23
-requires: 20
+created: 2024-12-19
+requires: 20, 165
 ---
 
 ## Abstract
 
-GuardianShield introduces a modular security token standard (ERC-8055) designed to integrate fraud detection, staking mechanics, and liquidity protocols. It enables real-time monitoring, adaptive compliance, and AI-assisted governance across decentralized ecosystems.
+ERC-8055 introduces the GuardianShield Security Token Standard (SHIELD), a revolutionary self-protecting cryptocurrency token that provides autonomous theft protection, automatic burn cycles for contaminated tokens, and cryptographic recovery mechanisms. This standard enables tokens to actively defend against fraud, track ownership through cryptographic serial numbers, and coordinate with GuardianShield agents for real-time security monitoring.
 
 ## Motivation
 
-Current token standards lack built-in security primitives. GuardianShield addresses this by embedding fraud detection, validator coordination, and investor protection directly into the token architecture. ERC-8055 aims to become the foundational layer for secure asset issuance and management.
+Current token standards are passive and vulnerable to various forms of theft, fraud, and manipulation. Traditional tokens cannot:
+
+1. Detect when they have been stolen or compromised
+2. Automatically protect themselves from further damage
+3. Recover from theft incidents autonomously
+4. Track their ownership history cryptographically
+5. Coordinate with external security systems
+
+ERC-8055 addresses these limitations by embedding autonomous security mechanisms directly into the token contract, creating the first truly self-defending cryptocurrency standard.
 
 ## Specification
 
-ERC-8055 builds on ERC-20 and ERC-721, introducing:
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-- **Guardian Modules**: Smart contracts for fraud detection, staking, and compliance.
-- **Validator Mesh**: Distributed validator coordination with slashing and reward mechanics.
-- **AI Oracles**: Real-time anomaly detection and governance triggers.
-- **Liquidity Anchors**: Automated market-making and capital rotation logic.
+### Interface
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+/**
+ * @title IERC8055 GuardianShield Security Token Interface
+ * @dev Interface for ERC-8055 GuardianShield Security Tokens with autonomous protection
+ */
+interface IERC8055 is IERC20, IERC165 {
+    
+    // Events
+    event TokensBurned(address indexed account, uint256 amount, string reason, uint256 serialNumber);
+    event TokensRecovered(address indexed from, address indexed to, uint256 amount, uint256 serialNumber);
+    event GuardianRegistered(address indexed guardian, string agentType);
+    event SecurityAlert(address indexed account, uint256 amount, string alertType, uint256 serialNumber);
+    event SerialNumberAssigned(address indexed account, uint256 amount, uint256 serialNumber);
+    
+    // Core Protection Functions
+    function burnContaminatedTokens(address account, uint256 amount, string calldata reason) external returns (bool);
+    function recoverTokens(address from, address to, uint256 amount, bytes calldata proof) external returns (bool);
+    function getSerialNumber(address account, uint256 tokenIndex) external view returns (uint256);
+    function isContaminated(address account) external view returns (bool);
+    
+    // Guardian System
+    function registerGuardian(address guardian, string calldata agentType) external returns (bool);
+    function removeGuardian(address guardian) external returns (bool);
+    function isGuardian(address account) external view returns (bool);
+    
+    // Security Monitoring
+    function reportThreat(address target, string calldata threatType, uint256 severity) external returns (bool);
+    function getSecurityStatus(address account) external view returns (bool isSecure, uint256 riskLevel, uint256 lastCheck);
+    
+    // Recovery System
+    function initiateRecovery(address compromisedAccount, address newAccount, bytes calldata proof) external returns (bool);
+    function confirmRecovery(uint256 recoveryId, bytes calldata confirmation) external returns (bool);
+    function getRecoveryStatus(uint256 recoveryId) external view returns (bool active, address from, address to, uint256 amount);
+}
+```
+
+### Core Functionality
+
+#### 1. Autonomous Burn Protection
+
+Tokens MUST implement automatic burning of contaminated tokens:
+
+```solidity
+function burnContaminatedTokens(address account, uint256 amount, string calldata reason) external returns (bool) {
+    require(isGuardian(msg.sender), "Only guardians can burn contaminated tokens");
+    require(balanceOf(account) >= amount, "Insufficient balance");
+    
+    _burn(account, amount);
+    emit TokensBurned(account, amount, reason, _getNextSerialNumber());
+    return true;
+}
+```
+
+#### 2. Cryptographic Recovery System
+
+Tokens MUST support cryptographic recovery of stolen funds:
+
+```solidity
+function recoverTokens(address from, address to, uint256 amount, bytes calldata proof) external returns (bool) {
+    require(isGuardian(msg.sender), "Only guardians can recover tokens");
+    require(_verifyRecoveryProof(from, to, amount, proof), "Invalid recovery proof");
+    
+    _transfer(from, to, amount);
+    emit TokensRecovered(from, to, amount, _getNextSerialNumber());
+    return true;
+}
+```
+
+#### 3. Serial Number Tracking
+
+Each token transaction MUST be assigned a unique serial number for tracking:
+
+```solidity
+function _assignSerialNumber(address account, uint256 amount) internal returns (uint256) {
+    uint256 serialNumber = _getNextSerialNumber();
+    _serialNumbers[account].push(serialNumber);
+    emit SerialNumberAssigned(account, amount, serialNumber);
+    return serialNumber;
+}
+```
+
+#### 4. Guardian Integration
+
+Tokens MUST support registration and management of GuardianShield agents:
+
+```solidity
+function registerGuardian(address guardian, string calldata agentType) external returns (bool) {
+    require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Admin role required");
+    _guardians[guardian] = true;
+    _guardianTypes[guardian] = agentType;
+    emit GuardianRegistered(guardian, agentType);
+    return true;
+}
+```
+
+### Security Requirements
+
+1. **Access Control**: Only registered guardians MAY burn contaminated tokens or initiate recovery
+2. **Proof Verification**: Recovery operations MUST verify cryptographic proofs
+3. **Rate Limiting**: Burn and recovery operations SHOULD implement rate limiting
+4. **Event Logging**: All security operations MUST emit appropriate events
+5. **Reentrancy Protection**: All external calls MUST be protected against reentrancy attacks
 
 ## Rationale
 
-Security should not be an afterthought. By standardizing protection mechanisms, ERC-8055 reduces systemic risk and increases investor confidence. It also enables composability with existing DeFi protocols.
+### Design Decisions
+
+1. **ERC-20 Compatibility**: Built on ERC-20 to ensure compatibility with existing DeFi protocols
+2. **Guardian System**: Allows integration with external security agents while maintaining decentralization
+3. **Serial Numbers**: Enables tracking and forensic analysis of token movements
+4. **Autonomous Protection**: Reduces response time to security threats from hours to seconds
+5. **Cryptographic Recovery**: Provides a secure method to recover stolen tokens without centralized control
+
+### Alternative Approaches Considered
+
+1. **Pausable Tokens**: Too restrictive and affects all holders
+2. **Blacklist Systems**: Centralized and prone to abuse
+3. **Multi-signature Recovery**: Too slow for real-time threats
+4. **Insurance-based Approaches**: External dependencies and coverage limitations
 
 ## Backwards Compatibility
 
-ERC-8055 is compatible with ERC-20 and ERC-721. Legacy tokens can be wrapped or migrated using GuardianShield adapters.
+ERC-8055 is fully backwards compatible with ERC-20. Existing applications can interact with ERC-8055 tokens using standard ERC-20 functions. The additional security features are opt-in and do not affect normal token operations.
+
+Legacy tokens can be wrapped or upgraded to ERC-8055 through migration contracts that preserve balances while adding security features.
+
+## Test Cases
+
+### Basic Functionality Tests
+
+```javascript
+describe("ERC8055 Basic Tests", function() {
+  it("Should transfer tokens normally", async function() {
+    await token.transfer(recipient.address, 100);
+    expect(await token.balanceOf(recipient.address)).to.equal(100);
+  });
+
+  it("Should burn contaminated tokens", async function() {
+    await token.registerGuardian(guardian.address, "ThreatAnalyzer");
+    await token.connect(guardian).burnContaminatedTokens(target.address, 50, "Theft detected");
+    expect(await token.balanceOf(target.address)).to.equal(50);
+  });
+
+  it("Should recover stolen tokens", async function() {
+    const proof = generateRecoveryProof(victim.address, recovery.address, 100);
+    await token.connect(guardian).recoverTokens(thief.address, victim.address, 100, proof);
+    expect(await token.balanceOf(victim.address)).to.equal(100);
+  });
+});
+```
+
+### Security Tests
+
+```javascript
+describe("ERC8055 Security Tests", function() {
+  it("Should prevent unauthorized burns", async function() {
+    await expect(
+      token.connect(attacker).burnContaminatedTokens(target.address, 50, "Fake alert")
+    ).to.be.revertedWith("Only guardians can burn contaminated tokens");
+  });
+
+  it("Should validate recovery proofs", async function() {
+    const invalidProof = "0x1234";
+    await expect(
+      token.connect(guardian).recoverTokens(thief.address, victim.address, 100, invalidProof)
+    ).to.be.revertedWith("Invalid recovery proof");
+  });
+});
+```
 
 ## Reference Implementation
 
-See [ERC-8055](./eip-8055.md) and [GuardianShield ERC-8055](./guardianshield-ERC8055.md) for full implementation details.
+A complete reference implementation is available at [ERC8055.sol](./assets/eip-8055/ERC8055.sol).
+
+Key components:
+
+1. **ERC8055.sol**: Main contract implementation
+2. **GuardianManager.sol**: Guardian registration and management
+3. **SerialTracker.sol**: Token serial number tracking
+4. **RecoverySystem.sol**: Cryptographic recovery mechanisms
+5. **SecurityMonitor.sol**: Threat detection and response
 
 ## Security Considerations
 
-GuardianShield modules are designed to be upgradeable and auditable. Validators are incentivized to report anomalies, and AI oracles are sandboxed to prevent manipulation.
+### Potential Risks
+
+1. **Guardian Compromise**: If guardians are compromised, they could abuse burn/recovery functions
+   - **Mitigation**: Multi-guardian consensus requirements, time delays, and governance oversight
+
+2. **Proof Forgery**: Invalid recovery proofs could lead to unauthorized token transfers
+   - **Mitigation**: Strong cryptographic proof systems and multiple verification layers
+
+3. **Denial of Service**: Excessive burn operations could be used to attack token holders
+   - **Mitigation**: Rate limiting, reputation systems, and economic penalties
+
+4. **Centralization Risk**: Too few guardians could create centralization
+   - **Mitigation**: Distributed guardian network with geographic and organizational diversity
+
+### Best Practices
+
+1. **Guardian Selection**: Choose reputable, technically capable guardians with strong security practices
+2. **Proof Systems**: Use well-tested cryptographic libraries and protocols
+3. **Emergency Procedures**: Implement circuit breakers and emergency pause mechanisms
+4. **Audit Requirements**: Regular security audits of guardian systems and smart contracts
+5. **Transparency**: Public logs of all security actions for community oversight
+
+### Integration Security
+
+When integrating with DeFi protocols:
+
+1. **Slippage Protection**: Account for potential token burns in automated market makers
+2. **Oracle Updates**: Ensure price oracles account for circulating supply changes
+3. **Lending Protocols**: Implement safeguards for collateral that might be burned
+4. **Bridge Security**: Coordinate with cross-chain bridges to handle recovery operations
 
 ## Copyright
 
-© 2025 Rexjaden. This document is licensed under the Creative Commons CC0.
+Copyright and related rights waived via [CC0](../LICENSE.md).
