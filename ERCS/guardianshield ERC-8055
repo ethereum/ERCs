@@ -1,0 +1,48 @@
+---
+eip: 8055
+title: GuardianShield Security Token Standard
+author: Rexjaden
+discussions-to: https://ethereum-magicians.org/t/erc-8055-guardianshield/8055
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-23
+requires: 20
+---
+
+## Abstract
+
+GuardianShield introduces a modular security token standard (ERC-8055) designed to integrate fraud detection, staking mechanics, and liquidity protocols. It enables real-time monitoring, adaptive compliance, and AI-assisted governance across decentralized ecosystems.
+
+## Motivation
+
+Current token standards lack built-in security primitives. GuardianShield addresses this by embedding fraud detection, validator coordination, and investor protection directly into the token architecture. ERC-8055 aims to become the foundational layer for secure asset issuance and management.
+
+## Specification
+
+ERC-8055 builds on ERC-20 and ERC-721, introducing:
+
+- **Guardian Modules**: Smart contracts for fraud detection, staking, and compliance.
+- **Validator Mesh**: Distributed validator coordination with slashing and reward mechanics.
+- **AI Oracles**: Real-time anomaly detection and governance triggers.
+- **Liquidity Anchors**: Automated market-making and capital rotation logic.
+
+## Rationale
+
+Security should not be an afterthought. By standardizing protection mechanisms, ERC-8055 reduces systemic risk and increases investor confidence. It also enables composability with existing DeFi protocols.
+
+## Backwards Compatibility
+
+ERC-8055 is compatible with ERC-20 and ERC-721. Legacy tokens can be wrapped or migrated using GuardianShield adapters.
+
+## Reference Implementation
+
+See [ERC-8055](./eip-8055.md) and [GuardianShield ERC-8055](./guardianshield-ERC8055.md) for full implementation details.
+
+## Security Considerations
+
+GuardianShield modules are designed to be upgradeable and auditable. Validators are incentivized to report anomalies, and AI oracles are sandboxed to prevent manipulation.
+
+## Copyright
+
+© 2025 Rexjaden. This document is licensed under the Creative Commons CC0.
