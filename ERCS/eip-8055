@@ -1,0 +1,43 @@
+---
+eip: 8055
+title: GuardianShield Token
+description: A token standard with built-in security features.
+author: Rex Jaden (@Rexjaden)
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-23
+requires: 20
+---
+
+## Abstract
+
+Defines a token with native protection mechanisms.
+
+## Motivation
+
+Improve token security.
+
+## Specification
+
+To be defined.
+
+## Rationale
+
+To reduce risk.
+
+## Backwards Compatibility
+
+Compatible with ERC-20.
+
+## Reference Implementation
+
+None yet.
+
+## Security Considerations
+
+Security logic must be reviewed.
+
+## Copyright
+
+© 2025 Rex Jaden. CC0.
