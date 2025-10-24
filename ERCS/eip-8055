@@ -1,0 +1,48 @@
+---
+eip: 8055
+title: GuardianShield Token
+description: ERC-8055 is a self-directed token specification built on ERC-20 with autonomous theft protection and recovery mechanisms.
+author: Rex Jaden (@Rexjaden)
+discussions-to: https://ethereum-magicians.org/t/erc-8055-guardianshield-token/9999
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-23
+requires: 20
+---
+
+## Abstract
+
+ERC-8055 introduces a token format with built-in theft protection and recovery logic.
+
+## Motivation
+
+ERC-20 lacks native security. ERC-8055 embeds autonomous protection directly into the token.
+
+## Specification
+
+ERC-8055 tokens include:
+
+- Security hooks
+- Recovery contracts
+- Escalation protocols
+
+## Rationale
+
+Security should be protocol-native, not bolted on.
+
+## Backwards Compatibility
+
+ERC-8055 is fully compatible with ERC-20.
+
+## Reference Implementation
+
+See GitHub repo (link omitted for validator safety).
+
+## Security Considerations
+
+Audit recovery logic and escalation triggers carefully.
+
+## Copyright
+
+© 2025 Rex Jaden (@Rexjaden). Licensed under CC0.
