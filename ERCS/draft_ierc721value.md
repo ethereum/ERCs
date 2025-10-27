@@ -1,0 +1,42 @@
+---
+eip: <to be assigned>
+title: IERC721Value — Embedding native ETH inside ERC-721 tokens
+author: Ten.IO <ten-io-meta@protonmail.com>
+discussions-to: https://ethereum-magicians.org/t/draft-erc-ierc721value-embedding-native-eth-inside-erc-721-tokens/25979
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-26
+requires: 721
+---
+
+## Abstract
+
+This proposal introduces `IERC721Value`, an extension to the ERC-721 standard that enables each non-fungible token to natively hold and represent verifiable ETH value within its contract logic.  
+Unlike wrapped or delegated approaches, this mechanism embeds ETH directly into the NFT itself, creating a new class of ETH-backed cultural assets.
+
+---
+
+## Motivation
+
+Today, NFTs represent ownership of digital assets but do not hold intrinsic value.  
+`IERC721Value` allows each token to embed and maintain a direct ETH collateral balance, binding cultural, artistic, or symbolic meaning to real on-chain economic weight.  
+This creates a new paradigm of *ETH-reservoir assets* that act as verifiable stores of cultural and financial energy.
+
+---
+
+## Specification
+
+The interface extends ERC-721 as follows:
+
+```solidity
+interface IERC721Value is IERC721 {
+    /// @notice Returns the amount of ETH embedded in the given tokenId.
+    function valueOf(uint256 tokenId) external view returns (uint256);
+
+    /// @notice Allows minting a token with embedded ETH value.
+    function mintWithValue(address to, uint256 tokenId) external payable;
+
+    /// @notice Burns a token and refunds its embedded ETH value to the owner.
+    function burn(uint256 tokenId) external;
+}
