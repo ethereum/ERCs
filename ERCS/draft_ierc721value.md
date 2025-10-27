@@ -1,5 +1,5 @@
 ---
-eip: <to be assigned>
+eip: 8060
 title: IERC721Value — Embedding native ETH inside ERC-721 tokens
 author: Ten.IO <ten-io-meta@protonmail.com>
 discussions-to: https://ethereum-magicians.org/t/draft-erc-ierc721value-embedding-native-eth-inside-erc-721-tokens/25979
