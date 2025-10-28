@@ -1,6 +1,5 @@
 ---
-eip: <to be assigned>
-title: ERC-7204 Permit Extensions
+title: ERC-7204 Permit Extension
 description: Off-chain permit flow for ERC-7204 token managers
 author: Xiang (@wenzhenxiang)
 discussions-to: https://ethereum-magicians.org/t/contract-wallet-management-token-permit-extensions/25985
@@ -8,8 +7,7 @@ status: Draft
 type: Standards Track
 category: ERC
 requires: 7204, 712
-created: 2025-03-22
-license: CC0-1.0
+created: 2025-10-28
 ---
 
 ## Abstract
