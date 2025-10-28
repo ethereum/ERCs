@@ -1,5 +1,5 @@
 ---
-title: Management Token Permit Extension
+title: Management Token Permit
 description: Off-chain permit flow for ERC-7204 token managers
 author: Xiang (@wenzhenxiang)
 discussions-to: https://ethereum-magicians.org/t/contract-wallet-management-token-permit-extensions/25985
