@@ -1,0 +1,478 @@
+---
+eip: <to be assigned>
+title: Zero Knowledge Token Wrapper
+description: Enables any token to be wrapped, allowing secretly burnt tokens to be reminted — making privacy a native feature of every token.
+author: Jiahui Cui (@doublespending), 0xZPL (@0xZPL)
+discussions-to: https://ethereum-magicians.org/t/erc-tbd-zero-knowledge-token-wrapper/26006
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-10-18
+requires: 20, 721, 1155
+---
+
+## Abstract
+
+This ERC defines a standard for the Zero Knowledge Token Wrapper, a wrapper that adds privacy to tokens — including [ERC-20](./erc20.md), [ERC-721](./erc721.md), and [ERC-1155](./erc1155.md) — while preserving all of the tokens' original properties, such as transferability, tradability, and composability. It specifies [EIP-7503](https://eips.ethereum.org/EIPS/eip-7503)-style provable burn-and-remint flows, enabling users to break on-chain traceability and making privacy a native feature of all tokens on Ethereum.
+
+## Motivation
+
+Most existing tokens lack native privacy due to regulatory, technical, and issuer-side neglect. Users seeking privacy must rely on dedicated privacy blockchains or privacy-focused dApps, which restrict token usability, reduce composability, limit supported token types, impose whitelists, and constrain privacy schemes.
+
+This ERC takes a different approach by introducing a zero knowledge token wrapper that preserves the underlying token’s properties while adding privacy. Its primary goals are:
+
+- Pluggable privacy: the wrapper preserves all properties of the underlying token while adding privacy.
+- Permissionless privacy: any user can wrap any token into a Zero Knowledge Wrapper Token (ZWToken).
+- Broad token support: compatible with both fungible tokens (e.g., ETH, [ERC-20](./erc20.md)) and non-fungible tokens (e.g., [ERC-721](./erc721.md)).
+- [EIP-7503](https://eips.ethereum.org/EIPS/eip-7503)-style privacy: supports provable burn-and-remint flows to achieve high-level privacy.
+- Compatibility with multiple [EIP-7503](https://eips.ethereum.org/EIPS/eip-7503) schemes: supports different provable burn address generation methods and commitment schemes (e.g., Ethereum-native MPT state tree or contract-managed commitments).
+
+## Specification
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Overview
+
+A Zero Knowledge Wrapper Token (ZWToken) is a wrapper token that adds a commitment-based privacy layer to existing tokens, including [ERC-20](./erc20.md), [ERC-721](./erc721.md), and [ERC-1155](./erc1155.md). This privacy layer allows private transfers without modifying the underlying token standard, while preserving full composability with existing Ethereum infrastructure.
+
+The commitment mechanism underlying this privacy layer may be implemented using Merkle trees, cryptographic accumulators, or any other verifiable cryptographic structure.
+
+A Zero Knowledge Wrapper Token (ZWToken) provides the following core functionalities:
+
+The ZWToken recipient can be a provable burn address, from which the tokens can later be reminted.
+
+- Deposit: Wraps an existing token and mints the corresponding amount of ZWToken to the specified recipient.
+- Transfer: Transfers ZWToken to the specified recipient.
+- Remint: Mints new ZWTokens to the specified recipient after verifying a zero-knowledge proof demonstrating ownership of previously burnt tokens, without revealing the link between them.
+- Withdraw: Burns ZWTokens to redeem the equivalent amount of the underlying tokens to the specified recipient.
+
+#### Privacy Features by Token Type
+
+For fungible tokens (FTs), e.g., [ERC-20](./erc20.md):
+
+- This ERC enables breaking the traceability of fund flows through the burn and remint processes.
+- The use of provable burn addresses hides the true holder of fungible tokens until the holder performs a withdraw operation of ZWToken.
+
+For non-fungible tokens (NFTs), e.g., [ERC-721](./erc721.md):
+
+- This ERC **cannot** break the traceability of fund flows through burn and remint, since each NFT is unique and cannot participate in coin-mixing.
+- However, the use of provable burn addresses can still conceal the true holder of the NFT until the holder performs a withdraw operation of ZWToken.
+
+#### ZWToken-aware Workflow
+
+In the ZWToken-aware workflow, both the user and the system explicitly recognize and interact with ZWToken. ZWToken inherits all functional properties of the underlying token.
+
+![](../assets/erc-draft-zero-knowledge-token-wrapper/flow1.svg)
+
+For example, if the underlying token is [ERC-20](./erc20.md), ZWToken can be traded on DEXs, used for swaps, liquidity provision, or standard transfers. Similar to how holding WETH provides additional benefits over holding ETH directly, users may prefer to hold ZWToken rather than the underlying token.
+
+#### ZWToken-unaware Workflow
+
+This ERC also supports a ZWToken-unaware workflow. In this mode, all transfers are internally handled through ZWToken, but users remain unaware of its existence.
+
+![](../assets/erc-draft-zero-knowledge-token-wrapper/flow2.svg)
+
+ZWToken functions transparently beneath the user interface, reducing the number of required contract interactions and improving overall user experience for those who prefer not to hold ZWToken directly.
+
+#### Alternative Workflows
+
+The two workflows described above represent only a subset of the interaction patterns supported by this ERC. Additional workflows are also possible, including:
+
+- **Reminting by the recipient:**
+  Alice may `transfer` (in the ZWToken-aware workflow) or `depositTo` (in the ZWToken-unaware workflow) ZWToken to **Bob’s provable burn address** instead of her own. In this case, the **remint operation is initiated and proven by Bob rather than Alice**.
+
+- **Recursive reminting:**  
+  A reminted ZWToken may also be sent to **another provable burn address** controlled by Bob instead of his public address, allowing the privacy state to persist across multiple remint cycles.
+
+The interface:
+
+```solidity
+interface IERCXXXX {
+    // Optional
+    event CommitmentUpdated(bytes32 indexed commitment, address indexed to, uint256 amount);
+
+    event Deposited(address indexed from, address indexed to, uint256 amount);
+
+    event Withdrawn(address indexed from, address indexed to, uint256 amount);
+
+    event Reminted(address indexed from, address indexed to, uint256 amount, bool withdrawUnderlying);
+
+    function depositTo(address to, uint256 amount) external payable;
+
+    function withdraw(address to, uint256 amount) external;
+
+    function remint(
+        bytes calldata proof,
+        bytes32 commitment,
+        bytes32 nullifier,
+        address to,
+        uint256 amount,
+        bool withdrawUnderlying,
+        uint256 relayerFee
+    ) external;
+
+    function getLatestCommitment() external view returns (bytes32);
+
+    function hasCommitment(bytes32 commitment) external view returns (bool);
+
+    // Optional
+    function getCommitLeaves(uint256 startIndex, uint256 length) external view returns (bytes32, address, uint256);
+
+    function getFeeConfig() external view returns (uint256 depositFee, uint256 remintFee, uint256 withdrawFee, uint256 feeDenominator);
+
+    function getUnderlying() external view returns (address);
+}
+```
+
+### Deposit / Wrap
+
+```solidity
+/// @notice Deposits a specified amount of the underlying asset and mints the corresponding amount of ZWToken to the given address.
+/// @dev
+/// If the underlying asset is an ERC-20/ERC-721/ERC-1155 token, the caller must approve this contract to transfer the specified `amount` beforehand.
+/// If the underlying asset is ETH, the caller should send the deposit value along with the transaction (`msg.value`).
+/// @param to The address that will receive the minted ZWTokens.
+/// @param amount The amount of the underlying asset to deposit.
+function depositTo(address to, uint256 amount) external payable;
+```
+
+- The function MUST transfer the specified `amount` of the underlying asset from `msg.sender` to the ZWToken contract.
+  - If the underlying asset is an [ERC-20](./erc20.md), [ERC-721](./erc721.md), or [ERC-1155](./erc1155.md) token, the caller MUST approve this contract to transfer the specified `amount` beforehand.
+  - If the underlying asset is ETH, the caller MUST send the deposit value along with the transaction (`msg.value`).
+- The function SHOULD mint an equivalent `amount` of ZWToken to the recipient to, reduced by applicable fees: `mintAmount = amount - amount * depositFee / feeDenominator` where depositFee and feeDenominator are obtained from the `getFeeConfig()` interface.
+- Commitment Update:
+
+  - For contract-level commitment schemes, since to may be a provable burn address, the implementation SHOULD update the corresponding commitment.
+    - However, this MAY be optimized: if `to` == `msg.sender`, the implementation MAY skip updating the commitment, as `msg.sender` cannot be a provable burn address (otherwise the transaction could not be initiated).
+  - For protocol-level commitment schemes (e.g., Ethereum’s native Merkle Patricia Trie), the commitment (e.g., state root or block hash) is automatically updated by the protocol.
+
+- The function MUST emit a `Deposited(msg.sender, to, amount)` event upon successful deposit.
+
+### Withdraw / Unwrap
+
+```solidity
+/// @notice Withdraw underlying tokens by burning ZWToken
+/// @param to The recipient address that will receive the underlying token
+/// @param amount The amount of ZWToken to burn and redeem for the underlying token
+function withdraw(address to, uint256 amount) external;
+```
+
+- The function MUST burn the specified `amount` of ZWToken from `msg.sender`.
+- The function SHOULD transfer an equivalent `amount` of underlying token to the recipient `to`, reduced by applicable fees: `withdrawAmount = amount - amount * withdrawFee / feeDenominator` where `withdrawFee` and `feeDenominator` are obtained from the `getFeeConfig()` interface.
+- The function MUST emit a `Withdrawn(msg.sender, to, amount)` event upon successful withdrawal.
+
+### Transfer and Update Commitment
+
+- The Zero Knowledge Wrapper Token (ZWToken) remains fully compatible with the underlying token’s transfer interface, while extending it to support privacy-preserving operations.
+  - When a ZWToken is transferred to a provable burn address, those tokens MUST be eligible for reminting through the remint interface, effectively breaking the traceability of the fund flow.
+  - A provable burn address MAY take various forms (e.g., as defined in [EIP-7503](https://eips.ethereum.org/EIPS/eip-7503)). Its essential properties are:
+    - Such addresses MUST NOT be operable by any user and MUST be provably non-correspondent to any externally owned account (EOA) or smart contract.
+    - Only the entity that generates the burn address MAY derive it, for example, through a signature-derived or deterministic generation scheme.
+- Commitment Update:
+  - For commitment schemes maintained at the contract level:
+    - If the recipient is identified as a provable burn address, the contract MUST update the commitment.
+      - Example — a recipient that has previously sent any ZWToken MUST NOT be a provable burn address, since such addresses are incapable of initiating outgoing transfers. In this case, commitment update is not required.
+  - For protocol-level commitment schemes (e.g., Ethereum’s native MPT tree), the contract does not need to manage any commitment state, since the protocol layer already provides verifiable commitment structures.
+
+### Remint
+
+```solidity
+/// @notice Remint ZWToken using a zero-knowledge proof to unlink the source of funds
+/// @param proof Zero-knowledge proof bytes verifying ownership of the provable burn address
+/// @param commitment The commitment corresponding to the provided proof
+/// @param nullifier Unique nullifier used to prevent double-remint
+/// @param to Recipient address that will receive the reminted ZWToken or the underlying token
+/// @param amount Amount of ZWToken burned from the provable burn address for reminting
+/// @param withdrawUnderlying If true, withdraws the equivalent underlying token instead of reminting ZWToken
+/// @param relayerFee Fee paid to the relayer that submits the remint transaction, if executed through a relayer
+function remint(
+    bytes calldata proof,
+    bytes32 commitment,
+    bytes32 nullifier,
+    address to,
+    uint256 amount,
+    bool withdrawUnderlying,
+    uint256 relayerFee
+) external;
+```
+
+- The function MUST verify the zero-knowledge proof proof against the provided commitment to ensure:
+
+  - Ownership of the provable burn address.
+  - Correctness parameters of `remint`，即 zk proof 的 public input。
+    ```solidity
+      bytes32 nullifier,
+      address to,
+      uint256 amount,
+      bool withdrawUnderlying,
+      uint256 relayerFee
+    ```
+
+- The function MUST validate the input `commitment` to ensure it exists.
+- The function MUST ensure that the nullifier has not been used previously. Reuse of a nullifier MUST revert the transaction.
+- Upon successful verification:
+
+  - If `withdrawUnderlying` is false, the function MUST mint `amount - amount * (remintFee + relayerFee) / feeDenominator` of ZWToken to the recipient `to`, where `remintFee` is obtained from the `getFeeConfig()` interface.
+    - In this case, the function MUST emit the `Reminted` event after a successful remint of ZWToken.
+  - If `withdrawUnderlying` is true, the function MUST transfer `amount - amount * (remintFee + withdrawFee + relayerFee) / feeDenominator` of underlying token to the recipient `to`, where `remintFee` is obtained from the `getFeeConfig()` interface.
+    - In this case, the function MUST emit the `Reminted` event after a successful withdrawn of underlying token.
+  - If relayerFee > 0, the `amount * relayerFee / feeDenominator` of ZWToken MUST be transferred to the relayer submitting the transaction.
+  - The function MUST mark the nullifier as spent to prevent double-spending.
+
+### Query Interfaces
+
+```solidity
+/// @notice Returns the current top-level commitment representing the privacy state
+/// @return The latest root hash of the commitment tree
+function getLatestCommitment() external view returns (bytes32);
+
+/// @notice Checks if a specific top-level commitment exists
+/// @param commitment The root hash to verify
+/// @return True if the commitment exists, false otherwise
+function hasCommitment(bytes32 commitment) external view returns (bool);
+
+/// @notice OPTIONAL: Retrieves leaf-level commit data and their hashes
+/// @param startIndex Index of the first leaf to fetch
+/// @param length Number of leaves to fetch
+/// @return commitHashes Hashes of the leaf data
+/// @return recipients Recipient addresses of each leaf
+/// @return amounts Token amounts of each leaf
+function getCommitLeaves(uint256 startIndex, uint256 length)
+    external view returns (bytes32[] memory commitHashes, address[] memory recipients, uint256[] memory amounts);
+
+/// @notice Returns the configured fees for deposit, remint, and withdrawal operations
+/// @return depositFee Fee rate applied to deposits
+/// @return remintFee Fee rate applied to remints
+/// @return withdrawFee Fee rate applied to withdrawals
+/// @return feeDenominator Denominator used to calculate percentage-based fees
+function getFeeConfig() external view returns (uint256 depositFee, uint256 remintFee, uint256 withdrawFee, uint256 feeDenominator);
+
+/// @notice Returns the address of the underlying token wrapped by this ZWToken
+/// @return The underlying token contract address
+function getUnderlying() external view returns (address);
+```
+
+- `getLatestCommitment()`: MUST return the most recent top-level commitment representing the current state of the ZWToken system.
+  - For protocol-level commitments, the block number can be used as the commitment, as it can directly map to the block hash.
+- `hasCommitment(bytes32 commitment)`: MUST check whether a specific top-level commitment exists in the contract.
+  - For proving ownership of a provable burn address, it does not require the latest commitment.
+  - For protocol-level commitments, the block number can be used as the commitment, as it can directly map to the block hash.
+- `getCommitLeaves(uint256 startIndex, uint256 length)`: OPTIONAL. Retrieves leaf-level commitment data from the commitment tree.
+
+  - On-chain storage of commit data can be used to improve privacy and decentralization but will incur higher gas costs.
+  - Event-based reconstruction can be used as an alternative, though it introduces potential centralization risks.
+
+- `getFeeConfig()`: MUST return the configured fee rates for deposits, remints, and withdrawals, along with the denominator for percentage calculation.
+
+  - Support different fee mechanisms.
+  - This allows external systems or users to compute fees accurately before performing any operation on the ZWToken.
+
+- `getUnderlying()`: MUST return the address of the underlying token that this ZWToken wraps.
+
+### Events
+
+```solidity
+// Optional: Emitted when a contract-maintained commitment is updated
+/// @notice OPTIONAL event emitted when a commitment is updated in the contract
+/// @param commitment The new top-level commitment hash
+/// @param to The recipient address associated with the commitment
+/// @param amount The amount related to this commitment update
+event CommitmentUpdated(bytes32 indexed commitment, address indexed to, uint256 amount);
+
+/// @notice Emitted when underlying tokens are deposited and ZWToken is minted
+/// @param from The address sending the underlying tokens
+/// @param to The address receiving the minted ZWToken
+/// @param amount The amount of tokens deposited/minted
+event Deposited(address indexed from, address indexed to, uint256 amount);
+
+/// @notice Emitted when ZWToken is burned to redeem underlying tokens
+/// @param from The address burning the ZWToken
+/// @param to The address receiving the underlying tokens
+/// @param amount The amount of tokens withdrawn/redeemed
+event Withdrawn(address indexed from, address indexed to, uint256 amount);
+
+/// @notice Emitted upon successful reminting of ZWToken via a zero-knowledge proof
+/// @param from The address initiating the remint function
+/// @param to The address receiving the reminted ZWToken
+/// @param amount The amount of ZWToken reminted
+/// @param withdrawUnderlying If true, withdraws the equivalent underlying token instead of reminting ZWToken
+event Reminted(address indexed from, address indexed to, uint256 amount, bool withdrawUnderlying);
+```
+
+- `Deposited(address indexed from, address indexed to, uint256 amount)` signals that underlying tokens have been deposited and ZWToken minted, where `from` is the sender, `to` is the recipient, and `amount` is the minted amount.
+
+- `Withdrawn(address indexed from, address indexed to, uint256 amount)` signals that ZWToken has been burned to redeem underlying tokens, where `from` is the burner, `to` is the receiver, and `amount` is redeemed.
+
+- `CommitmentUpdated(bytes32 indexed commitment, address indexed to, uint256 amount)` is OPTIONAL and may be emitted when a contract-maintained commitment is updated, such as when ZWToken is sent to a potential provable burn address. It allows users to reconstruct commitments and generate zero-knowledge proofs, where `commitment` is the new commitment, `to` is the recipient, and `amount` is the committed token amount.
+
+- `Reminted(address indexed from, address indexed to, uint256 amount)` MUST be emitted upon successful reminting of ZWToken via a zero-knowledge proof, where `from` is `msg.sender`, `to` is the recipient, and `amount` is the reminted ZWToken.
+
+## Rationale
+
+- Permissionless Wrapping: ZWToken does not require issuer consent — any existing token can be wrapped. This ensures openness and equal accessibility for all tokens regardless of their issuer’s policies.
+- Composable Privacy: Wrapped tokens remain fully compatible with their underlying token standards, preserving interoperability across the Ethereum ecosystem. Users and dApps can treat ZWToken as the underlying token when privacy is not required, making privacy an optional and composable extension rather than a separate system.
+- Awareness of ZWToken: This ERC supports both ZWToken-aware and ZWToken-unaware workflows, each with distinct advantages. In the ZWToken-aware workflow, ZWToken inherits all functional properties of the underlying token and can interact seamlessly with existing DeFi protocols. In the ZWToken-unaware workflow, ZWToken operates transparently beneath the user interface, reducing the number of required contract interactions and improving user experience for those who prefer not to hold ZWToken directly.
+- Multiple Token Standard Support: This ERC only depends on the transferability of the underlying token, enabling broad compatibility with token standards such as [ERC-20](./erc20.md), [ERC-721](./erc721.md), and [ERC-1155](./erc1155.md).
+- Multiple Fee Mechanisms: This ERC allows flexible fee configurations applied during the deposit, remint, or withdraw phases. Applying fees solely during the withdraw phase can incentivize users to hold ZWToken directly instead of withdrawing to the underlying token, enhancing liquidity retention.
+- Relayer-Enabled Remint: This ERC supports relayer functionality, allowing third parties to submit remint transactions on behalf of users while receiving a fee. This design mitigates privacy leakage caused by revealing the original sender’s address when paying gas fees.
+- Commitment Generalization: The ERC adopts a generic commitment abstraction, supporting various schemes such as Merkle trees or other verifiable cryptographic accumulators. This flexibility enables developers to adapt the standard to different privacy or scalability trade-offs.
+- Proof System Generalization: Proofs are passed as bytes calldata, allowing the use of SNARKs, STARKs, or any other zero-knowledge proof system, ensuring future-proof interoperability across cryptographic frameworks.
+- Provable Burn Address Generalization: This ERC does not prescribe a specific method for generating Provable Burn Addresses, as long as the following conditions are met. One example is adopting zk-friendly hash functions such as Poseidon to replace keccak256 in the address generation algorithm.
+  - Such addresses MUST NOT be operable by any user and MUST be provably non-correspondent to any externally owned account (EOA) or smart contract.
+  - Only the entity that generates the burn address MAY derive it, for example through a signature-derived or deterministic generation scheme.
+- Dual Commitment Options: The ERC supports both contract-maintained commitments and protocol-level commitments (using blockhash as the commitment).
+  - Contract-maintained commitments reduce proof complexity, allowing smaller ZK circuits and enabling proof generation directly in browsers or mobile devices, at the cost of higher gas consumption during transfers.
+  - Using blockhash as the commitment eliminates on-chain maintenance overhead but increases the complexity of off-chain proof generation.
+
+## Backwards Compatibility
+
+This ERC introduces no breaking changes. It extends the functionality of the underlying token without modifying or overriding its base interfaces.
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+interface IVerifier {
+    function verifyProof(
+        bytes calldata proof,
+        uint256[] calldata input
+    ) external view returns (bool);
+}
+
+contract ZWToken is ERC20 {
+    using SafeERC20 for IERC20;
+
+    uint256 public constant depositFee = 0;
+    uint256 public constant remintFee = 0;
+    uint256 public constant withdrawFee = 0;
+    uint256 public constant feeDenominator = 10000;
+
+    IERC20 public immutable underlying;
+    IVerifier public immutable verifier;
+
+    mapping(bytes32 => bool) public usedNullifier;
+
+    event Deposited(address indexed from, address indexed to, uint256 amount);
+    event Withdrawn(address indexed from, address indexed to, uint256 amount);
+    event Reminted(address indexed from, address indexed to, uint256 amount, bool withdrawUnderlying);
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        address underlying_,
+        address verifier_
+    ) ERC20(name, symbol) {
+        require(underlying_ != address(0), "Invalid underlying");
+        require(verifier_ != address(0), "Invalid verifier");
+        underlying = IERC20(underlying_);
+        verifier = IVerifier(verifier_);
+    }
+
+    function depositTo(address to, uint256 amount) external payable {
+        require(amount > 0, "amount must > 0");
+        underlying.safeTransferFrom(msg.sender, address(this), amount);
+        _mint(to, amount);
+        emit Deposited(msg.sender, to, amount);
+    }
+
+    function withdrawTo(address to, uint256 amount) external {
+        require(amount > 0, "amount must > 0");
+        _burn(msg.sender, amount);
+        underlying.safeTransfer(to, amount);
+        emit Withdrawn(msg.sender, to, amount);
+    }
+
+    function remint(
+        bytes calldata proof,
+        bytes32 commitment,
+        bytes32 nullifier,
+        address to,
+        uint256 amount,
+        bool withdrawUnderlying,
+        uint256 relayerFee
+    ) external {
+        require(!usedNullifier[nullifier], "nullifier used");
+
+        uint256 chainId;
+        assembly {
+            chainId := chainid()
+        }
+        bytes32 headerHash = blockhash(uint256(commitment));
+        require(headerHash != bytes32(0), "commitment not found");
+
+        address self = address(this);
+
+        uint256[] memory input = new uint256[](8);
+        input[0] = uint256(headerHash);
+        input[1] = uint256(nullifier);
+        input[2] = uint256(uint160(to));
+        input[3] = uint256(amount);
+        input[4] = uint256(withdrawUnderlying ? 1 : 0);
+        input[5] = uint256(relayerFee);
+        input[6] = chainId;
+
+        require(verifier.verifyProof(proof, input), "bad proof");
+
+        usedNullifier[nullifier] = true;
+
+        uint256 amount = 0;
+        if (withdrawUnderlying) {
+            amount = amount - amount * (remintFee + withdrawFee + relayerFee) / feeDenominator;
+            underlying.safeTransfer(to, amount);
+            underlying.safeTransfer(msg.sender, amount * relayerFee / feeDenominator);
+        } else {
+            amount = amount - amount * (remintFee + relayerFee) / feeDenominator;
+            _mint(to, amount);
+            _mint(msg.sender, amount * relayerFee / feeDenominator);
+        }
+        emit Reminted(msg.sender, to, amount, withdrawUnderlying);
+    }
+
+    function getLatestCommitment() external view returns (bytes32) {
+        return blockhash(block.number);
+    }
+
+    function hasCommitment(bytes32 commitment) external view returns (bool) {
+        bytes32 headerHash = blockhash(uint256(commitment));
+        return headerHash != bytes32(0);
+    }
+
+    function getFeeConfig() external view returns (uint256, uint256, uint256, uint256) {
+        return (depositFee, remintFee, withdrawFee, feeDenominator);
+    }
+
+    function getUnderlying() external view returns (address) {
+        return address(underlying);
+    }
+}
+```
+
+You can also check PoC here: https://zk.walletaa.com/zwusdc
+
+## Security Considerations
+
+- Double-Remint Prevention: Each remint operation MUST include a unique nullifier to prevent double-remint attacks. Reusing a nullifier MUST revert.
+- Over-Minting Protection: The total supply of ZWToken MAY temporarily exceed the supply of the underlying token. However, the surplus represents provably burnt tokens, which are permanently removed from circulation and cannot be redeemed.
+- Local Proof Generation: Circuits SHOULD remain as small and efficient as possible to enable users to generate zero-knowledge proofs locally (e.g., within browsers or mobile devices). This minimizes reliance on third-party provers that may introduce privacy leakage risks.
+- Provable Burn Address Security: Provable burn addresses MAY follow different generation schemes (e.g., as proposed in [EIP-7503](https://eips.ethereum.org/EIPS/eip-7503)). The essential properties are:
+  - These addresses MUST be non-operable and provably non-correspondent to any externally owned account (EOA) or smart contract.
+  - Only the generator of the burn address MAY deterministically derive it, for instance, through a signature-derived scheme.
+  - Implementations SHOULD prefer zk-friendly hash functions (e.g., Poseidon) in place of keccak256 to improve proof efficiency and reduce circuit size.
+- Burn and Remint Process Privacy:
+
+  - Burn amounts SHOULD appear indistinguishable from ordinary transfers to prevent correlation with remint amounts.
+  - Burn and remint events SHOULD be separated in time to reduce linkability.
+  - Each burn operation MUST use a unique Provable Burn Address that can be used only once.
+
+- Fully On-Chain Operation: The protocol operates entirely on-chain and requires no trusted backend. It can be directly integrated into wallets or dApps without introducing custodial or centralized dependencies.
+- Commit Data Privacy: When generating proofs, users SHOULD retrieve as much commitment data as possible to maximize anonymity. Relying on selective or limited data sources may allow inference of the specific commit path being proven, weakening privacy guarantees.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
