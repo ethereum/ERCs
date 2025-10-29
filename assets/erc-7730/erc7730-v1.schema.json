@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-04/schema#",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -53,7 +53,7 @@
                     "$ref": "#/$context/EIP712"
                 }
             ],
-            "unresolvedProperties": false
+            "unevaluatedProperties": false
         },
 
         "contract": {
@@ -466,7 +466,7 @@
                     }
                 ]
             },
-            "unresolvedProperties": false
+            "unevaluatedProperties": false
         },
         "nestedFields": {
             "title": "A single set of field formats, allowing recursivity in the schema",
@@ -618,7 +618,7 @@
                     }
                 }
             ],
-            "unresolvedProperties": false
+            "unevaluatedProperties": false
         },
         "names": {
             "anyOf": [
