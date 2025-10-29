@@ -1,20 +1,19 @@
 ---
-erc: <to be assigned>
-title: ERC-7564 Permit Extension
+eip: <to be assigned>
+title: Management NFT Permit
 description: Off-chain authorisations for ERC-7564 NFT manager operations
 author: Xiang (@wenzhenxiang)
 discussions-to: https://ethereum-magicians.org/t/contract-wallet-management-nft-permit-extensions/25990
 status: Draft
 type: Standards Track
 category: ERC
-requires: 7564, 712
-created: 2025-03-21
-license: CC0-1.0
+created: 2025-10-29
+requires: 712, 7564
 ---
 
 ## Abstract
 
-This proposal extends [ERC-7564](https://eips.ethereum.org/ERCS/erc-7564) NFT manager modules with EIP-712 permit flows. It standardises message schemas, signature verification, and nonce handling so that smart wallets can delegate transfers and approvals of ERC-721 and ERC-1155 assets without sending on-chain transactions themselves.
+This proposal extends [ERC-7564](./erc-7564.md) NFT manager modules with [EIP-712](./eip-712.md) permit flows. It standardises message schemas, signature verification, and nonce handling so that smart wallets can delegate transfers and approvals of [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md) assets without sending on-chain transactions themselves.
 
 ## Motivation
 
@@ -84,18 +83,12 @@ interface IERC7564Permit {
 }
 ```
 
-All functions MUST mirror the behaviour of their on-chain ERC-7564 counterparts once the signature is accepted. Implementations MUST support wallets that verify signatures through [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271). If a wallet wraps signatures, the module MUST unwrap them before verification.
+All functions MUST mirror the behaviour of their on-chain ERC-7564 counterparts once the signature is accepted. Implementations MUST support wallets that verify signatures through [ERC-1271](./eip-1271.md). If a wallet wraps signatures, the module MUST unwrap them before verification.
 
-### EIP-712 Domain
 
-Every permit MUST use the following domain values:
 
-- `name = "NFTManager Permit"`
-- `version = "1"`
-- `chainId` equal to the executing chain
-- `verifyingContract = address(this)`
 
-### Typed-Data Payloads
+### Typed-Data
 
 Each function MUST hash one of the following primary types before invoking the wallet's signature validation logic. The `wallet` field identifies the smart wallet executing the module. In all payloads `nonce` is the value returned by the corresponding nonce view function.
 
@@ -106,9 +99,14 @@ Each function MUST hash one of the following primary types before invoking the w
 | `nftSetApprovalForOneAllWithSig` | `NFTApprovalForOneAllWithSig` | `wallet`, `owner`, `caller`, `asset`, `operator`, `approved`, `nonce`, `deadline` |
 | `nftSetApprovalForAllAllWithSig` | `NFTApprovalForAllAllWithSig` | `wallet`, `owner`, `caller`, `operator`, `approved`, `nonce`, `deadline` |
 
-The module MUST compare the signed `caller` with `msg.sender` and revert on mismatch.
+Every permit MUST use the following domain values:
 
-### Nonce Strategy
+- `name = "NFTManager Permit"`
+- `version = "1"`
+- `chainId` equal to the executing chain
+- `verifyingContract = address(this)`
+
+### Nonce Semantics
 
 - `nftTransferNonce` MUST derive a unique nonce per `(owner, asset, caller)` tuple.
 - `nftApproveNonce` MUST derive a unique nonce per `(owner, asset, tokenId, caller)` tuple.
@@ -139,11 +137,7 @@ ERC-7564 already defines transfer and approval functions for NFT managers inside
 
 ## Backwards Compatibility
 
-Existing ERC-7564 modules remain valid. Clients SHOULD detect permit support via ERC-165 or by probing for the new function selectors. Wallets that do not implement this extension can ignore the additional functions without changing behaviour.
-
-## Reference Implementation
-
-A reference implementation will be published after the draft is reviewed. It validates the typed-data digest, increments the scoped nonce before external calls, and then invokes the underlying ERC-7564 function so that events and storage remain consistent.
+Existing ERC-7564 modules remain valid. Clients SHOULD detect permit support via [ERC-165](./eip-165.md) or by probing for the new function selectors. Wallets that do not implement this extension can ignore the additional functions without changing behaviour.
 
 ## Test Cases
 
@@ -154,6 +148,11 @@ A public test suite will accompany the reference implementation. Implementers ar
 - nonce incrementing when downstream token logic reverts,
 - replay protection across all nonce domains.
 
+## Reference Implementation
+
+A reference implementation will be published after the draft is reviewed. It validates the typed-data digest, increments the scoped nonce before external calls, and then invokes the underlying ERC-7564 function so that events and storage remain consistent.
+
+
 ## Security Considerations
 
 - Implementations MUST increment the nonce before calling external token contracts so that reverts cannot reopen a signature.
@@ -162,4 +161,4 @@ A public test suite will accompany the reference implementation. Implementers ar
 
 ## Copyright
 
-Copyright and related rights waived via [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+Copyright and related rights waived via [CC0](../LICENSE.md).
