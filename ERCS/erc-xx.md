@@ -1,4 +1,5 @@
 ---
+eip: 8064
 title: Management Token Permit
 description: Off-chain permit flow for ERC-7204 token managers
 author: Xiang (@wenzhenxiang)
