@@ -3,7 +3,7 @@ eip: 8064
 title: Management Token Permit
 description: Off-chain permit flow for ERC-7204 token managers
 author: Xiang (@wenzhenxiang)
-discussions-to: https://ethereum-magicians.org/t/contract-wallet-management-token-permit-extensions/25985
+discussions-to: https://ethereum-magicians.org/t/erc-8064-contract-wallet-management-token-permit-extensions/25985
 status: Draft
 type: Standards Track
 category: ERC
