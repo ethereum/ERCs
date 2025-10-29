@@ -1,5 +1,5 @@
 @startuml
-title Alice's Private Transfer to Bob with ZWToken Awareness
+title Alice's Private Transfer ERC-20 to Bob with ZWToken Awareness
 
 actor Alice1
 actor "Alice2 / Relayer" as Alice2
@@ -10,21 +10,21 @@ participant "Underlying Token" as U
 == Alice1 Wraps Token into ZWToken ==
 Alice1 -> U : underlying.approve(ZWToken Contract, amount)
 Alice1 <-- U
-Alice1 -> ZW : ZWToken.depositTo(to=Alice1, amount)
+Alice1 -> ZW : ZWToken.depositTo(to=Alice1, id=0, amount)
 ZW -> U : underlying.transferFrom(Alice1, ZWToken Contract, amount)
 ZW <-- U
 ZW -> ZW : mint ZWToken(amount) to Alice1
-ZW -> ZW : emit Deposited(Alice1, Alice1, amount)
+ZW -> ZW : emit Deposited(Alice1, Alice1, id=0,amount)
 Alice1 <-- ZW
 
 note right of Alice1 : Alice1 can do anything with ZWToken before burning
 
 == Alice1 Burns ZWToken ==
 Alice1 -> Alice1 : Generate a provable burn address (e.g., using Poseidon hash)
-Alice1 -> ZW : ZWToken.transfer(to=provable burn address, amount)
+Alice1 -> ZW : ZWToken.transfer(to=provable burn address, id=0, amount)
 alt Contract-maintained commitment
     ZW -> ZW : update commitment
-    ZW -> ZW : emit CommitmentUpdated(commitment, to, amount)
+    ZW -> ZW : emit CommitmentUpdated(id=0, commitment, to, amount)
 end
 Alice1 <-- ZW
 
@@ -42,25 +42,25 @@ Alice1 -> Alice1 : generate proof for reminting
 == Alice2 / Relayer Remints ZWToken to Bob ==
 Alice1 -> Alice2 : provide proof for reminting
 Alice1 <-- Alice2
-Alice2 -> ZW : ZWToken.remint(proof, commitment, nullifier, to=Bob, amount, withdrawUnderlying=false)
+Alice2 -> ZW : ZWToken.remint(proof, commitment, nullifier, to=Bob, id=0, amount, withdrawUnderlying=false)
 ZW -> ZW : check nullifier
 ZW -> ZW : mark nullifier as used
 ZW -> ZW : verify ZK proof
 ZW -> ZW : mint amount ZWToken to Bob
 alt Contract-maintained commitment\n(Bob might be a provable burn address)
     ZW -> ZW : update commitment
-    ZW -> ZW : emit CommitmentUpdated(commitment, to, amount)
+    ZW -> ZW : emit CommitmentUpdated(id=0, commitment, to, amount)
 end
-ZW -> ZW : emit Reminted(from= Alice2 / Relayer,to=Bob, amount)
+ZW -> ZW : emit Reminted(from= Alice2 / Relayer,to=Bob, id=0, amount, withdrawUnderlying=false)
 Alice2 <-- ZW
 
 note right of Bob: Bob can do anything with ZWToken before unwrapping
 
 == Bob Unwraps ZWToken ==
-Bob -> ZW : ZWToken.withdrawTo(to=Bob, amount)
+Bob -> ZW : ZWToken.withdrawTo(to=Bob, id=0, amount)
 ZW -> ZW : burn ZWToken
 ZW -> U : underlying.transfer(to=Bob, amount)
 ZW <-- U
-ZW -> ZW : emit Withdrawn(from=Bob, to=Bob, amount)
+ZW -> ZW : emit Withdrawn(from=Bob, to=Bob, id=0, amount)
 Bob <-- ZW
 @enduml
