@@ -50,10 +50,10 @@ payload = 1*( ALPHA / DIGIT / "-" / "_" )
 
 URL embedding (informative):
 
-- Recommended query parameter: `u`
-- Recommended link form: `{any-https-url}?u={payload}`
+- Recommended query parameter: `p`
+- Recommended link form: `{any-https-url}?p={payload}`
 - Implementations SHOULD use iOS Universal Links and Android App Links for routing
-- Wallets MUST accept raw payloads (e.g., from QR/NFC) and MAY accept URLs carrying `u`
+- Wallets MUST accept raw payloads (e.g., from QR/NFC) and MAY accept URLs carrying `p`
 
 **Encoding requirements:**
 
@@ -1208,7 +1208,7 @@ AQi0lAUQAhoBMVJWCAESFKqqqqqqqqqqqqqqqqqqqqqqqqqqGhSJ-TSTI8mRnlzhPfJ9CkC0p0R-qiID
 
 ## Reference Implementation
 
-A reference implementation in TypeScript/JavaScript is provided in the [prolink library](https://github.com/base/prolink) (experimental). Implementations SHOULD provide:
+A reference implementation in TypeScript/JavaScript is provided in the [prolinks library](https://github.com/base/prolinks) (experimental). Implementations SHOULD provide:
 
 - Encoder functions for all three shortcuts
 - Decoder functions with full error handling
