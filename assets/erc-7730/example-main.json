@@ -40,7 +40,7 @@
                     {
                         "path": "_to",
                         "label": "To",
-                        "format": "addressOrName"
+                        "format": "addressName"
                     },
                     {
                         "path": "_value",
