@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-import "./IERCGroup.sol";
+import "./IERC8063.sol";
 
-/// @title GroupContainer — minimal reference implementation of IERCGroup
-contract GroupContainer is IERCGroup {
+/// @title ERC8063 — minimal reference implementation of IERC8063
+contract ERC8063 is IERC8063 {
     struct GroupData {
         address owner;
+        string name;
         string metadataURI;
         uint256 memberCount;
         mapping(address => bool) isMember;
@@ -22,23 +23,28 @@ contract GroupContainer is IERCGroup {
     }
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
-        return interfaceId == type(IERCGroup).interfaceId;
+        return interfaceId == type(IERC8063).interfaceId;
     }
 
-    function createGroup(string calldata metadataURI) external override returns (uint256 groupId) {
+    function createGroup(string calldata name, string calldata metadataURI) external override returns (uint256 groupId) {
         groupId = _nextGroupId++;
         GroupData storage g = _groups[groupId];
         g.owner = msg.sender;
+        g.name = name;
         g.metadataURI = metadataURI;
         if (!g.isMember[msg.sender]) {
             g.isMember[msg.sender] = true;
             g.memberCount = 1;
         }
-        emit GroupCreated(groupId, msg.sender, metadataURI);
+        emit GroupCreated(groupId, msg.sender, name, metadataURI);
     }
 
     function groupOwner(uint256 groupId) public view override returns (address) {
         return _groups[groupId].owner;
+    }
+
+    function groupName(uint256 groupId) public view override returns (string memory) {
+        return _groups[groupId].name;
     }
 
     function isMember(uint256 groupId, address account) public view override returns (bool) {

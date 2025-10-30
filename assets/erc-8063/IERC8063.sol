@@ -5,11 +5,11 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-/// @title IERCGroup — Minimal interface for onchain groups
+/// @title IERC8063 — Minimal interface for onchain groups
 /// @notice A group is a container with an owner, members, and shared resources
-interface IERCGroup is IERC165 {
+interface IERC8063 is IERC165 {
     /// @dev Emitted when a new group is created
-    event GroupCreated(uint256 indexed groupId, address indexed owner, string metadataURI);
+    event GroupCreated(uint256 indexed groupId, address indexed owner, string name, string metadataURI);
 
     /// @dev Emitted when the owner invites an account
     event MemberInvited(uint256 indexed groupId, address indexed inviter, address indexed invitee);
@@ -24,12 +24,16 @@ interface IERCGroup is IERC165 {
     event ResourceUpdated(uint256 indexed groupId, bytes32 indexed key, string value, address indexed by);
 
     /// @notice Create a new group; caller becomes owner and initial member
+    /// @param name Optional human-readable group name
     /// @param metadataURI Optional offchain metadata (e.g., JSON document)
     /// @return groupId Newly created group identifier
-    function createGroup(string calldata metadataURI) external returns (uint256 groupId);
+    function createGroup(string calldata name, string calldata metadataURI) external returns (uint256 groupId);
 
     /// @notice Returns the owner of a group
     function groupOwner(uint256 groupId) external view returns (address);
+
+    /// @notice Returns the human-readable name of the group (may be empty)
+    function groupName(uint256 groupId) external view returns (string memory);
 
     /// @notice Returns true if `account` is a member of the group
     function isMember(uint256 groupId, address account) external view returns (bool);
@@ -53,5 +57,3 @@ interface IERCGroup is IERC165 {
     /// @notice Read a resource value for the group (empty string if unset)
     function getResource(uint256 groupId, bytes32 key) external view returns (string memory);
 }
-
-
