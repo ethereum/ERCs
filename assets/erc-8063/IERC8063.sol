@@ -20,6 +20,9 @@ interface IERC8063 is IERC165 {
     /// @dev Emitted when a member is removed (cannot remove the owner)
     event MemberRemoved(uint256 indexed groupId, address indexed account, address indexed by);
 
+    /// @dev Emitted when a member transfers their membership to another address
+    event MembershipTransferred(uint256 indexed groupId, address indexed from, address indexed to);
+
     /// @notice Create a new group; caller becomes owner and initial member
     /// @param name Optional human-readable group name
     /// @param metadataURI Optional offchain metadata (e.g., JSON document)
@@ -46,4 +49,8 @@ interface IERC8063 is IERC165 {
 
     /// @notice Owner removes a member (owner cannot be removed)
     function removeMember(uint256 groupId, address account) external;
+
+    /// @notice Transfer membership to another address (caller loses membership)
+    /// @param to Address to receive membership (must not already be a member)
+    function transferMembership(uint256 groupId, address to) external;
 }

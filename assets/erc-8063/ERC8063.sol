@@ -83,6 +83,18 @@ contract ERC8063 is IERC8063 {
         unchecked { g.memberCount -= 1; }
         emit MemberRemoved(groupId, account, msg.sender);
     }
+
+    function transferMembership(uint256 groupId, address to) external override {
+        GroupData storage g = _groups[groupId];
+        require(g.isMember[msg.sender], "Not a member");
+        require(msg.sender != g.owner, "Owner cannot transfer");
+        require(to != address(0), "Zero address");
+        require(!g.isMember[to], "Already a member");
+        
+        g.isMember[msg.sender] = false;
+        g.isMember[to] = true;
+        emit MembershipTransferred(groupId, msg.sender, to);
+    }
 }
 
 
