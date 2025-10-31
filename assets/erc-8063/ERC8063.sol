@@ -11,7 +11,6 @@ contract ERC8063 is IERC8063 {
     uint256 private _memberCount;
     
     mapping(address => bool) private _isMember;
-    mapping(address => bool) private _pendingInvite;
 
     /// @notice Create a new group; caller becomes owner and initial member
     /// @param groupName Human-readable group name
@@ -44,22 +43,13 @@ contract ERC8063 is IERC8063 {
         return _memberCount;
     }
 
-    function inviteMember(address account) external override {
-        require(msg.sender == _owner, "Only owner can invite");
+    function addMember(address account) external override {
+        require(msg.sender == _owner, "Only owner can add");
         require(account != address(0), "Zero address");
         require(!_isMember[account], "Already member");
-        require(!_pendingInvite[account], "Already invited");
-        _pendingInvite[account] = true;
-        emit MemberInvited(msg.sender, account);
-    }
-
-    function acceptInvite() external override {
-        require(_pendingInvite[msg.sender], "No invite");
-        require(!_isMember[msg.sender], "Already member");
-        _pendingInvite[msg.sender] = false;
-        _isMember[msg.sender] = true;
+        _isMember[account] = true;
         unchecked { _memberCount += 1; }
-        emit MemberJoined(msg.sender);
+        emit MemberAdded(account, msg.sender);
     }
 
     function removeMember(address account) external override {

@@ -8,11 +8,8 @@ interface IERC165 {
 /// @title IERC8063 — Minimal interface for onchain groups
 /// @notice A group is a contract with an owner and members
 interface IERC8063 is IERC165 {
-    /// @dev Emitted when the owner invites an account
-    event MemberInvited(address indexed inviter, address indexed invitee);
-
-    /// @dev Emitted when an invited account accepts and becomes a member
-    event MemberJoined(address indexed account);
+    /// @dev Emitted when a member is added to the group
+    event MemberAdded(address indexed account, address indexed by);
 
     /// @dev Emitted when a member is removed (cannot remove the owner)
     event MemberRemoved(address indexed account, address indexed by);
@@ -32,11 +29,8 @@ interface IERC8063 is IERC165 {
     /// @notice Returns current number of members (including owner)
     function getMemberCount() external view returns (uint256);
 
-    /// @notice Owner invites an account to join the group
-    function inviteMember(address account) external;
-
-    /// @notice Invitee accepts an outstanding invite and becomes a member
-    function acceptInvite() external;
+    /// @notice Owner adds an account as a member
+    function addMember(address account) external;
 
     /// @notice Owner removes a member (owner cannot be removed)
     function removeMember(address account) external;
