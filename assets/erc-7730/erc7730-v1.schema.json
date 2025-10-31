@@ -66,19 +66,6 @@
                     "description": "The contract binding context is a set constraints that are used to bind the ERC7730 file to a specific smart contract.",
 
                     "properties": {
-                        "abi": {
-                            "oneOf": [
-                                {
-                                    "$ref": "#/$definitions/abi-json-schema"
-                                },
-                                {
-                                    "title": "An ABI url",
-                                    "description": "URL of an ABI bound to this file.",
-                                    "type": "string",
-                                    "format": "uri-reference"
-                                }
-                            ]
-                        },
                         "deployments": {
                             "$ref": "#/$context/deployments"
                         },
@@ -362,7 +349,7 @@
 
                 "formats": {
                     "title": "List of field formats",
-                    "description": "The list includes formatting info for each field of a structure. This list is indexed by a key identifying uniquely the message's type in the abi. For smartcontracts, it is the selector of the function or its signature; and for EIP712 messages it is the primaryType of the message.",
+                    "description": "The list includes formatting info for each field of a structure. This list is indexed by the full function signature with parameter names.",
                     "type": "object",
 
                     "additionalProperties": {
@@ -964,86 +951,6 @@
             "required": [
                 "types",
                 "primaryType"
-            ]
-        },
-
-        "abi-json-schema": {
-            "title": "An EVM ABI",
-            "type": "array",
-            "description": "JSON schema for the json representation of a solidity ABI",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "inputs": {
-                        "type": "array",
-                        "description": "an array of object with input parameters",
-                        "items": {
-                            "$ref": "#/$definitions/abi-parameter"
-                        }
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "the name of the function"
-                    },
-                    "outputs": {
-                        "type": "array",
-                        "description": "an array of object with output parameters",
-                        "items": {
-                            "$ref": "#/$definitions/abi-parameter"
-                        }
-                    },
-                    "stateMutability": {
-                        "type": "string",
-                        "enum": [
-                            "pure",
-                            "view",
-                            "nonpayable",
-                            "payable"
-                        ]
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "the type of object being described",
-                        "enum": [
-                            "function",
-                            "constructor",
-                            "receive",
-                            "fallback"
-                        ]
-                    }
-                },
-                "required": [
-                    "inputs",
-                    "type"
-                ]
-            }
-        },
-
-        "abi-parameter": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the parameter, used in the selector computation"
-                },
-                "type": {
-                    "type": "string",
-                    "description": "the canonical type of the parameter"
-                },
-                "internalType": {
-                    "type": "string",
-                    "description": "fully qualified type name in solidity source code"
-                },
-                "components": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/$definitions/abi-parameter"
-                    }
-                }
-            },
-            "required": [
-                "name",
-                "type"
             ]
         }
     }

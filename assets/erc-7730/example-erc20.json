@@ -1,24 +1,4 @@
 {
-    "context": {
-        "contract": {
-            "abi": [
-                {
-                    "inputs": [
-                        {
-                            "name": "_spender",
-                            "type": "address"
-                        },
-                        {
-                            "name": "_value",
-                            "type": "uint256"
-                        }
-                    ],
-                    "name": "approve",
-                    "type": "function"
-                }
-            ]
-        }
-    },
     "display": {
         "formats": {
             "approve(address _spender,uint256 _value)": {
