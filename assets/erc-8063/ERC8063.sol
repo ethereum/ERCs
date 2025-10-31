@@ -12,7 +12,6 @@ contract ERC8063 is IERC8063 {
         uint256 memberCount;
         mapping(address => bool) isMember;
         mapping(address => bool) pendingInvite;
-        mapping(bytes32 => string) resources;
     }
 
     uint256 private _nextGroupId;
@@ -83,24 +82,6 @@ contract ERC8063 is IERC8063 {
         g.isMember[account] = false;
         unchecked { g.memberCount -= 1; }
         emit MemberRemoved(groupId, account, msg.sender);
-    }
-
-    function setResource(uint256 groupId, bytes32 key, string calldata value) external override {
-        GroupData storage g = _groups[groupId];
-        require(g.isMember[msg.sender] || msg.sender == g.owner, "Only member or owner");
-        if (bytes(value).length == 0) {
-            // delete by setting to empty string (idempotent)
-            if (bytes(g.resources[key]).length != 0) {
-                g.resources[key] = "";
-            }
-        } else {
-            g.resources[key] = value;
-        }
-        emit ResourceUpdated(groupId, key, value, msg.sender);
-    }
-
-    function getResource(uint256 groupId, bytes32 key) external view override returns (string memory) {
-        return _groups[groupId].resources[key];
     }
 }
 

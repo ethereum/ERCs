@@ -20,9 +20,6 @@ interface IERC8063 is IERC165 {
     /// @dev Emitted when a member is removed (cannot remove the owner)
     event MemberRemoved(uint256 indexed groupId, address indexed account, address indexed by);
 
-    /// @dev Emitted when a resource key is set/updated/cleared (empty value means delete)
-    event ResourceUpdated(uint256 indexed groupId, bytes32 indexed key, string value, address indexed by);
-
     /// @notice Create a new group; caller becomes owner and initial member
     /// @param name Optional human-readable group name
     /// @param metadataURI Optional offchain metadata (e.g., JSON document)
@@ -49,11 +46,4 @@ interface IERC8063 is IERC165 {
 
     /// @notice Owner removes a member (owner cannot be removed)
     function removeMember(uint256 groupId, address account) external;
-
-    /// @notice Set or clear a resource value for the group
-    /// @dev Setting to an empty string SHOULD be treated as deletion
-    function setResource(uint256 groupId, bytes32 key, string calldata value) external;
-
-    /// @notice Read a resource value for the group (empty string if unset)
-    function getResource(uint256 groupId, bytes32 key) external view returns (string memory);
 }
