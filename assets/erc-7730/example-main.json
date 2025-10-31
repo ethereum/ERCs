@@ -4,7 +4,6 @@
     "context": {
         "$id": "Example ERC-20",
         "contract" : {
-            "abi": "https://api.example.io/api?module=contract&action=getabi&address=0xdac17f958d2ee523a2206206994597c13d831ec7",
             "deployments": [ 
                 {
                     "chainId": 1,
