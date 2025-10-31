@@ -52,13 +52,12 @@ contract ERC8063 is IERC8063 {
         emit MemberAdded(account, msg.sender);
     }
 
-    function removeMember(address account) external override {
-        require(msg.sender == _owner, "Only owner can remove");
-        require(account != _owner, "Cannot remove owner");
-        require(_isMember[account], "Not a member");
-        _isMember[account] = false;
+    function leaveGroup() external override {
+        require(_isMember[msg.sender], "Not a member");
+        require(msg.sender != _owner, "Owner cannot leave");
+        _isMember[msg.sender] = false;
         unchecked { _memberCount -= 1; }
-        emit MemberRemoved(account, msg.sender);
+        emit MemberLeft(msg.sender);
     }
 
     function transferMembership(address to) external override {

@@ -11,8 +11,8 @@ interface IERC8063 is IERC165 {
     /// @dev Emitted when a member is added to the group
     event MemberAdded(address indexed account, address indexed by);
 
-    /// @dev Emitted when a member is removed (cannot remove the owner)
-    event MemberRemoved(address indexed account, address indexed by);
+    /// @dev Emitted when a member voluntarily leaves the group
+    event MemberLeft(address indexed account);
 
     /// @dev Emitted when a member transfers their membership to another address
     event MembershipTransferred(address indexed from, address indexed to);
@@ -32,8 +32,8 @@ interface IERC8063 is IERC165 {
     /// @notice Owner adds an account as a member
     function addMember(address account) external;
 
-    /// @notice Owner removes a member (owner cannot be removed)
-    function removeMember(address account) external;
+    /// @notice Member voluntarily leaves the group (owner cannot leave)
+    function leaveGroup() external;
 
     /// @notice Transfer membership to another address (caller loses membership)
     /// @param to Address to receive membership (must not already be a member)
