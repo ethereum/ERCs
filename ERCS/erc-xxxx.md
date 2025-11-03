@@ -1,0 +1,255 @@
+---
+eip: tk
+title: Custodial Contract-Based Cross-Token Exchange Protocol
+description: This Ethereum Improvement Proposal (EIP) specifies a standardized Escrow Contract framework governing cross-token asset exchanges between Payers and Liquidity Providers.
+author: Xiang Gao (@GaoYiRu)
+discussions-to: https://ethereum-magicians.org/xxx
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-11-03
+requires: tk
+---
+
+## Abstract
+
+This Ethereum Improvement Proposal (EIP) specifies a standardized Escrow Contract framework governing cross-token asset exchanges between Payers and Liquidity Providers.
+
+By programmatically enforcing settlement logic through smart contract custody mechanisms, the protocol autonomously executes asset transfers or returns according to predefined rules,
+eliminating counterparty trust requirements.
+
+## Motivation
+
+Within decentralized finance ecosystems,
+the absence of trusted execution environments for direct cross-token exchanges between Payers and Liquidity Providers introduces systemic vulnerabilities:
+
+1. Counterparty Risk: Potential LP non-performance post-fund reception
+2. Settlement Failure: Transaction abortion risk due to inadequate real-time liquidity provisioning
+
+This Ethereum Improvement Proposal (EIP) mitigates these through cryptographic escrow primitives:
+
+1. Implementation of non-custodial settlement contracts with time-bound asset custody
+2. Programmatic asset release triggered by on-chain condition verification
+
+## Specification
+
+### Interface
+
+```solidity
+struct Order {
+  address from;       // Payment address
+  address to;         // Receiving address
+  address tokenFrom;  // Pay tokens
+  address tokenTo;    // Collect tokens
+  uint256 amountFrom; // The number of tokens paid
+  uint256 amountTo;   // The number of tokens collected
+  uint256 deadline;   // Trading cut-off time
+  bool isCompleted;   // Whether it is done
+}
+
+interface IEscrowTrade {
+    /// @notice Create a new escrow trade order
+    /// @param to The payee address
+    /// @param tokenFrom The payer token address
+    /// @param tokenTo The peyee token address
+    /// @param amountFrom The payer token amount
+    /// @param amountTo The peyee token amount
+    /// @param deadline The deadline timestamp
+    /// @return The order id
+    function createOrder(
+        address to,
+        address tokenFrom,
+        address tokenTo,
+        uint256 amountFrom,
+        uint256 amountTo,
+        uint256 deadline
+    ) external returns (uint256 orderId);
+
+    /// @notice Complete an escrow trade order
+    /// @param orderId The order id
+    function completeOrder(bytes32 orderId) external;
+
+    /// @notice Cancel an escrow trade order
+    /// @param orderId The order id
+    function cancelOrder(bytes32 orderId) external;
+
+    /// @notice Order created event
+    /// @param orderId The order id
+    /// @param from The payer address
+    /// @param to The payee address
+    /// @param tokenFrom The payer token address
+    /// @param tokenTo The peyee token address
+    /// @param amountFrom The payer token amount
+    /// @param amountTo The peyee token amount
+    /// @param deadline The deadline timestamp
+    event OrderCreated(bytes32 orderId, address indexed from, address indexed to, address indexed tokenFrom, address indexed tokenTo, uint256 amountFrom, uint256 amountTo, uint256 deadline);
+
+    /// @notice Order completed event
+    /// @param orderId The order id
+    event OrderCompleted(bytes32 orderId);
+
+    /// @notice Order cancelled event
+    /// @param orderId The order id
+    event OrderCancelled(bytes32 orderId);
+}
+```
+### Methods
+
+#### createOrder
+- Transaction Parameters Initiation
+    - The Payer defines:
+        - `tokenIn` and `tokenOut` ([ERC-20] addresses)
+        - `amountIn` (uint256)
+        - `recipient` (address payable)
+        - `timeout` (uint64 block timestamp)
+- A unique Order ID is generated to record transactional metadata
+- The Payer must pre-approve token locking in the custodial contract
+
+#### completeOrder
+- Liquidity Providers (LPs) monitor on-chain events and evaluate order parameters (amount, token pair, timeout) to determine order fulfillment eligibility
+- Liquidity verification is performed before transaction execution:
+    - Balance validation via `balanceOf()` checks
+    - Slippage tolerance confirmation
+- Atomic token swap execution:
+    - Transfers payer's locked tokens to LP via `safeTransferFrom(escrow, LP, amountIn)`
+    - Delivers output tokens to recipient via `transfer(recipient, amountOut)`
+
+#### cancelOrder
+- Payer may initiate order closure under:
+    - `Timeout Expiration`: Execution deadline exceeded
+    - `LP Default`: Liquidity Provider fails to fulfill swap obligations
+- Upon closure verification, locked tokens are refunded to Payer
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract EscrowTrade is IEscrowTrade {
+
+  struct Order {
+    address from;       // Payment address
+    address to;         // Receiving address
+    address tokenFrom;  // Pay tokens
+    address tokenTo;    // Collect tokens
+    uint256 amountFrom; // The number of tokens paid
+    uint256 amountTo;   // The number of tokens collected
+    uint256 deadline;   // Trading cut-off time
+    bool isCompleted;   // Whether it is done
+  }
+
+  mapping(bytes32 => Order) public orders;  // orderId mapping
+
+  // create
+  function createOrder(
+    address to,
+    address tokenFrom,
+    address tokenTo,
+    uint256 amountFrom,
+    uint256 amountTo,
+    uint256 deadline
+  ) external returns (bytes32 orderId) {
+    require(to != address(0), "Invalid to address");
+    require(tokenFrom != tokenTo, "Same tokens");
+    require(deadline > block.timestamp, "Deadline invalid");
+
+    // generate orderId
+    orderId = keccak256(
+      abi.encodePacked(
+          msg.sender,
+          to,
+          tokenFrom,
+          tokenTo,
+          amountFrom,
+          amountTo,
+          block.timestamp
+      )
+    );
+
+    // save order
+    orders[orderId] = Order({
+      from: msg.sender,
+      to: to,
+      tokenFrom: tokenFrom,
+      tokenTo: tokenTo,
+      amountFrom: amountFrom,
+      amountTo: amountTo,
+      deadline: deadline,
+      isCompleted: false
+    });
+
+    // Payer transfer token to EscrowContract
+    IERC20(tokenFrom).transferFrom(msg.sender, address(this), amountFrom);
+
+    emit OrderCreated(orderId, msg.sender, to, tokenFrom, tokenTo, amountFrom, amountTo, deadline);
+  }
+
+  // complete order
+  function completeOrder(bytes32 orderId) external {
+    Order storage order = orders[orderId];
+    require(msg.sender == order.to, "Only seller can complete");
+    require(!order.isCompleted, "Order already completed");
+    require(block.timestamp <= order.deadline, "Order expired");
+
+    // verify whether LP can provide liquidity
+    validateLiquidity(order.tokenFrom, order.tokenTo, order.amountFrom, order.amountTo)
+
+    // transfer Payer's tokens to LP
+    IERC20(order.tokenFrom).transfer(msg.sender, order.tokenFrom);
+
+    // Transfer the target token to the target address
+    IERC20(order.tokenTo).transferFrom(msg.sender, order.to, order.tokenTo);
+
+    order.isCompleted = true;
+    emit OrderCompleted(bytes32 orderId);
+  }
+
+  // cancel order
+  function cancelOrder(bytes32 orderId) external {
+    Order storage order = orders[orderId];
+    require(msg.sender == order.from, "Only from can cancel");
+    require(!order.isCompleted, "Order already completed");
+    require(block.timestamp > order.deadline, "Deadline not reached");
+
+    // Return the token to Payer
+    IERC20(order.tokenFrom).transfer(msg.sender, order.amountFrom);
+    order.isCompleted = true;
+
+    emit OrderCancelled(bytes32 orderId);
+  }
+}
+```
+
+## Rationale
+
+- Trust Minimization
+    - Funds are custodied by the escrow contract until all preconditions are satisfied
+    - Liquidity Providers (LPs) must pass balance verification before receiving assets
+- Automated Execution
+    - Eliminates manual coordination between Payers and LPs through programmatic settlement
+- Cross-Token Flexibility
+    - Supports arbitrary token pairs (e.g., DAI → ETH, USDC → WBTC) via standardized [ERC-20](./erc-20.md)  interfaces
+
+## Backwards Compatibility
+
+- EIP-20 Compliance
+    - Supports native ERC-20 tokens and ETH/WETH conversions
+- Non-Consensus Disruptive Deployment
+    - Deployable as standalone smart contracts without protocol-layer modifications
+
+
+## Security Considerations
+
+- Reentrancy Attack Protection
+    - Implements OpenZeppelin's ReentrancyGuard to prevent reentrant call vulnerabilities
+- Atomic State Transition Enforcement
+    - Guarantees exclusive access to isRefunded status with mutex protection
+- Deadline-Constrained Asset Recovery
+    - Prevents permanent fund lockup via blockchain timestamp validation
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
