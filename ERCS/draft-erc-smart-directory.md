@@ -154,7 +154,9 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 [ISmartDirectoryERC.sol](https://github.com/BPCE/smart-directory/blob/main/contracts/ISmartDirectoryERC.sol)
 
 ###   Required Behavior
-TBD
+
+ The owner only can alter the registrant list.
+ Each registrant can alter its own references.
 
 
 
