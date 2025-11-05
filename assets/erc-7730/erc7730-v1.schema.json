@@ -12,6 +12,12 @@
             "description": "The schema that the document should conform to. This should be the URL of a version of the clear signing JSON schemas available under https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs"
         },
 
+        "$comment": {
+            "title": "Schema",
+            "type": "string",
+            "description": "An optional comment string that can be used to document the purpose of the file."
+        },
+
         "includes": {
             "title": "External includes",
             "type": "string",
@@ -67,7 +73,22 @@
 
                     "properties": {
                         "abi": {
+<<<<<<< HEAD
                             "description": "[Deprecated] ABI definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
+=======
+                            "oneOf": [
+                                {
+                                    "$ref": "#/$definitions/abi-json-schema"
+                                },
+                                {
+                                    "title": "An ABI url",
+                                    "description": "URL of an ABI bound to this file.",
+                                    "type": "string",
+                                    "format": "uri-reference"
+                                }
+                            ],
+                            "deprecated": true
+>>>>>>> cbe3ed63 (Add  key to allow documentation of 7730 file itself)
                         },
                         "deployments": {
                             "$ref": "#/$context/deployments"
@@ -459,7 +480,7 @@
                         "$ref": "#/$format/field"
                     },
                     {
-                        "$ref": "#/$display/nestedFields"
+                        "$ref": "#/$display/fieldGroup"
                     },
                     {
                         "$ref": "#/$display/reference"
@@ -468,14 +489,25 @@
             },
             "unevaluatedProperties": false
         },
-        "nestedFields": {
-            "title": "A single set of field formats, allowing recursivity in the schema",
+        "fieldGroup": {
+            "title": "A group of field formats, allowing recursivity in the schema and control over grouping and iteration.",
             "description": "A set of field formats used to group whole definitions for structures for instance. This allows nesting definitions of formats, but note that support for deep nesting will be device dependent.",
             "type": "object",
 
             "properties": {
                 "path": {
                     "$ref": "#/$format/path"
+                },
+                "label": {
+                    "title": "Group Label",
+                    "description": "The group label of the field group, that will be displayed to the user in front of the formatted field values.",
+                    "type": "string"
+                },
+                "iteration": {
+                    "title": "Array iteration mode",
+                    "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
+                    "type": "string",
+                    "enum": [ "sequential", "bundled" ]
                 },
                 "fields": {
                     "$ref": "#/$display/fields"
@@ -602,7 +634,7 @@
                     }
                 },
                 {
-                    "if": { "properties": { "format": { "const": "percentage" } } },
+                    "if": { "properties": { "format": { "const": "unit" } } },
                     "then": {
                         "properties": {
                             "params": { "$ref": "#/$format/unitParameters" }
@@ -868,7 +900,7 @@
             "properties": {
                 "base": {
                     "title": "Unit base symbol",
-                    "type": "integer",
+                    "type": "string",
                     "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps."
                 },
                 "decimals": {
