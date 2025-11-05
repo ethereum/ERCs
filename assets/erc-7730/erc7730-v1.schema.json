@@ -66,6 +66,9 @@
                     "description": "The contract binding context is a set constraints that are used to bind the ERC7730 file to a specific smart contract.",
 
                     "properties": {
+                        "abi": {
+                            "description": "[Deprecated] ABI definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
+                        },
                         "deployments": {
                             "$ref": "#/$context/deployments"
                         },
