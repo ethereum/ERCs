@@ -354,6 +354,9 @@
                     "title": "List of field formats",
                     "description": "The list includes formatting info for each field of a structure. This list is indexed by the full function signature with parameter names.",
                     "type": "object",
+                    "propertyNames": {
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                    },
 
                     "additionalProperties": {
                         "title": "A structured data format specification",
