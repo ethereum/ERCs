@@ -73,22 +73,7 @@
 
                     "properties": {
                         "abi": {
-<<<<<<< HEAD
                             "description": "[Deprecated] ABI definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
-=======
-                            "oneOf": [
-                                {
-                                    "$ref": "#/$definitions/abi-json-schema"
-                                },
-                                {
-                                    "title": "An ABI url",
-                                    "description": "URL of an ABI bound to this file.",
-                                    "type": "string",
-                                    "format": "uri-reference"
-                                }
-                            ],
-                            "deprecated": true
->>>>>>> cbe3ed63 (Add  key to allow documentation of 7730 file itself)
                         },
                         "deployments": {
                             "$ref": "#/$context/deployments"

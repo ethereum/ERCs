@@ -1,4 +1,8 @@
 {
+    "$schema": "./erc7730-v1.schema.json",
+
+    "$comment": "This is an example of ERC-7730 display definition for an ERC-20 token contract, intended as an interface definition to be included in other files.",
+
     "display": {
         "formats": {
             "approve(address spender,uint256 value)": {
