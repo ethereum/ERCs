@@ -67,17 +67,7 @@
 
                     "properties": {
                         "abi": {
-                            "oneOf": [
-                                {
-                                    "$ref": "#/$definitions/abi-json-schema"
-                                },
-                                {
-                                    "title": "An ABI url",
-                                    "description": "URL of an ABI bound to this file.",
-                                    "type": "string",
-                                    "format": "uri-reference"
-                                }
-                            ]
+                            "description": "[Deprecated] ABI definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
                         },
                         "deployments": {
                             "$ref": "#/$context/deployments"
@@ -362,8 +352,11 @@
 
                 "formats": {
                     "title": "List of field formats",
-                    "description": "The list includes formatting info for each field of a structure. This list is indexed by a key identifying uniquely the message's type in the abi. For smartcontracts, it is the selector of the function or its signature; and for EIP712 messages it is the primaryType of the message.",
+                    "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the message primary type.",
                     "type": "object",
+                    "propertyNames": {
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                    },
 
                     "additionalProperties": {
                         "title": "A structured data format specification",
@@ -964,86 +957,6 @@
             "required": [
                 "types",
                 "primaryType"
-            ]
-        },
-
-        "abi-json-schema": {
-            "title": "An EVM ABI",
-            "type": "array",
-            "description": "JSON schema for the json representation of a solidity ABI",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "inputs": {
-                        "type": "array",
-                        "description": "an array of object with input parameters",
-                        "items": {
-                            "$ref": "#/$definitions/abi-parameter"
-                        }
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "the name of the function"
-                    },
-                    "outputs": {
-                        "type": "array",
-                        "description": "an array of object with output parameters",
-                        "items": {
-                            "$ref": "#/$definitions/abi-parameter"
-                        }
-                    },
-                    "stateMutability": {
-                        "type": "string",
-                        "enum": [
-                            "pure",
-                            "view",
-                            "nonpayable",
-                            "payable"
-                        ]
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "the type of object being described",
-                        "enum": [
-                            "function",
-                            "constructor",
-                            "receive",
-                            "fallback"
-                        ]
-                    }
-                },
-                "required": [
-                    "inputs",
-                    "type"
-                ]
-            }
-        },
-
-        "abi-parameter": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the parameter, used in the selector computation"
-                },
-                "type": {
-                    "type": "string",
-                    "description": "the canonical type of the parameter"
-                },
-                "internalType": {
-                    "type": "string",
-                    "description": "fully qualified type name in solidity source code"
-                },
-                "components": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/$definitions/abi-parameter"
-                    }
-                }
-            },
-            "required": [
-                "name",
-                "type"
             ]
         }
     }
