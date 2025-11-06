@@ -78,12 +78,6 @@
                         "deployments": {
                             "$ref": "#/$context/deployments"
                         },
-                        "addressMatcher": {
-                            "title": "Address Matcher constraint",
-                            "type": "string",
-                            "format": "uri",
-                            "description": "An URL of a contract address matcher that should be used to match the contract address."
-                        },
                         "factory": {
                             "title": "Factory constraint",
                             "type": "object",
@@ -224,6 +218,12 @@
                     "description": "The display name of the owner or target of the contract / message to be clear signed."
                 },
 
+                "contractName": {
+                    "title": "Contract Name",
+                    "type": "string",
+                    "description": "The name of the contract targeted by the transaction or message."
+                },
+
                 "info": {
                     "$ref": "#/$metadata/info"
                 },
@@ -249,11 +249,6 @@
             "description": "The owner info section contains detailed information about the owner or target of the contract / message to be clear signed.",
 
             "properties": {
-                "legalName": {
-                    "title": "Owner Legal Name",
-                    "type": "string",
-                    "description": "The full legal name of the owner if different from the owner field."
-                },
                 "deploymentDate": {
                     "title": "Deployment date of the contract / message",
                     "type": "string",
@@ -268,7 +263,6 @@
                 }
             },
             "required": [
-                "legalName",
                 "url"
             ],
             "additionalProperties": false
@@ -319,22 +313,13 @@
             "description": "A set of enums that are used to format fields replacing values with human readable strings.",
 
             "additionalProperties": {
-                "oneOf": [
-                    {
-                        "title": "A dynamic enum",
-                        "type": "string",
-                        "description": "A dynamic enum contains an URL which returns a json file with simple key-values mapping values display name. It is assumed those values can change between two calls to clear sign."
-                    },
-                    {
-                        "title": "Enumeration",
-                        "type": "object",
-                        "description": "A set of values that will be used to replace a field value with a human readable string. Enumeration keys are the field values and enumeration values are the displayable strings",
+                "title": "Enumeration",
+                "type": "object",
+                "description": "A set of values that will be used to replace a field value with a human readable string. Enumeration keys are the field values and enumeration values are the displayable strings",
 
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    }
-                ]
+                "additionalProperties": {
+                    "type": "string"
+                }
             }
         }
     },
@@ -648,6 +633,11 @@
                     "title": "address format",
                     "const": "addressName",
                     "description": "The field should be displayed as a trusted name, or as a raw address if no names are found in trusted sources. List of trusted sources can be optionally specified in parameters."
+                },
+                {
+                    "title": "address format",
+                    "const": "tokenTicker",
+                    "description": "The field should be displayed as an ERC 20 token ticker, or as a raw address if no token definition are found."
                 },
                 {
                     "title": "bytes format",
