@@ -1,0 +1,980 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
+
+    "properties": {
+
+        "$schema": {
+            "title": "Schema",
+            "type": "string",
+            "format": "uri-reference",
+            "description": "The schema that the document should conform to. This should be the URL of a version of the clear signing JSON schemas available under https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs"
+        },
+
+        "$comment": {
+            "title": "Schema",
+            "type": "string",
+            "description": "An optional comment string that can be used to document the purpose of the file."
+        },
+
+        "includes": {
+            "title": "External includes",
+            "type": "string",
+            "format": "uri-reference",
+            "description": "An URL of another ERC 7730 file that should be merged into this one. Includes are merged into this file before analysis. This can be used to manage interfaces definitions without redundancy."
+        },
+
+        "context": {
+            "$ref": "#/$context/main"
+        },
+
+        "metadata": {
+            "$ref": "#/$metadata/main"
+        },
+
+        "display": {
+            "$ref": "#/$display/main"
+        }
+    },
+    "additionalProperties": false,
+
+    "$context" : {
+        "main" : {
+            "title": "Binding Context Section",
+            "type": "object",
+            "description": "The binding context is a set of constraints that are used to bind the ERC7730 file to a specific structured data being displayed. Currently, supported contexts include contract-specific constraints or EIP712 message specific constraints.",
+
+            "properties": {
+                "$id" : {
+                    "$ref": "#/$definitions/id"
+                }
+            },
+
+            "oneOf": [
+                {
+                    "$ref": "#/$context/contract"
+                },
+                {
+                    "$ref": "#/$context/EIP712"
+                }
+            ],
+            "unevaluatedProperties": false
+        },
+
+        "contract": {
+            "type": "object",
+
+            "properties": {
+                "contract": {
+                    "title": "Contract Binding Context",
+                    "type": "object",
+                    "description": "The contract binding context is a set constraints that are used to bind the ERC7730 file to a specific smart contract.",
+
+                    "properties": {
+                        "abi": {
+                            "description": "[Deprecated] ABI definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
+                        },
+                        "deployments": {
+                            "$ref": "#/$context/deployments"
+                        },
+                        "addressMatcher": {
+                            "title": "Address Matcher constraint",
+                            "type": "string",
+                            "format": "uri",
+                            "description": "An URL of a contract address matcher that should be used to match the contract address."
+                        },
+                        "factory": {
+                            "title": "Factory constraint",
+                            "type": "object",
+                            "description": "A factory constraint is used to check whether the target contract is deployed by a specified factory.",
+                            "properties": {
+                                "deployments": {
+                                    "$ref": "#/$context/deployments"
+                                },
+                                "deployEvent": {
+                                    "title": "Deploy Event signature",
+                                    "type": "string",
+                                    "description": "The event signature that is emitted by the factory when deploying a new contract."
+                                }
+                            },
+                            "required": [
+                                "deployments",
+                                "deployEvent"
+                            ],
+                            "additionalProperties": false
+                        }
+
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "required": [
+                "contract"
+            ]
+        },
+
+        "EIP712": {
+            "type": "object",
+            "properties": {
+                "eip712" : {
+                    "title": "EIP 712 Binding",
+                    "type": "object",
+                    "description": "The EIP-712 binding context is a set of constraints that must be verified by the message being signed.",
+
+                    "properties" : {
+                        "schemas" : {
+                            "oneOf": [
+                                {
+                                    "title": "An EIP712 Schemas url",
+                                    "description": "URL of an array of EIP712 schemas that can be used to validate the message. The message types should match exactly one of those schema.",
+                                    "type": "string",
+                                    "format": "uri-reference"
+                                },
+                                {
+                                    "title": "EIP 712 Schemas constraint",
+                                    "type": "array",
+                                    "description": "An array of EIP712 schemas that can be used to validate the message. The message types should match exactly one of those schema.",
+                                    "items": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/$definitions/eip712-json-schema"
+                                            },
+                                            {
+                                                "title": "An EIP712 Schema url",
+                                                "description": "URL of an EIP712 Schema bound to this file.",
+                                                "type": "string",
+                                                "format": "uri-reference"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "domain": {
+                            "title": "EIP 712 Domain Binding constraint",
+                            "type": "object",
+                            "description": "Each value of the domain constraint MUST match the corresponding eip 712 message domain value.",
+
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "version": {
+                                    "type": "string"
+                                },
+                                "chainId": {
+                                    "type": "integer",
+                                    "format": "eip155"
+                                },
+                                "verifyingContract": {
+                                    "type": "string",
+                                    "format": "eip55"
+                                }
+                            }
+                        },
+                        "domainSeparator": {
+                            "title": "Domain Separator constraint",
+                            "type": "string",
+                            "description": "The domain separator value that must be matched by the message. In hex string representation."
+                        },
+                        "deployments": {
+                            "description": "An array of deployments describing what the chainId and verifyingContract in the domain should match.",
+                            "$ref": "#/$context/deployments"
+                        }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "required": [
+                "eip712"
+            ]
+        },
+
+        "deployments": {
+            "title": "Deployments constraint",
+            "type": "array",
+            "description": "An array of deployments describing where the contract is deployed. The target contract (Tx to or factory) MUST match one of those deployments.",
+            "items": {
+                "properties": {
+                    "chainId": {
+                        "type": "integer",
+                        "format": "eip155"
+                    },
+                    "address": {
+                        "type": "string",
+                        "format": "eip55"
+                    }
+                }
+            }
+        }
+    },
+
+    "$metadata": {
+        "main": {
+            "title": "Metadata Section",
+            "type": "object",
+            "description": "The metadata section contains information about constant values relevant in the scope of the current contract / message (as matched by the `context` section)",
+
+            "properties": {
+
+                "owner": {
+                    "title": "Owner display name",
+                    "type": "string",
+                    "description": "The display name of the owner or target of the contract / message to be clear signed."
+                },
+
+                "info": {
+                    "$ref": "#/$metadata/info"
+                },
+
+                "token": {
+                    "$ref": "#/$metadata/token"
+                },
+
+                "constants": {
+                    "$ref": "#/$metadata/constants"
+                },
+
+                "enums": {
+                    "$ref": "#/$metadata/enums"
+                }
+            }
+
+        },
+
+        "info" : {
+            "title": "Main contract's owner detailed information",
+            "type": "object",
+            "description": "The owner info section contains detailed information about the owner or target of the contract / message to be clear signed.",
+
+            "properties": {
+                "legalName": {
+                    "title": "Owner Legal Name",
+                    "type": "string",
+                    "description": "The full legal name of the owner if different from the owner field."
+                },
+                "deploymentDate": {
+                    "title": "Deployment date of the contract / message",
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "The date of deployment of the contract / message."
+                },
+                "url": {
+                    "title": "Owner URL",
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL with more info on the entity the user interacts with."
+                }
+            },
+            "required": [
+                "legalName",
+                "url"
+            ],
+            "additionalProperties": false
+        },
+
+        "token" : {
+            "title": "Token Description",
+            "type": "object",
+            "description": "A description of an ERC20 token exported by this format, that should be trusted. Not mandatory if the corresponding metadata can be fetched from the contract itself.",
+
+            "properties": {
+                "name": {
+                    "title": "Token Name",
+                    "type": "string"
+                },
+                "ticker": {
+                    "title": "Token Ticker",
+                    "type": "string",
+                    "description": "A short capitalized ticker for the token, that will be displayed in front of corresponding amounts."
+                },
+                "decimals": {
+                    "title": "Token Decimals",
+                    "type": "integer",
+                    "description": "The number of decimals of the token ticker, used to display amounts."
+                }
+            },
+            "required": [
+                "name",
+                "ticker",
+                "decimals"
+            ],
+            "additionalProperties": false
+
+        },
+
+        "constants": {
+            "title": "Constant values",
+            "type": "object",
+            "description": "A set of values that can be used in format parameters. Can be referenced with a path expression like $.metadata.constants.CONSTANT_NAME",
+            "additionalProperties": {
+                "type": ["string", "integer", "number", "boolean", "null"]
+            }
+        },
+
+        "enums" : {
+            "title": "Enums",
+            "type": "object",
+            "description": "A set of enums that are used to format fields replacing values with human readable strings.",
+
+            "additionalProperties": {
+                "oneOf": [
+                    {
+                        "title": "A dynamic enum",
+                        "type": "string",
+                        "description": "A dynamic enum contains an URL which returns a json file with simple key-values mapping values display name. It is assumed those values can change between two calls to clear sign."
+                    },
+                    {
+                        "title": "Enumeration",
+                        "type": "object",
+                        "description": "A set of values that will be used to replace a field value with a human readable string. Enumeration keys are the field values and enumeration values are the displayable strings",
+
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+
+    "$display": {
+        "main": {
+            "title": "Display Formatting Info Section",
+            "type": "object",
+            "description": "The display section contains all the information needed to format the data in a human readable way. It contains the constants and formatters used to display the data contained in the bound structure.",
+
+            "properties": {
+
+                "definitions": {
+                    "type": "object",
+                    "title": "Common Formatter Definitions",
+                    "description": "A set of definitions that can be used to share formatting information between multiple messages / functions. The definitions can be referenced by the key name in an internal path.",
+                    "additionalProperties": {
+                        "$ref": "#/$format/field"
+                    }
+                },
+
+                "formats": {
+                    "title": "List of field formats",
+                    "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the message primary type.",
+                    "type": "object",
+                    "propertyNames": {
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                    },
+
+                    "additionalProperties": {
+                        "title": "A structured data format specification",
+                        "description": "A structured data format specification contains formatting information of fields in a single type of message.",
+                        "type": "object",
+
+                        "properties": {
+                            "$id": {
+                                "$ref": "#/$definitions/id"
+                            },
+                            "intent": {
+                                "$ref": "#/$display/intent"
+                            },
+                            "interpolatedIntent": {
+                                "$ref": "#/$display/interpolatedIntent"
+                            },
+                            "fields": {
+                                "$ref": "#/$display/fields"
+                            },
+                            "required": {
+                                "$ref": "#/$display/required"
+                            },
+                            "excluded": {
+                                "$ref": "#/$display/excluded"
+                            },
+                            "screens": {
+                                "title": "Screens grouping information",
+                                "description": "Screens section is used to group multiple fields to display into screens. Each key is a wallet type name. The format of the screens is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc...). See each wallet manufacturer documentation for more information.",
+                                "type": "object",
+
+                                "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/$display/screens"
+                                    }
+                                }
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": [
+                "formats"
+            ],
+            "additionalProperties": false
+        },
+        "intent": {
+            "oneOf": [
+                {
+                    "title": "Simple intent message",
+                    "description": "A description of the intent of the structured data signing, that will be displayed to the user.",
+                    "type": "string"
+                },
+                {
+                    "title": "Complex intent message",
+                    "description": "A description of the intent of the structured data signing, that will be displayed to the user.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+
+            ]
+        },
+        "interpolatedIntent": {
+            "title": "Interpolated intent message",
+            "description": "An optional intent string with embedded field values using {path} interpolation syntax. This provides a dynamic, contextual description by embedding actual transaction/message values directly in the intent string. Wallets should prefer displaying interpolatedIntent when available and fall back to intent if interpolation fails. See the specification for detailed formatting behavior and security considerations.",
+            "type": "string"
+        },
+        "required": {
+            "title": "Required fields",
+            "description": "A list of fields that are required to be displayed to the user. A field that has a formatter and is not in this list is optional. A field that does not have a formatter should be silent, ie not shown",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "excluded": {
+            "title": "Excluded fields",
+            "description": "A list of fields that are intentionally not shown to the user. A field that has no formatter and is not declared in this list may be considered as an error by the wallet when interpreting the descriptor.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "screens": {
+            "title": "Screen information",
+            "description": "ADD DEVICE SPECIFIC SCHEMAS LATER. A screen is a group of fields that will be displayed together in a wallet. The format of the screen is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc..). See each wallet manufacturer documentatio for more information.",
+            "type": "object"
+        },
+        "fields": {
+            "title": "Field Formats set",
+            "type": "array",
+            "description": "An array containing the ordered definitions of fields formats. See the specification for more details.",
+
+            "items": {
+                "oneOf": [
+                    {
+                        "$ref": "#/$format/field"
+                    },
+                    {
+                        "$ref": "#/$display/fieldGroup"
+                    },
+                    {
+                        "$ref": "#/$display/reference"
+                    }
+                ]
+            },
+            "unevaluatedProperties": false
+        },
+        "fieldGroup": {
+            "title": "A group of field formats, allowing recursivity in the schema and control over grouping and iteration.",
+            "description": "A set of field formats used to group whole definitions for structures for instance. This allows nesting definitions of formats, but note that support for deep nesting will be device dependent.",
+            "type": "object",
+
+            "properties": {
+                "path": {
+                    "$ref": "#/$format/path"
+                },
+                "label": {
+                    "title": "Group Label",
+                    "description": "The group label of the field group, that will be displayed to the user in front of the formatted field values.",
+                    "type": "string"
+                },
+                "iteration": {
+                    "title": "Array iteration mode",
+                    "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
+                    "type": "string",
+                    "enum": [ "sequential", "bundled" ]
+                },
+                "fields": {
+                    "$ref": "#/$display/fields"
+                }
+            },
+            "required": [
+                "fields"
+            ],
+            "additionalProperties": false
+        },
+        "reference": {
+            "title": "Reference",
+            "description": "A reference to a shared definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME. It is used to share definitions between multiple messages / functions.",
+            "properties": {
+                "path": {
+                    "$ref": "#/$format/path"
+                },
+                "value": {
+                    "$ref": "#/$format/value"
+                },
+                "$ref": {
+                    "title": "Internal Definition",
+                    "description": "An internal definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME.",
+                    "type": "string"
+                },
+                "params": {
+                    "title": "Parameters",
+                    "description": "Parameters override. These values takes precedence over the ones in the definition itself",
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                }
+            },
+            "required": [ "$ref" ],
+            "allOf": [
+                {
+                    "not": { "required": [ "path", "value" ] }
+                }
+            ],
+            "additionalProperties": false
+        }
+    },
+
+    "$format": {
+        "path": {
+            "title": "Path",
+            "type": "string",
+            "description": "A path to the field in the structured data. The path is a JSON path expression that can be used to extract the field value from the structured data."
+        },
+        "value": {
+            "title": "Value",
+            "type": ["string", "integer", "number", "boolean"],
+            "description": "A literal value on which the format should be applied instead of looking up a field in the structured data."
+        },
+        "field": {
+            "title": "Field formatter",
+            "description": "A field formatter contains formatting information of a single field in a message.",
+            "type": "object",
+
+            "properties": {
+                "$id": {
+                    "$ref": "#/$definitions/id"
+                },
+                "path": {
+                    "$ref": "#/$format/path"
+                },
+                "value": {
+                    "$ref": "#/$format/value"
+                },
+                "label": {
+                    "title": "Field Label",
+                    "description": "The label of the field, that will be displayed to the user in front of the formatted field value.",
+                    "type": "string"
+                },
+                "format": {
+                    "title": "Field Format",
+                    "description": "The format of the field, that will be used to format the field value in a human readable way.",
+                    "type": "string",
+                    "$ref": "#/$format/names"
+                }
+            },
+            "required": [ "label", "format" ],
+            "allOf" : [
+                {
+                    "not": { "required": [ "path", "value" ] }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "addressName" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/addressNameParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "calldata" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/calldataParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "tokenAmount" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/tokenAmountParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "nftName" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/nftNameParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "date" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/dateParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "unit" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/unitParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "enum" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/enumParameters" }
+                        }
+                    }
+                }
+            ],
+            "unevaluatedProperties": false
+        },
+        "names": {
+            "anyOf": [
+                {
+                    "title": "Raw format",
+                    "const": "raw",
+                    "description": "The field should be displayed as the natural representation of the underlying structured data type."
+                },
+                {
+                    "title": "address format",
+                    "const": "addressName",
+                    "description": "The field should be displayed as a trusted name, or as a raw address if no names are found in trusted sources. List of trusted sources can be optionally specified in parameters."
+                },
+                {
+                    "title": "bytes format",
+                    "const": "calldata",
+                    "description": "The field is itself a calldata embedded in main call. Another ERC 7730 should be used to parse this field. If not available or not supported, the wallet MAY display a hash of the embedded calldata instead."
+
+                },
+                {
+                    "title": "integer format",
+                    "const": "amount",
+                    "description": "The field should be displayed as an amount in underlying currency, converted using the best magnitude / ticker available."
+                },
+                {
+                    "title": "integer format",
+                    "const": "tokenAmount",
+                    "description": "The field should be displayed as an amount, preceded by the ticker. The magnitude and ticker should be derived from the token or tokenPath parameter corresponding metadata."
+                },
+                {
+                    "title": "integer format",
+                    "const": "nftName",
+                    "description": "The field should be displayed as a single NFT names, or as a raw token Id if a specific name is not found. Collection is specified by the collection or collectionPath parameter."
+                },
+                {
+                    "title": "integer format",
+                    "const": "date",
+                    "description": "The field should be displayed as a date. Suggested RFC3339 representation. Parameter specifies the encoding of the date."
+                },
+                {
+                    "title": "integer format",
+                    "const": "duration",
+                    "description": "The field should be displayed as a duration in HH:MM:ss form. Value is interpreted as a number of seconds."
+                },
+                {
+                    "title": "integer format",
+                    "const": "unit",
+                    "description": "The field should be displayed as a percentage. Magnitude of the percentage encoding is specified as a parameter. Example: a value of 3000 with magnitude 4 is displayed as 0.3%."
+                },
+                {
+                    "title": "integer format",
+                    "const": "enum",
+                    "description": "The field should be displayed as a human readable string by converting the value using the enum referenced in parameters."
+                }
+            ]
+        },
+        "addressNameParameters" : {
+            "title": "Address Names Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "types": {
+                    "title": "Address Type",
+                    "type": "array",
+                    "description": "The types of address to display. Restrict allowable sources of names and MAY lead to additional checks from wallets.",
+                    "items": {
+                        "type": "string",
+                        "enum": [ "wallet", "eoa", "contract", "token", "collection" ]
+                    }
+                },
+                "sources": {
+                    "title": "Trusted Sources",
+                    "description": "Trusted Sources for names, in order of preferences. Sources values are wallet manufacturer specific, example values are \"local\" or \"ens\". See specification for more details on sources values.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "senderAddress": {
+                    "title": "Sender Address",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "description": "An address equal to this value is interpreted as the sender referenced by `@.from`."
+                        },
+                        {
+                            "type": "array",
+                            "description": "An array of addresses, any of which are interpreted as the sender referenced by `@.from`.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                }
+            },
+            "additionalProperties": false
+        },
+        "calldataParameters" : {
+            "title": "Embedded Calldata Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "callee": {
+                    "title": "Callee Address",
+                    "type": "string",
+                    "description": "The address of the contract being called by this embedded calldata."
+                },
+                "calleePath": {
+                    "title": "Callee Path",
+                    "type": "string",
+                    "description": "The path to the address of the contract being called by this embedded calldata."
+                },
+                "selector": {
+                    "title": "Called Selector (Optional)",
+                    "type": "string",
+                    "description": "The selector being called, if not contained in the calldata. Hex string representation."
+                },
+                "selectorPath": {
+                    "title": "Called Selector Path (Optional)",
+                    "type": "string",
+                    "description": "The path to the selector being called, if not contained in the calldata."
+                },
+                "amount": {
+                    "title": "Amount (Optional)",
+                    "type": "integer",
+                    "description": "The associated amount in native currency, if the calldata can be associated with a container value."
+                },
+                "amountPath": {
+                    "title": "Amoun Path (Optional)",
+                    "type": "string",
+                    "description": "The path to the associated amount in native currency, if the calldata can be associated with a container value."
+                },
+                "spender": {
+                    "title": "Spender Path (Optional)",
+                    "type": "string",
+                    "description": "The associated spender, if the calldata can be associated with a container value."
+                },
+                "spenderPath": {
+                    "title": "Spender Path (Optional)",
+                    "type": "string",
+                    "description": "The path to the associated spender, if the calldata can be associated with a container value."
+                }
+            },
+            "anyOf": [
+                {"required": ["callee"]},
+                {"required": ["calleePath"]}
+            ],
+            "allOf": [
+                {"not": { "required": ["callee", "calleePath"] }},
+                {"not": { "required": ["selector", "selectorPath"] }},
+                {"not": { "required": ["amount", "amountPath"] }},
+                {"not": { "required": ["spender", "spenderPath"] }}
+            ],
+            "additionalProperties": false
+        },
+        "tokenAmountParameters": {
+            "title": "Token Amount Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "token": {
+                    "title": "Token",
+                    "type": "string",
+                    "description": "The token address, or a path to a constant in the ERC 7730 file."
+                },
+                "tokenPath": {
+                    "title": "Token Path",
+                    "type": "string",
+                    "description": "The path to the token address in the structured data."
+                },
+                "nativeCurrencyAddress": {
+                    "title": "Native Currency Address",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "description": "An address equal to this value is interpreted as an amount in native currency rather than a token."
+                        },
+                        {
+                            "type": "array",
+                            "description": "An array of addresses, any of which are interpreted as an amount in native currency rather than a token.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "threshold": {
+                    "title": "Unlimited Threshold",
+                    "type": "string",
+                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
+                },
+                "message": {
+                    "title": "Unlimited Message",
+                    "type": "string",
+                    "description": "The message to display when the amount is above the threshold."
+                }
+            },
+            "not": {
+                "required": ["token", "tokenPath"]
+            },
+            "additionalProperties": false
+        },
+        "nftNameParameters" : {
+            "title": "NFT Names Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "collection": {
+                    "title": "Collection Address",
+                    "type": "string",
+                    "description": "The collection address, or a path to a constant in the ERC 7730 file."
+                },
+                "collectionPath": {
+                    "title": "Collection Path",
+                    "type": "string",
+                    "description": "The path to the collection in the structured data."
+                }
+            },
+            "anyOf": [
+                {"required": ["collection"]},
+                {"required": ["collectionPath"]}
+            ],
+            "not": {
+                "required": ["collection", "collectionPath"]
+            },
+            "additionalProperties": false
+        },
+        "dateParameters": {
+            "title": "Date Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "encoding": {
+                    "title": "Date Encoding",
+                    "type": "string",
+                    "description": "The encoding of the date.",
+                    "enum": [
+                        "blockheight",
+                        "timestamp"
+                    ]
+                }
+            },
+            "required": [
+                "encoding"
+            ],
+            "additionalProperties": false
+        },
+
+        "unitParameters": {
+            "title": "Unit Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "base": {
+                    "title": "Unit base symbol",
+                    "type": "string",
+                    "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps."
+                },
+                "decimals": {
+                    "title": "Decimals",
+                    "type": "integer",
+                    "description": "The number of decimals of the value, used to convert to a float."
+                },
+                "prefix": {
+                    "title": "Prefix",
+                    "type": "boolean",
+                    "description": "Whether the value should be converted to a prefixed unit, like k, M, G, etc."
+                }
+            },
+            "required": [
+                "base"
+            ],
+            "additionalProperties": false
+        },
+
+        "enumParameters": {
+            "title": "Enum Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "$ref": {
+                    "title": "Enum reference",
+                    "type": "string",
+                    "description": "The internal path to the enum definition used to convert this value."
+                }
+            },
+            "required": [
+                "$ref"
+            ],
+            "additionalProperties": false
+        }
+    },
+
+    "$definitions": {
+        "id": {
+            "title": "ID",
+            "type": "string",
+            "description": "An internal identifier that can be used either for clarity specifying what the element is or as a reference in device specific sections."
+        },
+
+        "eip712-json-schema": {
+            "title": "An EIP712 Schema",
+            "type": "object",
+            "description": "EIP712 typed data schema, restricted to type definitions and primary type only. See https://eips.ethereum.org/EIPS/eip-712#data-structures for more information.",
+            "properties": {
+                "types": {
+                    "type": "object",
+                    "description": "Type definitions for the EIP712 typed data. See https://eips.ethereum.org/EIPS/eip-712#data-structures for more information.",
+                    "properties": {
+                        "EIP712Domain": {
+                            "type": "array",
+                            "description": "EIP712 domain type definition. The domain is used as a separator between EIP712 messages to avoid reuse of signatures. Actual separator values are contained in a \"domain\" key of the message. Fields are up to the implementer, but must often include at least name, version, chainId and verifyingContract."
+                        }
+                    },
+                    "additionalProperties": {
+                        "type": "array",
+                        "description": "Type definition for a specific type. Each type is an array of fields, where each field is an object with a name and a type. The type is a string, and may be a reference to another type.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "type"
+                            ]
+                        }
+                    },
+                    "required": [
+                        "EIP712Domain"
+                    ]
+                },
+                "primaryType": {
+                    "type": "string",
+                    "description": "The primary type of the EIP712 typed data. This is the type that will be used as the top level type for the message field. See https://eips.ethereum.org/EIPS/eip-712#data-structures for more information."
+                }
+            },
+            "required": [
+                "types",
+                "primaryType"
+            ]
+        }
+    }
+}

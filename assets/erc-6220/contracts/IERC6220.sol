@@ -95,7 +95,7 @@ interface IERC6220 is IERC5773 {
 
     /**
      * @notice Used to equip a child into a token.
-     * @dev The `IntakeEquip` stuct contains the following data:
+     * @dev The `IntakeEquip` struct contains the following data:
      *  [
      *      tokenId,
      *      childIndex,

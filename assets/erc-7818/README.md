@@ -49,15 +49,15 @@ A **sorted** list is integral to this approach. Each `epoch` maintains its own l
 
 Assuming each year contains 4 `epoch`, which aligns with familiar time-based divisions like a year being divided into four quarters, the following table presents various scenarios based on block time and token receipt intervals. It illustrates the potential transaction frequency and likelihood of receiving tokens within a given period.
 
-| Block Time (ms) | Receive Token Every (ms) | Index/Epoch | Transactions per Day | Likelihood    |
-| --------------- | ------------------------ | ----------- | -------------------- | ------------- |
-| 100             | 100                      | 78,892,315  | 864,000              | Very Unlikely |
-| 500             | 500                      | 15,778,463  | 172,800              | Very Unlikely |
-| 1000            | 1000                     | 7,889,231   | 86,400               | Very Unlikely |
-| 1000            | 28,800,000               | 273         | 3                    | Unlikely      |
-| 1000            | 86,400,000               | 91          | 1                    | Possible      |
-| 5000            | 86,400,000               | 18          | 1                    | Very Likely   |
-| 10000           | 86,400,000               | 9           | 1                    | Very Likely   |
+| Block Time (ms) | Receive Token Every (ms) | Index/Epoch | Frequency           | Likelihood    |
+| --------------- | ------------------------ | ----------- | ------------------- | ------------- |
+| 100             | 100                      | 78,892,315  | 864,000 _times/day_ | Very Unlikely |
+| 500             | 500                      | 15,778,463  | 172,800 _times/day_ | Very Unlikely |
+| 1000            | 1000                     | 7,889,231   | 86,400 _times/day_  | Very Unlikely |
+| 1000            | 28,800,000               | 273         | 3 _times/day_       | Unlikely      |
+| 1000            | 86,400,000               | 91          | 1 _times/day_       | Possible      |
+| 5000            | 86,400,000               | 18          | 1 _times/month_     | Very Likely   |
+| 10000           | 86,400,000               | 9           | 3 _times/month_     | Very Likely   |
 
 > [!IMPORTANT]  
 > - Transactions per day are assumed based on loyalty point earnings.

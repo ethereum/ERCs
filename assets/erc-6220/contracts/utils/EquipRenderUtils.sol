@@ -108,7 +108,7 @@ contract EquipRenderUtils {
      *  ]
      * @param target Address of the smart contract of the given token
      * @param tokenId ID of the token to retrieve the extended active assets for
-     * @return sturct[] An array of ExtendedActiveAssets present on the given token
+     * @return struct[] An array of ExtendedActiveAssets present on the given token
      */
     function getExtendedActiveAssets(address target, uint256 tokenId)
         public
@@ -172,7 +172,7 @@ contract EquipRenderUtils {
      *  ]
      * @param target Address of the smart contract of the given token
      * @param tokenId ID of the token to retrieve the extended pending assets for
-     * @return sturct[] An array of ExtendedPendingAssets present on the given token
+     * @return struct[] An array of ExtendedPendingAssets present on the given token
      */
     function getExtendedPendingAssets(address target, uint256 tokenId)
         public
@@ -294,7 +294,7 @@ contract EquipRenderUtils {
      * @return metadataURI Metadata URI of the asset
      * @return equippableGroupId Equippable group ID of the asset
      * @return catalogAddress Address of the catalog to which the asset belongs to
-     * @return fixedParts An array of fixed parts respresented by the `FixedPart` structs present on the asset
+     * @return fixedParts An array of fixed parts represented by the `FixedPart` structs present on the asset
      * @return slotParts An array of slot parts represented by the `EquippedSlotPart` structs present on the asset
      */
     function composeEquippables(

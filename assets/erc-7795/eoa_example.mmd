@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant D as DApp
+    participant W as Wallet
+    actor U as User
+    participant CA as Chain A
+    participant CB as Chain B
+    activate D
+    D->>+W: wallet_getCapabilities
+    W-->>-D: Capabilities
+    D->>D: Validate supported capabilities
+    D->>+W: wallet_sendCalls
+    W->>W: Compute solutions for requirements
+    W->>+U: Prompt to sign bridge transaction from Chain B to Chain A
+    U-->>-W: User approves
+    W->>+CB: Send bridge transaction
+    CB-->>-W: Transaction receipt
+    W->>W: Wait for requirements to be fulfilled
+    W->>+U: Prompt to sign intended transaction
+    U-->>-W: User approves
+    W->>+CA: Send main transaction
+    CA-->>-W: Transaction receipt
+    W-->>-D: Transaction completed
+    deactivate D
