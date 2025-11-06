@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-04/schema#",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -10,6 +10,12 @@
             "type": "string",
             "format": "uri-reference",
             "description": "The schema that the document should conform to. This should be the URL of a version of the clear signing JSON schemas available under https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs"
+        },
+
+        "$comment": {
+            "title": "Schema",
+            "type": "string",
+            "description": "An optional comment string that can be used to document the purpose of the file."
         },
 
         "includes": {
@@ -53,7 +59,7 @@
                     "$ref": "#/$context/EIP712"
                 }
             ],
-            "unresolvedProperties": false
+            "unevaluatedProperties": false
         },
 
         "contract": {
@@ -67,17 +73,7 @@
 
                     "properties": {
                         "abi": {
-                            "oneOf": [
-                                {
-                                    "$ref": "#/$definitions/abi-json-schema"
-                                },
-                                {
-                                    "title": "An ABI url",
-                                    "description": "URL of an ABI bound to this file.",
-                                    "type": "string",
-                                    "format": "uri-reference"
-                                }
-                            ]
+                            "description": "[Deprecated] ABI definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
                         },
                         "deployments": {
                             "$ref": "#/$context/deployments"
@@ -362,8 +358,11 @@
 
                 "formats": {
                     "title": "List of field formats",
-                    "description": "The list includes formatting info for each field of a structure. This list is indexed by a key identifying uniquely the message's type in the abi. For smartcontracts, it is the selector of the function or its signature; and for EIP712 messages it is the primaryType of the message.",
+                    "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the message primary type.",
                     "type": "object",
+                    "propertyNames": {
+                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                    },
 
                     "additionalProperties": {
                         "title": "A structured data format specification",
@@ -466,23 +465,34 @@
                         "$ref": "#/$format/field"
                     },
                     {
-                        "$ref": "#/$display/nestedFields"
+                        "$ref": "#/$display/fieldGroup"
                     },
                     {
                         "$ref": "#/$display/reference"
                     }
                 ]
             },
-            "unresolvedProperties": false
+            "unevaluatedProperties": false
         },
-        "nestedFields": {
-            "title": "A single set of field formats, allowing recursivity in the schema",
+        "fieldGroup": {
+            "title": "A group of field formats, allowing recursivity in the schema and control over grouping and iteration.",
             "description": "A set of field formats used to group whole definitions for structures for instance. This allows nesting definitions of formats, but note that support for deep nesting will be device dependent.",
             "type": "object",
 
             "properties": {
                 "path": {
                     "$ref": "#/$format/path"
+                },
+                "label": {
+                    "title": "Group Label",
+                    "description": "The group label of the field group, that will be displayed to the user in front of the formatted field values.",
+                    "type": "string"
+                },
+                "iteration": {
+                    "title": "Array iteration mode",
+                    "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
+                    "type": "string",
+                    "enum": [ "sequential", "bundled" ]
                 },
                 "fields": {
                     "$ref": "#/$display/fields"
@@ -609,7 +619,7 @@
                     }
                 },
                 {
-                    "if": { "properties": { "format": { "const": "percentage" } } },
+                    "if": { "properties": { "format": { "const": "unit" } } },
                     "then": {
                         "properties": {
                             "params": { "$ref": "#/$format/unitParameters" }
@@ -625,7 +635,7 @@
                     }
                 }
             ],
-            "unresolvedProperties": false
+            "unevaluatedProperties": false
         },
         "names": {
             "anyOf": [
@@ -875,7 +885,7 @@
             "properties": {
                 "base": {
                     "title": "Unit base symbol",
-                    "type": "integer",
+                    "type": "string",
                     "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps."
                 },
                 "decimals": {
@@ -964,86 +974,6 @@
             "required": [
                 "types",
                 "primaryType"
-            ]
-        },
-
-        "abi-json-schema": {
-            "title": "An EVM ABI",
-            "type": "array",
-            "description": "JSON schema for the json representation of a solidity ABI",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "inputs": {
-                        "type": "array",
-                        "description": "an array of object with input parameters",
-                        "items": {
-                            "$ref": "#/$definitions/abi-parameter"
-                        }
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "the name of the function"
-                    },
-                    "outputs": {
-                        "type": "array",
-                        "description": "an array of object with output parameters",
-                        "items": {
-                            "$ref": "#/$definitions/abi-parameter"
-                        }
-                    },
-                    "stateMutability": {
-                        "type": "string",
-                        "enum": [
-                            "pure",
-                            "view",
-                            "nonpayable",
-                            "payable"
-                        ]
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "the type of object being described",
-                        "enum": [
-                            "function",
-                            "constructor",
-                            "receive",
-                            "fallback"
-                        ]
-                    }
-                },
-                "required": [
-                    "inputs",
-                    "type"
-                ]
-            }
-        },
-
-        "abi-parameter": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Name of the parameter, used in the selector computation"
-                },
-                "type": {
-                    "type": "string",
-                    "description": "the canonical type of the parameter"
-                },
-                "internalType": {
-                    "type": "string",
-                    "description": "fully qualified type name in solidity source code"
-                },
-                "components": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/$definitions/abi-parameter"
-                    }
-                }
-            },
-            "required": [
-                "name",
-                "type"
             ]
         }
     }
