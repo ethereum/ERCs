@@ -448,7 +448,7 @@ contract uRWA1155Test is Test {
     }
 
     function test_Revert_ForcedTransfer_ToZeroAddress() public {
-        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943CannotTransact.selector, address(0)));
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InvalidReceiver.selector, address(0)));
         vm.prank(forceTransferrer);
         token.forcedTransfer(user1, address(0), TOKEN_ID_1, FORCE_TRANSFER_AMOUNT);
     }

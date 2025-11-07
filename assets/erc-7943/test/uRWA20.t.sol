@@ -454,7 +454,7 @@ contract uRWA20Test is Test {
     }
 
     function test_Revert_ForcedTransfer_ToZeroAddress() public {
-        vm.expectRevert("NotZeroAddress()");
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
         vm.prank(forceTransferrer);
         token.forcedTransfer(user1, address(0), FORCE_TRANSFER_AMOUNT);
     }

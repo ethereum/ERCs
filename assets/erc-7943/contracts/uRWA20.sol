@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.29;
 
 import {IERC7943Fungible} from "./interfaces/IERC7943.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
@@ -32,9 +32,6 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     /// @param account The address whose status was changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
     event Whitelisted(address indexed account, bool status);
-
-    /// @notice Error used when a zero address is provided where it is not allowed.
-    error NotZeroAddress();
 
     /// @notice Contract constructor.
     /// @dev Initializes the ERC-20 token with name and symbol, and grants all roles
@@ -73,7 +70,7 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     /// @notice Updates the whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
     /// Emits a {Whitelisted} event.
-    /// @param account The address whose whitelist status is to be changed.
+    /// @param account The address whose whitelist status is to be changed. Must not be the zero address.
     /// @param status The new whitelist status (true or false).
     function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
@@ -109,7 +106,8 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     /// @inheritdoc IERC7943Fungible
     /// @dev Can only be called by accounts holding the `FORCE_TRANSFER_ROLE`.
     function forcedTransfer(address from, address to, uint256 amount) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
-        require(from != address(0) && to != address(0), NotZeroAddress());
+        require(to != address(0), ERC20InvalidReceiver(address(0)));
+        require(from != address(0), ERC20InvalidSender(address(0)));
         require(canTransact(to), ERC7943CannotTransact(to));
         _excessFrozenUpdate(from, amount);
         super._update(from, to, amount); // Directly update balances, bypassing overridden _update
