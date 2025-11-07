@@ -1,4 +1,9 @@
 {
+
+    "$schema": "./erc7730-v1.schema.json",
+
+    "$comment": "This is an example of ERC-7730 display definition that includes another definition file to demonstrate reusability for common interfaces such as ERC-20.",
+
     "context": {
         "$id": "Example USD",
         "contract" : {
@@ -29,10 +34,10 @@
 
     "display": {
         "formats": {
-            "approve(address _spender,uint256 _value)": {
+            "approve(address spender,uint256 value)": {
                 "fields": [
                     {
-                        "path": "_value",
+                        "path": "value",
                         "params" : {
                             "threshold": "0xFFFFFFFFFFFFFFFFFF"
                         }
