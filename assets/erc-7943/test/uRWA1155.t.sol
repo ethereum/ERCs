@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {uRWA1155} from "../contracts/uRWA1155.sol";
 import {IERC7943MultiToken} from "../contracts/interfaces/IERC7943.sol";
 import {MockERC1155Receiver} from "../contracts/mocks/MockERC1155Receiver.sol";
