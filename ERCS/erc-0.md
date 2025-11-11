@@ -6,7 +6,7 @@ author: cococay (@zwowo1997)
 discussions-to: https://ethereum-magicians.org/t/eip-0000-standardized-zk-metadata-interface/26511
 status: Draft
 type: Standards Track
-category: Interface
+category: ERC
 created: 2025-11-10
 ---
 
