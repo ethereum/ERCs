@@ -30,8 +30,8 @@
                 "interpolatedIntent": "Distribute fees {percentages} among recipients {recipients}",
                 "fields": [
                     {
-                        "label": "Total Distributed Amount",
                         "path": "@.value",
+                        "label": "Total Distributed Amount",
                         "format": "amount"
                     },
                     {

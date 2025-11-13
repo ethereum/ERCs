@@ -249,11 +249,6 @@
             "description": "The owner info section contains detailed information about the owner or target of the contract / message to be clear signed.",
 
             "properties": {
-                "legalName": {
-                    "title": "Owner Legal Name",
-                    "type": "string",
-                    "description": "The full legal name of the owner if different from the owner field."
-                },
                 "deploymentDate": {
                     "title": "Deployment date of the contract / message",
                     "type": "string",
@@ -268,7 +263,6 @@
                 }
             },
             "required": [
-                "legalName",
                 "url"
             ],
             "additionalProperties": false
@@ -387,18 +381,6 @@
                             },
                             "excluded": {
                                 "$ref": "#/$display/excluded"
-                            },
-                            "screens": {
-                                "title": "Screens grouping information",
-                                "description": "Screens section is used to group multiple fields to display into screens. Each key is a wallet type name. The format of the screens is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc...). See each wallet manufacturer documentation for more information.",
-                                "type": "object",
-
-                                "additionalProperties": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/$display/screens"
-                                    }
-                                }
                             }
                         },
                         "additionalProperties": false
@@ -449,11 +431,6 @@
                 "type": "string"
             }
         },
-        "screens": {
-            "title": "Screen information",
-            "description": "ADD DEVICE SPECIFIC SCHEMAS LATER. A screen is a group of fields that will be displayed together in a wallet. The format of the screen is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc..). See each wallet manufacturer documentatio for more information.",
-            "type": "object"
-        },
         "fields": {
             "title": "Field Formats set",
             "type": "array",
@@ -480,6 +457,9 @@
             "type": "object",
 
             "properties": {
+                "$id": {
+                    "$ref": "#/$definitions/id"
+                },
                 "path": {
                     "$ref": "#/$format/path"
                 },
@@ -489,7 +469,7 @@
                     "type": "string"
                 },
                 "iteration": {
-                    "title": "Array iteration mode",
+                    "title": "Group arrays iteration mode",
                     "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
                     "type": "string",
                     "enum": [ "sequential", "bundled" ]
@@ -571,6 +551,11 @@
                     "description": "The format of the field, that will be used to format the field value in a human readable way.",
                     "type": "string",
                     "$ref": "#/$format/names"
+                },
+                "separator": {
+                    "title": "Field Separator",
+                    "description": "An optional separator string that will be used to separate multiple values when the field is an array. A separator use the interpolated string format with one specific parameter {index} replaced by the index of the element in the array.",
+                    "type": "string"
                 }
             },
             "required": [ "label", "format" ],
