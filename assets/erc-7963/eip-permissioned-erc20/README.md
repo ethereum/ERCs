@@ -162,4 +162,4 @@ This project has been migrated from Circom to RISC Zero for improved performance
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This reference implementation is part of ERC-7963 and is released under CC0 (public domain).

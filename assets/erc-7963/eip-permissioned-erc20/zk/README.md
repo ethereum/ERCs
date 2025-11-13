@@ -354,5 +354,5 @@ When modifying the guest program:
 
 - [RISC Zero Documentation](https://dev.risczero.com/)
 - [RISC Zero Examples](https://github.com/risc0/risc0/tree/main/examples)
-- [payment instruction Specification](https://www.iso20022.org/)
-- [EIP Permissioned ERC-20 Documentation](../docs/EIP-walkthrough.md)
+- [Payment Instruction Specification](https://www.iso20022.org/)
+- [ERC-7963 Specification](https://eips.ethereum.org/EIPS/eip-7963)
