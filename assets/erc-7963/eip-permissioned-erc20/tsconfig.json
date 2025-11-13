@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", 
+    "module": "CommonJS", 
+    "moduleResolution": "node", 
+    "esModuleInterop": true, 
+    "resolveJsonModule": true,
+    "strict": true, 
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist", 
+    "rootDir": ".",
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ],
+    "types": [
+      "node",
+      "@nomicfoundation/hardhat-ethers",
+      "@nomicfoundation/hardhat-chai-matchers"
+    ]
+  },
+  "include": [
+    "./scripts/**/*.ts", 
+    "./test/**/*.ts",    
+    "./typechain-types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+} 

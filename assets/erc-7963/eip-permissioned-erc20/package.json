@@ -1,0 +1,55 @@
+{
+  "name": "eip-permissioned-erc20",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "clean": "rm -rf cache_hardhat artifacts out cache",
+    "build:contracts": "hardhat compile",
+    "build:zk": "cd zk && cargo build --release",
+    "build": "npm run clean && npm run build:contracts && npm run build:zk",
+    "test:contracts": "hardhat test",
+    "test:zk": "cd zk && cargo test",
+    "test": "npm run test:contracts && npm run test:zk",
+    "lint:sol": "solhint 'contracts/**/*.sol'",
+    "lint:ts": "prettier --check 'scripts/**/*.ts' 'test/**/*.ts' '*.config.ts'",
+    "lint": "npm run lint:sol && npm run lint:ts",
+    "format:sol": "prettier --write 'contracts/**/*.sol'",
+    "format:ts": "prettier --write 'scripts/**/*.ts' 'test/**/*.ts' '*.config.ts'",
+    "format": "npm run format:sol && npm run format:ts",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "approve:local": "hardhat run scripts/approve_transfer.ts --network localhost",
+    "prove:risc0": "cd zk && cargo run --release --bin host"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.15.3",
+    "chai": "^4.5.0",
+    "ethers": "^6.14.0",
+    "hardhat": "^2.24.0",
+    "js-sha3": "^0.9.3",
+    "merkletreejs": "^0.5.2",
+    "prettier": "^3.5.3",
+    "prettier-plugin-solidity": "^1.4.3",
+    "solhint": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.3.0",
+    "canonical-json": "^0.0.4",
+    "keccak256": "^1.0.6",
+    "poseidon-lite": "^0.3.0"
+  }
+}
