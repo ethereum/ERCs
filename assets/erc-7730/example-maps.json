@@ -1,0 +1,79 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v1.schema.json",
+
+    "$comment": "This is an example of a complete ERC-7730 file using maos for better readability.",
+
+    "context": {
+        "$id": "Example Maps",
+        "contract" : {
+            "deployments": [ 
+                {
+                    "chainId": 1,
+                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
+                },
+                {
+                    "chainId": 137,
+                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
+                },
+                {
+                    "chainId": 42161,
+                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
+                }
+            ]
+        }
+    }, 
+
+    "metadata": {
+        "owner": "Example",
+        "info": {
+            "url": "https://example.io/"
+        },
+        "maps": {
+            "underlyingToken": {
+                "keyPath": "@.chainId",
+                "values": {
+                    "1": "0x0000000000000000000000000000000000deadbeef",
+                    "137": "0x0000000000000000000000000000000000feedface",
+                    "42161": "0x0000000000000000000000000000000000cafebabe"
+                }
+            },
+            "shareToken": {
+                "keyPath": "@.chainId",
+                "values": {
+                    "1": "0x00000000000000000000000000000000abcdef01",
+                    "137": "0x00000000000000000000000000000000abcdef02",
+                    "42161": "0x00000000000000000000000000000000abcdef03"
+                }
+            }
+        }
+    },
+
+    "display": {
+        "formats": {
+            "deposit(uint256 amount,uint256 minShares)": {
+                "intent": "Deposit",
+                "interpolatedIntent": "Deposit {amount} to get at least {minShares}",
+                "fields": [
+                    {
+                        "path": "amount",
+                        "label": "Deposit Amount",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "@.metadata.maps.underlyingToken"
+                        }
+                    },
+                    {
+                        "path": "minShares",
+                        "label": "Min Received Shares",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "@.metadata.maps.shareToken"
+                        }
+                    }
+                ],
+                "required": ["amount", "minShares"],
+                "excluded": []
+            }
+        }
+    }
+}
