@@ -1,15 +1,9 @@
 # ERC-7943 uRWA Minimal Package
 
-## Prerequisites
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-```
-
 ## Install dependencies
-If OpenZeppelin not yet in lib/:
 ```bash
 forge install OpenZeppelin/openzeppelin-contracts
+forge install foundry-rs/forge-std
 ```
 
 ## Build

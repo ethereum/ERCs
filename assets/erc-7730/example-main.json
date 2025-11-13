@@ -1,10 +1,11 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v1.schema.json",
+    "$schema": "./erc7730-v1.schema.json",
+
+    "$comment": "This is a simple example of an ERC-7730 display definition.",
 
     "context": {
         "$id": "Example ERC-20",
         "contract" : {
-            "abi": "https://api.example.io/api?module=contract&action=getabi&address=0xdac17f958d2ee523a2206206994597c13d831ec7",
             "deployments": [ 
                 {
                     "chainId": 1,
@@ -33,17 +34,17 @@
 
     "display": {
         "formats": {
-            "transfer(address _to,uint256 _value)": {
+            "transfer(address to,uint256 value)": {
                 "intent": "Send",
-                "interpolatedIntent": "Send {_value} to {_to}",
+                "interpolatedIntent": "Send {value} to {to}",
                 "fields": [
                     {
-                        "path": "_to",
+                        "path": "to",
                         "label": "To",
-                        "format": "addressOrName"
+                        "format": "addressName"
                     },
                     {
-                        "path": "_value",
+                        "path": "value",
                         "label": "Amount",
                         "format": "tokenAmount",
                         "params": {
@@ -51,7 +52,7 @@
                         }
                     }
                 ],
-                "required": ["_to", "_value"],
+                "required": ["to", "value"],
                 "excluded": []
             }
         }
