@@ -51,9 +51,7 @@
                             "tokenPath": "@.to"
                         }
                     }
-                ],
-                "required": ["to", "value"],
-                "excluded": []
+                ]
             }
         }
     }
