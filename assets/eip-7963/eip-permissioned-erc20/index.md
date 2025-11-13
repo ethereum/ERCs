@@ -5,11 +5,11 @@ This directory contains the complete reference implementation for ERC-7963: Orac
 ## Contents
 
 - **[README.md](README.md)** - Full documentation, setup instructions, and usage guide
-- **[contracts/](contracts/)** - Solidity smart contracts (ERC-20, Oracle, Verifier)
+- **contracts/** - Solidity smart contracts (ERC-20, Oracle, Verifier)
 - **[zk/](zk/)** - RISC Zero guest programs for ZK proof generation
-- **[test/](test/)** - Comprehensive test suite (Hardhat/TypeScript)
-- **[scripts/](scripts/)** - Deployment and utility scripts
-- **[examples/](examples/)** - Example usage and demos
+- **test/** - Comprehensive test suite (Hardhat/TypeScript)
+- **scripts/** - Deployment and utility scripts
+- **examples/** - Example usage and demos
 
 ## Quick Start
 

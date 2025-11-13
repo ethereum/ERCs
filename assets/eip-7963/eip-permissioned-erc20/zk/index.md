@@ -5,9 +5,9 @@ This directory contains the RISC Zero guest programs and host utilities for gene
 ## Contents
 
 - **[README.md](README.md)** - Detailed documentation for the ZK programs
-- **[methods/](methods/)** - RISC Zero guest program implementations
-- **[host/](host/)** - Host program for proof generation
-- **[test-utils/](test-utils/)** - Testing utilities and data generators
+- **methods/** - RISC Zero guest program implementations
+- **host/** - Host program for proof generation
+- **test-utils/** - Testing utilities and data generators
 
 ## Quick Start
 
