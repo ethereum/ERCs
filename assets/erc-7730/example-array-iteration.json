@@ -1,0 +1,83 @@
+{
+    "$schema": "./erc7730-v1.schema.json",
+
+    "$comment": "This is an example of ERC-7730 display schema that demonstrates how to format array iterations in bundled mode, as well as nested calldata formatting with arrays.",
+
+    "context": {
+        "$id": "Example Array Iteration",
+        "contract" : {
+            "deployments": [ 
+                {
+                    "chainId": 1,
+                    "address": "0x123456789abcdef0112233445566778899aabbcc"
+                }
+            ]
+        }
+    }, 
+
+    "metadata": {
+        "owner": "Example",
+        "info": {
+            "url": "https://example.io/",
+            "deploymentDate": "2017-11-28T12:41:21Z"  
+        }
+    },
+
+    "display": {
+        "formats": {
+            "distribute(address[] recipients,uint256[] percentages)": {
+                "intent": "Distribute fees among recipients",
+                "interpolatedIntent": "Distribute fees {percentages} among recipients {recipients}",
+                "fields": [
+                    {
+                        "label": "Total Distributed Amount",
+                        "path": "@.value",
+                        "format": "amount"
+                    },
+                    {
+                        "label": "Recipients and Fees",
+                        "iteration": "bundled",
+                        "fields": [
+                            {
+                                "path": "recipients.[]",
+                                "label": "Recipients",
+                                "format": "addressName",
+                                "separator": "Recipient {index}"
+                            },
+                            {
+                                "path": "percentages.[]",
+                                "label": "Percentages",
+                                "format": "unit",
+                                "params": {
+                                    "base": "%",
+                                    "decimals": 2
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "required": ["recipients", "percentages"],
+                "excluded": []
+            },
+            "batchExecute(address[] targets, bytes[] datas, uint256[] values)": {
+                "intent": "Execute batch calls to targets",
+                "interpolatedIntent": "Execute batch calls to targets {targets} with values {values}",
+                "fields": [
+                    {
+                        "path": "datas.[]",
+                        "label": "Nested Calls",
+                        "format": "calldata",
+                        "separator": "Transaction {index}",
+                        "params": {
+                            "calleePath": "targets.[]",
+                            "amountPath": "values.[]"
+                        }
+                    }
+                ],
+                "required": ["targets", "values"],
+                "excluded": []
+            }
+        }
+        
+    }
+}
