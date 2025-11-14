@@ -17,6 +17,7 @@
 
     "metadata": {
         "owner": "Example",
+        "contractName": "Example Array Iteration Contract",
         "info": {
             "url": "https://example.io/",
             "deploymentDate": "2017-11-28T12:41:21Z"  
@@ -55,9 +56,7 @@
                             }
                         ]
                     }
-                ],
-                "required": ["recipients", "percentages"],
-                "excluded": []
+                ]
             },
             "batchExecute(address[] targets, bytes[] datas, uint256[] values)": {
                 "intent": "Execute batch calls to targets",
@@ -73,9 +72,7 @@
                             "amountPath": "values.[]"
                         }
                     }
-                ],
-                "required": ["targets", "values"],
-                "excluded": []
+                ]
             }
         }
         

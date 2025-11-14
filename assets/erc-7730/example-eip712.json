@@ -28,10 +28,10 @@
           "fields": [
             { "path": "spender", "label": "Spender", "format": "raw" },
             { "path": "details.amount", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "details.token" } },
-            { "path": "details.expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } }
-          ],
-          "required": ["spender", "details.amount"],
-          "excluded": ["sigDeadline"]
+            { "path": "details.expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+            { "path": "details.nonce", "visible": "never" },
+            { "path": "sigDeadline", "visible": "never" }
+          ]
         },
         "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline) PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
           "$id": "Permit2 Permit Batch",
@@ -42,12 +42,12 @@
               "path": "details.[]",
               "fields": [
                 { "path": "amount", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "token" } },
-                { "path": "expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } }
+                { "path": "expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+                { "path": "nonce", "visible": "never" }
               ]
-            }
-          ],
-          "required": ["spender", "details"],
-          "excluded": ["sigDeadline"]
+            },
+            { "path": "sigDeadline", "visible": "never" }
+          ]
         }
       }
     }

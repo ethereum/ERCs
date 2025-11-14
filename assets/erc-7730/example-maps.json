@@ -1,5 +1,5 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v1.schema.json",
+    "$schema": "./erc7730-v1.schema.json",
 
     "$comment": "This is an example of a complete ERC-7730 file using maos for better readability.",
 
@@ -70,9 +70,7 @@
                             "tokenPath": "@.metadata.maps.shareToken"
                         }
                     }
-                ],
-                "required": ["amount", "minShares"],
-                "excluded": []
+                ]
             }
         }
     }
