@@ -359,12 +359,6 @@
                             "fields": {
                                 "$ref": "#/$display/fields"
                             },
-                            "required": {
-                                "$ref": "#/$display/required"
-                            },
-                            "excluded": {
-                                "$ref": "#/$display/excluded"
-                            },
                             "screens": {
                                 "title": "Screens grouping information",
                                 "description": "Screens section is used to group multiple fields to display into screens. Each key is a wallet type name. The format of the screens is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc...). See each wallet manufacturer documentation for more information.",
@@ -409,22 +403,6 @@
             "title": "Interpolated intent message",
             "description": "An optional intent string with embedded field values using {path} interpolation syntax. This provides a dynamic, contextual description by embedding actual transaction/message values directly in the intent string. Wallets should prefer displaying interpolatedIntent when available and fall back to intent if interpolation fails. See the specification for detailed formatting behavior and security considerations.",
             "type": "string"
-        },
-        "required": {
-            "title": "Required fields",
-            "description": "A list of fields that are required to be displayed to the user. A field that has a formatter and is not in this list is optional. A field that does not have a formatter should be silent, ie not shown",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "excluded": {
-            "title": "Excluded fields",
-            "description": "A list of fields that are intentionally not shown to the user. A field that has no formatter and is not declared in this list may be considered as an error by the wallet when interpreting the descriptor.",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
         },
         "screens": {
             "title": "Screen information",
@@ -523,6 +501,7 @@
             "type": ["string", "integer", "number", "boolean"],
             "description": "A literal value on which the format should be applied instead of looking up a field in the structured data."
         },
+
         "field": {
             "title": "Field formatter",
             "description": "A field formatter contains formatting information of a single field in a message.",
@@ -537,6 +516,9 @@
                 },
                 "value": {
                     "$ref": "#/$format/value"
+                },
+                "visible": {
+                    "$ref": "#/$format/rules"
                 },
                 "label": {
                     "title": "Field Label",
@@ -613,6 +595,47 @@
                 }
             ],
             "unevaluatedProperties": false
+        },
+        "rules": {
+            "title": "Display Rule",
+            "description": "Specifies when a field should be displayed based on its value or context. Defaults to 'always' if not specified.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": ["always", "never", "optional"],
+                    "description": "Simple display rule: 'always' means always display, 'never' means always skip display, 'optional' means display only if wallet can."
+                },
+                {
+                "type": "object",
+                "properties": {
+                    "ifNotIn": {
+                        "type": "array",
+                        "description": "Display the field only if its value is NOT in this list.",
+                        "items": {
+                            "type": ["string", "number", "boolean", "null"]
+                        },
+                        "minItems": 1
+                    },
+                    "mustBe": {
+                        "type": "array",
+                        "description": "Always skip display, but value MUST match one of these values.",
+                        "items": {
+                            "type": ["string", "number", "boolean", "null"]
+                        },
+                        "minItems": 1
+                    }
+                },
+                "additionalProperties": false,
+                "allOf": [
+                    {
+                    "not": {
+                        "required": ["notIn", "mustBe"]
+                    }
+                    }
+                ],
+                "description": "Conditional display rules. Either 'notIn' or 'mustBe' must be defined, but not both."
+                }
+            ]    
         },
         "names": {
             "anyOf": [
