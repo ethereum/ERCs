@@ -296,6 +296,33 @@
                     "type": "string"
                 }
             }
+        },
+
+        "maps": {
+            "title": "Maps",
+            "type": "object",
+            "description": "A set of maps that are used to manage context dependant constants. Maps can be used in place of constants, and the correpsonding constant is based on the map key resolved value. Each key is a map name that can be used as a reference.",
+
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "keyPath": {
+                        "title": "Key Path",
+                        "type": "string",
+                        "description": "A path expression that will be used to extract the map key from the structured data."
+                    },
+                    "values": {
+                        "title": "Map Values",
+                        "type": "object",
+                        "description": "A set of values that can be used as constants based on the resolved key. Each key is a possible key value, and each value is the corresponding constant value.",
+
+                        "additionalProperties": {
+                            "type": ["string", "integer", "number", "boolean", "null"]
+                        }
+                    },
+                    "unresolvedProperties": false
+                }
+            }
         }
     },
 
