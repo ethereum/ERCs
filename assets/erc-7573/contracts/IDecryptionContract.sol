@@ -38,7 +38,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    event TransferIncepted(uint256 id, int amount, address from, address to, string keyEncryptedSuccess, string keyEncryptedFailure);
+    event TransferIncepted(uint256 id, int amount, address from, address to, bytes keyEncryptedSuccess, bytes keyEncryptedFailure);
 
     /**
      * @dev Emitted when the transfer is confirmed.
@@ -49,7 +49,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    event TransferConfirmed(uint256 id, int amount, address from, address to, string keyEncryptedSuccess, string keyEncryptedFailure);
+    event TransferConfirmed(uint256 id, int amount, address from, address to, bytes keyEncryptedSuccess, bytes keyEncryptedFailure);
 
     /**
      * @dev Emitted when a transfer has been performed with a success or failure.
@@ -57,7 +57,7 @@ interface IDecryptionContract {
      * @param id the trade ID.
      * @param encryptedKey The encrypted key associated with the transaction status.
      */
-    event TransferKeyRequested(address sender, uint256 id, string encryptedKey);
+    event TransferKeyRequested(address sender, uint256 id, bytes encryptedKey);
 
     /**
      * @dev Emitted when the decrypted key has been obtained.
@@ -66,7 +66,7 @@ interface IDecryptionContract {
      * @param success a boolean indicating the status. True: success. False: failure.
      * @param key the decrypted key.
      */
-    event TransferKeyReleased(address sender, uint256 id, bool success, string key);
+    event TransferKeyReleased(address sender, uint256 id, bool success, bytes key);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
@@ -79,7 +79,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function inceptTransfer(uint256 id, int amount, address from, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
+    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external;
 
     /**
      * @notice Called by the sender of the amount to confirm the payment transfer.
@@ -90,7 +90,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function confirmTransfer(uint256 id, int amount, address to, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
+    function confirmTransfer(uint256 id, int amount, address to, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external;
 
     /**
      * @notice Called by the sender of (first) confirmTransfer initiate completion of the payment transfer(s).
@@ -109,7 +109,7 @@ interface IDecryptionContract {
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
      */
-    function cancelAndDecrypt(uint256 id, address from, string memory keyEncryptedSuccess, string memory keyEncryptedFailure) external;
+    function cancelAndDecrypt(uint256 id, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external;
 
     /*+
      * @notice Called from the (possibly external) decryption oracle.
@@ -117,5 +117,5 @@ interface IDecryptionContract {
      * @param id the trade identifier of the trade.
      * @param key Decrypted key.
      */
-    function releaseKey(uint256 id, string memory key) external;
+    function releaseKey(uint256 id, bytes memory key) external;
 }
