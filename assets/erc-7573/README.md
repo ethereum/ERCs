@@ -27,4 +27,6 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 
 ### Documentation
 
-- `doc/DvP-Seq-Diag.png` - Sequence diagram.
+- `doc/DvP-Seq-Diag.png` - Sequence diagram of the DvP
+- `doc/multi-party-dvp.svg` - Sequence diagram of a multi-party-dvp.
+
