@@ -2,8 +2,8 @@
 'https://plantuml.com/sequence-diagram
 title SmartDerivativeContract (ERC-6123). Variant with Cash- and Collateral-Token and off-chain Valuation Oracle
 
-actor CP1
-actor CP2
+actor "Counterparty 1" as CP1
+actor "Counterparty 2" as CP2
 
 participant SDC [
     **SDC** :
@@ -173,10 +173,12 @@ loop Every Settlement
 
     end
 
+    end
+
     ' hack - invisible boundary for the activation
     SDC-[#FFF]->EventHandler
 
-    alt #FFF8F8 <color:red>Upon Termination (Settlement Failed)</color>
+    alt #FFF8F8 <color:red>Upon Termination</color>
 
         activate SDC #8080FF
 
@@ -202,7 +204,6 @@ loop Every Settlement
 
     end
 
-
-end
+        |||
 
 @enduml
