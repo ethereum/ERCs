@@ -1,0 +1,448 @@
+---
+eip: TBD
+title: Dual-Mode Fungible Token Standard
+description: A token standard supporting both transparent (ERC-20) and privacy-preserving (zk-SNARK) modes with seamless conversion
+author: Rowan (@0xRowan)
+discussions-to: https://ethereum-magicians.org/t/draft-dual-mode-token-standard-single-token-with-public-and-private-modes/26592
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-11-15
+requires: 20, 165
+---
+
+## Abstract
+
+This EIP defines a standard interface for fungible tokens that operate in two modes: transparent mode (fully compatible with ERC-20) and privacy mode (using zero-knowledge proofs). Token holders can convert balances between modes. The transparent mode uses standard account-based balances, while the privacy mode uses cryptographic commitments stored in a Merkle tree. Total supply is maintained as the sum of both modes.
+
+## Motivation
+
+### The Privacy Dilemma for New Token Projects
+
+When launching a new token, projects face a fundamental choice:
+
+1. **Standard ERC-20**: Full DeFi composability but zero privacy
+2. **Pure privacy protocols**: Strong privacy but limited ecosystem integration
+
+This creates real-world problems:
+- **DAOs** need public treasury transparency but want anonymous governance voting
+- **Businesses** require auditable accounting but need private payroll transactions
+- **Users** want DeFi participation but need privacy for personal holdings
+
+Existing solutions require trade-offs that limit adoption.
+
+### Current Approaches and Their Limitations
+
+#### Wrapper-Based Privacy (e.g.,   Privacy Pools)
+
+**Mechanism**: Wrap existing tokens (DAI, ETH) into a privacy pool contract.
+
+```
+DAI (public) → deposit → Privacy Pool → withdraw → DAI (public)
+```
+
+**Strengths**:
+- ✅ Works with any existing ERC-20 token
+- ✅ Permissionless deployment
+- ✅ No changes to underlying token required
+
+**Limitations for New Token Projects**:
+- ❌ Creates two separate tokens (Token A vs. Wrapped Token B)
+- ❌ Splits liquidity between public and wrapped versions
+- ❌ Requires managing two separate contract addresses
+- ❌ Users must unwrap to access DeFi (additional friction)
+
+**Best suited for**: Adding privacy to existing deployed tokens (DAI, USDC, etc.)
+
+
+### Our Approach: Integrated Dual-Mode for New Tokens
+
+This standard provides a alternative option specifically designed for **new token deployments** that want privacy as a core feature from day one.
+
+**Target Use Case**: Projects launching new tokens (governance tokens, protocol tokens, app tokens) that need both DeFi integration and optional privacy.
+
+**Mechanism**:
+```
+Single Token Contract
+  ↓
+Public Mode (ERC-20) ←→ Privacy Mode (ZK-SNARK)
+  ↓                           ↓
+DeFi/DEX Trading          Private Holdings
+```
+
+**Key Advantages**:
+
+1. **Unified Token Economics**
+   - No liquidity split between public/private versions
+   - One token address, one market price
+   - Simplified token distribution and airdrops
+
+2. **Seamless Mode Switching**
+   - Convert to privacy mode for holdings: `toPrivacy()`
+   - Convert to public mode for DeFi: `toPublic()`
+   - Users choose privacy per transaction, not per token
+
+3. **Full ERC-20 Compatibility**
+   - Works with existing wallets, DEXs, and DeFi protocols
+   - No special support needed for public mode operations
+   - Standard `totalSupply()` accounting tracks both modes
+
+4. **Transparent Supply Tracking**
+   - `totalSupply()` includes both public and privacy mode balances
+   - `totalPrivacySupply()` reveals aggregate privacy supply (no individual balances)
+   - Prevents hidden inflation
+   - Regulatory visibility into aggregate metrics
+
+5. **Application-Layer Deployment**
+   - Deploy today on any EVM chain (Ethereum, L2s, sidechains)
+   - No protocol changes or governance votes required
+   - No coordination with core developers needed
+
+### Honest Limitations
+
+This standard is **not** a universal solution. Key constraints:
+
+1. **New Tokens Only**
+   - Designed for new token deployments with privacy built-in
+   - Cannot add privacy to existing tokens (use wrapper-based solutions for that)
+
+2. **Privacy-to-DeFi Requires Conversion**
+   - Privacy mode balances cannot directly interact with DEXs/DeFi
+   - Users must `toPublic()` before DeFi operations
+   - Conversion reveals amounts on-chain (privacy-to-public events)
+
+### Real-World Use Cases
+
+**1. DAO Governance Token**
+```
+Public Mode:
+  - Treasury management (transparent)
+  - Grant distributions (auditable)
+  - DEX trading (liquidity)
+
+Privacy Mode:
+  - Anonymous voting (no vote buying)
+  - Private delegation (confidential strategy)
+  - Personal holdings (no public scrutiny)
+```
+
+**2. Privacy-Aware Business Token**
+```
+Public Mode:
+  - Investor reporting (compliance)
+  - Exchange listings (liquidity)
+  - Public fundraising (transparency)
+
+Privacy Mode:
+  - Employee compensation (confidential)
+  - Supplier payments (competitive advantage)
+  - Strategic reserves (private holdings)
+```
+
+**3. Protocol Token with Optional Privacy**
+```
+Public Mode:
+  - Staking (DeFi integration)
+  - Liquidity provision (AMM pools)
+  - Trading (price discovery)
+
+Privacy Mode:
+  - Long-term holdings (privacy)
+  - Over-the-counter transfers (confidential)
+  - Strategic positions (no front-running)
+```
+
+### Design Philosophy
+
+This standard embraces a core principle: **"Privacy is a mode, not a separate token."**
+
+Rather than forcing users to choose between incompatible assets (Token A vs. Privacy Token B), we enable contextual privacy within a single fungible token. Users select the appropriate mode for each use case, maintaining capital efficiency and unified liquidity.
+
+This approach acknowledges that privacy and composability serve different purposes, and most users need both at different times—not a forced choice between them.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions
+
+- **Transparent Mode**: Token balance stored using standard ERC-20 accounting, publicly visible and queryable via `balanceOf()`
+- **Privacy Mode**: Token value hidden using cryptographic commitments in an authenticated data structure
+- **Commitment**: A cryptographic binding of value and ownership that hides both the amount and recipient identity
+- **Nullifier**: A unique identifier proving a commitment has been spent, preventing double-spending
+- **Mode Conversion**: The process of moving value between transparent and privacy modes
+- **Privacy State**: An authenticated data structure (e.g., Merkle tree, accumulator) tracking privacy mode commitments
+- **BURN_ADDRESS**: A provably unspendable elliptic curve point used to ensure privacy-to-transparent conversions are secure
+
+### Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.0;
+
+interface IERC_DUAL_MODE {
+
+    /// @notice Emitted when a commitment is added to the privacy state
+    /// @param subtreeIndex The subtree index (0 for single-tree implementations)
+    /// @param commitment The cryptographic commitment hash
+    /// @param leafIndex The position within the subtree (or global index for single-tree)
+    /// @param timestamp Block timestamp when commitment was added
+    /// @dev For single-tree: subtreeIndex SHOULD be 0, leafIndex is global position
+    /// @dev For dual-tree: subtreeIndex identifies which subtree, leafIndex is position within it
+    /// @dev Emitted by toPrivacy(), toPublic() (for change outputs), and privacyTransfer()
+    event CommitmentAppended(
+        uint32 indexed subtreeIndex,
+        bytes32 indexed commitment,
+        uint32 leafIndex,
+        uint256 timestamp
+    );
+
+    /// @notice Emitted when a nullifier is marked as spent
+    /// @param nullifier The unique nullifier hash that prevents double-spending
+    /// @dev Emitted by toPublic() and privacyTransfer() when notes are consumed
+    /// @dev Once emitted, the same nullifier cannot be used again
+    event NullifierSpent(bytes32 indexed nullifier);
+
+    /// @notice Emitted when tokens are minted directly into privacy mode
+    /// @param minter The address that initiated the mint
+    /// @param commitment The commitment created for the minted value
+    /// @param encryptedNote Encrypted note data for recipient to decrypt
+    /// @param subtreeIndex The subtree where commitment was added
+    /// @param leafIndex The position within the subtree
+    /// @param timestamp Block timestamp of the mint
+    /// @dev This event is OPTIONAL - implementations MAY support direct privacy minting
+    /// @dev If not supported, users can mint publicly then use toPrivacy()
+    event Minted(
+        address indexed minter,
+        bytes32 commitment,
+        bytes encryptedNote,
+        uint32 subtreeIndex,
+        uint32 leafIndex,
+        uint256 timestamp
+    );
+
+    /// @notice Emitted for privacy-to-privacy transfers
+    /// @param newCommitments Array of output commitments created (typically 1-2)
+    /// @param encryptedNotes Encrypted note data for recipients to decrypt their outputs
+    /// @param ephemeralPublicKey Ephemeral public key for ECDH key exchange (if used)
+    /// @param viewTag Scanning optimization tag (if used, 0 otherwise)
+    /// @dev Implementations not using stealth addresses MAY emit [0,0] for ephemeralPublicKey
+    /// @dev Implementations not using view tags MAY emit 0 for viewTag
+    /// @dev Recipients use ephemeralPublicKey and their scan key to derive shared secret
+    /// @dev viewTag allows recipients to quickly filter irrelevant transactions
+    event Transaction(
+        bytes32[2] newCommitments,
+        bytes[] encryptedNotes,
+        uint256[2] ephemeralPublicKey,
+        uint256 viewTag
+    );
+
+    /// @notice Convert transparent balance to privacy mode
+    /// @param amount The amount to convert
+    /// @param proofType Implementation-specific proof type identifier
+    /// @param proof Zero-knowledge proof of valid commitment creation
+    /// @param encryptedNote Encrypted note data for recipient wallet
+    function toPrivacy(
+        uint256 amount,
+        uint8 proofType,
+        bytes calldata proof,
+        bytes calldata encryptedNote
+    ) external;
+
+    /// @notice Convert privacy balance to transparent mode
+    /// @param recipient The address to receive the transparent tokens
+    /// @param proofType Implementation-specific proof type identifier
+    /// @param proof Zero-knowledge proof of note ownership and spending
+    /// @param encryptedNotes Encrypted notes for change outputs
+    function toPublic(
+        address recipient,
+        uint8 proofType,
+        bytes calldata proof,
+        bytes[] calldata encryptedNotes
+    ) external;
+
+    /// @notice Execute a privacy-preserving transfer
+    /// @param proofType Implementation-specific proof type identifier
+    /// @param proof Zero-knowledge proof of valid transfer
+    /// @param encryptedNotes Encrypted notes for recipients
+    function privacyTransfer(
+        uint8 proofType,
+        bytes calldata proof,
+        bytes[] calldata encryptedNotes
+    ) external;
+
+    /// @notice Get total supply in privacy mode
+    /// @return Total privacy supply tracked by increments/decrements
+    function totalPrivacySupply() external view returns (uint256);
+
+    /// @notice Check if a nullifier has been spent
+    /// @param nullifier The nullifier hash to check
+    /// @return True if spent, false otherwise
+    function isNullifierSpent(bytes32 nullifier) external view returns (bool);
+}
+```
+
+### Proof Type Parameter
+The `proofType` parameter in `toPrivacy`, `toPublic`, and `privacyTransfer` functions allows implementations to support multiple proof strategies.
+
+**Purpose**: Different proof types may be needed for:
+- Different data structures (e.g., active vs. archived state in dual-tree implementations)
+- Different optimization strategies (e.g., activeTree proofs vs. finalizedTree proofs)
+
+### ERC-20 Compatibility
+
+Implementations MUST implement the ERC-20 interface. All ERC-20 functions operate exclusively on transparent mode balances:
+
+- `balanceOf(account)` MUST return the transparent mode balance only
+  - Privacy mode balances are NOT included (they are hidden by design)
+- `transfer(to, amount)` MUST transfer transparent balance only
+- `approve(spender, amount)` MUST approve transparent balance spending
+- `transferFrom(from, to, amount)` MUST transfer transparent balance with allowance
+- `totalSupply()` MUST return the sum of all public balances plus `totalPrivacySupply()`
+  - This represents the total token supply across both modes
+
+Implementations MUST emit standard ERC-20 `Transfer` events for transparent mode operations.
+
+### Supply Invariant
+
+Implementations MUST maintain the following invariant at all times:
+
+```solidity
+totalSupply() == sum(all balanceOf(account)) + totalPrivacySupply()
+```
+
+Where:
+- `totalSupply()`: Inherited from ERC-20, represents total token supply across both modes
+- `sum(all balanceOf(account))`: Sum of all transparent mode balances
+- `totalPrivacySupply()`: Aggregate privacy mode supply, tracked by:
+  - Incrementing on `toPrivacy()` (public → private conversion)
+  - Decrementing on `toPublic()` (private → public conversion)
+  - NOT computed from Merkle tree (commitment values are encrypted)
+
+**Note**: The public mode supply can be derived as `totalSupply() - totalPrivacySupply()` if needed, eliminating the need for a separate `totalPublicSupply()` function.
+
+
+### Why Integrated Dual-Mode Architecture?
+
+This standard combines the best aspects of both approaches while avoiding their primary limitations:
+
+**Single Token, Dual Capability**:
+```
+Traditional: Token A (public) + Token B (private wrapper) = 2 assets
+This Standard: Token C (public mode ↔ private mode) = 1 asset
+```
+
+**Key Advantages**:
+
+1. **Unified Liquidity**
+   - DEXs only need one trading pair
+   - No fragmentation between "public version" and "private version"
+   - Full liquidity available regardless of current mode
+
+2. **Bidirectional Flexibility**
+   - Users can freely switch: `public → private → public → private`
+   - Unlike wrappers (require unwrapping to access public features)
+   - Unlike protocol-level (often irreversible)
+
+3. **Capital Efficiency**
+   - Can convert to public mode for DeFi, back to private for holdings
+   - No need to maintain separate balances in both forms
+   - Mode conversion is internal (no external token transfers)
+
+4. **Simplified User Experience**
+   - Single token address to track
+   - No "wrapping" concept to understand
+   - Mode switching feels like a native feature, not a workaround
+
+5. **Immediate Deployability**
+   - Application-layer standard (no protocol changes)
+   - Can be deployed today on any EVM chain
+   - No coordination with core developers required
+
+6. **Regulatory Adaptability**
+   - Transparent mode satisfies compliance requirements
+   - Privacy mode available when legally permitted
+   - Can respond to changing jurisdictional rules by adjusting mode usage
+
+
+### BURN_ADDRESS Requirement for toPublic
+
+**Problem**: When converting privacy-to-transparent, the ZK circuit enforces value conservation:
+
+```
+input_amount = output_amount
+```
+
+But we need to "convert" value from privacy mode to public mode. The circuit doesn't know that the contract will create public balance, so we must ensure the converted value doesn't remain spendable in privacy mode.
+
+**Solution**: Force the first output to an unspendable address (BURN_ADDRESS):
+
+```
+Input:  Note A (100)
+Output: Note B → BURN_ADDRESS (50)  ← Provably unspendable
+        Note C → User (50, change)  ← Remains private
+
+Contract: Creates 50 public balance for user
+```
+
+This ensures:
+- ✅ Circuit value conservation: 100 = 50 + 50
+- ✅ Security: Note B can never be spent (no private key exists)
+- ✅ Supply invariant: totalSupply unchanged, just redistributed between modes
+
+
+## Backwards Compatibility
+
+This standard is fully backward compatible with ERC-20:
+
+- All ERC-20 functions operate on transparent balances
+- All standard ERC-20 events are emitted
+- Existing DeFi protocols work without modification
+- Privacy mode is additive and optional
+
+
+## Security Considerations
+
+### Critical: toPublic Conversion Mechanism
+
+**Attack Vector**: If the contract does not verify BURN_ADDRESS, an attacker can:
+
+```
+1. Hold Note A (100 privacy balance)
+2. Call toPublic(50) with proof sending output to attacker's own privacy address
+3. If contract skips BURN_ADDRESS check:
+   - Attacker receives 50 public balance (converted from privacy mode)
+   - Note B (50) sent to attacker's privacy address ← Still spendable in privacy mode!
+   - Note C (50 change)
+   Result: 50 + 50 + 50 = 150 (created 50 out of thin air!)
+```
+
+**Mitigation**: Implementations MUST ensure the converted value cannot be spent in privacy mode. For BURN_ADDRESS approach:
+```solidity
+// Example for implementations using unspendable public key
+require(isUnspendableAddress(recipientPublicKey), "toPublic: output must be unspendable");
+```
+
+This verification is critical—failure to prevent double-spending across modes would allow minting tokens out of thin air.
+
+### Double-Spending Prevention
+
+**Transparent Mode**: Standard ERC-20 balance checking prevents double-spending.
+
+**Privacy Mode**: Nullifier uniqueness enforced on-chain:
+```solidity
+require(!nullifiers[nullifier], "Nullifier already spent");
+nullifiers[nullifier] = true;
+```
+
+Each commitment can only be spent once, as nullifiers are deterministically derived from commitments and private keys.
+
+### Supply Inflation
+
+**Attack**: Malicious proof claiming incorrect values.
+
+**Mitigation**: ZK circuits enforce value conservation. Verifier contracts validate proofs on-chain before state changes. The invariant `totalSupply() == sum(balanceOf) + totalPrivacySupply()` must hold after every operation.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
