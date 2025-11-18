@@ -1,6 +1,6 @@
 ---
 eip: 8084
-title: ZKMeta Metadata Interface
+title: Zero-knowledge proof metadata
 description: Define a minimal, universal interface for zero-knowledge proof metadata discoverable by Ethereum contracts and tooling.
 author: cococay (@zwowo1997)
 discussions-to: https://ethereum-magicians.org/t/eip-0000-standardized-zk-metadata-interface/26511
