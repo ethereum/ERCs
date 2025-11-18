@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 0
 title: Dual-Mode Fungible Token Standard
 description: A token standard supporting both transparent (ERC-20) and privacy-preserving (zk-SNARK) modes with seamless conversion
 author: Rowan (@0xRowan)
