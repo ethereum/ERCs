@@ -1,5 +1,5 @@
 ---
-eip: 0
+eip: 8084
 title: ZKMeta Metadata Interface
 description: Define a minimal, universal interface for zero-knowledge proof metadata discoverable by Ethereum contracts and tooling.
 author: cococay (@zwowo1997)
