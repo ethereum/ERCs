@@ -13,7 +13,7 @@ requires: 7573
 ## Simple Summary
 
 This ERC standardizes how smart contracts can request a **function execution with encrypted arguments**,
-optionally with an **encrypted call descriptor**,  using a stateless decryption oracle.
+optionally with an **encrypted call descriptor**, using a stateless decryption oracle (a *Call Decryption Oracle*).
 
 It separates
 
@@ -26,20 +26,20 @@ and defines how an off-chain oracle decrypts and executes such calls.
 
 This ERC defines a data format and contract interface for executing smart contract calls where:
 
-1. The **arguments** are encrypted and reusable (`EncryptedArguments`), and
+1. The **arguments** are encrypted and reusable (`EncryptedHashedArguments`), and
 2. The **call descriptor** (target contract, selector, access-control list, validity) is either
-    - encrypted (`EncryptedFunctionCall`), or
-    - transparent (`FunctionCall`).
+   - encrypted (`EncryptedCallDescriptor`), or
+   - transparent (`CallDescriptor`).
 
 The encrypted arguments and the call descriptor are bound together via a **hash commitment** (`argsHash`).
-An off-chain decryption oracle listens to standardized events, decrypts payloads, verifies the hash commitment,
+An off-chain call decryption oracle listens to standardized events, decrypts payloads, verifies the hash commitment,
 and calls back into the on-chain oracle to perform the requested call.
 
 The ERC is compatible with existing decryption-oracle designs such as ERC-7573 and can be implemented
 as an extension of such oracles.
 
 The contract receiving the decrypted arguments can pass these on to other contracts, which can, if necessary,
-validate the arguments against the previously stored  **hash commitment** (`argsHash`). 
+validate the arguments against the previously stored **hash commitment** (`argsHash`).
 
 ## Motivation
 
@@ -61,10 +61,10 @@ This ERC generalizes that pattern to a **generic function execution** mechanism,
 #### Order Book Build Process avoiding Front Running
 
 A possible use-case is the construction of an auction / order book preventing front-running, where
-the propsals can be made duing a predefined phase.
-Here participants submit their proposals as an encrypted arguments, which are stored inside a smart
-contract. Once the order phase is closed, the smart contract calls the decryption oracle given itself
-as a callback to receive the decrypted arguments in a call that will build the order book.
+the proposals can be made during a predefined phase.
+Here participants submit their proposals as encrypted arguments, which are stored inside a smart
+contract. Once the order phase is closed, the smart contract calls the call decryption oracle (passing
+itself as the callback target) to receive the decrypted arguments in a call that will build the order book.
 
 ## Specification
 
@@ -73,7 +73,7 @@ as a callback to receive the decrypted arguments in a call that will build the o
 Encrypted arguments are independent of any particular call descriptor and can be reused.
 
 ```solidity
-struct EncryptedArguments {
+struct EncryptedHashedArguments {
     /// Commitment to the plaintext argument tuple.
     /// Convention: argsHash = keccak256(abi.encode(arguments_without_argsHash))
     bytes32 argsHash;
@@ -86,20 +86,25 @@ struct EncryptedArguments {
 }
 ```
 
-#### Normative requirements (EncryptedArguments)
+#### Normative requirements (EncryptedHashedArguments)
 
-For producers of `EncryptedArguments`:
+For producers of `EncryptedHashedArguments`:
 
-- The producer **MUST** compute:
-    - `argsHash = keccak256(abi.encode(arguments_without_argsHash))`
-      using the exact argument ordering and ABI encoding that will later
-      be used when forming the call data.
+- The producer **MUST** compute
+
+  ```solidity
+  argsHash = keccak256(abi.encode(arguments_without_argsHash))
+  ```
+
+  using the exact argument ordering and ABI encoding that will later
+  be used when forming the call data.
+
 - The producer **MUST** set `argsHash` to the value computed above.
 - The producer **MUST** set `ciphertext` to the encryption of exactly
   `abi.encode(arguments_without_argsHash)` under the key identified by `publicKeyId`.
 
-The decryption oracle can provide a convienient commmand line too or endpont
-to generate the encrypted argument.
+A call decryption oracle implementation **MAY** provide a command line tool or endpoint
+to generate `EncryptedHashedArguments` from plaintext arguments.
 
 This ERC does not standardize the encryption algorithm or key management; those are implementation-specific (similar to ERC-7573).
 Implementations **SHOULD** document how `publicKeyId` is derived from the underlying key material.
@@ -113,7 +118,7 @@ A **call descriptor** defines:
 - which arguments (via their hash) are bound to this call.
 
 ```solidity
-struct FunctionCall {
+struct CallDescriptor {
     /// Addresses allowed to request this execution.
     /// If empty, any requester is allowed.
     address[] eligibleCaller;
@@ -125,7 +130,7 @@ struct FunctionCall {
     bytes4 selector;
 
     /// Hash of the argument tuple that this call commits to.
-    /// MUST equal EncryptedArguments.argsHash.
+    /// MUST equal EncryptedHashedArguments.argsHash.
     bytes32 argsHash;
 
     /// Optional expiry (block number). 0 means "no explicit expiry".
@@ -137,32 +142,32 @@ struct FunctionCall {
 
 A call descriptor can be:
 
-- **Transparent**: `FunctionCall` is passed in clear on-chain.
-- **Encrypted**: `FunctionCall` is wrapped into:
+- **Transparent**: `CallDescriptor` is passed in clear on-chain.
+- **Encrypted**: `CallDescriptor` is wrapped into:
 
 ```solidity
-struct EncryptedFunctionCall {
+struct EncryptedCallDescriptor {
     /// Identifier of the public key used for encryption.
     bytes32 publicKeyId;
 
-    /// Ciphertext of abi.encode(FunctionCall), encrypted under publicKeyId.
+    /// Ciphertext of abi.encode(CallDescriptor), encrypted under publicKeyId.
     bytes ciphertext;
 }
 ```
 
-#### Normative requirements (FunctionCall and EncryptedFunctionCall)
+#### Normative requirements (CallDescriptor and EncryptedCallDescriptor)
 
-- `FunctionCall.argsHash` **MUST** equal the `argsHash` field in the associated `EncryptedArguments` object with which it is meant to be used.
-- When using `EncryptedFunctionCall`, the ciphertext **MUST** be the encryption of exactly `abi.encode(FunctionCall)` under the key identified by `publicKeyId`.
+- `CallDescriptor.argsHash` **MUST** equal the `argsHash` field in the associated `EncryptedHashedArguments` object with which it is meant to be used.
+- When using `EncryptedCallDescriptor`, the ciphertext **MUST** be the encryption of exactly `abi.encode(CallDescriptor)` under the key identified by `publicKeyId`.
 
 ### 3. Oracle interface
 
 The oracle exposes a **request/fulfill** pattern. Requests are cheap and do not require on-chain decryption; fulfillment is called by an off-chain operator after decryption.
 
 ```solidity
-interface IEncryptedExecutionOracle {
+interface ICallDecryptionOracle {
     /// Raised when a request with encrypted call + encrypted args is registered.
-    event EncryptedExecutionRequested(
+    event EncryptedCallRequested(
         uint256 indexed requestId,
         address indexed requester,
         bytes32 callPublicKeyId,
@@ -173,7 +178,7 @@ interface IEncryptedExecutionOracle {
     );
 
     /// Raised when a request with transparent call + encrypted args is registered.
-    event TransparentExecutionRequested(
+    event TransparentCallRequested(
         uint256 indexed requestId,
         address indexed requester,
         address[] eligibleCaller,
@@ -186,74 +191,74 @@ interface IEncryptedExecutionOracle {
     );
 
     /// Raised when an execution attempt has been fulfilled by the oracle operator.
-    event ExecutionFulfilled(
+    event CallFulfilled(
         uint256 indexed requestId,
         bool    success,
         bytes   returnData
     );
 
-    /// Request execution with encrypted call + encrypted args.
+    /// Request execution with encrypted call descriptor + encrypted arguments.
     ///
     /// MUST:
     /// - register a unique requestId,
-    /// - store (requestId â requester, argsHash, any auxiliary metadata),
-    /// - emit EncryptedExecutionRequested.
-    function requestEncryptedExecution(
-        EncryptedFunctionCall calldata encCall,
-        EncryptedArguments   calldata encArgs
+    /// - store (requestId â requester, argsHash, and auxiliary metadata),
+    /// - emit EncryptedCallRequested.
+    function requestEncryptedCall(
+        EncryptedCallDescriptor   calldata encCall,
+        EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
-    /// Request execution with transparent call + encrypted args.
+    /// Request execution with transparent call descriptor + encrypted arguments.
     ///
     /// MUST:
-    /// - require call.argsHash == encArgs.argsHash,
-    /// - register a unique requestId and store call data + requester,
-    /// - emit TransparentExecutionRequested.
-    function requestTransparentExecution(
-        FunctionCall         calldata call,
-        EncryptedArguments   calldata encArgs
+    /// - require callDescriptor.argsHash == encArgs.argsHash,
+    /// - register a unique requestId and store callDescriptor data + requester,
+    /// - emit TransparentCallRequested.
+    function requestTransparentCall(
+        CallDescriptor            calldata callDescriptor,
+        EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
     /// Fulfill an encrypted-call request (called by oracle operator).
     ///
     /// MUST:
-    /// - verify that requestId exists and was created with
-    ///   requestEncryptedExecution,
-    /// - verify call.argsHash equals the stored argsHash,
-    /// - verify call.validUntilBlock is zero or >= current block.number,
-    /// - verify that the original requester is contained in call.eligibleCaller
+    /// - verify that requestId exists and was created with requestEncryptedCall,
+    /// - verify callDescriptor.argsHash equals the stored argsHash,
+    /// - verify callDescriptor.validUntilBlock is zero or >= current block.number,
+    /// - verify that the original requester is contained in callDescriptor.eligibleCaller
     ///   (unless the eligibleCaller array is empty),
-    /// - verify that keccak256(argsPlain) equals call.argsHash,
+    /// - verify that keccak256(argsPlain) equals callDescriptor.argsHash,
     /// - perform low-level call:
-    ///     call.targetContract.call(abi.encodePacked(call.selector, argsPlain))
-    /// - emit ExecutionFulfilled(requestId, success, returnData),
+    ///     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
+    /// - emit CallFulfilled(requestId, success, returnData),
     /// - clean up stored state for this requestId.
-    function fulfillEncryptedExecution(
-        uint256       requestId,
-        FunctionCall  calldata call,
-        bytes         calldata argsPlain
+    function fulfillEncryptedCall(
+        uint256          requestId,
+        CallDescriptor   calldata callDescriptor,
+        bytes            calldata argsPlain
     ) external;
 
     /// Fulfill a transparent-call request (called by oracle operator).
     ///
     /// MUST:
-    /// - verify that requestId exists and was created with
-    ///   requestTransparentExecution,
-    /// - load stored FunctionCall from state,
+    /// - verify that requestId exists and was created with requestTransparentCall,
+    /// - load stored CallDescriptor from state,
     /// - verify storedCall.validUntilBlock is zero or >= current block.number,
     /// - verify that keccak256(argsPlain) equals storedCall.argsHash,
     /// - verify that the original requester is contained in storedCall.eligibleCaller
     ///   (unless the eligibleCaller array is empty),
     /// - perform low-level call:
     ///     storedCall.targetContract.call(abi.encodePacked(storedCall.selector, argsPlain))
-    /// - emit ExecutionFulfilled(requestId, success, returnData),
+    /// - emit CallFulfilled(requestId, success, returnData),
     /// - clean up stored state for this requestId.
-    function fulfillTransparentExecution(
-        uint256       requestId,
-        bytes         calldata argsPlain
+    function fulfillTransparentCall(
+        uint256          requestId,
+        bytes            calldata argsPlain
     ) external;
 }
 ```
+
+> **Note:** This ERC does not standardize the exact storage layout of pending requests or the internal access control for `fulfill*` (e.g. `onlyOwner`). Implementations MUST ensure that only the intended oracle operator can call the `fulfill*` functions.
 
 ### 4. Target contract verification
 
@@ -304,18 +309,18 @@ The on-chain contract cannot verify correctness of decryption; it can only check
 
 Implementations SHOULD mitigate replay by:
 
-- using `validUntilBlock` in `FunctionCall`, and/or
+- using `validUntilBlock` in `CallDescriptor`, and/or
 - including nonces or sequence numbers in higher-level protocols.
 
 #### Access control
 
 - `eligibleCaller` binds the original requester to the execution:
-    - the oracle MUST check whether the original requester is contained in `eligibleCaller`, unless `eligibleCaller.length == 0`.
+   - the oracle MUST check whether the original requester is contained in `eligibleCaller`, unless `eligibleCaller.length == 0`.
 - Implementations MAY extend this with roles, multi-signatures, or other access-control schemes.
 
 #### Fees
 
-Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERCâ20 tokens as part of their specific deployment.
+Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERC-20 tokens as part of their specific deployment.
 
 ## Rationale
 
@@ -326,7 +331,7 @@ Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERCâ
 
 ## Backwards Compatibility
 
-This ERC is designed to coexist with ERCâ7573 decryption oracles. An existing ERCâ7573 implementation can be extended to implement `IEncryptedExecutionOracle` without breaking existing interfaces.
+This ERC is designed to coexist with ERC-7573 decryption oracles. An existing ERC-7573 implementation can be extended to implement `ICallDecryptionOracle` without breaking existing interfaces.
 
 ## Reference Implementation
 
@@ -339,8 +344,5 @@ A non-normative reference implementation (Solidity) and a matching Java/off-chai
 
 ## Copyright
 
-Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
-
-
-
-
+Copyright and related rights waived via
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/).
