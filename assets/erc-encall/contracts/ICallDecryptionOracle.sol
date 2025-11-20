@@ -1,12 +1,11 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.0 <0.9.0;
 
 /// @title Call Decryption Oracle Interface
 /// @notice Oracle for executing calls with encrypted, hashed arguments.
-/// @dev ERC-style interface & type definition.
 interface ICallDecryptionOracle {
     /// @notice Encrypted argument blob with a hash commitment.
-    /// @dev argsHash MUST be keccak256(abi.encode(arguments_without_argsHash)).
+    /// @dev argsHash MUST be keccak256(argsPlain) where argsPlain is the decrypted payload.
     struct EncryptedHashedArguments {
         bytes32 argsHash;
         bytes32 publicKeyId;
@@ -15,17 +14,18 @@ interface ICallDecryptionOracle {
 
     /// @notice Transparent call descriptor bound to a particular argsHash.
     struct CallDescriptor {
-        address[] eligibleCaller;    // if empty: any requester allowed
+        address[] eligibleCaller;
         address   targetContract;
         bytes4    selector;
-        bytes32   argsHash;          // MUST equal EncryptedHashedArguments.argsHash
-        uint256   validUntilBlock;   // 0 = no explicit expiry
+        uint256   clientId;
+        bytes32   argsHash;
+        uint256   validUntilBlock;
     }
 
     /// @notice Encrypted call descriptor.
     struct EncryptedCallDescriptor {
         bytes32 publicKeyId;
-        bytes   ciphertext;          // ENC(abi.encode(CallDescriptor))
+        bytes   ciphertext;
     }
 
     /// @notice Emitted when an encrypted call + encrypted args is requested.
@@ -46,6 +46,7 @@ interface ICallDecryptionOracle {
         address[] eligibleCaller,
         address   targetContract,
         bytes4    selector,
+        uint256   clientId,
         bytes32   argsHash,
         uint256   validUntilBlock,
         bytes32   argsPublicKeyId,
@@ -59,35 +60,24 @@ interface ICallDecryptionOracle {
         bytes   returnData
     );
 
-    /// @notice Request execution with encrypted call descriptor + encrypted arguments.
-    /// @dev Must emit EncryptedCallRequested.
     function requestEncryptedCall(
-        EncryptedCallDescriptor calldata encCall,
-        EncryptedHashedArguments calldata encArgs
+        EncryptedCallDescriptor   calldata encCall,
+        EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
-    /// @notice Request execution with transparent call descriptor + encrypted arguments.
-    /// @dev Must emit TransparentCallRequested and check callDescriptor.argsHash == encArgs.argsHash.
     function requestTransparentCall(
-        CallDescriptor calldata callDescriptor,
-        EncryptedHashedArguments calldata encArgs
+        CallDescriptor            calldata callDescriptor,
+        EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
-    /// @notice Fulfill an encrypted-call request after off-chain decryption.
-    /// @param requestId The id obtained from requestEncryptedCall.
-    /// @param callDescriptor The decrypted CallDescriptor.
-    /// @param argsPlain The decrypted arguments, ABI-encoded as in the original args.
     function fulfillEncryptedCall(
-        uint256 requestId,
-        CallDescriptor calldata callDescriptor,
-        bytes calldata argsPlain
+        uint256          requestId,
+        CallDescriptor   calldata callDescriptor,
+        bytes            calldata argsPlain
     ) external;
 
-    /// @notice Fulfill a transparent-call request after off-chain decryption of the arguments.
-    /// @param requestId The id obtained from requestTransparentCall.
-    /// @param argsPlain The decrypted arguments, ABI-encoded.
     function fulfillTransparentCall(
-        uint256 requestId,
-        bytes calldata argsPlain
+        uint256          requestId,
+        bytes            calldata argsPlain
     ) external;
 }

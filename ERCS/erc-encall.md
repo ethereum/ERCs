@@ -28,8 +28,8 @@ This ERC defines a data format and contract interface for executing smart contra
 
 1. The **arguments** are encrypted and reusable (`EncryptedHashedArguments`), and
 2. The **call descriptor** (target contract, selector, access-control list, validity) is either
-   - encrypted (`EncryptedCallDescriptor`), or
-   - transparent (`CallDescriptor`).
+    - encrypted (`EncryptedCallDescriptor`), or
+    - transparent (`CallDescriptor`).
 
 The encrypted arguments and the call descriptor are bound together via a **hash commitment** (`argsHash`).
 An off-chain call decryption oracle listens to standardized events, decrypts payloads, verifies the hash commitment,
@@ -74,14 +74,16 @@ Encrypted arguments are independent of any particular call descriptor and can be
 
 ```solidity
 struct EncryptedHashedArguments {
-    /// Commitment to the plaintext argument tuple.
-    /// Convention: argsHash = keccak256(abi.encode(arguments_without_argsHash))
+    /// Commitment to the plaintext argument payload.
+    /// Convention: argsHash = keccak256(argsPlain)
     bytes32 argsHash;
 
     /// Identifier of the public key used for encryption (e.g. keccak256 of key material).
     bytes32 publicKeyId;
 
-    /// Ciphertext of abi.encode(arguments_without_argsHash), encrypted under publicKeyId.
+    /// Ciphertext of argsPlain, encrypted under publicKeyId.
+    /// argsPlain MAY be the ABI encoding of a typed argument tuple, but this ERC
+    /// treats it as opaque bytes.
     bytes ciphertext;
 }
 ```
@@ -93,15 +95,15 @@ For producers of `EncryptedHashedArguments`:
 - The producer **MUST** compute
 
   ```solidity
-  argsHash = keccak256(abi.encode(arguments_without_argsHash))
+  argsHash = keccak256(argsPlain);
   ```
 
-  using the exact argument ordering and ABI encoding that will later
-  be used when forming the call data.
+  where `argsPlain` is the exact byte sequence that will be passed to the oracle later.
+
+- The producer **MUST** set `ciphertext` to the encryption of exactly `argsPlain`
+  under the key identified by `publicKeyId`.
 
 - The producer **MUST** set `argsHash` to the value computed above.
-- The producer **MUST** set `ciphertext` to the encryption of exactly
-  `abi.encode(arguments_without_argsHash)` under the key identified by `publicKeyId`.
 
 A call decryption oracle implementation **MAY** provide a command line tool or endpoint
 to generate `EncryptedHashedArguments` from plaintext arguments.
@@ -114,7 +116,8 @@ Implementations **SHOULD** document how `publicKeyId` is derived from the underl
 A **call descriptor** defines:
 
 - which address is allowed to request execution,
-- which contract and function will be called, and
+- which contract and function will be called,
+- which business identifier (`clientId`) the call relates to, and
 - which arguments (via their hash) are bound to this call.
 
 ```solidity
@@ -129,7 +132,11 @@ struct CallDescriptor {
     /// 4-byte function selector for the targetContract.
     bytes4 selector;
 
-    /// Hash of the argument tuple that this call commits to.
+    /// Application-level correlation identifier (e.g. client or order id).
+    /// Not part of the encrypted arguments; used to link argsHash to business state.
+    uint256 clientId;
+
+    /// Hash of the argument payload that this call commits to.
     /// MUST equal EncryptedHashedArguments.argsHash.
     bytes32 argsHash;
 
@@ -157,8 +164,10 @@ struct EncryptedCallDescriptor {
 
 #### Normative requirements (CallDescriptor and EncryptedCallDescriptor)
 
-- `CallDescriptor.argsHash` **MUST** equal the `argsHash` field in the associated `EncryptedHashedArguments` object with which it is meant to be used.
-- When using `EncryptedCallDescriptor`, the ciphertext **MUST** be the encryption of exactly `abi.encode(CallDescriptor)` under the key identified by `publicKeyId`.
+- `CallDescriptor.argsHash` **MUST** equal the `argsHash` field in the associated
+  `EncryptedHashedArguments` object with which it is meant to be used.
+- When using `EncryptedCallDescriptor`, the ciphertext **MUST** be the encryption
+  of exactly `abi.encode(CallDescriptor)` under the key identified by `publicKeyId`.
 
 ### 3. Oracle interface
 
@@ -182,12 +191,13 @@ interface ICallDecryptionOracle {
         uint256 indexed requestId,
         address indexed requester,
         address[] eligibleCaller,
-        address targetContract,
-        bytes4  selector,
-        bytes32 argsHash,
-        uint256 validUntilBlock,
-        bytes32 argsPublicKeyId,
-        bytes   argsCiphertext
+        address   targetContract,
+        bytes4    selector,
+        uint256   clientId,
+        bytes32   argsHash,
+        uint256   validUntilBlock,
+        bytes32   argsPublicKeyId,
+        bytes     argsCiphertext
     );
 
     /// Raised when an execution attempt has been fulfilled by the oracle operator.
@@ -201,7 +211,7 @@ interface ICallDecryptionOracle {
     ///
     /// MUST:
     /// - register a unique requestId,
-    /// - store (requestId -> requester, argsHash, and auxiliary metadata),
+    /// - store (requestId â requester, argsHash, and auxiliary metadata),
     /// - emit EncryptedCallRequested.
     function requestEncryptedCall(
         EncryptedCallDescriptor   calldata encCall,
@@ -229,7 +239,9 @@ interface ICallDecryptionOracle {
     ///   (unless the eligibleCaller array is empty),
     /// - verify that keccak256(argsPlain) equals callDescriptor.argsHash,
     /// - perform low-level call:
-    ///     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
+    ///     callDescriptor.targetContract.call(
+    ///         abi.encodeWithSelector(callDescriptor.selector, callDescriptor.clientId, argsPlain)
+    ///       )
     /// - emit CallFulfilled(requestId, success, returnData),
     /// - clean up stored state for this requestId.
     function fulfillEncryptedCall(
@@ -248,7 +260,9 @@ interface ICallDecryptionOracle {
     /// - verify that the original requester is contained in storedCall.eligibleCaller
     ///   (unless the eligibleCaller array is empty),
     /// - perform low-level call:
-    ///     storedCall.targetContract.call(abi.encodePacked(storedCall.selector, argsPlain))
+    ///     storedCall.targetContract.call(
+    ///         abi.encodeWithSelector(storedCall.selector, storedCall.clientId, argsPlain)
+    ///       )
     /// - emit CallFulfilled(requestId, success, returnData),
     /// - clean up stored state for this requestId.
     function fulfillTransparentCall(
@@ -262,40 +276,66 @@ interface ICallDecryptionOracle {
 
 ### 4. Target contract verification
 
-A target contract that wants to verify the arguments can follow this convention:
+A common pattern is that the target (or orchestration) contract
 
-1. The **plaintext arguments** are encoded as:
+1. In an initialization phase, receives and stores an encrypted argument `encArg` to gether with its hash `argHash`, where
+   `argsHash` is the hash of the plaintext argument payload.
 
-   ```solidity
-   abi.encode(arguments_without_argsHash)
-   ```
+2. In the execution phase, calls the decryption oracle contract with a (generated) `clientId` and the `encArg` and 
+   the target contract receives `clientId` and the decrypted argument payload `argsPlain` unter the given selector
+   from the call decryption oracle, recomputes the hash and compares it to the stored value.
 
-2. The oracle forms the call data as:
+For example, the producer of `EncryptedHashedArguments` may choose
 
-   ```solidity
-   abi.encodeWithSelector(
-       selector,
-       argsHash,             // first parameter
-       /* decoded arguments_without_argsHash */
-   );
-   ```
+```solidity
+  bytes memory argsPlain = abi.encode(amount, beneficiary);
+  bytes32 argsHash = keccak256(argsPlain);
+```
 
-3. Inside the target function, the contract recomputes the hash and verifies it:
+No `clientId` is included in `argsPlain`. The target (or client) contract can then do:
 
-   ```solidity
-   function doSomething(
-       bytes32 argsHash,
-       uint256 amount,
-       address beneficiary
-   ) external {
-       bytes32 computed = keccak256(abi.encode(amount, beneficiary));
-       require(computed == argsHash, "Encrypted args mismatch");
+```solidity
+mapping(uint256 => bytes32) public argsHashByClientId;
 
-       // Safe to use amount and beneficiary here
-   }
-   ```
+function registerArguments(uint256 clientId, bytes32 argsHash) external {
+    // In the init phase, store the commitment for this clientId.
+    argsHashByClientId[clientId] = argsHash;
+}
 
-The exact parameter list is application-specific; this ERC only standardizes the hashing convention and the binding via `argsHash`.
+/// @dev Called by the Call Decryption Oracle with decrypted arguments.
+function executeWithVerification(
+    uint256 clientId,
+    bytes   calldata argsPlain
+) external {
+    // Lookup the pre-committed hash from the init phase.
+    bytes32 stored = argsHashByClientId[clientId];
+    require(stored != bytes32(0), "Unknown clientId");
+
+    // Recompute the hash from the received bytes.
+    bytes32 computed = keccak256(argsPlain);
+    require(computed == stored, "Encrypted args mismatch");
+
+    // Optional: decode argsPlain to use it, e.g.
+    // (uint256 amount, address beneficiary) = abi.decode(argsPlain, (uint256, address));
+}
+```
+
+In this pattern:
+
+- `clientId` is any application-level identifier (analogous to the `id` / consumerId in ERC-7573)
+  that links the pre-committed `argsHash` to a later execution.
+- The `argsPlain` field passed to `fulfill*` is the exact byte payload used to compute `argsHash`.
+  Implementations typically forward it using
+
+  ```solidity
+  targetContract.call(
+      abi.encodeWithSelector(selector, clientId, argsPlain)
+  );
+  ```
+
+The binding between the encrypted arguments and the call descriptor still happens via `argsHash`
+(off-chain the oracle verifies `keccak256(argsPlain) == argsHash`), while the binding to a previously
+stored commitment happens via `clientId` inside the target contract.
 
 ### 5. Security considerations
 
@@ -315,7 +355,7 @@ Implementations SHOULD mitigate replay by:
 #### Access control
 
 - `eligibleCaller` binds the original requester to the execution:
-   - the oracle MUST check whether the original requester is contained in `eligibleCaller`, unless `eligibleCaller.length == 0`.
+    - the oracle MUST check whether the original requester is contained in `eligibleCaller`, unless `eligibleCaller.length == 0`.
 - Implementations MAY extend this with roles, multi-signatures, or other access-control schemes.
 
 #### Fees
@@ -327,11 +367,14 @@ Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERC-2
 - The **two-stage design** (arguments vs. call) allows encrypted arguments to be reusable and independent of any particular call descriptor.
 - The explicit **hash commitment** (`argsHash`) binds arguments to the call descriptor while still allowing the arguments to be stored and passed separately.
 - The **request/fulfill pattern** reflects that decryption is off-chain. Requests are cheap; fulfill is initiated when decryption is ready.
-- The use of `abi.encodePacked(selector, argsPlain)` makes the oracle generic and able to support arbitrary function signatures without on-chain decoding.
+- The use of `abi.encodeWithSelector(selector, clientId, argsPlain)` makes the oracle generic and able to support arbitrary function signatures while keeping the correlation id separate from the encrypted payload.
+- **Router/adapter pattern:** when integrating with already deployed contracts whose function signatures cannot be changed, a small router contract can serve as the callback. The router implements a function like `executeWithVerification(uint256 clientId, bytes argsPlain)`, verifies `clientId` and `argsHash` as above, decodes `argsPlain` into typed arguments, and then calls the pre-existing target contract with its original typed function. This preserves compatibility with existing deployments while still using the standard call decryption oracle.
 
 ## Backwards Compatibility
 
 This ERC is designed to coexist with ERC-7573 decryption oracles. An existing ERC-7573 implementation can be extended to implement `ICallDecryptionOracle` without breaking existing interfaces.
+
+If earlier drafts used a different interface name (e.g. `IEncryptedExecutionOracle`) or a different `CallDescriptor` layout, only the type names and struct fields have changed; the semantics and function signatures remain equivalent.
 
 ## Reference Implementation
 
