@@ -39,7 +39,7 @@ The ERC is compatible with existing decryption-oracle designs such as ERC-7573 a
 as an extension of such oracles.
 
 The contract receiving the decrypted arguments can pass these on to other contracts, which can, if necessary,
-validate the arguments against a previously stored  **hash commitment** (`argsHash`). 
+validate the arguments against the previously stored  **hash commitment** (`argsHash`). 
 
 ## Motivation
 
@@ -60,10 +60,10 @@ This ERC generalizes that pattern to a **generic function execution** mechanism,
 
 #### Order Book Build Process avoiding Front Running
 
-A possible use-case is the construction of an auction / order book matching preventing front-running, where
+A possible use-case is the construction of an auction / order book preventing front-running, where
 the propsals can be made duing a predefined phase.
 Here participants submit their proposals as an encrypted arguments, which are stored inside a smart
-contract. Once the order phase is closed, the smart contract calls the decryption oracle with itself
+contract. Once the order phase is closed, the smart contract calls the decryption oracle given itself
 as a callback to receive the decrypted arguments in a call that will build the order book.
 
 ## Specification
@@ -98,7 +98,11 @@ For producers of `EncryptedArguments`:
 - The producer **MUST** set `ciphertext` to the encryption of exactly
   `abi.encode(arguments_without_argsHash)` under the key identified by `publicKeyId`.
 
-This ERC does not standardize the encryption algorithm or key management; those are implementation-specific (similar to ERCâ7573). Implementations **SHOULD** document how `publicKeyId` is derived from the underlying key material.
+The decryption oracle can provide a convienient commmand line too or endpont
+to generate the encrypted argument.
+
+This ERC does not standardize the encryption algorithm or key management; those are implementation-specific (similar to ERC-7573).
+Implementations **SHOULD** document how `publicKeyId` is derived from the underlying key material.
 
 ### 2. Call descriptor
 
