@@ -125,9 +125,9 @@ Example for tracking bridge event with this EIP standard:
 2. Monitor the source chain event (```CrossChainTransactionInitiated```) of cross-chain transactions to get ```messageId``` and ```messageBodyHash```
 3. Query the target chain event (```CrossChainMessageCompleted```) of the bridge contract to associate it with the cross-chain transaction, and verify it by cross-checking ```messageId``` and ```messageBodyHash```. Once the verification is successful, it can be associated with the target chain monitoring object through the ```destChainId``` + ```destBridgeAddress``` fields in the source event
 
-![图片](assets/erc-xxx/Figure-1.png)
+![图片](../assets/erc-xxx/Figure-1.png)
 **<center><font size=2>Figure 1: Simulation of source chain and target chain event generation</font></center>**
-![图片](assets/erc-xxx/Figure-2.png)
+![图片](../assets/erc-xxx/Figure-2.png)
 **<center><font size=2>Figure 2：Cross-chain message verification</font></center>**
 ## Reference Implementation
 
