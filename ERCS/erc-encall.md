@@ -6,7 +6,7 @@ author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-11-19
+created: 2025-11-14
 requires: 7573
 ---
 
@@ -201,7 +201,7 @@ interface ICallDecryptionOracle {
     ///
     /// MUST:
     /// - register a unique requestId,
-    /// - store (requestId â requester, argsHash, and auxiliary metadata),
+    /// - store (requestId -> requester, argsHash, and auxiliary metadata),
     /// - emit EncryptedCallRequested.
     function requestEncryptedCall(
         EncryptedCallDescriptor   calldata encCall,
