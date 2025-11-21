@@ -18,7 +18,7 @@ optionally with an **encrypted call descriptor**, using a stateless decryption o
 It separates
 
 1. a reusable, verifiable container for **encrypted arguments**, and
-2. a **call descriptor** (who may trigger, what to call, and which arguments are bound),
+2. a **call descriptor** (what to call, and any validity constraints),
 
 and defines how an off-chain oracle decrypts and executes such calls.
 
@@ -27,19 +27,22 @@ and defines how an off-chain oracle decrypts and executes such calls.
 This ERC defines a data format and contract interface for executing smart contract calls where:
 
 1. The **arguments** are encrypted and reusable (`EncryptedHashedArguments`), and
-2. The **call descriptor** (target contract, selector, access-control list, validity) is either
+2. The **call descriptor** (target contract, selector, validity) is either
     - encrypted (`EncryptedCallDescriptor`), or
     - transparent (`CallDescriptor`).
 
-The encrypted arguments and the call descriptor are bound together via a **hash commitment** (`argsHash`).
-An off-chain call decryption oracle listens to standardized events, decrypts payloads, verifies the hash commitment,
-and calls back into the on-chain oracle to perform the requested call.
+The encrypted arguments and the call descriptor are *not* directly bound on-chain. Instead, an on-chain
+contract (the target or an orchestration contract) stores a hash commitment to the plaintext arguments
+and later verifies that the decrypted argument payload matches the stored commitment.
+
+An off-chain call decryption oracle listens to standardized events, decrypts payloads, enforces any
+off-chain access-control policy, and calls back into the on-chain oracle to perform the requested call.
 
 The ERC is compatible with existing decryption-oracle designs such as ERC-7573 and can be implemented
 as an extension of such oracles.
 
 The contract receiving the decrypted arguments can pass these on to other contracts, which can, if necessary,
-validate the arguments against the previously stored **hash commitment** (`argsHash`).
+validate the arguments against the previously stored **hash commitment**.
 
 ## Motivation
 
@@ -111,34 +114,42 @@ to generate `EncryptedHashedArguments` from plaintext arguments.
 This ERC does not standardize the encryption algorithm or key management; those are implementation-specific (similar to ERC-7573).
 Implementations **SHOULD** document how `publicKeyId` is derived from the underlying key material.
 
+#### Internal payload structure (non-normative)
+
+A common pattern is to bundle additional off-chain-only metadata together with the plaintext
+arguments in an intermediate struct:
+
+```solidity
+struct ArgsDescriptor {
+    address[] eligibleCaller;   // if empty: any requester allowed
+    bytes     argsPlain;        // plain arguments, may be abi.encode(args...)
+}
+```
+
+In this case, producers set
+
+```solidity
+bytes32 argsHash = keccak256(argsDescriptor.argsPlain);
+bytes   ciphertext = ENC_publicKeyId(abi.encode(argsDescriptor));
+```
+
+The `eligibleCaller` list is not visible to on-chain contracts; it is only used off-chain by the
+oracle operator to decide whether to honor a decryption request.
+
 ### 2. Call descriptor
 
 A **call descriptor** defines:
 
-- which address is allowed to request execution,
-- which contract and function will be called,
-- which business identifier (`clientId`) the call relates to, and
-- which arguments (via their hash) are bound to this call.
+- which contract and function will be called, and
+- any validity constraint (e.g. expiry block).
 
 ```solidity
 struct CallDescriptor {
-    /// Addresses allowed to request this execution.
-    /// If empty, any requester is allowed.
-    address[] eligibleCaller;
-
     /// Contract that will be called by the oracle.
     address targetContract;
 
     /// 4-byte function selector for the targetContract.
     bytes4 selector;
-
-    /// Application-level correlation identifier (e.g. client or order id).
-    /// Not part of the encrypted arguments; used to link argsHash to business state.
-    uint256 clientId;
-
-    /// Hash of the argument payload that this call commits to.
-    /// MUST equal EncryptedHashedArguments.argsHash.
-    bytes32 argsHash;
 
     /// Optional expiry (block number). 0 means "no explicit expiry".
     uint256 validUntilBlock;
@@ -164,8 +175,6 @@ struct EncryptedCallDescriptor {
 
 #### Normative requirements (CallDescriptor and EncryptedCallDescriptor)
 
-- `CallDescriptor.argsHash` **MUST** equal the `argsHash` field in the associated
-  `EncryptedHashedArguments` object with which it is meant to be used.
 - When using `EncryptedCallDescriptor`, the ciphertext **MUST** be the encryption
   of exactly `abi.encode(CallDescriptor)` under the key identified by `publicKeyId`.
 
@@ -190,10 +199,8 @@ interface ICallDecryptionOracle {
     event TransparentCallRequested(
         uint256 indexed requestId,
         address indexed requester,
-        address[] eligibleCaller,
         address   targetContract,
         bytes4    selector,
-        uint256   clientId,
         bytes32   argsHash,
         uint256   validUntilBlock,
         bytes32   argsPublicKeyId,
@@ -211,7 +218,7 @@ interface ICallDecryptionOracle {
     ///
     /// MUST:
     /// - register a unique requestId,
-    /// - store (requestId â requester, argsHash, and auxiliary metadata),
+    /// - store (requestId -> requester, argsHash, and auxiliary metadata),
     /// - emit EncryptedCallRequested.
     function requestEncryptedCall(
         EncryptedCallDescriptor   calldata encCall,
@@ -221,7 +228,6 @@ interface ICallDecryptionOracle {
     /// Request execution with transparent call descriptor + encrypted arguments.
     ///
     /// MUST:
-    /// - require callDescriptor.argsHash == encArgs.argsHash,
     /// - register a unique requestId and store callDescriptor data + requester,
     /// - emit TransparentCallRequested.
     function requestTransparentCall(
@@ -229,18 +235,15 @@ interface ICallDecryptionOracle {
         EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
-    /// Fulfill an encrypted-call request (called by oracle operator).
+    /// Fulfill an encrypted-call request after off-chain decryption.
     ///
     /// MUST:
     /// - verify that requestId exists and was created with requestEncryptedCall,
-    /// - verify callDescriptor.argsHash equals the stored argsHash,
     /// - verify callDescriptor.validUntilBlock is zero or >= current block.number,
-    /// - verify that the original requester is contained in callDescriptor.eligibleCaller
-    ///   (unless the eligibleCaller array is empty),
-    /// - verify that keccak256(argsPlain) equals callDescriptor.argsHash,
+    /// - verify that keccak256(argsPlain) equals the stored argsHash,
     /// - perform low-level call:
     ///     callDescriptor.targetContract.call(
-    ///         abi.encodeWithSelector(callDescriptor.selector, callDescriptor.clientId, argsPlain)
+    ///         abi.encodePacked(callDescriptor.selector, argsPlain)
     ///       )
     /// - emit CallFulfilled(requestId, success, returnData),
     /// - clean up stored state for this requestId.
@@ -250,18 +253,16 @@ interface ICallDecryptionOracle {
         bytes            calldata argsPlain
     ) external;
 
-    /// Fulfill a transparent-call request (called by oracle operator).
+    /// Fulfill a transparent-call request after off-chain decryption of the arguments.
     ///
     /// MUST:
     /// - verify that requestId exists and was created with requestTransparentCall,
     /// - load stored CallDescriptor from state,
     /// - verify storedCall.validUntilBlock is zero or >= current block.number,
-    /// - verify that keccak256(argsPlain) equals storedCall.argsHash,
-    /// - verify that the original requester is contained in storedCall.eligibleCaller
-    ///   (unless the eligibleCaller array is empty),
+    /// - verify that keccak256(argsPlain) equals the stored argsHash,
     /// - perform low-level call:
     ///     storedCall.targetContract.call(
-    ///         abi.encodeWithSelector(storedCall.selector, storedCall.clientId, argsPlain)
+    ///         abi.encodePacked(storedCall.selector, argsPlain)
     ///       )
     /// - emit CallFulfilled(requestId, success, returnData),
     /// - clean up stored state for this requestId.
@@ -278,18 +279,19 @@ interface ICallDecryptionOracle {
 
 A common pattern is that the target (or orchestration) contract
 
-1. In an initialization phase, receives and stores an encrypted argument `encArg` to gether with its hash `argHash`, where
-   `argsHash` is the hash of the plaintext argument payload.
+1. In an initialization phase, receives and stores an encrypted argument `encArg` together with its hash `argsHash`,
+   where `argsHash` is the hash of the plaintext argument payload.
 
-2. In the execution phase, calls the decryption oracle contract with a (generated) `clientId` and the `encArg` and 
-   the target contract receives `clientId` and the decrypted argument payload `argsPlain` unter the given selector
-   from the call decryption oracle, recomputes the hash and compares it to the stored value.
+2. In the execution phase, calls the decryption oracle contract with a (generated) application-level identifier
+   (e.g. `clientId`) and the corresponding `encArg`. The target contract then receives the decrypted argument payload
+   `argsPlain` (under a callback selector) from the call decryption oracle, recomputes the hash and compares it to
+   the stored value using that application-level identifier.
 
 For example, the producer of `EncryptedHashedArguments` may choose
 
 ```solidity
-  bytes memory argsPlain = abi.encode(amount, beneficiary);
-  bytes32 argsHash = keccak256(argsPlain);
+bytes memory argsPlain = abi.encode(amount, beneficiary);
+bytes32 argsHash = keccak256(argsPlain);
 ```
 
 No `clientId` is included in `argsPlain`. The target (or client) contract can then do:
@@ -302,7 +304,7 @@ function registerArguments(uint256 clientId, bytes32 argsHash) external {
     argsHashByClientId[clientId] = argsHash;
 }
 
-/// @dev Called by the Call Decryption Oracle with decrypted arguments.
+/// @dev Called by the Call Decryption Oracle (or a router/adapter) with decrypted arguments.
 function executeWithVerification(
     uint256 clientId,
     bytes   calldata argsPlain
@@ -325,17 +327,9 @@ In this pattern:
 - `clientId` is any application-level identifier (analogous to the `id` / consumerId in ERC-7573)
   that links the pre-committed `argsHash` to a later execution.
 - The `argsPlain` field passed to `fulfill*` is the exact byte payload used to compute `argsHash`.
-  Implementations typically forward it using
-
-  ```solidity
-  targetContract.call(
-      abi.encodeWithSelector(selector, clientId, argsPlain)
-  );
-  ```
-
-The binding between the encrypted arguments and the call descriptor still happens via `argsHash`
-(off-chain the oracle verifies `keccak256(argsPlain) == argsHash`), while the binding to a previously
-stored commitment happens via `clientId` inside the target contract.
+- A router/adapter contract can implement the `executeWithVerification(uint256 clientId, bytes argsPlain)` callback,
+  perform the verification and decoding, and then call an already deployed target contract with its original typed
+  function signature.
 
 ### 5. Security considerations
 
@@ -343,7 +337,9 @@ This section is non-normative.
 
 #### Oracle trust
 
-The on-chain contract cannot verify correctness of decryption; it can only check that `keccak256(argsPlain) == argsHash`. Parties must trust the oracle operator (or design an incentive/penalty mechanism) to decrypt correctly and call `fulfill*` faithfully.
+The on-chain contract cannot verify correctness of decryption; it can only check that `keccak256(argsPlain) == argsHash`.
+Parties must trust the oracle operator (or design an incentive/penalty mechanism) to decrypt correctly and call `fulfill*`
+faithfully.
 
 #### Replay
 
@@ -354,9 +350,10 @@ Implementations SHOULD mitigate replay by:
 
 #### Access control
 
-- `eligibleCaller` binds the original requester to the execution:
-    - the oracle MUST check whether the original requester is contained in `eligibleCaller`, unless `eligibleCaller.length == 0`.
-- Implementations MAY extend this with roles, multi-signatures, or other access-control schemes.
+Access control is an application-level concern. A common pattern is to embed an access-control list such as
+`address[] eligibleCaller` inside the encrypted payload (e.g. in `ArgsDescriptor`) and have the off-chain oracle
+operator enforce that the original requester is contained in that list (unless the list is empty, meaning
+"any requester"). The standard does not prescribe a particular access-control mechanism.
 
 #### Fees
 
@@ -365,9 +362,9 @@ Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERC-2
 ## Rationale
 
 - The **two-stage design** (arguments vs. call) allows encrypted arguments to be reusable and independent of any particular call descriptor.
-- The explicit **hash commitment** (`argsHash`) binds arguments to the call descriptor while still allowing the arguments to be stored and passed separately.
+- The explicit **hash commitment** (`argsHash`) binds arguments to a commitment stored by the receiving contract, while still allowing the arguments to be stored and passed separately as opaque bytes.
 - The **request/fulfill pattern** reflects that decryption is off-chain. Requests are cheap; fulfill is initiated when decryption is ready.
-- The use of `abi.encodeWithSelector(selector, clientId, argsPlain)` makes the oracle generic and able to support arbitrary function signatures while keeping the correlation id separate from the encrypted payload.
+- The use of `abi.encodePacked(selector, argsPlain)` makes the on-chain oracle generic and able to support arbitrary function signatures, while keeping the correlation identifier (`clientId`) and any higher-level semantics out of the core interface.
 - **Router/adapter pattern:** when integrating with already deployed contracts whose function signatures cannot be changed, a small router contract can serve as the callback. The router implements a function like `executeWithVerification(uint256 clientId, bytes argsPlain)`, verifies `clientId` and `argsHash` as above, decodes `argsPlain` into typed arguments, and then calls the pre-existing target contract with its original typed function. This preserves compatibility with existing deployments while still using the standard call decryption oracle.
 
 ## Backwards Compatibility
