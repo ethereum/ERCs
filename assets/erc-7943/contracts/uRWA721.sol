@@ -4,7 +4,6 @@ pragma solidity ^0.8.29;
 import {IERC7943NonFungible} from "./interfaces/IERC7943.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Utils} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Utils.sol";
-import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
@@ -74,7 +73,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// Emits a {Whitelisted} event upon successful update.
     /// @param account The address whose whitelist status is to be changed. Must not be the zero address.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    function changeWhitelist(address account, bool status) external virtual onlyRole(WHITELIST_ROLE) {
+    function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
         emit Whitelisted(account, status);
     }
@@ -86,7 +85,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// Emits a {Transfer} event with `from` set to the zero address.
     /// @param to The address that will receive the minted token.
     /// @param tokenId The specific token identifier to mint.
-    function safeMint(address to, uint256 tokenId) external virtual onlyRole(MINTER_ROLE) {
+    function safeMint(address to, uint256 tokenId) external onlyRole(MINTER_ROLE) {
         _safeMint(to, tokenId);
     }
 
@@ -95,7 +94,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// Requires the caller (`_msgSender()`) to be the owner or approved for `tokenId`.
     /// Emits a {Transfer} event with `to` set to the zero address.
     /// @param tokenId The specific token identifier to burn. 
-    function burn(uint256 tokenId) external virtual onlyRole(BURNER_ROLE) {
+    function burn(uint256 tokenId) external onlyRole(BURNER_ROLE) {
         address previousOwner = _update(address(0), tokenId, _msgSender()); 
         if (previousOwner == address(0)) revert ERC721NonexistentToken(tokenId);
     }
@@ -139,7 +138,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logics.
     /// Reverts with {ERC721IncorrectOwner} | {ERC7943InsufficientUnfrozenBalance} | {ERC7943CannotTransact} if any `canTransfer`/`canTransact` or other check fails.
     /// @param to The address receiving tokens (zero address for burning).
-    /// @param tokenId The if of the token being transferred.
+    /// @param tokenId The ID of the token being transferred.
     /// @param auth The address initiating the transfer.
     function _update(address to, uint256 tokenId, address auth) internal virtual override returns(address) {
         address from = _ownerOf(tokenId);
