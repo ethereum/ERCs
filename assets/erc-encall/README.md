@@ -44,32 +44,39 @@ implementation can be extended with this call decryption functionality, or both 
     - `requestEncryptedCall`
     - `fulfillEncryptedCall`
 
-- `contracts/CallDecryptionOracle.sol`  
-  Reference implementation of `ICallDecryptionOracle`. Stores pending requests, emits
-  `EncryptedCallRequested` / `TransparentCallRequested` events, and on fulfillment performs a low-level call
+- `contracts/implementation/CallDecryptionOracleRouter.sol`  
+  Call router implementation that allows to route a call with decrypted arguments to any
+  contract after verifying that `keccak256(argsPlain) == argsHash`.
 
   ```solidity
-  targetContract.call(abi.encodePacked(selector, argsPlain))
+    routingTarget.call(abi.encodePacked(routingSelector, routingCalldata));
   ```
-
-  after verifying that `keccak256(argsPlain) == argsHash`.
 
 #### Example Target Contract
 
-- `contracts/DummyExecutionTarget.sol`  
+- `contracts/implementation/CallDecryptionOracleTestTarget.sol`  
   Example target contract that illustrates how a receiver verifies the arguments:
 
 ```solidity
-  function executeWithVerification(
-      bytes32 argsHash,
-      uint256 amount,
-      address beneficiary
-  ) external {
-      bytes32 computed = keccak256(abi.encode(amount, beneficiary));
-      require(computed == argsHash, "Encrypted args mismatch");
+    /**
+     * @notice Callback to be used by the CallDecryptionOracleRouter (or directly by the Call Decryption Oracle).
+     * 
+     * @param clientId Business correlation id.
+     * @param argsPlain Decrypted argument payload bytes as delivered by the oracle/router.
+     */
+    function executeWithVerification(
+        uint256 clientId,
+        bytes   calldata argsPlain
+    ) external {
+        ExecutionRecord memory rec = ExecutionRecord({
+        caller: msg.sender,
+        clientId: clientId,
+        argsPlain: argsPlain
+        });
+        _executionsByClientId[clientId].push(rec);
 
-      // Safe use of amount and beneficiary
-  }
+        emit Executed(clientId, msg.sender, argsPlain);
+    }
 ```
 
 This contract is intended for documentation, testing, and demonstration of integration patterns.
