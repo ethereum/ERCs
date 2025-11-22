@@ -39,10 +39,10 @@ implementation can be extended with this call decryption functionality, or both 
     - `EncryptedCallDescriptor`
       as well as the events and methods
 
+    - `requestCall`
+    - `fulfillCall`.
     - `requestEncryptedCall`
-    - `requestTransparentCall`
     - `fulfillEncryptedCall`
-    - `fulfillTransparentCall`.
 
 - `contracts/CallDecryptionOracle.sol`  
   Reference implementation of `ICallDecryptionOracle`. Stores pending requests, emits
@@ -76,9 +76,9 @@ This contract is intended for documentation, testing, and demonstration of integ
 
 ### Documentation
 
-- `doc/encrypted-arguments-and-call-flow.svg`  
-  Sequence diagram of the encrypted-arguments + encrypted-call flow (request/fulfill using `CallDecryptionOracle`).
-
 - `doc/encrypted-arguments-transparent-call-flow.svg`  
   Sequence diagram of the encrypted-arguments + transparent-call flow, showing how a contract can store an `argsHash`,
   later resolve it via the call decryption oracle, and verify the arguments in the receiving function.
+
+- `doc/encrypted-arguments-encrypted-call-flow.svg`  
+  Sequence diagram of the encrypted-arguments + encrypted-call flow (request/fulfill using `CallDecryptionOracle`).

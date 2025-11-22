@@ -3,6 +3,7 @@ eip: 8xxx
 title: Encrypted Arguments and Calls via Decryption Oracle
 description: A Protocol for Encrypted Function Call and Encrypted Function Argument Execution
 author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
+discussions-to: (ethereum-magicians post pending)
 status: Draft
 type: Standards Track
 category: ERC
