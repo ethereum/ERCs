@@ -34,7 +34,8 @@ interface ICallDecryptionOracle {
      */
     struct EncryptedHashedArguments {
         /**
-         * Commitment to the plaintext argument payload. The target contract can check keccak256(argsPlain) == argsHash
+         * Commitment to the plaintext argument payload.
+         * The target contract should check keccak256(argsPlain) == argsHash
          */
         bytes32 argsHash;
 
@@ -104,10 +105,10 @@ interface ICallDecryptionOracle {
         address indexed requester,
         address   targetContract,
         bytes4    selector,
-        bytes32   argsHash,
         uint256   validUntilBlock,
         bytes32   argsPublicKeyId,
-        bytes     argsCiphertext
+        bytes     argsCiphertext,
+        bytes32   argsHash
     );
 
     /// @notice Emitted when a call has been fulfilled.

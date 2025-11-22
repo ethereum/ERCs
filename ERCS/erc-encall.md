@@ -82,15 +82,21 @@ Upon (off chain) encryption (initialization) a hash of the (plain) arguments is 
 accompaning the encryption arguments to allow later verificytion.
 
 ```solidity
-struct EncryptedHashedArguments {
-    /// Commitment to the plaintext argument payload.
-    /// Convention: argsHash = keccak256(argsPlain)
+    struct EncryptedHashedArguments {
+    /**
+     * Commitment to the plaintext argument payload.
+     * The target contract should check keccak256(argsPlain) == argsHash
+     */
     bytes32 argsHash;
 
-    /// Identifier of the public key used for encryption (e.g. keccak256 of key material).
+    /**
+     * Identifier of the public key used for encryption (e.g. keccak256 of key material).
+     */
     bytes32 publicKeyId;
 
-    /// Ciphertext of abi.encode(ArgsDescriptor), encrypted under publicKeyId.
+    /**
+     * Ciphertext of abi.encode(ArgsDescriptor), encrypted under publicKeyId.
+     */
     bytes ciphertext;
 }
 ```
@@ -124,9 +130,17 @@ To allow a *Call Decryption Oracle* to enforce eligibility of the requester in a
 this ERC standardizes the layout of the decrypted payload as:
 
 ```solidity
-struct ArgsDescriptor {
-    address[] eligibleCaller;   // if empty: any requester allowed
-    bytes     argsPlain;        // plain arguments. argsPlain MAY be the ABI encoding of a typed argument tuple, but this ERC treats it as opaque bytes.
+    struct ArgsDescriptor {
+    /**
+     * List of addresses allowed to request decryption.
+     * If empty, any requester is allowed. This is enforced off-chain by the oracle operator.
+     */
+    address[] eligibleCaller;
+
+    /**
+     * Plain argument payload, may be abi.encode(args...) (see router).
+     */
+    bytes argsPlain;
 }
 ```
 
@@ -154,14 +168,21 @@ A **call descriptor** defines:
 - any validity constraint (e.g. expiry block).
 
 ```solidity
-struct CallDescriptor {
-    /// Contract that will be called by the oracle.
+    struct CallDescriptor {
+    /**
+     * Contract that will be called by the oracle.
+     */
     address targetContract;
 
-    /// 4-byte function selector for the targetContract.
+    /**
+     * Function that will be called by the oracle.
+     * 4-byte function selector for the targetContract.
+     */
     bytes4 selector;
 
-    /// Optional expiry (block number). 0 means "no explicit expiry".
+    /**
+     * Optional expiry (block number). 0 means "no explicit expiry".
+     */
     uint256 validUntilBlock;
 }
 ```
@@ -174,11 +195,15 @@ A call descriptor can be:
 - **Encrypted**: `CallDescriptor` is wrapped into:
 
 ```solidity
-struct EncryptedCallDescriptor {
-    /// Identifier of the public key used for encryption.
+    struct EncryptedCallDescriptor {
+    /**
+     * Identifier of the public key used for encryption.
+     */
     bytes32 publicKeyId;
 
-    /// Ciphertext of abi.encode(CallDescriptor), encrypted under publicKeyId.
+    /**
+     * Ciphertext of abi.encode(CallDescriptor), encrypted under publicKeyId.
+     */
     bytes ciphertext;
 }
 ```
@@ -211,10 +236,10 @@ interface ICallDecryptionOracle {
         address indexed requester,
         address   targetContract,
         bytes4    selector,
-        bytes32   argsHash,
         uint256   validUntilBlock,
         bytes32   argsPublicKeyId,
-        bytes     argsCiphertext
+        bytes     argsCiphertext,
+        bytes32   argsHash
     );
 
     /// Raised when an execution attempt has been fulfilled by the oracle operator.
@@ -224,59 +249,71 @@ interface ICallDecryptionOracle {
         bytes   returnData
     );
 
-    /// Request execution with encrypted call descriptor + encrypted arguments.
-    ///
-    /// MUST:
-    /// - register a unique requestId,
-    /// - store (requestId -> requester, argsHash, and auxiliary metadata),
-    /// - emit EncryptedCallRequested.
+    /**
+     * @notice Request execution with encrypted call descriptor + encrypted arguments.
+     *
+     * @dev MUST:
+     * - register a unique requestId,
+     * - store (requestId → requester, argsHash, and auxiliary metadata),
+     * - emit EncryptedCallRequested.
+     */
     function requestEncryptedCall(
         EncryptedCallDescriptor   calldata encCall,
         EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
-    /// Request execution with transparent call descriptor + encrypted arguments.
-    ///
-    /// MUST:
-    /// - register a unique requestId and store callDescriptor data + requester,
-    /// - emit TransparentCallRequested.
+    /**
+     * @notice Request execution with transparent call descriptor + encrypted arguments.
+     *
+     * @dev MUST:
+     * - require encArgs.argsHash to be consistent with any application-level commitments,
+     * - register a unique requestId and store callDescriptor data + requester,
+     * - emit CallRequested.
+     */
     function requestTransparentCall(
         CallDescriptor            calldata callDescriptor,
         EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
 
-    /// Fulfill an encrypted-call request after off-chain decryption.
-    ///
-    /// MUST:
-    /// - verify that requestId exists and was created with requestEncryptedCall,
-    /// - verify callDescriptor.validUntilBlock is zero or >= current block.number,
-    /// - verify that keccak256(argsPlain) equals the stored argsHash,
-    /// - perform low-level call:
-    ///     callDescriptor.targetContract.call(
-    ///         abi.encodePacked(callDescriptor.selector, argsPlain)
-    ///       )
-    /// - emit CallFulfilled(requestId, success, returnData),
-    /// - clean up stored state for this requestId.
+    /**
+     * @notice Fulfill an encrypted-call request after off-chain decryption.
+     *
+     * @param requestId     The id obtained from requestEncryptedCall.
+     * @param callDescriptor The decrypted CallDescriptor.
+     * @param argsPlain     The decrypted argument payload bytes.
+     *
+     * @dev MUST:
+     * - verify that requestId exists and was created with requestEncryptedCall,
+     * - verify callDescriptor.validUntilBlock is zero or >= current block.number,
+     * - verify that keccak256(argsPlain) equals the stored argsHash,
+     * - perform low-level call:
+     *     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
+     * - emit CallFulfilled(requestId, success, returnData),
+     * - clean up stored state for this requestId.
+     */
     function fulfillEncryptedCall(
         uint256          requestId,
         CallDescriptor   calldata callDescriptor,
         bytes            calldata argsPlain
     ) external;
 
-    /// Fulfill a transparent-call request after off-chain decryption of the arguments.
-    ///
-    /// MUST:
-    /// - verify that requestId exists and was created with requestTransparentCall,
-    /// - load stored CallDescriptor from state,
-    /// - verify storedCall.validUntilBlock is zero or >= current block.number,
-    /// - verify that keccak256(argsPlain) equals the stored argsHash,
-    /// - perform low-level call:
-    ///     storedCall.targetContract.call(
-    ///         abi.encodePacked(storedCall.selector, argsPlain)
-    ///       )
-    /// - emit CallFulfilled(requestId, success, returnData),
-    /// - clean up stored state for this requestId.
-    function fulfillTransparentCall(
+    /**
+     * @notice Fulfill a transparent-call request after off-chain decryption of the arguments.
+     *
+     * @param requestId The id obtained from requestCall.
+     * @param argsPlain The decrypted argument payload bytes.
+     *
+     * @dev MUST:
+     * - verify that requestId exists and was created with requestCall,
+     * - load stored CallDescriptor from state,
+     * - verify storedCall.validUntilBlock is zero or >= current block.number,
+     * - verify that keccak256(argsPlain) equals the stored argsHash,
+     * - perform low-level call:
+     *     storedCall.targetContract.call(abi.encodePacked(storedCall.selector, argsPlain))
+     * - emit CallFulfilled(requestId, success, returnData),
+     * - clean up stored state for this requestId.
+     */
+    function fulfillCall(
         uint256          requestId,
         bytes            calldata argsPlain
     ) external;
