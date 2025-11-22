@@ -196,7 +196,7 @@ interface ICallDecryptionOracle {
     );
 
     /// Raised when a request with transparent call + encrypted args is registered.
-    event TransparentCallRequested(
+    event CallRequested(
         uint256 indexed requestId,
         address indexed requester,
         address   targetContract,

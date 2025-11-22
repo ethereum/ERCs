@@ -11,14 +11,20 @@ interface ICallDecryptionOracle {
 
     /*------------------------------------------- TYPE DEFINITIONS ---------------------------------------------------*/
 
-    /// @notice Argument in plain bytes (may be abi.encode(args...)).
-    /// @dev Implementations typically decrypt to this struct off-chain; the oracle itself only ever sees argsPlain.
+    /**
+     * @notice Argument in plain bytes (may be abi.encode(args...)).
+     * @dev Implementations typically decrypt to this struct off-chain; the oracle itself only ever sees argsPlain.
+     */
     struct ArgsDescriptor {
-        /// List of addresses allowed to request decryption.
-        /// If empty, any requester is allowed. This is enforced off-chain by the oracle operator.
+        /**
+         * List of addresses allowed to request decryption.
+         * If empty, any requester is allowed. This is enforced off-chain by the oracle operator.
+         */
         address[] eligibleCaller;
 
-        /// Plain argument payload, may be abi.encode(args...).
+        /**
+         * Plain argument payload, may be abi.encode(args...) (see router).
+         */
         bytes argsPlain;
     }
 
@@ -27,34 +33,55 @@ interface ICallDecryptionOracle {
      * @dev argsHash MUST be keccak256(argsPlain) where argsPlain is the decrypted payload.
      */
     struct EncryptedHashedArguments {
-        /// Commitment to the plaintext argument payload.
+        /**
+         * Commitment to the plaintext argument payload. The target contract can check keccak256(argsPlain) == argsHash
+         */
         bytes32 argsHash;
 
-        /// Identifier of the public key used for encryption (e.g. keccak256 of key material).
+        /**
+         * Identifier of the public key used for encryption (e.g. keccak256 of key material).
+         */
         bytes32 publicKeyId;
 
-        /// Ciphertext of abi.encode(ArgsDescriptor), encrypted under publicKeyId.
+        /**
+         * Ciphertext of abi.encode(ArgsDescriptor), encrypted under publicKeyId.
+         */
         bytes ciphertext;
     }
 
-    /// @notice Transparent call descriptor.
+    /**
+     * @notice  call descriptor.
+     */
     struct CallDescriptor {
-        /// Contract that will be called by the oracle.
+        /**
+         * Contract that will be called by the oracle.
+         */
         address targetContract;
 
-        /// 4-byte function selector for the targetContract.
+        /**
+         * Function that will be called by the oracle.
+         * 4-byte function selector for the targetContract.
+         */
         bytes4 selector;
 
-        /// Optional expiry (block number). 0 means "no explicit expiry".
+        /**
+         * Optional expiry (block number). 0 means "no explicit expiry".
+         */
         uint256 validUntilBlock;
     }
 
-    /// @notice Encrypted call descriptor.
+    /**
+     * @notice Encrypted call descriptor.
+     */
     struct EncryptedCallDescriptor {
-        /// Identifier of the public key used for encryption.
+        /**
+         * Identifier of the public key used for encryption.
+         */
         bytes32 publicKeyId;
 
-        /// Ciphertext of abi.encode(CallDescriptor), encrypted under publicKeyId.
+        /**
+         * Ciphertext of abi.encode(CallDescriptor), encrypted under publicKeyId.
+         */
         bytes ciphertext;
     }
 
@@ -72,7 +99,7 @@ interface ICallDecryptionOracle {
     );
 
     /// @notice Emitted when a request with transparent call descriptor + encrypted arguments is registered.
-    event TransparentCallRequested(
+    event CallRequested(
         uint256 indexed requestId,
         address indexed requester,
         address   targetContract,
@@ -111,9 +138,9 @@ interface ICallDecryptionOracle {
      * @dev MUST:
      * - require encArgs.argsHash to be consistent with any application-level commitments,
      * - register a unique requestId and store callDescriptor data + requester,
-     * - emit TransparentCallRequested.
+     * - emit CallRequested.
      */
-    function requestTransparentCall(
+    function requestCall(
         CallDescriptor            calldata callDescriptor,
         EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
@@ -143,11 +170,11 @@ interface ICallDecryptionOracle {
     /**
      * @notice Fulfill a transparent-call request after off-chain decryption of the arguments.
      *
-     * @param requestId The id obtained from requestTransparentCall.
+     * @param requestId The id obtained from requestCall.
      * @param argsPlain The decrypted argument payload bytes.
      *
      * @dev MUST:
-     * - verify that requestId exists and was created with requestTransparentCall,
+     * - verify that requestId exists and was created with requestCall,
      * - load stored CallDescriptor from state,
      * - verify storedCall.validUntilBlock is zero or >= current block.number,
      * - verify that keccak256(argsPlain) equals the stored argsHash,
@@ -156,7 +183,7 @@ interface ICallDecryptionOracle {
      * - emit CallFulfilled(requestId, success, returnData),
      * - clean up stored state for this requestId.
      */
-    function fulfillTransparentCall(
+    function fulfillCall(
         uint256          requestId,
         bytes            calldata argsPlain
     ) external;
