@@ -79,7 +79,7 @@ itself as the callback target) to receive the decrypted arguments in a call that
 Encrypted arguments are independent of any particular call descriptor and can be reused.
 
 Upon (off chain) encryption (initialization) a hash of the (plain) arguments is generated
-accompaning the encryption arguments to allow later verificytion.
+accompanying the encryption arguments to allow later verification.
 
 ```solidity
     struct EncryptedHashedArguments {
