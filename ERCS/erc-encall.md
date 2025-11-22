@@ -35,7 +35,10 @@ The encrypted arguments and the call descriptor are *not* directly bound on-chai
 contract (the target or an orchestration contract) stores a hash commitment to the plaintext arguments
 and later verifies that the decrypted argument payload matches the stored commitment.
 
-An off-chain call decryption oracle listens to standardized events, decrypts payloads, enforces any
+An on-chain *call decryption oracle* contract offers a request*/fulfill* parttern to request a call
+with encrypted arguments, which is fulfilled if admissible.
+
+An off-chain *call decryption oracle* listens to standardized events, decrypts payloads, enforces any
 off-chain access-control policy, and calls back into the on-chain oracle to perform the requested call.
 
 The ERC is compatible with existing decryption-oracle designs such as ERC-7573 and can be implemented
@@ -48,7 +51,7 @@ validate the arguments against the previously stored **hash commitment**.
 
 Privacy- and conditionality-preserving protocols often need to:
 
-- Keep **arguments** confidential until some condition is met.
+- Keep **arguments** confidential until some condition is met (e.g. order books).
 - Optionally keep the **target address and function** itself confidential.
 - Allow **reusable encrypted argument blobs** that can be passed between contracts and stored on-chain.
 - Allow the **receiver** of a call to verify that the decrypted arguments used in the call are exactly those that were committed to earlier.
@@ -65,8 +68,8 @@ This ERC generalizes that pattern to a **generic function execution** mechanism,
 
 A possible use-case is the construction of an auction / order book preventing front-running, where
 the proposals can be made during a predefined phase.
-Here participants submit their proposals as encrypted arguments, which are stored inside a smart
-contract. Once the order phase is closed, the smart contract calls the call decryption oracle (passing
+Here participants submit their proposals as encrypted hashed arguments, which are stored inside a smart
+contract. Once the order phase is closed, the smart contract calls the *call decryption oracle* (passing
 itself as the callback target) to receive the decrypted arguments in a call that will build the order book.
 
 ## Specification
@@ -74,6 +77,9 @@ itself as the callback target) to receive the decrypted arguments in a call that
 ### 1. Encrypted arguments
 
 Encrypted arguments are independent of any particular call descriptor and can be reused.
+
+Upon (off chain) encryption (initialization) a hash of the (plain) arguments is generated
+accompaning the encryption arguments to allow later verificytion.
 
 ```solidity
 struct EncryptedHashedArguments {
@@ -84,9 +90,7 @@ struct EncryptedHashedArguments {
     /// Identifier of the public key used for encryption (e.g. keccak256 of key material).
     bytes32 publicKeyId;
 
-    /// Ciphertext of argsPlain, encrypted under publicKeyId.
-    /// argsPlain MAY be the ABI encoding of a typed argument tuple, but this ERC
-    /// treats it as opaque bytes.
+    /// Ciphertext of abi.encode(ArgsDescriptor), encrypted under publicKeyId.
     bytes ciphertext;
 }
 ```
@@ -97,9 +101,9 @@ For producers of `EncryptedHashedArguments`:
 
 - The producer **MUST** compute
 
-  ```solidity
+```solidity
   argsHash = keccak256(argsPlain);
-  ```
+```
 
   where `argsPlain` is the exact byte sequence that will be passed to the oracle later.
 
@@ -108,23 +112,29 @@ For producers of `EncryptedHashedArguments`:
 
 - The producer **MUST** set `argsHash` to the value computed above.
 
-A call decryption oracle implementation **MAY** provide a command line tool or endpoint
+A *call decryption oracle* implementation **MAY** provide a command line tool or endpoint
 to generate `EncryptedHashedArguments` from plaintext arguments.
 
 This ERC does not standardize the encryption algorithm or key management; those are implementation-specific (similar to ERC-7573).
 Implementations **SHOULD** document how `publicKeyId` is derived from the underlying key material.
 
-#### Internal payload structure (non-normative)
+#### Argument Descriptor structure (normative for eligibility)
 
-A common pattern is to bundle additional off-chain-only metadata together with the plaintext
-arguments in an intermediate struct:
+To allow a *Call Decryption Oracle* to enforce eligibility of the requester in a consistent way,
+this ERC standardizes the layout of the decrypted payload as:
 
 ```solidity
 struct ArgsDescriptor {
     address[] eligibleCaller;   // if empty: any requester allowed
-    bytes     argsPlain;        // plain arguments, may be abi.encode(args...)
+    bytes     argsPlain;        // plain arguments. argsPlain MAY be the ABI encoding of a typed argument tuple, but this ERC treats it as opaque bytes.
 }
 ```
+
+Prior to encryption, the arguments are bundled with an (optional)
+list of `eligibleCaller`s.
+
+This prevents decryption by other contracts through observing
+encrypted arguments and requesting a call to the encryption oracle.
 
 In this case, producers set
 
@@ -275,7 +285,7 @@ interface ICallDecryptionOracle {
 
 > **Note:** This ERC does not standardize the exact storage layout of pending requests or the internal access control for `fulfill*` (e.g. `onlyOwner`). Implementations MUST ensure that only the intended oracle operator can call the `fulfill*` functions.
 
-### 4. Target contract verification
+### 4. Target contract
 
 A common pattern is that the target (or orchestration) contract
 
@@ -284,7 +294,7 @@ A common pattern is that the target (or orchestration) contract
 
 2. In the execution phase, calls the decryption oracle contract with a (generated) application-level identifier
    (e.g. `clientId`) and the corresponding `encArg`. The target contract then receives the decrypted argument payload
-   `argsPlain` (under a callback selector) from the call decryption oracle, recomputes the hash and compares it to
+   `argsPlain` (under a callback selector) from the *call decryption oracle*, recomputes the hash and compares it to
    the stored value using that application-level identifier.
 
 For example, the producer of `EncryptedHashedArguments` may choose
@@ -365,7 +375,7 @@ Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERC-2
 - The explicit **hash commitment** (`argsHash`) binds arguments to a commitment stored by the receiving contract, while still allowing the arguments to be stored and passed separately as opaque bytes.
 - The **request/fulfill pattern** reflects that decryption is off-chain. Requests are cheap; fulfill is initiated when decryption is ready.
 - The use of `abi.encodePacked(selector, argsPlain)` makes the on-chain oracle generic and able to support arbitrary function signatures, while keeping the correlation identifier (`clientId`) and any higher-level semantics out of the core interface.
-- **Router/adapter pattern:** when integrating with already deployed contracts whose function signatures cannot be changed, a small router contract can serve as the callback. The router implements a function like `executeWithVerification(uint256 clientId, bytes argsPlain)`, verifies `clientId` and `argsHash` as above, decodes `argsPlain` into typed arguments, and then calls the pre-existing target contract with its original typed function. This preserves compatibility with existing deployments while still using the standard call decryption oracle.
+- **Router/adapter pattern:** when integrating with already deployed contracts whose function signatures cannot be changed, a small router contract can serve as the callback. The router implements a function like `executeWithVerification(uint256 clientId, bytes argsPlain)`, verifies `clientId` and `argsHash` as above, decodes `argsPlain` into typed arguments, and then calls the pre-existing target contract with its original typed function. This preserves compatibility with existing deployments while still using the standard *call decryption oracle*.
 
 ## Backwards Compatibility
 
