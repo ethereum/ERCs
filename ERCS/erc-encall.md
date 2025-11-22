@@ -30,13 +30,13 @@ This ERC defines a data format and contract interface for executing smart contra
 1. The **arguments** are encrypted and reusable (`EncryptedHashedArguments`), and
 2. The **call descriptor** (target contract, selector, validity) is either
     - encrypted (`EncryptedCallDescriptor`), or
-    - transparent (`CallDescriptor`).
+    - plain (`CallDescriptor`).
 
 The encrypted arguments and the call descriptor are *not* directly bound on-chain. Instead, an on-chain
 contract (the target or an orchestration contract) stores a hash commitment to the plaintext arguments
 and later verifies that the decrypted argument payload matches the stored commitment.
 
-An on-chain *call decryption oracle* contract offers a request*/fulfill* parttern to request a call
+An on-chain *call decryption oracle* contract offers a request*/fulfill* pattern to request a call
 with encrypted arguments, which is fulfilled if admissible.
 
 An off-chain *call decryption oracle* listens to standardized events, decrypts payloads, enforces any
@@ -79,14 +79,14 @@ itself as the callback target) to receive the decrypted arguments in a call that
 
 Encrypted arguments are independent of any particular call descriptor and can be reused.
 
-Upon (off chain) encryption (initialization) a hash of the (plain) arguments is generated
-accompanying the encryption arguments to allow later verification.
+Upon (off-chain) encryption (initialization) a hash of the (plain) arguments is generated
+accompanying the encrypted arguments to allow later verification.
 
 ```solidity
-    struct EncryptedHashedArguments {
+struct EncryptedHashedArguments {
     /**
      * Commitment to the plaintext argument payload.
-     * The target contract should check keccak256(argsPlain) == argsHash
+     * The target contract should check keccak256(argsPlain) == argsHash.
      */
     bytes32 argsHash;
 
@@ -114,8 +114,13 @@ For producers of `EncryptedHashedArguments`:
 
   where `argsPlain` is the exact byte sequence that will be passed to the oracle later.
 
-- The producer **MUST** set `ciphertext` to the encryption of exactly `argsPlain`
-  under the key identified by `publicKeyId`.
+- The producer **MUST** set `ciphertext` to the encryption of exactly
+
+  ```solidity
+  abi.encode(argsDescriptor)
+  ```
+
+  under the key identified by `publicKeyId`, where `argsDescriptor` is an `ArgsDescriptor` as defined below.
 
 - The producer **MUST** set `argsHash` to the value computed above.
 
@@ -131,7 +136,7 @@ To allow a *Call Decryption Oracle* to enforce eligibility of the requester in a
 this ERC standardizes the layout of the decrypted payload as:
 
 ```solidity
-    struct ArgsDescriptor {
+struct ArgsDescriptor {
     /**
      * List of addresses allowed to request decryption.
      * If empty, any requester is allowed. This is enforced off-chain by the oracle operator.
@@ -149,7 +154,7 @@ Prior to encryption, the arguments are bundled with an (optional)
 list of `eligibleCaller`s.
 
 This prevents decryption by other contracts through observing
-encrypted arguments and requesting a call to the encryption oracle.
+encrypted arguments and requesting a call to the call decryption oracle.
 
 In this case, producers set
 
@@ -169,7 +174,7 @@ A **call descriptor** defines:
 - any validity constraint (e.g. expiry block).
 
 ```solidity
-    struct CallDescriptor {
+struct CallDescriptor {
     /**
      * Contract that will be called by the oracle.
      */
@@ -188,15 +193,15 @@ A **call descriptor** defines:
 }
 ```
 
-#### Transparent vs. encrypted call descriptors
+#### Plain vs. Encrypted Call Descriptors
 
 A call descriptor can be:
 
-- **Transparent**: `CallDescriptor` is passed in clear on-chain.
+- **Plain**: `CallDescriptor` is passed in clear on-chain.
 - **Encrypted**: `CallDescriptor` is wrapped into:
 
 ```solidity
-    struct EncryptedCallDescriptor {
+struct EncryptedCallDescriptor {
     /**
      * Identifier of the public key used for encryption.
      */
@@ -220,7 +225,7 @@ The oracle exposes a **request/fulfill** pattern. Requests are cheap and do not 
 
 ```solidity
 interface ICallDecryptionOracle {
-    /// Raised when a request with encrypted call + encrypted args is registered.
+    /// Raised when a request with encrypted call descriptor + encrypted args is registered.
     event EncryptedCallRequested(
         uint256 indexed requestId,
         address indexed requester,
@@ -231,7 +236,7 @@ interface ICallDecryptionOracle {
         bytes32 argsHash
     );
 
-    /// Raised when a request with transparent call + encrypted args is registered.
+    /// Raised when a request with plain call descriptor + encrypted args is registered.
     event CallRequested(
         uint256 indexed requestId,
         address indexed requester,
@@ -264,7 +269,7 @@ interface ICallDecryptionOracle {
     ) external returns (uint256 requestId);
 
     /**
-     * @notice Request execution with transparent call descriptor + encrypted arguments.
+     * @notice Request execution with plain call descriptor + encrypted arguments.
      *
      * @dev MUST:
      * - require encArgs.argsHash to be consistent with any application-level commitments,
@@ -279,9 +284,9 @@ interface ICallDecryptionOracle {
     /**
      * @notice Fulfill an encrypted-call request after off-chain decryption.
      *
-     * @param requestId     The id obtained from requestEncryptedCall.
+     * @param requestId      The id obtained from requestEncryptedCall.
      * @param callDescriptor The decrypted CallDescriptor.
-     * @param argsPlain     The decrypted argument payload bytes.
+     * @param argsPlain      The decrypted argument payload bytes.
      *
      * @dev MUST:
      * - verify that requestId exists and was created with requestEncryptedCall,
@@ -299,13 +304,13 @@ interface ICallDecryptionOracle {
     ) external;
 
     /**
-     * @notice Fulfill a transparent-call request after off-chain decryption of the arguments.
+     * @notice Fulfill a plain-call request after off-chain decryption of the arguments.
      *
-     * @param requestId The id obtained from requestCall.
+     * @param requestId The id obtained from requestTransparentCall.
      * @param argsPlain The decrypted argument payload bytes.
      *
      * @dev MUST:
-     * - verify that requestId exists and was created with requestCall,
+     * - verify that requestId exists and was created with requestTransparentCall,
      * - load stored CallDescriptor from state,
      * - verify storedCall.validUntilBlock is zero or >= current block.number,
      * - verify that keccak256(argsPlain) equals the stored argsHash,
@@ -399,9 +404,9 @@ Implementations SHOULD mitigate replay by:
 #### Access control
 
 Access control is an application-level concern. A common pattern is to embed an access-control list such as
-`address[] eligibleCaller` inside the encrypted payload (e.g. in `ArgsDescriptor`) and have the off-chain oracle
+`address[] eligibleCaller` inside the encrypted payload (in `ArgsDescriptor`) and have the off-chain oracle
 operator enforce that the original requester is contained in that list (unless the list is empty, meaning
-"any requester"). The standard does not prescribe a particular access-control mechanism.
+"any requester"). The standard does not prescribe a particular access-control mechanism beyond this guidance.
 
 #### Fees
 
@@ -426,7 +431,7 @@ If earlier drafts used a different interface name (e.g. `IEncryptedExecutionOrac
 A non-normative reference implementation (Solidity) and a matching Java/off-chain implementation are provided separately. They illustrate:
 
 - storage of pending requests,
-- event emission for both encrypted and transparent call descriptors,
+- event emission for both encrypted and plain call descriptors,
 - validation of hash bindings, and
 - low-level call execution.
 
