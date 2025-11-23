@@ -10,14 +10,10 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "./IERC5516.sol";
 
 contract ERC5516 is Context, ERC165, IERC5516 {
-    using Address for address;
-
     // Used for making each token unique, Maintains ID registry and quantity of tokens minted.
     uint256 private _nextTokenId;
 
@@ -65,13 +61,19 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         address minter = _msgSender();
         _minters[tokenId] = minter;
 
+        _tokenURIs[tokenId] = metadataURI;
+
         for (uint256 i = 0; i < recipients.length; ) {
             address recipient = recipients[i];
 
-            require(recipients.length > 0, "EIP5516: Transfer to address zero");
-            if (_holdings[recipient][tokenId]) {
-                require(recipients.length > 0, "EIP5516: Token already owned");
-            }
+            require(
+                recipient != address(0),
+                "EIP5516: Transfer to address zero"
+            );
+            require(
+                !_holdings[recipient][tokenId],
+                "EIP5516: Token already owned"
+            );
 
             _holdings[recipient][tokenId] = true;
 
@@ -115,6 +117,10 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     function uri(
         uint256 tokenId
     ) external view virtual override returns (string memory) {
+        require(
+            bytes(_tokenURIs[tokenId]).length > 0,
+            "EIP5516: Token does not exist"
+        );
         return string(abi.encodePacked(_uri, _tokenURIs[tokenId]));
     }
 }
