@@ -1,6 +1,6 @@
 ---
 eip: 8xxx
-title: Encrypted Arguments and Calls via Decryption Oracle
+title: Encrypted Hashed Arguments and Calls via Decryption Oracle
 description: A Protocol for Encrypted Function Call and Encrypted Function Argument Execution
 author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
 discussions-to: (ethereum-magicians post pending)
@@ -112,7 +112,7 @@ For producers of `EncryptedHashedArguments`:
   argsHash = keccak256(argsPlain);
 ```
 
-  where `argsPlain` is the exact byte sequence that will be passed to the oracle later.
+where `argsPlain` is the exact byte sequence that will be passed to the oracle later.
 
 - The producer **MUST** set `ciphertext` to the encryption of exactly
 
@@ -276,7 +276,7 @@ interface ICallDecryptionOracle {
      * - register a unique requestId and store callDescriptor data + requester,
      * - emit CallRequested.
      */
-    function requestTransparentCall(
+    function requestCall(
         CallDescriptor            calldata callDescriptor,
         EncryptedHashedArguments  calldata encArgs
     ) external returns (uint256 requestId);
@@ -306,11 +306,11 @@ interface ICallDecryptionOracle {
     /**
      * @notice Fulfill a plain-call request after off-chain decryption of the arguments.
      *
-     * @param requestId The id obtained from requestTransparentCall.
+     * @param requestId The id obtained from requestCall.
      * @param argsPlain The decrypted argument payload bytes.
      *
      * @dev MUST:
-     * - verify that requestId exists and was created with requestTransparentCall,
+     * - verify that requestId exists and was created with requestCall,
      * - load stored CallDescriptor from state,
      * - verify storedCall.validUntilBlock is zero or >= current block.number,
      * - verify that keccak256(argsPlain) equals the stored argsHash,
@@ -412,6 +412,19 @@ operator enforce that the original requester is contained in that list (unless t
 
 Fee mechanisms are out of scope. Implementations MAY charge fees in ETH or ERC-20 tokens as part of their specific deployment.
 
+#### Traceability and non-mixing
+
+This ERC is **not** intended to act as a mixer or general-purpose anonymization service for payments or calls.
+Its purpose is to **defer** the disclosure of arguments (and optionally the call descriptor) until fulfillment.
+
+Implementations SHOULD preserve the ability for off-chain indexers and observers to correlate
+`CallFulfilled` events with the corresponding `CallRequested` / `EncryptedCallRequested` events,
+for example by strictly adhering to the `requestId` linkage defined in this ERC.
+
+Once a request is fulfilled, an observer can always reconstruct which `requester` initiated the request
+and which call and arguments were eventually used. Protocols that deliberately try to break this
+correlation or to hide value flows are out of scope of this ERC.
+
 ## Rationale
 
 - The **two-stage design** (arguments vs. call) allows encrypted arguments to be reusable and independent of any particular call descriptor.
@@ -434,6 +447,8 @@ A non-normative reference implementation (Solidity) and a matching Java/off-chai
 - event emission for both encrypted and plain call descriptors,
 - validation of hash bindings, and
 - low-level call execution.
+
+These implementations are work-in-progress and may evolve independently of the ERC text.
 
 ## Copyright
 
