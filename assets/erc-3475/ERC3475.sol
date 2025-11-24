@@ -418,7 +418,7 @@ contract ERC3475 is IERC3475 {
         IERC3475.Transaction calldata _transaction
     ) private {
         Nonce storage nonce = _classes[_transaction.classId].nonces[_transaction.nonceId];
-        // verify whether _amount of bonds to be burned are sfficient available for the given nonce of the bonds
+        // verify whether _amount of bonds to be burned are sufficient available for the given nonce of the bonds
         require(
             nonce._balances[_from] >= _transaction._amount,
             "ERC3475: not enough bond to transfer"

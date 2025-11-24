@@ -48,7 +48,7 @@ contract Catalog is ICatalog {
     /**
      * @notice Used to limit execution of functions intended for the `Slot` parts to only execute when used with such
      *  parts.
-     * @dev Reverts execution of a function if the part with associated `partId` is uninitailized or is `Fixed`.
+     * @dev Reverts execution of a function if the part with associated `partId` is uninitialized or is `Fixed`.
      * @param partId ID of the part that we want the function to interact with
      */
     modifier onlySlot(uint64 partId) {
@@ -161,7 +161,7 @@ contract Catalog is ICatalog {
      * @notice Internal function used to set the new list of `equippableAddresses`.
      * @dev Overwrites existing `equippableAddresses`.
      * @dev Can only be called on `Part`s of `Slot` type.
-     * @param partId ID of the `Part`s that we are overwiting the `equippableAddresses` for
+     * @param partId ID of the `Part`s that we are overwriting the `equippableAddresses` for
      * @param equippableAddresses A full array of addresses that can be equipped into this `Part`
      */
     function _setEquippableAddresses(
