@@ -1,32 +1,32 @@
 ---
 title: Associated Accounts
 description: A way to publicly associate two accounts with arbitrary contextual data
-authors: Steve Katzman (@stevieraykatz),  Amie Corso (@amiecorso), Stephan Cilliers (@stephancill)
+authors: Steve Katzman (@stevieraykatz), Amie Corso (@amiecorso), Stephan Cilliers (@stephancill)
 discussions-to:
 status: Draft
 type: Standards Track
 category: ERC
 created: 2025-11-25
-requires: EIP-712, ERC-1271, ERC-5267, ERC-7930
+requires: EIP-712, ERC-1271, ERC-5267, ERC-6492, ERC-7930
 ---
 
 ## Abstract
-This specification defines a standard for establishing and verifying associations between blockchain accounts. This allows addresses to publicly declare, prove and revoke a relationship with other addresses by sharing a standardized payload. For onchain applications, this payload can be doubly signed for third party authentication. This enables use cases like sub-account identity inheritance, authorization delegation, and reputation collation. 
+This specification defines a standard for establishing and verifying associations between blockchain accounts. This allows addresses to publicly declare, prove and revoke a relationship with other addresses by sharing a standardized payload. For onchain applications, this payload may be signed by both parties for third-party authentication. This enables use cases like sub-account identity inheritance, authorization delegation, and reputation collation. 
 
 ## Motivation 
-A key motivation is the simplification of multi-address resolution, which is essential for managing complex digital identities across various platforms with various accounts. This simplification aims to streamline the process of locating and verifying individuals or entities by efficiently handling multiple addresses linked by Associations. 
+A key motivation is the simplification of multi-address resolution, which is essential for managing complex digital identities across multiple platforms and accounts. This simplification aims to streamline the process of locating and verifying individuals or entities by efficiently handling multiple addresses linked by Associations. 
 By providing a standard mechanism for signaling an association between two accounts, this standard unlocks the capability for linking the activities or details of these accounts. 
 
 The inclusion of arbitrary data into the specified payload ensures flexibility for various use-cases such as delegation, hierarchical relationships, and authentication. By maintaining a flexible architecture that accepts an interface identifier paired with arbitrary data bytes, accounts that associate can do so with application-specific context. 
 
 ## Overview
-The system outlined in this document describes a way for two accounts to be linked by a specified data struct which describes the relationship between them. It offers the mechanism by which these parties can sign over the contents to prove validity. It focuses on the structure and process for generating, validating and revoking such records while maintaining implementation agnostic. 
+The system outlined in this document describes a way for two accounts to be linked by a specified data struct which describes the relationship between them. It offers the mechanism by which these parties can sign over the contents to prove validity. It focuses on the structure and process for generating, validating and revoking such records while maintaining an implementation agnostic approach. 
 
 ## Specification
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “NOT RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
 ### Core Concepts
-Each Association between two accounts denotes the participating addresses as `initiator` and `approver`. These accounts can be on disparate chains of disparate architectures made possible by a combination of [ERC-7930 Interoperable Addresses](https://eips.ethereum.org/EIPS/eip-7930) and an enumeration of signature key types. To accommodate non-evm account types, addresses are recorded in the association as raw bytes.
+Each Association between two accounts denotes the participating addresses as `initiator` and `approver`. These accounts can be on disparate chains with different architectures made possible by a combination of [ERC-7930 Interoperable Addresses](https://eips.ethereum.org/EIPS/eip-7930) and an enumeration of signature key types. To accommodate non-evm account types, addresses are recorded in the association as raw bytes.
 
 The specification outlines a nested structure for recording Associations:
 1. An underlying Associated Account Record (AAR) for storing accounts, timestamps and association context
@@ -55,9 +55,9 @@ struct AssociatedAccountRecord {
 Where the AssociatedAccountRecord contains: 
 `initiator` is the binary representation of an ERC-7930 address for the initiating account. 
 `approver` is the binary representation of an ERC-7930 address for the approving account.
-`validAt` is the timestamp after which the Association is valid.
-(optional) `validUntil` is the optional timestamp at which an Association can expire at a predetermined time.
-(optional) `interfaceId` is the 4-byte uuid for type/interface of the `data` field.
+`validAt` is the timestamp from which the Association is valid.
+(optional) `validUntil` is the optional timestamp at which the Association expires.
+(optional) `interfaceId` is the 4-byte interface or method selector for the `data` field.
 (optional) `data` is the arbitrary context data payload.
 
 ### Signed Association Record
@@ -67,11 +67,11 @@ When public declaration of validity is desired, one or both of the accounts MAY 
     /// @notice Complete payload containing a finalized association.
     struct SignedAssociationRecord {
         /// @dev The timestamp the association was revoked.
-        uint120 revokedAt;
+        uint40 revokedAt;
         /// @dev The initiator key type specifier.
-        bytes1 initiatorKeyType;
+        bytes2 initiatorKeyType;
         /// @dev The approver key type specifier.
-        bytes1 approverKeyType;
+        bytes2 approverKeyType;
         /// @dev The signature of the initiator.
         bytes initiatorSignature;
         /// @dev The signature of the approver.
@@ -81,12 +81,12 @@ When public declaration of validity is desired, one or both of the accounts MAY 
     }
 ```
 Where the SignedAssociationRecord contains: 
-The `revokedAt` timestamp, which is `0` unless the association has been revoked by either party. 
-The `initiatorSignature` which is the signature bytes generated by the `initiator` by signing the EIP-712 compliant hash of the AssociatedAccountRecord.
-The `initiatorKeyType` is the key type designator for the initiator's signature (see Key Types below).
-The `approverSignature` which is the signature bytes generated by the `approver` by signing the EIP-712 compliant hash of the AssociatedAccountRecord.
-The `approverKeyType` is the key type designator for the approver's signature (see Key Types below).
-The `record` which is the AssociatedAccountRecord that was signed by both parties. 
+- `revokedAt` is the timestamp when the association was revoked, which is `0` unless the association has been revoked by either party. 
+- `initiatorSignature` is the signature bytes generated by the `initiator` by signing the EIP-712 compliant hash of the AssociatedAccountRecord.
+- `initiatorKeyType` is the key type designator for the initiator's signature (see Key Types below).
+- `approverSignature` is the signature bytes generated by the `approver` by signing the EIP-712 compliant hash of the AssociatedAccountRecord.
+- `approverKeyType` is the key type designator for the approver's signature (see Key Types below).
+- `record` is the AssociatedAccountRecord that was signed by both parties. 
 
 ### Key Types
 To accommodate known curves and signing protocols while providing future extensibility, this specification relies on the enumeration of cryptographic curves and signing protocols. Each signature MUST be paired with a valid "Key ID" designator.
@@ -129,11 +129,11 @@ keccak256(abi.encodePacked(
     validUntil,
     interfaceId,
     keccak256(data)
-    ))	
+    ))
 ))
 ```
 
-Where `DOMAIN_SEPARATOR` is defined according to EIP-712. The `DOMAIN_SEPARATOR` for this EIP SHALL be defined as: 
+Where `DOMAIN_SEPARATOR` is defined according to EIP-712. The `DOMAIN_SEPARATOR` for this ERC SHALL be defined as: 
 ```solidity
 keccak256(abi.encode(
     keccak256("EIP712Domain(string name,string version)"),
@@ -146,7 +146,7 @@ keccak256(abi.encode(
 If desired, a `SignedAssociationRecord` MAY be stored onchain in a context-specific storage contract.
 
 An onchain storage contract SHALL comply with the following steps: 
-1. The SAR must be validated according to the steps detailed in the Validation section. 
+1. The SAR MUST be validated according to the steps detailed in the Validation section. 
 2. The contract MUST emit the `AssociationCreated` event:
 
 ```solidity
@@ -157,7 +157,7 @@ An onchain storage contract SHALL comply with the following steps:
 where:
 - `uuid` is the indexed uuid for the SignedAssociationRecord, equivalent to the EIP712 hash of the underlying AAR.
 - `initiator` is the keccak256 hash of the ERC-7930 address of the account that initiated the association.
-- `approver` is the keccak256 hash of ERC-7930 address of the account that accepted and completed the association.
+- `approver` is the keccak256 hash of the ERC-7930 address of the account that accepted and completed the association.
 - `sar` is the completed SignedAssociationRecord. 
 
 If a SignedAssociationRecord is stored onchain, it MUST also be revokable onchain (see Revocation) below. 
@@ -170,11 +170,11 @@ In some contexts, it might be desirable for Signed Association Records to be sto
 
 ### Validation
 Clients or contracts determining whether a SignedAssociationRecord is valid at the time of consumption MUST check all of the following validation steps:
-1. The current timestamp MUST be greater or equal to the `validAt` timestamp.
+1. The current timestamp MUST be greater than or equal to the `validAt` timestamp.
 2. If the `validUntil` timestamp is nonzero, the current timestamp MUST be less than the `validUntil` timestamp. 
 3. The current timestamp MUST be less than the `revokedAt` timestamp.
-4. If the `initiatorSignature` field is populated, that the signature is valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `initiatorKeyType` validation mechanism. 
-5. If the `approverSignature` field is populated, that the signature is valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `approverKeyType` validation mechanism.
+4. If the `initiatorSignature` field is populated, that the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `initiatorKeyType` validation mechanism. 
+5. If the `approverSignature` field is populated, that the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `approverKeyType` validation mechanism.
 
 Onchain validation is possible so long as there are sufficient validation mechanisms for the various key types used by the two accounts. In the case that validation occurs onchain, implementations MUST replace "current timestamp" with `block.timestamp`. 
 
@@ -192,9 +192,11 @@ where:
 Offchain stores MUST allow either account to revoke a stored association and MUST update the `revokedAt` timestamp accordingly.
 
 ## Security Considerations
-For onchain application, the validation mechanisms for some key types might be gas-cost prohibitive or entirely unavailable. It is the responsibility of the integrator to ensure that unsupported key types are appropriately handled given these real constraints.
+For onchain applications, the validation mechanisms for some key types might be gas-cost prohibitive or entirely unavailable. It is the responsibility of the integrator to ensure that unsupported key types are appropriately handled given these constraints.
 
 Offchain stores expose a trust vector to consumers. Integrators and consumers must take into account this centralization vector and expose the risk to users or offer mechanisms for minimizing the trust assumptions (i.e. storing some state onchain).
+
+Associations SHOULD have a canonical storage location given an application. However, in the event that the same Association data is stored both on and offchain, precedence should be given to the onchain data. 
 
 ## Copyright
 Copyright and related rights waived via [CC0](https://eips.ethereum.org/LICENSE).
