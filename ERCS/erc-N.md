@@ -53,12 +53,12 @@ struct AssociatedAccountRecord {
 }
 ```
 Where the AssociatedAccountRecord contains: 
-`initiator` is the binary representation of an ERC-7930 address for the initiating account. 
-`approver` is the binary representation of an ERC-7930 address for the approving account.
-`validAt` is the timestamp from which the Association is valid.
-(optional) `validUntil` is the optional timestamp at which the Association expires.
-(optional) `interfaceId` is the 4-byte interface or method selector for the `data` field.
-(optional) `data` is the arbitrary context data payload.
+- `initiator` is the binary representation of an ERC-7930 address for the initiating account. 
+- `approver` is the binary representation of an ERC-7930 address for the approving account.
+- `validAt` is the timestamp from which the association is valid.
+- `validUntil` is the timestamp at which the association expires (optional).
+- `interfaceId` is the 4-byte interface or method selector for the `data` field (optional).
+- `data` is the arbitrary context data payload (optional).
 
 ### Signed Association Record
 When public declaration of validity is desired, one or both of the accounts MAY sign over the Associated Account Record. The EIP-712 hash (see Support for EIP-712 below) of the `AssociatedAccountRecord` can be signed by the initiating and approving accounts. The resulting signatures are included in a `SignedAssociationRecord`: 
@@ -172,9 +172,9 @@ In some contexts, it might be desirable for Signed Association Records to be sto
 Clients or contracts determining whether a SignedAssociationRecord is valid at the time of consumption MUST check all of the following validation steps:
 1. The current timestamp MUST be greater than or equal to the `validAt` timestamp.
 2. If the `validUntil` timestamp is nonzero, the current timestamp MUST be less than the `validUntil` timestamp. 
-3. The current timestamp MUST be less than the `revokedAt` timestamp.
-4. If the `initiatorSignature` field is populated, that the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `initiatorKeyType` validation mechanism. 
-5. If the `approverSignature` field is populated, that the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `approverKeyType` validation mechanism.
+3. If the `revokedAt` timestamp is nonzero, the current timestamp MUST be less than the `revokedAt` timestamp.
+4. If the `initiatorSignature` field is populated, the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `initiatorKeyType` validation mechanism. 
+5. If the `approverSignature` field is populated, the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `approverKeyType` validation mechanism.
 
 Onchain validation is possible so long as there are sufficient validation mechanisms for the various key types used by the two accounts. In the case that validation occurs onchain, implementations MUST replace "current timestamp" with `block.timestamp`. 
 
@@ -196,7 +196,7 @@ For onchain applications, the validation mechanisms for some key types might be 
 
 Offchain stores expose a trust vector to consumers. Integrators and consumers must take into account this centralization vector and expose the risk to users or offer mechanisms for minimizing the trust assumptions (i.e. storing some state onchain).
 
-Associations SHOULD have a canonical storage location given an application. However, in the event that the same Association data is stored both on and offchain, precedence should be given to the onchain data. 
+Associations SHOULD have a canonical storage location given an application. However, in the event that the same Association data is stored both on and offchain, precedence SHOULD be given to the onchain data. 
 
 ## Copyright
 Copyright and related rights waived via [CC0](https://eips.ethereum.org/LICENSE).
