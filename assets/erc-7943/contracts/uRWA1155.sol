@@ -62,16 +62,16 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     }
 
     /// @inheritdoc IERC7943MultiToken
-    function getFrozenTokens(address account, uint256 tokenId) external view returns (uint256 amount) {
+    function getFrozenTokens(address account, uint256 tokenId) public view virtual override returns (uint256 amount) {
         amount = _frozenTokens[account][tokenId];
     }
 
     /// @notice Updates the whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
     /// Emits a {Whitelisted} event upon successful update.
-    /// @param account The address whose whitelist status is to be changed.
+    /// @param account The address whose whitelist status is to be changed. Must not be the zero address.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
+    function changeWhitelist(address account, bool status) external virtual onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
         emit Whitelisted(account, status);
     }
@@ -98,7 +98,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
 
     /// @inheritdoc IERC7943MultiToken
     /// @dev Can only be called by accounts holding the `FREEZING_ROLE`
-    function setFrozenTokens(address account, uint256 tokenId, uint256 amount) public onlyRole(FREEZING_ROLE) returns(bool result) {        
+    function setFrozenTokens(address account, uint256 tokenId, uint256 amount) public virtual override onlyRole(FREEZING_ROLE) returns(bool result) {        
         _frozenTokens[account][tokenId] = amount;        
         emit Frozen(account, tokenId, amount);
         result = true;
@@ -106,17 +106,10 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
 
     /// @inheritdoc IERC7943MultiToken
     /// @dev Can only be called by accounts holding the `FORCE_TRANSFER_ROLE`.
-    function forcedTransfer(address from, address to, uint256 tokenId, uint256 amount) public onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
+    function forcedTransfer(address from, address to, uint256 tokenId, uint256 amount) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
+        require(to != address(0), ERC1155InvalidReceiver(address(0)));
+        require(from != address(0), ERC1155InvalidSender(address(0)));
         require(canTransact(to), ERC7943CannotTransact(to));
-
-        // Reimplementing _safeTransferFrom to avoid the check on _update
-        if (to == address(0)) {
-            revert ERC1155InvalidReceiver(address(0));
-        }
-        if (from == address(0)) {
-            revert ERC1155InvalidSender(address(0));
-        }
-
         _excessFrozenUpdate(from, tokenId, amount);
 
         uint256[] memory ids = new uint256[](1);
