@@ -94,9 +94,9 @@ interface IERC7943NonFungible is IERC165 {
     error ERC7943CannotTransfer(address from, address to, uint256 tokenId);
 
     /// @notice Error reverted when a transfer is attempted from `account` with a `tokenId` which has been previously frozen.
-    /// @param account The address holding the tokens.
-    /// @param tokenId The ID of the token being frozen. 
-    error ERC7943FrozenTokenId(address account, uint256 tokenId);
+    /// @param account The address holding the token with `tokenId`.
+    /// @param tokenId The Id of the token being frozen and unavailable to be transferred. 
+    error ERC7943InsufficientUnfrozenBalance(address account, uint256 tokenId);
 
     /// @notice Takes `tokenId` from one address and transfers it to another.
     /// @dev Requires specific authorization. Used for regulatory compliance or recovery scenarios.
@@ -164,9 +164,9 @@ interface IERC7943MultiToken is IERC165 {
     error ERC7943CannotTransfer(address from, address to, uint256 tokenId, uint256 amount);
 
     /// @notice Error reverted when a transfer is attempted from `account` with an `amount` of `tokenId` less than or equal to its balance, but greater than its unfrozen balance.
-    /// @param account The address holding the tokens.
-    /// @param tokenId The ID of the token being transferred. 
-    /// @param amount The amount being transferred.
+    /// @param account The address holding the `amount` of `tokenId` tokens.
+    /// @param tokenId The Id of the token being transferred. 
+    /// @param amount The amount of `tokenId` tokens being transferred.
     /// @param unfrozen The amount of tokens that are unfrozen and available to transfer.
     error ERC7943InsufficientUnfrozenBalance(address account, uint256 tokenId, uint256 amount, uint256 unfrozen);
 
