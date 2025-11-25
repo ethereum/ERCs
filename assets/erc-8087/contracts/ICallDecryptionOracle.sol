@@ -131,7 +131,7 @@ interface ICallDecryptionOracle {
     function requestEncryptedCall(
         EncryptedCallDescriptor   calldata encCall,
         EncryptedHashedArguments  calldata encArgs
-    ) external returns (uint256 requestId);
+    ) external payable returns (uint256 requestId);
 
     /**
      * @notice Request execution with transparent call descriptor + encrypted arguments.
@@ -144,7 +144,28 @@ interface ICallDecryptionOracle {
     function requestCall(
         CallDescriptor            calldata callDescriptor,
         EncryptedHashedArguments  calldata encArgs
-    ) external returns (uint256 requestId);
+    ) external payable returns (uint256 requestId);
+
+    /**
+     * @notice Fulfill a transparent-call request after off-chain decryption of the arguments.
+     *
+     * @param requestId The id obtained from requestCall.
+     * @param argsPlain The decrypted argument payload bytes.
+     *
+     * @dev MUST:
+     * - verify that requestId exists and was created with requestCall,
+     * - load stored CallDescriptor from state,
+     * - verify storedCall.validUntilBlock is zero or >= current block.number,
+     * - verify that keccak256(argsPlain) equals the stored argsHash,
+     * - perform low-level call:
+     *     storedCall.targetContract.call(abi.encodePacked(storedCall.selector, argsPlain))
+     * - emit CallFulfilled(requestId, success, returnData),
+     * - clean up stored state for this requestId.
+     */
+    function fulfillCall(
+        uint256          requestId,
+        bytes            calldata argsPlain
+    ) external;
 
     /**
      * @notice Fulfill an encrypted-call request after off-chain decryption.
@@ -165,27 +186,6 @@ interface ICallDecryptionOracle {
     function fulfillEncryptedCall(
         uint256          requestId,
         CallDescriptor   calldata callDescriptor,
-        bytes            calldata argsPlain
-    ) external;
-
-    /**
-     * @notice Fulfill a transparent-call request after off-chain decryption of the arguments.
-     *
-     * @param requestId The id obtained from requestCall.
-     * @param argsPlain The decrypted argument payload bytes.
-     *
-     * @dev MUST:
-     * - verify that requestId exists and was created with requestCall,
-     * - load stored CallDescriptor from state,
-     * - verify storedCall.validUntilBlock is zero or >= current block.number,
-     * - verify that keccak256(argsPlain) equals the stored argsHash,
-     * - perform low-level call:
-     *     storedCall.targetContract.call(abi.encodePacked(storedCall.selector, argsPlain))
-     * - emit CallFulfilled(requestId, success, returnData),
-     * - clean up stored state for this requestId.
-     */
-    function fulfillCall(
-        uint256          requestId,
         bytes            calldata argsPlain
     ) external;
 }
