@@ -1,13 +1,29 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.23;
 
-import "./ICallDecryptionOracle.sol";
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Interface kept inline so the file stays single-file Remix-friendly
+ * ────────────────────────────────────────────────────────────────────────────*/
+
+interface ICallDecryptionOracle {
+    enum RejectionReason { Unspecified, RequestNotFound, Expired, ArgsHashMismatch, CallerNotEligible, OperatorPolicy }
+    struct ArgsDescriptor { address[] eligibleCaller; bytes argsPlain; }
+    struct EncryptedHashedArguments { bytes32 argsHash; bytes32 publicKeyId; bytes ciphertext; }
+    struct CallDescriptor { address targetContract; bytes4 selector; uint256 validUntilBlock; }
+    struct EncryptedCallDescriptor { bytes32 publicKeyId; bytes ciphertext; }
+    function requestEncryptedCall(EncryptedCallDescriptor calldata encCall, EncryptedHashedArguments  calldata encArgs) external payable returns (uint256 requestId);
+    function requestCall(CallDescriptor calldata callDescriptor, EncryptedHashedArguments  calldata encArgs) external payable returns (uint256 requestId);
+    function fulfillCall(uint256 requestId, bytes calldata argsPlain) external;
+    function fulfillEncryptedCall(uint256 requestId, CallDescriptor calldata callDescriptor, bytes calldata argsPlain) external;
+    function rejectCall(uint256 requestId, RejectionReason reason, bytes calldata details) external;
+}
 
 /**
  * @title Contract illustrating use of the Call Decryption Oracle Contract.
- * @notice Simple contract that can be used for testing.
+ * @notice Simple contract that can be used for demonstration and testing.
+ * @author Christian Fries
  */
-contract CallDecryptionOracleTestContract {
+contract CallDecryptionOracleDemoContract {
 
     struct ExecutionRecord {
         uint256 clientId;
@@ -62,7 +78,7 @@ contract CallDecryptionOracleTestContract {
      * @param argsEncrypted Encryption of ArgDescriptor (contaings eligibleCaller and argsPlain)
      * @param argsHash Hash of argsPlain
      */
-    function phase1_storeArguments(
+    function step1_storeArguments(
         uint256 clientId,
         bytes   calldata argsEncrypted,
         bytes32 argsHash
@@ -104,7 +120,7 @@ contract CallDecryptionOracleTestContract {
     /* Phase 2: send request to oracle                                        */
     /* ---------------------------------------------------------------------- */
 
-    function phase2_execute(
+    function step2_execute(
         uint256 clientId
     ) external {
 
@@ -156,7 +172,7 @@ contract CallDecryptionOracleTestContract {
     /* Phase 4: route decrypted args to finalTargetFunction                   */
     /* ---------------------------------------------------------------------- */
 
-    function phase4_routing(
+    function step3_routing(
         uint256 clientId
     ) external {
 
@@ -204,9 +220,32 @@ contract CallDecryptionOracleTestContract {
     /* Helper                                                                  */
     /* ---------------------------------------------------------------------- */
 
-    function getExecution(
-        uint256 clientId
-    ) external view returns (ExecutionRecord memory record) {
-        record = executionsByClientId[clientId];
+    function getResult(uint256 clientId) external view returns (
+        uint256 phase,
+        address caller,
+        address targetContract,
+        bytes memory argsEncrypted,
+        bytes32 argsHash,
+        uint256 requestId,
+        bytes memory argsPlain,
+        bytes32 argsHashComputed,
+        uint256 arg1,
+        string memory arg2,
+        uint256 arg3
+    ) {
+        ExecutionRecord storage r = executionsByClientId[clientId];
+        return (
+        r.phase,
+        r.caller,
+        r.callDescriptor.targetContract,
+        r.argsEncrypted,
+        r.argsHash,
+        r.requestId,
+        r.argsPlain,
+        r.argsHashComputed,
+        r.arg1,
+        r.arg2,
+        r.arg3
+        );
     }
 }
