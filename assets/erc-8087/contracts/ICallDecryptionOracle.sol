@@ -88,17 +88,6 @@ interface ICallDecryptionOracle {
 
     /*---------------------------------------------- EVENTS ----------------------------------------------------------*/
 
-    /// @notice Emitted when a request with encrypted call descriptor + encrypted arguments is registered.
-    event EncryptedCallRequested(
-        uint256 indexed requestId,
-        address indexed requester,
-        bytes32 callPublicKeyId,
-        bytes   callCiphertext,
-        bytes32 argsPublicKeyId,
-        bytes   argsCiphertext,
-        bytes32 argsHash
-    );
-
     /// @notice Emitted when a request with transparent call descriptor + encrypted arguments is registered.
     event CallRequested(
         uint256 indexed requestId,
@@ -109,6 +98,17 @@ interface ICallDecryptionOracle {
         bytes32   argsPublicKeyId,
         bytes     argsCiphertext,
         bytes32   argsHash
+    );
+
+    /// @notice Emitted when a request with encrypted call descriptor + encrypted arguments is registered.
+    event EncryptedCallRequested(
+        uint256 indexed requestId,
+        address indexed requester,
+        bytes32 callPublicKeyId,
+        bytes   callCiphertext,
+        bytes32 argsPublicKeyId,
+        bytes   argsCiphertext,
+        bytes32 argsHash
     );
 
     /// @notice Emitted when a call has been fulfilled.
@@ -206,11 +206,11 @@ interface ICallDecryptionOracle {
     ) external;
 
     /**
-     * @notice Fulfill an encrypted-call request after off-chain decryption.
+     * @notice Reject an request  an encrypted-call request after off-chain decryption.
      *
-     * @param requestId     The id obtained from requestEncryptedCall.
-     * @param callDescriptor The decrypted CallDescriptor.
-     * @param argsPlain     The decrypted argument payload bytes.
+     * @param requestId     The id obtained from requestCall or requestEncryptedCall.
+     * @param reason        RejectionReason enum.
+     * @param details       Additional details.
      *
      * @dev MUST:
      * - verify that requestId exists and was created with requestEncryptedCall,
@@ -223,6 +223,6 @@ interface ICallDecryptionOracle {
     function rejectCall(
         uint256 requestId,
         RejectionReason reason,
-        bytes   details  // optional extra info, may be empty
+        bytes calldata details  // optional extra info, may be empty
     ) external;
 }
