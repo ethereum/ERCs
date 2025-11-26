@@ -44,13 +44,17 @@ implementation can be extended with this call decryption functionality, or both 
     - `requestEncryptedCall`
     - `fulfillEncryptedCall`
 
+- `contracts/CallDecryptionOracleDemoContract.sol`
+  Demo illustating the usage of the oracle. Needs to be initialized with the address of an existing
+  oracle implementation.
+
 - `contracts/implementation/CallDecryptionOracleRouter.sol`  
   Call router implementation that allows to route a call with decrypted arguments to any
   contract after verifying that `keccak256(argsPlain) == argsHash`.
 
-  ```solidity
+```solidity
     routingTarget.call(abi.encodePacked(routingSelector, routingCalldata));
-  ```
+```
 
 #### Example Target Contract
 
