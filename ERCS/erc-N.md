@@ -195,7 +195,7 @@ Offchain stores MUST allow either account to revoke a stored association and MUS
 ## Security Considerations
 For onchain applications, the validation mechanisms for some key types might be gas-cost prohibitive or entirely unavailable. It is the responsibility of the integrator to ensure that unsupported key types are appropriately handled given these constraints.
 
-Offchain stores expose a trust vector to consumers. Integrators and consumers must take into account this centralization vector and expose the risk to users or offer mechanisms for minimizing the trust assumptions (i.e. storing some state onchain).
+Offchain stores expose a trust vector to consumers. Integrators and consumers MUST take into account this centralization vector and expose the risk to users or offer mechanisms for minimizing the trust assumptions (i.e. storing some state onchain).
 
 Associations SHOULD have a canonical storage location given an application. However, in the event that the same Association data is stored both on and offchain, precedence SHOULD be given to the onchain data. 
 
