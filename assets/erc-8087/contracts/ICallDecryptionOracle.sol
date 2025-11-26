@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
@@ -118,6 +118,23 @@ interface ICallDecryptionOracle {
         bytes   returnData
     );
 
+    enum RejectionReason {
+        // "unspecified/other" for forward-compatibility
+        Unspecified,
+        RequestNotFound,
+        Expired,
+        ArgsHashMismatch,
+        CallerNotEligible,
+        OperatorPolicy
+    }
+
+    /// @notice Emitted when a call has been rejected.
+    event CallRejected(
+        uint256 indexed requestId,
+        RejectionReason reason,
+        bytes   details  // optional extra info, may be empty
+    );
+
     /*------------------------------------------- EXTERNAL INTERFACE -------------------------------------------------*/
 
     /**
@@ -176,16 +193,36 @@ interface ICallDecryptionOracle {
      *
      * @dev MUST:
      * - verify that requestId exists and was created with requestEncryptedCall,
-     * - verify callDescriptor.validUntilBlock is zero or >= current block.number,
-     * - verify that keccak256(argsPlain) equals the stored argsHash,
      * - perform low-level call:
      *     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
      * - emit CallFulfilled(requestId, success, returnData),
      * - clean up stored state for this requestId.
+     * Note that eligibility / expiry / policy must be checked off-chain before calling fulfill*.
      */
     function fulfillEncryptedCall(
         uint256          requestId,
         CallDescriptor   calldata callDescriptor,
         bytes            calldata argsPlain
+    ) external;
+
+    /**
+     * @notice Fulfill an encrypted-call request after off-chain decryption.
+     *
+     * @param requestId     The id obtained from requestEncryptedCall.
+     * @param callDescriptor The decrypted CallDescriptor.
+     * @param argsPlain     The decrypted argument payload bytes.
+     *
+     * @dev MUST:
+     * - verify that requestId exists and was created with requestEncryptedCall,
+     * - perform low-level call:
+     *     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
+     * - emit CallFulfilled(requestId, success, returnData),
+     * - clean up stored state for this requestId.
+     * Note that eligibility / expiry / policy must be checked off-chain before calling fulfill*.
+     */
+    function rejectCall(
+        uint256 requestId,
+        RejectionReason reason,
+        bytes   details  // optional extra info, may be empty
     ) external;
 }
