@@ -15,9 +15,9 @@ This specification defines a standard for establishing and verifying association
 
 ## Motivation 
 A key motivation is the simplification of multi-address resolution, which is essential for managing complex digital identities across multiple platforms and accounts. This simplification aims to streamline the process of locating and verifying individuals or entities by efficiently handling multiple addresses linked by Associations. 
-By providing a standard mechanism for signaling an association between two accounts, this standard unlocks the capability for linking the activities or details of these accounts. 
+By providing a standard mechanism for signaling an association between two accounts, this standard unlocks the capability to link the activities or details of these accounts. 
 
-The inclusion of arbitrary data into the specified payload ensures flexibility for various use-cases such as delegation, hierarchical relationships, and authentication. By maintaining a flexible architecture that accepts an interface identifier paired with arbitrary data bytes, accounts that associate can do so with application-specific context. 
+The inclusion of arbitrary data into the specified payload ensures flexibility for various use cases such as delegation, hierarchical relationships, and authentication. By maintaining a flexible architecture that accepts an interface identifier paired with arbitrary data bytes, accounts that associate can do so with application-specific context. 
 
 ## Overview
 The system outlined in this document describes a way for two accounts to be linked by a specified data struct which describes the relationship between them. It offers the mechanism by which these parties can sign over the contents to prove validity. It focuses on the structure and process for generating, validating and revoking such records while maintaining an implementation agnostic approach. 
@@ -26,7 +26,7 @@ The system outlined in this document describes a way for two accounts to be link
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “NOT RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
 ### Core Concepts
-Each Association between two accounts denotes the participating addresses as `initiator` and `approver`. These accounts can be on disparate chains with different architectures made possible by a combination of [ERC-7930 Interoperable Addresses](https://eips.ethereum.org/EIPS/eip-7930) and an enumeration of signature key types. To accommodate non-evm account types, addresses are recorded in the association as raw bytes.
+Each Association between two accounts denotes the participating addresses as `initiator` and `approver`. These accounts can be on disparate chains with different architectures made possible by a combination of [ERC-7930 Interoperable Addresses](https://eips.ethereum.org/EIPS/eip-7930) and an enumeration of signature key types. To accommodate non-EVM account types, addresses are recorded in the association as raw bytes.
 
 The specification outlines a nested structure for recording Associations:
 1. An underlying Associated Account Record (AAR) for storing accounts, timestamps and association context
@@ -112,7 +112,7 @@ The resulting table enumerates the known keys and distinguishes between the two 
 | 0x8003 | ERC-6492 | Predeploy contract validation |
 
 #### Delegated Auth
-In some contexts it might be ergonomical to delegate authorization to another account, address, or external protocol. Implementers leveraging the `Delegated` key type MUST also publish a standard mechanism for parsing and accommodating the application-specific delegation schema.
+In some contexts it might be ergonomic to delegate authorization to another account, address, or external protocol. Implementers leveraging the `Delegated` key type MUST also publish a standard mechanism for parsing and accommodating the application-specific delegation schema.
 
 ### Support for EIP-712
 All signatures contained in this specification MUST comply with EIP-712 wherein the signature pre-image can be generated from:
@@ -151,11 +151,11 @@ An onchain storage contract SHALL comply with the following steps:
 
 ```solidity
     event AssociationCreated(
-        bytes32 indexed uuid, bytes32 indexed initiator, bytes32 indexed approver, SignedAssociationRecord sar
+        bytes32 indexed hash, bytes32 indexed initiator, bytes32 indexed approver, SignedAssociationRecord sar
     );
 ```
 where:
-- `uuid` is the indexed uuid for the SignedAssociationRecord, equivalent to the EIP712 hash of the underlying AAR.
+- `hash` is the indexed hash for the SignedAssociationRecord, equivalent to the EIP-712 hash of the underlying AAR.
 - `initiator` is the keccak256 hash of the ERC-7930 address of the account that initiated the association.
 - `approver` is the keccak256 hash of the ERC-7930 address of the account that accepted and completed the association.
 - `sar` is the completed SignedAssociationRecord. 
@@ -166,28 +166,29 @@ If a SignedAssociationRecord is stored onchain, it MUST also be revokable onchai
 In some contexts, it might be desirable for Signed Association Records to be stored in an offchain store. While the implementation will differ from application-to-application, the following considerations SHOULD be taken into account:
 - Access to this data store MUST be made available to all expected consumers through publicly accessible endpoints
 - The store MUST perform validation on incoming Associations before storage 
-- The location of this offchain store SHOULD be searchable by some standard fetching mechanism, i.e. a text record on an ENS name
+- The location of this offchain store SHOULD be searchable by some standard fetching mechanism, e.g. a text record on an ENS name
 
 ### Validation
 Clients or contracts determining whether a SignedAssociationRecord is valid at the time of consumption MUST check all of the following validation steps:
 1. The current timestamp MUST be greater than or equal to the `validAt` timestamp.
 2. If the `validUntil` timestamp is nonzero, the current timestamp MUST be less than the `validUntil` timestamp. 
 3. If the `revokedAt` timestamp is nonzero, the current timestamp MUST be less than the `revokedAt` timestamp.
-4. If the `initiatorSignature` field is populated, the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `initiatorKeyType` validation mechanism. 
-5. If the `approverSignature` field is populated, the signature MUST be valid for the EIP712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `approverKeyType` validation mechanism.
+4. If the `initiatorSignature` field is populated, the signature MUST be valid for the EIP-712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `initiatorKeyType` validation mechanism. 
+5. If the `approverSignature` field is populated, the signature MUST be valid for the EIP-712 preimage of the underlying `AssociatedAccountRecord` using an appropriate `approverKeyType` validation mechanism.
 
-Onchain validation is possible so long as there are sufficient validation mechanisms for the various key types used by the two accounts. In the case that validation occurs onchain, implementations MUST replace "current timestamp" with `block.timestamp`. 
+Onchain validation is possible as long as there are sufficient validation mechanisms for the various key types used by the two accounts. In the case that validation occurs onchain, implementations MUST replace "current timestamp" with `block.timestamp`. 
 
 ### Revocation
 Onchain Association stores MUST implement a revocation method. This method MUST allow either party of an Association to revoke a valid, active association by submitting a revocation request. 
 
 In such contexts, storage contracts MUST update the `revokedAt` field of the SAR to `block.timestamp` OR the account-specified revocation timestamp, whichever is greater. Then the implementation contract MUST emit the following event upon accepting a valid revocation request: 
 ```solidity
-    event AssociationRevoked(bytes32 indexed uuid, bytes32 indexed revoker);
+    event AssociationRevoked(bytes32 indexed hash, bytes32 indexed revokedBy, uint256 revokedAt);
 ```
 where: 
-- `uuid` is the indexed unique identifier for the association, equivalent to the EIP712 hash of the underlying AAR.
-- `revoker` is the indexed keccak256 hash of the ERC-7930 address of the revoking account.
+- `hash` is the indexed unique identifier for the association, equivalent to the EIP-712 hash of the underlying AAR.
+- `revokedBy` is the indexed keccak256 hash of the ERC-7930 address of the revoking account.
+- `revokedAt` is the timestamp at which the association is revoked.
 
 Offchain stores MUST allow either account to revoke a stored association and MUST update the `revokedAt` timestamp accordingly.
 
