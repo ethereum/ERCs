@@ -61,7 +61,7 @@ Where the AssociatedAccountRecord contains:
 - `data` is the arbitrary context data payload (optional).
 
 ### Signed Association Record
-When public declaration of validity is desired, one or both of the accounts MAY sign over the Associated Account Record. The EIP-712 hash (see Support for EIP-712 below) of the `AssociatedAccountRecord` can be signed by the initiating and approving accounts. The resulting signatures are included in a `SignedAssociationRecord`: 
+When `AssociatedAccountRecord`s will be consumed in a trustless context, integrators SHOULD require that both paries sign over the EIP-712 hash of the `AssociatedAccountRecord` (see Support for EIP-712 below). The resulting signatures MUST be included in a `SignedAssociationRecord`. 
 
 ```solidity
     /// @notice Complete payload containing a finalized association.
@@ -102,7 +102,7 @@ The resulting table enumerates the known keys and distinguishes between the two 
 
 | Key ID | Type | Curve/Standard |
 | -------- | -------- | -------- |
-| 0x0000 | Delegated | Delegated auth | 
+| 0x0000 | Delegated | Delegated auth |
 | 0x0001 | K1 | secp256k1 |
 | 0x0002 | R1 | secp256r1 |
 | 0x0003 | BLS | BLS12-381 |
@@ -112,7 +112,7 @@ The resulting table enumerates the known keys and distinguishes between the two 
 | 0x8003 | ERC-6492 | Predeploy contract validation |
 
 #### Delegated Auth
-In some contexts it might be ergonomic to delegate authorization to another account, address, or external protocol. Implementers leveraging the `Delegated` key type MUST also publish a standard mechanism for parsing and accommodating the application-specific delegation schema.
+In some contexts it might be ergonomic to delegate authorization to another account, access control mechanism, or external protocol. Implementers leveraging the `Delegated` key type MUST also publish how consumers can parse the application-specific delegation schema.
 
 ### Support for EIP-712
 All signatures contained in this specification MUST comply with EIP-712 wherein the signature pre-image can be generated from:
@@ -191,6 +191,8 @@ where:
 - `revokedAt` is the timestamp at which the association is revoked.
 
 Offchain stores MUST allow either account to revoke a stored association and MUST update the `revokedAt` timestamp accordingly.
+
+If a previously revoked association is revoked again with an earlier timestamp, the earlier timestamp MUST take precedence. 
 
 ## Security Considerations
 For onchain applications, the validation mechanisms for some key types might be gas-cost prohibitive or entirely unavailable. It is the responsibility of the integrator to ensure that unsupported key types are appropriately handled given these constraints.
