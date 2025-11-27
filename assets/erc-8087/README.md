@@ -58,7 +58,7 @@ implementation can be extended with this call decryption functionality, or both 
 
 #### Example Target Contract
 
-- `contracts/implementation/CallDecryptionOracleTestTarget.sol`  
+- `contracts/implementation/CallDecryptionOracleDemoContract.sol`  
   Example target contract that illustrates how a receiver verifies the arguments:
 
 ```solidity
