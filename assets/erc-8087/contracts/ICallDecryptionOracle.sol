@@ -114,7 +114,6 @@ interface ICallDecryptionOracle {
     /// @notice Emitted when a call has been fulfilled.
     event CallFulfilled(
         uint256 indexed requestId,
-        bool    success,
         bytes   returnData
     );
 
@@ -125,7 +124,8 @@ interface ICallDecryptionOracle {
         Expired,
         ArgsHashMismatch,
         CallerNotEligible,
-        OperatorPolicy
+        OperatorPolicy,
+        TargetCallFailed
     }
 
     /// @notice Emitted when a call has been rejected.
@@ -135,7 +135,22 @@ interface ICallDecryptionOracle {
         bytes   details  // optional extra info, may be empty
     );
 
+    /**
+     * @notice Emitted when the oracle provides a new public key.
+     * @dev Announcement of a new key does not imply key rotation semantics.
+     *      Key expiry / rotation is an off-chain policy detail.
+     */
+    event PublicKeyUpdated(
+        bytes   newPublicKey,
+        bytes32 newKeyId
+    );
+
     /*------------------------------------------- EXTERNAL INTERFACE -------------------------------------------------*/
+
+    /**
+     * @notice Returns a public key that can be used to encrypt arguments and the public key id.
+     */
+    function getPublicKey() external view returns (bytes memory key, bytes32 keyId);
 
     /**
      * @notice Request execution with encrypted call descriptor + encrypted arguments.
@@ -176,7 +191,7 @@ interface ICallDecryptionOracle {
      * - verify that keccak256(argsPlain) equals the stored argsHash,
      * - perform low-level call:
      *     storedCall.targetContract.call(abi.encodePacked(storedCall.selector, argsPlain))
-     * - emit CallFulfilled(requestId, success, returnData),
+     * - emit CallFulfilled(requestId, returnData),
      * - clean up stored state for this requestId.
      */
     function fulfillCall(
@@ -195,7 +210,7 @@ interface ICallDecryptionOracle {
      * - verify that requestId exists and was created with requestEncryptedCall,
      * - perform low-level call:
      *     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
-     * - emit CallFulfilled(requestId, success, returnData),
+     * - emit CallFulfilled(requestId, returnData),
      * - clean up stored state for this requestId.
      * Note that eligibility / expiry / policy must be checked off-chain before calling fulfill*.
      */
@@ -206,23 +221,20 @@ interface ICallDecryptionOracle {
     ) external;
 
     /**
-     * @notice Reject an request  an encrypted-call request after off-chain decryption.
+     * @notice Reject a previously registered request (transparent or encrypted).
      *
-     * @param requestId     The id obtained from requestCall or requestEncryptedCall.
-     * @param reason        RejectionReason enum.
-     * @param details       Additional details.
+     * @param requestId The id obtained from requestCall or requestEncryptedCall.
+     * @param reason    RejectionReason enum.
+     * @param details   Additional details (may encode error text, revert data, policy code, ...).
      *
      * @dev MUST:
-     * - verify that requestId exists and was created with requestEncryptedCall,
-     * - perform low-level call:
-     *     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
-     * - emit CallFulfilled(requestId, success, returnData),
+     * - verify that requestId exists (or, if it does not, MAY emit RequestNotFound),
+     * - emit CallRejected(requestId, reason, details),
      * - clean up stored state for this requestId.
-     * Note that eligibility / expiry / policy must be checked off-chain before calling fulfill*.
      */
     function rejectCall(
         uint256 requestId,
         RejectionReason reason,
-        bytes calldata details  // optional extra info, may be empty
+        bytes calldata details
     ) external;
 }
