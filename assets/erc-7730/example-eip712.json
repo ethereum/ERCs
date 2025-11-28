@@ -1,0 +1,55 @@
+{
+    "$schema": "./erc7730-v1.schema.json",
+    
+    "metadata": {
+        "owner": "MyContract",
+        "info": {
+            "url": "https://example.org/"
+        }
+    },
+    "context": {
+        "eip712": {
+            "domain": {
+                "name": "Permit2"
+            },
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x0000000000112233445566778899aabbccddeeff00"
+                }
+            ]
+        }
+    },
+    "display": {
+      "formats": {
+        "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline) PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
+          "$id": "Permit2 Permit Single",
+          "intent": "Authorize spending of token",
+          "fields": [
+            { "path": "spender", "label": "Spender", "format": "raw" },
+            { "path": "details.amount", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "details.token" } },
+            { "path": "details.expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+            { "path": "details.nonce", "visible": "never" },
+            { "path": "sigDeadline", "visible": "never" }
+          ]
+        },
+        "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline) PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
+          "$id": "Permit2 Permit Batch",
+          "intent": "Authorize spending of tokens",
+          "fields": [
+            { "path": "spender", "label": "Spender", "format": "raw" },
+            {
+              "path": "details.[]",
+              "fields": [
+                { "path": "amount", "label": "Amount allowance", "format": "tokenAmount", "params": { "tokenPath": "token" } },
+                { "path": "expiration", "label": "Approval expires", "format": "date", "params": { "encoding": "timestamp" } },
+                { "path": "nonce", "visible": "never" }
+              ]
+            },
+            { "path": "sigDeadline", "visible": "never" }
+          ]
+        }
+      }
+    }
+  }
+  

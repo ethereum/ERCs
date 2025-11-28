@@ -29,6 +29,11 @@ interface IERC_5521 is IERC165 {
     /// @return The referred mapping of an rNFT
     function referredOf(address _address, uint256 tokenId) external view returns(address[] memory, uint256[][] memory);
 
+    /// @notice get the timestamp of an rNFT when is being created.
+    /// @param `tokenId` of the rNFT being focused, `_address` of contract address associated with the focused rNFT.
+    /// @return the timestamp of the rNFT when is being created with uint256 format.
+    function createdTimestampOf(address _address, uint256 tokenId) external view returns(uint256);
+
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
@@ -36,5 +41,6 @@ interface TargetContract is IERC165 {
     function setNodeReferredExternal(address successor, uint256 tokenId, uint256[] memory _tokenIds) external;
     function referringOf(address _address, uint256 tokenId) external view returns(address[] memory, uint256[][] memory);
     function referredOf(address _address, uint256 tokenId) external view returns(address[] memory, uint256[][] memory);
+    function createdTimestampOf(address _address, uint256 tokenId) external view returns(uint256);
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }

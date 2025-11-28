@@ -75,7 +75,7 @@ contract SomeOtherFacet {
 // Using the 's.' prefix to access AppStorage is a nice convention because it makes state variables 
 // concise, easy to access, and it distinguishes state variables from local variables and prevents 
 // name clashes/shadowing with local variables and function names. It helps identify and make 
-// explicit state variables in a convenient and concise way. AppStorage can be used in regualar 
+// explicit state variables in a convenient and concise way. AppStorage can be used in regular 
 // contracts as well as proxy contracts, diamonds, implementation contracts, Solidity libraries and 
 // facets.
 

@@ -59,7 +59,7 @@ contract DynamicTraits is IERC7496 {
         uint256 length = traitKeys.length;
         traitValues = new bytes32[](length);
 
-        // Assign each trait value to the corresopnding key.
+        // Assign each trait value to the corresponding key.
         for (uint256 i = 0; i < length;) {
             bytes32 traitKey = traitKeys[i];
             traitValues[i] = getTraitValue(tokenId, traitKey);

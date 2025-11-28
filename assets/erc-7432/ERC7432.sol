@@ -3,157 +3,240 @@
 pragma solidity 0.8.9;
 
 import { IERC7432 } from "./interfaces/IERC7432.sol";
+import { IERC721 } from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 
 contract ERC7432 is IERC7432 {
-    // grantor => grantee => tokenAddress => tokenId => role => struct(expirationDate, data)
-    mapping(address => mapping(address => mapping(address => mapping(uint256 => mapping(bytes32 => RoleData)))))
-        public roleAssignments;
+    struct RoleData {
+        address recipient;
+        uint64 expirationDate;
+        bool revocable;
+        bytes data;
+    }
 
-    // grantor => tokenAddress => tokenId => role => grantee
-    mapping(address => mapping(address => mapping(uint256 => mapping(bytes32 => address)))) public latestGrantees;
+    bytes32[] public allowedRoles;
 
-    // grantor => operator => tokenAddress => isApproved
+    // roleId => isAllowed
+    mapping(bytes32 => bool) public isRoleAllowed;
+
+    // tokenAddress => tokenId => owner
+    mapping(address => mapping(uint256 => address)) public originalOwners;
+
+    // tokenAddress => tokenId => roleId => struct(recipient, expirationDate, revocable, data)
+    mapping(address => mapping(uint256 => mapping(bytes32 => RoleData))) public roles;
+
+    // owner => tokenAddress => operator => isApproved
     mapping(address => mapping(address => mapping(address => bool))) public tokenApprovals;
 
-    modifier validExpirationDate(uint64 _expirationDate) {
-        require(_expirationDate > block.timestamp, "ERC7432: expiration date must be in the future");
-        _;
-    }
-
-    modifier onlyAccountOrApproved(address _tokenAddress, address _account) {
-        require(
-            msg.sender == _account || isRoleApprovedForAll(_tokenAddress, _account, msg.sender),
-            "ERC7432: sender must be approved"
-        );
-        _;
-    }
-
-    function grantRevocableRoleFrom(RoleAssignment calldata _roleAssignment) override onlyAccountOrApproved(_roleAssignment.tokenAddress, _roleAssignment.grantor) external {
-        _grantRole(_roleAssignment, true);
-    }
-
-    function grantRoleFrom(RoleAssignment calldata _roleAssignment) external override onlyAccountOrApproved(_roleAssignment.tokenAddress, _roleAssignment.grantor) {
-        _grantRole(_roleAssignment, false);
-    }
-
-
-    function _grantRole(
-        RoleAssignment memory _roleAssignment,
-        bool _revocable
-    ) internal validExpirationDate(_roleAssignment.expirationDate) {
-        roleAssignments[_roleAssignment.grantor][_roleAssignment.grantee][_roleAssignment.tokenAddress][
-            _roleAssignment.tokenId
-        ][_roleAssignment.role] = RoleData(_roleAssignment.expirationDate, _revocable, _roleAssignment.data);
-        latestGrantees[_roleAssignment.grantor][_roleAssignment.tokenAddress][_roleAssignment.tokenId][
-            _roleAssignment.role
-        ] = _roleAssignment.grantee;
-        emit RoleGranted(_roleAssignment.role, _roleAssignment.tokenAddress, _roleAssignment.tokenId, _roleAssignment.grantor, _roleAssignment.grantee, _roleAssignment.expirationDate, _revocable, _roleAssignment.data);
-    }
-
-    function revokeRoleFrom(
-        bytes32 _role,
-        address _tokenAddress,
-        uint256 _tokenId,
-        address _revoker,
-        address _grantee
-    ) external override {
-        address _caller = msg.sender == _revoker || msg.sender == _grantee ? msg.sender : _getApprovedCaller(_tokenAddress, _revoker, _grantee);
-        _revokeRole(_role, _tokenAddress, _tokenId, _revoker, _grantee, _caller);
-    }
-
-    function _getApprovedCaller(address _tokenAddress, address _revoker, address _grantee) internal view returns (address) {
-        if (isRoleApprovedForAll(_tokenAddress, _grantee, msg.sender)) {
-            return _grantee;
-        } else if (isRoleApprovedForAll(_tokenAddress, _revoker, msg.sender)) {
-            return _revoker;
-        } else {
-            revert("ERC7432: sender must be approved");
+    constructor() {
+        allowedRoles = [keccak256('UNIQUE_ROLE')];
+        for (uint256 i = 0; i < allowedRoles.length; i++) {
+            isRoleAllowed[allowedRoles[i]] = true;
         }
     }
 
-    function _revokeRole(
-        bytes32 _role,
-        address _tokenAddress,
-        uint256 _tokenId,
-        address _revoker,
-        address _grantee,
-        address _caller
-    ) internal {
-        bool _isRevocable = roleAssignments[_revoker][_grantee][_tokenAddress][_tokenId][_role].revocable;
-        require(_isRevocable || _caller == _grantee, "ERC7432: Role is not revocable or caller is not the grantee");
-        delete roleAssignments[_revoker][_grantee][_tokenAddress][_tokenId][_role];
-        delete latestGrantees[_revoker][_tokenAddress][_tokenId][_role];
-        emit RoleRevoked(_role, _tokenAddress, _tokenId, _revoker, _grantee);
+    modifier onlyAllowedRole(bytes32 _roleId) {
+        require(isRoleAllowed[_roleId], 'NftRolesRegistryVault: role is not allowed');
+        _;
     }
 
-    function hasRole(
-        bytes32 _role,
-        address _tokenAddress,
-        uint256 _tokenId,
-        address _grantor,
-        address _grantee
-    ) external view returns (bool) {
-        return roleAssignments[_grantor][_grantee][_tokenAddress][_tokenId][_role].expirationDate > block.timestamp;
+    /** External Functions **/
+
+    function grantRole(IERC7432.Role calldata _role) external override onlyAllowedRole(_role.roleId) {
+        require(_role.expirationDate > block.timestamp, 'NftRolesRegistryVault: expiration date must be in the future');
+
+        // deposit NFT if necessary
+        // reverts if sender is not approved or original owner
+        address _originalOwner = _depositNft(_role.tokenAddress, _role.tokenId);
+
+        // role must be expired or revocable
+        RoleData storage _roleData = roles[_role.tokenAddress][_role.tokenId][_role.roleId];
+        require(
+            _roleData.revocable || _roleData.expirationDate < block.timestamp,
+            'NftRolesRegistryVault: role must be expired or revocable'
+        );
+
+        roles[_role.tokenAddress][_role.tokenId][_role.roleId] = RoleData(
+            _role.recipient,
+            _role.expirationDate,
+            _role.revocable,
+            _role.data
+        );
+
+        emit RoleGranted(
+            _role.tokenAddress,
+            _role.tokenId,
+            _role.roleId,
+            _originalOwner,
+            _role.recipient,
+            _role.expirationDate,
+            _role.revocable,
+            _role.data
+        );
     }
 
-    function hasUniqueRole(
-        bytes32 _role,
+    function revokeRole(
         address _tokenAddress,
         uint256 _tokenId,
-        address _grantor,
-        address _grantee
-    ) external view returns (bool) {
-        return latestGrantees[_grantor][_tokenAddress][_tokenId][_role] == _grantee && roleAssignments[_grantor][_grantee][_tokenAddress][_tokenId][_role].expirationDate > block.timestamp;
+        bytes32 _roleId
+    ) external override onlyAllowedRole(_roleId) {
+        address _recipient = roles[_tokenAddress][_tokenId][_roleId].recipient;
+        address _caller = _getApprovedCaller(_tokenAddress, _tokenId, _recipient);
+
+        // if caller is recipient, the role can be revoked regardless of its state
+        if (_caller != _recipient) {
+            // if caller is owner, the role can only be revoked if revocable or expired
+            require(
+                roles[_tokenAddress][_tokenId][_roleId].revocable ||
+                roles[_tokenAddress][_tokenId][_roleId].expirationDate < block.timestamp,
+                'NftRolesRegistryVault: role is not revocable nor expired'
+            );
+        }
+
+        delete roles[_tokenAddress][_tokenId][_roleId];
+        emit RoleRevoked(_tokenAddress, _tokenId, _roleId);
+    }
+
+    function unlockToken(address _tokenAddress, uint256 _tokenId) external override {
+        address originalOwner = originalOwners[_tokenAddress][_tokenId];
+
+        require(!_hasNonRevocableRole(_tokenAddress, _tokenId), 'NftRolesRegistryVault: NFT is locked');
+
+        require(
+            originalOwner == msg.sender || isRoleApprovedForAll(_tokenAddress, originalOwner, msg.sender),
+            'NftRolesRegistryVault: sender must be owner or approved'
+        );
+
+        delete originalOwners[_tokenAddress][_tokenId];
+        IERC721(_tokenAddress).transferFrom(address(this), originalOwner, _tokenId);
+        emit TokenUnlocked(originalOwner, _tokenAddress, _tokenId);
+    }
+
+    function setRoleApprovalForAll(address _tokenAddress, address _operator, bool _approved) external override {
+        tokenApprovals[msg.sender][_tokenAddress][_operator] = _approved;
+        emit RoleApprovalForAll(_tokenAddress, _operator, _approved);
+    }
+
+    /** ERC-7432 View Functions **/
+
+    function ownerOf(address _tokenAddress, uint256 _tokenId) external view returns (address owner_) {
+        return originalOwners[_tokenAddress][_tokenId];
+    }
+
+    function recipientOf(
+        address _tokenAddress,
+        uint256 _tokenId,
+        bytes32 _roleId
+    ) external view returns (address recipient_) {
+        if (roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp) {
+            return roles[_tokenAddress][_tokenId][_roleId].recipient;
+        }
+        return address(0);
     }
 
     function roleData(
-        bytes32 _role,
         address _tokenAddress,
         uint256 _tokenId,
-        address _grantor,
-        address _grantee
-    ) external view returns (RoleData memory) {
-        return roleAssignments[_grantor][_grantee][_tokenAddress][_tokenId][_role];
+        bytes32 _roleId
+    ) external view returns (bytes memory data_) {
+        if (roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp) {
+            data_ = roles[_tokenAddress][_tokenId][_roleId].data;
+        }
+        return data_;
     }
-
 
     function roleExpirationDate(
-        bytes32 _role,
         address _tokenAddress,
         uint256 _tokenId,
-        address _grantor,
-        address _grantee
+        bytes32 _roleId
     ) external view returns (uint64 expirationDate_) {
-        return roleAssignments[_grantor][_grantee][_tokenAddress][_tokenId][_role].expirationDate;
+        if (roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp) {
+            return roles[_tokenAddress][_tokenId][_roleId].expirationDate;
+        }
+        return 0;
     }
+
+    function isRoleRevocable(
+        address _tokenAddress,
+        uint256 _tokenId,
+        bytes32 _roleId
+    ) external view returns (bool revocable_) {
+        return
+            roles[_tokenAddress][_tokenId][_roleId].expirationDate > block.timestamp &&
+            roles[_tokenAddress][_tokenId][_roleId].revocable;
+    }
+
+    function isRoleApprovedForAll(address _tokenAddress, address _owner, address _operator) public view returns (bool) {
+        return tokenApprovals[_owner][_tokenAddress][_operator];
+    }
+
+    /** ERC-165 Functions **/
 
     function supportsInterface(bytes4 interfaceId) external view virtual override returns (bool) {
         return interfaceId == type(IERC7432).interfaceId;
     }
 
-    function setRoleApprovalForAll(
-        address _tokenAddress,
-        address _operator,
-        bool _isApproved
-    ) external override {
-        tokenApprovals[msg.sender][_tokenAddress][_operator] = _isApproved;
-        emit RoleApprovalForAll(_tokenAddress, _operator, _isApproved);
+    /** Internal Functions **/
+
+    /// @notice Updates originalOwner, validates the sender and deposits NFT (if not deposited yet).
+    /// @param _tokenAddress The token address.
+    /// @param _tokenId The token identifier.
+    /// @return originalOwner_ The original owner of the NFT.
+    function _depositNft(address _tokenAddress, uint256 _tokenId) internal returns (address originalOwner_) {
+        address _currentOwner = IERC721(_tokenAddress).ownerOf(_tokenId);
+
+        if (_currentOwner == address(this)) {
+            // if the NFT is already on the contract, check if sender is approved or original owner
+            originalOwner_ = originalOwners[_tokenAddress][_tokenId];
+            require(
+                originalOwner_ == msg.sender || isRoleApprovedForAll(_tokenAddress, originalOwner_, msg.sender),
+                'NftRolesRegistryVault: sender must be owner or approved'
+            );
+        } else {
+            // if NFT is not in the contract, deposit it and store the original owner
+            require(
+                _currentOwner == msg.sender || isRoleApprovedForAll(_tokenAddress, _currentOwner, msg.sender),
+                'NftRolesRegistryVault: sender must be owner or approved'
+            );
+            IERC721(_tokenAddress).transferFrom(_currentOwner, address(this), _tokenId);
+            originalOwners[_tokenAddress][_tokenId] = _currentOwner;
+            originalOwner_ = _currentOwner;
+            emit TokenLocked(_currentOwner, _tokenAddress, _tokenId);
+        }
     }
 
-    function isRoleApprovedForAll(
-        address _tokenAddress,
-        address _grantor,
-        address _operator
-    ) public view override returns (bool) {
-        return tokenApprovals[_grantor][_tokenAddress][_operator];
-    }
-
-    function lastGrantee(
-        bytes32 _role,
+    /// @notice Returns the account approved to call the revokeRole function. Reverts otherwise.
+    /// @param _tokenAddress The token address.
+    /// @param _tokenId The token identifier.
+    /// @param _recipient The user that received the role.
+    /// @return caller_ The approved account.
+    function _getApprovedCaller(
         address _tokenAddress,
         uint256 _tokenId,
-        address _grantor
-    ) public view override returns (address) {
-        return latestGrantees[_grantor][_tokenAddress][_tokenId][_role];
+        address _recipient
+    ) internal view returns (address caller_) {
+        if (msg.sender == _recipient || isRoleApprovedForAll(_tokenAddress, _recipient, msg.sender)) {
+            return _recipient;
+        }
+        address originalOwner = originalOwners[_tokenAddress][_tokenId];
+        if (msg.sender == originalOwner || isRoleApprovedForAll(_tokenAddress, originalOwner, msg.sender)) {
+            return originalOwner;
+        }
+        revert('NftRolesRegistryVault: role does not exist or sender is not approved');
+    }
+
+    /// @notice Checks whether an NFT has at least one non-revocable role.
+    /// @param _tokenAddress The token address.
+    /// @param _tokenId The token identifier.
+    /// @return true if the NFT is locked.
+    function _hasNonRevocableRole(address _tokenAddress, uint256 _tokenId) internal view returns (bool) {
+        for (uint256 i = 0; i < allowedRoles.length; i++) {
+            if (
+                !roles[_tokenAddress][_tokenId][allowedRoles[i]].revocable &&
+            roles[_tokenAddress][_tokenId][allowedRoles[i]].expirationDate > block.timestamp
+            ) {
+                return true;
+            }
+        }
+        return false;
     }
 }
