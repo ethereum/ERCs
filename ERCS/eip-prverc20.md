@@ -1,0 +1,305 @@
+---
+eip: [to be inserted]
+title: Private ERC-20
+description: Private burn and re-mint of ERC-20 tokens using storage proofs and zero-knowledge circuits
+author: Jake (@jakeolo) <jake@mayan.finance>
+discussions-to: https://ethereum-magicians.org/t/TBD/24680
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-11-27
+requires: 20, 7503
+---
+
+## Abstract
+
+This ERC extends the zero-knowledge proof-of-burn mechanism from EIPs/eip-7503 to ERCs/erc-20 tokens. Users burn tokens by transferring them to cryptographically unspendable addresses derived from secret preimages. Using Merkle Patricia Trie (MPT) storage proofs and zero-knowledge circuits, users can later prove the burn occurred without revealing the original transaction, enabling private re-minting of equivalent tokens.
+
+## Motivation
+
+EIPs/eip-7503 introduced Zero-Knowledge Wormholes for native ETH, enabling privacy-preserving burns and re-mints. However, the majority of value transferred on Ethereum exists in ERCs/erc-20 tokens. Extending this mechanism to ERCs/erc-20 tokens requires additional considerations:
+
+1. **Storage vs Account State**: ETH balances are stored in account state, while ERCs/erc-20 balances are stored in contract storage, requiring a two-level proof structure.
+
+2. **Variable Storage Layouts**: Different ERCs/erc-20 implementations store balances at different storage slots, requiring slot discovery mechanisms.
+
+3. **No Contract Interaction for Burns**: Like EIPs/eip-7503, burns should require only a standard `transfer()` call to an unspendable address, avoiding mixer contract interactions that enable censorship.
+
+Current privacy solutions for ERCs/erc-20 tokens have significant drawbacks:
+
+- **Mixer Contracts**: Require direct contract interaction, creating traceable deposit/withdrawal patterns
+- **Wrapped Privacy Tokens**: Add trust assumptions and complexity
+- **Centralized Bridges**: Require trusting bridge operators for cross-chain privacy
+
+This EIP enables permissionless, trustless privacy for any ERCs/erc-20 token without modifying the token contract.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions
+
+- **Burn Address**: An Ethereum address with no known private key, generated via `hash_to_curve(keccak256(secret))`
+- **Secret**: A random 256-bit value known only to the burner
+- **Nullifier**: A unique identifier derived from the secret that prevents double-claiming: `keccak256(secret || tokenAddress)`
+- **Storage Slot**: The position in contract storage where a balance is stored
+- **Mapping Slot**: The base storage slot of the `balances` mapping in an ERCs/erc-20 contract
+
+### Burn Address Generation
+
+A burn address MUST be generated as follows:
+
+```
+commitment = keccak256(secret)
+burn_address = hash_to_curve(commitment)
+```
+
+Where:
+
+- `secret` is a cryptographically random 256-bit value
+- `hash_to_curve` maps the commitment to a point on the secp256k1 curve with no known discrete logarithm
+- `burn_address` is the Ethereum address derived from this curve point
+
+The burn address is unspendable because finding a private key $k$ such that $k \times G = \text{hash\_to\_curve}(h)$ is computationally infeasible.
+
+### Storage Slot Calculation
+
+For an ERCs/erc-20 token with `mapping(address => uint256) balances` at storage slot $S$, the storage slot for address $A$ is:
+
+```
+storage_slot = keccak256(abi.encode(A, S))
+```
+
+This follows Solidity's storage layout rules for mappings.
+
+### Proof Structure
+
+A complete ERCs/erc-20 burn proof consists of:
+
+#### Block Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `blockNumber` | `uint256` | Block number containing the burn |
+| `blockHash` | `bytes32` | Hash of the block |
+| `stateRoot` | `bytes32` | State root from block header |
+
+#### Token Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tokenAddress` | `address` | ERCs/erc-20 token contract address |
+| `mappingSlot` | `uint256` | Storage slot of balances mapping |
+
+#### Burn Data
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `amount` | `uint256` | Amount of tokens burned |
+| `nullifier` | `bytes32` | `keccak256(secret \|\| tokenAddress)` |
+
+#### Proofs
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `accountProof` | `bytes[]` | MPT proof from stateRoot to token contract |
+| `storageProof` | `bytes[]` | MPT proof from storageRoot to balance slot |
+| `zkProof` | `bytes` | Zero-knowledge proof |
+
+### MPT Proof Verification
+
+#### Account Proof
+
+The account proof verifies the token contract's state against the block's `stateRoot`:
+
+1. Compute the account key: `accountKey = keccak256(tokenAddress)`
+2. Verify the MPT proof traversal from `stateRoot` using `accountKey`
+3. RLP-decode the leaf value to obtain: `[nonce, balance, storageRoot, codeHash]`
+4. Extract `storageRoot` for storage proof verification
+
+#### Storage Proof
+
+The storage proof verifies the balance at the burn address:
+
+1. Compute storage slot: `slot = keccak256(abi.encode(burnAddress, mappingSlot))`
+2. Compute storage key: `storageKey = keccak256(slot)`
+3. Verify the MPT proof traversal from `storageRoot` using `storageKey`
+4. RLP-decode the leaf value to obtain the balance
+
+### Zero-Knowledge Circuit
+
+The ZK circuit MUST prove the following statements without revealing `secret` or `burnAddress`:
+
+#### Public Inputs
+
+- `stateRoot`: State root from block header
+- `storageRoot`: Storage root of token contract (from account proof)
+- `tokenAddress`: ERCs/erc-20 token contract address
+- `mappingSlot`: Storage slot of balances mapping
+- `amount`: Claimed burn amount
+- `nullifier`: Nullifier value
+
+#### Private Inputs
+
+- `secret`: The secret preimage
+- `burnAddress`: The derived burn address
+- `storageProof`: MPT proof nodes
+
+#### Constraints
+
+1. **Burn Address Derivation**:
+
+   ```
+   commitment = keccak256(secret)
+   burnAddress = hash_to_curve(commitment)
+   ```
+
+2. **Nullifier Derivation**:
+
+   ```
+   nullifier == keccak256(secret || tokenAddress)
+   ```
+
+3. **Storage Slot Calculation**:
+
+   ```
+   storageSlot = keccak256(abi.encode(burnAddress, mappingSlot))
+   ```
+
+4. **MPT Proof Verification**:
+
+   ```
+   verifyMPTProof(storageRoot, keccak256(storageSlot), storageProof) == rlpEncode(amount)
+   ```
+
+### Verification Process
+
+A verifier contract MUST perform the following checks:
+
+1. **Block Finality**: Verify `blockNumber` is finalized (at least 2 epochs on post-merge Ethereum)
+
+2. **Block Hash Validity**: Verify `blockHash` is the canonical hash for `blockNumber`
+
+3. **State Root Extraction**: Verify `stateRoot` matches the state root in the block header
+
+4. **Account Proof**: Verify `accountProof` against `stateRoot` and extract `storageRoot`
+
+5. **ZK Proof**: Verify `zkProof` with public inputs `(stateRoot, storageRoot, tokenAddress, mappingSlot, amount, nullifier)`
+
+6. **Nullifier Uniqueness**: Verify `nullifier` has not been previously used
+
+7. **Mark Nullifier**: Record `nullifier` as used
+
+8. **Mint/Release**: Mint or release `amount` tokens to the recipient
+
+### Mapping Slot Registry
+
+Different ERCs/erc-20 tokens store balances at different slots. Common patterns:
+
+| Pattern | Mapping Slot | Examples |
+|---------|--------------|----------|
+| OpenZeppelin ERCs/erc-20 | 0 | Most tokens |
+| OpenZeppelin ERCs/erc-20 (older) | 2 | Legacy tokens |
+| USDC (FiatTokenV2) | 9 | USDC |
+| Custom implementations | Variable | Various |
+
+Implementations SHOULD provide a registry or discovery mechanism for mapping slots.
+
+## Rationale
+
+### Two-Level Proof Structure
+
+Unlike ETH balances stored in account state, ERCs/erc-20 balances exist in contract storage. This requires:
+
+1. An account proof to verify the token contract and obtain its `storageRoot`
+2. A storage proof to verify the balance at the burn address
+
+This adds ~1M constraints to the ZK circuit but maintains the same privacy guarantees as EIPs/eip-7503.
+
+### Storage Proofs vs Event Logs
+
+Alternative approaches using `Transfer` event logs were considered but rejected:
+
+- Event logs reveal the sender address, leaking privacy
+- Receipt proofs are larger than storage proofs
+- Events don't cryptographically bind to unspendable addresses
+
+Storage proofs reveal only that *some* address holds tokens, not the transaction history.
+
+### Nullifier Construction
+
+The nullifier `keccak256(secret || tokenAddress)` includes the token address to:
+
+- Prevent cross-token nullifier collisions
+- Allow the same secret to be used for different token burns (not recommended but safe)
+- Bind the nullifier to a specific token for easier verification
+
+### Circuit Complexity
+
+The ZK circuit requires approximately:
+
+| Component | Constraints |
+|-----------|-------------|
+| Keccak256 (5 instances) | ~3.75M |
+| Secp256k1 hash-to-curve | ~500k |
+| MPT verification | ~200k |
+| **Total** | **~4.5M** |
+
+This is feasible with current proving systems:
+
+- Groth16: ~45 seconds proving time
+- PLONK: ~60 seconds proving time
+- Hardware acceleration can reduce this significantly
+
+## Backwards Compatibility
+
+This EIP introduces no changes to existing ERCs/erc-20 tokens or the Ethereum protocol. It defines an external verification layer that works with any standard ERCs/erc-20 token.
+
+Tokens using non-standard storage layouts (e.g., rebasing tokens, fee-on-transfer tokens) may require custom handling or may be incompatible.
+
+## Reference Implementation
+
+A reference implementation in Python for proof generation is available at a repository in jakeolo's GitHub account. check ethereum-magicians discussions for the link. The implementation includes:
+
+- MPT proof generation using `eth_getProof` RPC
+- MPT proof verification
+- Storage slot calculation for ERCs/erc-20 balances
+- Mapping slot discovery for various tokens
+
+## Security Considerations
+
+### Double Claiming Prevention
+
+The nullifier `keccak256(secret || tokenAddress)` is deterministic from the secret. Once a nullifier is recorded as used, any attempt to claim with the same nullifier MUST be rejected. Implementations MUST use persistent storage for nullifier tracking.
+
+### Block Reorganization Attacks
+
+Proofs generated for non-finalized blocks may become invalid after a reorganization. Verifiers MUST only accept proofs for finalized blocks. On post-merge Ethereum, finality is achieved after 2 epochs (~12.8 minutes).
+
+### Mapping Slot Manipulation
+
+An attacker could attempt to submit proofs with incorrect `mappingSlot` values to claim from unrelated storage slots. The ZK circuit MUST verify the storage slot calculation matches the public `mappingSlot` input.
+
+### Front-Running
+
+Claim transactions reveal the nullifier in the mempool. However, front-running is not profitable because:
+
+- The ZK proof binds the claim to specific parameters
+- Changing the recipient requires a different valid ZK proof
+- The attacker cannot generate a valid proof without the secret
+
+### Token Contract Upgrades
+
+For upgradeable proxy contracts, the storage layout may change between upgrades. Users SHOULD claim burned tokens promptly. Historical proofs remain valid for the state at the proven block number.
+
+### Anonymity Set Considerations
+
+The anonymity set is all burn addresses that have received the same token. Unlike mixer contracts with fixed denominations, this EIP allows arbitrary amounts, which may reduce anonymity. Users concerned about amount-based correlation SHOULD use common round amounts.
+
+### Interaction with EIPs/eip-7503
+
+This EIP is designed to complement EIPs/eip-7503. The same secret and burn address pattern can be used for both ETH and ERCs/erc-20 burns, though separate nullifiers are generated due to the token address inclusion.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
