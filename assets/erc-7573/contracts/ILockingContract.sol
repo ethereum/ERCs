@@ -90,7 +90,7 @@ interface ILockingContract {
      * @notice Called from the buyer of the token to cancel token transfer (cancels the incept transfer).
      * @dev emits a {TransferKeyRequested}
      * @param id the trade identifier of the trade.
-     * @param amount the number of tokens to be transfered.
+     * @param amount the number of tokens to be transferred.
      * @param from The address of the seller (the address of the buyer is message.sender).
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
