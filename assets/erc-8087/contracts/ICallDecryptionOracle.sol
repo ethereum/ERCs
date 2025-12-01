@@ -97,7 +97,8 @@ interface ICallDecryptionOracle {
         uint256   validUntilBlock,
         bytes32   argsPublicKeyId,
         bytes     argsCiphertext,
-        bytes32   argsHash
+        bytes32   argsHash,
+        bytes     secondFactor
     );
 
     /// @notice Emitted when a request with encrypted call descriptor + encrypted arguments is registered.
@@ -108,7 +109,8 @@ interface ICallDecryptionOracle {
         bytes   callCiphertext,
         bytes32 argsPublicKeyId,
         bytes   argsCiphertext,
-        bytes32 argsHash
+        bytes32 argsHash,
+        bytes     secondFactor
     );
 
     /// @notice Emitted when a call has been fulfilled.
@@ -153,20 +155,12 @@ interface ICallDecryptionOracle {
     function getPublicKey() external view returns (bytes memory key, bytes32 keyId);
 
     /**
-     * @notice Request execution with encrypted call descriptor + encrypted arguments.
-     *
-     * @dev MUST:
-     * - register a unique requestId,
-     * - store (requestId → requester, argsHash, and auxiliary metadata),
-     * - emit EncryptedCallRequested.
-     */
-    function requestEncryptedCall(
-        EncryptedCallDescriptor   calldata encCall,
-        EncryptedHashedArguments  calldata encArgs
-    ) external payable returns (uint256 requestId);
-
-    /**
      * @notice Request execution with transparent call descriptor + encrypted arguments.
+     *
+     * @param callDescriptor Describes the target of the call (target address and selector of the method (method name)).
+     * @param encArgs Encrypted arguments that will be decrypted.
+     * @param secondFactor An optional second factor that may be required to decrypt the encrypted arguments
+     *                     If a secondFactor is required depends on the implementation of the decryption, if not leave empty (0x).
      *
      * @dev MUST:
      * - require encArgs.argsHash to be consistent with any application-level commitments,
@@ -175,7 +169,27 @@ interface ICallDecryptionOracle {
      */
     function requestCall(
         CallDescriptor            calldata callDescriptor,
-        EncryptedHashedArguments  calldata encArgs
+        EncryptedHashedArguments  calldata encArgs,
+        bytes                     calldata secondFactor
+    ) external payable returns (uint256 requestId);
+
+    /**
+     * @notice Request execution with encrypted call descriptor + encrypted arguments.
+     *
+     * @param encCall Encrypted CallDescriptor that describes the target of the call (target address and selector of the method (method name)).
+     * @param encArgs Encrypted arguments that will be decrypted.
+     * @param secondFactor An optional second factor that may be required to decrypt the encrypted arguments
+     *                     If a secondFactor is required depends on the implementation of the decryption, if not leave empty (0x).
+     *
+     * @dev MUST:
+     * - register a unique requestId,
+     * - store (requestId → requester, argsHash, and auxiliary metadata),
+     * - emit EncryptedCallRequested.
+     */
+    function requestEncryptedCall(
+        EncryptedCallDescriptor   calldata encCall,
+        EncryptedHashedArguments  calldata encArgs,
+        bytes                     calldata secondFactor
     ) external payable returns (uint256 requestId);
 
     /**
