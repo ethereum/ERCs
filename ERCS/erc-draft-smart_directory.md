@@ -15,7 +15,7 @@ The ERC presented here originates from a project: [SmartDirectory](https://githu
 
 ## Abstract
 
-The SmartDirectory is an **administered blockchain whitelist** that addresses the proliferation of addresses by ensuring their authenticity for important transactions. It allows an organisation, called a **registrant**, to list the valid smart contract addresses it has deployed. Once an administrator of the recognized authority approves a registrant, that registrant can then record their service-related smart contract addresses in the **"references" list**. Overall the "SmartDirectory" facilitates on-chain verification and the identification and management of smart contract ecosystems.
+The SmartDirectory is an **administered blockchain whitelist** that addresses the proliferation of addresses by ensuring their authenticity for important transactions. It allows an organisation, called a **registrant**, to list the valid smart contract addresses it has deployed and it operates. Once an administrator of the recognized authority approves a registrant, that registrant can then record their service-related smart contract addresses in the **"references" list**. Overall the "SmartDirectory" facilitates on-chain verification and the identification and management of smart contract ecosystems.
 
 ## Motivation
 
@@ -212,6 +212,9 @@ It is important to signal to the users that a SmartDirectory has reached end of 
  Note: doit on passer par les index pour lister (par coherence) ?
  Returns an array of references for a given declarant
 
+#### reference additional status
+ - 5 contract compromized, should not be used
+ This may be required in some jurisdictions where every hack must be reported to users.
 
 ## Rationale
 
@@ -249,6 +252,14 @@ The declaring registrant of a reference may be coerced by the createReference fu
 the owner of the reference. When needed, this extra check ensures that only contracts that are
 controlled by the registrant can be listed. Note that this also prevents registrants to declare
 "friendly" contracts that are not theirs as references.
+
+### In case of loss or compromission of keys corresponding the addresses used
+There are several cases to be considered depending of the nature of the address
+- If the address is a smart-contract (reference): the registrant declares it end-of-life or compromized and deploys a replacement contract at a new address
+- if the address is a registrant (management) address: The registrant unlinks the address cross referenced in its URI, rendering the address invalid because it will fail the cross reference check. The registrant needs to ask for a new management address to be added by the recognized authority. It is up to the recognized authority to inspect (or not) the internal processes of the registrant which have led to such loss or compromission and to vet again (or not) the registrant and allow the addition of a new address in the list of registrants.
+- if the address is the recognized authority one. 
+    - If it is a loss and the optional provision of 2 (or more) _parentAddress has been implemented, then use the other _parentAddress to operate the contract and replace the lost _parentAddress.
+    - If it is a compromission or a non recoverable loss: as with the registrant, it needs to unlink the address cross referenced in its URI, this voids the verification of the cross-references and renders the contract address unusable for the authentication mechanisms. The recognized authority has to redeploy the contract, repopulate it with the existing registrant addresses which are still valid, publicize the new address to all registrants and users. Notice that if registrants and users tools go through the (new) address cross-references through the URI of the recognized authority, they do not have to reissue the tools.
 
 ## Copyright
 
