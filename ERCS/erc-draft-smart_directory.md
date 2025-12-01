@@ -1,10 +1,11 @@
 ---
 eip: TBD
 title: Directory of certified smart-contracts
+description: Allows a recognized entity to list the valid smart-contract addresses of the actors in its ecosystem.
+author: Jose Luu (@joseluu) <jose.luu@bpce.fr>, Cyril Vignet <cyril.vignet@bpce.fr>, Vincent Griffault <vincent.griffault@cera.caisse-epargne.fr>, Frederic Faure <frederic.faure@banque-france.fr>, Clement Delaneau <clement.delaneau@banque-france.fr>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-directory-of-smart-contracts/26415
 status: Draft
 type: Standards Track
-description: Allows a recognized entity to list the valid smart-contract addresses of the actors in its ecosystem.
-author: Jose Luu <jose.luu@bpce.fr>, Cyril Vignet <cyril.vignet@bpce.fr>, Vincent Griffault <vincent.griffault@cera.caisse-epargne.fr>, Frederic Faure <frederic.faure@banque-france.fr>, Clement Delaneau <clement.delaneau@banque-france.fr>
 created: 2025-9-2
 ---
 
@@ -18,13 +19,15 @@ The SmartDirectory is an **administered blockchain whitelist** that addresses th
 
 ## Motivation
 
-The rapid proliferation of smart contract addresses poses a critical challenge to users and other smart contracts, necessitating robust mechanisms for **authenticity verification** for any transactions using them. The SmartDirectory emerges as an essential **administered blockchain whitelist**, directly addressing this issue by providing a structured solution for managing trust on-chain.
+The rapid proliferation of smart contract addresses poses a challenge to users  calling to implement robust mechanisms for **authenticity verification** for any transactions using them. This proposal aims to standardize a type of **administered blockchain whitelist**, addressing this issue by providing a structured solution for managing trust on-chain. The proposal for newcommers as well as for seasonned users will greatly facilitate and bring certainty to the "do your homework" address validation phase.
 
-Its core purpose is to enable organisations, known as **registrants**, to securely expose and maintain the valid smart contract addresses that they operate. Through a streamlined process, administrators of a regognized authority approve registrants, who then gain the ability to deploy and record their service-related smart contracts in a dedicated **"references" list**. The SmartDirectory is vital for enhancing security, transparency, and operational efficiency in an increasingly complex world. For newcommers as well as for seasonned users, it greatly facilitates and brings certainty to the "do your homework" address validation phase.
+To achieve the goals to have both a decentralized administration of the whitelist while also having the ability to be trusted by the users we have a design where a trusted supervisor delegates the contracts management to vetted actors or operators.
+
+The smart-contract operators, known as **registrants**, securely expose and maintain the valid smart contract addresses that they operate. Through an off-chain process, administrators of a recognized authority approve registrants using its own criteria, the operators then gain the ability to record their service-related smart contracts addresses in a dedicated **"references" list**. 
 
 In terms of automation, the directory allows **on-chain verification** allowing:
-* smart wallets to check and validate the addresses upon usage
-* other smart contracts to perform addresses checks within their code
+* smart wallets to check and validate the addresses upon usage or
+* other smart contracts to perform addresses checks within their code possibly using standardized mechanism such as ERC-8006 https://github.com/GuardianLabs/ERCs/blob/universal-policy-engine/ERCS/erc-8006.md
 
 Information is maintained by the stake holders and therefore always uptodate.
 
@@ -151,7 +154,7 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 
 ### Public Interface in solidity
 
-[ISmartDirectoryERC.sol](https://github.com/BPCE/smart-directory/blob/main/contracts/ISmartDirectoryERC.sol)
+[ISmartDirectoryERC.sol](../assets/erc-0/ISmartDirectory.sol)
 
 ###   Required Behavior
 
@@ -211,16 +214,24 @@ It is important to signal to the users that a SmartDirectory has reached end of 
 
 
 ## Rationale
-This contract ERC offers a solution to the growing complexity of blockchain interactions by providing a standardized, on-chain, and dynamically verifiable mechanism for managing trusted addresses and smart contracts, thereby enhancing security, flexibility, and operational efficiency within decentralized applications and tokenized economies.
-### Administration Considerations
-The deploying recognized authority needs to have an adminstrative off-chain process for organizations to apply and be vetted as registrants, as well as maintain the vetted registrant status. The registrant list must be updated acccordingly, possibly disabling registrants at some point when they no longer match the vetting requirements.
 
-Each registrant organization is then sole responsible of its own references (contract addresses), this includes keeping each URI alive with user oriented information, keeping the version number and status updated to reflect the state of its publicly reachable contracts addresses.
+Authorities, mostly regulators today, maintain lists of authorized operators on the web. Operators maintain list of their main smart contracts on their own website. On-chain maintenance may exist but without standardization and there is no mechanism linking both practice.
+
+The conflicting requirements of having a distributed management of the smart-contract list by the operator themselves while maintaining a high level of trust led us to implement 2 kind of actors and 2 level of trust.
+The **recognized authority** gives the overall trust to the contract it administers through the vetting it imposes to the **registrants**.
+Each of the **registrants** gives the trust to the smart-contrats (called "*references*") it manages. The distributed management is therefore among the **registrants**.
+
+Through the URI-contract address cross linking, we anchor the actors blockchain addresses to the web domain names. The latter authenticated by the domain certificates thus maximizing anchorage with real-life actors.
+
+### Administration Considerations
+The deploying recognized authority needs to have an administrative off-chain process for organizations to apply and be vetted as registrants, as well as maintain the vetted registrant status. The registrant list must be updated acccordingly, possibly disabling registrants at some point when they no longer match the vetting requirements. This off-chain administrative due diligence seems to be unavoidable, the alternative would be a system of confidence votes given by the users themselves. We have found that going through a recognized authority would avoid vote manipulations and therefore give more certainty to the users.
+
+Each registrant organization is then sole responsible of its own references (contract addresses), this includes keeping each URI alive with user oriented information, keeping the version number and status updated to reflect the state of its publicly reachable contracts addresses. This distributed organization reduces administrative burden of maintaining the addresses on the **recognized authority**.
 
 
 ## Reference Implementation
 
-[SmartDirectoryERC.sol](https://github.com/BPCE/smart-directory/blob/main/contracts/SmartDirectoryERC.sol)
+[SmartDirectoryERC.sol](../assets/erc-0/SmartDirectoryERC.sol)
 
 ## Security Considerations
 ### URI cross references
