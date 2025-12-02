@@ -1,6 +1,6 @@
 ---
 eip: <to be assigned>
-title: ERC-IGA: In-Ground Asset Tokenization Standard
+title: ERC-IGA In-Ground Asset Tokenization Standard
 author: Solomon Ashok J N <solomon@ingroundassets.com>
 discussions-to: https://ethereum-magicians.org/c/standards/erc/
 status: Draft
