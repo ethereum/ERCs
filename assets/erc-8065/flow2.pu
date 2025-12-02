@@ -11,7 +11,7 @@ participant "Underlying Token" as U
 Alice1 -> U : underlying.approve(ZWToken Contract, amount)
 Alice1 <-- U
 Alice1 -> Alice1 : Generate a provable burn address (e.g., using Poseidon hash)
-Alice1 -> ZW : ZWToken.depositTo(to=provable burn address, id=0, amount)
+Alice1 -> ZW : ZWToken.deposit(to=provable burn address, id=0, amount)
 ZW -> U : underlying.transferFrom(Alice1, ZWToken Contract, amount)
 ZW <-- U
 ZW -> ZW : mint amount ZWToken to provable burn address
