@@ -6,7 +6,7 @@ discussions-to: https://ethereum-magicians.org/c/standards/erc/
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-11-25
+created: 2025-11-24
 requires: 20, 721, 1155, 3643
 ---
 
