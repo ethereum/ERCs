@@ -240,6 +240,43 @@ contract uRWA1155Test is Test {
         token.burn(TOKEN_ID_1, burnAmount);
     }
 
+    function test_CanTransfer_Fail_FrozenButSufficientBalance() public {
+        uint256 balance = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 freezeAmount = balance / 2;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, freezeAmount);
+        
+        // Should fail to transfer more than unfrozen, even if <= balance
+        uint256 transferAmount = balance - freezeAmount + 1;
+        assertFalse(token.canTransfer(user1, user2, TOKEN_ID_1, transferAmount));
+    }
+
+    function test_Freeze_MoreThanBalance_Success() public {
+        uint256 balance = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 hugeAmount = balance * 10;
+        
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, hugeAmount);
+        
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), hugeAmount);
+        // Also verify transfers fail
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, 1, 0));
+        token.safeTransferFrom(user1, user2, TOKEN_ID_1, 1, "");
+    }
+
+    function test_Revert_SelfTransfer_WhenFrozen() public {
+        uint256 balance = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 freezeAmount = balance / 2;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, freezeAmount);
+
+        uint256 transferAmount = balance - freezeAmount + 1;
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, transferAmount, balance - freezeAmount));
+        token.safeTransferFrom(user1, user1, TOKEN_ID_1, transferAmount, "");
+    }
+
     // --- Transfer Tests ---
 
     function test_Transfer_Success_WhitelistedToWhitelisted() public {

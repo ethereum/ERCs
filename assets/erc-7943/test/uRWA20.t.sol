@@ -249,6 +249,56 @@ contract uRWA20Test is Test {
         assertEq(token.getFrozenTokens(user1), frozenAmount); // Unchanged
     }
 
+    function test_CanTransfer_Fail_FrozenButSufficientBalance() public {
+        uint256 balance = token.balanceOf(user1);
+        uint256 freezeAmount = balance / 2;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, freezeAmount);
+        
+        // Should fail to transfer more than unfrozen, even if <= balance
+        uint256 transferAmount = balance - freezeAmount + 1;
+        assertFalse(token.canTransfer(user1, user2, transferAmount));
+    }
+
+    function test_Revert_ForcedTransfer_FromZeroAddress() public {
+        vm.prank(forceTransferrer);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidSender.selector, address(0)));
+        token.forcedTransfer(address(0), user2, FORCE_TRANSFER_AMOUNT);
+    }
+
+    function test_Freeze_MoreThanBalance_Success() public {
+        uint256 balance = token.balanceOf(user1);
+        uint256 hugeAmount = balance * 10;
+        
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, hugeAmount);
+        
+        assertEq(token.getFrozenTokens(user1), hugeAmount);
+        // Also verify transfers fail
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, user1, 1, 0));
+        assertFalse(token.transfer(user2, 1));
+    }
+
+    function test_Revert_SelfTransfer_WhenFrozen() public {
+        uint256 balance = token.balanceOf(user1);
+        uint256 freezeAmount = balance / 2;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, freezeAmount);
+
+        // Try to transfer more than unfrozen to self
+        // user1 has 1000, frozen 500. Unfrozen 500.
+        // Try to send 501 to self.
+        // In `_update`:
+        // 1. fromBalance check: 1000 >= 501 (OK)
+        // 2. unfrozen check: 501 <= 500 (FAIL)
+        
+        uint256 transferAmount = balance - freezeAmount + 1;
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943Fungible.ERC7943InsufficientUnfrozenBalance.selector, user1, transferAmount, balance - freezeAmount));
+        assertFalse(token.transfer(user1, transferAmount));
+    }
+
     // --- Transfer Tests ---
 
     function test_Transfer_Success_WhitelistedToWhitelisted() public {

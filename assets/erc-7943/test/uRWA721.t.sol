@@ -236,6 +236,27 @@ contract uRWA721Test is Test {
         token.burn(NON_EXISTENT_TOKEN_ID);
     }
 
+    function test_GetFrozenTokens_NonOwner() public {
+        // user1 owns TOKEN_ID_1
+        assertEq(token.ownerOf(TOKEN_ID_1), user1);
+        
+        // Freeze for user2 (who doesn't own it)
+        vm.prank(freezer);
+        token.setFrozenTokens(user2, TOKEN_ID_1, true);
+        
+        assertTrue(token.getFrozenTokens(user2, TOKEN_ID_1));
+        
+        // Transfer token to user2
+        vm.prank(user1);
+        token.transferFrom(user1, user2, TOKEN_ID_1);
+        assertEq(token.ownerOf(TOKEN_ID_1), user2);
+        
+        // user2 should not be able to transfer it because it was pre-frozen
+        vm.prank(user2);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943InsufficientUnfrozenBalance.selector, user2, TOKEN_ID_1));
+        token.transferFrom(user2, user1, TOKEN_ID_1);
+    }
+
     // --- Transfer Tests ---
 
     function test_Transfer_Success_WhitelistedToWhitelisted() public {

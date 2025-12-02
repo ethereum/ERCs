@@ -52,7 +52,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     function canTransfer(address from, address to, uint256 tokenId) public view virtual override returns (bool allowed) {
         address owner = _ownerOf(tokenId);
         if (owner != from || owner == address(0)) return allowed;
-        if (_frozenTokens[from][tokenId]) return allowed;
+        if (getFrozenTokens(from, tokenId)) return allowed;
         if (!canTransact(from) || !canTransact(to)) return allowed;
 
         allowed = true;
@@ -64,14 +64,14 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     }
 
     /// @inheritdoc IERC7943NonFungible
-    function getFrozenTokens(address account, uint256 tokenId) public virtual override view returns (bool frozenStatus) {
+    function getFrozenTokens(address account, uint256 tokenId) public view virtual override returns (bool frozenStatus) {
         frozenStatus = _frozenTokens[account][tokenId];
     }
 
     /// @notice Updates the whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
     /// Emits a {Whitelisted} event upon successful update.
-    /// @param account The address whose whitelist status is to be changed. Must not be the zero address.
+    /// @param account The address whose whitelist status is to be changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
     function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
@@ -111,6 +111,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// @dev Can only be called by accounts holding the `FORCE_TRANSFER_ROLE`.
     function forcedTransfer(address from, address to, uint256 tokenId) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
         require(to != address(0), ERC721InvalidReceiver(address(0)));
+        require(from != address(0), ERC721InvalidSender(address(0)));
         require(canTransact(to), ERC7943CannotTransact(to));
         require(ownerOf(tokenId) == from, ERC721IncorrectOwner(from, tokenId, ownerOf(tokenId)));
         _excessFrozenUpdate(from , tokenId);
@@ -128,14 +129,14 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// @param from The address that currently owns the token.
     /// @param tokenId The ID of the token that may need to be unfrozen.
     function _excessFrozenUpdate(address from, uint256 tokenId) internal {
-        if(_frozenTokens[from][tokenId]) {
+        if(getFrozenTokens(from, tokenId)) {
             delete _frozenTokens[from][tokenId];
             emit Frozen(from, tokenId, false);
         }
     }
 
     /// @notice Hook that is called during any token transfer, including minting and burning.
-    /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logics.
+    /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logic.
     /// Reverts with {ERC721IncorrectOwner} | {ERC7943InsufficientUnfrozenBalance} | {ERC7943CannotTransact} if any `canTransfer`/`canTransact` or other check fails.
     /// @param to The address receiving tokens (zero address for burning).
     /// @param tokenId The ID of the token being transferred.
@@ -153,7 +154,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
             _excessFrozenUpdate(from, tokenId);
         } else if (from != address(0) && to != address(0)) { // Transfer
             require(from == _ownerOf(tokenId), ERC721IncorrectOwner(from, tokenId, _ownerOf(tokenId)));
-            require(!_frozenTokens[from][tokenId], ERC7943InsufficientUnfrozenBalance(from, tokenId));
+            require(!getFrozenTokens(from, tokenId), ERC7943InsufficientUnfrozenBalance(from, tokenId));
             require(canTransact(from), ERC7943CannotTransact(from));
             require(canTransact(to), ERC7943CannotTransact(to));
         } else {

@@ -11,7 +11,7 @@ import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions
 /// @title uRWA-1155 Token Contract
 /// @notice An ERC-1155 token implementation adhering to the IERC-7943 interface for Real World Assets.
 /// @dev Combines standard ERC-1155 functionality with RWA-specific features like whitelisting,
-/// controlled minting/burning, asset forced transfers and freezing. Managed via AccessControl.
+/// controlled minting/burning, asset forced transfers, and freezing. Managed via AccessControl.
 contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiToken {
     /// @notice Role identifiers.
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -50,8 +50,8 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     /// @inheritdoc IERC7943MultiToken
     function canTransfer(address from, address to, uint256 tokenId, uint256 amount) public view virtual override returns (bool allowed) {
         uint256 fromBalance = balanceOf(from, tokenId);
-        if (fromBalance < _frozenTokens[from][tokenId]) return allowed;
-        if (amount > fromBalance - _frozenTokens[from][tokenId]) return allowed;
+        if (fromBalance < getFrozenTokens(from, tokenId)) return allowed;
+        if (amount > fromBalance - getFrozenTokens(from, tokenId)) return allowed;
         if (!canTransact(from) || !canTransact(to)) return allowed;
         allowed = true;
     }
@@ -69,9 +69,9 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     /// @notice Updates the whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
     /// Emits a {Whitelisted} event upon successful update.
-    /// @param account The address whose whitelist status is to be changed. Must not be the zero address.
+    /// @param account The address whose whitelist status is to be changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    function changeWhitelist(address account, bool status) external virtual onlyRole(WHITELIST_ROLE) {
+    function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
         emit Whitelisted(account, status);
     }
@@ -144,7 +144,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         uint256 unfrozenBalance = _unfrozenBalance(account, tokenId);
         if(amount > unfrozenBalance && amount <= balanceOf(account, tokenId)) { 
             _frozenTokens[account][tokenId] -= amount - unfrozenBalance;
-            emit Frozen(account, tokenId, _frozenTokens[account][tokenId]);
+            emit Frozen(account, tokenId, getFrozenTokens(account, tokenId));
         }
     }
 
@@ -152,14 +152,14 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     /// @dev Returns the amount of tokens that are available for transfer, which is the total balance
     /// minus the frozen amount. If frozen tokens exceed the balance, returns 0 to prevent underflow.
     /// This is a helper function used throughout the contract for transfer validation.
-    /// @param account The address to calculate unfrozen balance for
-    /// @param tokenId The ID of the token to check
+    /// @param account The address to calculate unfrozen balance for.
+    /// @param tokenId The ID of the token to check.
     /// @return unfrozenBalance The amount of tokens available for transfer.
     function _unfrozenBalance(address account, uint256 tokenId) internal view returns(uint256 unfrozenBalance) {
-        unfrozenBalance = balanceOf(account, tokenId) < _frozenTokens[account][tokenId] ? 0 : balanceOf(account, tokenId) - _frozenTokens[account][tokenId];
+        unfrozenBalance = balanceOf(account, tokenId) < getFrozenTokens(account, tokenId) ? 0 : balanceOf(account, tokenId) - getFrozenTokens(account, tokenId);
     }
 
-    /// @notice Hook that is called before any token transfer, including minting and burning.
+    /// @notice Hook that is called during any token transfer, including minting and burning.
     /// @dev Overrides the ERC-1155 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logic.
     /// Reverts with {ERC7943CannotTransact} | {ERC7943InsufficientUnfrozenBalance} | {ERC1155InsufficientBalance} 
     /// if any `canTransfer`/`canTransact` or other check fails.
