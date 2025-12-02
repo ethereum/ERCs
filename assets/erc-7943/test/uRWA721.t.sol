@@ -285,7 +285,7 @@ contract uRWA721Test is Test {
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
 
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943FrozenTokenId.selector, user1, TOKEN_ID_1));
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1));
         token.transferFrom(user1, user2, TOKEN_ID_1);
     }
 
@@ -535,7 +535,7 @@ contract uRWA721Test is Test {
 
         // Transfer TOKEN_ID_1 should fail
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943FrozenTokenId.selector, user1, TOKEN_ID_1));
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1));
         token.transferFrom(user1, user2, TOKEN_ID_1);
     }
 
