@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.26;
 
-enum Status { None, Proposed, Ready, Executed, Cancelled, Expired }
+    enum Status {
+        None,
+        Proposed,
+        Ready,
+        Executed,
+        Cancelled,
+        Expired
+    }
 
 interface IAgentCoordination {
     struct AgentIntent {
