@@ -137,7 +137,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
 
     /// @notice Hook that is called during any token transfer, including minting and burning.
     /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logics.
-    /// Reverts with {ERC721IncorrectOwner} | {ERC7943FrozenTokenId} | {ERC7943CannotTransact} if any `canTransfer`/`canTransact` or other check fails.
+    /// Reverts with {ERC721IncorrectOwner} | {ERC7943InsufficientUnfrozenBalance} | {ERC7943CannotTransact} if any `canTransfer`/`canTransact` or other check fails.
     /// @param to The address receiving tokens (zero address for burning).
     /// @param tokenId The if of the token being transferred.
     /// @param auth The address initiating the transfer.
@@ -154,7 +154,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
             _excessFrozenUpdate(from, tokenId);
         } else if (from != address(0) && to != address(0)) { // Transfer
             require(from == _ownerOf(tokenId), ERC721IncorrectOwner(from, tokenId, _ownerOf(tokenId)));
-            require(!_frozenTokens[from][tokenId], ERC7943FrozenTokenId(from, tokenId));
+            require(!_frozenTokens[from][tokenId], ERC7943InsufficientUnfrozenBalance(from, tokenId));
             require(canTransact(from), ERC7943CannotTransact(from));
             require(canTransact(to), ERC7943CannotTransact(to));
         } else {

@@ -15,9 +15,18 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 
 ### Provided Contracts
 
+#### DvP
+
 - `contracts/ILockingContract.sol` - Contract locking transfer with given encrypted keys or hashes.
 - `contracts/IDecryptionContract.sol` - Contract performing conditional upon transfer decryption (possibly based on an external oracle).
 
+#### Decryption Oracle
+
+- `contracts/IDecryptionOracle.sol` - Interface implemented by a decryption oracle proxy contract.
+- `contracts/IDecryptionOracleCallback.sol` - Interface to be implemented by a callback receiving the decrypted key.
+
 ### Documentation
 
-- `doc/DvP-Seq-Diag.png` - Sequence diagram.
+- `doc/DvP-Seq-Diag.png` - Sequence diagram of the DvP
+- `doc/multi-party-dvp.svg` - Sequence diagram of a multi-party-dvp.
+

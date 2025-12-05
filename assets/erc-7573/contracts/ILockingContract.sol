@@ -35,7 +35,7 @@ interface ILockingContract {
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token, if it was provided to inceptTransfer.
      */
-    event TransferIncepted(uint256 id, int amount, address from, address to, string keyHashedSeller, string keyEncryptedSeller);
+    event TransferIncepted(uint256 id, int amount, address from, address to, bytes keyHashedSeller, bytes keyEncryptedSeller);
 
     /**
      * @dev Emitted  when the transfer for the token is confirmed
@@ -46,21 +46,21 @@ interface ILockingContract {
      * @param keyHashedBuyer Hashing (or, alternatively, encryption) of the key that can be used by the buyer to claim the token.
      * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token, if it was provided to confirmTransfer.
      */
-    event TransferConfirmed(uint256 id, int amount, address from, address to, string keyHashedBuyer, string keyEncryptedBuyer);
+    event TransferConfirmed(uint256 id, int amount, address from, address to, bytes keyHashedBuyer, bytes keyEncryptedBuyer);
 
     /**
      * @dev Emitted when the token was successfully claimed (forwarded to the buyer).
      * @param id the trade ID
      * @param key the key that was used to claim the asset
      */
-    event TokenClaimed(uint256 id, string key);
+    event TokenClaimed(uint256 id, bytes key);
 
     /**
      * @dev Emitted when the token was re-claimed (back to seller).
      * @param id the trade ID
      * @param key the key that was used to claim the asset
      */
-    event TokenReclaimed(uint256 id, string key);
+    event TokenReclaimed(uint256 id, bytes key);
 
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
@@ -73,7 +73,7 @@ interface ILockingContract {
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
      */
-    function inceptTransfer(uint256 id, int amount, address from, string memory keyHashedSeller, string memory keyEncryptedSeller) external;
+    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyHashedSeller, bytes memory keyEncryptedSeller) external;
 
     /**
      * @notice Called from the seller of the token to confirm the token transfer. Locks the token.
@@ -84,18 +84,18 @@ interface ILockingContract {
      * @param keyHashedBuyer Hashing (or, alternatively, encryption) of the key that can be used by the buyer to claim the token.
      * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
      */
-    function confirmTransfer(uint256 id, int amount, address to, string memory keyHashedBuyer, string memory keyEncryptedBuyer) external;
+    function confirmTransfer(uint256 id, int amount, address to, bytes memory keyHashedBuyer, bytes memory keyEncryptedBuyer) external;
 
     /**
      * @notice Called from the buyer of the token to cancel token transfer (cancels the incept transfer).
      * @dev emits a {TransferKeyRequested}
      * @param id the trade identifier of the trade.
-     * @param amount the number of tokens to be transfered.
+     * @param amount the number of tokens to be transferred.
      * @param from The address of the seller (the address of the buyer is message.sender).
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
      */
-    function cancelTransfer(uint256 id, int amount, address from, string memory keyHashedSeller, string memory keyEncryptedSeller) external;
+    function cancelTransfer(uint256 id, int amount, address from, bytes memory keyHashedSeller, bytes memory keyEncryptedSeller) external;
 
     /**
      * @notice Called from the buyer or seller to claim or (re-)claim the token. Unlocks the token.
@@ -103,5 +103,5 @@ interface ILockingContract {
      * @param id the trade identifier of the trade.
      * @param key The key for which the hash or encryption matches either keyEncryptedBuyer (for transfer to the buyer) or keyEncryptedSeller (for transfer to the seller).
      */
-    function transferWithKey(uint256 id, string memory key) external;
+    function transferWithKey(uint256 id, bytes memory key) external;
 }
