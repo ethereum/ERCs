@@ -39,7 +39,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Initial State vs Final State
 
-![Versus](./svg/versus.svg)
+![Versus](../images/diagrams/versus.svg)
 
 ### Solvency Metrics During Crash
 
@@ -53,11 +53,11 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Test Case: Price Movement Tracking
 **Steps Executed**:
-![price-movement-tracking](./svg/price-movement-tracking-steps.svg)
+![price-movement-tracking](../images/diagrams/price-movement-tracking-steps.svg)
 
 ### Price Movement Tracking
 
-![price-movement-tracking](./svg/price-movement-tracking.svg)
+![price-movement-tracking](../images/diagrams/price-movement-tracking.svg)
 
 ### Price Evolution Summary
 | Step | ETH Price | BTC Price | Change % | Health Status |
@@ -80,7 +80,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Volatility Measurements
 
-![volatility-measurements](./svg/volatility-measurements.svg)
+![volatility-measurements](../images/diagrams/volatility-measurements.svg)
 
 ## Volatility Analysis Implementation
 
@@ -149,7 +149,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### Performance Metrics
 
-![performance-metrics](./svg/performance-metrics.svg)
+![performance-metrics](../images/diagrams/performance-metrics.svg)
 
 ## Risk Threshold Breaches
 
@@ -161,7 +161,7 @@ Test coverage for the SolvencyProof smart contract system, focusing on market sc
 
 ### System Response Timeline
 
-![system-response-timeline](./svg/system-response-timeline.svg)
+![system-response-timeline](../images/diagrams/system-response-timeline.svg)
 
 ## Test Coverage Summary
 
@@ -208,3 +208,23 @@ The test suite demonstrates robust system behavior across various market conditi
 - Volatility tracking
 - Complex portfolio management
 - Emergency response systems
+
+## Test Execution Results
+
+### Volatility Tracking Test Results
+
+![Volatility Tracking Summary](../images/test-results/volatility-tracking-summary.png)
+
+*Real test execution showing volatility tracking over 5 price movement steps with detailed metrics.*
+
+### Price Changes Analysis
+
+![Price Changes Steps](../images/test-results/price-changes-steps.png)
+
+*Step-by-step price change analysis showing ETH and BTC price movements and their impact on solvency ratios.*
+
+### Complete SolvencyProof Test Execution
+
+![SolvencyProof Test Results](../images/test-results/solvency-proof-test-results.png)
+
+*Comprehensive test results showing market crash scenarios, asset/liability management, and system responses.*
