@@ -78,12 +78,6 @@
                         "deployments": {
                             "$ref": "#/$context/deployments"
                         },
-                        "addressMatcher": {
-                            "title": "Address Matcher constraint",
-                            "type": "string",
-                            "format": "uri",
-                            "description": "An URL of a contract address matcher that should be used to match the contract address."
-                        },
                         "factory": {
                             "title": "Factory constraint",
                             "type": "object",
@@ -123,33 +117,8 @@
                     "description": "The EIP-712 binding context is a set of constraints that must be verified by the message being signed.",
 
                     "properties" : {
-                        "schemas" : {
-                            "oneOf": [
-                                {
-                                    "title": "An EIP712 Schemas url",
-                                    "description": "URL of an array of EIP712 schemas that can be used to validate the message. The message types should match exactly one of those schema.",
-                                    "type": "string",
-                                    "format": "uri-reference"
-                                },
-                                {
-                                    "title": "EIP 712 Schemas constraint",
-                                    "type": "array",
-                                    "description": "An array of EIP712 schemas that can be used to validate the message. The message types should match exactly one of those schema.",
-                                    "items": {
-                                        "oneOf": [
-                                            {
-                                                "$ref": "#/$definitions/eip712-json-schema"
-                                            },
-                                            {
-                                                "title": "An EIP712 Schema url",
-                                                "description": "URL of an EIP712 Schema bound to this file.",
-                                                "type": "string",
-                                                "format": "uri-reference"
-                                            }
-                                        ]
-                                    }
-                                }
-                            ]
+                        "schemas": {
+                            "description": "[Deprecated] Schema definition bound to this file. Continue providing it for backward compatibility only; new specs should rely on display formats."
                         },
                         "domain": {
                             "title": "EIP 712 Domain Binding constraint",
@@ -224,6 +193,12 @@
                     "description": "The display name of the owner or target of the contract / message to be clear signed."
                 },
 
+                "contractName": {
+                    "title": "Contract Name",
+                    "type": "string",
+                    "description": "The name of the contract targeted by the transaction or message."
+                },
+
                 "info": {
                     "$ref": "#/$metadata/info"
                 },
@@ -249,11 +224,6 @@
             "description": "The owner info section contains detailed information about the owner or target of the contract / message to be clear signed.",
 
             "properties": {
-                "legalName": {
-                    "title": "Owner Legal Name",
-                    "type": "string",
-                    "description": "The full legal name of the owner if different from the owner field."
-                },
                 "deploymentDate": {
                     "title": "Deployment date of the contract / message",
                     "type": "string",
@@ -268,7 +238,6 @@
                 }
             },
             "required": [
-                "legalName",
                 "url"
             ],
             "additionalProperties": false
@@ -319,22 +288,40 @@
             "description": "A set of enums that are used to format fields replacing values with human readable strings.",
 
             "additionalProperties": {
-                "oneOf": [
-                    {
-                        "title": "A dynamic enum",
+                "title": "Enumeration",
+                "type": "object",
+                "description": "A set of values that will be used to replace a field value with a human readable string. Enumeration keys are the field values and enumeration values are the displayable strings",
+
+                "additionalProperties": {
+                    "type": "string"
+                }
+            }
+        },
+
+        "maps": {
+            "title": "Maps",
+            "type": "object",
+            "description": "A set of maps that are used to manage context dependant constants. Maps can be used in place of constants, and the correpsonding constant is based on the map key resolved value. Each key is a map name that can be used as a reference.",
+
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "keyPath": {
+                        "title": "Key Path",
                         "type": "string",
-                        "description": "A dynamic enum contains an URL which returns a json file with simple key-values mapping values display name. It is assumed those values can change between two calls to clear sign."
+                        "description": "A path expression that will be used to extract the map key from the structured data."
                     },
-                    {
-                        "title": "Enumeration",
+                    "values": {
+                        "title": "Map Values",
                         "type": "object",
-                        "description": "A set of values that will be used to replace a field value with a human readable string. Enumeration keys are the field values and enumeration values are the displayable strings",
+                        "description": "A set of values that can be used as constants based on the resolved key. Each key is a possible key value, and each value is the corresponding constant value.",
 
                         "additionalProperties": {
-                            "type": "string"
+                            "type": ["string", "integer", "number", "boolean", "null"]
                         }
-                    }
-                ]
+                    },
+                    "unresolvedProperties": false
+                }
             }
         }
     },
@@ -358,10 +345,18 @@
 
                 "formats": {
                     "title": "List of field formats",
-                    "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the message primary type.",
+                    "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the string returned by EIP 712 encodeType on the primary type.",
                     "type": "object",
                     "propertyNames": {
-                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                        "anyOf": [
+                            {
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                            },
+                            {
+                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
+                            }
+                        ]
+                        
                     },
 
                     "additionalProperties": {
@@ -381,24 +376,6 @@
                             },
                             "fields": {
                                 "$ref": "#/$display/fields"
-                            },
-                            "required": {
-                                "$ref": "#/$display/required"
-                            },
-                            "excluded": {
-                                "$ref": "#/$display/excluded"
-                            },
-                            "screens": {
-                                "title": "Screens grouping information",
-                                "description": "Screens section is used to group multiple fields to display into screens. Each key is a wallet type name. The format of the screens is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc...). See each wallet manufacturer documentation for more information.",
-                                "type": "object",
-
-                                "additionalProperties": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/$display/screens"
-                                    }
-                                }
                             }
                         },
                         "additionalProperties": false
@@ -433,27 +410,6 @@
             "description": "An optional intent string with embedded field values using {path} interpolation syntax. This provides a dynamic, contextual description by embedding actual transaction/message values directly in the intent string. Wallets should prefer displaying interpolatedIntent when available and fall back to intent if interpolation fails. See the specification for detailed formatting behavior and security considerations.",
             "type": "string"
         },
-        "required": {
-            "title": "Required fields",
-            "description": "A list of fields that are required to be displayed to the user. A field that has a formatter and is not in this list is optional. A field that does not have a formatter should be silent, ie not shown",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "excluded": {
-            "title": "Excluded fields",
-            "description": "A list of fields that are intentionally not shown to the user. A field that has no formatter and is not declared in this list may be considered as an error by the wallet when interpreting the descriptor.",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "screens": {
-            "title": "Screen information",
-            "description": "ADD DEVICE SPECIFIC SCHEMAS LATER. A screen is a group of fields that will be displayed together in a wallet. The format of the screen is wallet type dependent, as well as what can be done (reordering fields, max number of screens, etc..). See each wallet manufacturer documentatio for more information.",
-            "type": "object"
-        },
         "fields": {
             "title": "Field Formats set",
             "type": "array",
@@ -480,6 +436,9 @@
             "type": "object",
 
             "properties": {
+                "$id": {
+                    "$ref": "#/$definitions/id"
+                },
                 "path": {
                     "$ref": "#/$format/path"
                 },
@@ -489,7 +448,7 @@
                     "type": "string"
                 },
                 "iteration": {
-                    "title": "Array iteration mode",
+                    "title": "Group arrays iteration mode",
                     "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
                     "type": "string",
                     "enum": [ "sequential", "bundled" ]
@@ -546,6 +505,7 @@
             "type": ["string", "integer", "number", "boolean"],
             "description": "A literal value on which the format should be applied instead of looking up a field in the structured data."
         },
+
         "field": {
             "title": "Field formatter",
             "description": "A field formatter contains formatting information of a single field in a message.",
@@ -561,6 +521,9 @@
                 "value": {
                     "$ref": "#/$format/value"
                 },
+                "visible": {
+                    "$ref": "#/$format/rules"
+                },
                 "label": {
                     "title": "Field Label",
                     "description": "The label of the field, that will be displayed to the user in front of the formatted field value.",
@@ -571,9 +534,13 @@
                     "description": "The format of the field, that will be used to format the field value in a human readable way.",
                     "type": "string",
                     "$ref": "#/$format/names"
+                },
+                "separator": {
+                    "title": "Field Separator",
+                    "description": "An optional separator string that will be used to separate multiple values when the field is an array. A separator use the interpolated string format with one specific parameter {index} replaced by the index of the element in the array.",
+                    "type": "string"
                 }
             },
-            "required": [ "label", "format" ],
             "allOf" : [
                 {
                     "not": { "required": [ "path", "value" ] }
@@ -637,6 +604,47 @@
             ],
             "unevaluatedProperties": false
         },
+        "rules": {
+            "title": "Display Rule",
+            "description": "Specifies when a field should be displayed based on its value or context. Defaults to 'always' if not specified.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "enum": ["always", "never", "optional"],
+                    "description": "Simple display rule: 'always' means always display, 'never' means always skip display, 'optional' means display only if wallet can."
+                },
+                {
+                "type": "object",
+                "properties": {
+                    "ifNotIn": {
+                        "type": "array",
+                        "description": "Display the field only if its value is NOT in this list.",
+                        "items": {
+                            "type": ["string", "number", "boolean", "null"]
+                        },
+                        "minItems": 1
+                    },
+                    "mustBe": {
+                        "type": "array",
+                        "description": "Always skip display, but value MUST match one of these values.",
+                        "items": {
+                            "type": ["string", "number", "boolean", "null"]
+                        },
+                        "minItems": 1
+                    }
+                },
+                "additionalProperties": false,
+                "allOf": [
+                    {
+                    "not": {
+                        "required": ["notIn", "mustBe"]
+                    }
+                    }
+                ],
+                "description": "Conditional display rules. Either 'notIn' or 'mustBe' must be defined, but not both."
+                }
+            ]    
+        },
         "names": {
             "anyOf": [
                 {
@@ -648,6 +656,11 @@
                     "title": "address format",
                     "const": "addressName",
                     "description": "The field should be displayed as a trusted name, or as a raw address if no names are found in trusted sources. List of trusted sources can be optionally specified in parameters."
+                },
+                {
+                    "title": "address format",
+                    "const": "tokenTicker",
+                    "description": "The field should be displayed as an ERC 20 token ticker, or as a raw address if no token definition are found."
                 },
                 {
                     "title": "bytes format",

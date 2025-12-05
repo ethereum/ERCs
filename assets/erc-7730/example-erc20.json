@@ -22,8 +22,7 @@
                             "tokenPath": "@.to"
                         }
                     }
-                ],
-                "required": ["spender", "value"]
+                ]
             }
         }
     }
