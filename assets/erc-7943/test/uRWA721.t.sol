@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {uRWA721} from "../contracts/uRWA721.sol";
 import {IERC7943NonFungible} from "../contracts/interfaces/IERC7943.sol";
 import {MockERC721Receiver} from "../contracts/mocks/MockERC721Receiver.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IAccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/IAccessControlEnumerable.sol";
@@ -236,6 +234,27 @@ contract uRWA721Test is Test {
         vm.prank(burner);
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, NON_EXISTENT_TOKEN_ID));
         token.burn(NON_EXISTENT_TOKEN_ID);
+    }
+
+    function test_GetFrozenTokens_NonOwner() public {
+        // user1 owns TOKEN_ID_1
+        assertEq(token.ownerOf(TOKEN_ID_1), user1);
+        
+        // Freeze for user2 (who doesn't own it)
+        vm.prank(freezer);
+        token.setFrozenTokens(user2, TOKEN_ID_1, true);
+        
+        assertTrue(token.getFrozenTokens(user2, TOKEN_ID_1));
+        
+        // Transfer token to user2
+        vm.prank(user1);
+        token.transferFrom(user1, user2, TOKEN_ID_1);
+        assertEq(token.ownerOf(TOKEN_ID_1), user2);
+        
+        // user2 should not be able to transfer it because it was pre-frozen
+        vm.prank(user2);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943InsufficientUnfrozenBalance.selector, user2, TOKEN_ID_1));
+        token.transferFrom(user2, user1, TOKEN_ID_1);
     }
 
     // --- Transfer Tests ---
