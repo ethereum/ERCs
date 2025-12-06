@@ -1,0 +1,642 @@
+---
+eip: TBD
+title: Representable Contract State
+description: Standard interface and (XML) binding schema for contracts that expose a canonical representation of their state.
+author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
+discussions-to: https://ethereum-magicians.org/t/representable-state/XXXX
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-12-01
+---
+
+## Abstract
+
+This ERC introduces `IXMLRepresentableState`, a standard interface and XML binding schema that allows an EVM smart contract to define a static XML template with machine-readable bindings to its state and view functions. Off-chain renderers use this template to build a canonical XML document representing the contract's state at a specific block, without incurring any on-chain gas cost.
+
+A contract that claims to implement `IXMLRepresentableState` MUST be *XML-complete*: every piece of mutable state that the author considers semantically relevant MUST be represented in the XML via bindings, so that the rendered XML is a complete representation of the contract at a given (chain-id, address, block-number).
+
+## Motivation
+
+Smart contracts can efficiently orchestrate and process the life-cycle of a financial (derivative) product to an extent that they finally represent *the* financial product itself.
+
+At the same time, many applications require a human-readable, machine-parseable representation of that product and its state: valuation oracles need inputs for settlements, smart bonds and other tokenized instruments need legal terms, term sheets or regulatory reports, and on-chain registries, governance modules or vaults benefit from a stable "document view" of their state.
+
+In the traditional off-chain world, such needs are addressed by standards like FpML, the ISDA Common Domain Model, or the ICMA Bond Data Taxonomy. A common pattern is to treat an XML (or similar) document as the definitive source defining the financial product and then generate code to interact with the corresponding data. When a process modifies or updates properties of the product, developers must synchronize the smart contract's internal state with the off-chain XML representation. Today, each project typically invents its own set of view functions and off-chain conventions, so clients need bespoke code to map contract state into XML, JSON, or PDF. This makes interoperability, independent auditing, and reuse of tooling harder.
+
+This ERC inverts that pattern by putting the smart contract at the centre. A contract declares that it implements `IXMLRepresentableState` and defines an interface of representable state. Off-chain renderers can then derive a canonical XML document that reflects the semantically relevant state of the contract at a given (chain-id, address, block-number), using only `eth_call` and a standardized XML binding schema. Rendering happens entirely off-chain and does not change state, so there is no gas cost, yet the resulting XML remains cryptographically anchored to the chain.
+
+Typical use cases include:
+
+- Smart derivative contracts that must present their current state to a valuation oracle or settlement engine.
+- Smart bonds and other tokenized financial instruments that must generate legal terms, term sheets, or regulatory and supervisory reports.
+- On-chain registries, governance modules, and vaults that want a reproducible, auditable document-style snapshot of their state.
+
+By standardizing the Solidity interface and the XML attribute schema, this ERC allows generic tools to consume any compliant contract without project-specific adapters, and to plug directly into existing XML-based workflows in finance and beyond.
+
+## Specification
+
+### Terminology
+
+- **XML template**: A well-formed XML document, returned as a UTF-8 string by the contract, that contains placeholder bindings in the `evmstate` namespace.
+- **Binding**: An `evmstate:*` attribute on an XML element that instructs a renderer to fetch a value from the contract (or from chain context) and insert it into the document.
+- **XML representation**: The final XML document obtained by evaluating all bindings of the XML template against the contract at a specific (chain-id, address, block-number) and then removing all `evmstate:*` attributes.
+- **XML-complete contract**: A contract that implements `IXMLRepresentableState` and whose XML representation encodes all semantically relevant mutable state. Informally, if two contracts are bytecode-identical and their XML representations agree at some block, their externally observable behaviour MUST be the same from that block onward.
+
+### Interface
+
+The base interface is:
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.23;
+
+/**
+ * @title XML Representable State interface
+ * @notice Contracts implementing this interface expose an XML template that can be rendered
+ *         into a canonical XML representation of the contract state at a given block.
+ * @dev The XML binding schema and version are defined inside the XML itself (e.g. via
+ *      namespaces or attributes). Snapshot consistency is achieved off-chain by evaluating
+ *      all view calls against a single fixed block.
+ */
+interface IXMLRepresentableState {
+    /**
+     * @notice Returns the XML template string, using a dedicated namespace for bindings.
+     * @dev MUST return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
+     *      Implementations SHOULD make this string independent of mutable contract state
+     *      and environment variables, i.e., effectively constant.
+     */
+    function xmlTemplate() external view returns (string memory);
+}
+```
+
+For contracts that want stronger off-chain tooling support (caching and integrity checks), optional extended interfaces are defined.
+
+#### Versioned extension
+
+```solidity
+/**
+ * @title Representable State (versioned) interface
+ * @notice Adds a monotonically increasing version of the representable state. This optional
+ *         extension allows off-chain tools to cheaply detect whether the representation-relevant
+ *         state has changed.
+ */
+interface IRepresentableStateVersioned {
+    /**
+     * @notice Monotonically increasing version of the representable state.
+     * @dev Implementations SHOULD increment this whenever any mutable state that participates
+     *      in the representation changes. It MAY start at 0.
+     *
+     *      Off-chain tools MAY use this to:
+     *        - cache rendered XML and skip recomputation if the version is unchanged;
+     *        - provide a simple ordering of state changes.
+     */
+    function stateVersion() external view returns (uint256);
+}
+```
+
+#### Hashed extension
+
+```solidity
+/**
+ * @title Representable State (hashed) interface
+ * @notice Exposes a hash of a canonical state tuple used for the representation.
+ *         This optional extension allows off-chain tools to verify integrity of an
+ *         externally provided representation against on-chain state.
+ */
+interface IRepresentableStateHashed {
+    /**
+     * @notice Hash of the canonical state tuple used for the representation.
+     * @dev Implementations MAY choose their own canonical encoding of state (e.g.,
+     *      abi.encode of a tuple of all fields that are represented).
+     *
+     *      This function is intended for off-chain integrity checks, for example:
+     *        - parties can sign (chainId, contract, blockNumber, stateHash);
+     *        - renderers can recompute the same hash from the values they used.
+     *
+     *      It is RECOMMENDED that stateHash() is implemented as a pure/view
+     *      function that computes the hash on the fly, instead of storing it in
+     *      contract storage and updating it on every change.
+     */
+    function stateHash() external view returns (bytes32);
+}
+```
+
+#### Combined convenience extension
+
+```solidity
+/**
+ * @title XML Representable State (versioned) interface
+ * @notice Convenience interface combining XML template and versioned state.
+ */
+interface IXMLRepresentableStateVersioned is IXMLRepresentableState, IRepresentableStateVersioned {}
+
+/**
+ * @title XML Representable State (hashed) interface
+ * @notice Convenience interface combining XML template and hashed state.
+ */
+interface IXMLRepresentableStateHashed is IXMLRepresentableState, IRepresentableStateHashed {}
+
+/**
+ * @title XML Representable State (versioned + hashed) convenience interface
+ * @notice Convenience interface combining XML template and versioned/hashed state.
+ */
+interface IXMLRepresentableStateVersionedHashed is IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed {}
+```
+
+A contract that implements any of these extended interfaces is also considered an implementation of `IXMLRepresentableState`.
+
+### XML namespace
+
+This ERC defines the XML namespace URI:
+
+- Namespace URI: `urn:evm:state:1.0`
+- Recommended prefix: `evmstate`
+
+The XML template MUST declare this namespace, for example:
+
+```xml
+<Contract xmlns="urn:example:instrument"
+          xmlns:evmstate="urn:evm:state:1.0">
+    ...
+</Contract>
+```
+
+### Bindings
+
+Bindings are expressed as attributes in the `evmstate` namespace on XML elements.
+
+A binding element is any XML element that has one or more attributes in the `evmstate` namespace.
+
+#### Function binding
+
+To bind an element or attribute to a contract view function, the template MUST use either:
+
+1. **Signature form (preferred)**
+
+```xml
+<Notional
+    evmstate:call="notional()(uint256)"
+    evmstate:format="decimal" />
+```
+
+- `evmstate:call` is a Solidity function signature string of the form
+  `functionName(inputTypes...)(outputTypes...)`, with no spaces.
+- The renderer MUST:
+    - Compute the function selector as `keccak256("notional()")[0:4]`.
+    - Use the declared output type `(uint256)` to decode the return data.
+
+2. **Selector form (low-level)**
+
+```xml
+<Notional
+    evmstate:selector="0x70a08231"
+    evmstate:returns="uint256"
+    evmstate:format="decimal" />
+```
+
+- `evmstate:selector` is a 4‑byte hex selector as a string with a `0x` prefix.
+- `evmstate:returns` is an ABI type string describing the return type.
+- The renderer MUST call the contract using the provided selector and decode using the given type.
+
+If both `evmstate:call` and `evmstate:selector` are present, the renderer MUST prefer `evmstate:call` and MAY treat `evmstate:selector` as an error.
+
+The output type MUST be a single ABI type (e.g. `uint256`, `int256`, `address`, `bool`, `string`, etc.). Support for tuples and arrays is out of scope for this minimal ERC.
+
+#### Target location (single binding)
+
+A single binding can either target the element's text content or one of its attributes:
+
+- If `evmstate:target` is **absent** or empty, the renderer MUST replace the element's text content
+  with the rendered value.
+
+##### Example:
+
+```xml
+<Notional evmstate:call="notional()(uint256)"
+          evmstate:format="decimal"
+          evmstate:scale="2" />
+```
+
+might render to:
+
+```xml
+<Notional>1000000.00</Notional>
+```
+
+- If `evmstate:target` is present and non-empty, its value is the local name of an attribute to be
+  populated.
+
+##### Example:
+
+```xml
+<Party evmstate:call="partyALEI()(string)"
+       evmstate:target="id" />
+```
+
+might render to:
+
+```xml
+<Party id="LEI-of-Party-A" />
+```
+
+The renderer MUST create or overwrite the attribute with that name on the element. It MUST NOT change the element's text content in this case.
+
+Bindings MUST NOT be attached directly to attributes (XML does not allow attributes on attributes); all `evmstate:*` attributes are always attached to elements.
+
+#### Multiple bindings per element
+
+A single XML element can have one or more bindings associated with it.
+
+- **Single-binding attributes** (no semicolons, exactly one binding):
+    - `evmstate:call`
+    - `evmstate:selector`
+    - `evmstate:returns`
+    - `evmstate:format`
+    - `evmstate:scale`
+    - `evmstate:target`
+
+- **Multi-binding attributes** (semicolon-separated lists, interpreted positionally):
+    - `evmstate:calls`
+    - `evmstate:selectors`
+    - `evmstate:returnsList`
+    - `evmstate:formats`
+    - `evmstate:scales`
+    - `evmstate:targets`
+
+When any of the plural attributes (`evmstate:calls`, `evmstate:selectors`, …) are present, the element
+is in **multi-binding mode**:
+
+- Each list is split on `';'`, and each part is trimmed of leading and trailing whitespace.
+- The lists are interpreted positionally. For index `i`:
+    - `calls[i]` is the i-th function signature (optional).
+    - `selectors[i]` is the i-th selector (optional).
+    - `returnsList[i]` is the i-th explicit return type (optional).
+    - `formats[i]` is the i-th format specifier (optional).
+    - `scales[i]` is the i-th decimal scale (optional).
+    - `targets[i]` is the i-th target specifier (optional).
+
+Bindings are resolved in order `i = 0..N-1`, where `N` is the length of the `evmstate:calls` list. If both `calls[i]` and `selectors[i]` are empty for a given index, that index MUST be ignored. If a list is shorter than `N`, missing entries MUST be treated as empty strings.
+
+For each binding index `i`, `targets[i]` determines whether the value is written to the element's text content or to an attribute:
+
+- If `targets[i]` is empty or missing (after trimming), the renderer MUST replace the element's text content with the rendered value for that binding. If multiple bindings for the same element write text, they MUST be applied in index order; later writes overwrite earlier ones.
+
+- If `targets[i]` is a non-empty string, the renderer MUST set (create or overwrite) an attribute on the element with that local name and the rendered value as its value. It MUST NOT change the element's text content because of this binding.
+
+When only the singular attributes are present (no `evmstate:calls`/`formats`/…), the element is in **single-binding mode**, and the renderer MUST treat `evmstate:call`/`selector`/`returns`/`format`/`scale`/`target` as describing exactly one binding.
+
+#### Example with a single binding to the element's text:
+
+```xml
+<Notional evmstate:call="notional()(uint256)"
+          evmstate:format="decimal"
+          evmstate:scale="2" />
+```
+
+might render to:
+
+```xml
+<Notional>1000000.00</Notional>
+```
+
+Example with two bindings: the notional as element text and the currency as an attribute, using the multi-binding attributes:
+
+```xml
+<Amount
+    evmstate:calls="notional()(uint256); currency()(string)"
+    evmstate:formats="decimal; string"
+    evmstate:scales="2; "
+    evmstate:targets="; currency" />
+```
+
+MUST render to something equivalent to:
+
+```xml
+<Amount currency="EUR">1000000.00</Amount>
+```
+
+#### Formatting
+
+The optional attribute `evmstate:format` describes how to convert the decoded ABI value into a text string. If `evmstate:format` is absent or empty, a type-specific default is used.
+
+When `evmstate:formats` is used, each entry `formats[i]` applies to the i-th binding in multi-binding mode as described above. Similarly, when `evmstate:scale` or `evmstate:scales` are present, `scale`/`scales[i]` apply to the corresponding binding; a missing or empty entry is treated as scale 0.
+
+Implementations of this ERC MUST support at least the following combinations:
+
+- For unsigned integers (`uint*`) and signed integers (`int*`):
+    - Default → same as `"decimal"`.
+    - `"decimal"` → base-10 representation, optionally with scaling as described below.
+    - `"hex"` → lower-case hex with `0x` prefix.
+    - `"iso8601-date"` → interpret the integer as a UNIX timestamp in seconds since epoch and render a UTC calendar date in ISO 8601 form `YYYY-MM-DD`.
+    - `"iso8601-datetime"` → interpret the integer as a UNIX timestamp in seconds since epoch and render a UTC timestamp in ISO 8601 form (e.g. `2025-01-02T00:00:00Z`).
+
+- For `address`:
+    - Default same as `"address"`.
+    - `"address"` → hex with `0x` prefix and ERC-55 checksum.
+
+- For `bool`:
+    - Default same as `"boolean"`.
+    - `"boolean"` → `"true"` or `"false"`.
+
+- For `bytes` and `bytesN`:
+    - Default same as `"hex"`.
+    - `"hex"` → hex with `0x` prefix.
+    - `"base64"` → base64 representation.
+
+- For `string`:
+    - Default `"string"`.
+    - `"string"` → UTF-8 text as returned.
+
+Implementations MAY support additional formats. If the renderer encounters an unknown `evmstate:format`,
+it SHOULD treat this as an error.
+
+Optionally, an `evmstate:scale` / `evmstate:scales` attribute MAY be used for decimal-like integers:
+
+```xml
+<Amount evmstate:call="notional()(uint256)"
+        evmstate:format="decimal"
+        evmstate:scale="2" />
+```
+
+This means that the raw integer is scaled by 10^(-scale) before rendering, e.g. `12345` with `scale="2"` becomes `"123.45"`.
+
+### Chain and contract identification
+
+The XML representation MUST identify the chain, contract, and block that it represents.
+
+This ERC reserves the following attributes in the `evmstate` namespace on the root element:
+
+- `evmstate:chain-id`
+- `evmstate:contract-address`
+- `evmstate:block-number`
+
+Example root element in the template:
+
+```xml
+<Contract xmlns="urn:example:instrument"
+          xmlns:evmstate="urn:evm:state:1.0"
+          evmstate:chain-id=""
+          evmstate:contract-address=""
+          evmstate:block-number="">
+    ...
+</Contract>
+```
+
+These attributes are **context bindings**:
+
+- The renderer MUST set `evmstate:chain-id` to the EIP-155 chain ID, as a base-10 string.
+- The renderer MUST set `evmstate:contract-address` to the contract address, as a checksummed hex address.
+- The renderer MUST set `evmstate:block-number` to the block number at which the representation was evaluated, as a base-10 string.
+
+These fields are filled based on the RPC context (chain id, contract address, and block tag) and do not correspond to actual contract calls.
+
+After rendering, the root element in the final XML might look like:
+
+```xml
+<Contract xmlns="urn:example:instrument"
+          xmlns:evmstate="urn:evm:state:1.0"
+          evmstate:chain-id="1337"
+          evmstate:contract-address="0x588d26a62d55c18cd6edc7f41ec59fcd4331e227"
+          evmstate:block-number="37356">
+    ...
+</Contract>
+```
+
+The renderer SHOULD set these attributes in the evmstate namespace (e.g. `evmstate:chain-id`, `evmstate:contract-address`, `evmstate:block-number`) to avoid collisions with existing attributes defined by the business XML schema. Implementations MAY additionally provide non-namespaced duplicates if required by downstream tooling.
+
+### XML representation and XML-complete contracts
+
+For a given chain-id `C`, contract address `A`, and block-number `B`, and for a contract that implements
+`IXMLRepresentableState`, the **XML representation at (C, A, B)** is defined as follows:
+
+1. Choose a JSON-RPC provider for chain `C`.
+2. Call `eth_getBlockByNumber` (or equivalent) to obtain block `B` and its number, or use an externally provided `B`.
+3. Perform all `eth_call` invocations (for `xmlTemplate()` and for all bound functions) with `blockTag = B`.
+4. Start from the XML template returned by `xmlTemplate()`.
+5. Resolve all bindings as specified above and insert the resolved values.
+6. Fill `evmstate:chain-id`, `evmstate:contract-address`, and `evmstate:block-number` on the root element.
+7. Optionally remove all `evmstate:*` attributes from the document.
+
+A contract is **XML-complete** if, for every block `B` at which its code matches this ERC's interface,
+the following holds:
+
+> Given the XML representation at (C, A, B), one can reconstruct all semantically relevant mutable
+> state that influences the contract's future behaviour (up to isomorphism).
+
+This is a semantic property that cannot be enforced by the EVM itself, but it can be audited and
+tested. Authors of contracts that claim to implement `IXMLRepresentableState` MUST ensure that:
+
+- Every mutable storage variable that influences behaviour is either:
+    - directly bound via an `evmstate:call` / `evmstate:selector`, or
+    - deterministically derivable from bound values via a public algorithm.
+- Adding new mutable state requires adding corresponding bindings to the template.
+
+In practice, contracts MAY also expose a separate "state descriptor" view function that lists all
+bound fields, but this is out of scope for this minimal ERC.
+
+### Race conditions and consistent snapshots
+
+#### Problem
+
+If a renderer naively uses `eth_call` with `blockTag = "latest"` for each individual binding, state
+may change between calls when new blocks are mined. In that case, different bindings might see
+different blocks, and the resulting XML would not correspond to a single consistent contract state.
+
+#### Required behaviour for renderers
+
+To avoid this race condition, renderers MUST:
+
+1. Determine a single block-number `B` at the start of rendering, e.g. by calling
+   `eth_getBlockByNumber("latest")`.
+2. Use `blockTag = B` for:
+    - the call to `xmlTemplate()`, and
+    - all subsequent function calls required by the bindings inside the template.
+
+Under normal node behaviour, this guarantees that all view calls see the same state snapshot.
+
+If the contract implements `IRepresentableStateVersioned`, the renderer MAY additionally use
+`stateVersion()` for caching or sanity checks, but the basic snapshot algorithm using a fixed
+`blockTag` is mandatory for all conforming renderers.
+
+#### Race conditions
+
+There would be a race condition if bindings were evaluated against moving `"latest"` state.
+This specification resolves it by requiring all calls to be evaluated against a single fixed
+block-number `B`. Optional on-chain state version counters can be used for additional checks, but
+are not required for snapshot consistency.
+
+### Rationale
+
+- **Why XML, not JSON?**  
+  XML remains widely used in financial and regulatory infrastructures, with mature schema tooling (XSD), XSLT, and document transformation pipelines. Many smart financial instruments and SDC-like products already use XML representations internally. This ERC does not preclude a future JSON analogue.
+
+- **Why templates on-chain rather than hard-coded off-chain?**  
+  Putting the template (and its bindings) on-chain makes it part of the contract's immutable code and governance. Auditors and counterparties can verify that the representation is aligned with the contract logic, rather than trusting arbitrary off-chain conventions.
+
+- **Why a separate namespace (`evmstate`)?**  
+  Using a dedicated namespace keeps the templating mechanism explicit and avoids collisions with business XML schemas. It also aligns with existing XML templating patterns that use XML namespaces for processing instructions.
+
+- **Why both `call` and `selector` forms?**  
+  The signature form is human-readable and self-describing. The selector form accommodates low-level or obfuscated contracts and allows decoupling of the template from function names.
+
+- **Why not enforce XML-completeness on-chain?**  
+  The EVM cannot introspect storage layout or reason about "semantically relevant" variables in a general way. XML-completeness is therefore specified as a semantic, auditable property rather than a mechanically enforced one.
+
+### Backwards Compatibility
+
+This ERC is purely additive:
+
+- It introduces a new interface and does not change any existing standard.
+- Existing contracts remain unaffected.
+- Contracts can implement this interface alongside ERC‑20, ERC‑721, ERC‑1155, or any other existing standard.
+
+### Reference Implementation
+
+#### `RepresentableState.sol`
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.23;
+
+/**
+ * @title XML Representable State interface
+ * @notice Contracts implementing this interface expose an XML template that can be rendered
+ *         into a canonical XML representation of the contract state at a given block.
+ * @dev The XML binding schema and version are defined inside the XML itself (e.g. via
+ *      namespaces or attributes). Snapshot consistency is achieved off-chain by evaluating
+ *      all view calls against a single fixed block.
+ */
+interface IXMLRepresentableState {
+    function xmlTemplate() external view returns (string memory);
+}
+
+/**
+ * @title Representable State (versioned) interface
+ * @notice Adds a monotonically increasing version of the representable state.
+ */
+interface IRepresentableStateVersioned {
+    function stateVersion() external view returns (uint256);
+}
+
+/**
+ * @title Representable State (hashed) interface
+ * @notice Exposes a hash of a canonical state tuple used for the representation.
+ */
+interface IRepresentableStateHashed {
+    function stateHash() external view returns (bytes32);
+}
+
+/**
+ * @title XML Representable State (versioned) interface
+ * @notice Convenience interface combining XML template and versioned state.
+ */
+interface IXMLRepresentableStateVersioned is IXMLRepresentableState, IRepresentableStateVersioned {}
+
+/**
+ * @title XML Representable State (hashed) interface
+ * @notice Convenience interface combining XML template and hashed state.
+ */
+interface IXMLRepresentableStateHashed is IXMLRepresentableState, IRepresentableStateHashed {}
+
+/**
+ * @title XML Representable State (versioned + hashed) convenience interface
+ * @notice Convenience interface combining XML template and versioned/hashed state.
+ */
+interface IXMLRepresentableStateVersionedHashed is
+    IXMLRepresentableState,
+    IRepresentableStateVersioned,
+    IRepresentableStateHashed
+{}
+```
+
+#### Example contract
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.23;
+
+import "./RepresentableState.sol";
+
+/**
+ * @title Example XML-representable contract
+ * @notice Simple "instrument" with state fields owner, notional, currency, maturity, and active flag and
+ *         an XML representation of its internal state using the generic IXMLRepresentableState
+ *         schema.
+ */
+contract MinimalInstrument is IXMLRepresentableStateVersionedHashed {
+    address public owner;
+
+    uint256 public notional;
+    string  public currency;
+    uint256 public maturityDate;
+    bool    public active;
+
+    uint256 private _stateVersion;
+
+    event Updated(address indexed updater, uint256 newNotional, uint256 newMaturity, bool newActive);
+
+    constructor(address _owner, uint256 _notional, uint256 _maturityDate) {
+        owner = _owner;
+        notional = _notional;
+        currency = "EUR";
+        maturityDate = _maturityDate;
+        active = true;
+        _stateVersion = 1;
+    }
+
+    function update(uint256 _notional, uint256 _maturityDate, bool _active) external {
+        require(msg.sender == owner, "not owner");
+        notional = _notional;
+        maturityDate = _maturityDate;
+        active = _active;
+        _stateVersion += 1;
+        emit Updated(msg.sender, _notional, _maturityDate, _active);
+    }
+
+    /// @inheritdoc IXMLRepresentableState
+    function xmlTemplate() external pure override returns (string memory) {
+        // Notional as text, currency as attribute via multi-binding attributes.
+        return
+            "<Instrument xmlns='urn:example:instrument'"
+                " xmlns:evmstate='urn:evm:state:1.0'"
+                " evmstate:chain-id=''"
+                " evmstate:contract-address=''"
+                " evmstate:block-number=''>"
+              "<Owner evmstate:call='owner()(address)' evmstate:format='address'/>"
+              "<Notional"
+                " evmstate:calls='notional()(uint256);currency()(string)'"
+                " evmstate:formats='decimal;string'"
+                " evmstate:scales='2;'"       // 2 decimals for notional, no scaling for currency
+                " evmstate:targets=';currency'/>"
+              "<MaturityDate evmstate:call='maturityDate()(uint256)' evmstate:format='iso8601-date'/>"
+              "<Active evmstate:call='active()(bool)' evmstate:format='boolean'/>"
+            "</Instrument>";
+    }
+
+    /// @inheritdoc IRepresentableStateVersioned
+    function stateVersion() external view override returns (uint256) {
+        return _stateVersion;
+    }
+
+    /// @inheritdoc IRepresentableStateHashed
+    function stateHash() external view override returns (bytes32) {
+        // Canonical encoding of the state relevant to the XML representation.
+        return keccak256(abi.encode(owner, notional, currency, maturityDate, active));
+    }
+}
+```
+
+### Security Considerations
+
+- **Non-pure view functions**: If a contract uses `view` functions that depend on non-deterministic environment variables (e.g., `block.timestamp`, `block.number`) or external calls, the XML representation at a given block may not be stable. Implementations SHOULD restrict bindings to pure or effectively pure getters.
+
+- **Template size and complexity**: Large XML templates or a very high number of bindings may result in expensive `eth_call` operations or timeouts, especially on public RPC endpoints. Implementations SHOULD keep templates reasonably small and avoid unnecessary bindings.
+
+- **Misrepresentation**: This ERC cannot prevent a malicious contract from claiming to be XML-complete while omitting relevant state from its XML representation. Users and auditors MUST not rely on the XML alone for safety and SHOULD review the contract code and, where necessary, the `stateHash()` encoding if provided.
+
+- **Renderer correctness**: The security and correctness of the final XML representation depend on the correctness of the off-chain renderer. Independent implementations and tests are recommended.
+
+### Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
