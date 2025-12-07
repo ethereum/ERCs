@@ -9,7 +9,7 @@ pragma solidity >=0.8.0 <0.9.0;
  *
  * See documentation for details.
  */
-interface IDecryptionOracleCallback {
+interface IKeyDecryptionOracleCallback {
 
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 

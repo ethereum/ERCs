@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity >=0.8.0 <0.9.0;
 
-import "./IDecryptionOracleCallback.sol";
+import "./IKeyDecryptionOracleCallback.sol";
 
 /*------------------------------------------- DESCRIPTION ------------------------------------------------------------*/
 
@@ -11,7 +11,7 @@ import "./IDecryptionOracleCallback.sol";
  *
  * See documentation for details.
  */
-interface IDecryptionOracle {
+interface IKeyDecryptionOracle {
 
     /*------------------------------------------- EVENTS -------------------------------------------------------------*/
 
@@ -24,7 +24,7 @@ interface IDecryptionOracle {
      * @param transaction Transaction specification to be verified against the key.
      * @param requestId Correlation id for the fullfillmen
      */
-    event DecryptionRequested(address indexed sender, uint256 id, bytes encryptedKey, IDecryptionOracleCallback indexed callback, bytes transaction, uint256 indexed requestId);
+    event DecryptionRequested(address indexed sender, uint256 id, bytes encryptedKey, IKeyDecryptionOracleCallback indexed callback, bytes transaction, uint256 indexed requestId);
 
     /**
      * @dev Emitted when a verification is requested (issued by requestVerifyEncryptedKey).
@@ -34,7 +34,7 @@ interface IDecryptionOracle {
      * @param callback Receiver of the verification.
      * @param requestId Correlation id for the fullfillmen
      */
-    event VerificationRequested(address indexed sender, uint256 id, bytes encryptedKey, IDecryptionOracleCallback indexed callback, uint256 indexed requestId);
+    event VerificationRequested(address indexed sender, uint256 id, bytes encryptedKey, IKeyDecryptionOracleCallback indexed callback, uint256 indexed requestId);
 
     /**
      * @dev Emitted when a encrypted key generation is requested (issued by requestGenerateEncryptedHashedKey).
@@ -45,7 +45,7 @@ interface IDecryptionOracle {
      * @param transaction Transaction specification to be verified against the key.
      * @param requestId Correlation id for the fullfillmen
      */
-    event EncryptedHashedKeyGenerationRequested(address indexed sender, uint256 id, IDecryptionOracleCallback indexed callback, address receiverContract, bytes transaction, uint256 indexed requestId);
+    event EncryptedHashedKeyGenerationRequested(address indexed sender, uint256 id, IKeyDecryptionOracleCallback indexed callback, address receiverContract, bytes transaction, uint256 indexed requestId);
 
     /*------------------------------------------- FUNCTIONALITY: REQUESTS --------------------------------------------*/
 
@@ -61,7 +61,7 @@ interface IDecryptionOracle {
      * @param callback The callback contract. If validated the decrypted key will be passed to releaseKey function.
      * @param transaction General purpose transaction identifier.
      */
-    function requestDecrypt(uint256 id, bytes memory encryptedKey, IDecryptionOracleCallback callback, bytes memory transaction) external payable;
+    function requestDecrypt(uint256 id, bytes memory encryptedKey, IKeyDecryptionOracleCallback callback, bytes memory transaction) external payable;
 
     /**
      * @notice The functions performs a verification of the given encryptedKey, that this
@@ -75,7 +75,7 @@ interface IDecryptionOracle {
      * @param encryptedKey Encryption of a key
      * @param callback The callback contract. If validated the decrypted key will be passed to releaseKey function.
      */
-    function requestVerifyEncryptedKey(uint256 id, bytes memory encryptedKey, IDecryptionOracleCallback callback) external payable;
+    function requestVerifyEncryptedKey(uint256 id, bytes memory encryptedKey, IKeyDecryptionOracleCallback callback) external payable;
 
     /**
      * @notice The functions performs a generation of an encryptedKey and a hash
@@ -89,7 +89,7 @@ interface IDecryptionOracle {
      * @param receiverContract Contract that is eligible to receive the decryption.
      * @param transaction General purpose transaction identifier.
      */
-    function requestGenerateEncryptedHashedKey(uint256 id, IDecryptionOracleCallback callback, address receiverContract, bytes memory transaction) external payable;
+    function requestGenerateEncryptedHashedKey(uint256 id, IKeyDecryptionOracleCallback callback, address receiverContract, bytes memory transaction) external payable;
 
     /*------------------------------------------- FUNCTIONALITY: FULFILLMENT (should be guarded by onlyOracle) -------*/
 
