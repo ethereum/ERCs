@@ -8,8 +8,8 @@ import "./IKeyDecryptionOracleCallback.sol";
 /**
  * @title ERC-7573 Decryption Oracle Contract - a bridge to an external decryption oracle.
  * @dev Interface specification for a smart contract that performs decryption (by bridging to an external oracle).
- *
- * See documentation for details.
+ * @author Christian Fries.
+ * @notice See documentation for details.
  */
 interface IKeyDecryptionOracle {
 

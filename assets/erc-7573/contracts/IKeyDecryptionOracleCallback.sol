@@ -6,8 +6,8 @@ pragma solidity >=0.8.0 <0.9.0;
 /**
  * @title ERC-7573 Decryption Oracle Callback Contract - the callback from an external decryption oracle.
  * @dev Interface specification for a smart contract that performs decryption (by bridging to an external oracle).
- *
- * See documentation for details.
+ * @author Christian Fries.
+ * @notice See documentation for details.
  */
 interface IKeyDecryptionOracleCallback {
 
