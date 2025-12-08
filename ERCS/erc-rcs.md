@@ -3,7 +3,7 @@ eip: 8100
 title: Representable Contract State
 description: Standard interface and (XML) binding schema for contracts that expose a canonical representation of their state.
 author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
-discussions-to: https://ethereum-magicians.org/t/erc-draft-representable-contract-state/26974/1
+discussions-to: https://ethereum-magicians.org/t/erc-8100-representable-contract-state/26974
 status: Draft
 type: Standards Track
 category: ERC
