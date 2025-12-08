@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8100
 title: Representable Contract State
 description: Standard interface and (XML) binding schema for contracts that expose a canonical representation of their state.
 author: Christian Fries (@cfries), Peter Kohl-Landgraf (@pekola)
