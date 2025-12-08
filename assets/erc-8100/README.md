@@ -1,4 +1,4 @@
-# Representable Contact State - XML Rendering of Smart Contract State
+# Representable Contract State - XML Rendering of Smart Contract State
 
 ## Abstract
 
