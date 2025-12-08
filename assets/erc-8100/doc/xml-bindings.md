@@ -1,5 +1,3 @@
-<script defer="defer" src="js/oracle-fees.js"></script>
-
 # Representable Contact State - XML Rendering of Smart Contract State
 
 ---
