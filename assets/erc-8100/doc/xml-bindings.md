@@ -4,9 +4,6 @@
 
 ---
 
-> ⚠️ **Before you continue:** Please read the **[Disclaimer](disclaimer/index.html)**. *By using this site, software, or contracts, you acknowledge that you have read and accepted it.*
-
----
 # XML Namespace and Bindings
 
 ## Namespace
