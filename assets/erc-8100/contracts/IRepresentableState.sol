@@ -10,6 +10,16 @@ pragma solidity ^0.8.23;
  * @dev The XML binding schema and version are defined inside the XML itself (e.g. via
  *      namespaces or attributes). Snapshot consistency is achieved off-chain by evaluating
  *      all view calls against a single fixed block.
+ *
+ *      In the context of this ERC, a contract that implements this interface and claims
+ *      compliance as an "XML-complete" contract MUST ensure that the XML obtained from
+ *      this template (together with its bindings) is sufficient to reconstruct the full
+ *      contract state that is relevant for off-chain decisions (e.g. valuations,
+ *      settlements) at a given block.
+ *
+ *      Contracts that cannot make an XML-completeness guarantee SHOULD implement only
+ *      IXMLRepresentableStatePart (and not this interface) if they wish to expose
+ *      partial XML views of their state.
  * @author Christian Fries
  */
 interface IXMLRepresentableState {
@@ -19,7 +29,29 @@ interface IXMLRepresentableState {
      *      Implementations SHOULD make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      */
-    function xmlTemplate() external view returns (string memory);
+    function stateXmlTemplate() external view returns (string memory);
+}
+
+/**
+ * @title XML Representable State (partial) interface
+ * @notice Optional extension exposing partial XML templates for selected views of the state.
+ * @dev The meaning of partId is contract-specific or defined by higher-level standards
+ *      (e.g. “settlement context” for ERC-6123).
+ *
+ *      Implementations of this interface alone are NOT required to be XML-complete:
+ *      a contract may expose only partial views of its state without providing a
+ *      canonical full XML representation via IXMLRepresentableState.
+ */
+interface IXMLRepresentableStatePart {
+    /**
+     * @notice Returns the XML template string for a particular partial state view.
+     * @dev MUST return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
+     *      Implementations SHOULD make this string independent of mutable contract state
+     *      and environment variables, i.e., effectively constant.
+     *
+     * @param partId Contract-specific identifier of the partial view.
+     */
+    function statePartXmlTemplate(uint256 partId) external view returns (string memory);
 }
 
 // ---------------------------------------- JSON ------------------------------ */
@@ -31,6 +63,15 @@ interface IXMLRepresentableState {
  * @dev The JSON binding schema and version are out of scope for this ERC. Snapshot consistency
  *      is achieved off-chain by evaluating all view calls against a single fixed block,
  *      analogous to the XML case.
+ *
+ *      In the context of this ERC, a contract that implements this interface and claims
+ *      compliance as a "JSON-complete" contract MUST ensure that the JSON obtained from
+ *      this template (together with its bindings) is sufficient to reconstruct the full
+ *      contract state that is relevant for off-chain decisions at a given block.
+ *
+ *      Contracts that cannot make a JSON-completeness guarantee SHOULD implement only
+ *      IJSONRepresentableStatePart (and not this interface) if they wish to expose
+ *      partial JSON views of their state.
  * @author Christian Fries
  */
 interface IJSONRepresentableState {
@@ -40,7 +81,28 @@ interface IJSONRepresentableState {
      *      Implementations SHOULD make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      */
-    function jsonTemplate() external view returns (string memory);
+    function stateJsonTemplate() external view returns (string memory);
+}
+
+/**
+ * @title JSON Representable State (partial) interface
+ * @notice Optional extension exposing partial JSON templates for selected views of the state.
+ * @dev The meaning of partId is contract-specific or defined by higher-level standards.
+ *
+ *      Implementations of this interface alone are NOT required to be JSON-complete:
+ *      a contract may expose only partial views of its state without providing a
+ *      canonical full JSON representation via IJSONRepresentableState.
+ */
+interface IJSONRepresentableStatePart {
+    /**
+     * @notice Returns the JSON template string for a particular partial state view.
+     * @dev MUST return a well-formed JSON document in UTF-8 encoding.
+     *      Implementations SHOULD make this string independent of mutable contract state
+     *      and environment variables, i.e., effectively constant.
+     *
+     * @param partId Contract-specific identifier of the partial view.
+     */
+    function statePartJsonTemplate(uint256 partId) external view returns (string memory);
 }
 
 // ---------------------------------------- State ------------------------------ */

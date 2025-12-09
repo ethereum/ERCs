@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.19;
 
 import {
     IXMLRepresentableStateVersionedHashed,
-    IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
+    IXMLRepresentableState,         // needed for @inheritdoc
+    IRepresentableStateVersioned,   // needed for @inheritdoc
+    IRepresentableStateHashed       // needed for @inheritdoc
 } from "../IRepresentableState.sol";
 
 /**
  * @title TestContract
- * @notice Contract to demonstrate and test data types and formats for IRepresentableState.sol renderers.
+ * @notice Contract to demonstrate and test data types, formats and array bindings
+ *         for IRepresentableState.sol renderers.
  *
  * Fields are initialized with demo values in the constructor so that an off-chain renderer
  * can immediately exercise different type/format combinations without any prior updates.
@@ -45,6 +48,14 @@ contract TestContract is IXMLRepresentableStateVersionedHashed {
     // Currency for multi-binding
     string  public currency;
 
+    // --- Arrays for array binding profile (Mode B) ---------------------------------------------
+
+    // e.g. coupon amounts (scale 2 -> 1000.00, 2500.00, ...)
+    int256[] public couponAmounts;
+
+    // matching labels for the coupons
+    string[] public couponLabels;
+
     // XML state version (for versioned extension)
     uint256 private _stateVersion;
 
@@ -79,14 +90,23 @@ contract TestContract is IXMLRepresentableStateVersionedHashed {
         // Currency for multi-binding
         currency           = "EUR";
 
+        // Arrays for array binding demo
+        couponAmounts.push(100_000);   // 1000.00 with scale 2
+        couponAmounts.push(250_000);   // 2500.00 with scale 2
+        couponAmounts.push(175_500);   // 1755.00 with scale 2
+
+        couponLabels.push("Coupon 1");
+        couponLabels.push("Coupon 2");
+        couponLabels.push("Coupon 3");
+
         _stateVersion   = 1;
     }
 
     // --- IRepresentableState.sol ---
 
     /// @inheritdoc IXMLRepresentableState
-    function xmlTemplate() external pure override returns (string memory) {
-        // Hinweis: einfache Quotes im XML, alles in einem Stringblock.
+    function stateXmlTemplate() external pure override returns (string memory) {
+        // Note: single quotes in XML to allow double quotes in solidity for a single string-block.
         return
             "<Contract xmlns='urn:example:contract'"
                 " xmlns:evmstate='urn:evm:state:1.0'"
@@ -125,10 +145,35 @@ contract TestContract is IXMLRepresentableStateVersionedHashed {
 
                     // ---- Multi-binding: amount as text, currency as attribute ----
                     "<Money"
-                    " evmstate:calls='valueMoney()(uint256);currency()(string)'"
-                    " evmstate:formats='decimal;string'"
-                    " evmstate:scales='2;'"        // 2 decimals for amount, no scaling for currency
-                    " evmstate:targets=';currency'/>"
+                        " evmstate:calls='valueMoney()(uint256);currency()(string)'"
+                        " evmstate:formats='decimal;string'"
+                        " evmstate:scales='2;'"        // 2 decimals for amount, no scaling for currency
+                        " evmstate:targets=';currency'/>"
+
+                    // ---- Array binding profile (Mode B): scalar arrays -> repeated rows ----
+                    "<ArrayExamples>"
+
+                        // int256[] -> repeated <Coupon> with decimal+scale
+                        "<Coupons"
+                            " evmstate:call='couponAmounts()(int256[])'"
+                            " evmstate:item-element='Coupon'>"
+                            "<Coupon"
+                                " evmstate:item-field='0'"
+                                " evmstate:format='decimal'"
+                                " evmstate:scale='2'/>"
+                        "</Coupons>"
+
+                        // string[] -> repeated <Label> with plain string
+                        "<CouponLabels"
+                            " evmstate:call='couponLabels()(string[])'"
+                            " evmstate:item-element='Label'>"
+                            "<Label"
+                                " evmstate:item-field='0'"
+                                " evmstate:format='string'/>"
+                        "</CouponLabels>"
+
+                    "</ArrayExamples>"
+
                 "</TestContract>"
             "</Contract>";
     }
@@ -157,7 +202,9 @@ contract TestContract is IXMLRepresentableStateVersionedHashed {
                 flagFalse,
                 textPlain,
                 dataBytes,
-                currency
+                currency,
+                couponAmounts,
+                couponLabels
             )
         );
     }

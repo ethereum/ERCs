@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.19;
 
 import {
     IXMLRepresentableStateVersionedHashed,
@@ -46,7 +46,7 @@ contract MinimalInstrument is IXMLRepresentableStateVersionedHashed {
     // --- IRepresentableState.sol ---
 
     /// @inheritdoc IXMLRepresentableState
-    function xmlTemplate() external pure override returns (string memory) {
+    function stateXmlTemplate() external pure override returns (string memory) {
         // Note: formatted as a single string for simplicity; newlines are optional.
         return
             "<Contract xmlns='urn:example:contract'"

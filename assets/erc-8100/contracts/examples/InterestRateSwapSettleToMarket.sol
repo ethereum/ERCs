@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.19;
 
 import {
     IXMLRepresentableStateVersionedHashed,
@@ -70,7 +70,7 @@ contract InterestRateSwapSettleToMarket is IXMLRepresentableStateVersionedHashed
     // --- IRepresentableState.sol ---
 
     /// @inheritdoc IXMLRepresentableState
-    function xmlTemplate() external pure override returns (string memory) {
+    function stateXmlTemplate() external pure override returns (string memory) {
         // keine """-Strings – wir bauen das XML über abi.encodePacked und
         return
             "<?xml version='1.0' encoding='UTF-8'?>"

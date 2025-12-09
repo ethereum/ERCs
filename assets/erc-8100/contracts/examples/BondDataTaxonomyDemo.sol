@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.19;
 
 import {
     IXMLRepresentableStateVersionedHashed,
@@ -110,7 +110,7 @@ contract BondDataTaxonomyDemo is IXMLRepresentableStateVersionedHashed {
     // --- IRepresentableState.sol ---
 
     /// @inheritdoc IXMLRepresentableState
-    function xmlTemplate() external pure override returns (string memory) {
+    function stateXmlTemplate() external pure override returns (string memory) {
         // BDT-inspired XML structure.
         return
             "<Contract xmlns='urn:example:contract'"
