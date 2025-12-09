@@ -440,7 +440,6 @@ contract PrivacyToken is IZRC20, ReentrancyGuard {
 
                 emit CommitmentAppended(state.currentSubtreeIndex, c, state.nextLeafIndexInSubtree, block.timestamp);
                 state.nextLeafIndexInSubtree++;
-                if (state.nextLeafIndexInSubtree >= SUBTREE_CAPACITY) revert InvalidStateForRegularMint();
             }
         }
         emit Transaction(_data.commitments, _encryptedNotes, _data.ephemeralPublicKey, _data.viewTag);

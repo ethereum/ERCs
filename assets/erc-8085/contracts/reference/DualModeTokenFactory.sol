@@ -15,6 +15,36 @@ import "../verifiers/IVerifier.sol";
  *   - Centralized verifier management
  *   - Configurable tree parameters
  *   - Creation fee collection
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * IMPORTANT: Factory Pattern is NOT Required by ERC-8085
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * ⚠️ THIS IS A REFERENCE IMPLEMENTATION CHOICE, NOT A STANDARD REQUIREMENT!
+ *
+ * This factory contract demonstrates ONE way to deploy ERC-8085 tokens efficiently.
+ *
+ * Other valid deployment approaches:
+ *   - Direct contract deployment (no factory, no clones)
+ *   - Different clone patterns (e.g., Beacon proxies, UUPS)
+ *   - No central verifier management (each token has its own)
+ *   - Different fee structures or no creation fees
+ *   - Permissioned deployment (vs. permissionless)
+ *
+ * The factory pattern here provides:
+ *   ✅ Gas optimization (clones ~10x cheaper than direct deployment)
+ *   ✅ Centralized verifier upgrades (if needed)
+ *   ✅ Revenue model (creation fees)
+ *   ✅ Token registry (tracking deployed tokens)
+ *
+ * But ERC-8085 does NOT mandate:
+ *   - Using factories
+ *   - Using clones
+ *   - Central verifier management
+ *   - Creation fees
+ *   - Token registries
+ *
+ * You can deploy ERC-8085 tokens however you want!
  */
 contract DualModeTokenFactory is Ownable {
 

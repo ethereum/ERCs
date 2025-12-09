@@ -2,116 +2,82 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "../interfaces/IZRC20.sol";
-import "../verifiers/IVerifier.sol";
+import "./PrivacyToken.sol";
 import "../interfaces/IDualModeToken.sol";
 
 /**
  * @title DualModeToken
  * @notice Dual-mode token (ERC-8085) combining ERC-20 and ERC-8086 privacy features
- * @dev This contract implements both transparent (ERC-20) and privacy (IZRC20) modes
- *      with seamless conversion between them.
+ * @dev This contract extends PrivacyToken (ERC-8086) with public mode (ERC-20) and
+ *      mode conversion capabilities, creating a unified token that operates in two modes.
  *
- * Architecture:
+* Architecture:
  *   - Public Mode: Standard ERC-20 (OpenZeppelin)
  *   - Privacy Mode: ERC-8086 IZRC20 compatible
  *   - Mode Conversion: toPrivacy() / toPublic()
+ *Layered Design:
+ *   ┌─────────────────────────────────────────┐
+ *   │    DualModeToken (ERC-8085 Layer)       │
+ *   │  - Public mode (ERC-20)                 │
+ *   │  - Mode conversion (toPrivacy/toPublic) │
+ *   │                                         │
+ *   ├─────────────────────────────────────────┤
+ *   │    PrivacyToken (ERC-8086 Layer)        │
+ *   │  - Privacy mode (IZRC20)                │
+ *   │  - ZK-SNARK proofs                      │
+ *   │  - Merkle trees, nullifiers             │
+ *   └─────────────────────────────────────────┘
  *
  * Key Features:
  *   - Unified token with dual capabilities
  *   - totalSupply = publicSupply + privacySupply
- *   - ZK-SNARK proof verification for all privacy operations
+ *   - Seamless mode conversion: toPrivacy() switch token into privacy mode
+ *   - Seamless mode conversion: toPublic() switch token into public mode
+ *
+ * Design Philosophy:
+ *   "Privacy is a mode, not a separate token" - Users can switch between modes as needed
+ *   while maintaining a single unified asset with consistent liquidity and market value.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * IMPORTANT: ERC-8085 Standard vs. Reference Implementation
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * The standard ONLY requires privacy guarantees and core interface compatibility.
+ * All business logic (fees, deployment) is implementation-specific.
  */
-contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
+contract DualModeToken is PrivacyToken, ERC20, IDualModeToken {
 
-    // ═══════════════════════════════════════════════════════════════════════
     // Custom Errors
-    // ═══════════════════════════════════════════════════════════════════════
-    error AlreadyInitialized();
     error MaxSupplyExceeded();
     error IncorrectMintPrice(uint256 expected, uint256 sent);
-    error IncorrectMintAmount(uint256 expected, uint256 actual);
     error InsufficientPublicBalance();
     error DirectPrivacyMintNotSupported();
     error ZeroAddress();
-    error NoFeesToDistribute();
-    error FeeTransferFailed();
-    error InvalidProofType(uint8 receivedType);
-    error InvalidProof();
-    error CommitmentAlreadyExists(bytes32 commitment);
-    error DoubleSpend(bytes32 nullifier);
-    error OldActiveRootMismatch(bytes32 expected, bytes32 received);
-    error OldFinalizedRootMismatch(bytes32 expected, bytes32 received);
-    error IncorrectSubtreeIndex(uint256 expected, uint256 received);
-    error InvalidStateForRegularMint();
-    error InvalidStateForRollover();
-    error SubtreeCapacityExceeded(uint256 needed, uint256 available);
-    error InvalidConversionAmount(uint256 expected, uint256 proven);
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Constants
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// @dev Burn address for toPublic conversion (unspendable point on curve)
+    /// @dev Burn address for toPublic conversion (provably unspendable point on curve)
+    /// @notice This address ensures privacy notes cannot be spent after conversion to public
     uint256 public constant BURN_ADDRESS_X = 3782696719816812986959462081646797447108674627635188387134949121808249992769;
     uint256 public constant BURN_ADDRESS_Y = 10281180275793753078781257082583594598751421619807573114845203265637415315067;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // State Variables - Configuration
+    // State Variables (ERC-8085 / Public Mode Specific)
     // ═══════════════════════════════════════════════════════════════════════
 
     /// @dev Token metadata (stored separately for clone pattern compatibility)
+    /// @custom:standard-required ERC-20 and ERC-8086 both require name/symbol
     string private _tokenName;
     string private _tokenSymbol;
 
+    /// @dev Public mode configuration
+    /// @custom:business-logic These are reference implementation choices, NOT required by ERC-8085
+    /// @notice Other implementations may use different minting mechanisms, no caps, or other models
     uint256 public MAX_SUPPLY;
     uint256 public PUBLIC_MINT_PRICE;
     uint256 public PUBLIC_MINT_AMOUNT;
-    address public platformTreasury;
-    uint256 public platformFeeBps;
-    address public initiator;  // Token creator, receives fees
+
+    /// @dev Initialization guard
+    /// @custom:implementation-detail Clone pattern security, not required by standard
     bool private _initialized;
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // State Variables - Privacy (IZRC20 / ERC-8086)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// @dev ZK Verifiers
-    IActiveTransferVerifier public activeTransferVerifier;
-    IFinalizedTransferVerifier public finalizedTransferVerifier;
-    ITransferRolloverVerifier public rolloverTransferVerifier;
-    IMintVerifier public mintVerifier;
-    IMintRolloverVerifier public mintRolloverVerifier;
-
-    /// @dev Privacy state
-    mapping(bytes32 => bool) public override nullifiers;
-    mapping(bytes32 => bool) public commitmentHashes;
-    uint256 public privacyTotalSupply;
-
-    /// @dev Merkle tree state (packed for gas efficiency)
-    struct ContractState {
-        uint32 currentSubtreeIndex;
-        uint32 nextLeafIndexInSubtree;
-        uint8 subTreeHeight;
-        uint8 rootTreeHeight;
-        bool initialized;
-    }
-    ContractState public state;
-
-    /// @dev Tree roots
-    bytes32 public EMPTY_SUBTREE_ROOT;
-    bytes32 public override activeSubtreeRoot;
-    bytes32 public finalizedRoot;
-    uint256 public SUBTREE_CAPACITY;
-
-    /// @dev Transaction data structure for internal processing
-    struct TransactionData {
-        bytes32[2] nullifiers;
-        bytes32[2] commitments;
-        uint256[2] ephemeralPublicKey;
-        uint256 viewTag;
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Constructor & Initialization
@@ -121,6 +87,7 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
 
     /**
      * @notice Initialize the dual-mode token (called by factory via clone pattern)
+     * @dev Initializes both privacy layer (PrivacyToken) and public layer (ERC20)
      */
     function initialize(
         string memory name_,
@@ -140,34 +107,26 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
         if (_initialized) revert AlreadyInitialized();
         _initialized = true;
 
-        // ERC20 metadata (stored in our own storage variables)
+        // Initialize privacy layer (PrivacyToken)
+        __PrivacyToken_init(
+            platformTreasury_,
+            platformFeeBps_,
+            initiator_,
+            verifiers_,
+            subtreeHeight_,
+            rootTreeHeight_,
+            initialSubtreeEmptyRoot_,
+            initialFinalizedEmptyRoot_
+        );
+
+        // Initialize public layer (ERC20 metadata)
         _tokenName = name_;
         _tokenSymbol = symbol_;
 
-        // Configuration
+        // Public mode configuration
         MAX_SUPPLY = maxSupply_;
         PUBLIC_MINT_PRICE = publicMintPrice_;
         PUBLIC_MINT_AMOUNT = publicMintAmount_;
-        platformTreasury = platformTreasury_;
-        platformFeeBps = platformFeeBps_;
-        initiator = initiator_;
-
-        // Verifiers
-        mintVerifier = IMintVerifier(verifiers_[0]);
-        mintRolloverVerifier = IMintRolloverVerifier(verifiers_[1]);
-        activeTransferVerifier = IActiveTransferVerifier(verifiers_[2]);
-        finalizedTransferVerifier = IFinalizedTransferVerifier(verifiers_[3]);
-        rolloverTransferVerifier = ITransferRolloverVerifier(verifiers_[4]);
-
-        // Privacy tree state
-        state.subTreeHeight = subtreeHeight_;
-        SUBTREE_CAPACITY = 1 << subtreeHeight_;
-        state.rootTreeHeight = rootTreeHeight_;
-        EMPTY_SUBTREE_ROOT = initialSubtreeEmptyRoot_;
-        activeSubtreeRoot = initialSubtreeEmptyRoot_;
-        finalizedRoot = initialFinalizedEmptyRoot_;
-        state.nextLeafIndexInSubtree = 0;
-        state.initialized = true;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -193,31 +152,54 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
     /**
      * @notice Total supply across both modes (ERC-20 + Privacy)
      * @dev ERC-8085 requirement: totalSupply = publicSupply + privacySupply
+     *      Overrides both ERC20.totalSupply() and PrivacyToken.totalSupply()
      */
-    function totalSupply() public view override(ERC20, IDualModeToken) returns (uint256) {
-        return ERC20.totalSupply() + privacyTotalSupply;
+    function totalSupply() public view override(ERC20, PrivacyToken, IDualModeToken) returns (uint256) {
+        return ERC20.totalSupply() + PrivacyToken.totalSupply();
     }
 
     /**
      * @notice Total supply in privacy mode only
+     * @dev Returns the privacy supply from PrivacyToken base class
      */
     function totalPrivacySupply() external view override returns (uint256) {
-        return privacyTotalSupply;
+        return PrivacyToken.totalSupply();
     }
 
     /**
      * @notice Check if nullifier has been spent
+     * @dev Convenience function, delegates to inherited nullifiers mapping
      */
     function isNullifierSpent(bytes32 nullifier) external view override returns (bool) {
         return nullifiers[nullifier];
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Public Minting (ERC-20)
+    // Public Minting (REFERENCE IMPLEMENTATION - NOT PART OF ERC-8085)
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
      * @notice Mint public tokens (standard ERC-20)
+     * @dev Entry point for all tokens - ensures supply transparency
+     *
+     * ⚠️ IMPORTANT: This is NOT required by ERC-8085 standard!
+     *
+     * This is ONE possible token distribution mechanism.
+     * Other ERC-8085 implementations MAY use:
+     *   - Initial supply minted to deployer
+     *   - Bonding curve minting
+     *   - Airdrop distribution
+     *   - Governance-controlled minting
+     *   - Direct privacy minting (with different design trade-offs)
+     *   - No public minting at all (if starting from wrapped tokens)
+     *
+     * ERC-8085 standard does NOT mandate:
+     *   - Public minting mechanism
+     *   - Minting prices or amounts
+     *   - MAX_SUPPLY caps
+     *   - Who can mint tokens
+     *
+     * This function demonstrates a simple permissionless minting model.
      */
     function mintPublic(address to, uint256 amount) external payable nonReentrant {
         if (msg.value != PUBLIC_MINT_PRICE) revert IncorrectMintPrice(PUBLIC_MINT_PRICE, msg.value);
@@ -228,13 +210,14 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // IZRC20.mint - NOT SUPPORTED for Dual-Mode Tokens
+    // IZRC20.mint - DISABLED for Dual-Mode Tokens
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
      * @notice Direct privacy mint is NOT supported for dual-mode tokens
      * @dev Use mintPublic() to get public tokens, then toPrivacy() to convert
-     *      This design ensures all tokens enter through the public mode first
+     *      This design ensures all tokens enter through the public mode first,
+     *      maintaining supply transparency and preventing hidden inflation.
      */
     function mint(
         uint8,
@@ -250,7 +233,11 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
 
     /**
      * @notice Convert public balance to privacy mode
-     * @dev Burns ERC-20 tokens and creates privacy commitment
+     * @dev Burns ERC-20 tokens and creates privacy commitment via PrivacyToken._privacyMint
+     * @param amount Amount to convert (must match proof)
+     * @param proofType Type of proof (0 = regular, 1 = rollover)
+     * @param proof ZK-SNARK proof of valid commitment creation
+     * @param encryptedNote Encrypted note data for recipient wallet
      */
     function toPrivacy(
         uint256 amount,
@@ -260,10 +247,10 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
     ) external override nonReentrant {
         if (balanceOf(msg.sender) < amount) revert InsufficientPublicBalance();
 
-        // 1. Burn public tokens
+        // 1. Burn public tokens (ERC-20 layer)
         _burn(msg.sender, amount);
 
-        // 2. Create privacy commitment
+        // 2. Create privacy commitment (PrivacyToken layer)
         bytes32 commitment = _privacyMint(amount, proofType, proof, encryptedNote);
 
         emit ConvertToPrivacy(msg.sender, amount, commitment, block.timestamp);
@@ -276,6 +263,10 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
     /**
      * @notice Convert privacy balance to public mode
      * @dev Spends privacy notes and mints ERC-20 tokens
+     * @param recipient Address to receive public tokens
+     * @param proofType Type of proof (0 = active, 1 = finalized)
+     * @param proof ZK-SNARK proof of note ownership and spending
+     * @param encryptedNotes Encrypted notes for change outputs (if any)
      */
     function toPublic(
         address recipient,
@@ -285,139 +276,25 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
     ) external override nonReentrant {
         if (recipient == address(0)) revert ZeroAddress();
 
-        // 1. Spend privacy notes and get conversion amount
+        // 1. Spend privacy notes and get conversion amount (PrivacyToken layer)
         uint256 conversionAmount = _privacyBurn(proofType, proof, encryptedNotes);
 
-        // 2. Mint public tokens (no fee for mode conversion)
+        // 2. Mint public tokens (ERC-20 layer)
         _mint(recipient, conversionAmount);
 
         emit ConvertToPublic(msg.sender, recipient, conversionAmount, block.timestamp);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Privacy Transfer (IZRC20 / ERC-8086)
+    // Internal: Privacy Burn (Mode Conversion Helper)
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * @notice Privacy-preserving transfer (IZRC20.transfer)
+     * @notice Internal function to burn privacy notes during mode conversion
+     * @dev Calls PrivacyToken transfer functions with isModeConversion=true
+     *      and decrements privacy supply
+     * @return burnAmount Amount burned (converted to public)
      */
-    function transfer(
-        uint8 proofType,
-        bytes calldata proof,
-        bytes[] calldata encryptedNotes
-    ) external override(IZRC20) {
-        _privacyTransfer(proofType, proof, encryptedNotes);
-    }
-    
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Internal: Privacy Mint
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function _privacyMint(
-        uint256 expectedAmount,
-        uint8 proofType,
-        bytes calldata proof,
-        bytes calldata encryptedNote
-    ) internal returns (bytes32 commitment) {
-        if (proofType == 0) {
-            commitment = _mintRegular(expectedAmount, proof, encryptedNote);
-        } else if (proofType == 1) {
-            commitment = _mintAndRollover(expectedAmount, proof, encryptedNote);
-        } else {
-            revert InvalidProofType(proofType);
-        }
-        privacyTotalSupply += expectedAmount;
-    }
-
-    function _mintRegular(
-        uint256 expectedAmount,
-        bytes calldata _proof,
-        bytes calldata _encryptedNote
-    ) private returns (bytes32) {
-        if (state.nextLeafIndexInSubtree >= SUBTREE_CAPACITY) revert InvalidStateForRegularMint();
-
-        (uint[2] memory a, uint[2][2] memory b, uint[2] memory c, uint[4] memory pubSignals) =
-            abi.decode(_proof, (uint[2], uint[2][2], uint[2], uint[4]));
-
-        bytes32 newActiveRoot = bytes32(pubSignals[0]);
-        bytes32 oldActiveRoot = bytes32(pubSignals[1]);
-        bytes32 newCommitment = bytes32(pubSignals[2]);
-        uint256 mintAmount = pubSignals[3];
-
-        if (expectedAmount != mintAmount) revert IncorrectMintAmount(expectedAmount, mintAmount);
-        if (commitmentHashes[newCommitment]) revert CommitmentAlreadyExists(newCommitment);
-        if (activeSubtreeRoot != oldActiveRoot) revert OldActiveRootMismatch(activeSubtreeRoot, oldActiveRoot);
-        if (!mintVerifier.verifyProof(a, b, c, pubSignals)) revert InvalidProof();
-
-        commitmentHashes[newCommitment] = true;
-        activeSubtreeRoot = newActiveRoot;
-
-        emit CommitmentAppended(state.currentSubtreeIndex, newCommitment, state.nextLeafIndexInSubtree, block.timestamp);
-        emit Minted(msg.sender, newCommitment, _encryptedNote, state.currentSubtreeIndex, state.nextLeafIndexInSubtree, block.timestamp);
-
-        state.nextLeafIndexInSubtree++;
-        return newCommitment;
-    }
-
-    function _mintAndRollover(
-        uint256 expectedAmount,
-        bytes calldata _proof,
-        bytes calldata _encryptedNote
-    ) private returns (bytes32) {
-        if (state.nextLeafIndexInSubtree != SUBTREE_CAPACITY) revert InvalidStateForRollover();
-
-        (uint[2] memory a, uint[2][2] memory b, uint[2] memory c, uint[7] memory pubSignals) =
-            abi.decode(_proof, (uint[2], uint[2][2], uint[2], uint[7]));
-
-        bytes32 newActiveRoot = bytes32(pubSignals[0]);
-        bytes32 newFinalizedRoot = bytes32(pubSignals[1]);
-        bytes32 oldActiveRoot = bytes32(pubSignals[2]);
-        bytes32 oldFinalizedRoot = bytes32(pubSignals[3]);
-        bytes32 newCommitment = bytes32(pubSignals[4]);
-        uint256 mintAmount = pubSignals[5];
-        uint256 subtreeIndex = pubSignals[6];
-
-        if (expectedAmount != mintAmount) revert IncorrectMintAmount(expectedAmount, mintAmount);
-        if (commitmentHashes[newCommitment]) revert CommitmentAlreadyExists(newCommitment);
-        if (activeSubtreeRoot != oldActiveRoot) revert OldActiveRootMismatch(activeSubtreeRoot, oldActiveRoot);
-        if (finalizedRoot != oldFinalizedRoot) revert OldFinalizedRootMismatch(finalizedRoot, oldFinalizedRoot);
-        if (state.currentSubtreeIndex != subtreeIndex) revert IncorrectSubtreeIndex(state.currentSubtreeIndex, subtreeIndex);
-        if (!mintRolloverVerifier.verifyProof(a, b, c, pubSignals)) revert InvalidProof();
-
-        commitmentHashes[newCommitment] = true;
-        activeSubtreeRoot = newActiveRoot;
-        finalizedRoot = newFinalizedRoot;
-        state.currentSubtreeIndex++;
-        state.nextLeafIndexInSubtree = 0;
-
-        emit CommitmentAppended(state.currentSubtreeIndex, newCommitment, state.nextLeafIndexInSubtree, block.timestamp);
-        emit Minted(msg.sender, newCommitment, _encryptedNote, state.currentSubtreeIndex, state.nextLeafIndexInSubtree, block.timestamp);
-
-        state.nextLeafIndexInSubtree++;
-        return newCommitment;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Internal: Privacy Transfer
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function _privacyTransfer(
-        uint8 proofType,
-        bytes calldata proof,
-        bytes[] calldata encryptedNotes
-    ) internal {
-        if (proofType == 0) {
-            _transferActive(proof, encryptedNotes, false);
-        } else if (proofType == 1) {
-            _transferFinalized(proof, encryptedNotes, false);
-        } else if (proofType == 2) {
-            _transferAndRollover(proof, encryptedNotes);
-        } else {
-            revert InvalidProofType(proofType);
-        }
-    }
-
     function _privacyBurn(
         uint8 proofType,
         bytes calldata proof,
@@ -430,177 +307,36 @@ contract DualModeToken is ERC20, ReentrancyGuard, IDualModeToken {
         } else {
             revert InvalidProofType(proofType);
         }
-        privacyTotalSupply -= burnAmount;
-    }
-
-    function _transferActive(
-        bytes calldata _proof,
-        bytes[] calldata _encryptedNotes,
-        bool isModeConversion
-    ) private returns (uint256 conversionAmount) {
-        (uint[2] memory a, uint[2][2] memory b, uint[2] memory c, uint[13] memory pubSignals) =
-            abi.decode(_proof, (uint[2], uint[2][2], uint[2], uint[13]));
-
-        bytes32 newActiveRoot = bytes32(pubSignals[2]);
-        uint256 numRealOutputs = pubSignals[3];
-        conversionAmount = pubSignals[4];
-        bytes32 oldActiveRoot = bytes32(pubSignals[5]);
-
-        // Mode conversion validation
-        if (isModeConversion) {
-            if (conversionAmount == 0) revert InvalidConversionAmount(1, 0);
-            uint256 recipientX = pubSignals[10];
-            uint256 recipientY = pubSignals[11];
-            if (recipientX != BURN_ADDRESS_X || recipientY != BURN_ADDRESS_Y) {
-                revert InvalidConversionAmount(0, 1);
-            }
-        } else {
-            if (conversionAmount != 0) revert InvalidConversionAmount(0, conversionAmount);
-        }
-
-        uint256 availableCapacity = SUBTREE_CAPACITY - state.nextLeafIndexInSubtree;
-        if (numRealOutputs > availableCapacity) revert SubtreeCapacityExceeded(numRealOutputs, availableCapacity);
-        if (activeSubtreeRoot != oldActiveRoot) revert OldActiveRootMismatch(activeSubtreeRoot, oldActiveRoot);
-        if (!activeTransferVerifier.verifyProof(a, b, c, pubSignals)) revert InvalidProof();
-
-        activeSubtreeRoot = newActiveRoot;
-
-        TransactionData memory data;
-        data.ephemeralPublicKey = [pubSignals[0], pubSignals[1]];
-        data.nullifiers = [bytes32(pubSignals[6]), bytes32(pubSignals[7])];
-        data.commitments = [bytes32(pubSignals[8]), bytes32(pubSignals[9])];
-        data.viewTag = pubSignals[12];
-
-        _processTransaction(data, _encryptedNotes);
-    }
-
-    function _transferFinalized(
-        bytes calldata _proof,
-        bytes[] calldata _encryptedNotes,
-        bool isModeConversion
-    ) private returns (uint256 conversionAmount) {
-        (uint[2] memory a, uint[2][2] memory b, uint[2] memory c, uint[14] memory pubSignals) =
-            abi.decode(_proof, (uint[2], uint[2][2], uint[2], uint[14]));
-
-        bytes32 newActiveRoot = bytes32(pubSignals[2]);
-        uint256 numRealOutputs = pubSignals[3];
-        conversionAmount = pubSignals[4];
-        bytes32 oldFinalizedRoot = bytes32(pubSignals[5]);
-        bytes32 oldActiveRoot = bytes32(pubSignals[6]);
-
-        if (isModeConversion) {
-            if (conversionAmount == 0) revert InvalidConversionAmount(1, 0);
-            uint256 recipientX = pubSignals[11];
-            uint256 recipientY = pubSignals[12];
-            if (recipientX != BURN_ADDRESS_X || recipientY != BURN_ADDRESS_Y) {
-                revert InvalidConversionAmount(0, 1);
-            }
-        } else {
-            if (conversionAmount != 0) revert InvalidConversionAmount(0, conversionAmount);
-        }
-
-        uint256 availableCapacity = SUBTREE_CAPACITY - state.nextLeafIndexInSubtree;
-        if (numRealOutputs > availableCapacity) revert SubtreeCapacityExceeded(numRealOutputs, availableCapacity);
-        if (activeSubtreeRoot != oldActiveRoot) revert OldActiveRootMismatch(activeSubtreeRoot, oldActiveRoot);
-        if (finalizedRoot != oldFinalizedRoot) revert OldFinalizedRootMismatch(finalizedRoot, oldFinalizedRoot);
-        if (!finalizedTransferVerifier.verifyProof(a, b, c, pubSignals)) revert InvalidProof();
-
-        activeSubtreeRoot = newActiveRoot;
-
-        TransactionData memory data;
-        data.ephemeralPublicKey = [pubSignals[0], pubSignals[1]];
-        data.nullifiers = [bytes32(pubSignals[7]), bytes32(pubSignals[8])];
-        data.commitments = [bytes32(pubSignals[9]), bytes32(pubSignals[10])];
-        data.viewTag = pubSignals[13];
-
-        _processTransaction(data, _encryptedNotes);
-    }
-
-    function _transferAndRollover(
-        bytes calldata _proof,
-        bytes[] calldata _encryptedNotes
-    ) private {
-        (uint[2] memory a, uint[2][2] memory b, uint[2] memory c, uint[13] memory pubSignals) =
-            abi.decode(_proof, (uint[2], uint[2][2], uint[2], uint[13]));
-
-        bytes32 newActive = bytes32(pubSignals[2]);
-        bytes32 newFinalized = bytes32(pubSignals[3]);
-        uint256 conversionAmount = pubSignals[4];
-        bytes32 oldActive = bytes32(pubSignals[5]);
-        bytes32 oldFinalized = bytes32(pubSignals[6]);
-        uint256 subtreeIndex = pubSignals[12];
-
-        // Rollover doesn't support mode conversion
-        if (conversionAmount != 0) revert InvalidConversionAmount(0, conversionAmount);
-        if (state.nextLeafIndexInSubtree != SUBTREE_CAPACITY) revert InvalidStateForRollover();
-        if (activeSubtreeRoot != oldActive) revert OldActiveRootMismatch(activeSubtreeRoot, oldActive);
-        if (finalizedRoot != oldFinalized) revert OldFinalizedRootMismatch(finalizedRoot, oldFinalized);
-        if (state.currentSubtreeIndex != subtreeIndex) revert IncorrectSubtreeIndex(state.currentSubtreeIndex, subtreeIndex);
-        if (!rolloverTransferVerifier.verifyProof(a, b, c, pubSignals)) revert InvalidProof();
-
-        activeSubtreeRoot = newActive;
-        finalizedRoot = newFinalized;
-        state.currentSubtreeIndex++;
-        state.nextLeafIndexInSubtree = 0;
-
-        TransactionData memory data;
-        data.ephemeralPublicKey = [pubSignals[0], pubSignals[1]];
-        data.nullifiers = [bytes32(pubSignals[7]), bytes32(0)];
-        data.commitments = [bytes32(pubSignals[8]), bytes32(0)];
-        data.viewTag = pubSignals[11];
-
-        _processTransaction(data, _encryptedNotes);
-    }
-
-    function _processTransaction(
-        TransactionData memory _data,
-        bytes[] calldata _encryptedNotes
-    ) private {
-        // Spend nullifiers
-        for (uint32 i = 0; i < _data.nullifiers.length; i++) {
-            bytes32 n = _data.nullifiers[i];
-            if (n != bytes32(0)) {
-                if (nullifiers[n]) revert DoubleSpend(n);
-                nullifiers[n] = true;
-                emit NullifierSpent(n);
-            }
-        }
-
-        // Append commitments
-        for (uint i = 0; i < _data.commitments.length; i++) {
-            bytes32 c = _data.commitments[i];
-            if (c != bytes32(0)) {
-                emit CommitmentAppended(state.currentSubtreeIndex, c, state.nextLeafIndexInSubtree, block.timestamp);
-                state.nextLeafIndexInSubtree++;
-            }
-        }
-
-        emit Transaction(_data.commitments, _encryptedNotes, _data.ephemeralPublicKey, _data.viewTag);
+        _privacySupply -= burnAmount;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Fee Distribution
+    // Mode Conversion Validation (Override PrivacyToken Hook)
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * @notice Distribute collected mint fees to platform and token creator
-     * @dev Fees are split: platformFeeBps to platform, remainder to initiator
+     * @notice Validate mode conversion parameters (overrides PrivacyToken)
+     * @dev Verifies that privacy notes are sent to BURN_ADDRESS (provably unspendable)
+     *      This ensures the converted value cannot be double-spent in privacy mode.
+     *
+     * Security Critical: Without this check, users could:
+     *   1. Spend privacy notes to their own address
+     *   2. Get public tokens from toPublic()
+     *   3. Still have spendable privacy notes
+     *   Result: Creating tokens out of thin air!
+     *
+     * @param conversionAmount Amount being converted (must be > 0)
+     * @param recipientX X coordinate of recipient public key
+     * @param recipientY Y coordinate of recipient public key
      */
-    function distributeFees() external nonReentrant {
-        uint256 balance = address(this).balance;
-        if (balance == 0) revert NoFeesToDistribute();
-
-        uint256 platformAmount = (balance * platformFeeBps) / 10000;
-        uint256 initiatorAmount = balance - platformAmount;
-
-        if (platformAmount > 0) {
-            (bool success1, ) = platformTreasury.call{value: platformAmount}("");
-            if (!success1) revert FeeTransferFailed();
-        }
-
-        if (initiatorAmount > 0) {
-            (bool success2, ) = initiator.call{value: initiatorAmount}("");
-            if (!success2) revert FeeTransferFailed();
+    function _validateModeConversion(
+        uint256 conversionAmount,
+        uint256 recipientX,
+        uint256 recipientY
+    ) internal pure override {
+        if (conversionAmount == 0) revert InvalidConversionAmount(1, 0);
+        if (recipientX != BURN_ADDRESS_X || recipientY != BURN_ADDRESS_Y) {
+            revert InvalidConversionAmount(0, 1);
         }
     }
 }

@@ -31,10 +31,11 @@ erc-8085/
 │   │   ├── IDualModeToken.sol        # Core interface (ERC-8085)
 │   │   └── IZRC20.sol                # Privacy interface (ERC-8086)
 │   └── reference/
-│       ├── DualModeToken.sol         # Reference implementation
+│       ├── PrivacyToken.sol          # ERC-8086 base layer (abstract)
+│       ├── DualModeToken.sol         # ERC-8085 implementation
 │       └── DualModeTokenFactory.sol  # Factory for token deployment
 └── deployments/
-    └── base-sepolia.json              # Deployment addresses & config
+    ├── base-sepolia.json             
 ```
 
 ## How to Test This Implementation
@@ -47,17 +48,17 @@ A fully functional deployment is available on **Base Sepolia** testnet:
 
 **🔗 Test Application**: [testdmt.zkprotocol.xyz](https://testdmt.zkprotocol.xyz/)
 
-**Deployed Contracts** (verified on Basescan):
+**Deployed Contracts** (Latest - December 2025):
 
 | Contract | Address | Link |
 |----------|---------|------|
-| DualModeTokenFactory | `0xf5c16f708777cCb57C3A8887065b4EC02eAf9130` | [View Code](https://sepolia.basescan.org/address/0xf5c16f708777cCb57C3A8887065b4EC02eAf9130#code) |
-| DualModeToken (Implementation) | `0x1EFab166064AaD33fcB6074Ec8bA6302013C965C` | [View Code](https://sepolia.basescan.org/address/0x1EFab166064AaD33fcB6074Ec8bA6302013C965C#code) |
-| MintVerifier | `0xC655b758f07bAaE8B956c95b055424a5c3B04e79` | [View Code](https://sepolia.basescan.org/address/0xC655b758f07bAaE8B956c95b055424a5c3B04e79#code) |
-| MintRolloverVerifier | `0x9a6898B2e6C963EA81D17dCB9B0D483B590e168f` | [View Code](https://sepolia.basescan.org/address/0x9a6898B2e6C963EA81D17dCB9B0D483B590e168f#code) |
-| ActiveTransferVerifier | `0x7159EcAc6d1BB1433922b597fc2887dCA33a3A62` | [View Code](https://sepolia.basescan.org/address/0x7159EcAc6d1BB1433922b597fc2887dCA33a3A62#code) |
-| FinalizedTransferVerifier | `0x0f9b6F788774671C8c47D8adE9D36E884c96580D` | [View Code](https://sepolia.basescan.org/address/0x0f9b6F788774671C8c47D8adE9D36E884c96580D#code) |
-| RolloverTransferVerifier | `0x0B22df9887351Ecfb403cfB27056f3A371F3bD92` | [View Code](https://sepolia.basescan.org/address/0x0B22df9887351Ecfb403cfB27056f3A371F3bD92#code) |
+| DualModeTokenFactory | `0x64EeF485F82918bBf61dd5349300F5a84f907140` | [View Code](https://sepolia.basescan.org/address/0x64EeF485F82918bBf61dd5349300F5a84f907140#code) |
+| DualModeToken (Implementation) | `0xd8714b3E2B490585c22d5a7a030f3946e46940c4` | [View Code](https://sepolia.basescan.org/address/0xd8714b3E2B490585c22d5a7a030f3946e46940c4#code) |
+| MintVerifier | `0x0C9F3208b44d26B7e5D0ab145d49b050F5C7fFa5` | [View Code](https://sepolia.basescan.org/address/0x0C9F3208b44d26B7e5D0ab145d49b050F5C7fFa5#code) |
+| MintRolloverVerifier | `0x8F1C5De7b7193B0Ce1E9886E5f1c58aE3A5491dF` | [View Code](https://sepolia.basescan.org/address/0x8F1C5De7b7193B0Ce1E9886E5f1c58aE3A5491dF#code) |
+| ActiveTransferVerifier | `0x791cd059fA2b4B2d4015408eF6624BBD2F80d50E` | [View Code](https://sepolia.basescan.org/address/0x791cd059fA2b4B2d4015408eF6624BBD2F80d50E#code) |
+| FinalizedTransferVerifier | `0x96Bb15bE0a79C1f17dFed17b9D57c3DE1C5eA205` | [View Code](https://sepolia.basescan.org/address/0x96Bb15bE0a79C1f17dFed17b9D57c3DE1C5eA205#code) |
+| RolloverTransferVerifier | `0xEB85CA2d80da109fe9348a9B17F2E683BEaa4a07` | [View Code](https://sepolia.basescan.org/address/0xEB85CA2d80da109fe9348a9B17F2E683BEaa4a07#code) |
 
 **Network**: Base Sepolia (Chain ID: 84532)
 
@@ -84,10 +85,17 @@ All contracts are verified on Basescan. You can:
 
 ### Architecture
 
-ERC-8085 combines two standards in a single contract:
-- **Public Mode**: Standard ERC-20 (OpenZeppelin implementation)
-- **Privacy Mode**: ERC-8086 IZRC20 compatible
-- **Mode Conversion**: `toPrivacy()` and `toPublic()` functions
+ERC-8085 uses a layered design (updated December 2025):
+```
+DualModeToken.sol (ERC-8085)
+  ├─ Public Mode: ERC-20 (OpenZeppelin)
+  ├─ Mode Conversion: toPrivacy() / toPublic()
+  └─ Extends: PrivacyToken.sol (ERC-8086 base layer)
+       └─ Privacy Mode: IZRC20 compatible
+```
+
+- **PrivacyToken.sol**: Abstract base contract implementing ERC-8086
+- **DualModeToken.sol**: Extends PrivacyToken with ERC-8085 mode conversion
 
 ### Key Design Decisions
 
