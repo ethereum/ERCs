@@ -1,0 +1,217 @@
+---
+eip: <to be assigned>
+title: Permissioned Authorization Object (PPO)
+description: "A portable, revocable EIP-712 authorization struct for bounded pull-based transfers."
+author: "Mats Heming Julner (@recurmj)"
+discussions-to: "https://ethereum-magicians.org/t/draft-erc-rip-001-permissioned-pull-standard-consented-flow-layer-for-digital-value/25931"
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-12-11
+requires: 712
+---
+
+
+## Abstract
+
+This EIP defines a **Permissioned Authorization Object (PPO)**: an EIP-712 typed struct describing a *bounded, revocable permission to pull tokens* from a grantor.
+
+A PPO is:
+
+- signed off-chain by the **grantor**,
+- specifies the **grantee**, **token**, **per-call cap**, **time window**, and **nonce**,
+- portable across chains and executors that adopt the same type,
+- revocable by invalidating the nonce before use.
+
+It does **not** prescribe how transfers are executed; that is defined by a separate EIP ("Pull Execution Interface", ERC-B).
+
+## Motivation
+
+Today, ERC-20 and related standards lack a canonical primitive for *fine-grained pull permissions*.
+
+We have:
+
+- `transfer` — one-shot push
+- `approve/transferFrom` — persistent allowance, but:
+  - often infinite,
+  - not time-bounded,
+  - not natively portable across chains,
+  - approvals live in token contract state (harder to audit/rotate)
+- `permit` (EIP-2612) — signed approvals, but tightly coupled to token contracts
+
+What is missing is a **chain-agnostic, revocable authorization object** that:
+
+- encodes *bounded* consent in a single signed payload,
+- can be verified by any compliant executor contract,
+- is easy for wallets and AA stacks to reason about,
+- can be revoked before use,
+- composes with any ERC-20 token without requiring token changes.
+
+This EIP specifies such an authorization struct and its hashing rules, so that:
+
+- executors (ERC-B) can implement a common verification model,
+- registries and wallets can expose and revoke PPOs consistently,
+- systems can build higher-level coordination (subscriptions, automation) on a shared authorization primitive.
+
+## Specification
+
+### 1. EIP-712 Type Definition
+
+The canonical type for a Permissioned Authorization Object is:
+
+~~~text
+Authorization(
+  address grantor,
+  address grantee,
+  address token,
+  uint256 maxPerPull,
+  uint256 validAfter,
+  uint256 validBefore,
+  bytes32 nonce
+)
+~~~
+
+Where:
+
+- `grantor`: address providing consent (token owner).
+- `grantee`: address allowed to initiate pulls under this authorization.
+- `token`: ERC-20 token address.
+- `maxPerPull`: maximum number of `token` units that may be pulled per execution.
+- `validAfter`: unix timestamp (seconds) from which this authorization becomes valid (inclusive).
+- `validBefore`: unix timestamp (seconds) after which this authorization is no longer valid (exclusive).
+- `nonce`: unique value chosen by the grantor for replay protection.
+
+#### TYPEHASH (normative)
+
+The canonical `AUTH_TYPEHASH` MUST be:
+
+~~~solidity
+bytes32 constant AUTH_TYPEHASH = keccak256(
+  "Authorization(address grantor,address grantee,address token,uint256 maxPerPull,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
+);
+~~~
+
+#### Struct Hash (normative)
+
+Given:
+
+~~~solidity
+struct Authorization {
+    address grantor;
+    address grantee;
+    address token;
+    uint256 maxPerPull;
+    uint256 validAfter;
+    uint256 validBefore;
+    bytes32 nonce;
+}
+~~~
+
+The struct hash MUST be computed as:
+
+~~~solidity
+function _authStructHash(Authorization memory a) internal pure returns (bytes32) {
+    return keccak256(
+        abi.encode(
+            AUTH_TYPEHASH,
+            a.grantor,
+            a.grantee,
+            a.token,
+            a.maxPerPull,
+            a.validAfter,
+            a.validBefore,
+            a.nonce
+        )
+    );
+}
+~~~
+
+The EIP-712 digest is then:
+
+~~~solidity
+bytes32 digest = keccak256(
+    abi.encodePacked(
+        "\x19\x01",
+        domainSeparator,
+        _authStructHash(auth)
+    )
+);
+~~~
+
+where `domainSeparator` is as defined in EIP-712 by the verifying contract (typically the executor contract specified in ERC-B).
+
+### 2. Revocation Model
+
+This EIP defines **requirements on revocation semantics**, but does not prescribe storage layout. Implementations MAY use:
+
+- local per-executor storage, and/or
+- a shared registry contract, and/or
+- wallet-maintained revocation maps.
+
+Normative requirements:
+
+1. Grantors MUST be able to revoke any *unused* `nonce` prior to execution.
+
+2. Executors MUST check revocation status at execution time, via one or more of:
+   - a local `cancel(nonce)` mapping (grantor-only), and/or
+   - a shared registry e.g., `isRevoked(grantor, nonce)`.
+
+3. Executors MUST reject revoked or canceled nonces.
+
+Recommended events (names are illustrative):
+
+~~~solidity
+event AuthorizationGranted(
+    address indexed grantor,
+    address indexed grantee,
+    address indexed token,
+    bytes32 nonce
+);
+
+event AuthorizationRevoked(
+    address indexed grantor,
+    bytes32 indexed nonce
+);
+~~~
+
+Wallets and registries MAY emit these upon signing or revoking PPOs.
+
+### 3. Nonce Semantics
+
+- `nonce` MUST be treated as **single-use** in the context of a given grantor and domain separator.
+- Implementations SHOULD treat `(grantor, nonce)` as a unique pair.
+- Nonce consumption MUST be race-safe: an executor MUST mark the nonce as used *before* or atomically with any external calls (e.g., token transfers).
+
+### 4. Domain Binding
+
+This EIP intentionally separates:
+
+- the **authorization object** (ERC-A, this EIP), and
+- the **execution domain** (ERC-B, pull executor).
+
+Domain binding is achieved in ERC-B by including the executor’s `domainSeparator()` in the EIP-712 digest. That prevents signatures from being replayed across different executors.
+
+## Rationale
+
+- **Separation of concerns**: ERC-A defines “what is consent?” while ERC-B defines “how is consent executed?”. This keeps wallets, AA stacks, and registries decoupled from any specific executor implementation.
+- **Stateless across chains**: `maxPerPull` and time windows keep each execution stateless; cumulative limits can be built on top, but are not required at the primitive level.
+- **Nonce as bytes32**: Allows flexible schemes (per-grantee, per-token, per-policy) while remaining compatible with simple counter-based patterns.
+
+## Backwards Compatibility
+
+- Compatible with any ERC-20 token; no token changes required.
+- Orthogonal to EIP-2612; PPOs are a different authorization path (pull-by-consent vs “permit as approve”).
+
+## Security Considerations
+
+- Nonce MUST be single-use per `(grantor, domainSeparator)` context.
+- Implementations MUST enforce validity windows (`validAfter`, `validBefore`) *prior* to signature verification to avoid unnecessary work.
+- Revocation MUST be checked at execution time to avoid race conditions between revoke and pull.
+- Signatures MUST enforce low-s and `v ∈ {27, 28}` to prevent m
+alleability.
+
+
+## Copyright
+
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
