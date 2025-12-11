@@ -1,0 +1,216 @@
+---
+eip: <to be assigned>
+title: Permissioned Pull Execution Interface
+description: Standard interface for executing pull-based transfers using Permissioned Authorization Objects (PPOs).
+author: Mats Heming Julner (@recurmj)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-rip-001-permissioned-pull-standard-consented-flow-layer-for-digital-value/25931
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-12-11
+requires: 712
+---
+
+## Abstract
+
+This EIP defines a standard **pull executor interface** for executing token transfers under a Permissioned Authorization Object (PPO) as specified in ERC-A.
+
+It specifies:
+
+- the `Authorization` struct used at execution time,
+- the `pull` function signature,
+- required view functions for nonce and domain separation,
+- canonical events and errors,
+- normative execution rules (validation, revocation, transfer).
+
+## Motivation
+
+Given a shared authorization primitive (ERC-A), we need a **common way to execute pulls**:
+
+- so integrators can rely on consistent behavior across executors,
+- so wallets can display and reason about pull permissions,
+- so registries and observers can track usage and revocation.
+
+Today, protocols implement their own ad-hoc execution logic. This EIP defines a minimal interface that:
+
+- can be implemented by any executor contract,
+- works with any ERC-20 token,
+- supports revocation and replay protection,
+- cleanly separates authorization (off-chain) from execution (on-chain).
+
+## Specification
+
+### 1. Interface
+
+Compliant contracts MUST implement the following Solidity interface (or an ABI-compatible equivalent):
+
+~~~
+pragma solidity ^0.8.20;
+
+interface IPermissionedPullExecutor {
+    struct Authorization {
+        address grantor;
+        address grantee;
+        address token;
+        uint256 maxPerPull;
+        uint256 validAfter;
+        uint256 validBefore;
+        bytes32 nonce;
+    }
+
+    // Views
+
+    /// @notice EIP-712 domain separator used for Authorization digests.
+    function domainSeparator() external view returns (bytes32);
+
+    /// @notice Returns true if the given nonce has been used for this grantor.
+    function isNonceUsed(address grantor, bytes32 nonce) external view returns (bool);
+
+    /// @notice Returns true if the given nonce has been locally canceled for this grantor.
+    function isNonceCanceled(address grantor, bytes32 nonce) external view returns (bool);
+
+    // Mutations
+
+    /// @notice Executes a token pull from grantor to msg.sender (must equal auth.grantee),
+    ///         under the constraints encoded in the Authorization.
+    function pull(
+        uint256 amount,
+        Authorization calldata auth,
+        bytes calldata signature
+    ) external;
+
+    /// @notice Locally cancels a nonce for the caller, preventing future use.
+    function cancel(bytes32 nonce) external;
+
+    // Events
+
+    event PullExecuted(
+        address indexed grantor,
+        address indexed grantee,
+        address indexed token,
+        uint256 amount,
+        bytes32 structHash
+    );
+
+    event NonceUsed(
+        address indexed grantor,
+        bytes32 indexed nonce
+    );
+
+    event NonceCanceled(
+        address indexed grantor,
+        bytes32 indexed nonce
+    );
+
+    // Errors
+
+    error BadSignature();
+    error NotYetValid();
+    error Expired();
+    error OverCap();
+    error NonceAlreadyUsed();
+    error Revoked();
+    error WrongGrantee();
+    error ZeroAddress();
+    error ZeroAmount();
+    error TransferFailed();
+}
+~~~
+
+### 2. Execution Rules (Normative)
+
+An implementation of `pull` MUST:
+
+1. **Compute digest**
+
+   - Compute `structHash` exactly as specified in ERC-A.  
+   - Compute:
+   
+~~~
+bytes32 digest = keccak256(
+    abi.encodePacked(
+        "\x19\x01",
+        domainSeparator(),
+        structHash
+    )
+);
+~~~
+
+
+2. **Verify signature**
+
+   - Recover signer from `digest` and `signature`.
+   - Signer MUST equal `auth.grantor`.  
+   - Otherwise, revert with `BadSignature()`.
+
+   Implementations MAY support:
+   - EOAs via `ecrecover`
+   - Smart contract wallets via EIP-1271 (`isValidSignature`), but behavior MUST be documented.
+
+3. **Validate caller**
+
+   - `msg.sender` MUST equal `auth.grantee`.  
+   - Otherwise, revert with `WrongGrantee()`.
+
+4. **Validate time window**
+
+   - If `block.timestamp < auth.validAfter`, revert `NotYetValid()`.
+   - If `block.timestamp >= auth.validBefore`, revert `Expired()`.
+
+5. **Validate amount**
+
+   - If `amount == 0`, revert `ZeroAmount()`.
+   - If `auth.token == address(0)`, revert `ZeroAddress()`.
+   - If `amount > auth.maxPerPull`, revert `OverCap()`.
+
+6. **Check revocation**
+
+   - If `isNonceCanceled(auth.grantor, auth.nonce)` returns true, revert `Revoked()`.
+   - If implementation also integrates a shared registry (out of scope of this EIP), it MAY check an external `isRevoked` view and MUST revert `Revoked()` if revoked.
+
+7. **Check and mark nonce used**
+
+   - If `isNonceUsed(auth.grantor, auth.nonce)` is true, revert `NonceAlreadyUsed()`.
+   - Otherwise, atomically mark `(auth.grantor, auth.nonce)` as used **before** any external token transfer.
+
+8. **Execute transfer**
+
+   - Call `IERC20(auth.token).transferFrom(auth.grantor, auth.grantee, amount)`.
+   - If the transfer fails (according to the token’s semantics), revert `TransferFailed()`.
+
+9. **Emit events**
+
+   - Emit `NonceUsed(auth.grantor, auth.nonce)`.
+   - Emit `PullExecuted(auth.grantor, auth.grantee, auth.token, amount, structHash)`.
+
+### 3. Domain Separation
+
+- `domainSeparator()` MUST return a stable EIP-712 domain separator used for all PPO digests.
+- Deployments on different chains SHOULD use:
+  - `name` and `version` fields appropriate to the executor, and
+  - the chain’s `chainId` per EIP-712.
+
+This prevents cross-executor and cross-chain replay unless the same executor domain is intentionally replicated.
+
+## Rationale
+
+- **Separate executor standard**: Keeps execution semantics independent of any specific registry or higher-level coordination logic.
+- **Single `pull` entry point**: Simple mental model for users and integrators.
+- **Canonical errors**: Makes integration, testing, and UX (e.g., decoding revert reasons) easier.
+- **Explicit nonces**: Allow clear auditability and prevent ambiguous replay behavior.
+
+## Backwards Compatibility
+
+- Works with any ERC-20 token that supports `transferFrom`.
+- Compatible with existing allowance patterns; PPO-based pulls can coexist with traditional approvals.
+
+## Security Considerations
+
+- Nonce marking MUST follow checks-effects-interactions; state changes MUST precede external calls.
+- Implementations MUST consider token quirks (fee-on-transfer, non-standard return values) and SHOULD document behavior with such tokens.
+- Time windows reduce exposure of leaked signatures; however, key security is still critical.
+- Malicious grantees cannot exceed `maxPerPull` in a single call, but they MAY call `pull` multiple times if the authorization semantic allows. Systems requiring cumulative caps SHOULD implement them in higher layers or registries.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
