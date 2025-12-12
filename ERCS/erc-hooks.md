@@ -141,7 +141,7 @@ address kycProvider = 0x1234567890AbcdEF1234567890aBcdef12345678;
 // Create hook that redirects "kyc" to the KYC provider
 bytes memory hookData = abi.encodeWithSelector(
     CONTRACT_METADATA_HOOK_SELECTOR,
-    "kyc",
+    "kyc:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162",
     kycProvider
 );
 
@@ -175,7 +175,7 @@ if (value.startsWith("0xcae9bb7e")) {
     // Resolve from destination contract
     const credential = await destinationContract.getContractMetadata(key);
     
-    // credential contains: "Maria Garcia /0xabc...123/ ID: 146-DJH-6346-25294"
+    // credential contains: "Maria Garcia /0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162/ ID: 146-DJH-6346-25294"
 }
 ```
 
