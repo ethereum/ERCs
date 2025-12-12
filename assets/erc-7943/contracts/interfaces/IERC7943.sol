@@ -184,7 +184,7 @@ interface IERC7943MultiToken is IERC165 {
     /// @dev Requires specific authorization. Frozen tokens cannot be transferred by the account.
     /// @param account The address of the account whose tokens are to be frozen/unfrozen.
     /// @param tokenId The ID of the token to freeze/unfreeze.
-    /// @param amount The amount of tokens to freeze.
+    /// @param amount The amount of tokens to freeze. It can be greater than account balance.
     /// @return result True if the freezing executed correctly, false otherwise.
     function setFrozenTokens(address account, uint256 tokenId, uint256 amount) external returns(bool result);
 

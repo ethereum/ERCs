@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {uRWA1155} from "../contracts/uRWA1155.sol";
 import {IERC7943MultiToken} from "../contracts/interfaces/IERC7943.sol";
 import {MockERC1155Receiver} from "../contracts/mocks/MockERC1155Receiver.sol";
@@ -240,6 +240,43 @@ contract uRWA1155Test is Test {
         token.burn(TOKEN_ID_1, burnAmount);
     }
 
+    function test_CanTransfer_Fail_FrozenButSufficientBalance() public {
+        uint256 balance = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 freezeAmount = balance / 2;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, freezeAmount);
+        
+        // Should fail to transfer more than unfrozen, even if <= balance
+        uint256 transferAmount = balance - freezeAmount + 1;
+        assertFalse(token.canTransfer(user1, user2, TOKEN_ID_1, transferAmount));
+    }
+
+    function test_Freeze_MoreThanBalance_Success() public {
+        uint256 balance = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 hugeAmount = balance * 10;
+        
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, hugeAmount);
+        
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), hugeAmount);
+        // Also verify transfers fail
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, 1, 0));
+        token.safeTransferFrom(user1, user2, TOKEN_ID_1, 1, "");
+    }
+
+    function test_Revert_SelfTransfer_WhenFrozen() public {
+        uint256 balance = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 freezeAmount = balance / 2;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, freezeAmount);
+
+        uint256 transferAmount = balance - freezeAmount + 1;
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, transferAmount, balance - freezeAmount));
+        token.safeTransferFrom(user1, user1, TOKEN_ID_1, transferAmount, "");
+    }
+
     // --- Transfer Tests ---
 
     function test_Transfer_Success_WhitelistedToWhitelisted() public {
@@ -448,7 +485,7 @@ contract uRWA1155Test is Test {
     }
 
     function test_Revert_ForcedTransfer_ToZeroAddress() public {
-        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943CannotTransact.selector, address(0)));
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InvalidReceiver.selector, address(0)));
         vm.prank(forceTransferrer);
         token.forcedTransfer(user1, address(0), TOKEN_ID_1, FORCE_TRANSFER_AMOUNT);
     }
