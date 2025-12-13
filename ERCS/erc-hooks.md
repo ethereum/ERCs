@@ -13,11 +13,11 @@ requires: 3668
 
 ## Abstract
 
-This ERC introduces Metadata Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value. The destination contract MUST implement the same metadata interface as the originating contract. This enables secure resolution from known contracts, such as singleton registries with known security properties.
+This ERC introduces Metadata Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `string` or `bytes` value.
 
 ## Motivation
 
-The goal of this ERC is to propose a method for securely resolving onchain metadata from known contracts. Hooks allow metadata records to be redirected to trusted resolvers by specifying a destination contract address. If the destination is a known contract, such as a credential resolver for proof of personhood (PoP) or know your customer (KYC), clients can verify the contract's security properties before resolving.
+The goal of this ERC is to propose a method for securely resolving onchain metadata from known contracts. Hooks allow metadata records to be redirected to trusted resolvers by specifying a function call and destination contract address. If the destination is a known contract, such as a credential resolver for proof of personhood (PoP) or know your customer (KYC), clients can verify the contract's security properties before resolving.
 
 The hook both notifies resolving clients of a credential source, as well as provides the method for resolving the credential.
 
@@ -26,6 +26,7 @@ The hook both notifies resolving clients of a credential source, as well as prov
 - **Credential Resolution**: Redirect a `proof-of-person` or `kyc` record to a trusted credential registry
 - **Singleton Registries**: Point to canonical registries with known security properties
 - **Shared Metadata**: Multiple contracts can reference the same metadata source
+- **Generic Function Calls**: Call any function on any contract that returns a single string or bytes value
 
 ## Specification
 
@@ -35,82 +36,91 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 A hook is an ABI-encoded value stored in a metadata record that redirects resolution to a different contract. When a client encounters a hook, it:
 
-1. Parses the hook to extract the destination key and contract address
-2. Verifies the destination contract is trusted (RECOMMENDED)
-3. Calls the appropriate metadata function on the destination contract
+1. Parses the hook to extract the function call and target contract address
+2. Verifies the target contract is trusted (RECOMMENDED)
+3. Calls the specified function on the target contract
 4. Returns the resolved value
 
-The destination contract MUST implement the same metadata interface as the originating contract.
+The target function MUST return either `string` or `bytes`, and the hook MUST return the same value type as the target function.
 
-### Hook Function Signatures
-
-This ERC defines hook signatures for use with different metadata standards:
-
-#### For ERC-8049 (Contract-Level Metadata)
+### Hook Function Signature
 
 ```solidity
-function ContractMetadataHook(
-    string calldata key,
-    address destination
+function hook(
+    string calldata functionCall,
+    address target
 )
 ```
 
 ```solidity
-bytes4 constant CONTRACT_METADATA_HOOK_SELECTOR = 0xcae9bb7e;
+bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
 ```
 
-When resolved, clients call `getContractMetadata(key)` on the destination contract.
+#### Parameters
 
-#### For ERC-8048 (Token Metadata)
+- **`functionCall`**: A string representation of the function to call with its parameters
+- **`target`**: The address of the target contract to call
 
-```solidity
-function MetadataHook(
-    uint256 tokenId,
-    string calldata key,
-    address destination
-)
+### Function Call Format
+
+The `functionCall` parameter uses a Solidity-style syntax:
+
+- String parameters are enclosed in single quotes: `'value'`
+- Bytes/hex parameters use the `0x` prefix: `0x1234abcd`
+- Numbers are written as literals: `42` or `1000000`
+
+Functions MUST return a single `bytes` or `string` value.
+
+**Examples:**
+
 ```
-
-```solidity
-bytes4 constant METADATA_HOOK_SELECTOR = 0x954fe887;
+getContractMetadata('kyc')
+getMetadata(42,'avatar')
+name()
+uri(0x42)
 ```
-
-When resolved, clients call `getMetadata(tokenId, key)` on the destination contract.
 
 ### Hook Encoding
 
-Hooks MUST be ABI-encoded and stored as the value for a metadata key:
+Hooks can be encoded in two formats depending on the storage type:
 
-#### ERC-8049 Hook Encoding
+#### Bytes Format
+
+For metadata systems that store `bytes` values (e.g., ERC-8049, ERC-8048), hooks MUST be ABI-encoded:
 
 ```solidity
+bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
+
 bytes memory hookData = abi.encodeWithSelector(
-    CONTRACT_METADATA_HOOK_SELECTOR,
-    key,
-    destinationContract
+    HOOK_SELECTOR,
+    "getContractMetadata('kyc')",
+    targetContract
 );
 
 // Store the hook as the value
 originatingContract.setContractMetadata("kyc", hookData);
 ```
 
-#### ERC-8048 Hook Encoding
+#### String Format
 
-```solidity
-bytes memory hookData = abi.encodeWithSelector(
-    METADATA_HOOK_SELECTOR,
-    tokenId,
-    key,
-    destinationContract
-);
+For metadata systems that store `string` values, hooks SHOULD be formatted as:
 
-// Store the hook as the value
-originatingContract.setMetadata(tokenId, "kyc", hookData);
+```
+hook("functionCall()", 0xTargetAddress)
+```
+
+**Examples:**
+
+```
+hook("getContractMetadata('kyc')", 0x1234567890AbcdEF1234567890aBcdef12345678)
+hook("text(12453)", 0x1234567890AbcdEF1234567890aBcdef12345678)
 ```
 
 ### Detecting Hooks
 
-Clients MUST be aware in advance which metadata keys may contain hooks. It is intentional that hook-enabled keys are known by clients beforehand, similar to how clients know to look for keys like `"image"` or `"description"`.
+Clients SHOULD be aware in advance which metadata keys may contain hooks. It is intentional that hook-enabled keys are known by clients beforehand, similar to how clients know to look for keys like `"image"` or `"description"`.
+
+For bytes values, hooks can be detected by checking if the value starts with the hook selector `0x9645b9c8`. For string values, hooks can be detected by checking if the value starts with `hook(`.
 
 Specific implementations MAY:
 - Require that hooks are supported for every key
@@ -119,29 +129,32 @@ Specific implementations MAY:
 
 ### Resolving Hooks
 
-When a client encounters a hook:
+When a client encounters a hook that it wants to use:
 
-1. **Parse the hook** to extract the `key` (and `tokenId` for ERC-8048) and `destination` address
-2. **Verify the destination** (RECOMMENDED): Check that the destination contract is known and trusted
-3. **Resolve from destination**: Call the appropriate metadata function on the destination contract
-4. **Support ERC-3668**: Clients MUST support [ERC-3668](./eip-3668.md) offchain data retrieval when resolving from the destination contract
+1. **Parse the hook** to extract the `functionCall` and `target` address
+2. **Verify the target** (RECOMMENDED): Check that the target contract is known and trusted
+3. **Parse the function call**: Extract the function name and parameters from the string
+4. **Call the target**: Execute the function on the target contract
+5. **Support ERC-3668**: Clients MUST support [ERC-3668](./eip-3668.md) offchain data retrieval when resolving from the target contract
 
-Clients MAY choose NOT to resolve hooks if the destination contract is not known to be secure and trustworthy. Some clients have ERC-3668 disabled by default, but clients MUST enable it before resolving the hook.
+Clients MAY choose NOT to resolve hooks if the target contract is not known to be secure and trustworthy. Some clients have ERC-3668 disabled by default, but clients MUST enable it before resolving the hook.
 
-### Example: KYC Credential Resolution with ERC-8049
+### Example: KYC Credential Resolution
 
 A contract can redirect its `"kyc"` metadata key to a trusted KYC provider contract:
 
 **Step 1: Store the hook in the originating contract**
 
 ```solidity
+bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
+
 // KYCProvider is a trusted singleton registry at a known address
 address kycProvider = 0x1234567890AbcdEF1234567890aBcdef12345678;
 
-// Create hook that redirects "kyc" to the KYC provider
+// Create hook that calls getCredential('kyc:0x76F1Ff...') on the KYC provider
 bytes memory hookData = abi.encodeWithSelector(
-    CONTRACT_METADATA_HOOK_SELECTOR,
-    "kyc:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162",
+    HOOK_SELECTOR,
+    "getCredential('kyc:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162')",
     kycProvider
 );
 
@@ -155,25 +168,30 @@ originatingContract.setContractMetadata("kyc", hookData);
 // Client reads metadata from originating contract
 const value = await originatingContract.getContractMetadata("kyc");
 
-// Client detects this is a hook (starts with CONTRACT_METADATA_HOOK_SELECTOR)
-if (value.startsWith("0xcae9bb7e")) {
+// Client detects this is a hook (starts with HOOK_SELECTOR)
+if (value.startsWith("0x9645b9c8")) {
     // Parse the hook (ABI decode after 4-byte selector)
-    const { key, destination } = decodeHook(value);
+    const { functionCall, target } = decodeHook(value);
     
-    // Verify destination is trusted (implementation-specific)
-    if (!isTrustedResolver(destination)) {
+    // Verify target is trusted (implementation-specific)
+    if (!isTrustedResolver(target)) {
         throw new Error("Untrusted resolver");
     }
     
+    // Parse the function call string to get function name and args
+    const { functionName, args } = parseFunctionCall(functionCall);
+    // functionName = "getCredential"
+    // args = ["kyc:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162"]
+    
     // Enable ERC-3668 (CCIP-Read) support for this resolution
-    const destinationContract = new ethers.Contract(
-        destination,
-        ["function getContractMetadata(string) view returns (bytes)"],
+    const targetContract = new ethers.Contract(
+        target,
+        [`function ${functionName}(string) view returns (bytes)`],
         provider.ccipReadEnabled(true)  // Enable CCIP-Read
     );
     
-    // Resolve from destination contract
-    const credential = await destinationContract.getContractMetadata(key);
+    // Resolve from target contract
+    const credential = await targetContract[functionName](...args);
     
     // credential contains: "Maria Garcia /0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162/ ID: 146-DJH-6346-25294"
 }
@@ -191,74 +209,20 @@ ERC-3668 (CCIP-Read) is a powerful technology that enables both cross-chain and 
 
 Hooks are backwards compatible; clients that are not aware of hooks will simply return the hook encoding as the raw value.
 
-## Reference Implementation
-
-```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
-
-library MetadataHooks {
-    bytes4 constant CONTRACT_METADATA_HOOK_SELECTOR = 0xcae9bb7e;
-    bytes4 constant METADATA_HOOK_SELECTOR = 0x954fe887;
-    
-    function isContractMetadataHook(bytes memory value) internal pure returns (bool) {
-        if (value.length < 4) return false;
-        bytes4 selector;
-        assembly {
-            selector := mload(add(value, 32))
-        }
-        return selector == CONTRACT_METADATA_HOOK_SELECTOR;
-    }
-    
-    function isMetadataHook(bytes memory value) internal pure returns (bool) {
-        if (value.length < 4) return false;
-        bytes4 selector;
-        assembly {
-            selector := mload(add(value, 32))
-        }
-        return selector == METADATA_HOOK_SELECTOR;
-    }
-    
-    function parseContractMetadataHook(bytes memory value) 
-        internal 
-        pure 
-        returns (string memory key, address destination) 
-    {
-        require(isContractMetadataHook(value), "Not a contract metadata hook");
-        
-        bytes memory encoded = new bytes(value.length - 4);
-        for (uint i = 4; i < value.length; i++) {
-            encoded[i - 4] = value[i];
-        }
-        
-        (key, destination) = abi.decode(encoded, (string, address));
-    }
-    
-    function parseMetadataHook(bytes memory value) 
-        internal 
-        pure 
-        returns (uint256 tokenId, string memory key, address destination) 
-    {
-        require(isMetadataHook(value), "Not a metadata hook");
-        
-        bytes memory encoded = new bytes(value.length - 4);
-        for (uint i = 4; i < value.length; i++) {
-            encoded[i - 4] = value[i];
-        }
-        
-        (tokenId, key, destination) = abi.decode(encoded, (uint256, string, address));
-    }
-}
-```
-
 ## Security Considerations
 
-### Destination Trust
+### Target Trust
 
 The primary use of hooks is to resolve data from known contracts with verifiable security properties. Clients SHOULD:
 
-- Maintain a list of trusted destination contract addresses or use a third-party registry
-- Fail when resolving from untrusted destinations
+- Maintain a list of trusted target contract addresses or use a third-party registry
+- Fail when resolving from untrusted targets
+
+### Function Call Validation
+
+Clients SHOULD validate the parsed function call before execution to prevent:
+- Calls to dangerous functions (e.g., `selfdestruct`, `delegatecall`)
+- Malformed function call strings
 
 ### Recursive Hooks
 
