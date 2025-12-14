@@ -2,10 +2,10 @@
 pragma solidity ^0.8.19;
 
 import {
-    IXMLRepresentableStateVersionedHashed,
-    IXMLRepresentableState,         // needed for @inheritdoc
-    IRepresentableStateVersioned,   // needed for @inheritdoc
-    IRepresentableStateHashed       // needed for @inheritdoc
+IXMLRepresentableStateVersionedHashed,
+IXMLRepresentableState,         // needed for @inheritdoc
+IRepresentableStateVersioned,   // needed for @inheritdoc
+IRepresentableStateHashed       // needed for @inheritdoc
 } from "../IRepresentableState.sol";
 
 /**
@@ -108,13 +108,13 @@ contract TestContract is IXMLRepresentableStateVersionedHashed {
     function stateXmlTemplate() external pure override returns (string memory) {
         // Note: single quotes in XML to allow double quotes in solidity for a single string-block.
         return
-            "<Contract xmlns='urn:example:contract'"
-                " xmlns:evmstate='urn:evm:state:1.0'"
-                " evmstate:chain-id=''"
-                " evmstate:contract-address=''"
-                " evmstate:block-number=''>"
+                    "<Contract xmlns='urn:example:contract'"
+                    " xmlns:evmstate='urn:evm:state:1.0'"
+                    " evmstate:chain-id=''"
+                    " evmstate:contract-address=''"
+                    " evmstate:block-number=''>"
 
-                "<TestContract xmlns='urn:example:format-showcase'>"
+                    "<TestContract xmlns='urn:example:format-showcase'>"
 
                     // ---- Unsigned Integers ----
                     "<UintRaw evmstate:call='valueUint()(uint256)' evmstate:format='integer'/>"
@@ -145,37 +145,37 @@ contract TestContract is IXMLRepresentableStateVersionedHashed {
 
                     // ---- Multi-binding: amount as text, currency as attribute ----
                     "<Money"
-                        " evmstate:calls='valueMoney()(uint256);currency()(string)'"
-                        " evmstate:formats='decimal;string'"
-                        " evmstate:scales='2;'"        // 2 decimals for amount, no scaling for currency
-                        " evmstate:targets=';currency'/>"
+                    " evmstate:calls='valueMoney()(uint256);currency()(string)'"
+                    " evmstate:formats='decimal;string'"
+                    " evmstate:scales='2;'"        // 2 decimals for amount, no scaling for currency
+                    " evmstate:targets=';currency'/>"
 
                     // ---- Array binding profile (Mode B): scalar arrays -> repeated rows ----
                     "<ArrayExamples>"
 
-                        // int256[] -> repeated <Coupon> with decimal+scale
-                        "<Coupons"
-                            " evmstate:call='couponAmounts()(int256[])'"
-                            " evmstate:item-element='Coupon'>"
-                            "<Coupon"
-                                " evmstate:item-field='0'"
-                                " evmstate:format='decimal'"
-                                " evmstate:scale='2'/>"
-                        "</Coupons>"
+                    // int256[] -> repeated <Coupon> with decimal+scale
+                    "<Coupons"
+                    " evmstate:call='couponAmounts()(int256[])'"
+                    " evmstate:item-element='Coupon'>"
+                    "<Coupon"
+                    " evmstate:item-field='0'"
+                    " evmstate:format='decimal'"
+                    " evmstate:scale='2'/>"
+                    "</Coupons>"
 
-                        // string[] -> repeated <Label> with plain string
-                        "<CouponLabels"
-                            " evmstate:call='couponLabels()(string[])'"
-                            " evmstate:item-element='Label'>"
-                            "<Label"
-                                " evmstate:item-field='0'"
-                                " evmstate:format='string'/>"
-                        "</CouponLabels>"
+                    // string[] -> repeated <Label> with plain string
+                    "<CouponLabels"
+                    " evmstate:call='couponLabels()(string[])'"
+                    " evmstate:item-element='Label'>"
+                    "<Label"
+                    " evmstate:item-field='0'"
+                    " evmstate:format='string'/>"
+                    "</CouponLabels>"
 
                     "</ArrayExamples>"
 
-                "</TestContract>"
-            "</Contract>";
+                    "</TestContract>"
+                    "</Contract>";
     }
 
     /// @inheritdoc IRepresentableStateVersioned

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {
-    IXMLRepresentableStateVersionedHashed,
-    IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
+IXMLRepresentableStateVersionedHashed,
+IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
 } from "../IRepresentableState.sol";
 
 /**
@@ -113,12 +113,12 @@ contract BondDataTaxonomyDemo is IXMLRepresentableStateVersionedHashed {
     function stateXmlTemplate() external pure override returns (string memory) {
         // BDT-inspired XML structure.
         return
-            "<Contract xmlns='urn:example:contract'"
-                " xmlns:evmstate='urn:evm:state:1.0'"
-                " evmstate:chain-id=''"
-                " evmstate:contract-address=''"
-                " evmstate:block-number=''>"
-                "<BondData xmlns='urn:icma:bdt:1.0'>"
+                    "<Contract xmlns='urn:example:contract'"
+                    " xmlns:evmstate='urn:evm:state:1.0'"
+                    " evmstate:chain-id=''"
+                    " evmstate:contract-address=''"
+                    " evmstate:block-number=''>"
+                    "<BondData xmlns='urn:icma:bdt:1.0'>"
 
                     "<Security>"
                     "<Identifier>"
@@ -162,8 +162,8 @@ contract BondDataTaxonomyDemo is IXMLRepresentableStateVersionedHashed {
 
                     "<GoverningLaw evmstate:call='governingLaw()(string)'/>"
 
-                "</BondData>"
-            "</Contract>";
+                    "</BondData>"
+                    "</Contract>";
     }
 
     /// @inheritdoc IRepresentableStateVersioned

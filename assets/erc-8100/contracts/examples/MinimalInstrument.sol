@@ -2,8 +2,8 @@
 pragma solidity ^0.8.19;
 
 import {
-    IXMLRepresentableStateVersionedHashed,
-    IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
+IXMLRepresentableStateVersionedHashed,
+IXMLRepresentableState, IRepresentableStateVersioned, IRepresentableStateHashed     // needed for @inheritdoc
 } from "../IRepresentableState.sol";
 
 /**
@@ -49,13 +49,13 @@ contract MinimalInstrument is IXMLRepresentableStateVersionedHashed {
     function stateXmlTemplate() external pure override returns (string memory) {
         // Note: formatted as a single string for simplicity; newlines are optional.
         return
-            "<Contract xmlns='urn:example:contract'"
-                " xmlns:evmstate='urn:evm:state:1.0'"
-                " evmstate:chain-id=''"
-                " evmstate:contract-address=''"
-                " evmstate:block-number=''>"
+                    "<Contract xmlns='urn:example:contract'"
+                    " xmlns:evmstate='urn:evm:state:1.0'"
+                    " evmstate:chain-id=''"
+                    " evmstate:contract-address=''"
+                    " evmstate:block-number=''>"
 
-                "<Instrument xmlns='urn:example:format-showcase'>"
+                    "<Instrument xmlns='urn:example:format-showcase'>"
                     " xmlns:evmstate='urn:evm:state:1.0'>"
                     "<Owner evmstate:call='owner()(address)' evmstate:format='address'/>"
                     "<Notional"
@@ -64,8 +64,8 @@ contract MinimalInstrument is IXMLRepresentableStateVersionedHashed {
                     " evmstate:targets=';currency'/>"
                     "<MaturityDate evmstate:call='maturityDate()(uint256)' evmstate:format='iso8601-date'/>"
                     "<Active evmstate:call='active()(bool)' evmstate:format='boolean'/>"
-                "</Instrument>"
-            "</Contract>";
+                    "</Instrument>"
+                    "</Contract>";
     }
 
     /// @inheritdoc IRepresentableStateVersioned
