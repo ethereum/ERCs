@@ -13,7 +13,7 @@ requires: 3668
 
 ## Abstract
 
-This ERC introduces Metadata Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `string` or `bytes` value.
+This ERC introduces Metadata Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `bytes` value.
 
 ## Motivation
 
@@ -26,7 +26,7 @@ The hook both notifies resolving clients of a credential source, as well as prov
 - **Credential Resolution**: Redirect a `proof-of-person` or `kyc` record to a trusted credential registry
 - **Singleton Registries**: Point to canonical registries with known security properties
 - **Shared Metadata**: Multiple contracts can reference the same metadata source
-- **Generic Function Calls**: Call any function on any contract that returns a single string or bytes value
+- **Generic Function Calls**: Call any function on any contract that returns a single `bytes` value
 
 ## Specification
 
@@ -41,7 +41,7 @@ A hook is an ABI-encoded value stored in a metadata record that redirects resolu
 3. Calls the specified function on the target contract
 4. Returns the resolved value
 
-The target function MUST return either `string` or `bytes`, and the hook MUST return the same value type as the target function.
+The target function MUST return a single `bytes` value.
 
 ### Hook Function Signature
 
@@ -69,15 +69,14 @@ The `functionCall` parameter uses a Solidity-style syntax:
 - Bytes/hex parameters use the `0x` prefix: `0x1234abcd`
 - Numbers are written as literals: `42` or `1000000`
 
-Functions MUST return a single `bytes` or `string` value.
+Functions MUST return a single `bytes` value. Since `bytes` values can be ABI-encoded, this enables returning arrays, structs, strings, and other complex types as ABI-encoded bytes.
 
 **Examples:**
 
 ```
 getContractMetadata('kyc')
 getMetadata(42,'avatar')
-name()
-uri(0x42)
+getBytes(0x42)
 ```
 
 ### Hook Encoding
@@ -193,7 +192,7 @@ if (value.startsWith("0x9645b9c8")) {
     // Resolve from target contract
     const credential = await targetContract[functionName](...args);
     
-    // credential contains: "Maria Garcia /0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162/ ID: 146-DJH-6346-25294"
+    // credential is bytes containing: "Maria Garcia /0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162/ ID: 146-DJH-6346-25294"
 }
 ```
 
