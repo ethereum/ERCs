@@ -1,6 +1,6 @@
 ---
 eip: TBD
-title: Metadata Hooks
+title: Hooks
 description: A method for redirecting metadata records to a different contract for secure resolution.
 author: Prem Makeig (@nxt3d)
 discussions-to: https://ethereum-magicians.org/t/erc-metadata-hooks/XXXXX
@@ -13,7 +13,7 @@ requires: 3668
 
 ## Abstract
 
-This ERC introduces Metadata Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `bytes` value.
+This ERC introduces Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `bytes` value.
 
 ## Motivation
 
