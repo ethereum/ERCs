@@ -47,7 +47,7 @@ A Smart Credential is a smart contract that implements one or more credential fu
 When resolving a Smart Credential:
 
 1. Clients MUST enable [ERC-3668](./eip-3668.md) (CCIP-Read) for secure offchain data retrieval
-2. Clients MUST support ERC-XXXX (Metadata Hooks) for hook-based credential resolution
+2. Clients MUST support ERC-XXXX (Hooks) for hook-based credential resolution
 
 ### Credential Function Flexibility
 
@@ -72,7 +72,7 @@ For credentials with offchain data:
 Smart Credentials are designed to be resolved in the context of onchain profiles, such as:
 
 - AI agent profiles in onchain agent registries such as [ERC-8004](./eip-8004.md) (Trustless Agents)
-- Any identity system implementing ERC-XXXX (Metadata Hooks)
+- Any identity system implementing ERC-XXXX (Hooks)
 
 Identity systems can:
 - Allow users to add credentials to their profiles
