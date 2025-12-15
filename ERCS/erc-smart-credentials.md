@@ -59,6 +59,82 @@ Smart Credentials do not prescribe a specific function signature. The only requi
 
 This flexibility allows credential providers to design credential functions appropriate for their use case while maintaining uniform resolution through the `bytes` return type.
 
+### Example: Proof of Personhood Credential Using ERC-8049
+
+The following example demonstrates a simple Smart Credential contract that implements ERC-8049 to provide Proof of Personhood (PoP) credentials:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+interface IERC8049 {
+    function getContractMetadata(string calldata key) external view returns (bytes memory);
+    event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value);
+}
+
+contract PoPCredential is IERC8049 {
+    struct PoP {
+        string name;
+        string id;
+    }
+    
+    mapping(address => PoP) private _credentials;
+    
+    /// @notice Get contract metadata value for a key (ERC-8049)
+    /// @dev Key format is "pop:<hex-address>", returns formatted credential string as bytes
+    function getContractMetadata(string calldata key) external view override returns (bytes memory) {
+        address subject = parseAddress(key);
+        PoP memory _pop = _credentials[subject];
+        
+        string memory hexAddress = Strings.toHexString(uint256(uint160(subject)), 20);
+        string memory credential = string(abi.encodePacked(_pop.name, " : ", hexAddress, " : ", _pop.id));
+        return bytes(credential);
+    }
+    
+    /// @notice Set a Proof of Personhood credential
+    /// @param name The verified name of the person
+    /// @param subject The address of the credential subject
+    /// @param id The credential ID
+    function setPoP(string calldata name, address subject, string calldata id) external {
+        _credentials[subject] = PoP(name, id);
+        
+        string memory hexAddress = Strings.toHexString(uint256(uint160(subject)), 20);
+        string memory key = string(abi.encodePacked("pop:", hexAddress));
+        string memory credential = string(abi.encodePacked(name, " : ", hexAddress, " : ", id));
+        
+        emit ContractMetadataUpdated(key, key, bytes(credential));
+    }
+    
+    function parseAddress(string calldata key) internal pure returns (address) {
+        // Parse address from "pop:0x..." format (implementation omitted for brevity)
+    }
+}
+```
+
+**Setting a credential:**
+
+```solidity
+popCredential.setPoP(
+    "Maria Garcia",
+    0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162,
+    "ID: 146-DJH-6346-25294"
+);
+```
+
+**Resolving a credential (client-side):**
+
+```javascript
+// Get the credential bytes
+const credentialBytes = await popCredential.getContractMetadata("pop:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162");
+
+// Convert bytes to UTF-8 string
+const credentialString = ethers.utils.toUtf8String(credentialBytes);
+
+// credentialString = "Maria Garcia : 0x76f1ff0186ddb9461890bdb3094af74a5f24a162 : ID: 146-DJH-6346-25294"
+```
+
 ### Offchain Data Resolution
 
 For credentials with offchain data:
