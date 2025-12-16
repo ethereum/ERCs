@@ -13,7 +13,7 @@ requires: 3668
 
 ## Abstract
 
-This ERC introduces Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `bytes` value.
+This ERC introduces Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `bytes` or `string` value, with the return type matching the hook's encoding format.
 
 ## Motivation
 
@@ -26,7 +26,7 @@ The hook both notifies resolving clients of a credential source, as well as prov
 - **Credential Resolution**: Redirect a `proof-of-person` or `kyc` record to a trusted credential registry
 - **Singleton Registries**: Point to canonical registries with known security properties
 - **Shared Metadata**: Multiple contracts can reference the same metadata source
-- **Generic Function Calls**: Call any function on any contract that returns a single `bytes` value
+- **Generic Function Calls**: Call any function on any contract that returns a single `bytes` or `string` value
 
 ## Specification
 
@@ -34,14 +34,18 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Overview
 
-A hook is an ABI-encoded value stored in a metadata record that redirects resolution to a different contract. When a client encounters a hook, it:
+A hook is a value stored in a metadata record that redirects resolution to a different contract. When a client encounters a hook, it:
 
 1. Parses the hook to extract the function call and target contract address
 2. Verifies the target contract is trusted (RECOMMENDED)
 3. Calls the specified function on the target contract
 4. Returns the resolved value
 
-The target function MUST return a single `bytes` value.
+The target function's return type MUST match the hook's encoding format:
+- If the hook is encoded as `bytes`, the target function MUST return `bytes`
+- If the hook is encoded as a `string`, the target function MUST return `string`
+
+This ensures type consistency throughout the resolution chain.
 
 ### Hook Function Signature
 
@@ -69,7 +73,9 @@ The `functionCall` parameter uses a Solidity-style syntax:
 - Bytes/hex parameters use the `0x` prefix: `0x1234abcd`
 - Numbers are written as literals: `42` or `1000000`
 
-Functions MUST return a single `bytes` value. Since `bytes` values can be ABI-encoded, this enables returning arrays, structs, strings, and other complex types as ABI-encoded bytes.
+The return type of the called function depends on the hook encoding format:
+- **Bytes hooks**: Function MUST return a single `bytes` value (can be ABI-encoded for arrays, structs, etc.)
+- **String hooks**: Function MUST return a single `string` value
 
 **Examples:**
 
@@ -77,6 +83,7 @@ Functions MUST return a single `bytes` value. Since `bytes` values can be ABI-en
 getContractMetadata('kyc')
 getMetadata(42,'avatar')
 getBytes(0x42)
+getText('description')
 ```
 
 ### Hook Encoding
@@ -85,7 +92,7 @@ Hooks can be encoded in two formats depending on the storage type:
 
 #### Bytes Format
 
-For metadata systems that store `bytes` values (e.g., ERC-8049, ERC-8048), hooks MUST be ABI-encoded:
+For metadata systems that store `bytes` values (e.g., ERC-8049, ERC-8048), hooks MUST be ABI-encoded. The target function MUST return `bytes`.
 
 ```solidity
 bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
@@ -98,11 +105,12 @@ bytes memory hookData = abi.encodeWithSelector(
 
 // Store the hook as the value
 originatingContract.setContractMetadata("kyc", hookData);
+// Target function: function getContractMetadata(string) external view returns (bytes memory)
 ```
 
 #### String Format
 
-For metadata systems that store `string` values, hooks SHOULD be formatted as:
+For metadata systems that store `string` values, hooks SHOULD be formatted as shown below. The target function MUST return `string`.
 
 ```
 hook("functionCall()", 0xTargetAddress)
@@ -111,8 +119,10 @@ hook("functionCall()", 0xTargetAddress)
 **Examples:**
 
 ```
-hook("getContractMetadata('kyc')", 0x1234567890AbcdEF1234567890aBcdef12345678)
+hook("getText('kyc')", 0x1234567890AbcdEF1234567890aBcdef12345678)
 hook("text(12453)", 0x1234567890AbcdEF1234567890aBcdef12345678)
+// Target functions: function getText(string) external view returns (string memory)
+//                   function text(uint256) external view returns (string memory)
 ```
 
 ### Detecting Hooks
@@ -199,6 +209,10 @@ if (value.startsWith("0x9645b9c8")) {
 ## Rationale
 
 Hooks introduce redirection for resolving metadata records, which allows for resolving records from "known" contracts. Known contracts may have security properties which are verifiable, for example a singleton registry which resolves Proof-of-Personhood IDs or Know-your-Customer credentials.
+
+### Why Match Return Types to Encoding Format?
+
+By requiring that the target function's return type matches the hook's encoding format (bytes-to-bytes, string-to-string), hooks maintain type consistency throughout the entire resolution chain. This allows the resolved value to be returned all the way to the original intended location while keeping the same value type, ensuring compatibility with the originating metadata system's storage type.
 
 ### Why Mandate ERC-3668?
 
