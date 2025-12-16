@@ -205,7 +205,7 @@
                 // For you implementation of ERC-7710
                 const delegationStruct = {
                   delegator: userEvmWallet[0].address,
-                  delegate: per.signer.data.address,
+                  delegate: per.signer,
                   authority: ROOT_AUTHORITY,
                   signature: "0x",
                 };
@@ -247,12 +247,7 @@
             params: [
               {
                 chainId: "0x01",
-                signer: {
-                  type: "account",
-                  data: {
-                    address: dAppEvmWallet[0].address,
-                  },
-                },
+                signer: dAppEvmWallet[0].address,
                 permission: {
                   type: "native-token-transfer",
                   isAdjustmentAllowed: false,
