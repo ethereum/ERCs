@@ -87,6 +87,17 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         _mint(to, id, amount, "");
     }
 
+    /// @notice Safely creates `amounts` of new tokens for each `ids` and assigns them to `to`.
+    /// @dev Can only be called by accounts holding the `MINTER_ROLE`.
+    /// Requires `to` to be allowed according to {canTransact}.
+    /// Emits a {TransferBatch} event with `operator` set to the caller.
+    /// @param to The address that will receive the minted tokens.
+    /// @param ids The array of IDs of the tokens to mint.
+    /// @param amounts The array of amounts of tokens to mint.
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts) external onlyRole(MINTER_ROLE) {
+        _mintBatch(to, ids, amounts, "");
+    }
+
     /// @notice Destroys `amount` tokens of `id` from the caller's account.
     /// @dev Can only be called by accounts holding the `BURNER_ROLE`.
     /// Emits a {TransferSingle} event with `to` set to the zero address.
@@ -94,6 +105,15 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     /// @param amount The amount of tokens to burn.
     function burn(uint256 id, uint256 amount) external onlyRole(BURNER_ROLE) {
         _burn(_msgSender(), id, amount);
+    }
+
+    /// @notice Destroys `amounts` of tokens for each `ids` from the caller's account.
+    /// @dev Can only be called by accounts holding the `BURNER_ROLE`.
+    /// Emits a {TransferBatch} event with `to` set to the zero address.
+    /// @param ids The array of IDs of the tokens to burn.
+    /// @param amounts The array of amounts of tokens to burn.
+    function burnBatch(uint256[] memory ids, uint256[] memory amounts) external onlyRole(BURNER_ROLE) {
+        _burnBatch(_msgSender(), ids, amounts);
     }
 
     /// @inheritdoc IERC7943MultiToken

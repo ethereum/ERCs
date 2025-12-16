@@ -160,6 +160,109 @@ contract uRWA1155Test is Test {
         token.mint(address(receiverContract), TOKEN_ID_2, MINT_AMOUNT);
     }
 
+    // --- Batch Minting Tests ---
+
+    function test_MintBatch_Success() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT * 2;
+
+        uint256 user2InitialBalance1 = token.balanceOf(user2, TOKEN_ID_1);
+        uint256 user2InitialBalance2 = token.balanceOf(user2, TOKEN_ID_2);
+
+        vm.prank(minter);
+        vm.expectEmit(true, true, true, true);
+        emit IERC1155.TransferBatch(minter, address(0), user2, ids, amounts);
+        token.mintBatch(user2, ids, amounts);
+
+        assertEq(token.balanceOf(user2, TOKEN_ID_1), user2InitialBalance1 + MINT_AMOUNT);
+        assertEq(token.balanceOf(user2, TOKEN_ID_2), user2InitialBalance2 + MINT_AMOUNT * 2);
+    }
+
+    function test_Revert_MintBatch_NotMinter() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT;
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user1, MINTER_ROLE));
+        token.mintBatch(user2, ids, amounts);
+    }
+
+    function test_Revert_MintBatch_ToNonWhitelisted() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT;
+
+        vm.prank(minter);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943CannotTransact.selector, nonWhitelistedUser));
+        token.mintBatch(nonWhitelistedUser, ids, amounts);
+    }
+
+    function test_Revert_MintBatch_ToZeroAddress() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT;
+
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InvalidReceiver.selector, address(0)));
+        vm.prank(minter);
+        token.mintBatch(address(0), ids, amounts);
+    }
+
+    function test_Revert_MintBatch_ArraysLengthMismatch() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = MINT_AMOUNT;
+
+        vm.prank(minter);
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InvalidArrayLength.selector, 2, 1));
+        token.mintBatch(user2, ids, amounts);
+    }
+
+    function test_MintBatch_ToContractReceiver() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT;
+
+        vm.prank(minter);
+        token.mintBatch(address(receiverContract), ids, amounts);
+
+        assertEq(token.balanceOf(address(receiverContract), TOKEN_ID_1), MINT_AMOUNT);
+        assertEq(token.balanceOf(address(receiverContract), TOKEN_ID_2), MINT_AMOUNT);
+    }
+
+    function test_Revert_MintBatch_ToContractThatRejects() public {
+        receiverContract.setShouldReject(true);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT;
+
+        vm.prank(minter);
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InvalidReceiver.selector, address(receiverContract)));
+        token.mintBatch(address(receiverContract), ids, amounts);
+    }
+
     // --- Enhanced Burning Tests ---
 
     function test_Burn_Success() public {
@@ -238,6 +341,115 @@ contract uRWA1155Test is Test {
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InsufficientBalance.selector, user1, MINT_AMOUNT, burnAmount, TOKEN_ID_1));
         token.burn(TOKEN_ID_1, burnAmount);
+    }
+
+    // --- Batch Burning Tests ---
+
+    function test_BurnBatch_Success() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = BURN_AMOUNT;
+        amounts[1] = BURN_AMOUNT;
+
+        uint256 initialBalance1 = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 initialBalance2 = token.balanceOf(user1, TOKEN_ID_2);
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true);
+        emit IERC1155.TransferBatch(user1, user1, address(0), ids, amounts);
+        token.burnBatch(ids, amounts);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), initialBalance1 - BURN_AMOUNT);
+        assertEq(token.balanceOf(user1, TOKEN_ID_2), initialBalance2 - BURN_AMOUNT);
+    }
+
+    function test_BurnBatch_Success_ReducesFrozenWhenExceedsUnfrozen() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        // Freeze some tokens for both token IDs
+        uint256 frozenAmount = 60;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, frozenAmount);
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_2, frozenAmount);
+
+        uint256 unfrozenBalance = token.balanceOf(user1, TOKEN_ID_1) - frozenAmount;
+        uint256 burnAmount = unfrozenBalance + 20; // More than unfrozen
+        uint256 expectedNewFrozenAmount = frozenAmount - (burnAmount - unfrozenBalance);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = burnAmount;
+        amounts[1] = burnAmount;
+
+        uint256 initialBalance1 = token.balanceOf(user1, TOKEN_ID_1);
+        uint256 initialBalance2 = token.balanceOf(user1, TOKEN_ID_2);
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true); // Frozen event for TOKEN_ID_1
+        emit IERC7943MultiToken.Frozen(user1, TOKEN_ID_1, expectedNewFrozenAmount);
+        vm.expectEmit(true, true, true, true); // Frozen event for TOKEN_ID_2
+        emit IERC7943MultiToken.Frozen(user1, TOKEN_ID_2, expectedNewFrozenAmount);
+        vm.expectEmit(true, true, true, true); // TransferBatch event
+        emit IERC1155.TransferBatch(user1, user1, address(0), ids, amounts);
+        token.burnBatch(ids, amounts);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), initialBalance1 - burnAmount);
+        assertEq(token.balanceOf(user1, TOKEN_ID_2), initialBalance2 - burnAmount);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), expectedNewFrozenAmount);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_2), expectedNewFrozenAmount);
+    }
+
+    function test_Revert_BurnBatch_NotBurnerRole() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = BURN_AMOUNT;
+        amounts[1] = BURN_AMOUNT;
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user1, BURNER_ROLE));
+        token.burnBatch(ids, amounts);
+    }
+
+    function test_Revert_BurnBatch_InsufficientBalance() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT + 1; // Insufficient for TOKEN_ID_2
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InsufficientBalance.selector, user1, MINT_AMOUNT, MINT_AMOUNT + 1, TOKEN_ID_2));
+        token.burnBatch(ids, amounts);
+    }
+
+    function test_Revert_BurnBatch_ArraysLengthMismatch() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_2;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = BURN_AMOUNT;
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC1155Errors.ERC1155InvalidArrayLength.selector, 2, 1));
+        token.burnBatch(ids, amounts);
     }
 
     function test_CanTransfer_Fail_FrozenButSufficientBalance() public {
