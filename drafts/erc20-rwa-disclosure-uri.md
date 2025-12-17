@@ -36,3 +36,15 @@ interface IERC20RwaDisclosureURI {
     function disclosureURI() external view returns (string memory);
 }
 
+## Rationale
+
+A URI-based disclosure mechanism is simple, flexible, and inexpensive to implement. It aligns with existing metadata patterns used across ERC standards and avoids imposing on-chain storage or enforcement requirements. This ERC intentionally limits scope to disclosure discovery, allowing issuers, wallets, and indexers to decide how disclosure information is interpreted or displayed.
+
+## Security Considerations
+
+The disclosure URI is informational and MAY change over time. Consumers of this information MUST NOT assume immutability, authenticity, or legal enforceability. Implementations SHOULD treat the disclosure URI as an off-chain reference and apply appropriate validation or trust assumptions when consuming referenced content.
+
+## Copyright
+
+Copyright and related rights waived via CC0.
+
