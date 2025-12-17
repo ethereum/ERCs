@@ -23,7 +23,7 @@
       <h1>Example ERC-7715 Permissions Request Handler</h1>
 
       <button id="request-permission-btn">
-        Request (native-token-transfer) permission
+        Request (native-token-allowance) permission
       </button>
     </div>
 
@@ -44,51 +44,18 @@
       {
         "imports": {
           "viem": "https://esm.sh/viem@2.41.2",
-          "@noble/secp256k1": "https://esm.sh/@noble/secp256k1@3.0.0",
-          "@noble/hashes/sha3": "https://esm.sh/@noble/hashes@2.0.1/sha3",
-          "@noble/hashes/hmac": "https://esm.sh/@noble/hashes@2.0.1/hmac",
-          "@noble/hashes/sha2": "https://esm.sh/@noble/hashes@2.0.1/sha2"
+          "viem/accounts": "https://esm.sh/viem@2.41.2/accounts"
         }
       }
     </script>
 
     <script type="module">
-      import * as secp from "@noble/secp256k1";
-      import { keccak_256 } from "@noble/hashes/sha3";
-      import { hmac } from "@noble/hashes/hmac";
-      import { sha256 } from "@noble/hashes/sha2";
       import { encodeAbiParameters, hashTypedData, hexToBytes } from "viem";
+      import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
       ////////////////////////////// Wallet Provider context //////////////////////////////
-
-      // Enabling synchronous methods
-      secp.hashes.hmacSha256 = (key, msg) => hmac(sha256, key, msg);
-      secp.hashes.sha256 = sha256;
-
-      /**
-       *  Generate a random Ethereum Account for the browser session
-       *  1. Generate a random private key (32 bytes)
-       *  2. Derive the public key from the private key using 'false' option to specify an uncompressed public key
-       *  3. Hash the public key with Keccak-256, slicing off the first byte (0x04 prefix for uncompressed key format)
-       *  4. Use the last 20 bytes of the hash for ETH address bytes
-       *  5. Convert the address bytes to a hexadecimal string
-       *  6. Return the address and private key
-       */
-      function createEphemeralEthAccount() {
-        const secretKeyBytes = secp.utils.randomSecretKey();
-        const publicKeyBytes = secp.getPublicKey(secretKeyBytes, false);
-        const hash = keccak_256(publicKeyBytes.slice(1));
-        const addressBytes = hash.slice(-20);
-
-        return {
-          privateKey: `0x${secp.etc.bytesToHex(secretKeyBytes)}`,
-          privateKeyBytes: secretKeyBytes,
-          address: `0x${secp.etc.bytesToHex(addressBytes)}`,
-        };
-      }
-
       // The user EVM account stored in the wallet
-      const userEvmWallet = [createEphemeralEthAccount()];
+      const userEvmWallet = [privateKeyToAccount(generatePrivateKey())];
 
       // Special authority value indicating the delegator is the root authority
       const ROOT_AUTHORITY =
@@ -101,7 +68,7 @@
       /**
        * Signs a EIP-712 typed data using the given delegation struct object
        */
-      function signDelegation(params) {
+      async function signDelegation(params) {
         const { chainId, delegationStruct } = params;
 
         // Define EIP-712 data
@@ -129,30 +96,10 @@
           message: delegationStruct,
         };
 
-        // Calculate the EIP-712 digest hash and sign with given private key
-        const digestHex = hashTypedData(typedData);
-        const digestBytes = hexToBytes(digestHex);
+        const account = userEvmWallet[0];
+        const signature = await account.signTypedData(typedData);
 
-        // The result is a Uint8Array and will need to format it into r, s, v
-        const sigR = secp.sign(digestBytes, userEvmWallet[0].privateKeyBytes, {
-          prehash: false,
-          format: "recovered",
-        });
-
-        // Example of formatting for Ethereum (r, s, v)
-        const r = sigR.slice(0, 32);
-        const s = sigR.slice(32, 64);
-        const recovery = sigR[64]; // last byte
-        const v = recovery + 27;
-
-        const rHex = secp.etc.bytesToHex(r);
-        const sHex = secp.etc.bytesToHex(s);
-        const vHex = v.toString(16).padStart(2, "0");
-
-        // Final signature: 0x + r + s + v
-        const fullSignature = `0x${rHex}${sHex}${vHex}`;
-
-        return fullSignature;
+        return signature;
       }
 
       /**
@@ -199,33 +146,39 @@
           const { method, params } = eip1193RequestArguments;
           switch (method) {
             case "wallet_requestExecutionPermissions":
-              return params.map((per) => {
-                // Built  and sign delegation with the user selected account
-                // Here you can attach terms that match the semantics of the requested permission
-                // For you implementation of ERC-7710
-                const delegationStruct = {
-                  delegator: userEvmWallet[0].address,
-                  delegate: per.signer,
-                  authority: ROOT_AUTHORITY,
-                  signature: "0x",
-                };
+              const responses = await Promise.all(
+                params.map(async (req) => {
+                  // Built  and sign delegation with the user selected account
+                  // Here you can attach terms that match the semantics of the requested permission
+                  // For you implementation of ERC-7710
+                  const delegationStruct = {
+                    delegator: userEvmWallet[0].address,
+                    delegate: req.to,
+                    authority: ROOT_AUTHORITY,
+                    signature: "0x",
+                  };
 
-                const signature = signDelegation({
-                  chainId: per.chainId,
-                  delegationStruct,
-                });
+                  const signature = await signDelegation({
+                    chainId: req.chainId,
+                    delegationStruct,
+                  });
 
-                const signedDelegation = { ...delegationStruct, signature };
-                const permissionContext = encodeDelegations([signedDelegation]);
+                  const signedDelegation = { ...delegationStruct, signature };
+                  const permissionContext = encodeDelegations([
+                    signedDelegation,
+                  ]);
 
-                return {
-                  ...per,
-                  address: userEvmWallet[0].address,
-                  context: permissionContext,
-                  dependencyInfo: [], // If the users smart account it not yet deployed, attach (factory, factoryData)
-                  delegationManager: DELEGATION_MANAGER_ADDRESS,
-                };
-              });
+                  return {
+                    ...req,
+                    from: userEvmWallet[0].address,
+                    context: permissionContext,
+                    dependencyInfo: [], // If the users smart account it not yet deployed, attach (factory, factoryData)
+                    delegationManager: DELEGATION_MANAGER_ADDRESS,
+                  };
+                })
+              );
+
+              return responses;
             default:
               throw new Error(`Method not supported: [${method}]`);
           }
@@ -234,7 +187,7 @@
 
       ////////////////////////////// DApp context //////////////////////////////
 
-      const dAppEvmWallet = [createEphemeralEthAccount()];
+      const dAppEvmWallet = [privateKeyToAccount(generatePrivateKey())];
       const output = document.getElementById("response-output");
 
       document
@@ -247,9 +200,9 @@
             params: [
               {
                 chainId: "0x01",
-                signer: dAppEvmWallet[0].address,
+                to: dAppEvmWallet[0].address,
                 permission: {
-                  type: "native-token-transfer",
+                  type: "native-token-allowance",
                   isAdjustmentAllowed: false,
                   data: {
                     allowance: "0x1DCD6500",
@@ -258,7 +211,6 @@
                 rules: [
                   {
                     type: "expiry",
-                    isAdjustmentAllowed: false,
                     data: {
                       timestamp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
                     },
