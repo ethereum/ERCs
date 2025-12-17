@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-12-17
-requires: 6909, 7930, 8048
+requires: 6909, 7930, 8048, 8049
 ---
 
 ## Abstract
@@ -19,7 +19,7 @@ This protocol proposes a lightweight onchain registry for **discovering AI agent
 
 While various offchain agent communication protocols handle capabilities advertisement and task orchestration, they don't inherently cover agent discovery. To foster an open, cross-organizational agent economy, we need a mechanism for discovering agents in a decentralized manner.
 
-This ERC addresses this need through a single lightweight **Minimal Agent Registry** based on [ERC-6909](./eip-6909.md), which can be deployed on any L2 or on Mainnet as a per-chain singleton. All agent metadata is stored fully onchain using [ERC-8048](./eip-8048.md), ensuring censorship resistance and eliminating dependencies on external storage systems.
+This ERC addresses this need through a lightweight **Minimal Agent Registry** based on [ERC-6909](./eip-6909.md). Anyone can deploy their own registry on any L2 or Mainnet Ethereum, enabling both general-purpose registries and specialized collections of agents (e.g., Whitehat Hacking Agents, DeFi Stablecoin Strategy Agents). All agent metadata is stored fully onchain using [ERC-8048](./eip-8048.md), ensuring censorship resistance and eliminating dependencies on external storage systems.
 
 ## Specification
 
@@ -55,7 +55,47 @@ To enforce single ownership:
 - Transfers MUST revert if amount is not 1
 - Upon transfer, the `_owners` mapping MUST be updated to reflect the new owner
 
-### Onchain Metadata
+### Contract-Level Metadata
+
+The registry SHOULD implement [ERC-8049](./eip-8049.md) for contract-level metadata about the registry itself:
+
+```solidity
+interface IContractMetadata {
+    function getContractMetadata(string calldata key) external view returns (bytes memory);
+    event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value);
+}
+```
+
+The registry MUST also expose a `setContractMetadata` function:
+
+```solidity
+function setContractMetadata(string calldata key, bytes calldata value) external;
+```
+
+Access control for this function is implementation-specific.
+
+#### Standard Contract Metadata Keys
+
+The following contract metadata keys SHOULD be set:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `name` | string | Human-readable name of the registry |
+| `description` | string | Description of the registry's purpose or collection |
+| `image` | string | URI pointing to an image representing the registry (may be a data URL) |
+
+The following contract metadata keys MAY be set:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `symbol` | string | Short symbol for the registry |
+| `banner_image` | string | URI for a banner image |
+| `featured_image` | string | URI for a featured image |
+| `external_link` | string | External website URL for the registry |
+
+Implementations MAY define additional contract metadata keys as needed.
+
+### Agent Metadata
 
 All agent metadata is stored onchain using the [ERC-8048](./eip-8048.md) key-value store interface. The registry MUST implement the ERC-8048 interface:
 
@@ -126,7 +166,7 @@ If any of the event parameters (`endpointType`, `endpoint`, or `agentAccount`) a
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.25;
 
-interface IAgentRegistry is IOnchainMetadata {
+interface IAgentRegistry is IOnchainMetadata, IContractMetadata {
     // ERC-6909 required events
     event Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
     event OperatorSet(address indexed owner, address indexed spender, bool approved);
@@ -181,6 +221,11 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
+interface IContractMetadata {
+    function getContractMetadata(string calldata key) external view returns (bytes memory);
+    event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value);
+}
+
 contract AgentRegistry is IAgentRegistry {
     // ERC-6909 state
     mapping(address owner => mapping(address spender => mapping(uint256 id => uint256 amount))) public allowance;
@@ -191,6 +236,9 @@ contract AgentRegistry is IAgentRegistry {
     
     // ERC-8048 metadata state
     mapping(uint256 agentId => mapping(string key => bytes value)) private _metadata;
+    
+    // ERC-8049 contract metadata state
+    mapping(string key => bytes value) private _contractMetadata;
     
     // Agent Registry state
     uint256 public agentIndex;
@@ -256,6 +304,7 @@ contract AgentRegistry is IAgentRegistry {
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return interfaceId == 0x0f632fb3 // ERC-6909 interface ID
             || interfaceId == type(IOnchainMetadata).interfaceId 
+            || interfaceId == type(IContractMetadata).interfaceId
             || interfaceId == type(IERC165).interfaceId;
     }
 
@@ -351,6 +400,17 @@ contract AgentRegistry is IAgentRegistry {
         }
         _metadata[agentId][key] = value;
         emit MetadataSet(agentId, key, key, value);
+    }
+
+    // ERC-8049 functions
+    function getContractMetadata(string calldata key) external view returns (bytes memory) {
+        return _contractMetadata[key];
+    }
+
+    function setContractMetadata(string calldata key, bytes calldata value) external {
+        // Access control should be implemented (e.g., onlyOwner)
+        _contractMetadata[key] = value;
+        emit ContractMetadataUpdated(key, key, value);
     }
 }
 ```
