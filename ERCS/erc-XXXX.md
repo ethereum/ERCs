@@ -3,7 +3,7 @@ eip: XXXX
 title: ENS Trust Registry for Agent Coordination
 description: Web of trust validation using ENS names for ERC-8001 multi-party coordination
 author: Kwame Bryan (@KBryan)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-ens-trust-registry-for-agent-coordination/TBD
+discussions-to: https://ethereum-magicians.org/t/erc-ens-trust-registry-for-agent-coordination/27200
 status: Draft
 type: Standards Track
 category: ERC
