@@ -217,6 +217,10 @@ No issues.
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.25;
 
+// WARNING: This is a reference implementation for demonstration purposes only.
+// It lacks access control and other security measures required for production use.
+// DO NOT deploy this contract without adding proper access control mechanisms.
+
 interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
@@ -247,7 +251,6 @@ contract AgentRegistry is IAgentRegistry {
     error InsufficientBalance(address owner, uint256 id);
     error InsufficientPermission(address spender, uint256 id);
     error InvalidAmount();
-    error NotAuthorized();
     error AgentNotFound();
 
     // ERC-6909 functions with single-ownership enforcement
@@ -393,11 +396,7 @@ contract AgentRegistry is IAgentRegistry {
     }
 
     function setMetadata(uint256 agentId, string calldata key, bytes calldata value) external {
-        address owner = _owners[agentId];
-        if (owner == address(0)) revert AgentNotFound();
-        if (msg.sender != owner && !isOperator[owner][msg.sender]) {
-            revert NotAuthorized();
-        }
+        // WARNING: Access control should be implemented (e.g., owner or operator check)
         _metadata[agentId][key] = value;
         emit MetadataSet(agentId, key, key, value);
     }
@@ -408,7 +407,7 @@ contract AgentRegistry is IAgentRegistry {
     }
 
     function setContractMetadata(string calldata key, bytes calldata value) external {
-        // Access control should be implemented (e.g., onlyOwner)
+        // WARNING: Access control should be implemented (e.g., onlyOwner)
         _contractMetadata[key] = value;
         emit ContractMetadataUpdated(key, key, value);
     }
