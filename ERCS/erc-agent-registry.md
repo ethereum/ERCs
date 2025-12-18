@@ -121,12 +121,12 @@ The following metadata keys are RECOMMENDED for interoperability:
 | Key | Type | Description |
 |-----|------|-------------|
 | `name` | string | Human-readable name of the agent |
-| `ens-name` | string | ENS name associated with the agent (e.g., "myagent.eth") |
+| `ens_name` | string | ENS name associated with the agent (e.g., "myagent.eth") |
 | `image` | string | URI pointing to an image representing the agent (may be a data URL) |
 | `description` | string | Natural language description of the agent's capabilities |
-| `endpoint-type` | string | Type of endpoint protocol (e.g., "mcp", "a2a"). Additional types may be defined over time. |
+| `endpoint_type` | string | Type of endpoint protocol (e.g., "mcp", "a2a"). Additional types may be defined over time. |
 | `endpoint` | string | Primary offchain endpoint URL for agent communication |
-| `agent-account` | address | The agent's account address for transactions |
+| `agent_account` | address | The agent's account address for transactions |
 
 Implementations MAY define additional keys as needed. All metadata values are stored as `bytes`. If the type is not specified, the value MUST be a UTF-8 string encoded as bytes.
 
@@ -335,11 +335,11 @@ contract AgentRegistry is IAgentRegistry {
             emit MetadataSet(agentId, metadata[i].key, metadata[i].key, metadata[i].value);
             
             // Extract common fields for event
-            if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("endpoint-type"))) {
+            if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("endpoint_type"))) {
                 endpointType = string(metadata[i].value);
             } else if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("endpoint"))) {
                 endpoint = string(metadata[i].value);
-            } else if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("agent-account"))) {
+            } else if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("agent_account"))) {
                 agentAccount = abi.decode(metadata[i].value, (address));
             }
         }
@@ -368,10 +368,10 @@ contract AgentRegistry is IAgentRegistry {
         // Set owner and mint token
         _owners[agentId] = owner;
         
-        // Set endpoint-type metadata
+        // Set endpoint_type metadata
         if (bytes(endpointType).length > 0) {
-            _metadata[agentId]["endpoint-type"] = bytes(endpointType);
-            emit MetadataSet(agentId, "endpoint-type", "endpoint-type", bytes(endpointType));
+            _metadata[agentId]["endpoint_type"] = bytes(endpointType);
+            emit MetadataSet(agentId, "endpoint_type", "endpoint_type", bytes(endpointType));
         }
         
         // Set endpoint metadata
@@ -380,10 +380,10 @@ contract AgentRegistry is IAgentRegistry {
             emit MetadataSet(agentId, "endpoint", "endpoint", bytes(endpoint));
         }
         
-        // Set agent-account metadata
+        // Set agent_account metadata
         if (agentAccount != address(0)) {
-            _metadata[agentId]["agent-account"] = abi.encode(agentAccount);
-            emit MetadataSet(agentId, "agent-account", "agent-account", abi.encode(agentAccount));
+            _metadata[agentId]["agent_account"] = abi.encode(agentAccount);
+            emit MetadataSet(agentId, "agent_account", "agent_account", abi.encode(agentAccount));
         }
         
         emit Transfer(msg.sender, address(0), owner, agentId, 1);
