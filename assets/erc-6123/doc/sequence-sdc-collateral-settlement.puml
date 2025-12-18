@@ -1,0 +1,201 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+title SmartDerivativeContract (ERC-6123). Variant with Cash- and Collateral-Token and off-chain Valuation Oracle
+
+actor CP1
+actor CP2
+
+participant SDC [
+    **SDC** :
+    ----
+    ""ISDC, IAsyncTransferCallback""
+]
+
+participant CashToken [
+    **CashToken** :
+    ----
+    ""IAsyncTransfer""
+]
+
+participant CollateralToken [
+    **CollateralToken** :
+    ----
+    ""IAsyncTransfer""
+]
+
+participant EventHandler
+participant ValuationOracle
+
+activate EventHandler
+'activate CashToken
+
+activate CP1
+activate CP2
+
+loop Every Settlement
+
+== TradeState '**Settled**' ==
+
+    CP1->SDC: tx: '**initiateSettlement**'
+    activate SDC #8080FF
+
+== TradeState '**Valuation**' ==
+
+    SDC-->EventHandler:emit SettlementRequested
+    deactivate SDC
+
+    EventHandler->ValuationOracle: request valuation data
+    activate ValuationOracle #C0C000
+    ValuationOracle->EventHandler: return valuation data
+    deactivate ValuationOracle
+
+    EventHandler->SDC: callback: tx '**performSettlement**'
+    activate SDC #8080FF
+
+    SDC->SDC:Caps Settlement Amount at Margin Buffer Level
+
+    SDC-->EventHandler: emit SettlementDetermined
+
+== TradeState '**InTransfer**' ==
+
+    alt Adjust Collateral
+
+        SDC->CollateralToken: tx '**transferAndCallback**' transfer collateral adjustment
+
+    else success
+
+        deactivate SDC
+        activate CollateralToken #40C040
+        CollateralToken-->EventHandler: emit TransferSucceeded
+    	CollateralToken->SDC: callback tx '**afterTransfer**'
+        deactivate CollateralToken
+        activate SDC #8080FF
+        ' hack - invisible to activate life line
+        SDC-[#FFF]->SDC
+    else fail
+        deactivate SDC
+        activate CollateralToken #40C040
+        CollateralToken-->EventHandler: emit TransferFailed
+    	CollateralToken->SDC: callback tx '**afterTransfer**'
+        deactivate CollateralToken
+        activate SDC #8080FF
+
+        SDC->SDC: terminate (see below)
+        destroy SDC
+    end
+
+
+    ' hack - invisible boundary for the activation
+    EventHandler-[#FFF]->SDC
+    alt Upon Coupon Payment - **Secure Delivery (Collateral) versus Payment (Cash)**
+
+        activate SDC #8080FF
+        |||
+        SDC->CollateralToken: tx '**transferAndCallback**' lock collateral
+
+        activate CollateralToken #40C040
+        deactivate SDC
+
+        CollateralToken->SDC: callback tx '**afterTransfer**'
+
+        deactivate CollateralToken
+        activate SDC #8080FF
+
+        SDC->CashToken: tx '**transferAndCallback**' transfer cash
+
+        deactivate SDC
+        activate CashToken #FF8080
+
+        CashToken->SDC: callback tx '**afterTransfer**'
+
+    else success
+
+        deactivate CashToken
+        activate SDC #8080FF
+
+        SDC->CollateralToken: tx '**transferAndCallback**' pass collateral
+
+        deactivate SDC
+        activate CollateralToken #40C040
+
+        CollateralToken->SDC: callback tx '**afterTransfer**'
+        deactivate CollateralToken
+        activate SDC #8080FF
+        |||
+
+    else fail
+
+        SDC->CollateralToken: tx '**transferAndCallback**' revert collateral
+        deactivate SDC
+        activate CollateralToken #40C040
+
+        CollateralToken->SDC: callback tx '**afterTransfer**'
+        deactivate CollateralToken
+
+        activate SDC #8080FF
+        ' hack - invisible to activate life line
+        SDC-[#FFF]->SDC
+        SDC->SDC: terminate (see below)
+        destroy SDC
+
+    end
+
+
+== TradeState '**Settled**' ==
+
+    EventHandler-[#FFF]->SDC
+    ' hack - invisible boundary for the activation
+    activate SDC #8080FF
+
+    alt Next Settlement Pre-Condition Check
+        EventHandler->SDC: tx '**afterSettlement**' optional time trigger to perform checks (e.g. pre-funding check)
+
+        SDC-> SDC: check pre-conditions
+    else success
+
+        SDC-->EventHandler: emit SettlementAwaitingInitiation
+        |||
+
+    else fail
+
+        SDC->SDC: terminate (see below)
+        ' hack - invisible to activate life line
+        SDC-[#FFF]->SDC
+        destroy SDC
+
+    end
+
+
+    ' hack - invisible boundary for the activation
+    SDC-[#FFF]->EventHandler
+
+    alt <color:red>Upon Termination (Settlement Failed)</color>
+
+        activate SDC #8080FF
+
+        |||
+        SDC-->EventHandler: emit SettlementFailed
+
+        SDC->CollateralToken: tx '**transferBatchAndCallback**'\n- transfer Settlement Amount from SDC Balance to Receiving Party\n- transfer Termination Fee from SDC Balance to Receiving Party\n- transfer Release remaining balances to parties
+        activate CollateralToken #40C040
+        SDC-->EventHandler: emit TradeTerminated
+
+        deactivate SDC
+        CollateralToken->SDC: callback tx '**afterTransfer**'
+        deactivate CollateralToken
+        activate SDC #8080FF
+
+        ' hack - invisible to activate life line
+        SDC-[#FFF]->SDC
+
+        destroy SDC
+        deactivate SDC
+
+== TradeState '**Terminated**' ==
+
+    end
+
+
+end
+
+@enduml
