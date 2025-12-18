@@ -19,7 +19,9 @@ This protocol proposes a lightweight onchain registry for **discovering AI agent
 
 While various offchain agent communication protocols handle capabilities advertisement and task orchestration, they don't inherently cover agent discovery. To foster an open, cross-organizational agent economy, we need a mechanism for discovering agents in a decentralized manner.
 
-This ERC addresses this need through a lightweight **Minimal Agent Registry** based on [ERC-6909](./eip-6909.md). Anyone can deploy their own registry on any L2 or Mainnet Ethereum, enabling both general-purpose registries and specialized collections of agents (e.g., Whitehat Hacking Agents, DeFi Stablecoin Strategy Agents). All agent metadata is stored fully onchain using [ERC-8048](./eip-8048.md), ensuring censorship resistance and eliminating dependencies on external storage systems.
+[ERC-8004](./eip-8004.md) provides an existing agent registry standard, but it defines a singleton registry—one per chain. A registry standard that supports custom deployments is necessary for specialized use cases, such as curated collections of agents (e.g., Whitehat Hacking Agents, DeFi Stablecoin Strategy Agents) or fixed-supply agent collections.
+
+This ERC addresses this need through a lightweight **Minimal Agent Registry** based on [ERC-6909](./eip-6909.md). Anyone can deploy their own registry on any L2 or Mainnet Ethereum. All agent metadata is stored fully onchain using [ERC-8048](./eip-8048.md), ensuring censorship resistance and eliminating dependencies on external storage systems.
 
 ## Specification
 
@@ -40,13 +42,7 @@ When displaying the Agent ID as text, it MUST be the 0x hex version (lowercase) 
 
 ### Ownership Model
 
-Each agent has a single owner. The registry MUST maintain a mapping from agentId to owner address and provide an `ownerOf` function:
-
-```solidity
-function ownerOf(uint256 agentId) external view returns (address owner);
-```
-
-This function MUST return the current owner of the agent. It MUST revert if the agentId does not exist.
+Each agent has a single owner. The registry MUST maintain a mapping from agentId to owner address and provide an `ownerOf(uint256 agentId)` function that returns the current owner. It MUST revert if the agentId does not exist.
 
 #### Transfer Restrictions
 
@@ -57,22 +53,7 @@ To enforce single ownership:
 
 ### Contract-Level Metadata
 
-The registry SHOULD implement [ERC-8049](./eip-8049.md) for contract-level metadata about the registry itself:
-
-```solidity
-interface IContractMetadata {
-    function getContractMetadata(string calldata key) external view returns (bytes memory);
-    event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value);
-}
-```
-
-The registry MUST also expose a `setContractMetadata` function:
-
-```solidity
-function setContractMetadata(string calldata key, bytes calldata value) external;
-```
-
-Access control for this function is implementation-specific.
+The registry SHOULD implement [ERC-8049](./eip-8049.md) for contract-level metadata about the registry itself. It MUST also expose a `setContractMetadata` function. Access control for this function is implementation-specific.
 
 #### Standard Contract Metadata Keys
 
@@ -97,22 +78,7 @@ Implementations MAY define additional contract metadata keys as needed.
 
 ### Agent Metadata
 
-All agent metadata is stored onchain using the [ERC-8048](./eip-8048.md) key-value store interface. The registry MUST implement the ERC-8048 interface:
-
-```solidity
-interface IOnchainMetadata {
-    function getMetadata(uint256 tokenId, string calldata key) external view returns (bytes memory);
-    event MetadataSet(uint256 indexed tokenId, string indexed indexedKey, string key, bytes value);
-}
-```
-
-The registry MUST also expose a `setMetadata` function with ownership controls:
-
-```solidity
-function setMetadata(uint256 agentId, string calldata key, bytes calldata value) external;
-```
-
-This MUST revert if the caller is not the owner of the agentId and is not an operator for the owner.
+All agent metadata is stored onchain using the [ERC-8048](./eip-8048.md) key-value store interface. The registry MUST implement the ERC-8048 interface and expose a `setMetadata` function. This function MUST revert if the caller is not the owner of the agentId and is not an operator for the owner.
 
 #### Standard Metadata Keys
 
@@ -132,73 +98,30 @@ Implementations MAY define additional keys as needed. All metadata values are st
 
 ### Registration
 
-New agents can be minted by calling one of these functions:
-
-```solidity
-struct MetadataEntry {
-    string key;
-    bytes value;
-}
-
-function register(address owner, string calldata endpointType, string calldata endpoint, address agentAccount) external returns (uint256 agentId);
-
-function register(address owner, MetadataEntry[] calldata metadata) external returns (uint256 agentId);
-
-function registerBatch(address[] calldata owners, MetadataEntry[][] calldata metadata) external returns (uint256[] memory agentIds);
-```
-
-Upon registration:
+New agents can be minted by calling one of the registration functions defined in the interface below. Upon registration:
 - A new *agentId* MUST be assigned incrementally
 - The provided `owner` MUST be set as the owner in the `_owners` mapping
 - The owner MUST receive a balance of 1 for that *agentId*
 
-This emits an ERC-6909 Transfer event (from address(0) to the owner), one ERC-8048 MetadataSet event for each metadata entry if any, and:
-
-```solidity
-event Registered(uint256 indexed agentId, address indexed owner, string endpointType, string endpoint, address agentAccount);
-```
-
-If any of the event parameters (`endpointType`, `endpoint`, or `agentAccount`) are not set, they MUST be set to default empty values (empty string for strings, zero address for addresses) when emitting the event.
+This emits an ERC-6909 Transfer event (from address(0) to the owner), one ERC-8048 MetadataSet event for each metadata entry if any, and a `Registered` event as defined in the interface below. If any of the event parameters (`endpointType`, `endpoint`, or `agentAccount`) are not set, they MUST be set to default empty values (empty string for strings, zero address for addresses) when emitting the event.
 
 ### Interface
 
+The registry MUST implement [ERC-6909](./eip-6909.md), [ERC-8048](./eip-8048.md), and [ERC-8049](./eip-8049.md). The following interface defines the additional functions and events specific to this ERC:
+
 ```solidity
-// SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.25;
-
-interface IAgentRegistry is IOnchainMetadata, IContractMetadata {
-    // ERC-6909 required events
-    event Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
-    event OperatorSet(address indexed owner, address indexed spender, bool approved);
-    event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
-    
-    // Agent Registry events
-    event Registered(uint256 indexed agentId, address indexed owner, string endpointType, string endpoint, address agentAccount);
-
-    // ERC-6909 required functions
-    function balanceOf(address owner, uint256 id) external view returns (uint256);
-    function allowance(address owner, address spender, uint256 id) external view returns (uint256);
-    function isOperator(address owner, address spender) external view returns (bool);
-    function transfer(address receiver, uint256 id, uint256 amount) external returns (bool);
-    function transferFrom(address sender, address receiver, uint256 id, uint256 amount) external returns (bool);
-    function approve(address spender, uint256 id, uint256 amount) external returns (bool);
-    function setOperator(address spender, bool approved) external returns (bool);
-    
-    // Agent Registry functions
+interface IAgentRegistry {
     struct MetadataEntry {
         string key;
         bytes value;
     }
     
+    event Registered(uint256 indexed agentId, address indexed owner, string endpointType, string endpoint, address agentAccount);
+
     function register(address owner, string calldata endpointType, string calldata endpoint, address agentAccount) external returns (uint256 agentId);
     function register(address owner, MetadataEntry[] calldata metadata) external returns (uint256 agentId);
     function registerBatch(address[] calldata owners, MetadataEntry[][] calldata metadata) external returns (uint256[] memory agentIds);
     function ownerOf(uint256 agentId) external view returns (address owner);
-    
-    // ERC-8048 optional setMetadata function
-    function setMetadata(uint256 agentId, string calldata key, bytes calldata value) external;
-    
-    // Query functions
     function agentIndex() external view returns (uint256);
 }
 ```
@@ -210,209 +133,6 @@ The Minimal Agent Registry is designed to be a simple, focused foundation for ag
 ## Backwards Compatibility
 
 No issues. 
-
-## Reference Implementation
-
-```solidity
-// SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.25;
-
-// WARNING: This is a reference implementation for demonstration purposes only.
-// It lacks access control and other security measures required for production use.
-// DO NOT deploy this contract without adding proper access control mechanisms.
-
-interface IERC165 {
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-interface IContractMetadata {
-    function getContractMetadata(string calldata key) external view returns (bytes memory);
-    event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value);
-}
-
-contract AgentRegistry is IAgentRegistry {
-    // ERC-6909 state
-    mapping(address owner => mapping(address spender => mapping(uint256 id => uint256 amount))) public allowance;
-    mapping(address owner => mapping(address spender => bool)) public isOperator;
-    
-    // Single ownership state
-    mapping(uint256 agentId => address) private _owners;
-    
-    // ERC-8048 metadata state
-    mapping(uint256 agentId => mapping(string key => bytes value)) private _metadata;
-    
-    // ERC-8049 contract metadata state
-    mapping(string key => bytes value) private _contractMetadata;
-    
-    // Agent Registry state
-    uint256 public agentIndex;
-
-    // Errors
-    error InsufficientBalance(address owner, uint256 id);
-    error InsufficientPermission(address spender, uint256 id);
-    error InvalidAmount();
-    error AgentNotFound();
-
-    // ERC-6909 functions with single-ownership enforcement
-    function balanceOf(address owner, uint256 id) public view returns (uint256) {
-        return _owners[id] == owner ? 1 : 0;
-    }
-
-    function transfer(address receiver, uint256 id, uint256 amount) public returns (bool) {
-        if (amount != 1) revert InvalidAmount();
-        if (_owners[id] != msg.sender) revert InsufficientBalance(msg.sender, id);
-        
-        _owners[id] = receiver;
-        
-        emit Transfer(msg.sender, msg.sender, receiver, id, 1);
-        return true;
-    }
-
-    function _isApprovedOwnerOrOperator(address sender, uint256 id) internal {
-        if (sender == msg.sender) return;
-        if (isOperator[sender][msg.sender]) return;
-        
-        uint256 senderAllowance = allowance[sender][msg.sender][id];
-        if (senderAllowance < 1) revert InsufficientPermission(msg.sender, id);
-        if (senderAllowance != type(uint256).max) {
-            allowance[sender][msg.sender][id] = 0;
-        }
-    }
-
-    function transferFrom(address sender, address receiver, uint256 id, uint256 amount) public returns (bool) {
-        if (amount != 1) revert InvalidAmount();
-        
-        _isApprovedOwnerOrOperator(sender, id);
-        if (_owners[id] != sender) revert InsufficientBalance(sender, id);
-        
-        _owners[id] = receiver;
-        
-        emit Transfer(msg.sender, sender, receiver, id, 1);
-        return true;
-    }
-
-    function approve(address spender, uint256 id, uint256 amount) public returns (bool) {
-        if (amount != 0 && amount != 1 && amount != type(uint256).max) revert InvalidAmount();
-        allowance[msg.sender][spender][id] = amount;
-        emit Approval(msg.sender, spender, id, amount);
-        return true;
-    }
-
-    function setOperator(address spender, bool approved) public returns (bool) {
-        isOperator[msg.sender][spender] = approved;
-        emit OperatorSet(msg.sender, spender, approved);
-        return true;
-    }
-
-    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
-        return interfaceId == 0x0f632fb3 // ERC-6909 interface ID
-            || interfaceId == type(IOnchainMetadata).interfaceId 
-            || interfaceId == type(IContractMetadata).interfaceId
-            || interfaceId == type(IERC165).interfaceId;
-    }
-
-    // Single ownership function
-    function ownerOf(uint256 agentId) external view returns (address) {
-        address owner = _owners[agentId];
-        if (owner == address(0)) revert AgentNotFound();
-        return owner;
-    }
-
-    // Agent Registry functions
-    function _register(address owner, MetadataEntry[] calldata metadata) internal returns (uint256 agentId) {
-        agentId = agentIndex++;
-        
-        // Set owner and mint token
-        _owners[agentId] = owner;
-        
-        // Set metadata (ERC-8048) and extract common fields
-        string memory endpointType = "";
-        string memory endpoint = "";
-        address agentAccount = address(0);
-        
-        for (uint256 i = 0; i < metadata.length; i++) {
-            _metadata[agentId][metadata[i].key] = metadata[i].value;
-            emit MetadataSet(agentId, metadata[i].key, metadata[i].key, metadata[i].value);
-            
-            // Extract common fields for event
-            if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("endpoint_type"))) {
-                endpointType = string(metadata[i].value);
-            } else if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("endpoint"))) {
-                endpoint = string(metadata[i].value);
-            } else if (keccak256(bytes(metadata[i].key)) == keccak256(bytes("agent_account"))) {
-                agentAccount = abi.decode(metadata[i].value, (address));
-            }
-        }
-        
-        emit Transfer(msg.sender, address(0), owner, agentId, 1);
-        emit Registered(agentId, owner, endpointType, endpoint, agentAccount);
-    }
-
-    function register(address owner, MetadataEntry[] calldata metadata) external returns (uint256 agentId) {
-        return _register(owner, metadata);
-    }
-
-    function registerBatch(address[] calldata owners, MetadataEntry[][] calldata metadata) external returns (uint256[] memory agentIds) {
-        require(owners.length == metadata.length, "Array length mismatch");
-        
-        agentIds = new uint256[](owners.length);
-        
-        for (uint256 i = 0; i < owners.length; i++) {
-            agentIds[i] = _register(owners[i], metadata[i]);
-        }
-    }
-
-    function register(address owner, string calldata endpointType, string calldata endpoint, address agentAccount) external returns (uint256 agentId) {
-        agentId = agentIndex++;
-        
-        // Set owner and mint token
-        _owners[agentId] = owner;
-        
-        // Set endpoint_type metadata
-        if (bytes(endpointType).length > 0) {
-            _metadata[agentId]["endpoint_type"] = bytes(endpointType);
-            emit MetadataSet(agentId, "endpoint_type", "endpoint_type", bytes(endpointType));
-        }
-        
-        // Set endpoint metadata
-        if (bytes(endpoint).length > 0) {
-            _metadata[agentId]["endpoint"] = bytes(endpoint);
-            emit MetadataSet(agentId, "endpoint", "endpoint", bytes(endpoint));
-        }
-        
-        // Set agent_account metadata
-        if (agentAccount != address(0)) {
-            _metadata[agentId]["agent_account"] = abi.encode(agentAccount);
-            emit MetadataSet(agentId, "agent_account", "agent_account", abi.encode(agentAccount));
-        }
-        
-        emit Transfer(msg.sender, address(0), owner, agentId, 1);
-        emit Registered(agentId, owner, endpointType, endpoint, agentAccount);
-    }
-
-    // ERC-8048 functions
-    function getMetadata(uint256 agentId, string calldata key) external view returns (bytes memory) {
-        return _metadata[agentId][key];
-    }
-
-    function setMetadata(uint256 agentId, string calldata key, bytes calldata value) external {
-        // WARNING: Access control should be implemented (e.g., owner or operator check)
-        _metadata[agentId][key] = value;
-        emit MetadataSet(agentId, key, key, value);
-    }
-
-    // ERC-8049 functions
-    function getContractMetadata(string calldata key) external view returns (bytes memory) {
-        return _contractMetadata[key];
-    }
-
-    function setContractMetadata(string calldata key, bytes calldata value) external {
-        // WARNING: Access control should be implemented (e.g., onlyOwner)
-        _contractMetadata[key] = value;
-        emit ContractMetadataUpdated(key, key, value);
-    }
-}
-```
 
 ## Security Considerations
 
