@@ -39,7 +39,7 @@ Additional motivation for diamond-based smart contract systems can be found in [
 
 ### Terms
 1. A **diamond** is a smart contract that routes external function calls to one or more implementation contracts, referred to as facets. A diamond is stateful: all persistent data is stored in the diamond’s contract storage.
-2. A facet is a stateless smart contract that defines one or more external functions. A facet is deployed independently, and one or more of its functions are added to one or more diamonds. A facet does not store persistent data in its own contract storage, but its functions may read from and write to the storage of a diamond. The term facet is derived from the diamond industry, referring to a flat surface of a diamond.
+2. A **facet** is a stateless smart contract that defines one or more external functions. A facet is deployed independently, and one or more of its functions are added to one or more diamonds. A facet does not store persistent data in its own contract storage, but its functions may read from and write to the storage of a diamond. The term facet is derived from the diamond industry, referring to a flat surface of a diamond.
 3. An **introspection function** is a function that returns information about the facets and functions used by a diamond.
 4. An **immutable function** is an external function whose implementation cannot be replaced or removed because it is defined directly in the diamond contract rather than in a facet.
 5. For the purposes of this specification, a **mapping** refers to a conceptual association between two items and does not refer to a specific implementation.
@@ -68,7 +68,7 @@ error FunctionNotFound(bytes4 _selector);
 // Executes function call on facet using delegatecall.
 // Returns function call return data or revert data.
 fallback() external payable {
-  // Get facet from function selector
+    // Get facet from function selector
     address facet = selectorTofacet[msg.sig];
     if (facet == address(0)) {
         revert FunctionNotFound(msg.sig);
@@ -141,15 +141,15 @@ event DiamondFunctionRemoved(
 );
 ```
 
-#### Recording Delegatecalls
+#### Recording Explicit Delegatecalls
 
 The `DiamondDelegateCall` event is OPTIONAL.
 
-A diamond contract MAY emit this event to record execution of logic via `delegatecall`, including during construction, initialization, or upgrade operations. 
+A diamond MAY emit this event to record when it executes logic using `delegatecall`, such as during construction, initialization, or upgrades.
 
-For example this event can be emitted to record the execution of an initialization function after add/replacing/removing functions in a diamond.
+For example, a diamond may emit this event when calling an initialization function after functions are added, replaced, or removed.
 
-This event MUST NOT be used to record `delegatecall`s performed by a diamond’s fallback function when routing calls to facets. Instead, it is intended to record `delegatecall`s made by a diamond's constructor function or by functions defined in facets.
+This event MUST NOT be emitted for `delegatecalls` made by a diamond’s fallback function when routing calls to facets. It is only intended for `delegatecalls` made by functions in facets or a diamond’s constructor.
 
 
 ```Solidity
@@ -243,8 +243,6 @@ struct FacetFunctions {
 * If _tag is none zero or if _metadata size is greater than zero then the
 * `DiamondMetadata` event is emitted with that data.
 *
-* All the parameters of this function are optional.
-*
 * @param _addFunctions     Selectors to add, grouped by facet.
 * @param _replaceFunctions Selectors to replace, grouped by facet.
 * @param _removeFunctions  Selectors to remove.
@@ -259,7 +257,7 @@ function upgradeDiamond(
     bytes4[] calldata _removeFunctions,           
     address _init,
     bytes calldata _functionCall,
-    bytes32 calldata _tag,
+    bytes32 _tag,
     bytes calldata _metadata
 ) external;
 ```
@@ -267,6 +265,10 @@ function upgradeDiamond(
 After adding/replacing/removing functions the `_functionCall` argument is executed with `delegatecall` on `_init`. This execution is done to initialize data or setup or remove anything needed or no longer needed after adding, replacing and/or removing functions. 
 
 However if `_init` is `address(0)` then no initialization function is called.
+
+If `_init` is not `address(0)` but has no code then the transaction should revert.
+
+The reference implementation for this upgrade function is here: [DiamondUpgradeFacet.sol](../assets/erc-xxxx/DiamondInspectFacet.sol).
 
 ## Inspecting Diamonds
 

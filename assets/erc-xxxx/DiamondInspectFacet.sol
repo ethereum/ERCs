@@ -2,10 +2,11 @@
 pragma solidity >=0.8.33;
 
 /**
- * @notice Reference implementation for introspection functions for
- *         ERC-XXXX Diamonds, Simplified
+ * @title Reference implementation for introspection functions for
+ *        ERC-XXXX Diamonds, Simplified
+ *
+ * @author Nick Mudge <nick@perfectabstractions.com>, X/Github/Telegram: @mudgen
  */
-
 contract DiamondInspectFacet {
 
     bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("ercXXXX.diamond");
