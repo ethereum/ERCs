@@ -184,7 +184,7 @@ This means two important things:
 
 #### 2. You Can Create Your Own Upgrade Functions
 
-Instead of, or in addition to the upgrade function specified below, you can design and create your own upgrade functions and remain compliant with this standard. All that is required is that you emit the appropriate required events specified in the [events section](#events).
+Instead of, or in addition to the upgrade function specified below, you can design and create your own upgrade functions and remain compliant with this standard. All that is required is that you emit the appropriate required events specified in the [events section](#events), and that the introspection functions defined in the [Inspecting Diamonds section](#inspecting-diamonds) continue to accurately return function and facet information.
 
 #### `upgradeDiamond` Function
 
@@ -228,7 +228,7 @@ struct FacetFunctions {
 * `DiamondDelegateCall` event is emitted.
 *
 * If _tag is non-zero or if _metadata size is greater than zero then the
-* `DiamondMetadata` event is emitted with that data.
+* `DiamondMetadata` event is emitted.
 *
 * @param _addFunctions     Selectors to add, grouped by facet.
 * @param _replaceFunctions Selectors to replace, grouped by facet.
