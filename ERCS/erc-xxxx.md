@@ -448,7 +448,7 @@ A function selector clash occurs when two different function signatures hash to 
 
 ### Transparency
 
-Diamonds emit an event every time one or more functions are added, replaced or removed. Source code can be verified. This enables people and software to monitor changes to a contract. If any bad acting function is added to a diamond then it can be seen.
+A diamond emits an event every time a function is added, replaced or removed. Source code can be verified. This enables people and software to monitor changes to a contract. If any bad acting function is added to a diamond then it can be seen.
 
 Security and domain experts can review the history of change of a diamond to detect foul play.
 
