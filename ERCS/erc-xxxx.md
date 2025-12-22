@@ -21,7 +21,7 @@ Diamond contracts were originally standardized by [ERC-2535](https://eips.ethere
 
 This standard preserves the full capabilities of diamond contracts while reducing complexity. It also specifies an optional upgrade path for existing ERC-2535 diamonds.
 
-## Motivations
+## Motivation
 
 A diamond provides a single address with the functionality of multiple contracts (facets) that are independent from each other but can share internal functions and data storage. This architecture enables unlimited smart-contract functionality to be presented through one address, simplifying deployment, testing, and integration with other smart contracts, software, and user interfaces.
 
