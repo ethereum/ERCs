@@ -6,7 +6,7 @@ discussions-to: https://ethereum-magicians.org/t/proposal-for-a-simplified-stand
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-12-13
+created: 2025-12-21
 ---
 
 
