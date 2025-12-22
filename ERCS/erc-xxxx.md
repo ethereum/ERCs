@@ -14,7 +14,7 @@ created: 2025-12-21
 
 A diamond is a proxy contract that `delegatecall`s to multiple implementation contracts called facets. 
 
-<img alt="Diagram showing how facets compose into a diamond contract" class="" src="../assets/erc-xxxx/basic-diamond-diagram.svg" align="left" style="max-width: 100%; height: auto;">
+<img alt="Diagram showing how facets compose into a diamond contract" class="" src="../assets/erc-xxxx/basic-diamond-diagram.svg" style="max-width: 100%; height: auto;">
 
 
 Diamond contracts were originally standardized by [ERC-2535](https://eips.ethereum.org/EIPS/eip-2535). This standard refines that specification by simplifying terminology, reducing the implementation complexity of introspection functions, and standardizing events that are easier for block explorers, indexers, and other tooling to consume. 
