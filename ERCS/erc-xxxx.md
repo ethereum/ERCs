@@ -404,7 +404,7 @@ This upgrade acts as a 'state snapshot'. Indexers only interested in the current
 
 To reconstruct the complete upgrade history requires retrieving all the past `DiamondCut` events as well as all new events defined in this standard.
 
-#### ERC-2535 Diamonds with Legacy Immutable Functions
+### ERC-2535 Diamonds with Legacy Immutable Functions
 
 Definition:
 
