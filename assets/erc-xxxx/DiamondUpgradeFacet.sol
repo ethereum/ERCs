@@ -127,7 +127,7 @@ contract DiamondUpgradeFacet {
     error NoSelectorsProvidedForFacet(address _facet);
     error NoBytecodeAtAddress(address _contractAddress, string _message);
     error CannotAddFunctionToDiamondThatAlreadyExists(bytes4 _selector);
-    error CannotReplaceFunctionThatDoesNotExists(bytes4 _selector);
+    error CannotReplaceFunctionThatDoesNotExist(bytes4 _selector);
     error CannotRemoveFunctionThatDoesNotExist(bytes4 _selector);
     error CannotReplaceFunctionWithTheSameFacet(bytes4 _selector);
     error InitializationFunctionReverted(address _init, bytes _functionCall);
@@ -169,7 +169,7 @@ contract DiamondUpgradeFacet {
                 revert CannotReplaceFunctionWithTheSameFacet(selector);
             }
             if (oldFacet == address(0)) {
-                revert CannotReplaceFunctionThatDoesNotExists(selector);
+                revert CannotReplaceFunctionThatDoesNotExist(selector);
             }
             /**
              * replace old facet address

@@ -166,4 +166,6 @@ contract Diamond {
             default {return (0, returndatasize())}
         }
     }
+    
+    receive() external payable {}
 }

@@ -7,7 +7,6 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-12-13
-requires: 2535, 1538 
 ---
 
 
@@ -41,8 +40,7 @@ Additional motivation for diamond-based smart contract systems can be found in [
 1. A **diamond** is a smart contract that routes external function calls to one or more implementation contracts, referred to as facets. A diamond is stateful: all persistent data is stored in the diamond’s contract storage.
 2. A **facet** is a stateless smart contract that defines one or more external functions. A facet is deployed independently, and one or more of its functions are added to one or more diamonds. A facet does not store persistent data in its own contract storage, but its functions may read from and write to the storage of a diamond. The term facet is derived from the diamond industry, referring to a flat surface of a diamond.
 3. An **introspection function** is a function that returns information about the facets and functions used by a diamond.
-4. An **immutable function** is an external function whose implementation cannot be replaced or removed because it is defined directly in the diamond contract rather than in a facet.
-5. For the purposes of this specification, a **mapping** refers to a conceptual association between two items and does not refer to a specific implementation.
+4. For the purposes of this specification, a **mapping** refers to a conceptual association between two items and does not refer to a specific implementation.
 
 
 ### Diamond Diagram
@@ -88,24 +86,13 @@ fallback() external payable {
     }
 }
 ```
-
-### Facets Sharing Storage & Functionality
-
-A storage layout organizational pattern is needed because Solidity’s default storage layout doesn’t support proxy contracts or diamonds. The particular technique of storage layout to use is not specified in this ERC. However, examples of storage layout patterns that work with diamonds are [ERC-8042 Diamond Storage](https://eips.ethereum.org/EIPS/eip-8042) and [ERC-7201 Namespaced Storage Layout](https://eips.ethereum.org/EIPS/eip-7201).
-
-Facets are separately deployed, independent units, but can share state and functionality in the following ways:
-
-- Facets can share state variables by using the same structs at the same storage positions. 
-- Facets can share internal functions by importing them or inheriting contracts. 
-
 ### Events
 
 #### Adding/Replacing/Removing Functions
 
 These events are REQUIRED.
 
-Anytime a function is added or replaced or removed from a diamond, one of these functions MUST be emitted:
-
+For each function selector that is added, replaced, or removed, the corresponding event MUST be emitted.
 
 ```Solidity
 /**
@@ -149,7 +136,7 @@ A diamond MAY emit this event to record when it executes logic using `delegateca
 
 For example, a diamond may emit this event when calling an initialization function after functions are added, replaced, or removed.
 
-This event MUST NOT be emitted for `delegatecalls` made by a diamond’s fallback function when routing calls to facets. It is only intended for `delegatecalls` made by functions in facets or a diamond’s constructor.
+This event MUST NOT be emitted for `delegatecall`s made by a diamond’s fallback function when routing calls to facets. It is only intended for `delegatecall`s made by functions in facets or a diamond’s constructor.
 
 
 ```Solidity
@@ -197,7 +184,7 @@ This means two important things:
 
 - A diamond can initially be upgradeable, and later made immutable by removing its upgrade function.
 
-#### 2. You Can Creating Your Own Upgrade Functions
+#### 2. You Can Create Your Own Upgrade Functions
 
 Instead of, or in addition to the upgrade function specified below, you can design and create your own upgrade functions and remain compliant with this standard. All that is required is that you emit the appropriate required events specified in the [events section](#events).
 
@@ -215,7 +202,7 @@ This upgrade function adds/replaces/removes any number of functions from any num
 error NoSelectorsProvidedForFacet(address _facet);
 error NoBytecodeAtAddress(address _contractAddress, string _message);
 error CannotAddFunctionToDiamondThatAlreadyExists(bytes4 _selector);
-error CannotReplaceFunctionThatDoesNotExists(bytes4 _selector);
+error CannotReplaceFunctionThatDoesNotExist(bytes4 _selector);
 error CannotRemoveFunctionThatDoesNotExist(bytes4 _selector);
 error CannotReplaceFunctionWithTheSameFacet(bytes4 _selector);
 error InitializationFunctionReverted(address _init, bytes _functionCall);
@@ -236,11 +223,11 @@ struct FacetFunctions {
 * Functions are first added, then replaced, then removed.
 *
 * `delegatecall` is made to `_init` with `_functionCall` for initialization.
-* The `DiamondStateModified` event is emitted.
+* The `DiamondDelegateCall` event is emitted.
 * However, if `_init` is zero, no `delegatecall` is made and no 
-* `DiamondStateModified` event is emitted.
+* `DiamondDelegateCall` event is emitted.
 *
-* If _tag is none zero or if _metadata size is greater than zero then the
+* If _tag is non-zero or if _metadata size is greater than zero then the
 * `DiamondMetadata` event is emitted with that data.
 *
 * @param _addFunctions     Selectors to add, grouped by facet.
@@ -268,11 +255,11 @@ However if `_init` is `address(0)` then no initialization function is called.
 
 If `_init` is not `address(0)` but has no code then the transaction should revert.
 
-The reference implementation for this upgrade function is here: [DiamondUpgradeFacet.sol](../assets/erc-xxxx/DiamondInspectFacet.sol).
+The reference implementation for this upgrade function is here: [DiamondUpgradeFacet.sol](../assets/erc-xxxx/DiamondUpgradeFacet.sol).
 
 ## Inspecting Diamonds
 
-Diamond introspection functions return information about what functions and facet are used in a diamond.
+Diamond introspection functions return information about what functions and facets are used in a diamond.
 
 These functions MUST be implemented and are required by the standard:
 
@@ -304,7 +291,7 @@ function functionFacetPairs() external view returns(FunctionFacetPair[] memory p
 
 The essence of a diamond is its `function -> facet` mapping. The `functionFacetPairs()` returns that mapping as an array of `(selector, facet)` pairs.
 
-These function were chosen because they provide all necessary facet and function data about a diamond. They are very simple to implement and are computationally efficient.
+These functions were chosen because they provide all necessary facet and function data about a diamond. They are very simple to implement and are computationally efficient.
 
 Block explorers, GUIs, tests, and other tools may rely on their presence.
 
@@ -353,6 +340,120 @@ A diamond MUST implement the following to be compliant with this standard:
    - `facetAddress(bytes4 _functionSelector)`
    - `functionFacetPairs()`
 
+## Rationale
+
+This standard provides standard events, an upgrade function and introspection functions so that GUIs, block explorers, command line programs, and other tools and software can detect and interoperate with diamond contracts.
+
+Software can retrieve function selectors and facet addresses from a diamond in order to show what functions a diamond has. Function selectors with the ABI of a contract provide enough information about functions to be useful for various software.
+
+### ERC-XXXX Diamonds vs ERC-2535 Diamonds
+
+ERC-XXXX Diamonds, Simplified is a simplification and refinement of ERC-2535 Diamonds. 
+
+A diamond compliant with ERC-XXXX is not required to implement ERC-2535.
+
+### Gas Considerations
+Delegating function calls has a small amount of gas overhead. This is mitigated in several ways:
+
+1. Because diamonds do not have a max size limitation it is possible to add gas optimizing functions. For example someone could use a diamond to implement the [ERC-721](https://eips.ethereum.org/EIPS/eip-721) standard and implement batch transfer functions to reduce gas (and make batch transfers more convenient).
+2. Some contract architectures require multiple external function calls in the same transaction. Gas savings can be realized by condensing contracts into a single diamond and accessing contract storage directly.
+3. Facets can contain few external functions, reducing gas costs. It can cost more gas to call a function on a contract with many functions than a contract with few functions.
+4. The Solidity optimizer can be set to a high setting causing more bytecode to be generated but the facets will use less gas when executed.
+
+### `functionFacetPairs()` Gas Usage
+
+The `functionFacetPairs()` function is meant to be called off chain. At this time major RPC providers have a maximum gas limit of about 550 million gas. Gas benchmark tests show that the `functionFacetPairs()` function can return 60,000 `(selector, facet)` pairs using less gas than that.
+
+ERC-XXXX implementations are free to add iteration or pagination-based introspection functions, but they are not required by this standard.
+
+### Storage Layout
+
+Diamonds and facets need to use a storage layout organizational pattern because Solidity’s default storage layout doesn’t support proxy contracts or diamonds. The particular technique of storage layout to use is not specified in this ERC. However, examples of storage layout patterns that work with diamonds are [ERC-8042 Diamond Storage](https://eips.ethereum.org/EIPS/eip-8042) and [ERC-7201 Namespaced Storage Layout](https://eips.ethereum.org/EIPS/eip-7201).
+
+### Facets Sharing Storage & Functionality
+
+Facets are separately deployed, independent units, but can share state and functionality in the following ways:
+
+- Facets can share state variables by using the same structs at the same storage positions. 
+- Facets can share internal functions by importing them or inheriting contracts. 
 
 
+### On-chain Facets can be Reused and Composed
 
+A deployed facet can be used by many diamonds.
+
+It is possible to create and deploy a set of facets that are reused by different diamonds.
+
+The ability to use the same deployed facets for many diamonds has the potential to reduce development time, increase reliability and security, and reduce deployment costs.
+
+It is possible to implement facets in a way that makes them usable/composable/compatible with other facets. 
+
+### Function Signature Limitation
+
+A function signature is the name of a function and its parameter types. Example function signature: `myfunction(uint256)`. A limitation is that two external functions with the same function signature can’t be added to the same diamond at the same time because a diamond, or any contract, cannot have two external functions with the same function signature.
+
+## Backwards Compatibility
+
+Existing, deployed ERC-2535 Diamonds implementations MAY upgrade to this standard by performing an upgrade that does the following:
+
+1. Removes the existing upgrade function and adds a new upgrade function that uses the new events.
+2. Adds the new `functionFacetPairs()` introspection function.
+3. Emits a `DiamondFunctionAdded` event for every function currently in the diamond, including the new upgrade function and the new `functionFacetPairs()` function.
+
+After this upgrade, the diamond is considered compliant with this standard and SHOULD be indexed and treated as a diamond of this standard going forward.
+
+This upgrade acts as a 'state snapshot'. Indexers only interested in the current state of the diamond can start indexing from this transaction onwards, without needing to parse the legacy `DiamondCut` history.
+
+To reconstruct the complete upgrade history requires retrieving all the past `DiamondCut` events as well as all new events defined in this standard.
+
+#### ERC-2535 Diamonds with Legacy Immutable Functions
+
+Definition:
+
+> An immutable function is an external or public function defined directly in a diamond contract, not in a facet.
+
+Immutable functions are intentionally excluded from ERC-XXXX to keep the function–facet model uniform and to simplify implementations.
+
+Immutable functions are not allowed in ERC-XXXX diamonds.
+
+However, to enable existing ERC-2535 diamonds to upgrade to this standard, ERC-XXXX permits a compatibility mode for diamonds that contain immutable functions.
+
+An existing ERC-2535 diamond that contains immutable functions MAY upgrade to this standard subject to the following additional requirements:
+
+1. The `DiamondFunctionAdded` event MUST be emitted for each immutable function.
+2. Immutable functions MUST be returned by the introspection functions `facetAddress(bytes4 _functionSelector)` and `functionFacetPairs()`, where the facet address is the diamond’s own address.
+3. Any upgrade function MUST revert on an attempt to replace or remove an immutable function.
+
+## Reference Implementation
+
+- The reference implementation for the `upgradeDiamond` function is here: [DiamondUpgradeFacet.sol](../assets/erc-xxxx/DiamondUpgradeFacet.sol).
+- The reference implementation for the `facetAddress(bytes4 _functionSelector)` and `functionFacetPairs()` introspection functions is here: [DiamondInspectFacet.sol](../assets/erc-xxxx/DiamondInspectFacet.sol)
+- An example implementation of an ERC-XXXX diamond is here: [DiamondExample.sol](../assets/erc-xxxx/DiamondExample.sol)
+
+## Security Considerations
+
+### Ownership and Authentication
+
+The design and implementation of diamond ownership/authentication is not part of this standard. 
+
+It is possible to create many different authentication or ownership schemes with diamonds. Authentication schemes can be very simple or complex, fine grained or coarse. This proposal does not limit it in any way. For example ownership/authentication could be as simple as a single account address having the authority to add/replace/remove functions. Or a decentralized autonomous organization could have the authority to add/replace/remove certain functions.
+
+The development of standards and implementations of ownership, control and authentication of diamonds is encouraged.
+
+### Arbitrary Execution with `upgradeDiamond`
+
+The `upgradeDiamond` function allows arbitrary execution with access to the diamond’s storage (through `delegatecall`). Access to this function must be restricted carefully.
+
+### Function Selector Clash
+
+A function selector clash occurs when two different function signatures hash to the same four-byte hash. This has the unintended consequence of replacing an existing function in a diamond when the intention was to add a new function. This scenario is not possible with a properly implemented `upgradeDiamond` function because it prevents adding function selectors that already exist.
+
+### Transparency
+
+Diamonds emit an event every time one or more functions are added, replaced or removed. Source code can be verified. This enables people and software to monitor changes to a contract. If any bad acting function is added to a diamond then it can be seen.
+
+Security and domain experts can review the history of change of a diamond to detect foul play.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
