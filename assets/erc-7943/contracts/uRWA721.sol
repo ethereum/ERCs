@@ -4,7 +4,6 @@ pragma solidity ^0.8.29;
 import {IERC7943NonFungible} from "./interfaces/IERC7943.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721Utils} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Utils.sol";
-import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
@@ -53,7 +52,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     function canTransfer(address from, address to, uint256 tokenId) public view virtual override returns (bool allowed) {
         address owner = _ownerOf(tokenId);
         if (owner != from || owner == address(0)) return allowed;
-        if (_frozenTokens[from][tokenId]) return allowed;
+        if (getFrozenTokens(from, tokenId)) return allowed;
         if (!canTransact(from) || !canTransact(to)) return allowed;
 
         allowed = true;
@@ -65,16 +64,16 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     }
 
     /// @inheritdoc IERC7943NonFungible
-    function getFrozenTokens(address account, uint256 tokenId) public virtual override view returns (bool frozenStatus) {
+    function getFrozenTokens(address account, uint256 tokenId) public view virtual override returns (bool frozenStatus) {
         frozenStatus = _frozenTokens[account][tokenId];
     }
 
     /// @notice Updates the whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
     /// Emits a {Whitelisted} event upon successful update.
-    /// @param account The address whose whitelist status is to be changed. Must not be the zero address.
+    /// @param account The address whose whitelist status is to be changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    function changeWhitelist(address account, bool status) external virtual onlyRole(WHITELIST_ROLE) {
+    function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
         emit Whitelisted(account, status);
     }
@@ -86,7 +85,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// Emits a {Transfer} event with `from` set to the zero address.
     /// @param to The address that will receive the minted token.
     /// @param tokenId The specific token identifier to mint.
-    function safeMint(address to, uint256 tokenId) external virtual onlyRole(MINTER_ROLE) {
+    function safeMint(address to, uint256 tokenId) external onlyRole(MINTER_ROLE) {
         _safeMint(to, tokenId);
     }
 
@@ -95,7 +94,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// Requires the caller (`_msgSender()`) to be the owner or approved for `tokenId`.
     /// Emits a {Transfer} event with `to` set to the zero address.
     /// @param tokenId The specific token identifier to burn. 
-    function burn(uint256 tokenId) external virtual onlyRole(BURNER_ROLE) {
+    function burn(uint256 tokenId) external onlyRole(BURNER_ROLE) {
         address previousOwner = _update(address(0), tokenId, _msgSender()); 
         if (previousOwner == address(0)) revert ERC721NonexistentToken(tokenId);
     }
@@ -112,6 +111,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// @dev Can only be called by accounts holding the `FORCE_TRANSFER_ROLE`.
     function forcedTransfer(address from, address to, uint256 tokenId) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
         require(to != address(0), ERC721InvalidReceiver(address(0)));
+        require(from != address(0), ERC721InvalidSender(address(0)));
         require(canTransact(to), ERC7943CannotTransact(to));
         require(ownerOf(tokenId) == from, ERC721IncorrectOwner(from, tokenId, ownerOf(tokenId)));
         _excessFrozenUpdate(from , tokenId);
@@ -129,17 +129,17 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// @param from The address that currently owns the token.
     /// @param tokenId The ID of the token that may need to be unfrozen.
     function _excessFrozenUpdate(address from, uint256 tokenId) internal {
-        if(_frozenTokens[from][tokenId]) {
+        if(getFrozenTokens(from, tokenId)) {
             delete _frozenTokens[from][tokenId];
             emit Frozen(from, tokenId, false);
         }
     }
 
     /// @notice Hook that is called during any token transfer, including minting and burning.
-    /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logics.
+    /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logic.
     /// Reverts with {ERC721IncorrectOwner} | {ERC7943InsufficientUnfrozenBalance} | {ERC7943CannotTransact} if any `canTransfer`/`canTransact` or other check fails.
     /// @param to The address receiving tokens (zero address for burning).
-    /// @param tokenId The if of the token being transferred.
+    /// @param tokenId The ID of the token being transferred.
     /// @param auth The address initiating the transfer.
     function _update(address to, uint256 tokenId, address auth) internal virtual override returns(address) {
         address from = _ownerOf(tokenId);
@@ -154,7 +154,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
             _excessFrozenUpdate(from, tokenId);
         } else if (from != address(0) && to != address(0)) { // Transfer
             require(from == _ownerOf(tokenId), ERC721IncorrectOwner(from, tokenId, _ownerOf(tokenId)));
-            require(!_frozenTokens[from][tokenId], ERC7943InsufficientUnfrozenBalance(from, tokenId));
+            require(!getFrozenTokens(from, tokenId), ERC7943InsufficientUnfrozenBalance(from, tokenId));
             require(canTransact(from), ERC7943CannotTransact(from));
             require(canTransact(to), ERC7943CannotTransact(to));
         } else {
