@@ -11,5 +11,3 @@ vendor
 
 # Secrets
 .vercel
-
-.vscode
