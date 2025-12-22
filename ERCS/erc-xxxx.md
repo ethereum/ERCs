@@ -66,7 +66,7 @@ error FunctionNotFound(bytes4 _selector);
 // Executes function call on facet using delegatecall.
 // Returns function call return data or revert data.
 fallback() external payable {
-    // Get facet from function selector
+    // Get facet address from function selector
     address facet = selectorTofacet[msg.sig];
     if (facet == address(0)) {
         revert FunctionNotFound(msg.sig);
@@ -348,7 +348,7 @@ Software can retrieve function selectors and facet addresses from a diamond in o
 
 ### ERC-XXXX Diamonds vs ERC-2535 Diamonds
 
-ERC-XXXX Diamonds, Simplified is a simplification and refinement of ERC-2535 Diamonds. 
+This standard is a simplification and refinement of ERC-2535 Diamonds. 
 
 A diamond compliant with ERC-XXXX is not required to implement ERC-2535.
 
