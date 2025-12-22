@@ -1,12 +1,11 @@
 ---
-eip: [to be assigned]
+eip: <to be assigned>
 title: Domain-centric Architecture for Diamonds
 description: An architectural pattern that organizes Diamond storage by domain using ERC-8042 identifiers.
 author: Hoang (@0x76agabond)
 discussions-to: https://ethereum-magicians.org/t/proposing-a-domain-based-architecture-for-diamond-contracts/27250
 status: Draft
-type: Standards Track
-category: ERC
+type: Informational
 created: 2025-12-20
 requires: 2535, 8042
 ---
