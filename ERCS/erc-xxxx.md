@@ -52,7 +52,7 @@ It shows that a diamond has a mapping from function to facet and that facets can
 
 ### Fallback
 
-When an external function is called on a diamond its fallback function is executed. The fallback function determines which facet to call based on the first four bytes of the call data (known as the function selector) and executes that function from the facet using `delegatecall`.
+When an external function is called on a diamond its fallback function is executed. The fallback function determines which facet to call based on the first four bytes of the call data (known as the function selector) and executes the function from the facet using `delegatecall`.
 
 A diamond’s fallback function and `delegatecall` enable a diamond to execute a facet’s function as if it was implemented by the diamond itself. The `msg.sender` and `msg.value` values do not change and only the diamond’s storage is read and written to.
 
@@ -126,7 +126,7 @@ event DiamondFunctionRemoved(
 );
 ```
 
-#### Recording Explicit Delegatecalls
+#### Recording Non-Fallback Delegatecalls
 
 The `DiamondDelegateCall` event is OPTIONAL.
 
@@ -142,7 +142,7 @@ This event MUST NOT be emitted for `delegatecall`s made by a diamond’s fallbac
 * @notice Emitted when a diamond's constructor function or function from a
 *         facet makes a `delegatecall`. This event is optional.
 * 
-* @param _contract     The contract address where the function is.
+* @param _contract     The contract that was delegatecalled.
 * @param _functionCall The function call, including function selector and 
 *                      any arguments.
 */
@@ -186,7 +186,7 @@ This means two important things:
 
 Instead of, or in addition to the upgrade function specified below, you can design and create your own upgrade functions and remain compliant with this standard. All that is required is that you emit the appropriate required events specified in the [events section](#events).
 
-#### upgradeDiamond Function
+#### `upgradeDiamond` Function
 
 This upgrade function is designed for interoperability with tools, such as GUIs and command line tools, which can be used to perform upgrades on diamonds.
 
@@ -219,6 +219,8 @@ struct FacetFunctions {
 * - `_removeFunctions` removes selectors from the diamond.
 *
 * Functions are first added, then replaced, then removed.
+*
+* Must emit DiamondFunction* events for each function change.
 *
 * `delegatecall` is made to `_init` with `_functionCall` for initialization.
 * The `DiamondDelegateCall` event is emitted.
@@ -303,11 +305,13 @@ A diamond MUST implement the following to be compliant with this standard:
 
 1. **Diamond Structure**
 
-   A diamond MUST implement a fallback function.
+   A diamond MUST implement a `fallback()` function.
 
-   A diamond MUST have a constructor function to add external functions and perform any initialization.
+   A diamond MAY have a `receive()` function.
 
-   A diamond MUST NOT have any external or public functions defined directly within it.
+   A diamond MUST NOT have any other external or public functions defined directly within it.
+
+   A diamond MUST have a constructor function to add external functions and perform any initialization.  
 
 2. **Function Association**
 
