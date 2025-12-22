@@ -137,7 +137,7 @@ contract DiamondUpgradeFacet {
         if (_facet.code.length == 0) {
             revert NoBytecodeAtAddress(_facet, "DiamondUpgradeFacet: Add facet has no code");
         }
-        if( _functionSelectors.length == 0) {
+        if(_functionSelectors.length == 0) {
             revert NoSelectorsProvidedForFacet(_facet);
         }
         uint32 selectorPosition = uint32(s.selectors.length);
@@ -159,7 +159,7 @@ contract DiamondUpgradeFacet {
         if (_facet.code.length == 0) {
             revert NoBytecodeAtAddress(_facet, "DiamondUpgradeFacet: Replace facet has no code");
         }
-        if( _functionSelectors.length == 0) {
+        if(_functionSelectors.length == 0) {
             revert NoSelectorsProvidedForFacet(_facet);
         }
         for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
@@ -223,11 +223,11 @@ contract DiamondUpgradeFacet {
     * Functions are first added, then replaced, then removed.
     *
     * `delegatecall` is made to `_init` with `_functionCall` for initialization.
-    * The `DiamondStateModified` event is emitted.
+    * The `DiamondDelegateCall` event is emitted.
     * However, if `_init` is zero, no `delegatecall` is made and no 
-    * `DiamondStateModified` event is emitted.
+    * `DiamondDelegateCall` event is emitted.
     *
-    * If _tag is none zero or if _metadata size is greater than zero then the
+    * If _tag is non-zero or if _metadata size is greater than zero then the
     * `DiamondMetadata` event is emitted with that data.
     *
     * All the parameters of this function are optional.

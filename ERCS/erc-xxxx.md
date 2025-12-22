@@ -67,7 +67,7 @@ error FunctionNotFound(bytes4 _selector);
 // Returns function call return data or revert data.
 fallback() external payable {
     // Get facet address from function selector
-    address facet = selectorTofacet[msg.sig];
+    address facet = selectorToFacet[msg.sig];
     if (facet == address(0)) {
         revert FunctionNotFound(msg.sig);
     }
@@ -362,7 +362,7 @@ Delegating function calls has a small amount of gas overhead. This is mitigated 
 
 ### `functionFacetPairs()` Gas Usage
 
-The `functionFacetPairs()` function is meant to be called off chain. At this time major RPC providers have a maximum gas limit of about 550 million gas. Gas benchmark tests show that the `functionFacetPairs()` function can return 60,000 `(selector, facet)` pairs using less gas than that.
+The `functionFacetPairs()` function is meant to be called off-chain. At this time major RPC providers have a maximum gas limit of about 550 million gas. Gas benchmark tests show that the `functionFacetPairs()` function can return 60,000 `(selector, facet)` pairs using less gas than that.
 
 ERC-XXXX implementations are free to add iteration or pagination-based introspection functions, but they are not required by this standard.
 
