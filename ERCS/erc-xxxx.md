@@ -1,6 +1,6 @@
 ---
 title: Diamonds, Simplified
-description: A structured approach to isolate, organize, test, and manage distinct areas of contract functionality. 
+description: A simplified diamond standard for modular smart contract systems with streamlined introspection and events.
 author: Nick Mudge (@mudgen)
 discussions-to: https://ethereum-magicians.org/t/proposal-for-a-simplified-standard-for-diamond-contracts/27119
 status: Draft
