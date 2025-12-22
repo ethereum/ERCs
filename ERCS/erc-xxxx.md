@@ -23,7 +23,7 @@ This standard preserves the full capabilities of diamond contracts while reducin
 
 ## Motivations
 
-<div style="float: right; font-size: 10rem; line-height: 1;">💎</div>A diamond provides a single address with the functionality of multiple contracts (facets) that are independent from each other but can share internal functions and data storage. This architecture enables unlimited smart-contract functionality to be presented through one address, simplifying deployment, testing, and integration with other smart contracts, software, and user interfaces.
+A diamond provides a single address with the functionality of multiple contracts (facets) that are independent from each other but can share internal functions and data storage. This architecture enables unlimited smart-contract functionality to be presented through one address, simplifying deployment, testing, and integration with other smart contracts, software, and user interfaces.
 
 Diamonds reduce complexity in large smart contract systems by providing a structured approach to isolating, organizing, testing, and managing distinct areas of functionality.
 
@@ -49,9 +49,6 @@ This diagram shows the structure of a diamond.
 It shows that a diamond has a mapping from function to facet and that facets can access the storage inside a diamond.
 
 ![Diagram showing structure of a diamond](../assets/erc-xxxx/functionFacetMapping.svg)
-
-<img alt="" class="" src= align="left" style="max-width: 100%; height: auto;">
-
 
 ### Fallback
 
