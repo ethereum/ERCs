@@ -4,7 +4,7 @@ pragma solidity >=0.8.33;
 
 /**
  * @title Reference implementation for upgrade function for
- *        ERC-XXXX Diamonds, Simplified
+ *        ERC-8109 Diamonds, Simplified
  *
  * @author Nick Mudge <nick@perfectabstractions.com>, X/Github/Telegram: @mudgen
  *
@@ -17,10 +17,10 @@ contract DiamondUpgradeFacet {
      */
     error OwnerUnauthorizedAccount();
 
-    bytes32 constant OWNER_STORAGE_POSITION = keccak256("ercXXXX.owner");
+    bytes32 constant OWNER_STORAGE_POSITION = keccak256("erc8109.owner");
 
     /**
-     * @custom:storage-location erc8042:ercXXXX.owner
+     * @custom:storage-location erc8042:erc8109.owner
      */
     struct OwnerStorage {
         address owner;
@@ -38,7 +38,7 @@ contract DiamondUpgradeFacet {
         }
     }
     
-    bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("ercXXXX.diamond");
+    bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("erc8109.diamond");
 
     /**
      * @notice Data stored for each function selector
@@ -51,7 +51,7 @@ contract DiamondUpgradeFacet {
     }
 
     /**
-     * @custom:storage-location erc8042:ercXXXX.diamond
+     * @custom:storage-location erc8042:erc8109.diamond
      */
     struct DiamondStorage {
         mapping(bytes4 functionSelector => FacetAndPosition) facetAndPosition;

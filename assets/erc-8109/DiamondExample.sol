@@ -2,7 +2,7 @@
 pragma solidity >=0.8.33;
 
 /**
- * @title Example implementation of a diamond for ERC-XXXX Diamonds, Simplified
+ * @title Example implementation of a diamond for ERC-8109 Diamonds, Simplified
  *
  * @author Nick Mudge <nick@perfectabstractions.com>, X/Github/Telegram: @mudgen
  */
@@ -13,12 +13,12 @@ contract Diamond {
      */
     error OwnerUnauthorizedAccount();
 
-    bytes32 constant OWNER_STORAGE_POSITION = keccak256("ercXXXX.owner");
+    bytes32 constant OWNER_STORAGE_POSITION = keccak256("erc8109.owner");
 
     /**
      * @notice Storage for owner of the diamond.
      *
-     * @custom:storage-location erc8042:ercXXXX.owner
+     * @custom:storage-location erc8042:erc8109.owner
      */
     struct OwnerStorage {
         address owner;
@@ -36,7 +36,7 @@ contract Diamond {
         }
     }
 
-     bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("ercXXXX.diamond");
+     bytes32 constant DIAMOND_STORAGE_POSITION = keccak256("erc8109.diamond");
 
     /**
      * @notice Data stored for each function selector
@@ -49,7 +49,7 @@ contract Diamond {
     }
 
     /**
-     * @custom:storage-location erc8042:ercXXXX.diamond
+     * @custom:storage-location erc8042:erc8109.diamond
      */
     struct DiamondStorage {
         mapping(bytes4 functionSelector => FacetAndPosition) facetAndPosition;
@@ -88,7 +88,7 @@ contract Diamond {
      *         and initializes storage variables.
      *
      * @dev The `facetAddress` and `functionFacetPairs` functions must be
-     *      be added. Other external functions should be added.
+     *      added. Other external functions should be added.
      *   
      *      Other parameters can be added to this constructor.
      *      Other storage variables can be initialized in this
