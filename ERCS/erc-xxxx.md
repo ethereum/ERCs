@@ -1,4 +1,5 @@
 ---
+eip: 8109
 title: Diamonds, Simplified
 description: A simplified diamond standard for modular smart contract systems with streamlined introspection and events.
 author: Nick Mudge (@mudgen)
