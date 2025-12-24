@@ -30,6 +30,8 @@ ecrecover(digest, 27, r, s)
 ECDSA signatures MUST be bound before supplied to such contracts. 
 
 ```ts
+const SECP256K1_N: bigint = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n
+
 function bind(sig: Signature, v: 27 | 28 = 27): Signature {
     if (sig.v === v) {
         return sig
