@@ -25,6 +25,7 @@ Smart contracts accepting bound signatures MUST supply `27` for `v`.
 
 ```solidity
 address signer = ecrecover(digest, 27, r, s);
+require(signer != address(0));
 ```
 
 ECDSA signatures MUST be bound before supplied to such contracts. 
@@ -43,13 +44,13 @@ function bind(sig: Signature, v: 27 | 28 = 27): Signature {
 
 ## Rationale
 
-Another signature compression approach, [ERC 2098](./erc-2098.md), stores the y-parity bit in the upper bit of the low `s`.
-Bound signatures are preferrable because they are valid inputs to the `ecrecover` precompile.
+Another signature compression approach, [ERC 2098](./erc-2098.md), stores the y-parity bit in the most-significant bit of the low `s`.
+Bound signatures are preferable because they are valid inputs to the `ecrecover` precompile.
 They require less gas because they do not need to be unpacked by the smart contract.
 
 `27` was chosen over `28` to make the y-parity falsy.
 
-## Backwards Compatiblity
+## Backwards Compatibility
 
 Bound signatures are compatible with `ecrecover` if 27 is supplied for the `v` parameter.
 They cannot be used for transaction signatures because they permit high `s`, in violation of EIP-2.
@@ -68,4 +69,4 @@ They cannot be used for transaction signatures because they permit high `s`, in 
 
 ## Copyright
 
-Copyright and related rights waived via [CC0](https://raw.githubusercontent.com/ethereum/ERCs/master/LICENSE.md).
+Copyright and related rights waived via [CC0](../LICENSE.md).
