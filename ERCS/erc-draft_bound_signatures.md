@@ -24,7 +24,7 @@ Additionally, such signatures are not malleable.
 Smart contracts accepting bound signatures MUST supply `27` for `v`.
 
 ```solidity
-ecrecover(digest, 27, r, s)
+address signer = ecrecover(digest, 27, r, s);
 ```
 
 ECDSA signatures MUST be bound before supplied to such contracts. 
