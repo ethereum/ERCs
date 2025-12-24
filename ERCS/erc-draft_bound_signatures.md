@@ -2,7 +2,7 @@
 title: Bound Signatures
 description: Binding y-parity compresses ECDSA signatures
 author: William Morriss (@wjmelements)
-discussions-to: https://ethereum-magicians.org/t/eip-2-signature-malleability-why-low-s-instead-of-dropping-v/
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-bound-signatures/27308
 status: Draft
 type: Standards Track
 category: ERC
