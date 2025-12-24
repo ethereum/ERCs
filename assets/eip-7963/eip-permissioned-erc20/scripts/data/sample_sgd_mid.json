@@ -1,0 +1,38 @@
+{
+    "GrpHdr": {
+      "MsgId": "ISO-REF-20250429-0003",
+      "CreDtTm": "2025-04-29T18:45:30Z",
+      "CtrlSum": "1234.56"
+    },
+    "PmtInf": {
+      "PmtInfId": "PAYINF-0003",
+      "ReqdExctnDt": "2025-04-29",
+      "Dbtr": {
+        "Nm": "Lion City Trading Pte Ltd",
+        "PstlAdr": {
+          "Ctry": "SG",
+          "AdrLine": ["10 Marina Boulevard", "#35-01"]
+        }
+      },
+      "DbtrAcct": {
+        "Id": { "IBAN": "SG901234567890123456789" }
+      },
+      "CdtTrfTxInf": [
+        {
+          "PmtId": { "EndToEndId": "E2E-20250429-0003" },
+          "InstdAmt": { "Value": "1234.56", "Ccy": "SGD" },
+          "Cdtr": {
+            "Nm": "Sunny Isles Imports",
+            "PstlAdr": {
+              "Ctry": "SG",
+              "AdrLine": ["25 Changi South Ave 2", "#03-00"]
+            }
+          },
+          "CdtrAcct": {
+            "Id": { "IBAN": "SG124567890123456789012" }
+          }
+        }
+      ]
+    }
+  }
+  
