@@ -44,7 +44,7 @@ function bind(sig: Signature, v: 27 | 28 = 27): Signature {
 
 ## Rationale
 
-Another signature compression approach, [ERC 2098](./erc-2098.md), stores the y-parity bit in the most-significant bit of the low `s`.
+Another signature compression approach, [ERC 2098](./eip-2098.md), stores the y-parity bit in the most-significant bit of the low `s`.
 Bound signatures are preferable because they are valid inputs to the `ecrecover` precompile.
 They require less gas because they do not need to be unpacked by the smart contract.
 
