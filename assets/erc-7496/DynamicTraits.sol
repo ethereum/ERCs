@@ -119,13 +119,21 @@ contract DynamicTraits is IERC7496 {
 
     /**
      * @notice Set the trait value (without emitting an event).
+     *         Automatically registers the trait key if not already registered.
      * @param tokenId The token ID to set the trait value for
      * @param traitKey The trait key to set the value of
      * @param newValue The new trait value to set
      */
     function _setTrait(uint256 tokenId, bytes32 traitKey, bytes32 newValue) internal virtual {
+        DynamicTraitsStorage.Layout storage layout = DynamicTraitsStorage.layout();
+
+        // Automatically register the trait key if not already registered.
+        if (!layout._validTraitKeys[traitKey]) {
+            layout._validTraitKeys[traitKey] = true;
+        }
+
         // Set the new trait value.
-        DynamicTraitsStorage.layout()._traits[tokenId][traitKey] = newValue;
+        layout._traits[tokenId][traitKey] = newValue;
     }
 
     /**
