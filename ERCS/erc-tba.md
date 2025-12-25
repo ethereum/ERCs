@@ -111,7 +111,7 @@ ERC-TBA is fully backwards compatible with ERC-7540.
 
 ## Reference Implementation
 
-See: [Aleph-Finance]([https://github.com/AlephFi/smart-contracts](https://github.com/AlephFi/smart-contracts/tree/bac9163538afb2d024bb91b25d4a14aa16d18e48))
+See: [Aleph-Finance](https://github.com/AlephFi/smart-contracts/tree/bac9163538afb2d024bb91b25d4a14aa16d18e48)
 
 ## Security Considerations
 
