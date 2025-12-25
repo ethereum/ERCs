@@ -98,9 +98,15 @@ mapping(uint256 reviewerId => mapping(uint256 reviewedId => bytes reviewData)) p
 
 This allows each reviewer-reviewed pair to have a unique review entry.
 
+#### Optional Diamond Storage
+
+Contracts implementing the Reviews extension MAY use Diamond Storage pattern (see [ERC-8042](./eip-8042.md)) for predictable storage locations. If implemented, contracts MUST use the namespace ID `"ercXXXX.reviews.storage"` (where `XXXX` is the ERC number assigned to this standard).
+
+The Diamond Storage pattern provides predictable storage locations for data, which is useful for cross-chain applications using inclusion proofs and for upgradable contracts. For more details on Diamond Storage, see ERC-8042.
+
 #### Example: Reviews Credential
 
-The following example demonstrates a Smart Credential contract that implements the Reviews extension:
+The following example demonstrates a Smart Credential contract that implements the Reviews extension using Diamond Storage:
 
 ```solidity
 // SPDX-License-Identifier: MIT
@@ -113,24 +119,39 @@ interface IReviews {
 }
 
 contract ReviewsCredential is IReviews {
-    // Double mapping: reviewerId => reviewedId => reviewData
-    mapping(uint256 => mapping(uint256 => bytes)) private _reviews;
-    
+    /// @custom:storage-location erc8042:ercXXXX.reviews.storage
+    struct ReviewsStorage {
+        mapping(uint256 reviewerId => mapping(uint256 reviewedId => bytes reviewData)) reviews;
+    }
+
+    // keccak256("ercXXXX.reviews.storage")
+    bytes32 private constant REVIEWS_STORAGE_LOCATION =
+        keccak256("ercXXXX.reviews.storage");
+
+    function _getReviewsStorage() private pure returns (ReviewsStorage storage $) {
+        bytes32 location = REVIEWS_STORAGE_LOCATION;
+        assembly {
+            $.slot := location
+        }
+    }
+
     /// @notice Submit a review for a reviewed entity
     /// @param reviewerId The ID of the reviewer
     /// @param reviewedId The ID of the entity being reviewed
     /// @param reviewData The review data as bytes
     function review(uint256 reviewerId, uint256 reviewedId, bytes calldata reviewData) external override {
-        _reviews[reviewerId][reviewedId] = reviewData;
+        ReviewsStorage storage $ = _getReviewsStorage();
+        $.reviews[reviewerId][reviewedId] = reviewData;
         emit ReviewSubmitted(reviewerId, reviewedId, reviewData);
     }
-    
+
     /// @notice Get review data for a reviewer-reviewed pair
     /// @param reviewerId The ID of the reviewer
     /// @param reviewedId The ID of the entity being reviewed
     /// @return The review data as bytes
     function getReview(uint256 reviewerId, uint256 reviewedId) external view override returns (bytes memory) {
-        return _reviews[reviewerId][reviewedId];
+        ReviewsStorage storage $ = _getReviewsStorage();
+        return $.reviews[reviewerId][reviewedId];
     }
 }
 ```
