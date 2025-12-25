@@ -3,7 +3,7 @@ eip: TBA
 title: Series Accounting for Incentivized Vaults
 description: A standard to implement Series Accounting method for collecting performance fees in ERC-7540 type vaults.
 author: Yash Saraswat (0xpanicError)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-tba-series-accounting/27306
 status: Draft
 type: Standards Track
 category: ERC
