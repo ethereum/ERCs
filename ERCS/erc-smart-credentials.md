@@ -59,80 +59,106 @@ Smart Credentials do not prescribe a specific function signature. The only requi
 
 This flexibility allows credential providers to design credential functions appropriate for their use case while maintaining uniform resolution through the `bytes` return type.
 
-### Example: Proof of Personhood Credential Using ERC-8049
+### Optional Extension: Reviews
 
-The following example demonstrates a simple Smart Credential contract that implements ERC-8049 to provide Proof of Personhood (PoP) credentials:
+Smart Credential contracts MAY implement a Reviews extension that allows reviewers to submit reviews for reviewed entities. This extension uses a double mapping structure to support reviewer-to-reviewed relationships.
+
+Because IDs are common to many standards such as ERC-721, ERC-1155, ERC-6909, and ERC-8004 (agent registry), it is possible to use Reviews to create reviews of agents, for example, or anything that is tokenized using standard IDs.
+
+#### Interface Requirements
+
+Contracts implementing the Reviews extension MUST implement the following interface:
+
+```solidity
+interface IReviews {
+    /// @notice Submit a review for a reviewed entity
+    /// @param reviewerId The ID of the reviewer
+    /// @param reviewedId The ID of the entity being reviewed
+    /// @param reviewData The review data as bytes
+    function review(uint256 reviewerId, uint256 reviewedId, bytes calldata reviewData) external;
+    
+    /// @notice Get review data for a reviewer-reviewed pair
+    /// @param reviewerId The ID of the reviewer
+    /// @param reviewedId The ID of the entity being reviewed
+    /// @return The review data as bytes
+    function getReview(uint256 reviewerId, uint256 reviewedId) external view returns (bytes memory);
+    
+    /// @notice Emitted when a review is submitted or updated
+    event ReviewSubmitted(uint256 indexed reviewerId, uint256 indexed reviewedId, bytes reviewData);
+}
+```
+
+#### Storage Structure
+
+The Reviews extension uses a double mapping structure:
+
+```solidity
+mapping(uint256 reviewerId => mapping(uint256 reviewedId => bytes reviewData)) private _reviews;
+```
+
+This allows each reviewer-reviewed pair to have a unique review entry.
+
+#### Example: Reviews Credential
+
+The following example demonstrates a Smart Credential contract that implements the Reviews extension:
 
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "@openzeppelin/contracts/utils/Strings.sol";
-
-interface IERC8049 {
-    function getContractMetadata(string calldata key) external view returns (bytes memory);
-    event ContractMetadataUpdated(string indexed indexedKey, string key, bytes value);
+interface IReviews {
+    function review(uint256 reviewerId, uint256 reviewedId, bytes calldata reviewData) external;
+    function getReview(uint256 reviewerId, uint256 reviewedId) external view returns (bytes memory);
+    event ReviewSubmitted(uint256 indexed reviewerId, uint256 indexed reviewedId, bytes reviewData);
 }
 
-contract PoPCredential is IERC8049 {
-    struct PoP {
-        string name;
-        string id;
+contract ReviewsCredential is IReviews {
+    // Double mapping: reviewerId => reviewedId => reviewData
+    mapping(uint256 => mapping(uint256 => bytes)) private _reviews;
+    
+    /// @notice Submit a review for a reviewed entity
+    /// @param reviewerId The ID of the reviewer
+    /// @param reviewedId The ID of the entity being reviewed
+    /// @param reviewData The review data as bytes
+    function review(uint256 reviewerId, uint256 reviewedId, bytes calldata reviewData) external override {
+        _reviews[reviewerId][reviewedId] = reviewData;
+        emit ReviewSubmitted(reviewerId, reviewedId, reviewData);
     }
     
-    mapping(address => PoP) private _credentials;
-    
-    /// @notice Get contract metadata value for a key (ERC-8049)
-    /// @dev Key format is "pop:<hex-address>", returns formatted credential string as bytes
-    function getContractMetadata(string calldata key) external view override returns (bytes memory) {
-        address subject = parseAddress(key);
-        PoP memory _pop = _credentials[subject];
-        
-        string memory hexAddress = Strings.toHexString(uint256(uint160(subject)), 20);
-        string memory credential = string(abi.encodePacked(_pop.name, " : ", hexAddress, " : ", _pop.id));
-        return bytes(credential);
-    }
-    
-    /// @notice Set a Proof of Personhood credential
-    /// @param name The verified name of the person
-    /// @param subject The address of the credential subject
-    /// @param id The credential ID
-    function setPoP(string calldata name, address subject, string calldata id) external {
-        _credentials[subject] = PoP(name, id);
-        
-        string memory hexAddress = Strings.toHexString(uint256(uint160(subject)), 20);
-        string memory key = string(abi.encodePacked("pop:", hexAddress));
-        string memory credential = string(abi.encodePacked(name, " : ", hexAddress, " : ", id));
-        
-        emit ContractMetadataUpdated(key, key, bytes(credential));
-    }
-    
-    function parseAddress(string calldata key) internal pure returns (address) {
-        // Parse address from "pop:0x..." format (implementation omitted for brevity)
+    /// @notice Get review data for a reviewer-reviewed pair
+    /// @param reviewerId The ID of the reviewer
+    /// @param reviewedId The ID of the entity being reviewed
+    /// @return The review data as bytes
+    function getReview(uint256 reviewerId, uint256 reviewedId) external view override returns (bytes memory) {
+        return _reviews[reviewerId][reviewedId];
     }
 }
 ```
 
-**Setting a credential:**
+**Submitting a review:**
 
 ```solidity
-popCredential.setPoP(
-    "Maria Garcia",
-    0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162,
-    "ID: 146-DJH-6346-25294"
+// TOON format (developed by Johann Schopplich) is a clean and efficient format for structured data
+// Example using TOON format for review data
+bytes memory reviewData = bytes("score: 95 review: successfully completed");
+
+reviewsCredential.review(
+    123,  // reviewerId
+    456,  // reviewedId
+    reviewData
 );
 ```
 
-**Resolving a credential (client-side):**
+**Retrieving a review (client-side):**
 
 ```javascript
-// Get the credential bytes
-const credentialBytes = await popCredential.getContractMetadata("pop:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162");
+// Get the review bytes
+const reviewBytes = await reviewsCredential.getReview(123, 456);
 
 // Convert bytes to UTF-8 string
-const credentialString = ethers.utils.toUtf8String(credentialBytes);
+const reviewString = ethers.utils.toUtf8String(reviewBytes);
 
-// credentialString = "Maria Garcia : 0x76f1ff0186ddb9461890bdb3094af74a5f24a162 : ID: 146-DJH-6346-25294"
+// reviewString = "score: 95 review: successfully completed"
 ```
 
 ### Offchain Data Resolution
