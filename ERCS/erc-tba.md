@@ -1,6 +1,6 @@
 ---
 eip: TBA
-title: Series Accounting for Incentivised Vaults
+title: Series Accounting for Incentivized Vaults
 description: A standard to implement Series Accounting method for collecting performance fees in ERC-7540 type vaults.
 author: Yash Saraswat (0xpanicError)
 discussions-to: <URL>
@@ -13,15 +13,15 @@ requires: 7540, 4626
 
 ## Abstract
 
-The following standard formalizes the Series Accounting Method for ERC-7540 type vaults, enabling them to collect performance fees on yields without introducing the free-ride problem.
+The following standard formalizes the Series Accounting Method for ERC-7540 type vaults, enabling them to collect performance fees on yields without introducing the free-rider problem.
 
 It defines the necessary architectural specification for implementing Series Accounting by requiring an independent Series to track each batch of claimed deposit requests within the vault with its unique `totalAssets`, `totalShares`,  `sharesOf` and `highwaterMark` values.
 
 ## Motivation
 
-Current ERC-7540 vault implementations typically implement a Highwater Mark based on the highest recorded price-per-share (the ratio of total assets to total shares of the vault) to ensure performance fees are not collected for recovering losses. But relying on a single vault-wide highwater mark introduces the free-ride problem.
+Current ERC-7540 vault implementations typically implement a Highwater Mark based on the highest recorded price-per-share (the ratio of total assets to total shares of the vault) to ensure performance fees are not collected for recovering losses. But relying on a single vault-wide highwater mark introduces the free-rider problem.
 
-A free-ride occurs when a user's deposit is claimed at a price-per-share below the vault's current highwater mark. When the vault later reaches a new highwater mark, the user doesn’t pay a performance fee on all yield accrued between their initial entry price and the new highwater mark, effectively diminishing returns for existing users.
+A free-rider occurs when a user's deposit is claimed at a price-per-share below the vault's current highwater mark. When the vault later reaches a new highwater mark, the user doesn’t pay a performance fee on all yield accrued between their initial entry price and the new highwater mark, effectively diminishing returns for existing users.
 
 This standard implements the series accounting method where all batches of deposit requests are claimed in a series which maintains a unique highwater mark for those deposits. This allows for the protocol to accurately account for performance fees across all user deposits fairly.
 
@@ -31,7 +31,7 @@ The general architecture of an ERC-7540 vault remains the same with
 - users requiring to submit a request to enter or exit the vault
 - vault implementing a method to move request from “pending” to “claimable” state
 
-However, the structure in which `assets` and `shares` are maintained in the vault is altered to accommodate for series accounting. Traditionally, the vault will store a global value for `totalAssets` and `totalShares`, but to follow this spec, the following states MUST be maintained individually for each series:
+However, the structure in which `assets` and `shares` are maintained in the vault is altered to accommodate for series accounting. Traditionally, the vault will store a global value for `totalAssets` and `totalShares`, but to follow this spec, the following state variables MUST be maintained individually for each series:
 - total assets
 - total shares
 - shares of users
@@ -48,7 +48,7 @@ ERC-TBA vaults must override the ERC-4626 specification as follows:
 - series: a series is like a sub-vault where a set of all deposit requests that are claimed together are accounted for.
 - price-per-share: ratio of total assets to total shares in a series.
 - highwater mark: the highest price-per-share (also referred as exchange price) of a given series.
-- oracle: the entity responsible of setting the price-per-share for a given set of deposit or redeem requests to be claimable.
+- oracle: the entity responsible for setting the price-per-share for a given set of deposit or redeem requests to be claimable.
 - settle: the act of claiming the deposit requests performed by the oracle in a series id, determined by the logic specified in this standard.
 - lead series: each vault MUST have a default series called the lead series where the first set of deposit requests will be claimed.
 - outstanding series: a series apart from the lead series which contains user shares.
@@ -103,7 +103,7 @@ This can cause following problems:
 - having many outstanding series may result in any implementation processing them to exceed the block gas limit eventually which can render the vault unusable.
 - traditional fund managers that expect to fetch vault data for their accounting reports are not pleased with having bloated NAV/AUM sheets with multiple series.
 
-After the lead series reaches a new highwater mark, all subsequent outstanding series also reach new highwater marks. When this happens, each existing user has paid their fair share of performance and their no longer exists a need to maintain these deposits separately.
+After the lead series reaches a new highwater mark, all subsequent outstanding series also reach new highwater marks. When this happens, each existing user has paid their fair share of performance and there no longer exists a need to maintain these deposits separately.
 
 Hence, consolidating all outstanding series during this point can help a vault never exceed block gas limit and also keeps accounting reports for traditional managers clean and concise.
 
@@ -119,7 +119,7 @@ See: [Aleph-Finance](https://github.com/AlephFi/smart-contracts)
 
 The fee calculation for yield bearing vaults can be complex as there can be multiple fixed and variable charges applied before performance fee. This can cause mismatch from expected and realised fee collections. 
 
-Protocols must be careful and thoroughly analyse the accounting resulting from their implementations to ensure they match expectations, and should provide clear documentation of all fee calculations.
+Protocols must be careful and thoroughly analyze the accounting resulting from their implementations to ensure they match expectations, and should provide clear documentation of all fee calculations.
 
 ## Copyright
 
