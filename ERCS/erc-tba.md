@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-10-21
-requires: 4626, 7540
+requires: 7540
 ---
 
 ## Abstract
@@ -113,7 +113,7 @@ ERC-TBA is fully backwards compatible with ERC-7540.
 
 ## Reference Implementation
 
-See: [Aleph-Finance](https://github.com/AlephFi/smart-contracts)
+See: [Aleph-Finance]([https://github.com/AlephFi/smart-contracts](https://github.com/AlephFi/smart-contracts/tree/bac9163538afb2d024bb91b25d4a14aa16d18e48))
 
 ## Security Considerations
 
