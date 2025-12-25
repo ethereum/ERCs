@@ -1,4 +1,5 @@
 ---
+eip: 8111
 title: Bound Signatures
 description: Binding y-parity compresses ECDSA signatures
 author: William Morriss (@wjmelements)
