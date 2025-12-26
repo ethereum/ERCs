@@ -9,6 +9,8 @@ library DynamicTraitsStorage {
         mapping(uint256 tokenId => mapping(bytes32 traitKey => bytes32 traitValue)) _traits;
         /// @dev An offchain string URI that points to a JSON file containing trait metadata.
         string _traitMetadataURI;
+        /// @dev A mapping of valid trait keys.
+        mapping(bytes32 traitKey => bool isValid) _validTraitKeys;
     }
 
     bytes32 internal constant STORAGE_SLOT = keccak256("contracts.storage.erc7496-dynamictraits");
@@ -34,14 +36,23 @@ library DynamicTraitsStorage {
 contract DynamicTraits is IERC7496 {
     using DynamicTraitsStorage for DynamicTraitsStorage.Layout;
 
+    /// @dev Thrown when trying to get or set a trait that does not exist.
+    error TraitDoesNotExist(bytes32 traitKey);
+
     /**
      * @notice Get the value of a trait for a given token ID.
      * @param tokenId The token ID to get the trait value for
      * @param traitKey The trait key to get the value of
      */
     function getTraitValue(uint256 tokenId, bytes32 traitKey) public view virtual returns (bytes32 traitValue) {
+        // Revert if the trait key does not exist.
+        DynamicTraitsStorage.Layout storage layout = DynamicTraitsStorage.layout();
+        if (!layout._validTraitKeys[traitKey]) {
+            revert TraitDoesNotExist(traitKey);
+        }
+
         // Return the trait value.
-        return DynamicTraitsStorage.layout()._traits[tokenId][traitKey];
+        return layout._traits[tokenId][traitKey];
     }
 
     /**
@@ -86,8 +97,15 @@ contract DynamicTraits is IERC7496 {
      * @param newValue The new trait value to set
      */
     function setTrait(uint256 tokenId, bytes32 traitKey, bytes32 newValue) public virtual {
+        DynamicTraitsStorage.Layout storage layout = DynamicTraitsStorage.layout();
+
+        // Revert if the trait key does not exist.
+        if (!layout._validTraitKeys[traitKey]) {
+            revert TraitDoesNotExist(traitKey);
+        }
+
         // Revert if the new value is the same as the existing value.
-        bytes32 existingValue = DynamicTraitsStorage.layout()._traits[tokenId][traitKey];
+        bytes32 existingValue = layout._traits[tokenId][traitKey];
         if (existingValue == newValue) {
             revert TraitValueUnchanged();
         }
@@ -120,6 +138,22 @@ contract DynamicTraits is IERC7496 {
 
         // Emit the event noting the update.
         emit TraitMetadataURIUpdated();
+    }
+
+    /**
+     * @notice Register a trait key as valid.
+     * @param traitKey The trait key to register.
+     */
+    function _registerTraitKey(bytes32 traitKey) internal virtual {
+        DynamicTraitsStorage.layout()._validTraitKeys[traitKey] = true;
+    }
+
+    /**
+     * @notice Check if a trait key is registered.
+     * @param traitKey The trait key to check.
+     */
+    function _isTraitKeyRegistered(bytes32 traitKey) internal view virtual returns (bool) {
+        return DynamicTraitsStorage.layout()._validTraitKeys[traitKey];
     }
 
     /**
