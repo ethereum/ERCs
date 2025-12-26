@@ -11,7 +11,7 @@ participant "Underlying Token" as U
 Alice1 -> U : underlying.approve(ZWToken Contract, amount)
 Alice1 <-- U
 Alice1 -> Alice1 : Generate a provable burn address (e.g., using Poseidon hash)
-Alice1 -> ZW : ZWToken.deposit(to=provable burn address, id=0, amount)
+Alice1 -> ZW : ZWToken.deposit(to=provable burn address, id=0, amount, data="")
 ZW -> U : underlying.transferFrom(Alice1, ZWToken Contract, amount)
 ZW <-- U
 ZW -> ZW : mint amount ZWToken to provable burn address
@@ -37,7 +37,7 @@ Alice1 -> Alice1 : generate proof for reminting
 == Alice2 / Relayer Remints and Unwraps Underlying Token to Bob ==
 Alice1 -> Alice2 : provide proof for reminting
 Alice1 <-- Alice2
-Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, redeem=true, remintData={commitment,[nullifier],proof})
+Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, data={commitment,nullifiers,proverData,relayerData,redeem=true,proof})
 ZW -> ZW : check nullifier
 ZW -> ZW : mark nullifier as used
 ZW -> ZW : verify ZK proof
