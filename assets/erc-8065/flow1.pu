@@ -42,7 +42,7 @@ Alice1 -> Alice1 : generate proof for reminting
 == Alice2 / Relayer Remints ZWToken to Bob ==
 Alice1 -> Alice2 : provide proof for reminting
 Alice1 <-- Alice2
-Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, withdrawUnderlying=false, remintData={commitment,[nullifier],proof})
+Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, redeem=false, remintData={commitment,[nullifier],proof})
 ZW -> ZW : check nullifier
 ZW -> ZW : mark nullifier as used
 ZW -> ZW : verify ZK proof
@@ -51,7 +51,7 @@ alt Contract-maintained commitment\n(Bob might be a provable burn address)
     ZW -> ZW : update commitment
     ZW -> ZW : emit CommitmentUpdated(id=0, commitment, to, amount)
 end
-ZW -> ZW : emit Reminted(from= Alice2 / Relayer,to=Bob, id=0, amount, withdrawUnderlying=false)
+ZW -> ZW : emit Reminted(from= Alice2 / Relayer,to=Bob, id=0, amount, redeem=false)
 Alice2 <-- ZW
 
 note right of Bob: Bob can do anything with ZWToken before unwrapping

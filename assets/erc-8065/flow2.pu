@@ -37,7 +37,7 @@ Alice1 -> Alice1 : generate proof for reminting
 == Alice2 / Relayer Remints and Unwraps Underlying Token to Bob ==
 Alice1 -> Alice2 : provide proof for reminting
 Alice1 <-- Alice2
-Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, withdrawUnderlying=true, remintData={commitment,[nullifier],proof})
+Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, redeem=true, remintData={commitment,[nullifier],proof})
 ZW -> ZW : check nullifier
 ZW -> ZW : mark nullifier as used
 ZW -> ZW : verify ZK proof
