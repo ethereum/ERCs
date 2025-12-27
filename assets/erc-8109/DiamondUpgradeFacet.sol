@@ -8,8 +8,8 @@ pragma solidity >=0.8.33;
  *
  * @author Nick Mudge <nick@perfectabstractions.com>, X/Github/Telegram: @mudgen
  *
- * @dev Compile this with the Solidity optimizer enabled or 
- *      you may get a "stack too deep" error.
+ * @dev Compile this with the Solidity optimizer enabled or you may get a 
+ *      "stack too deep" error.
  */
 contract DiamondUpgradeFacet {
     /**
@@ -132,6 +132,9 @@ contract DiamondUpgradeFacet {
     error CannotReplaceFunctionWithTheSameFacet(bytes4 _selector);
     error DelegateCallReverted(address _delegate, bytes _functionCall);
 
+    error CannotReplaceImmutableFunction(bytes4 _selector);
+    error CannotRemoveImmutableFunction(bytes4 _selector);
+
 
     function addFunctions(address _facet, bytes4[] calldata _functionSelectors) internal {
         DiamondStorage storage s = getDiamondStorage();
@@ -166,6 +169,9 @@ contract DiamondUpgradeFacet {
         for (uint256 selectorIndex; selectorIndex < _functionSelectors.length; selectorIndex++) {
             bytes4 selector = _functionSelectors[selectorIndex];
             address oldFacet = s.facetAndPosition[selector].facet;
+            if (oldFacet == address(this)) {
+                revert CannotReplaceImmutableFunction(selector);
+            }
             if (oldFacet == _facet) {
                 revert CannotReplaceFunctionWithTheSameFacet(selector);
             }
@@ -187,6 +193,9 @@ contract DiamondUpgradeFacet {
             bytes4 selector = _functionSelectors[selectorIndex];
             FacetAndPosition memory oldFacetAndPosition = s.facetAndPosition[selector];
             address oldFacet = oldFacetAndPosition.facet;
+            if (oldFacet == address(this)) {
+                revert CannotRemoveImmutableFunction(selector);
+            }
             if (oldFacet == address(0)) {
                 revert CannotRemoveFunctionThatDoesNotExist(selector);
             }
@@ -235,13 +244,13 @@ contract DiamondUpgradeFacet {
     *  emitted. 
     *
     * The `delegatecall` is done to alter a diamond's state or to 
-    * setup or remove data after an upgrade.
+    * initialize, modify, or remove state after an upgrade.
     *
     * However, if `_delegate` is zero, no `delegatecall` is made and no 
     * `DiamondDelegateCall` event is emitted.
     *
     * ### Metadata:
-    * If _tag is non-zero or if _metadata size is greater than zero then the
+    * If _tag is non-zero or if _metadata.length > 0 then the
     * `DiamondMetadata` event is emitted.
     *
     * @param _addFunctions     Selectors to add, grouped by facet.
