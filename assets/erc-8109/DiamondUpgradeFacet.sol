@@ -125,7 +125,7 @@ contract DiamondUpgradeFacet {
     * @notice The functions below detect and revert with the following errors.
     */
     error NoSelectorsProvidedForFacet(address _facet);
-    error NoBytecodeAtAddress(address _contractAddress, string _message);
+    error NoBytecodeAtAddress(address _contractAddress);
     error CannotAddFunctionToDiamondThatAlreadyExists(bytes4 _selector);
     error CannotReplaceFunctionThatDoesNotExist(bytes4 _selector);
     error CannotRemoveFunctionThatDoesNotExist(bytes4 _selector);
@@ -136,7 +136,7 @@ contract DiamondUpgradeFacet {
     function addFunctions(address _facet, bytes4[] calldata _functionSelectors) internal {
         DiamondStorage storage s = getDiamondStorage();
         if (_facet.code.length == 0) {
-            revert NoBytecodeAtAddress(_facet, "DiamondUpgradeFacet: Add facet has no code");
+            revert NoBytecodeAtAddress(_facet);
         }
         if(_functionSelectors.length == 0) {
             revert NoSelectorsProvidedForFacet(_facet);
@@ -158,7 +158,7 @@ contract DiamondUpgradeFacet {
     function replaceFunctions(address _facet, bytes4[] calldata _functionSelectors) internal {
         DiamondStorage storage s = getDiamondStorage();
         if (_facet.code.length == 0) {
-            revert NoBytecodeAtAddress(_facet, "DiamondUpgradeFacet: Replace facet has no code");
+            revert NoBytecodeAtAddress(_facet);
         }
         if(_functionSelectors.length == 0) {
             revert NoSelectorsProvidedForFacet(_facet);
@@ -273,7 +273,7 @@ contract DiamondUpgradeFacet {
         removeFunctions(_removeFunctions);  
         if(_delegate != address(0)) {
             if (_delegate.code.length == 0) {
-                revert NoBytecodeAtAddress(_delegate, "DiamondUpgradeFacet: _delegate address has no code");
+                revert NoBytecodeAtAddress(_delegate);
             }
             (bool success, bytes memory error) = _delegate.delegatecall(_functionCall);
             if (!success) {
