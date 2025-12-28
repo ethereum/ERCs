@@ -13,7 +13,7 @@ requires: 3668
 
 ## Abstract
 
-This ERC defines Smart Credentials, a specification for blockchain-based credentials that are resolved via smart contracts. Smart Credentials provide a uniform method for resolving credentials in the context of onchain identity profiles. Credentials are records "about" an entity controlled by a credential provider, as opposed to records "by" an entity that the entity controls directly.
+This ERC defines Smart Credentials, a specification for blockchain-based credentials that are resolved via smart contracts. Smart Credentials provide a uniform method for resolving credentials in the context of onchain identity profiles. Credentials are records "about" an entity controlled by a credential issuer, as opposed to records "by" an entity that the entity controls directly.
 
 Smart Credentials support fully onchain data, a mix of onchain and offchain data, or fully offchain data with onchain verification. They are designed to support Zero Knowledge Proofs (ZKPs), enabling privacy-preserving credentials where users can prove specific facts without revealing the underlying data (e.g., proving age is over 18 without revealing birthdate).
 
@@ -23,9 +23,9 @@ With the rise of AI agents, users on the internet will become increasingly indis
 
 ### Identity and Credentials
 
-For the purposes of this specification, "users" refers to both human users and AI agents. Unlike profile data that a user controls (e.g., name, avatar), credentials are records "about" a user controlled by third-party providers—verifiable facts that users cannot fabricate. Examples include:
+For the purposes of this specification, "users" refers to both human users and AI agents. Unlike profile data that a user controls (e.g., name, avatar), credentials are records "about" a user controlled by third-party credential issuers—verifiable facts that users cannot fabricate. Examples include:
 
-- **Proof of Personhood / KYC**: Verify humanity or identity from trusted providers
+- **Proof of Personhood / KYC**: Verify humanity or identity from trusted credential issuers
 - **Reputation Systems**: Ratings for AI agents based on work and reviews
 - **Privacy-Preserving Proofs**: ZKPs that prove facts without revealing underlying data
 
@@ -57,7 +57,7 @@ Smart Credentials do not prescribe a specific function signature. The only requi
 - **ERC-8048**: `getMetadata(uint256 tokenId, string key)` → `bytes` for token-level credentials
 - **Custom functions**: Any function with any parameters, as long as it returns `bytes`
 
-This flexibility allows credential providers to design credential functions appropriate for their use case while maintaining uniform resolution through the `bytes` return type.
+This flexibility allows credential issuers to design credential functions appropriate for their use case while maintaining uniform resolution through the `bytes` return type.
 
 ### Optional Extension: Reviews
 
@@ -204,7 +204,7 @@ Identity systems can:
 
 ## Rationale
 
-Smart Credentials mandate only a `bytes` return type to enable uniform resolution while allowing credential providers to use any function signature, including existing standards like ERC-8048 and ERC-8049. ERC-3668 (CCIP-Read) is required to support offchain data with onchain verification, reducing costs while maintaining security. The design supports Zero Knowledge Proofs to enable privacy-preserving credentials with selective disclosure.
+Smart Credentials mandate only a `bytes` return type to enable uniform resolution while allowing credential issuers to use any function signature, including existing standards like ERC-8048 and ERC-8049. ERC-3668 (CCIP-Read) is required to support offchain data with onchain verification, reducing costs while maintaining security. The design supports Zero Knowledge Proofs to enable privacy-preserving credentials with selective disclosure.
 
 ## Backwards Compatibility
 
