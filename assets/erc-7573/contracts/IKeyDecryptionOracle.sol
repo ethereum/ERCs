@@ -172,7 +172,7 @@ interface IKeyDecryptionOracle {
 
     /**
      * @dev Fulfillment of a verification request (issued by requestVerifyEncryptedKey).
-     * Best-effort + calldata fallback: see fulfillDecryption @dev.
+     * Best-effort + calldata fallback: see fulfillDecryption.
      *
      * @param requestId Correlation id from the request event.
      * @param encryptedKey Encrypted key.
@@ -190,7 +190,7 @@ interface IKeyDecryptionOracle {
 
     /**
      * @dev Fulfillment of a key generation request (issued by requestGenerateEncryptedHashedKey).
-     * Best-effort + calldata fallback: see fulfillDecryption @dev.
+     * Best-effort + calldata fallback: see fulfillDecryption.
      *
      * @param requestId Correlation id from the request event.
      * @param encryptedKey Encrypted key.
