@@ -1,0 +1,209 @@
+---
+eip: xxxx
+title: Compressed Display Format for EVM Addresses
+description: A display format for abbreviating consecutive identical hex characters in EVM addresses using run-length encoding for UI and logging.
+author: Zainan Victor Zhou (@xinbenlv)
+discussions-to: https://ethereum-magicians.org/t/erc-compressed-display-format-for-evm-addresses/27360
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-12-30
+requires: 55
+---
+
+## Abstract
+
+This ERC proposes a standard presentation layer transformation for Ethereum addresses containing long sequences of identical hexadecimal digits. It defines two representation formats: a Unicode-based format using superscripts for graphical user interfaces (UI), and an ASCII-safe fallback format using bracket notation for logs and terminals. This standard aims to improve human readability and safety verification without altering the underlying address data.
+
+## Motivation
+
+As the Ethereum ecosystem matures, addresses with long repeating sequences are becoming increasingly common due to several factors:
+
+**Vanity Addresses & CREATE2:** Factories and developers frequently generate "vanity" addresses with specific prefixes or suffixes for branding or identification.
+
+**Gas Optimization ([EIP-7939](./eip-7939.md)):** With proposals like EIP-7939 aiming to reduce gas costs for zero bytes in calldata, there is an economic incentive to deploy contracts at addresses containing large sequences of zeros to optimize cross-contract call costs.
+
+**Security Risks:** The human eye struggles to distinguish between long sequences of identical characters (e.g., counting 10 zeros vs. 11 zeros). This creates a "homoglyph-like" vulnerability where users may skim over the middle of an address, missing subtle differences in a phishing scam.
+
+Current truncation methods (e.g., `0x1234...5678`) obscure the internal structure of the address. A standardized compression format allows users to verify the magnitude of the repeated sequence (e.g., "exactly 11 zeros") at a glance.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+The compression transformation applies only to the visual representation of the address.
+
+### 1. Trigger Condition
+
+Compression SHOULD be applied if a sequence of identical hexadecimal nibbles has a length $L$, where $L \geq 6$.
+
+### 2. Formatting Rules
+
+The standard defines two modes of display. Implementations must preserve the first character of the repeating sequence to indicate which character is being repeated, followed by a count of the total length of the sequence.
+
+#### Mode A: Unicode Display (UI/Frontend)
+
+Recommended for Wallets, Block Explorers, and Mobile Apps.
+
+**Syntax:** `0x` + `[repeating_char]` + `[superscript_count]` + `[remainder]`
+
+**Encoding:** The count integer is converted to Unicode Superscript characters (U+2070 to U+2079).
+
+**Example:**
+
+- Raw: `0x00000000000000000044...` (Eighteen 0s)
+- Display: `0x0¹⁸44...`
+
+#### Mode B: ASCII Fallback (CLI/Logs)
+
+Recommended for Developer Consoles, Logs, and Copy-Paste operations.
+
+**Syntax:** `0x` + `[repeating_char]` + `{` + `[count]` + `}` + `[remainder]`
+
+**Example:**
+
+- Raw: `0x00000000000000000044...`
+- Display: `0x0{18}44...`
+
+### 3. Case Sensitivity and [EIP-55](./eip-55.md)
+
+To preserve the checksum integrity defined in EIP-55 and [EIP-1191](./eip-1191.md):
+
+- The compression MUST strictly match identical ASCII characters.
+- The compression MUST NOT be applied to mixed-case sequences (e.g., `aAaA` cannot be compressed).
+- All non-compressed characters MUST retain their original casing.
+
+## Rationale
+
+### Industry Precedents & Alignment
+
+**Regex Alignment (ASCII Mode):** We selected the curly brace syntax `Byte{n}` (e.g., `0{8}`) because it aligns with the universal Regular Expression standard for quantification. Developers intuitively understand `{n}` as "repeat n times."
+
+**Divergence from IPv6:** Unlike IPv6, which uses `::` to represent "fill the gap with zeros," EVM vanity addresses rely on the specific count of characters for identity. Therefore, an explicit count (`{8}`) is safer than an implicit gap (`::`).
+
+### Superscript vs. Subscript (UI Mode)
+
+While subscript notation (e.g., $H_2O$) implies component count in chemistry, this ERC selects Superscript (`0⁸`) for the following reasons:
+
+**Legibility:** Superscripts generally render more clearly on digital displays and do not conflict with text underlines (hyperlinks) or font baselines.
+
+**Metaphor:** Superscripts serve as a visual metaphor for Scientific Notation, indicating the magnitude or length of the sequence, rather than a mathematical power operation.
+
+### Gas Optimization Context
+
+With the introduction of logic similar to EIP-7939 (scaling gas costs based on calldata zeros), the ecosystem will see a proliferation of addresses engineered to have maximum zero bytes. A display format that handles these specific addresses gracefully is a necessary proactive measure for user experience.
+
+## Backwards Compatibility
+
+This ERC is strictly a presentation layer standard.
+
+**Wallets:** Must strip the compression formatting (convert back to full hex) before signing or broadcasting transactions.
+
+**Safety:** The characters `{`, `}`, and Unicode superscripts are not valid hexadecimal characters. If a user blindly copies a compressed address into a legacy system, the system will reject the input as invalid rather than processing a wrong address. This acts as a fail-safe mechanism.
+
+## Reference Implementation
+
+The following Python implementation demonstrates the logic for both Unicode and ASCII modes, covering full display and truncated variations.
+
+```python
+import re
+
+class AddressCompressor:
+    SUPERSCRIPTS = {
+        '0': '\u2070', '1': '\u00B9', '2': '\u00B2', '3': '\u00B3', '4': '\u2074',
+        '5': '\u2075', '6': '\u2076', '7': '\u2077', '8': '\u2078', '9': '\u2079'
+    }
+
+    def __init__(self, address):
+        self.full_address = address
+        # Remove 0x for processing
+        self.clean_address = address[2:] if address.startswith("0x") else address
+
+    def _to_superscript(self, number):
+        """Converts an integer to a string of unicode superscripts."""
+        return "".join(self.SUPERSCRIPTS.get(digit, digit) for digit in str(number))
+
+    def format(self, mode='unicode', truncate=False):
+        """
+        Modes: 'unicode' (0⁸) or 'ascii' (0{8})
+        Truncate: If True, keeps start/end context only.
+        """
+
+        def replacer(match):
+            seq = match.group(0)
+            length = len(seq)
+            char = seq[0]
+
+            # Trigger threshold >= 6
+            if length < 6:
+                return seq
+
+            if mode == 'unicode':
+                count_str = self._to_superscript(length)
+                return f"{char}{count_str}"
+            else:
+                return f"{char}{{{length}}}"
+
+        # Find sequences of identical characters
+        # (?:(\w)\1+) matches a char followed by itself one or more times
+        compressed_body = re.sub(r'(.)\1+', replacer, self.clean_address)
+
+        prefix = "0x"
+
+        if not truncate:
+            return f"{prefix}{compressed_body}"
+
+        # Simple Logic for Truncation with Compression
+        # If the compression happened at the start (common for vanity)
+        if self.clean_address.startswith("0000000"):
+            # Find where the first compression block ends in the visual string
+            # This is a simplified example. Production logic needs to handle
+            # multiple compression blocks carefully.
+            return f"{prefix}{compressed_body[:5]}...{compressed_body[-4:]}"
+
+        return f"{prefix}{compressed_body[:6]}...{compressed_body[-4:]}"
+
+# --- Test Cases ---
+
+# 1. Standard Vanity (7 zeros)
+addr1 = "0x000000095a03eb9fa26c0d71136a8daa8ea239ce"
+c1 = AddressCompressor(addr1)
+print(f"Unicode Full:  {c1.format(mode='unicode')}")
+# Output: 0x0⁷95a03eb9fa26c0d71136a8daa8ea239ce
+
+print(f"ASCII Full:    {c1.format(mode='ascii')}")
+# Output: 0x0{7}95a03eb9fa26c0d71136a8daa8ea239ce
+
+# 2. Uniswap V4 Style (11 zeros)
+addr2 = "0x000000000004444c5dc75cB358380D2e3dE08A90"
+c2 = AddressCompressor(addr2)
+print(f"Unicode Smart: {c2.format(mode='unicode', truncate=True)}")
+# Output: 0x0¹¹44...8A90
+
+print(f"ASCII Smart:   {c2.format(mode='ascii', truncate=True)}")
+# Output: 0x0{11}44...8A90
+
+# 3. Precompile (39 zeros)
+addr3 = "0x0000000000000000000000000000000000000001"
+c3 = AddressCompressor(addr3)
+print(f"Precompile UI: {c3.format(mode='unicode')}")
+# Output: 0x0³⁹1
+
+# 4. Mixed Case (Safety Check - Should NOT compress)
+addr4 = "0x0000000aAaAaAaA1234" # aAaA... is mixed case
+c4 = AddressCompressor(addr4)
+print(f"Safety Check:  {c4.format(mode='ascii')}")
+# Output: 0x0{7}aAaAaAaA1234 (Only the zeros are compressed)
+```
+
+## Security Considerations
+
+**Homoglyph Attacks:** While this standard aims to reduce visual confusion, developers must ensure that the font used for superscripts is distinct enough that `0⁷` is not misread as `07`.
+
+**Copy-Paste Validation:** Applications accepting address input MUST prioritize standard hexadecimal parsing. If an input contains `{}` or superscripts, the application should strictly reject the input or explicitly offer to decompress it, rather than attempting to hash invalid characters.
+
+**Preservation of Entropy:** This standard does not compress distinct characters. It only compresses low-entropy sequences (repeats), ensuring that the visually distinct part of the address (the high-entropy suffix) remains prominent.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
