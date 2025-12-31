@@ -1,5 +1,5 @@
 ---
-eip: xxxx
+eip: 8117
 title: Compressed Display Format for EVM Addresses
 description: A display format for abbreviating consecutive identical hex characters in EVM addresses using run-length encoding for UI and logging.
 author: Zainan Victor Zhou (@xinbenlv)
