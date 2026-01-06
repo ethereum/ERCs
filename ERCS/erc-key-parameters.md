@@ -3,11 +3,11 @@ eip: XXXX
 title: Key Parameters
 description: A standard format for parameterized string keys used in EVM key-value storage.
 author: Prem Makeig (@nxt3d)
-discussions-to: 
+discussions-to:
 status: Draft
 type: Standards Track
 category: ERC
-created: 2025-01-6
+created: 2025-01-06
 ---
 
 ## Abstract
@@ -16,7 +16,7 @@ This ERC defines a standard format for parameterized string keys used in EVM key
 
 ## Motivation
 
-Many EVM-based smart contracts use key-value storage to store metadata where string keys may need to represent multiple instances or variations of the same metadata type. Without a standardized format for parameterized keys, different implementations use inconsistent formats, leading to interoperability issues and parsing difficulties. Standards such as ERC-8048 (Onchain Metadata for Token Registries) and ERC-8049 (Contract-Level Onchain Metadata) can take advantage of this ERC to support parameterized metadata keys.
+Many EVM-based smart contracts use key-value storage to store metadata where string keys may need to represent multiple instances or variations of the same metadata type. Without a standardized format for parameterized keys, different implementations use inconsistent formats, leading to interoperability issues and parsing difficulties. Standards such as [ERC-8048](./erc-8048.md) (Onchain Metadata for Token Registries) and [ERC-8049](./erc-8049.md) (Contract-Level Onchain Metadata) can take advantage of this ERC to support parameterized metadata keys.
 
 ## Specification
 
