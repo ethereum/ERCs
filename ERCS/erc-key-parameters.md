@@ -1,0 +1,121 @@
+---
+eip: XXXX
+title: Key Parameters
+description: A standard format for parameterized string keys used in EVM key-value storage.
+author: Prem Makeig (@nxt3d)
+discussions-to: 
+status: Draft
+type: Standards Track
+category: ERC
+created: 2025-01-6
+---
+
+## Abstract
+
+This ERC defines a standard format for parameterized string keys used in EVM key-value storage using a colon and space separator. This format was inspired by TOON format (developed by Johann Schopplich), and we acknowledge this preceding work.
+
+## Motivation
+
+Many EVM-based smart contracts use key-value storage to store metadata where string keys may need to represent multiple instances or variations of the same metadata type. Without a standardized format for parameterized keys, different implementations use inconsistent formats, leading to interoperability issues and parsing difficulties. Standards such as ERC-8048 (Onchain Metadata for Token Registries) and ERC-8049 (Contract-Level Onchain Metadata) can take advantage of this ERC to support parameterized metadata keys.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Key Parameter Format
+
+String keys used in EVM key-value storage MAY include parameters to represent variations or instances of a metadata type. When keys include parameters, they MUST use a colon and space separator.
+
+**Format:**
+- `"registration: 1"`
+- `"registration: 2"`
+- `"registration: 3"`
+
+**Invalid formats:**
+- `"registration-1"` (hyphen separator)
+- `"registration:1"` (colon without space)
+- `"registration1"` (no separator)
+
+This format provides a clean, consistent way to represent parameterized keys while maintaining readability and compatibility with parsers that support the colon and space separator format.
+
+### Format Specification
+
+For string keys used in EVM key-value storage (e.g., `mapping(string => bytes)` in Solidity, hash maps in Vyper, or equivalent structures in other EVM-compatible languages):
+
+1. The base key name and parameter MUST be separated by a colon (`:`) followed by a single space (` `).
+2. The parameter value MAY be any string that does not contain `: ` (colon followed by space). Colons without a following space are allowed in the parameter value.
+3. This ERC specifies **exactly one** parameter per key. If an application needs additional sub-parameters, it MAY encode them inside the single parameter value using any application-defined encoding (for example, a space-separated list).
+
+## Rationale
+
+The colon and space separator (`: `) was chosen because:
+- The space after the colon improves human readability compared to formats like `key:value` or `key-value`
+- It provides a clear, unambiguous separator that is easy to parse programmatically
+
+## Backwards Compatibility
+
+This ERC is fully backwards compatible. Existing implementations that do not use parameterized keys are unaffected. Implementations using non-standard parameter formats may continue to work but are encouraged to migrate to this standard format for better interoperability.
+
+## Test Cases
+
+### Valid Key Formats
+
+- `"name"` - Simple key without parameters
+- `"registration: 1"` - Key with numeric parameter
+- `"registration: 2"` - Key with numeric parameter
+- `"user: alice"` - Key with string parameter
+- `"session: abc123"` - Key with alphanumeric parameter
+- `"key: value:with:colons"` - Key with parameter containing colons (without spaces)
+- `"key: one1 two2 three3"` - Key whose single parameter can be interpreted by an application as a list
+
+### Invalid Key Formats
+
+- `"registration-1"` - Uses hyphen instead of colon and space
+- `"registration:1"` - Missing space after colon
+- `"registration1"` - No separator
+- `"registration: 1: 2"` - Multiple parameters (not specified in ERC-XXXX)
+- `"key: value: with space"` - Parameter contains `: ` (colon-space), which is only allowed as the separator
+
+## Reference Implementation
+
+The following is a Solidity reference implementation. This standard applies to all EVM-compatible languages (Solidity, Vyper, etc.) that support string-keyed storage.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
+contract KeyParametersExample {
+    mapping(string => bytes) private _metadata;
+
+    constructor() {
+        // Save three values
+        setMetadata("registration: 1", bytes("example1"));
+        setMetadata("registration: 2", bytes("example2"));
+        setMetadata("registration: 3", bytes("example3"));
+
+        // Read them all back
+        for (uint256 i = 1; i <= 3; i++) {
+            string memory key = string(abi.encodePacked("registration: ", Strings.toString(i)));
+            bytes memory value = getMetadata(key);
+            require(value.length != 0);
+        }
+    }
+
+    function setMetadata(string memory key, bytes memory value) public {
+        _metadata[key] = value;
+    }
+
+    function getMetadata(string memory key) public view returns (bytes memory) {
+        return _metadata[key];
+    }
+}
+```
+
+## Security Considerations
+
+None.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
