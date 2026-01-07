@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8119
 title: Key Parameters
 description: A standard format for parameterized string keys used in EVM key-value storage.
 author: Prem Makeig (@nxt3d)
