@@ -207,7 +207,7 @@ The *agentId* must be a validly registered agent. The *score* MUST be between 0 
 If the procedure succeeds, an event is emitted:
 
 ```solidity
-event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint8 score, string indexed tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)
+event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, uint8 score, string indexed tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)
 ```
 
 The feedback fields, except *feedbackURI* and *feedbackHash*, are stored in the contract storage along with the feedbackIndex (the number of feedback submissions that *clientAddress* has given to *agentId*). This exposes reputation signals to any smart contract, enabling on-chain composability.
@@ -251,9 +251,9 @@ function getSummary(uint256 agentId, address[] calldata clientAddresses, string 
 // agentId is the only mandatory parameter; others are optional filters.
 // Without filtering by clientAddresses, results are subject to Sybil/spam attacks. See Security Considerations for details
 
-function readFeedback(uint256 agentId, address clientAddress, uint64 index) external view returns (uint8 score, string tag1, string tag2, bool isRevoked)
+function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) external view returns (uint8 score, string tag1, string tag2, bool isRevoked)
 
-function readAllFeedback(uint256 agentId, address[] calldata clientAddresses, string tag1, string tag2, bool includeRevoked) external view returns (address[] memory clientAddresses, uint8[] memory scores, string[] memory tag1s, string[] memory tag2s, bool[] memory revokedStatuses)
+function readAllFeedback(uint256 agentId, address[] calldata clientAddresses, string tag1, string tag2, bool includeRevoked) external view returns (address[] memory clientAddresses, uint64[] memory feedbackIndexes, uint8[] memory scores, string[] memory tag1s, string[] memory tag2s, bool[] memory revokedStatuses)
 // agentId is the only mandatory parameter; others are optional filters. Revoked feedback are omitted by default.
 
 function getResponseCount(uint256 agentId, address clientAddress, uint64 feedbackIndex, address[] responders) external view returns (uint64)
