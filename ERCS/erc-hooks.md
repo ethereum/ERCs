@@ -1,7 +1,7 @@
 ---
 eip: TBD
-title: Hooks
-description: A method for redirecting metadata records to a different contract for secure resolution.
+title: Hooks: Delegated Resolution
+description: A method for delegating metadata resolution to a different contract via hooks.
 author: Prem Makeig (@nxt3d)
 discussions-to:
 status: Draft
