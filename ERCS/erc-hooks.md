@@ -3,7 +3,7 @@ eip: TBD
 title: Hooks
 description: A method for redirecting metadata records to a different contract for secure resolution.
 author: Prem Makeig (@nxt3d)
-discussions-to: https://ethereum-magicians.org/t/erc-metadata-hooks/XXXXX
+discussions-to:
 status: Draft
 type: Standards Track
 category: ERC
@@ -13,7 +13,7 @@ requires: 3668
 
 ## Abstract
 
-This ERC introduces Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts, such as singleton registries with known security properties. Hooks can call any function that returns a single `bytes` or `string` value, with the return type matching the hook's encoding format.
+This ERC introduces Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts with known security properties. Hooks can call any function that returns a single `bytes` or `string` value, with the return type matching the hook's encoding format.
 
 ## Motivation
 
@@ -34,16 +34,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Overview
 
-A hook is a value stored in a metadata record that redirects resolution to a different contract. When a client encounters a hook, it:
-
-1. Parses the hook to extract the function call and target contract address
-2. Verifies the target contract is trusted (RECOMMENDED)
-3. Calls the specified function on the target contract
-4. Returns the resolved value
+A hook is a value stored in a smart contract record (string or bytes) that redirects resolution to a different contract. 
 
 The target function's return type MUST match the hook's encoding format:
-- If the hook is encoded as `bytes`, the target function MUST return `bytes`
-- If the hook is encoded as a `string`, the target function MUST return `string`
+- If the hook is encoded and stored as `bytes`, the target function MUST return `bytes`
+- If the hook is encoded and stored as a `string`, the target function MUST return `string`
 
 This ensures type consistency throughout the resolution chain.
 
@@ -92,7 +87,7 @@ Hooks can be encoded in two formats depending on the storage type:
 
 #### Bytes Format
 
-For metadata systems that store `bytes` values (e.g., ERC-8049, ERC-8048), hooks MUST be ABI-encoded. The target function MUST return `bytes`.
+For metadata systems that store `bytes` values (e.g., [ERC-8049](./erc-8049.md), ERC-8048), hooks MUST be ABI-encoded. The target function MUST return `bytes`.
 
 ```solidity
 bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
@@ -121,6 +116,7 @@ hook("functionCall()", 0xTargetAddress)
 ```
 hook("getText('kyc')", 0x1234567890AbcdEF1234567890aBcdef12345678)
 hook("text(12453)", 0x1234567890AbcdEF1234567890aBcdef12345678)
+
 // Target functions: function getText(string) external view returns (string memory)
 //                   function text(uint256) external view returns (string memory)
 ```
@@ -130,11 +126,6 @@ hook("text(12453)", 0x1234567890AbcdEF1234567890aBcdef12345678)
 Clients SHOULD be aware in advance which metadata keys may contain hooks. It is intentional that hook-enabled keys are known by clients beforehand, similar to how clients know to look for keys like `"image"` or `"description"`.
 
 For bytes values, hooks can be detected by checking if the value starts with the hook selector `0x9645b9c8`. For string values, hooks can be detected by checking if the value starts with `hook(`.
-
-Specific implementations MAY:
-- Require that hooks are supported for every key
-- Specify a subset of keys that MUST use hooks
-- Define which keys are hook-enabled on a per-contract basis
 
 ### Resolving Hooks
 
@@ -160,10 +151,10 @@ bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
 // KYCProvider is a trusted singleton registry at a known address
 address kycProvider = 0x1234567890AbcdEF1234567890aBcdef12345678;
 
-// Create hook that calls getCredential('kyc:0x76F1Ff...') on the KYC provider
+// Create hook that calls getCredential('kyc: 0x76F1Ff...') on the KYC provider
 bytes memory hookData = abi.encodeWithSelector(
     HOOK_SELECTOR,
-    "getCredential('kyc:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162')",
+    "getCredential('kyc: 0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162')",
     kycProvider
 );
 
@@ -190,7 +181,7 @@ if (value.startsWith("0x9645b9c8")) {
     // Parse the function call string to get function name and args
     const { functionName, args } = parseFunctionCall(functionCall);
     // functionName = "getCredential"
-    // args = ["kyc:0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162"]
+    // args = ["kyc: 0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162"]
     
     // Enable ERC-3668 (CCIP-Read) support for this resolution
     const targetContract = new ethers.Contract(
@@ -208,11 +199,7 @@ if (value.startsWith("0x9645b9c8")) {
 
 ## Rationale
 
-Hooks introduce redirection for resolving metadata records, which allows for resolving records from "known" contracts. Known contracts may have security properties which are verifiable, for example a singleton registry which resolves Proof-of-Personhood IDs or Know-your-Customer credentials.
-
-### Why Match Return Types to Encoding Format?
-
-By requiring that the target function's return type matches the hook's encoding format (bytes-to-bytes, string-to-string), hooks maintain type consistency throughout the entire resolution chain. This allows the resolved value to be returned all the way to the original intended location while keeping the same value type, ensuring compatibility with the originating metadata system's storage type.
+Hooks introduce redirection for resolving metadata records, which allows for resolving records from "known" contracts. Known contracts may have security properties which are verifiable, for example a registry which resolves Proof-of-Personhood (PoP) IDs or Know-your-Customer (KYC) credentials.
 
 ### Why Mandate ERC-3668?
 
@@ -230,12 +217,6 @@ The primary use of hooks is to resolve data from known contracts with verifiable
 
 - Maintain a list of trusted target contract addresses or use a third-party registry
 - Fail when resolving from untrusted targets
-
-### Function Call Validation
-
-Clients SHOULD validate the parsed function call before execution to prevent:
-- Calls to dangerous functions (e.g., `selfdestruct`, `delegatecall`)
-- Malformed function call strings
 
 ### Recursive Hooks
 
