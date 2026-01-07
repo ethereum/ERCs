@@ -172,7 +172,7 @@
                     ...req,
                     from: userEvmWallet[0].address,
                     context: permissionContext,
-                    dependencyInfo: [], // If the users smart account it not yet deployed, attach (factory, factoryData)
+                    dependencies: [], // If the users smart account it not yet deployed, attach (factory, factoryData)
                     delegationManager: DELEGATION_MANAGER_ADDRESS,
                   };
                 })
