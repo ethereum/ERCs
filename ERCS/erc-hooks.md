@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8121
 title: Delegated metadata resolution via hooks
 description: A method for delegating metadata resolution to a different contract via hooks.
 author: Prem Makeig (@nxt3d)
