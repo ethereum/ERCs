@@ -1,27 +1,28 @@
 ---
-eip: XXXX
+
+## eip: XXXX
+
 title: Minimal Agent Registry
-description: A minimal specification for discovering and registering AI agents using ERC-6909 with ERC-8048 onchain metadata
+description: A minimal gas efficient registry design for AI agents
 author: Prem Makeig (@nxt3d)
-discussions-to: https://ethereum-magicians.org/t/erc-XXXX-agent-registry/XXXXX
+discussions-to: 
 status: Draft
 type: Standards Track
 category: ERC
 created: 2025-12-17
 requires: 6909, 7930, 8048, 8049
----
 
 ## Abstract
 
-This protocol proposes a lightweight onchain registry for **discovering AI agents across organizational boundaries** using [ERC-6909](./eip-6909.md) as the underlying token standard, [ERC-7930](./eip-7930.md) for cross-chain agent identification, and [ERC-8048](./eip-8048.md) for onchain metadata. Each agent is represented as a token ID with a single owner and fully onchain metadata, enabling agent discovery and ownership transfer without reliance on external storage.
+This protocol proposes a lightweight onchain registry for **discovering AI agents** using [ERC-6909](./eip-6909.md) as the underlying registry design, [ERC-7930](./eip-7930.md) for cross-chain agent identification, and [ERC-8048](./eip-8048.md) for onchain metadata. Each agent is represented as a token ID with a single owner and fully onchain metadata, enabling agent discovery and ownership transfer without reliance on external storage.
 
 ## Motivation
 
-While various offchain agent communication protocols handle capabilities advertisement and task orchestration, they don't inherently cover agent discovery. To foster an open, cross-organizational agent economy, we need a mechanism for discovering agents in a decentralized manner.
+While various offchain agent protocols handle things like agent-to-agent communication, they don't inherently cover agent discovery. To foster an open permissionless agent economy, we need a mechanism for discovering agents in a decentralized way, as well as decentralized registration and publishing of agent metadata. We also need a standard that anyone can use to deploy their own agent registry. 
 
 [ERC-8004](./eip-8004.md) provides an existing agent registry standard, but it defines a singleton registry—one per chain. A registry standard that supports custom deployments is necessary for specialized use cases, such as curated collections of agents (e.g., Whitehat Hacking Agents, DeFi Stablecoin Strategy Agents) or fixed-supply agent collections.
 
-This ERC addresses this need through a lightweight **Minimal Agent Registry** based on [ERC-6909](./eip-6909.md). Anyone can deploy their own registry on any L2 or Mainnet Ethereum. All agent metadata is stored fully onchain using [ERC-8048](./eip-8048.md), ensuring censorship resistance and eliminating dependencies on external storage systems.
+This ERC addresses this need through a lightweight **minimal agent registry** using [ERC-6909](./eip-6909.md). Anyone can deploy their own registry on any L2 or Mainnet Ethereum. All agent metadata is stored fully onchain using [ERC-8048](./eip-8048.md), ensuring censorship resistance and eliminating dependencies on external storage systems.
 
 ## Specification
 
@@ -29,16 +30,16 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Agent Registry
 
-The Agent Registry extends [ERC-6909](./eip-6909.md) and implements [ERC-8048](./eip-8048.md) for onchain metadata. Each agent is uniquely identified globally by:
+The agent registry extends [ERC-6909](./eip-6909.md) and implements [ERC-8048](./eip-8048.md) for onchain metadata. Each agent is uniquely identified globally by:
 
-* *agentRegistry*: An [ERC-7930](./eip-7930.md) Interoperable Address (binary) pointing to the registry contract
-* *agentId*: The token ID (`uint256`) assigned incrementally by the registry
+- *agentRegistry*: An [ERC-7930](./eip-7930.md) Interoperable Address (binary) pointing to the registry contract
+- *agentId*: The token ID (`uint256`) assigned by the registry per its implementation-defined scheme
 
 The ERC-7930 Interoperable Address encodes the chain type, chain reference, and contract address in a single binary format, eliminating the need for separate namespace and chainId fields.
 
 #### Agent ID Format
 
-When displaying the Agent ID as text, it MUST be the 0x hex version (lowercase) of the ERC-7930 Interoperable Address followed by a colon and the integer value of the agentId. For example: `0x00010000010114d8da6bf26964af9d7eed9e03e53415d37aa96045:12345`.
+When displaying the Agent ID as text, it MUST be the lowercase hex version of the ERC-7930 address followed by a colon and the integer value of the agentId. For example: `0x00010000010114d8da6bf26964af9d7eed9e03e53415d37aa96045:12345`.
 
 ### Ownership Model
 
@@ -47,88 +48,99 @@ Each agent has a single owner. The registry MUST maintain a mapping from agentId
 #### Transfer Restrictions
 
 To enforce single ownership:
+
 - The `amount` parameter in `transfer` and `transferFrom` MUST be exactly 1
 - Transfers MUST revert if amount is not 1
 - Upon transfer, the `_owners` mapping MUST be updated to reflect the new owner
 
 ### Contract-Level Metadata
 
-The registry SHOULD implement [ERC-8049](./eip-8049.md) for contract-level metadata about the registry itself. It MUST also expose a `setContractMetadata` function. Access control for this function is implementation-specific.
+The registry SHOULD implement [ERC-8049](./eip-8049.md) for contract-level metadata about the registry itself. If ERC-8049 is used it MUST also expose a `setContractMetadata` function. Access control for this function is implementation-specific.
 
 #### Standard Contract Metadata Keys
 
 The following contract metadata keys SHOULD be set:
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `name` | string | Human-readable name of the registry |
-| `description` | string | Description of the registry's purpose or collection |
-| `image` | string | URI pointing to an image representing the registry (may be a data URL) |
+
+| Key           | Type   | Description                                                            |
+| ------------- | ------ | ---------------------------------------------------------------------- |
+| `name`        | string | Human-readable name of the registry                                    |
+| `description` | string | Description of the registry's purpose or collection                    |
+| `image`       | string | URI pointing to an image representing the registry (may be a data URL) |
+
 
 The following contract metadata keys MAY be set:
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `symbol` | string | Short symbol for the registry |
-| `banner_image` | string | URI for a banner image |
-| `featured_image` | string | URI for a featured image |
-| `external_link` | string | External website URL for the registry |
+
+| Key              | Type   | Description                           |
+| ---------------- | ------ | ------------------------------------- |
+| `symbol`         | string | Short symbol for the registry         |
+| `banner_image`   | string | URI for a banner image                |
+| `featured_image` | string | URI for a featured image              |
+| `external_link`  | string | External website URL for the registry |
+
 
 Implementations MAY define additional contract metadata keys as needed.
 
 ### Agent Metadata
 
-All agent metadata is stored onchain using the [ERC-8048](./eip-8048.md) key-value store interface. The registry MUST implement the ERC-8048 interface and expose a `setMetadata` function. This function MUST revert if the caller is not the owner of the agentId and is not an operator for the owner.
+All agent metadata is stored onchain using the [ERC-8048](./eip-8048.md) key-value store interface. The registry MUST implement the ERC-8048 interface and expose a `setMetadata` function. This function MUST revert if the caller is not the owner of the agentId, an approved spender, or an operator for the owner.
 
 #### Standard Metadata Keys
 
 The following metadata keys are RECOMMENDED for interoperability:
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `name` | string | Human-readable name of the agent |
-| `ens_name` | string | ENS name associated with the agent (e.g., "myagent.eth") |
-| `image` | string | URI pointing to an image representing the agent (may be a data URL) |
-| `description` | string | Natural language description of the agent's capabilities |
-| `endpoint_type` | string | Type of endpoint protocol (e.g., "mcp", "a2a"). Additional types may be defined over time. |
-| `endpoint` | string | Primary offchain endpoint URL for agent communication |
-| `agent_account` | address | The agent's account address for transactions |
 
-Implementations MAY define additional keys as needed. All metadata values are stored as `bytes`. If the type is not specified, the value MUST be a UTF-8 string encoded as bytes.
+| Key             | Type    | Description                                                                                |
+| --------------- | ------- | ------------------------------------------------------------------------------------------ |
+| `name`          | string  | Human-readable name of the agent                                                           |
+| `ens_name`      | string  | ENS name associated with the agent (e.g., "myagent.eth")                                   |
+| `image`         | string  | URI pointing to an image representing the agent (may be a data URL)                        |
+| `description`   | string  | Natural language description of the agent's capabilities                                   |
+| `endpoint_type` | string  | Type of endpoint protocol (e.g., "mcp", "a2a"). Additional types may be defined over time. |
+| `endpoint`      | string  | Primary offchain endpoint URL for agent communication                                      |
+| `agent_account` | address | The agent's account address for transactions                                               |
+
+
+Implementations MAY define additional keys as needed. All metadata values are stored as `bytes`. If the type is not otherwise specified, the value MUST be a UTF-8 string encoded as bytes.
 
 ### Registration
 
 New agents can be minted by calling one of the registration functions defined in the interface below. Upon registration:
-- A new *agentId* MUST be assigned incrementally
+
+- A new *agentId* MUST be assigned according to the registry's implementation-defined scheme and MUST be unique
 - The provided `owner` MUST be set as the owner in the `_owners` mapping
 - The owner MUST receive a balance of 1 for that *agentId*
 
-This emits an ERC-6909 Transfer event (from address(0) to the owner), one ERC-8048 MetadataSet event for each metadata entry if any, and a `Registered` event as defined in the interface below. If any of the event parameters (`endpointType`, `endpoint`, or `agentAccount`) are not set, they MUST be set to default empty values (empty string for strings, zero address for addresses) when emitting the event.
+This emits an ERC-6909 Transfer event (from address(0) to the owner), one ERC-8048 MetadataSet event for each metadata entry if any, and a `Registered` event as defined in the interface below. If any of the event parameters (`endpoint_type`, `endpoint`, or `agent_account`) are not set, they MUST be set to default empty values (empty string for strings, zero address for addresses) when emitting the event.
 
 ### Interface
 
-The registry MUST implement [ERC-6909](./eip-6909.md), [ERC-8048](./eip-8048.md), and [ERC-8049](./eip-8049.md). The following interface defines the additional functions and events specific to this ERC:
+The registry MUST implement [ERC-6909](./eip-6909.md), [ERC-8048](./eip-8048.md), and MAY implement [ERC-8049](./eip-8049.md). The following interface defines the additional functions and events specific to this ERC:
 
 ```solidity
-interface IAgentRegistry {
+interface IERCXXXX {
     struct MetadataEntry {
         string key;
         bytes value;
     }
     
-    event Registered(uint256 indexed agentId, address indexed owner, string endpointType, string endpoint, address agentAccount);
+    event Registered(uint256 indexed agentId, address indexed owner, string endpoint_type, string endpoint, address agent_account);
 
-    function register(address owner, string calldata endpointType, string calldata endpoint, address agentAccount) external returns (uint256 agentId);
+    function register(address owner, string calldata endpoint_type, string calldata endpoint, address agent_account) external returns (uint256 agentId);
     function register(address owner, MetadataEntry[] calldata metadata) external returns (uint256 agentId);
     function registerBatch(address[] calldata owners, MetadataEntry[][] calldata metadata) external returns (uint256[] memory agentIds);
     function ownerOf(uint256 agentId) external view returns (address owner);
-    function agentIndex() external view returns (uint256);
+}
+
+interface IERC8049SetContractMetadata {
+    function setContractMetadata(string calldata key, bytes calldata value) external;
 }
 ```
 
 ## Rationale
 
-The Minimal Agent Registry is designed to be a simple, focused foundation for agent discovery and registration. ERC-6909 was chosen as the base because it is the most efficient minimal token standard, minimizing gas costs for agent registration and transfers. By storing all metadata onchain, we leverage the full power of Ethereum and its L2s: censorship resistance, atomic updates, composability with other smart contracts, and permanence. This approach ensures that agent information cannot be taken down or altered by external parties, and allows other protocols to build on top of the registry—whether for reputation systems, credentials (such as KYA "Know Your Agent"), or validation—without requiring changes to the core registry itself.
+The minimal agent registry is designed to be a simple, focused foundation for agent discovery, registration, and onchain metadata. ERC-6909 was chosen as the registry design because it is the most efficient minimal token standard, minimizing gas costs for agent registration and transfers. By storing all metadata onchain, we leverage the full power of Ethereum and its L2s: censorship resistance, atomic updates, composability with other smart contracts, and permanence. This approach ensures that agent information cannot be taken down or altered by external parties, and allows other protocols to build on top of the registry, whether for reputation systems, credentials (such as KYA "Know Your Agent"), or validation, without requiring changes to the core registry itself.
 
 ## Backwards Compatibility
 
@@ -140,4 +152,4 @@ None.
 
 ## Copyright
 
-Copyright and related rights waived via [CC0](../LICENSE.md).
+Copyright and related rights waived via 
