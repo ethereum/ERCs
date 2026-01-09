@@ -1,6 +1,6 @@
 ---
 eip: TBD
-title: Hooks: Delegated Resolution
+title: Delegated metadata resolution via hooks
 description: A method for delegating metadata resolution to a different contract via hooks.
 author: Prem Makeig (@nxt3d)
 discussions-to:
