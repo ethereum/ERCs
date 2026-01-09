@@ -1,6 +1,6 @@
 ---
 
-eip: XXXX
+eip: 8122
 
 title: Minimal Agent Registry
 description: A minimal gas efficient registry design for AI agents
