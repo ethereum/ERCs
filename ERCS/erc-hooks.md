@@ -13,17 +13,17 @@ requires: 3668
 
 ## Abstract
 
-This ERC introduces Hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts with known security properties. Hooks can call any function that returns a single `bytes` or `string` value, with the return type matching the hook's encoding format.
+This ERC introduces hooks, a method for redirecting metadata records to a different contract for resolution. When a metadata value contains a hook, clients "jump" to the destination contract to resolve the actual value by calling the specified function. This enables secure resolution from known contracts with known security properties. Hooks can call any function that returns a single `bytes` or `string` value, with the return type matching the hook's encoding format.
 
 ## Motivation
 
-The goal of this ERC is to propose a method for securely resolving onchain metadata from known contracts. Hooks allow metadata records to be redirected to trusted resolvers by specifying a function call and destination contract address. If the destination is a known contract, such as a credential resolver for proof of personhood (PoP) or know your customer (KYC), clients can verify the contract's security properties before resolving.
+The goal of this ERC is to propose a method for securely resolving onchain metadata from known contracts. Hooks allow metadata records to be redirected to trusted resolvers by specifying a function call and destination contract address. If the destination is a known contract, such as a credential resolver for Proof-of-Personhood (PoP) or Know-Your-Customer (KYC), clients can verify the contract's security properties before resolving.
 
 The hook both notifies resolving clients of a credential source, as well as provides the method for resolving the credential.
 
 ### Use Cases
 
-- **Credential Resolution**: Redirect a `proof-of-person` or `kyc` record to a trusted credential registry
+- **Credential Resolution**: Redirect a Proof-of-Person (PoP) or Know-Your-Customer (KYC) record to a trusted credential registry
 - **Singleton Registries**: Point to canonical registries with known security properties
 - **Shared Metadata**: Multiple contracts can reference the same metadata source
 - **Generic Function Calls**: Call any function on any contract that returns a single `bytes` or `string` value
@@ -87,7 +87,7 @@ Hooks can be encoded in two formats depending on the storage type:
 
 #### Bytes Format
 
-For metadata systems that store `bytes` values (e.g., [ERC-8049](./erc-8049.md), ERC-8048), hooks MUST be ABI-encoded. The target function MUST return `bytes`.
+For metadata systems that store `bytes` values (e.g., [ERC-8049](./erc-8049.md),  [ERC-8048](./erc-8048.md)), hooks MUST be ABI-encoded. The target function MUST return `bytes`. An example might be:
 
 ```solidity
 bytes4 constant HOOK_SELECTOR = 0x9645b9c8;
@@ -105,7 +105,7 @@ originatingContract.setContractMetadata("kyc", hookData);
 
 #### String Format
 
-For metadata systems that store `string` values, hooks SHOULD be formatted as shown below. The target function MUST return `string`.
+For metadata systems that store `string` values, hooks MUST be formatted as shown below. The target function MUST return `string`.
 
 ```
 hook("functionCall()", 0xTargetAddress)
@@ -199,7 +199,7 @@ if (value.startsWith("0x9645b9c8")) {
 
 ## Rationale
 
-Hooks introduce redirection for resolving metadata records, which allows for resolving records from "known" contracts. Known contracts may have security properties which are verifiable, for example a registry which resolves Proof-of-Personhood (PoP) IDs or Know-your-Customer (KYC) credentials.
+Hooks introduce redirection for resolving metadata records, which allows for resolving records from "known" contracts. Known contracts may have security properties which are verifiable, for example a registry which resolves Proof-of-Personhood (PoP) IDs or Know-Your-Customer (KYC) credentials.
 
 ### Why Mandate ERC-3668?
 
