@@ -5,7 +5,7 @@ eip: 8122
 title: Minimal Agent Registry
 description: A minimal gas efficient registry design for AI agents
 author: Prem Makeig (@nxt3d)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/erc-8122-minimal-agent-registry/27405
 status: Draft
 type: Standards Track
 category: ERC
