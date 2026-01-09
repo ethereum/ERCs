@@ -4,6 +4,6 @@ Groups reference implementation assets
 - Contracts:
   - `IERC8063.sol`: interface
   - `ERC8063.sol`: minimal implementation
-  - `GroupContainer.sol`: minimal implementation
+  - `ERC8063ERC20.sol`: optional ERC-20 compatibility implementation (decimals=0)
 
 
