@@ -1,0 +1,233 @@
+---
+eip: TBD
+title: ERC-20 Alias Metadata Extension
+author: Deepu TG | Synergetics <deepu.tg@webtiga.com>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-01-07
+requires: ERC-20
+---
+
+## Abstract
+
+This ERC defines an optional metadata extension to ERC-20 that allows a single fungible token to expose multiple contextual alias names and symbols. Aliases enable applications, wallets, agents, and regional interfaces to present alternative human-readable identifiers for the same token contract without altering token balances, transfer semantics, or supply invariants.
+
+## Motivation
+
+ERC-20 tokens support exactly one canonical name and symbol. While sufficient for basic interoperability, this limitation introduces challenges in modern, multi-application ecosystems:
+
+- A single underlying token may need to be represented under different human-readable names (e.g., "credits", "rewards", or "points") across multiple applications, customers, or brands, even though it refers to the same economic instrument and contract.
+- Many consumer-facing and enterprise systems prefer domain-specific terminology that aligns with existing product and accounting conventions, rather than generic or protocol-native token naming.
+- In the absence of a standardized on-chain alias mechanism, such naming and branding variations are handled off-chain in an ad hoc manner, increasing the risk of inconsistent user experiences, broken integrations, and ambiguous interpretation when names change or expand across new contexts.
+- Context-aware wallets, agents, and multi-tenant platforms cannot reliably express environment-specific, tenant-specific, or intent-specific naming while still referring to the same ERC-20 contract in a verifiable and interoperable way.
+
+This ERC introduces a standardized, on-chain alias mechanism that preserves ERC-20 economic semantics while enabling flexible, verifiable, and context-aware token naming.
+
+## Specification
+
+### Canonical Identity
+
+Each token implementing this ERC:
+
+- MUST remain a valid ERC-20 token
+- MUST expose a canonical `name()` and `symbol()`
+- MUST maintain a single supply and balance mapping
+
+Aliases are metadata only and MUST NOT affect transfers, approvals, or balances.
+
+### Interface Definition
+
+```solidity
+pragma solidity ^0.8.0;
+
+interface IERC20Alias {
+    /**
+     * @dev Emitted when an alias is registered.
+     */
+    event AliasRegistered(
+        string indexed aliasId,
+        string name,
+        string symbol,
+        bytes32 indexed context,
+        address indexed issuer
+    );
+
+    /**
+     * @dev Emitted when an alias is removed.
+     */
+    event AliasRemoved(
+        string indexed aliasId,
+        bytes32 indexed context
+    );
+
+    /**
+     * @notice Returns true if an alias exists for a given aliasId and context.
+     */
+    function hasAlias(
+        string calldata aliasId,
+        bytes32 context
+    ) external view returns (bool);
+
+    /**
+     * @notice Returns alias metadata for a given aliasId and context.
+     */
+    function getAlias(
+        string calldata aliasId,
+        bytes32 context
+    )
+        external
+        view
+        returns (
+            string memory name,
+            string memory symbol,
+            address issuer
+        );
+
+    /**
+     * @notice Returns all alias identifiers registered for this token.
+     */
+    function aliasIds() external view returns (string[] memory);
+}
+```
+
+### Alias Semantics
+
+- `aliasId` is a human-readable identifier (e.g., "default", "short", "brandX")
+- `context` is a bytes32 value used to scope alias applicability
+- The same `aliasId` MAY exist across multiple contexts
+- Context meanings are intentionally not standardized
+
+### Context Resolution
+
+Clients SHOULD resolve aliases as follows:
+
+1. Detect support for `IERC20Alias`
+2. Query alias matching (`aliasId`, `context`)
+3. If no alias exists, fallback to `name()` and `symbol()`
+4. If ERC-20 Alias is not supported, fallback to ERC-20 metadata
+
+## Alias Governance
+
+This ERC does not mandate a specific authorization model. However, implementations SHOULD restrict alias registration to one of the following:
+
+- Token owner
+- Governance contract
+- Explicitly authorized role
+
+Open alias registration mechanisms are out of scope for this standard.
+
+## Backward Compatibility
+
+This ERC is fully backward compatible with ERC-20.
+
+- Existing ERC-20 tokens remain unaffected
+- Wallets and applications MAY ignore alias metadata
+- Canonical ERC-20 metadata MUST always remain available
+
+## Security Considerations
+
+Alias metadata introduces potential risks:
+
+- Phishing through misleading alias names or symbols
+- UI impersonation of well-known tokens
+- Confusion between canonical and contextual identifiers
+
+Clients SHOULD:
+
+- Display canonical token information in security-sensitive contexts
+- Display the token contract address alongside aliases
+- Avoid using aliases as unique identifiers for transfers or approvals
+
+Alias metadata MUST NOT override ERC-20 economic behavior.
+
+## Reference Implementation
+
+```solidity
+pragma solidity ^0.8.0;
+
+contract ERC20Alias is IERC20Alias {
+    struct Alias {
+        string name;
+        string symbol;
+        address issuer;
+        bool exists;
+    }
+
+    mapping(bytes32 => mapping(string => Alias)) private _aliases;
+    string[] private _aliasIds;
+
+    function registerAlias(
+        string calldata aliasId,
+        string calldata name,
+        string calldata symbol,
+        bytes32 context
+    ) external {
+        bytes32 ctx = context;
+        require(!_aliases[ctx][aliasId].exists, "Alias exists");
+
+        _aliases[ctx][aliasId] = Alias({
+            name: name,
+            symbol: symbol,
+            issuer: msg.sender,
+            exists: true
+        });
+
+        _aliasIds.push(aliasId);
+
+        emit AliasRegistered(aliasId, name, symbol, ctx, msg.sender);
+    }
+
+    function hasAlias(
+        string calldata aliasId,
+        bytes32 context
+    ) external view override returns (bool) {
+        return _aliases[context][aliasId].exists;
+    }
+
+    function getAlias(
+        string calldata aliasId,
+        bytes32 context
+    )
+        external
+        view
+        override
+        returns (string memory, string memory, address)
+    {
+        Alias memory a = _aliases[context][aliasId];
+        require(a.exists, "Alias not found");
+        return (a.name, a.symbol, a.issuer);
+    }
+
+    function aliasIds() external view override returns (string[] memory) {
+        return _aliasIds;
+    }
+}
+```
+
+## Rationale
+
+- ERC-20 metadata is preserved as canonical
+- Aliases are explicitly non-economic
+- Context abstraction enables future extensibility
+- Event-based indexing supports explorers and agents
+- Minimal surface area reduces security risk
+
+## Non-Goals
+
+This ERC does not define:
+
+- Off-chain naming resolution
+- Localization or language standards
+- Open alias marketplaces
+- Branding enforcement policies
+
+## References
+
+- [ERC-20 Token Standard](https://eips.ethereum.org/EIPS/eip-20)
+- [ERC-165 Interface Detection](https://eips.ethereum.org/EIPS/eip-165)
+- [ERC-1046 Token Metadata Extensions](https://eips.ethereum.org/EIPS/eip-1046)
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
