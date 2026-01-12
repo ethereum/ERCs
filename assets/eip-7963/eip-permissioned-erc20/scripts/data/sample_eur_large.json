@@ -1,0 +1,38 @@
+{
+    "GrpHdr": {
+      "MsgId": "ISO-REF-20250429-0002",
+      "CreDtTm": "2025-04-29T16:05:11Z",
+      "CtrlSum": "50000"
+    },
+    "PmtInf": {
+      "PmtInfId": "PAYINF-0002",
+      "ReqdExctnDt": "2025-05-02",
+      "Dbtr": {
+        "Nm": "Mega Industrie GmbH",
+        "PstlAdr": {
+          "Ctry": "DE",
+          "AdrLine": ["Werkstraße 10", "10115 Berlin"]
+        }
+      },
+      "DbtrAcct": {
+        "Id": { "IBAN": "DE89370400440532013000" }
+      },
+      "CdtTrfTxInf": [
+        {
+          "PmtId": { "EndToEndId": "E2E-20250429-0002" },
+          "InstdAmt": { "Value": "50000.00", "Ccy": "EUR" },
+          "Cdtr": {
+            "Nm": "Alpine Components SA",
+            "PstlAdr": {
+              "Ctry": "FR",
+              "AdrLine": ["1 Rue des Alpes", "74000 Annecy"]
+            }
+          },
+          "CdtrAcct": {
+            "Id": { "IBAN": "FR7630006000011234567890189" }
+          }
+        }
+      ]
+    }
+  }
+  

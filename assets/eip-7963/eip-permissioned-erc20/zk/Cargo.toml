@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["host", "methods", "test-utils"]
+
+# Always optimize; building and running the guest takes much longer without optimization.
+[profile.dev]
+opt-level = 3
+
+[profile.release]
+debug = 1
+lto = true
+
+# Test profile for faster compilation during development
+[profile.test]
+opt-level = 1
+debug = true
+
+# Bench profile for performance testing
+[profile.bench]
+opt-level = 3
+debug = false
+lto = true
