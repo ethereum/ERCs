@@ -1,6 +1,0 @@
-[submodule "assets/erc-7943/lib/openzeppelin-contracts"]
-	path = assets/erc-7943/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "assets/erc-7943/lib/forge-std"]
-	path = assets/erc-7943/lib/forge-std
-	url = https://github.com/foundry-rs/forge-std
