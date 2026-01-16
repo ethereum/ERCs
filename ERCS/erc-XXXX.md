@@ -1,6 +1,6 @@
 ---
 eip: XXXX
-title: AI Agent Registration and Verification Standard
+title: AI Agent Registration and Verification
 description: Self-registration and specialised verifications for verifiable AI Agent security on Ethereum
 author: Leigh Cronian (@cybercentry) <leigh.cronian@cybercentry.co.uk>
 discussions-to: https://ethereum-magicians.org/t/erc-8126-ai-agent-registration-and-verification/27445
