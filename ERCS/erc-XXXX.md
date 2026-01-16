@@ -4,7 +4,7 @@ title: AI Agent Registration and Verification Standard
 description: Self-registration and specialised verifications for verifiable AI Agent security on Ethereum
 author: Leigh Cronian (@cybercentry) <leigh.cronian@cybercentry.co.uk>
 discussions-to: https://ethereum-magicians.org/t/erc-xxxx-ai-agent-registration-and-verification-standard/27445
-status: Idea
+status: Draft
 type: Standards Track
 category: ERC
 created: 2025-01-15
