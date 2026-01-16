@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8127
 title: Human Readable Token Identifiers
 description: A format for identifying tokens with human readable aliases
 author: Prem Makeig (@nxt3d)
