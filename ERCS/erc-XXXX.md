@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8126
 title: AI Agent Registration and Verification
 description: Self-registration and specialised verifications for verifiable AI Agent security on Ethereum
 author: Leigh Cronian (@cybercentry) <leigh.cronian@cybercentry.co.uk>
