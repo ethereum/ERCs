@@ -1,0 +1,515 @@
+---
+title: Ethereum HTTP Message Signatures
+description: Authentication with Ethereum accounts for HTTP requests
+author: Domenico Macellaro (@zerohex-eth) <dom@slice.so>, Jacopo Ranalli (@jacopo-eth) <jacopo@slice.so>
+discussions-to: <!-- TODO -->
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-01-16
+requires: <!-- TODO -->
+---
+
+## Abstract
+
+A standard to authenticate HTTP requests with Ethereum accounts using HTTP Message Signatures.
+
+## Motivation
+
+HTTP APIs are commonly authenticated using bearer credentials (cookies, API keys, JWTs). These mechanisms authenticate the caller but do not provide request integrity, and typically require servers to issue and protect shared secrets. HTTP message signatures improve this by binding a cryptographic proof to the HTTP request itself: the client signs selected request components so the server can verify request integrity and authorization without issuing or storing bearer credentials.
+
+Sign-In with Ethereum ([EIP-4361](https://eips.ethereum.org/EIPS/eip-4361)) provides a widely adopted pattern for authenticating Ethereum accounts in interactive frontends. However, applications still lack a secure mechanism to authenticate generic HTTP traffic (e.g. API clients, servers, and agents) without bespoke sign-up flows, session issuance, or long-lived bearer credentials. As agentic workflows and crypto-native applications increasingly interact through APIs, a standard way to authenticate and authorize requests becomes necessary.
+
+Ethereum accounts provide a stateful, globally verifiable identity. Using them as the signing authority for HTTP message signatures allows requests to be authorized by proving control of an address (Externally Owned Account) or by satisfying a contract-defined policy (Smart Contract Account via ERC-1271). This approach enables richer authorization models (delegation, session modules, scoped policies, onchain composability) and supports payment-aware flows.
+
+The proposal standardizes Ethereum-based authentication for HTTP requests, aligned with the [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421) model where practical.
+
+Traditional authentication systems place security policy primarily on the server: the server issues credentials, defines scopes, and enforces risk centrally. The specification intentionally inverts that model. The signer chooses the cryptographic guarantees attached to each request by selecting which request components to bind and whether to enable replay protection. The verifier evaluates those guarantees against its acceptance rules, but does not impose a single security posture on all clients.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+HTTP fields, derived components, and signature parameters are to be interpreted as defined in [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421#name-http-message-components).
+
+### Overview
+
+This specification defines an Ethereum authentication scheme for HTTP requests using HTTP Message Signatures.
+
+Unless explicitly stated otherwise, implementations MUST reuse [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421) for covered components, canonicalization, signature base construction, and the `Signature-Input` / `Signature` header syntax.
+
+The specification defines the Ethereum bindings: required signature parameters, the `keyid` format, and signing and verification semantics for Externally Owned Accounts (EOAs) and Smart Contract Accounts (SCAs). 
+
+Security semantics are expressed directly through two orthogonal dimensions:
+
+- **request binding** (how tightly a signature is bound to a specific request)
+- **replay protection** (whether a signature can be reused).
+
+No out-of-band negotiation or capability discovery is required. A signer selects which components and parameters to sign. A verifier evaluates whether the resulting signature satisfies the acceptance rules defined by the specification.
+
+In this model, the signer explicitly chooses the security posture of each request by deciding what to cryptographically bind and whether to enable replay protection. The verifier does not issue credentials or negotiate risk levels, but simply evaluates the guarantees presented in the request.
+
+### 1. Definitions
+
+- **Account**: any Ethereum account, either an Externally Owned Account (EOA) or a Smart Contract Account (SCA).
+- **EOA**: an Externally Owned Account controlled by a private key.
+- **SCA**: a Smart Contract Account that validates signatures via onchain logic (e.g. ERC-1271).
+- **Signer**: the HTTP client generating a signature for a request.
+- **Verifier**: the HTTP server (or gateway) verifying a signature on a received request.
+- **Request-Bound**: a binding model in which a signature authorizes exactly one concrete HTTP request by covering all request components required to uniquely identify that request, such that any change to the method, target, query, or body causes verification to fail.
+- **Class-Bound**: a binding model in which a signature authorizes a class of requests defined by the covered components and any application-specific parameters, rather than a single concrete request.
+- **Non-Replayable**: a property of a signature that ensures it cannot be validly reused.
+- **Replayable**: a property of a signature that allows reuse within its validity window.
+
+### 2. Headers
+
+Signers MUST attach signatures to HTTP requests using the [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421#name-including-a-message-signatu) header fields:
+
+- `Signature-Input`: carries the list of covered components and signature parameters.
+- `Signature`: carries the signature bytes for the corresponding label.
+
+The specification RECOMMENDS using the label `eth` (e.g., `Signature-Input: eth=...` and `Signature: eth=...`), but any valid RFC 9421 label MAY be used.
+
+### 3. Signature
+
+#### 3.1 Security Model
+
+The profile expresses all security semantics directly through two orthogonal dimensions: **request binding** and **replay protection**.
+
+##### 3.1.1 Request Binding
+
+A signature is **Request-Bound** if it binds authorization to a specific HTTP request.
+
+A Request-Bound signature MUST cover, in the listed order:
+
+1. `@authority`
+2. `@method`
+3. `@path`
+
+If the request contains a query component, the signature MUST also cover:
+
+4. `@query`
+
+If the request contains an HTTP message body, the signature MUST also cover:
+
+5. `content-digest`
+
+A signature that omits one or more components from the Request-Bound list while preserving the original ordering of the remaining components is **Class-Bound**. A Class-Bound signature authorizes a class of requests defined by the covered components and any application-specific parameters.
+
+Verifiers MUST accept signatures that satisfy the Request-Bound requirements in this section.
+
+For Class-Bound signatures, verifiers MAY require additional covered components or application-specific parameters as a condition for acceptance.
+
+##### 3.1.2 Replay Protection
+
+A signature is **Non-Replayable** if it cannot be validly reused.
+
+- Non-Replayable signatures MUST include the `nonce` parameter.
+- Verifiers MUST enforce uniqueness of (`keyid`, `nonce`) within an application-defined nonce retention window.
+- Verifiers MUST reject a Non-Replayable signature if `expires - created` exceeds the application-defined nonce retention window.
+- Once a nonce has been accepted, it MUST NOT be accepted again within that window.
+
+A signature that omits `nonce` is **Replayable** and may be reused within its validity window, subject to verifier policy.
+
+#### 3.2 Conformance and Acceptance Rules
+
+##### 3.2.1 Baseline Requirement
+
+To claim conformance with the proposal, implementations MUST accept signatures that are:
+
+- **Request-Bound**, and
+- **Non-Replayable**.
+
+This guarantees that a signer who chooses the strongest security posture — Request-Bound and Non-Replayable — can always interoperate with any compliant verifier.
+
+Any implementation that does not accept signatures satisfying both properties is NOT compliant with the proposal.
+
+##### 3.2.2 Optional Acceptance
+
+In addition to the baseline requirement, verifiers MAY accept signatures that relax one or both security dimensions:
+
+- **Replayable** signatures,
+- **Class-Bound** signatures, or
+- signatures that are both Replayable and Class-Bound.
+
+Verifiers that accept Replayable signatures MUST implement the early invalidation mechanisms defined in Section 5.2.
+
+Except for signatures that satisfy the baseline requirement in Section 3.2.1, a verifier MAY reject any signature that does not satisfy its acceptance policy, even if the signature is otherwise valid under the specification.
+
+#### 3.3 Signature Parameters
+
+##### 3.3.1 `keyid`
+
+`keyid` MUST identify an Ethereum account with explicit chain context:
+
+`keyid="eipXXXX:<chain-id>:<address>"`
+
+Where:
+- `<chain-id>` is a base-10 integer as defined in ([EIP-155](https://eips.ethereum.org/EIPS/eip-155)).
+- `<address>` is a 20-byte Ethereum address encoded as `0x` + 40 hex characters.
+
+Signers SHOULD serialize `<address>` using lowercase hex. Verifiers MUST treat address hex as case-insensitive.
+
+`<chain-id>` determines the chain context for:
+- determining whether `<address>` is a SCA,
+- performing ERC-1271 verification where applicable.
+
+The `eipXXXX` namespace reuses the CAIP-10 account identifier syntax and semantics defined for `eip155:<chain-id>:<address>`, including chain scoping and replay-domain separation; it differs only in its namespace prefix to explicitly bind signatures to this specification.
+
+##### 3.3.2 `created`, `expires`
+
+- `created` is an integer Unix timestamp (seconds).
+- `expires` is an integer Unix timestamp (seconds) and MUST be greater than `created`.
+
+Verifiers MUST reject signatures:
+- whose `created` or `expires` values are not integer Unix timestamps,
+- for which the current time is before `created` or after `expires`.
+
+Verifiers SHOULD enforce:
+- a clock-skew tolerance for `created`,
+- a maximum validity window for `expires`.
+
+##### 3.3.3 `nonce`
+
+The `nonce` parameter is used to prevent replay. Its semantics are defined in Section 3.1.2.
+
+#### 3.4 Signing
+
+##### 3.4.1 Mandatory Parameters
+
+All signatures compliant with the proposal MUST include the following parameters in `Signature-Input` and `@signature-params`:
+
+- `keyid` (Section 4.1)
+- `created` (Section 4.2)
+- `expires` (Section 4.2)
+
+Signatures that are intended to be Non-Replayable MUST include the `nonce` parameter as defined in Section 3.1.2.
+
+##### 3.4.2 Mandatory Components
+
+Signatures that are intended to be Request-Bound MUST satisfy the component requirements in Section 3.1.1.
+
+All compliant signatures MUST cover at least the `@authority` derived component.
+
+Verifiers MAY require additional covered components as a condition for accepting a signature. A signature that does not include the components required by the verifier’s acceptance rules MUST be rejected.
+
+##### 3.4.3 Signature Construction
+
+The signature base `M` and component canonicalization MUST be constructed according to [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421#name-creating-the-signature-base).
+
+Let `M` be the signature base for the selected label.
+
+The specification adopts the [ERC-191](https://eips.ethereum.org/EIPS/eip-191) "Ethereum Signed Message" (`personal_sign`) encoding for `M`.
+
+Signers MUST compute:
+
+`H = keccak256("\x19Ethereum Signed Message:\n" || decimal(len(M)) || M)`
+
+### 4. Verification
+
+Given a request containing `Signature-Input` and `Signature` for a selected label `L`, the verifier MUST:
+
+1. Parse `Signature-Input` and `Signature` for label `L` per RFC 9421 and extract:
+   - covered components list
+   - signature parameters
+   - signature bytes `S`
+2. Enforce the requirements in Sections 3 and 4.
+3. Reconstruct the signature base `M` per RFC 9421 using the received request.
+4. Compute `H` from `M` as defined in Section 5.
+5. Parse `keyid` and extract `chain-id` and `address`.
+
+#### 4.1 EOA Verification
+
+For EOAs, verifiers MUST use the method specified in [ERC-191](https://eips.ethereum.org/EIPS/eip-191).
+
+#### 4.2 SCA Verification
+
+For SCAs, verifiers SHOULD use [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271).
+
+The contract used for verification MUST be resolved on the chain specified in `keyid`.
+
+### 5. Signature Invalidation
+
+#### 5.1 Non-Replayable Invalidation
+
+Non-Replayable signatures are invalidated by nonce consumption.
+
+- Nonces MUST be tracked and treated as consumed after first use.
+- Verifiers MUST retain (`keyid`, `nonce`) state for at least the full validity window `expires - created` of any accepted Non-Replayable signature.
+
+#### 5.2 Replayable Invalidation
+
+Replayable signatures are invalidated primarily by expiration. Because they do not provide cryptographic replay protection, verifiers that accept Replayable signatures MUST implement one or more early invalidation mechanisms that can be triggered by the signer.
+
+Such mechanisms MUST include at least one of the following:
+- per-`keyid` not-before timestamps
+- per-signature invalidation (e.g., fingerprinting of the signature or signature base)
+
+Any client-callable request that triggers early invalidation MUST be authenticated with a Request-Bound signature. Verifiers MUST NOT accept Class-Bound signatures to authorize invalidation.
+
+Verifiers that do not implement early invalidation MUST NOT accept Replayable signatures.
+
+#### 5.3 Key Compromise and Rotation
+
+If an EOA is compromised, verifiers SHOULD rely on policy invalidation.
+
+For SCAs, changes in contract state MAY invalidate previously issued signatures, depending on the ERC-1271 implementation.
+
+## Rationale
+
+### Design Goals
+
+The proposal is designed with two primary goals:
+
+1. **Zero-handshake interoperability**  
+   Enable a signer to interact securely with any verifier compliant with the proposal without requiring a prior handshake or capability discovery step. Whether a request is accepted is determined solely by signature verification and the acceptance rules defined in this document.
+
+2. **Security-first by default**  
+   Ensure that the strongest security posture — **Request-Bound and Non-Replayable** — is always supported by any compliant verifier.  
+   At the same time, allow applications to opt into mechanisms with explicit security/performance tradeoffs (e.g., replayable or class-bound authorization) without fragmenting the standard.
+
+This guarantees that:
+- a signer that requires a low-risk posture (Request-Bound + Non-Replayable) can always interact with any compliant verifier, and
+- no verifier can claim conformance while only supporting weaker or application-specific security models.
+
+### Why the Baseline Requires Request-Bound and Non-Replayable
+
+The baseline requirement enforces both properties because together they provide:
+
+- **Request Integrity:** Request-Bound signatures prevent retargeting and confused-deputy attacks by cryptographically binding authorization to a specific HTTP request.
+- **Freshness and Single-Use Authorization:** Non-Replayable signatures prevent reuse of captured requests across networks, proxies, or logs.
+
+These properties are essential for APIs that authorize state changes, payments, or other sensitive operations. Optional acceptance of weaker properties exists solely for explicitly performance-driven or idempotent use cases.
+
+### Signer-Defined Security Posture
+
+The proposal is built on the principle that the entity authorizing an action should be able to choose the exact security guarantees attached to that action. Rather than embedding risk levels in server-issued tokens, session state, or out-of-band policy, security is expressed directly in the cryptographic material of each request: which components are bound, whether the request is replayable, and how long it remains valid.
+
+This enables:
+
+- fine-grained, per-request control over authorization strength,
+- stateless verifiers that do not need to manage sessions or issue credentials,
+- composable authorization for agents, services, and onchain identities that operate without prior trust relationships.
+
+### Why Replayable Invalidation must be authenticated with a Request-Bound signature
+
+Early invalidation modifies the verifier’s authorization state and is therefore a control-plane operation. Allowing such operations to be authorized with Class-Bound signatures would unnecessarily broaden authority: a single signature could be reused to invalidate multiple authorizations, enabling over-revocation, capability amplification, or misuse if the signature is replayed or misapplied.
+
+Requiring Request-Bound signatures ensures that each invalidation is explicitly tied to one concrete HTTP request and cannot affect anything beyond what is described in that request. This enforces least authority for revocation actions and prevents a single cryptographic artifact from being used to revoke multiple, distinct authorizations.
+
+For these reasons, the specification mandates that any client-initiated invalidation for replayable signatures must be authenticated using a Request-Bound signature.
+
+### Why ERC-191 over EIP-712
+
+The specification signs the RFC 9421 signature base `M`, which is a canonicalized byte sequence derived from HTTP message components. The primary requirement is that the signature binds to `M` in a deterministic, widely implementable way across wallets, agents, and server-side signers.
+
+ERC-191 (`personal_sign`) is chosen because it:
+- is broadly supported across Ethereum signing stacks (including non-interactive and machine-to-machine signers),
+- signs an arbitrary byte string without requiring a typed schema, domain separator, or UI-oriented metadata,
+- maps naturally to “sign exactly this canonical signature base `M`” as required by RFC 9421’s model.
+
+EIP-712 is primarily designed for *structured* (typed) data and is often used to improve human inspectability and reduce phishing risk in interactive wallet flows. That advantage is less relevant here because HTTP message signatures are typically enforced programmatically by applications and agents, and many requests include non-human-friendly material (hashes, digests, nonces, etc.).
+
+On RFC 9421 compliance: using EIP-712 would not be “impossible”, but it would not be a direct signature over the RFC 9421 signature base `M` unless the EIP-712 typed data is defined to represent `M` exactly and canonically. That introduces an additional serialization layer (typed-data encoding + domain separation) and weakens interoperability with generic RFC 9421 tooling, which expects “signature = Sign(M)”. For the proposal’s goal—standardizing Ethereum bindings for RFC 9421—ERC-191 is the simplest and most compatible choice.
+
+### Why this is needed in addition to SIWE and other existing mechanisms
+
+SIWE (EIP-4361) is designed for interactive user authentication, where a user signs a statement to establish identity and a relying party typically issues a session (cookie/JWT) for subsequent requests. It does not standardize how to authenticate and provide integrity for arbitrary HTTP traffic (API clients, servers, agents) on a per-request basis without bearer credentials.
+
+The proposal targets the missing piece: authenticating *each HTTP request itself* using Ethereum accounts, with request integrity and replay protection, without relying on server-issued bearer credentials or long-lived sessions. It is intended for machine-to-machine communication, gateways, agents, and any environment where issuing, storing, and protecting shared secrets or sessions is undesirable.
+
+Existing payment or application-specific conventions may define how to express certain semantics (e.g., errors, payment requirements, or application-level metadata), but they do not standardize cryptographic request authentication, canonicalization, or replay protection in a way that is interoperable with RFC 9421. The proposal fills that gap.
+
+### Signature replayability inference from `nonce`
+
+Earlier designs included an additional parameter to make the signer's intent unambiguous (i.e. `request-type="non-replayable"`) but it was ultimately removed as the presence of `nonce` directly and uniquely signals non-replayability, making the additional parameter redundant.
+
+### Algorithm and profile signaling (`alg`, label, params)
+
+RFC 9421 defines an `alg` signature parameter whose values come from the IANA “HTTP Signature Algorithms” registry. Using `alg` could improve interoperability with generic RFC 9421 tooling by making the algorithm explicit and machine-discoverable. However, Ethereum signing as specified by the proposal (ERC-191 over the RFC 9421 signature base, signed with ECDSA over secp256k1, and verified via address recovery for EOAs or ERC-1271 for SCAs) is not currently represented in that registry, and defining an unregistered `alg` value would reduce interoperability and create ambiguous behavior across implementations. 
+
+For these reasons, the current design treats algorithm selection as implicit in the `keyid` format, which implies the signer's intent to be compliant with EIP-XXXX, and recommends omitting `alg`. A future iteration could register an IANA `alg` identifier (or publish an IETF draft) to enable strict RFC 9421 algorithm signaling without sacrificing compatibility; if such a registration exists, the proposal could be updated to permit (or require) `alg` with that identifier. Until then, accepting `alg` risks inconsistent verification outcomes, so verifiers should reject signatures that include `alg` unless the specification explicitly recognizes an IANA-registered value.
+
+## Backwards Compatibility
+
+The proposal specifies an application-layer profile for RFC 9421 using the `Signature-Input` and `Signature` HTTP fields; non-supporting clients/servers/intermediaries will ignore these as ordinary headers, allowing for incremental rollout.
+
+The profile can coexist with existing authentication (e.g., cookies, API keys, OAuth, SIWE); applications must define precedence if multiple mechanisms are accepted. The standard does not register a new RFC 9421 algorithm, instead implementations recognize the profile exclusively based on `keyid` and verify using Ethereum signing (EOA via ERC-191, SCA via ERC-1271).
+
+## Reference Implementation
+
+The reference implementation signs the RFC 9421 signature base `M` for label `eth`, covering the required components in order: `@method`, `@authority`, `@path`, `@query`, and `content-digest`. The signature parameters `created`, `expires`, `nonce`, and `keyid` are carried in `Signature-Input`. The signer computes an ERC-191 signature over `M` (e.g., `personal_sign` or `signMessage`), and the verifier checks either EOA recovery or ERC-1271 for SCAs.
+
+### Example signature base to sign (`M`)
+
+NOTE: `\` line wrapping per RFC 8792 (documentation only).
+
+```text
+"@method": POST
+"@authority": api.example.com
+"@path": /foo
+"@query": ?a=1&b=two
+"content-digest": sha-256=:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad:
+"@signature-params": ("@method" "@authority" "@path" "@query" \
+  "content-digest");created=1736940000;expires=1736940060;\
+  nonce="b64url_r4Nd0mN0nCEK0YQY4d4r7A";keyid="eipXXXX:1:0x2a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d"
+```
+
+### Signer (client)
+
+Steps:
+
+1. If the request has a body, compute and attach content-digest.
+2. Build `Signature-Input` for label `eth` with the fixed covered components and params (created, expires, nonce, keyid).
+3. Construct `M` exactly per RFC 9421 (signature base for that label).
+4. Produce an ERC-191 signature over `M` (wallet `signMessage(M)`), then set `Signature-Input` and `Signature` headers.
+
+```ts
+type Req = {
+  method: string;
+  authority: string; // host[:port]
+  path: string;
+  query?: string;    // includes leading "?"
+  body?: Uint8Array;
+  headers: Record<string, string>;
+};
+
+type SignParams = {
+  keyid: `eipXXXX:${number}:0x${string}`;
+  created: number;  // unix seconds
+  expires: number;  // unix seconds
+  nonce: string;    // sf-string (recommend base64url)
+};
+
+function covered(req: Req): string[] {
+  const c = ["@method", "@authority", "@path"];
+  if (req.query) c.push("@query");
+  if (req.body && req.body.length > 0) c.push("content-digest");
+  return c;
+}
+
+export async function signRequest(
+  req: Req,
+  wallet: { signMessage: (m: string) => Promise<Uint8Array> },
+  p: SignParams
+): Promise<Req> {
+  if (req.body && req.body.length > 0 && !req.headers["content-digest"]) {
+    req.headers["content-digest"] = computeContentDigest(req.body); // RFC content-digest value, e.g. sha-512=:...:
+  }
+
+  const components = covered(req);
+
+  // Serialize Signature-Input per RFC 9421 (Structured Fields)
+  const sigInput = sfSerializeSignatureInput("eth", components, {
+    created: p.created,
+    expires: p.expires,
+    nonce: p.nonce,
+    keyid: p.keyid,
+  });
+
+  // RFC 9421: compute signature base for label "eth"
+  const M = createSignatureBase(req, "eth", sigInput);
+
+  // Ethereum signing: ERC-191 over M
+  const sigBytes = await wallet.signMessage(M);
+
+  req.headers["signature-input"] = sigInput;
+  req.headers["signature"] = `eth=:${base64(sigBytes)}:`;
+  return req;
+}
+```
+
+### Verifier (server)
+
+**Steps**
+1. Parse `Signature-Input` / `Signature` for label `eth`.
+2. Validate `created`, `expires` and enforce `nonce` uniqueness if applicable.
+3. Check request integrity (if `content-digest` is covered, recompute it from the request body and compare).
+4. Rebuild `M` per RFC 9421 using the received `Signature-Input`.
+5. Verify signature: address recovery against the `keyid` address if EOA, or ERC-1271 for SCA (using `<chain-id>` in `keyid`).
+6. Mark the nonce as used until (at least) `expires`.
+
+```ts
+export async function verifyRequest(req: Req, policy: VerifyPolicy): Promise<boolean> {
+  const headers = parseSignatureHeaders(req);
+
+  // Find the EIP-XXXX message signature in the headers, prioritizing a compliant signature with `eth` label if present
+  const { sigInput, sig } = findEIPXXXXMessageSignature(headers);
+
+  const { created, expires, nonce, keyid } = parseSignatureInput(sigInput);
+
+  if (!validateTimestamps(created, expires, policy)) return false;
+
+  // Only Non-Replayable requests supported
+  if (!nonce) return false;
+
+  const replayKey = `${keyid}:${nonce}`;
+
+  // Check if the nonce has already been used.
+  if (await policy.nonceSeen(replayKey)) return false;
+
+  // Request integrity checks (at minimum: if `content-digest` is covered, recompute and compare it).
+  if (!checkRequestIntegrity(req, sigInput)) return false:
+  
+  // Canonicalization: rebuild the RFC 9421 signature base `M` from the actual request + received Signature-Input.
+  const M = rfc9421CreateSignatureBase(req, "eth", sigInput);
+
+  const H = eth191Hash(M);
+  const { chainId, address } = parseKeyid(keyid);
+
+  // Verify that a message was signed by the provided address. Supports verification of:
+  // - Externally Owned Accounts
+  // - Smart Contract Accounts:
+  //   - Deployed (via ERC-1271)
+  //   - Pre-deployed (via ERC-6492)
+  //   - Pre-delegated (via ERC-8010)
+  const valid = await verifyMessage(chainId, address, H, sig)
+
+  if (!valid) return false;
+
+  // Invalidate `nonce` for `keyid` to prevent signature replay.
+  await policy.invalidateNonce(replayKey, Math.max(0, expires - policy.now));
+
+  return true;
+}
+```
+
+## Security Considerations
+
+### Nonce handling models
+
+Replay protection requires state: verifiers must prevent reuse of the same authorization proof. The specification uses a `nonce` parameter for Non-Replayable signatures and defines replay prevention in terms of uniqueness of (`keyid`, `nonce`) within a retention window.
+
+The specification intentionally does not standardize *how* nonces are obtained (e.g., server-issued vs client-generated) because different deployment models have different constraints:
+- **Client-generated nonces** (e.g., random 128-bit) avoid an extra round-trip and work well for agents and offline signing, but require verifiers to store seen nonces.
+- **Server-issued nonces** (e.g., via an application endpoint) can enforce sequencing or tighter control, but introduce a handshake-like dependency and additional latency.
+
+To preserve zero-handshake interoperability, the specification standardizes the semantics: if `nonce` is present, the signature is Non-Replayable and verifiers must enforce uniqueness for the validity window they accept. Implementations are free to choose storage backends (in-memory, shared cache, database) and concurrency strategies appropriate for their scale and topology.
+
+Additionally, because nonce retention is stateful, verifiers must reject Non-Replayable signatures whose validity window exceeds what the verifier can safely retain nonce state for; otherwise “Non-Replayable” would not be a reliable property.
+
+### Nonce enforcement and concurrency
+
+Verifiers must ensure that checking and invalidating (`keyid`, `nonce`) is an atomic operation. In concurrent or distributed deployments, a non-atomic “check then insert” can allow two parallel verifications of the same nonce to both succeed due to a race condition. Implementations should use a shared store that supports atomic writes (e.g., transactional database writes or atomic operations in a shared cache) and must retain nonce state for at least the accepted validity window.
+
+### Why include Replayable and Class-Bound signatures
+
+The specification defines a security-first baseline (Request-Bound + Non-Replayable) that every compliant verifier must accept. However, real-world systems at scale sometimes need controlled tradeoffs for latency and cost.
+
+Replayable signatures can reduce repeated verification overhead when the same authorization proof is used multiple times within a short validity window. While each request still requires evaluation, verifiers can implement caching strategies (e.g., caching successful verification results keyed by signature bytes or by an application-defined authorization handle) to avoid repeating expensive cryptographic checks for identical proofs. This is most relevant for high-frequency clients and large-scale gateways, where repeated signature verification can become a material CPU cost. Replayable acceptance remains optional and MUST be paired with robust early invalidation mechanisms.
+
+Class-Bound signatures allow a single authorization proof to apply to a *class of requests* (e.g., omitting `@query` or body digests), which can further reduce signer and verifier overhead in narrowly defined, low-risk use cases (e.g., idempotent reads, pre-authorized request classes). This flexibility is explicitly optional because it weakens request integrity guarantees compared to Request-Bound signatures.
+
+Implementations that support Replayable and/or Class-Bound modes should scope their use to low-risk operations and short validity windows, as these modes weaken integrity and/or replay guarantees by design.
+
+Finally, replayability and binding strength are decoupled to avoid forcing implementations into a small number of rigid modes. Different applications may want:
+- replayable but class-bound in constrained patterns (Replayable + Class-Bound),
+- strong binding but replayable within a short window (Replayable + Request-Bound),
+- non-replayable but class-bound in constrained patterns (Non-Replayable + Class-Bound),
+- or the baseline strongest posture (Non-Replayable + Request-Bound).
+
+The profile standardizes the baseline and defines the weaker modes as optional so implementations can adopt performance-driven tradeoffs without fragmenting interoperability.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
