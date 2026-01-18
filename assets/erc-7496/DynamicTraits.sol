@@ -71,12 +71,9 @@ contract DynamicTraits is IERC7496 {
         traitValues = new bytes32[](length);
 
         // Assign each trait value to the corresponding key.
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; i++) {
             bytes32 traitKey = traitKeys[i];
             traitValues[i] = getTraitValue(tokenId, traitKey);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -135,6 +132,26 @@ contract DynamicTraits is IERC7496 {
     function _setTraitMetadataURI(string memory uri) internal virtual {
         // Set the new trait metadata URI.
         DynamicTraitsStorage.layout()._traitMetadataURI = uri;
+
+        // Emit the event noting the update.
+        emit TraitMetadataURIUpdated();
+    }
+
+    /**
+     * @notice Set the URI for the trait metadata and register trait keys.
+     * @param uri The new URI to set.
+     * @param traitKeys The trait keys to register as valid.
+     */
+    function _setTraitMetadataURI(string memory uri, bytes32[] memory traitKeys) internal virtual {
+        DynamicTraitsStorage.Layout storage layout = DynamicTraitsStorage.layout();
+
+        // Set the new trait metadata URI.
+        layout._traitMetadataURI = uri;
+
+        // Register all trait keys.
+        for (uint256 i = 0; i < traitKeys.length; i++) {
+            layout._validTraitKeys[traitKeys[i]] = true;
+        }
 
         // Emit the event noting the update.
         emit TraitMetadataURIUpdated();
