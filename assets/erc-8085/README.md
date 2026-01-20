@@ -46,7 +46,7 @@ ERC-8085 uses a layered design (updated December 2025):
 ```
 DualModeToken.sol (ERC-8085)
   ├─ Public Mode: ERC-20 (OpenZeppelin)
-  ├─ Mode Conversion: toPrivacy() / toPublic()
+  ├─ Mode Conversion: toPrivate() / toPublic()
   └─ Extends: PrivacyToken.sol (ERC-8086 base layer)
        └─ Privacy Mode: IZRC20 compatible
 ```
@@ -69,10 +69,10 @@ DualModeToken.sol (ERC-8085)
 
 ### Mode Conversion Flow
 
-**Public → Privacy** (`toPrivacy`):
+**Public → Privacy** (`toPrivate`):
 ```solidity
 1. User holds 100 ERC-20 tokens
-2. Calls toPrivacy(100, proof, encryptedNote)
+2. Calls toPrivate(100, proof, encryptedNote)
 3. Contract burns 100 ERC-20 tokens
 4. Contract creates privacy commitment (ZK proof verified)
 5. Result: -100 public, +100 privacy, totalSupply unchanged

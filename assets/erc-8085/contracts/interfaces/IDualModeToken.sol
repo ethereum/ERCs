@@ -14,37 +14,9 @@ import "./IZRC20.sol";
  * Architecture:
  *   - Public Mode: Standard ERC-20 (transparent balances and transfers)
  *   - Privacy Mode: ERC-8086 IZRC20 (ZK-SNARK protected balances and transfers)
- *   - Mode Conversion: toPrivacy (public → private) and toPublic (private → public)
+ *   - Mode Conversion: toPrivate (public → private) and toPublic (private → public)
  */
 interface IDualModeToken is IERC20, IZRC20 {
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Events (Mode Conversion Specific)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// @notice Emitted when value is converted from transparent to privacy mode
-    /// @param account The address converting tokens
-    /// @param amount The amount converted
-    /// @param commitment The cryptographic commitment created
-    /// @param timestamp Block timestamp of conversion
-    event ConvertToPrivacy(
-        address indexed account,
-        uint256 amount,
-        bytes32 indexed commitment,
-        uint256 timestamp
-    );
-
-    /// @notice Emitted when value is converted from privacy to transparent mode
-    /// @param initiator The address initiating the conversion
-    /// @param recipient The address receiving transparent tokens
-    /// @param amount The amount converted
-    /// @param timestamp Block timestamp of conversion
-    event ConvertToPublic(
-        address indexed initiator,
-        address indexed recipient,
-        uint256 amount,
-        uint256 timestamp
-    );
 
     // ═══════════════════════════════════════════════════════════════════════
     // Mode Conversion Functions (Core of ERC-8085)
@@ -58,7 +30,7 @@ interface IDualModeToken is IERC20, IZRC20 {
      * @param proof ZK-SNARK proof of valid commitment creation
      * @param encryptedNote Encrypted note data for recipient wallet
      */
-    function toPrivacy(
+    function toPrivate(
         uint256 amount,
         uint8 proofType,
         bytes calldata proof,

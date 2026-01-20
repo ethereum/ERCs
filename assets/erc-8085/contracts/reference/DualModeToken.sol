@@ -14,12 +14,12 @@ import "../interfaces/IDualModeToken.sol";
 * Architecture:
  *   - Public Mode: Standard ERC-20 (OpenZeppelin)
  *   - Privacy Mode: ERC-8086 IZRC20 compatible
- *   - Mode Conversion: toPrivacy() / toPublic()
+ *   - Mode Conversion: toPrivate() / toPublic()
  *Layered Design:
  *   ┌─────────────────────────────────────────┐
  *   │    DualModeToken (ERC-8085 Layer)       │
  *   │  - Public mode (ERC-20)                 │
- *   │  - Mode conversion (toPrivacy/toPublic) │
+ *   │  - Mode conversion (toPrivate/toPublic) │
  *   │                                         │
  *   ├─────────────────────────────────────────┤
  *   │    PrivacyToken (ERC-8086 Layer)        │
@@ -31,7 +31,7 @@ import "../interfaces/IDualModeToken.sol";
  * Key Features:
  *   - Unified token with dual capabilities
  *   - totalSupply = publicSupply + privacySupply
- *   - Seamless mode conversion: toPrivacy() switch token into privacy mode
+ *   - Seamless mode conversion: toPrivate() switch token into privacy mode
  *   - Seamless mode conversion: toPublic() switch token into public mode
  *
  * Design Philosophy:
@@ -215,7 +215,7 @@ contract DualModeToken is PrivacyToken, ERC20, IDualModeToken {
 
     /**
      * @notice Direct privacy mint is NOT supported for dual-mode tokens
-     * @dev Use mintPublic() to get public tokens, then toPrivacy() to convert
+     * @dev Use mintPublic() to get public tokens, then toPrivate() to convert
      *      This design ensures all tokens enter through the public mode first,
      *      maintaining supply transparency and preventing hidden inflation.
      */
@@ -239,7 +239,7 @@ contract DualModeToken is PrivacyToken, ERC20, IDualModeToken {
      * @param proof ZK-SNARK proof of valid commitment creation
      * @param encryptedNote Encrypted note data for recipient wallet
      */
-    function toPrivacy(
+    function toPrivate(
         uint256 amount,
         uint8 proofType,
         bytes calldata proof,
@@ -251,9 +251,7 @@ contract DualModeToken is PrivacyToken, ERC20, IDualModeToken {
         _burn(msg.sender, amount);
 
         // 2. Create privacy commitment (PrivacyToken layer)
-        bytes32 commitment = _privacyMint(amount, proofType, proof, encryptedNote);
-
-        emit ConvertToPrivacy(msg.sender, amount, commitment, block.timestamp);
+        _privacyMint(amount, proofType, proof, encryptedNote);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -281,8 +279,6 @@ contract DualModeToken is PrivacyToken, ERC20, IDualModeToken {
 
         // 2. Mint public tokens (ERC-20 layer)
         _mint(recipient, conversionAmount);
-
-        emit ConvertToPublic(msg.sender, recipient, conversionAmount, block.timestamp);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
