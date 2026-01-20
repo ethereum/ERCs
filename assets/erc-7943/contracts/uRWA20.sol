@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity ^0.8.29;
 
 import {IERC7943Fungible} from "./interfaces/IERC7943.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
@@ -33,9 +33,6 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
     event Whitelisted(address indexed account, bool status);
 
-    /// @notice Error used when a zero address is provided where it is not allowed.
-    error NotZeroAddress();
-
     /// @notice Contract constructor.
     /// @dev Initializes the ERC-20 token with name and symbol, and grants all roles
     /// (Admin, Minter, Burner, Freezer, Force Transfer, Whitelist) to the `initialAdmin`.
@@ -52,29 +49,29 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     }
 
     /// @inheritdoc IERC7943Fungible
-    function canTransfer(address from, address to, uint256 amount) public virtual override view returns (bool allowed) {
+    function canTransfer(address from, address to, uint256 amount) public view virtual override returns (bool allowed) {
         uint256 fromBalance = balanceOf(from);
-        if (fromBalance < _frozenTokens[from]) return allowed;
-        if (amount > fromBalance - _frozenTokens[from]) return allowed;
+        if (fromBalance < getFrozenTokens(from)) return allowed;
+        if (amount > fromBalance - getFrozenTokens(from)) return allowed;
         if (!canTransact(from) || !canTransact(to)) return allowed;
         allowed = true;
     }
 
     /// @inheritdoc IERC7943Fungible
-    function canTransact(address account) public virtual override view returns (bool allowed) {
+    function canTransact(address account) public view virtual override returns (bool allowed) {
         allowed = _whitelist[account] ? true : false;
     }
 
     /// @inheritdoc IERC7943Fungible
-    function getFrozenTokens(address account) public virtual override view returns (uint256 amount) {
+    function getFrozenTokens(address account) public view virtual override returns (uint256 amount) {
         amount = _frozenTokens[account];
     }
 
     /// @notice Updates the whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
-    /// Emits a {Whitelisted} event.
+    /// Emits a {Whitelisted} event upon successful update.
     /// @param account The address whose whitelist status is to be changed.
-    /// @param status The new whitelist status (true or false).
+    /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
     function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
         _whitelist[account] = status;
         emit Whitelisted(account, status);
@@ -109,7 +106,8 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     /// @inheritdoc IERC7943Fungible
     /// @dev Can only be called by accounts holding the `FORCE_TRANSFER_ROLE`.
     function forcedTransfer(address from, address to, uint256 amount) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
-        require(from != address(0) && to != address(0), NotZeroAddress());
+        require(to != address(0), ERC20InvalidReceiver(address(0)));
+        require(from != address(0), ERC20InvalidSender(address(0)));
         require(canTransact(to), ERC7943CannotTransact(to));
         _excessFrozenUpdate(from, amount);
         super._update(from, to, amount); // Directly update balances, bypassing overridden _update
@@ -126,7 +124,7 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
         uint256 unfrozenBalance = _unfrozenBalance(account);
         if(amount > unfrozenBalance && amount <= balanceOf(account)) {
             _frozenTokens[account] -= amount - unfrozenBalance;
-            emit Frozen(account,  _frozenTokens[account]);
+            emit Frozen(account, getFrozenTokens(account));
         }
     }
 
@@ -137,7 +135,7 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     /// @param account The address to calculate unfrozen balance for.
     /// @return unfrozenBalance The amount of tokens available for transfer.
     function _unfrozenBalance(address account) internal view returns(uint256 unfrozenBalance) {
-        unfrozenBalance = balanceOf(account) < _frozenTokens[account] ? 0 : balanceOf(account) - _frozenTokens[account];
+        unfrozenBalance = balanceOf(account) < getFrozenTokens(account) ? 0 : balanceOf(account) - getFrozenTokens(account);
     }
 
     /// @notice Hook that is called during any token transfer, including minting and burning.
