@@ -1,0 +1,313 @@
+---
+eip: <to be assigned>
+title: Non-Transferable Token Standard
+description: A minimal standard for tokens that are permanently bound to an address
+author: Ivan Zemko (@Vantana1995)
+discussions-to: https://ethereum-magicians.org/t/soulbound-nft-as-separate-standard/27407
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-01-19
+requires: 165, 721
+---
+
+## Abstract
+
+This EIP proposes a minimal standard for non-transferable tokens (commonly known as "Soulbound tokens"). Unlike existing approaches that extend ERC-721 and disable transfer functionality, this standard defines tokens that are non-transferable by design, eliminating transfer-related functions entirely from the interface.
+
+## Motivation
+
+Current Soulbound token implementations take different approaches but all retain some form of token movement between addresses:
+
+- [ERC-5192](./erc-5192.md) and [ERC-5484](./erc-5484.md) extend [ERC-721](./eip-721.md), inheriting its complete transfer infrastructure and then blocking these capabilities
+- [ERC-4973](./erc-4973.md) avoids implementing ERC-721's transfer interface but includes `give()` and `take()` functions that allow token movement between addresses with signature consent
+
+Both approaches create several problems:
+
+1. **Semantic Mismatch**: Tokens that should never move between addresses still carry mechanisms for doing so - either through blocked transfer functions (ERC-5192, ERC-5484) or consensual movement (ERC-4973). True soulbound tokens should be permanently bound to their recipient.
+
+2. **Bytecode Bloat**: Standards extending ERC-721 inherit functions like `transferFrom`, `safeTransferFrom`, `approve`, `setApprovalForAll`, `getApproved`, and `isApprovedForAll` in the contract bytecode, even when these functions will never execute successfully. This increases deployment costs and reduces available space for actual token functionality.
+
+3. **Interface Confusion**: External contracts and interfaces may incorrectly assume transfer or movement capabilities exist, leading to integration issues and user confusion.
+
+4. **Not Truly Non-Transferable**: Existing implementations either block transfers through restrictions or allow consensual movement between addresses. In both cases, the token is not fundamentally bound to a single address - it's restricted from free transfer or requires consent to move.
+
+Non-transferable tokens represent credentials, achievements, certifications, memberships, and identity attestations - assets that by their nature should be permanently bound to their owner. These use cases deserve a dedicated standard that explicitly communicates non-transferability through the absence of transfer functions, not their restriction.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Core Interface
+
+Every compliant contract MUST implement the `IERC_NTT` (Non-Transferable Token) interface:
+
+```solidity
+pragma solidity ^0.8.0;
+
+/// @title ERC-NTT Non-Transferable Token Standard
+/// @dev See https://eips.ethereum.org/EIPS/<to be assigned>
+interface IERC_NTT {
+    /// @dev Emitted when a token is minted and bound to an address
+    /// @param to The address the token is bound to
+    /// @param tokenId The identifier of the minted token
+    event Mint(address indexed to, uint256 indexed tokenId);
+
+    /// @dev Emitted when a token is burned
+    /// @param from The address the token was bound to
+    /// @param tokenId The identifier of the burned token
+    event Burn(address indexed from, uint256 indexed tokenId);
+
+    /// @notice Mint a new non-transferable token to a specified address
+    /// @dev The token MUST be bound to the address specified in the 'to' parameter
+    /// @param to The address to bind the token to
+    /// @return tokenId The identifier of the newly minted token
+    function mint(address to) external returns (uint256 tokenId);
+
+    /// @notice Burn a non-transferable token
+    /// @dev MUST revert if msg.sender is not the owner of tokenId
+    /// @param tokenId The identifier of the token to burn
+    function burn(uint256 tokenId) external;
+
+    /// @notice Get the owner of a token
+    /// @dev MUST revert if tokenId does not exist
+    /// @param tokenId The identifier of the token
+    /// @return owner The address that owns the token
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+}
+```
+
+### Metadata Interface (Required)
+
+Compliant contracts MUST implement the ERC-721 metadata interface for human-readable token information:
+
+```solidity
+/// @title ERC-721 Metadata Interface (from EIP-721)
+/// @dev This is a REQUIRED part of the standard
+interface IERC721Metadata {
+    /// @notice A descriptive name for the token collection
+    function name() external view returns (string memory);
+
+    /// @notice An abbreviated name for the token collection
+    function symbol() external view returns (string memory);
+
+    /// @notice A URI pointing to metadata for a specific token
+    /// @dev MUST revert if tokenId does not exist
+    /// @param tokenId The identifier of the token
+    /// @return The URI string
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+```
+
+See [ERC-721](./erc-721.md) for a definition of its metadata JSON Schema.
+
+All compliant contracts MUST implement both `IERC_NTT` and `IERC721Metadata` interfaces.
+
+### Behavior Specification
+
+1. **Minting**:
+   - Tokens MUST be minted to a specified address via the `to` parameter
+   - The minting function MUST emit the `Mint` event
+   - Each token MUST have a unique identifier
+   - The `to` parameter allows issuers to mint tokens directly to recipients (e.g., educational certificates, membership cards)
+
+2. **Burning**:
+   - Only the token owner MUST be able to burn their token
+   - The burning function MUST emit the `Burn` event
+   - After burning, `ownerOf(uint256 tokenId)` for that token MUST revert
+
+3. **Non-Transferability**:
+   - Compliant contracts MUST NOT implement any transfer functionality
+   - There MUST be no mechanism to change the owner of an existing token
+   - The only way to change token ownership is through burn and re-mint operations by authorized parties
+
+4. **Owner Queries**:
+   - `ownerOf(uint256 tokenId)` MUST return the address that owns the specified token
+   - `ownerOf(uint256 tokenId)` MUST revert for non-existent tokens
+
+### ERC-165 Interface Identification
+
+Contracts implementing this standard MUST implement the ERC-165 `supportsInterface` function and MUST return `true` for:
+
+- The `IERC_NTT` interface ID `0xXXXXXXXX` (to be calculated)
+- The `IERC721Metadata` interface ID `0x5b5e139f`
+- The ERC-165 interface ID `0x01ffc9a7`
+
+## Rationale
+
+### Why Not Extend ERC-721 or Use Consensual Transfer?
+
+**ERC-721 Extensions (ERC-5192, ERC-5484):**
+ERC-721 is architecturally designed around transferability. Every aspect of its interface assumes tokens can move between addresses. Attempting to create non-transferable tokens by blocking these functions creates an architectural mismatch:
+
+- Transfer functions exist but always revert
+- Approval mechanisms serve no purpose
+- Events like `Transfer` and `Approval` create confusion
+- Storage slots for approvals and operators are unused
+
+**Consensual Transfer (ERC-4973):**
+While ERC-4973 avoids implementing ERC-721's transfer interface, it includes `give()` and `take()` functions that allow tokens to move between addresses with signature consent. This creates a fundamental contradiction:
+
+- Tokens can still change owners through consensual operations
+- The `give/take` mechanism contradicts the concept of permanent binding
+- Adds complexity through signature verification and EIP-712 structured data
+- The token is "movable with consent" rather than truly soulbound
+
+**This Standard:**
+A dedicated standard removes transfer baggage entirely and eliminates any mechanism for tokens to move between addresses, even with consent. Once minted to an address, the token is permanently bound.
+
+### Minimal Interface Design
+
+The core interface contains only what is essential for non-transferable tokens:
+
+- `mint(address to)`: Create and bind token to specified address
+- `burn(uint256 tokenId)`: Destroy token
+- `ownerOf(uint256 tokenId)`: Verify ownership
+
+Additionally, the standard REQUIRES ERC-721 Metadata interface (`name()`, `symbol()`, `tokenURI(uint256 tokenId)`) for compatibility with existing wallet and indexer infrastructure while maintaining minimalism.
+
+### Why Include `address to` Parameter in Mint?
+
+The `mint(address to)` function allows issuers to directly mint tokens to recipients, which is essential for use cases such as:
+
+- Educational institutions issuing diplomas to graduates
+- Organizations issuing membership credentials
+- Event organizers issuing attendance certificates
+- Credential issuers binding attestations to specific addresses
+
+This design pattern aligns with real-world issuance scenarios where the issuer (contract caller) is different from the recipient.
+
+### Why Allow Burning?
+
+While tokens cannot be transferred, allowing the owner to burn their token provides:
+
+- User autonomy to remove unwanted credentials
+- Mechanisms for credential revocation
+- Compatibility with credential lifecycle management
+
+### Comparison with Existing Standards
+
+| Feature                    | ERC-721 Extensions (5192, 5484) | ERC-4973             | This Standard     |
+| -------------------------- | ------------------------------- | -------------------- | ----------------- |
+| Implements ERC-721         | Yes                             | No                   | No                |
+| Transfer functions         | Present but blocked             | Absent               | Absent            |
+| Movement between addresses | Blocked                         | Via give/take        | Impossible        |
+| Approval mechanisms        | Present but unused              | Absent               | Absent            |
+| Deployment bytecode        | ~500+ lines                     | ~300 lines           | ~100 lines        |
+| Semantic clarity           | Transferable with restrictions  | Movable with consent | Permanently bound |
+| Truly non-transferable     | No (logic exists)               | No (can move)        | Yes               |
+
+## Backwards Compatibility
+
+This standard is not backwards compatible with ERC-721. This is intentional - tokens that are fundamentally non-transferable should not masquerade as transferable tokens.
+
+Wallets and marketplaces can detect this standard via ERC-165 and treat these tokens appropriately (e.g., not showing transfer or listing options).
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./IERC_NTT.sol";
+import "./IERC721Metadata.sol";
+
+contract NonTransferableToken is IERC_NTT, IERC721Metadata {
+    uint256 private _tokenIdCounter;
+    string private _name;
+    string private _symbol;
+    string private _baseURI;
+
+    mapping(uint256 => address) private _owners;
+
+    error NotOwner();
+    error TokenNotFound();
+    error InvalidAddress();
+
+    constructor(string memory name_, string memory symbol_, string memory baseURI_) {
+        _name = name_;
+        _symbol = symbol_;
+        _baseURI = baseURI_;
+    }
+
+    function mint(address to) external override returns (uint256) {
+        if (to == address(0)) revert InvalidAddress();
+
+        _tokenIdCounter++;
+        uint256 tokenId = _tokenIdCounter;
+        _owners[tokenId] = to;
+
+        emit Mint(to, tokenId);
+        return tokenId;
+    }
+
+    function burn(uint256 tokenId) external override {
+        if (_owners[tokenId] != msg.sender) revert NotOwner();
+
+        address owner = _owners[tokenId];
+        delete _owners[tokenId];
+
+        emit Burn(owner, tokenId);
+    }
+
+    function ownerOf(uint256 tokenId) external view override returns (address) {
+        address owner = _owners[tokenId];
+        if (owner == address(0)) revert TokenNotFound();
+        return owner;
+    }
+
+    function name() external view override returns (string memory) {
+        return _name;
+    }
+
+    function symbol() external view override returns (string memory) {
+        return _symbol;
+    }
+
+    function tokenURI(uint256 tokenId) external view override returns (string memory) {
+        if (_owners[tokenId] == address(0)) revert TokenNotFound();
+        return _baseURI;
+    }
+
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return
+            interfaceId == type(IERC_NTT).interfaceId ||
+            interfaceId == type(IERC721Metadata).interfaceId ||
+            interfaceId == 0x01ffc9a7; // ERC-165
+    }
+}
+```
+
+## Security Considerations
+
+### Private Key Compromise
+
+If a user's private key is compromised, the attacker gains access to all non-transferable tokens bound to that address. Unlike transferable tokens, there is no way to recover these credentials by moving them to a secure address.
+
+Mitigation: Applications should consider:
+
+- Multi-signature schemes for high-value credentials
+- Time-locked or conditional burning mechanisms
+- Off-chain verification in addition to on-chain ownership
+
+### Permanent Binding
+
+Tokens are permanently bound to their initial recipient address. If that address becomes inaccessible (lost keys, smart contract bugs), the token cannot be recovered.
+
+Mitigation: Consider implementing optional issuer-controlled burning for recovery scenarios, clearly documented in token metadata.
+
+### Minting Authorization
+
+The `mint(address to)` function allows minting to any address. Implementations should include appropriate access controls to ensure only authorized parties can mint tokens.
+
+### Interface Detection
+
+External contracts MUST NOT assume transfer capabilities based solely on the presence of metadata functions. Always check ERC-165 interface support.
+
+### Reentrancy
+
+The minimal interface reduces reentrancy attack surface, but implementations should still follow checks-effects-interactions pattern, especially if `mint(address to)` or `burn(uint256 tokenId)` trigger external calls.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
