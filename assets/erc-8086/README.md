@@ -37,47 +37,6 @@ erc-8086/
     └── base-sepolia.json              # Deployment addresses & config
 ```
 
-## How to Test This Implementation
-
-Due to the ZK-SNARK requirements, there are two ways to verify this implementation:
-
-### Option 1: Use the Live Testnet Deployment (Recommended)
-
-A fully functional deployment is available on **Base Sepolia** testnet:
-
-**🔗 Test Application**: [testnative.zkprotocol.xyz](https://testnative.zkprotocol.xyz/)
-
-**Deployed Contracts** (verified on Basescan):
-
-| Contract | Address | Link |
-|----------|---------|------|
-| PrivacyTokenFactory | `0x04df6DbAe3BAe8bC91ef3b285d0666d36dda24af` | [View Code](https://sepolia.basescan.org/address/0x04df6DbAe3BAe8bC91ef3b285d0666d36dda24af#code) |
-| PrivacyToken (Implementation) | `0xa025070b46a38d5793F491097A6aae1A6109000c` | [View Code](https://sepolia.basescan.org/address/0xa025070b46a38d5793F491097A6aae1A6109000c#code) |
-| MintVerifier | `0x1C9260008DA7a12dF2DE2E562dC72b877f4B9a4b` | [View Code](https://sepolia.basescan.org/address/0x1C9260008DA7a12dF2DE2E562dC72b877f4B9a4b#code) |
-| MintRolloverVerifier | `0x9423767D08eF34CEC1F1aD384e2884dd24c68f5B` | [View Code](https://sepolia.basescan.org/address/0x9423767D08eF34CEC1F1aD384e2884dd24c68f5B#code) |
-| ActiveTransferVerifier | `0x14834a1b1E67977e4ec9a33fc84e58851E21c4Aa` | [View Code](https://sepolia.basescan.org/address/0x14834a1b1E67977e4ec9a33fc84e58851E21c4Aa#code) |
-| FinalizedTransferVerifier | `0x1b7c464ed02af392a44CE7881081d1fb1D15b970` | [View Code](https://sepolia.basescan.org/address/0x1b7c464ed02af392a44CE7881081d1fb1D15b970#code) |
-| RolloverTransferVerifier | `0x4dd4D44f99Afb3AE4F4e8C03BAdA2Ff84E75f9Cb` | [View Code](https://sepolia.basescan.org/address/0x4dd4D44f99Afb3AE4F4e8C03BAdA2Ff84E75f9Cb#code) |
-
-**Network**: Base Sepolia (Chain ID: 84532)
-
-**Testing Instructions**:
-1. Visit [testnative.zkprotocol.xyz](https://testnative.zkprotocol.xyz/)
-2. Connect a wallet to Base Sepolia testnet
-3. Get test ETH from [Base Sepolia faucet](https://www.alchemy.com/faucets/base-sepolia)
-4. Mint privacy tokens
-5. Perform privacy transfers
-6. Verify transactions on [Base Sepolia explorer](https://sepolia.basescan.org/)
-
-### Option 2: Review Contract Code On-Chain
-
-All contracts are verified on Basescan. You can:
-- Read the full source code directly on Basescan
-- Verify the bytecode matches the source
-- Review all constructor parameters
-- Check deployment history
-- Inspect transaction history
-
 ## Implementation Notes
 
 ### Architecture
