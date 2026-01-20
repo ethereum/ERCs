@@ -38,49 +38,6 @@ erc-8085/
     ├── base-sepolia.json             
 ```
 
-## How to Test This Implementation
-
-Due to the ZK-SNARK requirements, there are two ways to verify this implementation:
-
-### Option 1: Use the Live Testnet Deployment (Recommended)
-
-A fully functional deployment is available on **Base Sepolia** testnet:
-
-**🔗 Test Application**: [testdmt.zkprotocol.xyz](https://testdmt.zkprotocol.xyz/)
-
-**Deployed Contracts** (Latest - December 2025):
-
-| Contract | Address | Link |
-|----------|---------|------|
-| DualModeTokenFactory | `0x64EeF485F82918bBf61dd5349300F5a84f907140` | [View Code](https://sepolia.basescan.org/address/0x64EeF485F82918bBf61dd5349300F5a84f907140#code) |
-| DualModeToken (Implementation) | `0xd8714b3E2B490585c22d5a7a030f3946e46940c4` | [View Code](https://sepolia.basescan.org/address/0xd8714b3E2B490585c22d5a7a030f3946e46940c4#code) |
-| MintVerifier | `0x0C9F3208b44d26B7e5D0ab145d49b050F5C7fFa5` | [View Code](https://sepolia.basescan.org/address/0x0C9F3208b44d26B7e5D0ab145d49b050F5C7fFa5#code) |
-| MintRolloverVerifier | `0x8F1C5De7b7193B0Ce1E9886E5f1c58aE3A5491dF` | [View Code](https://sepolia.basescan.org/address/0x8F1C5De7b7193B0Ce1E9886E5f1c58aE3A5491dF#code) |
-| ActiveTransferVerifier | `0x791cd059fA2b4B2d4015408eF6624BBD2F80d50E` | [View Code](https://sepolia.basescan.org/address/0x791cd059fA2b4B2d4015408eF6624BBD2F80d50E#code) |
-| FinalizedTransferVerifier | `0x96Bb15bE0a79C1f17dFed17b9D57c3DE1C5eA205` | [View Code](https://sepolia.basescan.org/address/0x96Bb15bE0a79C1f17dFed17b9D57c3DE1C5eA205#code) |
-| RolloverTransferVerifier | `0xEB85CA2d80da109fe9348a9B17F2E683BEaa4a07` | [View Code](https://sepolia.basescan.org/address/0xEB85CA2d80da109fe9348a9B17F2E683BEaa4a07#code) |
-
-**Network**: Base Sepolia (Chain ID: 84532)
-
-**Testing Instructions**:
-1. Visit [testdmt.zkprotocol.xyz](https://testdmt.zkprotocol.xyz/)
-2. Connect a wallet to Base Sepolia testnet
-3. Get test ETH from [Base Sepolia faucet](https://www.alchemy.com/faucets/base-sepolia)
-4. Mint public tokens (ERC-20)
-5. Convert to privacy mode: `toPrivacy()`
-6. Perform privacy transfers
-7. Convert back to public: `toPublic()`
-8. Verify transactions on [Base Sepolia explorer](https://sepolia.basescan.org/)
-
-### Option 2: Review Contract Code On-Chain
-
-All contracts are verified on Basescan. You can:
-- Read the full source code directly on Basescan
-- Verify the bytecode matches the source
-- Review all constructor parameters
-- Check deployment history
-- Inspect transaction history
-
 ## Implementation Notes
 
 ### Architecture
