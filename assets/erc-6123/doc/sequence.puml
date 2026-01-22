@@ -2,8 +2,8 @@
 'https://plantuml.com/sequence-diagram
 title SmartDerivativeContract (ERC-6123). Variant with Settlement-Token and off-chain Valuation Service
 
-actor CP1
-actor CP2
+actor "Counterparty 1" as CP1
+actor "Counterparty 2" as CP2
 
 participant SDC [
     **SDC** :
