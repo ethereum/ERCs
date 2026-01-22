@@ -26,14 +26,15 @@ One new [EIP-5792](./eip-5792.md) wallet capability is defined.
 
 The `gasLimitOverride` capability is implemented by both apps and wallets.
 
-### Wallet Implementation
+#### Wallet Implementation
 
 To conform to this specification, wallets that implement the `gasLimitOverride` capability:
 
 1. MUST indicate support for the `gasLimitOverride` capability for _all_ chains (`0x0`) in their [EIP-5792](./eip-5792.md) `wallet_getCapabilities` response.
-2. SHOULD return an error (`-32602`) if the `gasLimitOverride` is partially specified in a batch (i.e., if some calls have the capability but others do not).
-3. SHOULD factor in the app-provided gas limits when processing the batch of calls.
-4. SHOULD factor in any additional gas required for the batch processing itself, such as gas for the batch transaction overhead.
+2. SHOULD use the app-provided gas limits when processing calls that include them.
+3. MUST estimate gas for calls that do not include a `gasLimitOverride` capability.
+4. MAY add additional gas to account for batch processing overhead.
+5. MUST return an invalid params error (`-32602`) if a provided gas limit is zero or exceeds the block gas limit of the target chain.
 
 ##### `wallet_getCapabilities` Response Specification
 
@@ -59,7 +60,7 @@ type GasLimitOverrideCapability = {
 
 When an app wants to override the gas limits used for calls in a batch, they SHOULD do this using the `gasLimitOverride` capability as part of an [EIP-5792](./eip-5792.md) `wallet_sendCalls` call.
 
-This is a call-level capability; if the app specifies this capability for one call, it MUST be specified for all calls in the batch.
+This is a call-level capability. Apps MAY specify gas limits for only some calls in a batch; the wallet MUST estimate gas for any calls that do not include a `gasLimitOverride` capability.
 
 ##### `wallet_sendCalls` Gas Limit Override Capability Specification
 
@@ -127,11 +128,11 @@ This simplifies the interface somewhat by allowing the app to pass a single gas 
 ## Backwards Compatibility
 
 * Applications SHOULD only include the `gasLimitOverride` capability in their `wallet_sendCalls` requests if they are aware that the wallet supports it (e.g., by checking the `wallet_getCapabilities` response).
-* Applications SHOULD include the `gasLimitOverride` capability with `optional: true` in their `wallet_sendCalls` requests to ensure compatibility with wallets that do not support this capability.
+* Applications MAY include the `gasLimitOverride` capability with `optional: true` to ensure compatibility with wallets that do not support this capability. When marked as optional, wallets that do not support the capability will ignore it rather than rejecting the request.
 
 ## Security Considerations
 
-* Wallets MUST validate the provided gas limits to ensure they are within reasonable bounds and do not exceed the maximum allowed gas limit for the chain.
+* Wallets MUST validate that provided gas limits are non-zero and do not exceed the block gas limit of the target chain.
 
 ## Copyright
 
