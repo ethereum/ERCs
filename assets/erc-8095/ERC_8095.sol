@@ -122,7 +122,7 @@ contract SmartDirectoryERC is ISmartDirectoryERC {
 
     
 //  registrant Management
-    function createRegistrant(address _registrantAddress) public {
+    function createRegistrant(address _registrantAddress) public onlyOwner() onlyActive() {
 
        require(registrantData[_registrantAddress].index == 0, "registrant already known");
 
@@ -241,7 +241,7 @@ contract SmartDirectoryERC is ISmartDirectoryERC {
 
     function getReference(
         address _referenceAddress
-    ) public view returns (
+    ) public onlyActive() view returns (
         address registrantAddress,
         address referenceAddress,
         string memory referenceDescription,
@@ -266,7 +266,7 @@ contract SmartDirectoryERC is ISmartDirectoryERC {
 
     function getReferenceStatus(
         address _referenceAddress
-    ) public view returns
+    ) public onlyActive() view returns
         (string memory status) {
 
         Reference storage ref = referenceData[_referenceAddress];
