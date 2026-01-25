@@ -49,7 +49,7 @@ Throughout this document, *tokenId* in ERC-721 is referred to as *agentId* and *
 
 #### Agent URI and Agent Registration File
 
-The *agentURI* MUST resolve to the agent registration file. It MAY use any URI scheme such as `ipfs://` (e.g., `ipfs://cid`) or `https://` (e.g., `https://example.com/agent3.json`). When the registration uri changes, it can be updated with *setAgentURI()*.
+The *agentURI* MUST resolve to the agent registration file. It MAY use any URI scheme such as `ipfs://` (e.g., `ipfs://cid`), `https://` (e.g., `https://example.com/agent3.json`), or a base64-encoded `data:` URI (e.g., `data:application/json;base64,eyJ0eXBlIjoi...`) for fully on-chain metadata. When the registration uri changes, it can be updated with *setAgentURI()*.
 
 The registration file MUST have the following structure:
 
@@ -118,12 +118,12 @@ Agents MAY advertise their endpoints, which point to an A2A agent card, an MCP e
 
 #### Endpoint Domain Verification (Optional)
 
-Since endpoints can point to domains not controlled by the agent owner, an agent MAY optionally prove control of an HTTPS endpoint-domain by publishing `https://{endpoint-domain}/.well-known/agent-registration.json` containing at least a `registrations` list (or the full agent registration file). Verifiers MAY treat the endpoint-domain as verified if the file is reachable over HTTPS and includes a `registrations` entry whose `agentRegistry` and `agentId` match the on-chain agent; if the endpoint-domain is the same domain that serves the agent’s primary registration file referenced by `agentURI`, this additional check is not needed because domain control is already demonstrated there.
+Since endpoints can point to domains not controlled by the agent owner, an agent MAY optionally prove control of an HTTPS endpoint-domain by publishing `https://{endpoint-domain}/.well-known/agent-registration.json` containing at least a `registrations` list (or the full agent registration file). Users MAY treat the endpoint-domain as verified if the file is reachable over HTTPS and includes a `registrations` entry whose `agentRegistry` and `agentId` match the on-chain agent; if the endpoint-domain is the same domain that serves the agent’s primary registration file referenced by `agentURI`, this additional check is not needed because domain control is already demonstrated there.
 
 Agents SHOULD have at least one registration (multiple are possible), and all fields in the registration are mandatory.
 The *supportedTrust* field is OPTIONAL. If absent or empty, this ERC is used only for discovery, not for trust.
 
-#### Onchain metadata
+#### On-chain metadata
 
 The registry extends ERC-721 by adding `getMetadata(uint256 agentId, string metadataKey)` and `setMetadata(uint256 agentId, string metadataKey, bytes metadataValue)` functions for optional extra on-chain agent metadata:
 
@@ -206,6 +206,28 @@ function getIdentityRegistry() external view returns (address identityRegistry)
 The feedback given by a *clientAddress* to an agent consists of a signed fixed-point *value* (`int128`) and its *valueDecimals* (`uint8`, 0-18), plus optional *tag1* and *tag2* (left to developers' discretion to provide maximum on-chain composability and filtering), an *endpoint* URI, a file URI pointing to an off-chain JSON containing additional information, and its KECCAK-256 file hash to guarantee integrity. We suggest using IPFS or equivalent services to make feedback easily indexed by subgraphs or similar technologies. For IPFS URIs, the hash is not required.
 All fields except *value* and *valueDecimals* are OPTIONAL, so the off-chain file is not required and can be omitted.
 
+#### Giving Feedback
+
+New feedback can be added by any *clientAddress* calling:
+
+```solidity
+function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string calldata tag1, string calldata tag2, string calldata endpoint, string calldata feedbackURI, bytes32 feedbackHash) external
+```
+
+The *agentId* must be a validly registered agent. The *valueDecimals* MUST be between 0 and 18. The feedback submitter MUST NOT be the agent owner or an approved operator for *agentId*. *tag1*, *tag2*, *endpoint*, *feedbackURI*, and *feedbackHash* are OPTIONAL.
+
+Where provided, *feedbackHash* is the KECCAK-256 hash (`keccak256`) of the content referenced by *feedbackURI*, enabling verifiable integrity for non-content-addressed URIs. For IPFS (or other content-addressed URIs), *feedbackHash* is OPTIONAL and can be omitted (e.g., set to `bytes32(0)`).
+
+If the procedure succeeds, an event is emitted:
+
+```solidity
+event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)
+```
+
+The feedback fields *value*, *valueDecimals*, *tag1*, *tag2*, and *isRevoked* are stored in the contract storage along with the feedbackIndex (a 1-indexed counter of feedback submissions that *clientAddress* has given to *agentId*). The fields *endpoint*, *feedbackURI*, and *feedbackHash* are emitted but are not stored. This exposes reputation signals to any smart contract, enabling on-chain composability.
+
+When the feedback is given by an agent (i.e., the client is an agent), the agent SHOULD use the address set in the on-chain optional `agentWallet` metadata as the clientAddress, to facilitate reputation aggregation.
+
 #### Examples of `value` / `valueDecimals`
 
 | tag1 | What it measures | Example human value | `value` | `valueDecimals` |
@@ -218,27 +240,52 @@ All fields except *value* and *valueDecimals* are OPTIONAL, so the off-chain fil
 | `responseTime` | Response time (ms) | `560ms` | `560` | `0` |
 | `blocktimeFreshness` | Avg block delay (blocks) | `4 blocks` | `4` | `0` |
 | `revenues` | Cumulative revenues (e.g., USD) | `$560` | `560` | `0` |
-| `tradingYield` (`tag2` = `day, week, month, year`) | Yield (e.g., 4%) | `4%` | `4` | `2` |
+| `tradingYield` (`tag2` = `day, week, month, year`) | Yield | `-3,2%` | `-32` | `1` |
 
-#### Giving Feedback
+#### Off-Chain Feedback File Structure
 
-New feedback can be added by any *clientAddress* calling:
+The OPTIONAL file at the URI could look like:
 
-```solidity
-function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string calldata tag1, string calldata tag2, string calldata endpoint, string calldata feedbackURI, bytes32 feedbackHash) external
+```jsonc
+{
+  // MUST FIELDS
+  "agentRegistry": "eip155:1:{identityRegistry}",
+  "agentId": 22,
+  "clientAddress": "eip155:1:{clientAddress}",
+  "createdAt": "2025-09-23T12:00:00Z",
+  "value": 100,
+  "valueDecimals": 0,
+
+  // ALL OPTIONAL FIELDS
+  "tag1": "foo",
+  "tag2": "bar",
+  "endpoint": "https://agent.example.com/GetPrice",
+
+  "mcp": { "tool": "ToolName" }, // or: { "prompt": "PromptName" } / { "resource": "ResourceName" }
+
+  // A2A: see "Context Identifier Semantics" and Task model in the A2A specification.
+  "a2a": {
+    "skills": ["as-defined-by-A2A"], // e.g., AgentSkill identifiers
+    "contextId": "as-defined-by-A2A",
+    "taskId": "as-defined-by-A2A"
+  },
+
+  "oasf": {
+    "skills": ["as-defined-by-OASF"],
+    "domains": ["as-defined-by-OASF"]
+  },
+  
+  "proofOfPayment": { // this can be used for x402 proof of payment
+	  "fromAddress": "0x00...",
+	  "toAddress": "0x00...",
+	  "chainId": "1",
+	  "txHash": "0x00..."
+   },
+
+ // Other fields
+  " ... ": { " ... " } // MAY
+}
 ```
-
-The *agentId* must be a validly registered agent. The *valueDecimals* MUST be between 0 and 18. The feedback submitter MUST NOT be the agent owner or an approved operator for *agentId*. *tag1*, *tag2*, *endpoint*, *feedbackURI*, and *feedbackHash* are OPTIONAL.
-
-If the procedure succeeds, an event is emitted:
-
-```solidity
-event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)
-```
-
-The feedback fields *value*, *valueDecimals*, *tag1*, *tag2*, and *isRevoked* are stored in the contract storage along with the feedbackIndex (a 1-indexed counter of feedback submissions that *clientAddress* has given to *agentId*). The fields *endpoint*, *feedbackURI*, and *feedbackHash* are emitted but are not stored. This exposes reputation signals to any smart contract, enabling on-chain composability.
-
-When the feedback is given by an agent (i.e., the client is an agent), the agent SHOULD use the address set in the on-chain optional `agentWallet` metadata as the clientAddress, to facilitate reputation aggregation.
 
 #### Revoking Feedback
 
@@ -292,50 +339,6 @@ function getLastIndex(uint256 agentId, address clientAddress) external view retu
 
 We expect reputation systems around reviewers/clientAddresses to emerge. **While simple filtering by reviewer (useful to mitigate spam) and by tag are enabled on-chain, more complex reputation aggregation will happen off-chain**.
 
-#### Off-Chain Feedback File Structure
-
-The OPTIONAL file at the URI could look like:
-
-```jsonc
-{
-  // MUST FIELDS
-  "agentRegistry": "eip155:1:{identityRegistry}",
-  "agentId": 22,
-  "clientAddress": "eip155:1:{clientAddress}",
-  "createdAt": "2025-09-23T12:00:00Z",
-  "value": 100,
-  "valueDecimals": 0,
-
-  // ALL OPTIONAL FIELDS
-  "tag1": "foo",
-  "tag2": "bar",
-  "endpoint": "https://agent.example.com/GetPrice",
-
-  "mcp": { "tool": "ToolName" }, // or: { "prompt": "PromptName" } / { "resource": "ResourceName" }
-
-  // A2A: see "Context Identifier Semantics" and Task model in the A2A specification.
-  "a2a": {
-    "skills": ["as-defined-by-A2A"], // e.g., AgentSkill identifiers
-    "contextId": "as-defined-by-A2A",
-    "taskId": "as-defined-by-A2A"
-  },
-
-  "oasf": {
-    "skills": ["as-defined-by-OASF"],
-    "domains": ["as-defined-by-OASF"]
-  },
-  
-  "proofOfPayment": { // this can be used for x402 proof of payment
-	  "fromAddress": "0x00...",
-	  "toAddress": "0x00...",
-	  "chainId": "1",
-	  "txHash": "0x00..."
-   },
-
- // Other fields
-  " ... ": { " ... " } // MAY
-}
-```
 
 ### Validation Registry
 
