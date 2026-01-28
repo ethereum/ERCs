@@ -306,10 +306,10 @@
             "additionalProperties": {
                 "type": "object",
                 "properties": {
-                    "keyPath": {
-                        "title": "Key Path",
+                    "$keyType": {
+                        "title": "Key Type",
                         "type": "string",
-                        "description": "A path expression that will be used to extract the map key from the structured data."
+                        "description": "An informational representation of the expected key type."
                     },
                     "values": {
                         "title": "Map Values",
@@ -645,6 +645,20 @@
                 }
             ]    
         },
+        "mapReference": {
+            "title": "Map Reference",
+            "type": "object",
+            "properties": {
+                "map": { 
+                    "type": "string",
+                    "description": "The path to the referenced map."
+                },
+                "keyPath": {
+                    "type": "string",
+                    "description": "The path to the key used to resolve a value using the referenced map."
+                }
+            }
+        },
         "names": {
             "anyOf": [
                 {
@@ -751,7 +765,11 @@
             "properties": {
                 "callee": {
                     "title": "Callee Address",
-                    "type": "string",
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
                     "description": "The address of the contract being called by this embedded calldata."
                 },
                 "calleePath": {
@@ -761,7 +779,11 @@
                 },
                 "selector": {
                     "title": "Called Selector (Optional)",
-                    "type": "string",
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
                     "description": "The selector being called, if not contained in the calldata. Hex string representation."
                 },
                 "selectorPath": {
@@ -771,7 +793,11 @@
                 },
                 "amount": {
                     "title": "Amount (Optional)",
-                    "type": "integer",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
                     "description": "The associated amount in native currency, if the calldata can be associated with a container value."
                 },
                 "amountPath": {
@@ -781,7 +807,11 @@
                 },
                 "spender": {
                     "title": "Spender Path (Optional)",
-                    "type": "string",
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
                     "description": "The associated spender, if the calldata can be associated with a container value."
                 },
                 "spenderPath": {
@@ -808,7 +838,11 @@
             "properties": {
                 "token": {
                     "title": "Token",
-                    "type": "string",
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
                     "description": "The token address, or a path to a constant in the ERC 7730 file."
                 },
                 "tokenPath": {
@@ -854,7 +888,11 @@
             "properties": {
                 "collection": {
                     "title": "Collection Address",
-                    "type": "string",
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
                     "description": "The collection address, or a path to a constant in the ERC 7730 file."
                 },
                 "collectionPath": {
@@ -940,54 +978,6 @@
             "title": "ID",
             "type": "string",
             "description": "An internal identifier that can be used either for clarity specifying what the element is or as a reference in device specific sections."
-        },
-
-        "eip712-json-schema": {
-            "title": "An EIP712 Schema",
-            "type": "object",
-            "description": "EIP712 typed data schema, restricted to type definitions and primary type only. See https://eips.ethereum.org/EIPS/eip-712#data-structures for more information.",
-            "properties": {
-                "types": {
-                    "type": "object",
-                    "description": "Type definitions for the EIP712 typed data. See https://eips.ethereum.org/EIPS/eip-712#data-structures for more information.",
-                    "properties": {
-                        "EIP712Domain": {
-                            "type": "array",
-                            "description": "EIP712 domain type definition. The domain is used as a separator between EIP712 messages to avoid reuse of signatures. Actual separator values are contained in a \"domain\" key of the message. Fields are up to the implementer, but must often include at least name, version, chainId and verifyingContract."
-                        }
-                    },
-                    "additionalProperties": {
-                        "type": "array",
-                        "description": "Type definition for a specific type. Each type is an array of fields, where each field is an object with a name and a type. The type is a string, and may be a reference to another type.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                                "type": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "name",
-                                "type"
-                            ]
-                        }
-                    },
-                    "required": [
-                        "EIP712Domain"
-                    ]
-                },
-                "primaryType": {
-                    "type": "string",
-                    "description": "The primary type of the EIP712 typed data. This is the type that will be used as the top level type for the message field. See https://eips.ethereum.org/EIPS/eip-712#data-structures for more information."
-                }
-            },
-            "required": [
-                "types",
-                "primaryType"
-            ]
         }
     }
 }
