@@ -702,6 +702,11 @@
                     "title": "integer format",
                     "const": "enum",
                     "description": "The field should be displayed as a human readable string by converting the value using the enum referenced in parameters."
+                },
+                {
+                    "title": "integer format",
+                    "const": "chainId",
+                    "description": "The field should be displayed as a Blockchain explicit name, as defined in EIP-155, based on the chain id value."
                 }
             ]
         },
