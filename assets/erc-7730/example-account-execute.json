@@ -1,0 +1,58 @@
+{
+    "$schema": "./erc7730-v1.schema.json",
+
+    "$comment": "ERC-7730 clear signing specification for smart account execute function",
+
+    "context": {
+        "$id": "SmartAccount Execute",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xYourImplementationAddress"
+                }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Smart Account",
+        "info": {
+            "url": "https://eips.ethereum.org/EIPS/eip-4337"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "execute(address to,uint256 value,bytes data)": {
+                "$id": "Execute Transaction",
+                "intent": "Execute Transaction",
+                "interpolatedIntent": "Execute transaction to {to} with {value} ETH",
+                "fields": [
+                    {
+                        "path": "to",
+                        "label": "To",
+                        "format": "addressName",
+                        "params": {
+                            "types": ["wallet", "eoa", "contract", "token"]
+                        }
+                    },
+                    {
+                        "path": "value",
+                        "label": "Value",
+                        "format": "amount"
+                    },
+                    {
+                        "path": "data",
+                        "label": "Call Data",
+                        "format": "calldata",
+                        "params": {
+                            "calleePath": "#.to",
+                            "amountPath": "#.value"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

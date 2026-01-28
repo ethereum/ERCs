@@ -1,0 +1,88 @@
+{
+    "$schema": "./erc7730-v1.schema.json",
+
+    "$comment": "ERC-7730 clear signing specification for ERC-4337 PackedUserOperation EIP712 messages",
+
+    "context": {
+        "$id": "PackedUserOperation",
+        "eip712": {
+            "domain": {
+                "name": "Account",
+                "version": "1"
+            },
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xYourImplementationAddress"
+                }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Account Abstraction",
+        "info": {
+            "url": "https://eips.ethereum.org/EIPS/eip-4337"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "PackedUserOperation(address sender,uint256 nonce,bytes initCode,bytes callData,bytes32 accountGasLimits,uint256 preVerificationGas,bytes32 gasFees,bytes paymasterAndData)": {
+                "$id": "Sign PackedUserOperation",
+                "intent": "Sign Packed User Operation",
+                "interpolatedIntent": "Authorize user operation from {sender}",
+                "fields": [
+                    {
+                        "path": "sender",
+                        "label": "Sender Account",
+                        "format": "addressName",
+                        "params": {
+                            "types": ["contract"]
+                        }
+                    },
+                    {
+                        "path": "nonce",
+                        "visible": "never"
+                    },
+                    {
+                        "path": "initCode",
+                        "label": "Init Code",
+                        "format": "raw",
+                        "visible": {
+                            "ifNotIn": [0]
+                        }
+                    },
+                    {
+                        "path": "callData",
+                        "label": "Embedded Call Data",
+                        "format": "calldata",
+                        "params": {
+                            "calleePath": "#.sender"
+                        }
+                    },
+                    {
+                        "path": "accountGasLimits",
+                        "visible": "never"
+                    },
+                    {
+                        "path": "preVerificationGas",
+                        "visible": "never"
+                    },
+                    {
+                        "path": "gasFees",
+                        "visible": "never"
+                    },
+                    {
+                        "path": "paymasterAndData",
+                        "label": "Paymaster Data",
+                        "format": "raw",
+                        "visible": {
+                            "ifNotIn": [0]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
