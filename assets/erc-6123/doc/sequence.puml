@@ -1,89 +1,180 @@
 @startuml
 'https://plantuml.com/sequence-diagram
-title SmartDerivativeContract with Settlement-Token and off-chain Valuation Service
+title SmartDerivativeContract (ERC-6123). Variant with Settlement-Token and off-chain Valuation Service
 
-	actor CP1
-	actor CP2
+actor "Counterparty 1" as CP1
+actor "Counterparty 2" as CP2
 
-	participant SDC
+participant SDC [
+    **SDC** :
+    ----
+    ""ISDC, IAsyncTransferCallback""
+]
 
-    participant SettlementToken
+participant SettlementToken [
+    **SettlementToken** :
+    ----
+    ""IAsyncTransfer""
+]
 
-	participant EventHandler
-	participant ValuationService
+participant EventHandler
+participant ValuationOracle
 
 activate EventHandler
-activate SettlementToken
-activate ValuationService
-
 activate CP1
 activate CP2
 
 group Initialize Trade
 CP1 ->SettlementToken: allocate balances
 CP2 ->SettlementToken: allocate balances
-CP1 ->SDC: tx 'deploy' a SDC with token address
-activate SDC
-CP1 ->SDC:                 tx 'inceptTrade'
+
+CP1 ->SDC: tx '**deploy**' a SDC with token address
+activate SDC #8080FF
+
+CP1 ->SDC:                 tx '**inceptTrade**'
 
 SDC-->EventHandler: emit TradeIncepted
-== TradeState 'Incepted' ==
 
-    CP2->SDC: tx 'confirmTrade'
+== TradeState '**Incepted**' ==
+deactivate SDC
+
+    CP2->SDC: tx '**confirmTrade**'
+activate SDC #8080FF
     SDC->SDC: validate tradedata
 
     SDC-->EventHandler: emit TradeConfirmed
 
-== TradeState 'Confirmed' ==
+== TradeState '**Confirmed**' ==
 
-    SDC -> SettlementToken: tx 'transferFrom' margin buffers and termination fees\nto SDC address for CP1 and CP2
-    SDC -> SettlementToken: tx 'transferFrom' optional Upfront Fee from Paying to Receiving Party
+    SDC -> SettlementToken: tx '**transferBatchAndCallback**' \n- transfer margin buffers and termination fees to SDC address for CP1 and CP2\n-  transfer optional Upfront Fee from Paying to Receiving Party
+    deactivate SDC
+    activate SettlementToken #FF8080
 
-==  TradeState 'inTransfer' ==
+==  TradeState '**InTransfer**' ==
 
-    SettlementToken->SDC: callback tx 'afterTransfer'
+    SettlementToken->SDC: callback tx '**afterTransfer**'
+    deactivate SettlementToken
+    activate SDC #8080FF
 
+    |||
     SDC-->EventHandler: emit TradeActivated
 
-==ProcessState 'Settled' ==
+
+    SDC-->EventHandler: emit SettlementAwaitingInitiation
+    deactivate SDC
 
 end
 
 loop Every Settlement
 
+== TradeState '**Settled**' ==
 
-CP1->SDC: tx: 'initiateSettlement'
+    CP1->SDC: tx: '**initiateSettlement**'
+    activate SDC #8080FF
 
-== TradeState 'Valuation' ==
+== TradeState '**Valuation**' ==
 SDC-->EventHandler:emit SettlementRequested
+    deactivate SDC
 
-EventHandler->ValuationService: request valuation data
-ValuationService->EventHandler: return valuation data
-EventHandler->SDC: callback: tx 'performSettlement'
+    EventHandler->ValuationOracle: request valuation data
+    activate ValuationOracle #C0C000
+    ValuationOracle->EventHandler: return valuation data
+    deactivate ValuationOracle
+
+EventHandler->SDC: callback: tx '**performSettlement**'
+    activate SDC #8080FF
+
 SDC->SDC:Caps Settlement Amount at Margin Buffer Level
 
 SDC-->EventHandler: emit SettlementDetermined
 
-SDC->SettlementToken: tx 'transferFrom' settlement amount from Paying Party to Receiving Party Balance
-== TradeState 'inTransfer' ==
+    SDC->SettlementToken: tx '**transferAndCallback**' transfer settlement amount from net payer to net receiver
+    deactivate SDC
+    activate SettlementToken #FF8080
+
+== TradeState '**InTransfer**' ==
 
 alt Transfer Check
-	SettlementToken->SDC: callback tx 'afterTransfer'
+
+    |||
+
 else success
-    SDC-->EventHandler: emit SettlementTransferred
-== TradeState 'Settled' ==
+    SettlementToken-->EventHandler: emit TransferSucceeded
+
+	SettlementToken->SDC: callback tx '**afterTransfer**'
+    deactivate SettlementToken
+    activate SDC #8080FF
+
+    |||
+    SDC-->EventHandler: emit SettlementSucceeded
+
+== TradeState '**Settled**' ==
+    deactivate SDC
+
+' hack - invisible boundary for the activation
+    SettlementToken-[#FFF]->EventHandler
 else fail
+
+
+    activate SettlementToken #FF8080
+    SettlementToken-->EventHandler: emit TransferFailed
+
+	SettlementToken->SDC: callback tx '**afterTransfer**'
+    deactivate SettlementToken
+    activate SDC #8080FF
+
+    |||
     SDC-->EventHandler: emit SettlementFailed
 
-	SDC->SettlementToken: tx 'transfer' Settlement Amount from SDC Balance to Receiving Party
-	SDC->SettlementToken: tx 'transfer' Termination Fee from SDC Balance to Receiving Party
-    SDC->SettlementToken: tx 'transfer' - Release  remainigBalances to parties
-
+	SDC->SettlementToken: tx '**transferBatchAndCallback**'\n- transfer Settlement Amount from SDC Balance to Receiving Party\n- transfer Termination Fee from SDC Balance to Receiving Party\n- transfer Release remaining balances to parties
+    activate SettlementToken #FF8080
     SDC-->EventHandler: emit TradeTerminated
-== TradeState 'Terminated' ==
+
+    deactivate SDC
+	SettlementToken->SDC: callback tx '**afterTransfer**'
+    deactivate SettlementToken
+    activate SDC #8080FF
+
+    SDC-->SDC:
+
+    destroy SDC
+    deactivate SDC
+
+== TradeState '**Terminated**' ==
 end
 
 
+alt Next Settlement Pre-Condition Check
+    EventHandler->SDC: tx '**afterSettlement**' optional time trigger to perform checks (e.g. pre-funding check)
+
+    activate SDC #8080FF
+
+    SDC-> SDC: check pre-conditions
+else success
+
+    SDC-->EventHandler: emit SettlementAwaitingInitiation
+
+else fail
+
+	SDC->SettlementToken: tx '**transferBatchAndCallback**'\n- transfer Settlement Amount from SDC Balance to Receiving Party\n- transfer Termination Fee from SDC Balance to Receiving Party\n- transfer Release remaining balances to parties
+    activate SettlementToken #FF8080
+    SDC-->EventHandler: emit TradeTerminated
+
+    deactivate SDC
+	SettlementToken->SDC: callback tx '**afterTransfer**'
+    deactivate SettlementToken
+    activate SDC #8080FF
+
+    SDC-->SDC:
+    destroy SDC
+
+== TradeState '**Terminated**' ==
 end
+
+end
+
+deactivate EventHandler
+deactivate CP1
+deactivate CP2
 
 @enduml
