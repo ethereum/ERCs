@@ -1,9 +1,9 @@
 ---
-eip: XXXX
+eip: 8139
 title: Authorization Objects (AO)
 description: A portable, revocable EIP-712 authorization primitive that exists independently of execution.
 author: Mats Heming Julner (@recurmj)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-authorization-objects-a-general-authorization-primitive-independent-of-execution/27608
+discussions-to: https://ethereum-magicians.org/t/erc-8139-authorization-objects/27608
 status: Draft
 type: Standards Track
 category: ERC
