@@ -4,19 +4,11 @@
     "$comment": "This is an example of a complete ERC-7730 file using maos for better readability.",
 
     "context": {
-        "$id": "Example Maps",
+        "$id": "Example Maps for Pools",
         "contract" : {
             "deployments": [ 
                 {
                     "chainId": 1,
-                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
-                },
-                {
-                    "chainId": 137,
-                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
-                },
-                {
-                    "chainId": 42161,
                     "address": "0x00112233445566778899AABBCCDDEEFF00112233"
                 }
             ]
@@ -62,7 +54,7 @@
                             "token": {
                                 "map": "$.metadata.maps.underlyingToken",
                                 "key": "@.chainId"
-                            }
+                            }   
                         }
                     },
                     {
