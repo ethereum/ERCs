@@ -1,325 +1,48 @@
-# LazAI Network Smart Contracts
+# ERC-8028 Reference Implementation
 
-## Get Started
+This directory contains a reference implementation for ERC-8028. The following files are organized to help implementers understand the specification.
 
-### Build
+## Core Contracts
 
-```shell
-forge build
-```
+### Data Anchoring Token (DAT)
+- [`src/dat/DataAnchoringToken.sol`](src/dat/DataAnchoringToken.sol) - Main implementation
+- [`src/dat/DataAnchoringTokenProxy.sol`](src/dat/DataAnchoringTokenProxy.sol) - Proxy contract
 
-### Test
+### Data Registry
+- [`src/dataRegistry/DataRegistry.sol`](src/dataRegistry/DataRegistry.sol) - Main implementation
+- [`src/dataRegistry/DataRegistryProxy.sol`](src/dataRegistry/DataRegistryProxy.sol) - Proxy contract
+- [`src/dataRegistry/interfaces/IDataRegistry.sol`](src/dataRegistry/interfaces/IDataRegistry.sol) - Interface
+- [`src/dataRegistry/interfaces/DataRegistryStorageV1.sol`](src/dataRegistry/interfaces/DataRegistryStorageV1.sol) - Storage layout
 
-```shell
-forge test
-```
+### Verified Computing
+- [`src/verifiedComputing/VerifiedComputing.sol`](src/verifiedComputing/VerifiedComputing.sol) - Main implementation
+- [`src/verifiedComputing/VerifiedComputingProxy.sol`](src/verifiedComputing/VerifiedComputingProxy.sol) - Proxy contract
+- [`src/verifiedComputing/interfaces/IVerifiedComputing.sol`](src/verifiedComputing/interfaces/IVerifiedComputing.sol) - Interface
+- [`src/verifiedComputing/interfaces/VerifiedComputingStorageV1.sol`](src/verifiedComputing/interfaces/VerifiedComputingStorageV1.sol) - Storage layout
 
-### Format
+### AI Process
+- [`src/process/AIProcess.sol`](src/process/AIProcess.sol) - Main implementation
+- [`src/process/AIProcessProxy.sol`](src/process/AIProcessProxy.sol) - Proxy contract
+- [`src/process/interfaces/IAIProcess.sol`](src/process/interfaces/IAIProcess.sol) - Interface
+- [`src/process/interfaces/AIProcessStorageV1.sol`](src/process/interfaces/AIProcessStorageV1.sol) - Storage layout
 
-```shell
-forge fmt
-```
+### Settlement
+- [`src/settlement/Settlement.sol`](src/settlement/Settlement.sol) - Main implementation
+- [`src/settlement/SettlementProxy.sol`](src/settlement/SettlementProxy.sol) - Proxy contract
+- [`src/settlement/interfaces/ISettlement.sol`](src/settlement/interfaces/ISettlement.sol) - Interface
+- [`src/settlement/interfaces/SettlementStorageV1.sol`](src/settlement/interfaces/SettlementStorageV1.sol) - Storage layout
 
-### Gas Snapshots
+### IDAO
+- [`src/idao/IDAO.sol`](src/idao/IDAO.sol) - Main implementation
+- [`src/idao/IDAOProxy.sol`](src/idao/IDAOProxy.sol) - Proxy contract
+- [`src/idao/interfaces/IIDAO.sol`](src/idao/interfaces/IIDAO.sol) - Interface
+- [`src/idao/interfaces/IDAOStorageV1.sol`](src/idao/interfaces/IDAOStorageV1.sol) - Storage layout
 
-```shell
-forge snapshot
-```
+## Tests
 
-### Deploy
+- [`test/Workflow.t.sol`](test/Workflow.t.sol) - Test suite demonstrating the workflow
 
-```shell
-forge script script/Deploy.s.sol:Deploy --rpc-url <your_rpc_url> --private-key <your_private_key> --broadcast --slow
-```
+## Configuration
 
-For example, we can deploy it on the LazAI testnet
-
-```shell
-forge script script/Deploy.s.sol:Deploy --rpc-url https://lazai-testnet.metisdevops.link --private-key $PRIVATE_KEY --broadcast --slow
-```
-
-Or the local devnet
-
-```shell
-forge script script/Deploy.s.sol:Deploy --rpc-url 127.0.0.1:8545 --private-key $PRIVATE_KEY --broadcast --slow
-```
-
-## Reference
-
-### Errors
-
-* `DataAnchoringToken.sol`
-
-```shell
-forge inspect src/dat/DataAnchoringToken.sol errors
-
-╭-------------------------------------------------------------+----------╮
-| Error                                                       | Selector |
-+========================================================================+
-| AccessControlBadConfirmation()                              | 6697b232 |
-|-------------------------------------------------------------+----------|
-| AccessControlUnauthorizedAccount(address,bytes32)           | e2517d3f |
-|-------------------------------------------------------------+----------|
-| ERC1155InsufficientBalance(address,uint256,uint256,uint256) | 03dee4c5 |
-|-------------------------------------------------------------+----------|
-| ERC1155InvalidApprover(address)                             | 3e31884e |
-|-------------------------------------------------------------+----------|
-| ERC1155InvalidArrayLength(uint256,uint256)                  | 5b059991 |
-|-------------------------------------------------------------+----------|
-| ERC1155InvalidOperator(address)                             | ced3e100 |
-|-------------------------------------------------------------+----------|
-| ERC1155InvalidReceiver(address)                             | 57f447ce |
-|-------------------------------------------------------------+----------|
-| ERC1155InvalidSender(address)                               | 01a83514 |
-|-------------------------------------------------------------+----------|
-| ERC1155MissingApprovalForAll(address,address)               | e237d922 |
-╰-------------------------------------------------------------+----------╯
-```
-
-* `DataRegistry.sol`
-
-```shell
-forge inspect src/dataRegistry/DataRegistry.sol errors
-
-╭---------------------------------------------------+----------╮
-| Error                                             | Selector |
-+==============================================================+
-| AccessControlBadConfirmation()                    | 6697b232 |
-|---------------------------------------------------+----------|
-| AccessControlUnauthorizedAccount(address,bytes32) | e2517d3f |
-|---------------------------------------------------+----------|
-| AddressEmptyCode(address)                         | 9996b315 |
-|---------------------------------------------------+----------|
-| ECDSAInvalidSignature()                           | f645eedf |
-|---------------------------------------------------+----------|
-| ECDSAInvalidSignatureLength(uint256)              | fce698f7 |
-|---------------------------------------------------+----------|
-| ECDSAInvalidSignatureS(bytes32)                   | d78bce0c |
-|---------------------------------------------------+----------|
-| ERC1967InvalidImplementation(address)             | 4c9c8ce3 |
-|---------------------------------------------------+----------|
-| ERC1967NonPayable()                               | b398979f |
-|---------------------------------------------------+----------|
-| EnforcedPause()                                   | d93c0665 |
-|---------------------------------------------------+----------|
-| ExpectedPause()                                   | 8dfc202b |
-|---------------------------------------------------+----------|
-| FailedCall()                                      | d6bda275 |
-|---------------------------------------------------+----------|
-| FileAlreadyRewarded()                             | 273e363e |
-|---------------------------------------------------+----------|
-| FileNotFound()                                    | ed20d764 |
-|---------------------------------------------------+----------|
-| FileUrlAlreadyUsed()                              | 86114455 |
-|---------------------------------------------------+----------|
-| InvalidAttestator(bytes32,bytes,address)          | 4d178544 |
-|---------------------------------------------------+----------|
-| InvalidInitialization()                           | f92ee8a9 |
-|---------------------------------------------------+----------|
-| InvalidUrl()                                      | e7bc872f |
-|---------------------------------------------------+----------|
-| NoPermission()                                    | 9d7b369d |
-|---------------------------------------------------+----------|
-| NotFileOwner()                                    | abea3229 |
-|---------------------------------------------------+----------|
-| NotInitializing()                                 | d7e6bcf8 |
-|---------------------------------------------------+----------|
-| ReentrancyGuardReentrantCall()                    | 3ee5aeb5 |
-|---------------------------------------------------+----------|
-| UUPSUnauthorizedCallContext()                     | e07c8dba |
-|---------------------------------------------------+----------|
-| UUPSUnsupportedProxiableUUID(bytes32)             | aa1d49a4 |
-╰---------------------------------------------------+----------╯
-```
-
-* `IDAO.sol`
-
-```shell
-forge inspect src/idao/IDAO.sol errors
-
-╭---------------------------------------------------+----------╮
-| Error                                             | Selector |
-+==============================================================+
-| AccessControlBadConfirmation()                    | 6697b232 |
-|---------------------------------------------------+----------|
-| AccessControlUnauthorizedAccount(address,bytes32) | e2517d3f |
-|---------------------------------------------------+----------|
-| AddressEmptyCode(address)                         | 9996b315 |
-|---------------------------------------------------+----------|
-| ERC1967InvalidImplementation(address)             | 4c9c8ce3 |
-|---------------------------------------------------+----------|
-| ERC1967NonPayable()                               | b398979f |
-|---------------------------------------------------+----------|
-| EnforcedPause()                                   | d93c0665 |
-|---------------------------------------------------+----------|
-| ExpectedPause()                                   | 8dfc202b |
-|---------------------------------------------------+----------|
-| FailedCall()                                      | d6bda275 |
-|---------------------------------------------------+----------|
-| InvalidInitialization()                           | f92ee8a9 |
-|---------------------------------------------------+----------|
-| NotInitializing()                                 | d7e6bcf8 |
-|---------------------------------------------------+----------|
-| ReentrancyGuardReentrantCall()                    | 3ee5aeb5 |
-|---------------------------------------------------+----------|
-| UUPSUnauthorizedCallContext()                     | e07c8dba |
-|---------------------------------------------------+----------|
-| UUPSUnsupportedProxiableUUID(bytes32)             | aa1d49a4 |
-╰---------------------------------------------------+----------╯
-```
-
-* `AIProcess.sol`
-
-```shell
-forge inspect src/process/AIProcess.sol errors
-
-╭-------------------------------------------------------+----------╮
-| Error                                                 | Selector |
-+==================================================================+
-| AccessControlBadConfirmation()                        | 6697b232 |
-|-------------------------------------------------------+----------|
-| AccessControlUnauthorizedAccount(address,bytes32)     | e2517d3f |
-|-------------------------------------------------------+----------|
-| AccountAlreadyExists(address,address)                 | 10476f40 |
-|-------------------------------------------------------+----------|
-| AccountNotExists(address,address)                     | 08ca03ac |
-|-------------------------------------------------------+----------|
-| AddressEmptyCode(address)                             | 9996b315 |
-|-------------------------------------------------------+----------|
-| ECDSAInvalidSignature()                               | f645eedf |
-|-------------------------------------------------------+----------|
-| ECDSAInvalidSignatureLength(uint256)                  | fce698f7 |
-|-------------------------------------------------------+----------|
-| ECDSAInvalidSignatureS(bytes32)                       | d78bce0c |
-|-------------------------------------------------------+----------|
-| ERC1967InvalidImplementation(address)                 | 4c9c8ce3 |
-|-------------------------------------------------------+----------|
-| ERC1967NonPayable()                                   | b398979f |
-|-------------------------------------------------------+----------|
-| EnforcedPause()                                       | d93c0665 |
-|-------------------------------------------------------+----------|
-| ExpectedPause()                                       | 8dfc202b |
-|-------------------------------------------------------+----------|
-| FailedCall()                                          | d6bda275 |
-|-------------------------------------------------------+----------|
-| InsufficientBalance(address,address)                  | 52a16ee8 |
-|-------------------------------------------------------+----------|
-| InvalidAttestator(bytes32,bytes,address)              | 4d178544 |
-|-------------------------------------------------------+----------|
-| InvalidInitialization()                               | f92ee8a9 |
-|-------------------------------------------------------+----------|
-| InvalidUserSignature(bytes32,uint256,address,address) | 7d94de71 |
-|-------------------------------------------------------+----------|
-| NoActiveNode()                                        | bf7d5e44 |
-|-------------------------------------------------------+----------|
-| NodeAlreadyAdded()                                    | d5566c96 |
-|-------------------------------------------------------+----------|
-| NodeNotActive()                                       | 8741cbb8 |
-|-------------------------------------------------------+----------|
-| NonceTooLow()                                         | d24d82a4 |
-|-------------------------------------------------------+----------|
-| NotInitializing()                                     | d7e6bcf8 |
-|-------------------------------------------------------+----------|
-| ReentrancyGuardReentrantCall()                        | 3ee5aeb5 |
-|-------------------------------------------------------+----------|
-| UUPSUnauthorizedCallContext()                         | e07c8dba |
-|-------------------------------------------------------+----------|
-| UUPSUnsupportedProxiableUUID(bytes32)                 | aa1d49a4 |
-╰-------------------------------------------------------+----------╯
-```
-
-* `Settlement.sol`
-
-```shell
-forge inspect src/settlement/Settlement.sol errors
-
-╭---------------------------------------------------+----------╮
-| Error                                             | Selector |
-+==============================================================+
-| AccessControlBadConfirmation()                    | 6697b232 |
-|---------------------------------------------------+----------|
-| AccessControlUnauthorizedAccount(address,bytes32) | e2517d3f |
-|---------------------------------------------------+----------|
-| AddressEmptyCode(address)                         | 9996b315 |
-|---------------------------------------------------+----------|
-| ERC1967InvalidImplementation(address)             | 4c9c8ce3 |
-|---------------------------------------------------+----------|
-| ERC1967NonPayable()                               | b398979f |
-|---------------------------------------------------+----------|
-| EnforcedPause()                                   | d93c0665 |
-|---------------------------------------------------+----------|
-| ExpectedPause()                                   | 8dfc202b |
-|---------------------------------------------------+----------|
-| FailedCall()                                      | d6bda275 |
-|---------------------------------------------------+----------|
-| InsufficientBalance(address)                      | 897f6c58 |
-|---------------------------------------------------+----------|
-| InvalidInitialization()                           | f92ee8a9 |
-|---------------------------------------------------+----------|
-| NotInitializing()                                 | d7e6bcf8 |
-|---------------------------------------------------+----------|
-| ReentrancyGuardReentrantCall()                    | 3ee5aeb5 |
-|---------------------------------------------------+----------|
-| UUPSUnauthorizedCallContext()                     | e07c8dba |
-|---------------------------------------------------+----------|
-| UUPSUnsupportedProxiableUUID(bytes32)             | aa1d49a4 |
-|---------------------------------------------------+----------|
-| UserAlreadyExists(address)                        | 23ee4bac |
-|---------------------------------------------------+----------|
-| UserNotExists(address)                            | 0617de70 |
-╰---------------------------------------------------+----------╯
-```
-
-* `VerifiedComputing.sol`
-
-```shell
-forge inspect src/verifiedComputing/VerifiedComputing.sol errors
-
-╭---------------------------------------------------+----------╮
-| Error                                             | Selector |
-+==============================================================+
-| AccessControlBadConfirmation()                    | 6697b232 |
-|---------------------------------------------------+----------|
-| AccessControlUnauthorizedAccount(address,bytes32) | e2517d3f |
-|---------------------------------------------------+----------|
-| AddressEmptyCode(address)                         | 9996b315 |
-|---------------------------------------------------+----------|
-| ERC1967InvalidImplementation(address)             | 4c9c8ce3 |
-|---------------------------------------------------+----------|
-| ERC1967NonPayable()                               | b398979f |
-|---------------------------------------------------+----------|
-| EnforcedPause()                                   | d93c0665 |
-|---------------------------------------------------+----------|
-| ExpectedPause()                                   | 8dfc202b |
-|---------------------------------------------------+----------|
-| FailedCall()                                      | d6bda275 |
-|---------------------------------------------------+----------|
-| InsufficientFee()                                 | 025dbdd4 |
-|---------------------------------------------------+----------|
-| InvalidInitialization()                           | f92ee8a9 |
-|---------------------------------------------------+----------|
-| InvalidJobNode()                                  | 5537c0c0 |
-|---------------------------------------------------+----------|
-| InvalidJobStatus()                                | b969563b |
-|---------------------------------------------------+----------|
-| NoActiveNode()                                    | bf7d5e44 |
-|---------------------------------------------------+----------|
-| NodeAlreadyAdded()                                | d5566c96 |
-|---------------------------------------------------+----------|
-| NodeNotActive()                                   | 8741cbb8 |
-|---------------------------------------------------+----------|
-| NotInitializing()                                 | d7e6bcf8 |
-|---------------------------------------------------+----------|
-| NotJobOwner()                                     | 9015f923 |
-|---------------------------------------------------+----------|
-| NothingToClaim()                                  | 969bf728 |
-|---------------------------------------------------+----------|
-| ReentrancyGuardReentrantCall()                    | 3ee5aeb5 |
-|---------------------------------------------------+----------|
-| TransferFailed()                                  | 90b8ec18 |
-|---------------------------------------------------+----------|
-| UUPSUnauthorizedCallContext()                     | e07c8dba |
-|---------------------------------------------------+----------|
-| UUPSUnsupportedProxiableUUID(bytes32)             | aa1d49a4 |
-╰---------------------------------------------------+----------╯
-```
+- [`foundry.toml`](foundry.toml) - Foundry configuration
+- [`remappings.txt`](remappings.txt) - Import remappings
