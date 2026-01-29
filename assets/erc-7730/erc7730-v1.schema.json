@@ -554,6 +554,14 @@
                     }
                 },
                 {
+                    "if": { "properties": { "format": { "const": "interoperableAddressName" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/interoperableAddressNameParameters" }
+                        }
+                    }
+                },
+                {
                     "if": { "properties": { "format": { "const": "calldata" } } },
                     "then": {
                         "properties": {
@@ -721,6 +729,11 @@
                     "title": "integer format",
                     "const": "chainId",
                     "description": "The field should be displayed as a Blockchain explicit name, as defined in EIP-155, based on the chain id value."
+                },
+                {
+                    "title": "integer format",
+                    "const": "interoperableAddressName",
+                    "description": "The field should be displayed as a trusted name or as an EIP-7930 Interoperable Address human readable format. List of trusted sources can be optionally specified in parameters."
                 }
             ]
         },
@@ -975,7 +988,48 @@
                 "$ref"
             ],
             "additionalProperties": false
+        },
+        "interoperableAddressNameParameters" : {
+            "title": "Interoperable Address Names Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "types": {
+                    "title": "Address Type",
+                    "type": "array",
+                    "description": "The types of address to display. Restrict allowable sources of names and MAY lead to additional checks from wallets.",
+                    "items": {
+                        "type": "string",
+                        "enum": [ "wallet", "eoa", "contract", "token", "collection" ]
+                    }
+                },
+                "sources": {
+                    "title": "Trusted Sources",
+                    "description": "Trusted Sources for names, in order of preferences. Sources values are wallet manufacturer specific, example values are \"local\" or \"ens\". See specification for more details on sources values.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "senderAddress": {
+                    "title": "Sender Address",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "description": "An address equal to this value is interpreted as the sender referenced by `@.from`."
+                        },
+                        {
+                            "type": "array",
+                            "description": "An array of addresses, any of which are interpreted as the sender referenced by `@.from`.",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                }
+            },
+            "additionalProperties": false
         }
+
     },
 
     "$definitions": {
