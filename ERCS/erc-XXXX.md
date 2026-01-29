@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-01-15
-requires: EIP-155, EIP-712, EIP-3009, ERC-191
+requires: 155, 712, 3009, 191
 ---
 
 ## Abstract
@@ -52,12 +52,12 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 This standard requires the following EIPs/ERCs:
 
-| Standard | Purpose in This ERC |
-|----------|---------------------|
-| **EIP-155** | Replay attack protection - ensures signatures include chain ID to prevent cross-chain replay attacks during agent registration and verification |
-| **EIP-712** | Typed structured data signing - enables human-readable signing requests for agent registration, preventing blind signing attacks and improving UX |
-| **EIP-3009** | Transfer with authorization - enables gasless USDC transfers for x402 micropayments, allowing verification fees without requiring ETH for gas |
-| **ERC-191** | Signed data standard - provides standardised format for signed messages used in wallet verification and proof validation |
+| Standard                        | Purpose in This ERC |
+|---------------------------------|---------------------|
+| [EIP-155](./eip-155.md)         | Replay attack protection - ensures signatures include chain ID to prevent cross-chain replay attacks during agent registration and verification |
+| [EIP-712](./eip-712.md)         | Typed structured data signing - enables human-readable signing requests for agent registration, preventing blind signing attacks and improving UX |
+| [ERC-3009](./eip-3009.md)       | Transfer with authorization - enables gasless USDC transfers for x402 micropayments, allowing verification fees without requiring ETH for gas |
+| [ERC-191](./eip-191.md)         | Signed data standard - provides standardised format for signed messages used in wallet verification and proof validation |
 
 ### Verification Flow
 
@@ -391,13 +391,13 @@ Implementations SHOULD revert with these error codes:
 
 ### Required Standards Justification
 
-**EIP-155 (Replay Protection)**: Agent registrations involve wallet signatures. Without chain ID inclusion (EIP-155), a registration signature on mainnet could be replayed on testnets or L2s, potentially creating conflicting agent records across chains.
+**EIP-155 (Replay Protection)**: Agent registrations involve wallet signatures. Without chain ID inclusion ([EIP-155](./eip-155.md)), a registration signature on mainnet could be replayed on testnets or L2s, potentially creating conflicting agent records across chains.
 
-**EIP-712 (Typed Data Signing)**: Registration requires users to sign structured data. EIP-712 presents human-readable signing requests (e.g., "Register Agent: MyBot at 0x...") rather than opaque hashes, preventing phishing attacks where users unknowingly sign malicious transactions.
+**EIP-712 (Typed Data Signing)**: Registration requires users to sign structured data. [EIP-712](./eip-712.md) presents human-readable signing requests (e.g., "Register Agent: MyBot at 0x...") rather than opaque hashes, preventing phishing attacks where users unknowingly sign malicious transactions.
 
-**EIP-3009 (Transfer With Authorization)**: Verification fees use x402 micropayments. EIP-3009 enables gasless USDC transfers where the verification provider pays gas, improving UX by not requiring users to hold ETH for verification.
+**ERC-3009 (Transfer With Authorization)**: Verification fees use x402 micropayments. [ERC-3009](./eip-3009.md) enables gasless USDC transfers where the verification provider pays gas, improving UX by not requiring users to hold ETH for verification.
 
-**ERC-191 (Signed Data Standard)**: Wallet verification requires proving wallet ownership. ERC-191 provides the standardised prefix for signed messages, ensuring compatibility across wallets and preventing signature malleability.
+**ERC-191 (Signed Data Standard)**: Wallet verification requires proving wallet ownership. [ERC-191](./eip-191.md) provides the standardised prefix for signed messages, ensuring compatibility across wallets and preventing signature malleability.
 
 ### Four Verification Types
 
