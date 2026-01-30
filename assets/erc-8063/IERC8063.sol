@@ -1,41 +1,44 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-interface IERC165 {
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC165.sol";
+
+/// @title IERC5679Ext20 — ERC-5679 mint/burn for ERC-20
+/// @notice Standard interface for minting and burning ERC-20 tokens
+interface IERC5679Ext20 {
+    function mint(address to, uint256 amount, bytes calldata data) external;
+    function burn(address from, uint256 amount, bytes calldata data) external;
 }
 
-/// @title IERC8063 — Minimal interface for onchain groups
-/// @notice A group is a contract with an owner and members
+/// @title IERC8063 — Access control introspection for membership tokens
+/// @notice Extends ERC-20 + ERC-5679 with permission checks for minting and burning
 interface IERC8063 is IERC165 {
-    /// @dev Emitted when a member is added to the group
-    event MemberAdded(address indexed account, address indexed by);
+    /// @notice Returns true if `operator` is permitted to mint (add members)
+    function canMint(address operator) external view returns (bool);
 
-    /// @dev Emitted when a member voluntarily leaves the group
-    event MemberLeft(address indexed account);
+    /// @notice Returns true if `operator` is permitted to burn `from`'s membership
+    function canBurn(address operator, address from) external view returns (bool);
+}
 
-    /// @dev Emitted when a member transfers their membership to another address
-    event MembershipTransferred(address indexed from, address indexed to);
-
-    /// @notice Returns the owner of the group
-    function owner() external view returns (address);
-
-    /// @notice Returns the human-readable name of the group (may be empty)
-    function name() external view returns (string memory);
-
-    /// @notice Returns true if `account` is a member of the group
+/// @title IERC8063Aliases — Optional convenience interface
+/// @notice Friendly function names wrapping ERC-20 + ERC-5679 operations
+interface IERC8063Aliases {
+    /// @notice Returns true if `account` is a member (balanceOf >= 1)
     function isMember(address account) external view returns (bool);
 
-    /// @notice Returns current number of members (including owner)
+    /// @notice Returns current member count (totalSupply)
     function getMemberCount() external view returns (uint256);
 
-    /// @notice Owner adds an account as a member
+    /// @notice Adds `account` as a member — wraps mint(account, 1, "")
     function addMember(address account) external;
 
-    /// @notice Member voluntarily leaves the group (owner cannot leave)
+    /// @notice Removes `account` from membership — wraps burn(account, 1, "")
+    function removeMember(address account) external;
+
+    /// @notice Caller voluntarily leaves — wraps burn(msg.sender, 1, "")
     function leaveGroup() external;
 
-    /// @notice Transfer membership to another address (caller loses membership)
-    /// @param to Address to receive membership (must not already be a member)
+    /// @notice Transfer membership to another address — wraps transfer(to, 1)
     function transferMembership(address to) external;
 }
