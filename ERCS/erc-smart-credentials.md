@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2025-12-15
-requires: 3668
+requires: 165, 3668
 ---
 
 ## Abstract
@@ -43,7 +43,7 @@ interface ISmartCredential {
 }
 ```
 
-The smart credential MUST return true when `supportsInterface()` is called on it with the interface's ID, `0xd091187f`.
+The smart credential MUST implement [ERC-165](./eip-165.md) and return true when `supportsInterface()` is called on it with the interface's ID, `0xd091187f`.
 
 Credential resolving clients will call `getCredential` with a key string value and return a result as bytes. The key MAY use the [ERC-8119](./eip-8119.md) Key Parameters format, such as `kyc: 0x123...234` or `kyc: Maria Garcia`.
 
