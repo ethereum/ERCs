@@ -13,14 +13,13 @@ requires: 3668
 
 ## Abstract
 
-This ERC defines Smart Credentials, a specification for blockchain-based credentials that are resolved via smart contracts.With the rise of AI agents, users on the internet will become increasingly indistinguishable from AI agents. We need provable onchain identities that allow real human users to prove their humanity, AI agents to prove who controls them, prove what capabilites they have, and to develop reputations and trust based on their work. Blockchains are well-positioned to provide provable identity because records can be broadcast publicly with provable ownership and provenance.  Smart Credentials provide a uniform method for resolving credentials for onchain identities including human users and AI agents. For the purposes of simplifying the langage of this specification, "users" refers to both human users and AI agents. Credentials are records "about" a user controlled by a smart credential issuer, as compared to records "by" a user that it controls directly.
+This ERC defines Smart Credentials, a specification for blockchain-based credentials that are resolved via smart contracts. With the rise of AI agents, users on the internet will become increasingly indistinguishable from AI agents. We need provable on-chain identities that allow real human users to prove their humanity, AI agents to prove who controls them, prove what capabilities they have, and to develop reputations and trust based on their work. Blockchains are well-positioned to provide provable identity because records can be broadcast publicly with provable ownership and provenance. Smart Credentials provide a uniform method for resolving credentials for on-chain identities including human users and AI agents. For the purposes of simplifying the language of this specification, "users" refers to both human users and AI agents. Credentials are records "about" a user controlled by a smart credential issuer, as compared to records "by" a user that it controls directly.
 
-Smart Credentials support fully onchain data, a mix of onchain and offchain data, or fully offchain data with onchain verification. They are designed to support credentials using Zero Knowledge Proofs (ZKPs), enabling privacy-preserving credentials where users can prove specific facts without revealing the underlying data (e.g., proving your age is over 18 without revealing a birthdate). 
+Smart Credentials support fully on-chain data, a mix of on-chain and off-chain data, or fully off-chain data with on-chain verification. They are designed to support credentials using Zero Knowledge Proofs (ZKPs), enabling privacy-preserving credentials where users can prove specific facts without revealing the underlying data (e.g., proving your age is over 18 without revealing a birthdate). 
 
 ## Motivation
 
-Smart contracts, when using ERC-3668 already provide, a broad set of capabilites for credential issuers to issue credentials to be resolved via a blockchians, however, there is a need for a unified standard such that clients can discover and resolve credentials in a uniform way. 
-
+Smart contracts, when using [ERC-3668](./eip-3668.md), already provide a broad set of capabilities for credential issuers to issue credentials to be resolved via blockchains. However, there is a need for a unified standard such that clients can discover and resolve credentials in a uniform way. 
 
 ### Identity and Credentials
 
@@ -36,36 +35,59 @@ Smart contracts, when using ERC-3668 already provide, a broad set of capabilites
 The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in RFC 2119.
 
 
-Smart credentials must implement the following interface: 
+Smart credentials MUST implement the following interface:
 
 ```solidity
 interface ISmartCredential {
-    function getCredential(string calldata identifier) external view returns( bytes result);
+    function getCredential(string calldata key) external view returns (bytes memory result);
 }
 ```
 
-The snart credential MUST return true when `supportsInterface()` is called on it with the interface's ID, `0x?????`.
+The smart credential MUST return true when `supportsInterface()` is called on it with the interface's ID, `0xd091187f`.
 
-Credential resolving clients will call `getCredential` with an identifier bytes value and a return a result as bytes.
+Credential resolving clients will call `getCredential` with a key string value and return a result as bytes. The key MAY use the [ERC-8119](./eip-8119.md) Key Parameters format, such as `kyc: 0x123...234` or `kyc: Maria Garcia`.
 
-Compliant clients MUST perform the following procedure when resolving a record:
- 
-1. Call the `getCredential` function, using ERC-3668 (Some libraries do not use ERC-3668 by default and it is necessary to make a special function call to use ERC-3668), with an identifier. The identifier MAY include a key using the ERC-8119 Key Paramaters format, shuch as `kyc: 0x123...234`. 
+Compliant clients MUST perform the following procedure when resolving a credential:
 
-2. Resolve the return result and decode it according to the credential specificiaon, such as an ABI encoded string, or raw UTF-8 bytes. It is alos possible to decode arrays and structs using ABI encoding for example. 
+1. Call the `getCredential` function, using [ERC-3668](./eip-3668.md) (some libraries do not use [ERC-3668](./eip-3668.md) by default and it is necessary to make a special function call to enable [ERC-3668](./eip-3668.md)), with a key.
 
-### Pseudocode
+2. Resolve the return result and decode it according to the credential specification, such as an ABI-encoded string, or raw UTF-8 bytes. It is also possible to decode arrays and structs using ABI encoding.
 
+### Examples
+
+The following examples demonstrate different ways to call `getCredential` with various key formats:
+
+**Example 1: Resolve KYC credential using [ERC-8119](./eip-8119.md) parameterized key with address**
 ```javascript
+const credentialBytes = await credentialContract.getCredential("kyc: 0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162");
+const credential = decodeCredential(credentialBytes, "(string)");
+// Result: "Maria Garcia /0x76F1Ff.../ ID: 146-DJH-6346-25294"
+```
 
-function getCredential(name, func, ...args) { . . . 
+**Example 2: Resolve KYC credential using [ERC-8119](./eip-8119.md) parameterized key with name**
+```javascript
+const credentialBytes = await credentialContract.getCredential("kyc: Maria Garcia");
+const credential = decodeCredential(credentialBytes, "(string)");
+// Result: "Maria Garcia /0x76F1Ff.../ ID: 146-DJH-6346-25294"
+```
+
+**Example 3: Resolve Proof of Personhood credential**
+```javascript
+const credentialBytes = await credentialContract.getCredential("pop: 0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162");
+const credential = decodeCredential(credentialBytes, "(bool)");
+// Result: true (verified human)
+```
+
+**Example 4: Resolve credential with struct return type**
+```javascript
+const credentialBytes = await credentialContract.getCredential("reputation: 0x76F1Ff0186DDb9461890bdb3094AF74A5F24a162");
+const credential = decodeCredential(credentialBytes, "((string,uint256,bytes32))");
+// Result: { name: "Verified Agent", score: 95, proof: "0x..." }
 ```
 
 ## Rationale
 
-## Copyright
-
-Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+Smart credentials meet a long-felt need to be able to have metadata records about users, including AI agents, that are not controlled by the user. Records like KYC and PoP must be managed by secure third parties. This ERC allows credential issuers to create records about users that can be resolved by clients in a uniform way, enabling interoperability across different credential issuers and clients. The specification is intentionally simple, with the interface only including a single function, making it easy for clients to resolve credentials.
 
 ## Backwards Compatibility
 
@@ -73,7 +95,7 @@ No issues.
 
 ## Security Considerations
 
-None.
+Clients SHOULD verify that credential issuer contracts are trusted before resolving credentials.
 
 ## Copyright
 
