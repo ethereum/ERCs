@@ -6,7 +6,7 @@ author: Ricardo Lando Brown (info@apriloracle.com)
 discussions-to: https://ethereum-magicians.org/t/eip-xxxx-multi-chain-product-identifier-resolution-for-gs1/27616
 status: Draft
 type: Informational
-created: 2026-02-01
+created: 2026-02-02
 ---
 
 
