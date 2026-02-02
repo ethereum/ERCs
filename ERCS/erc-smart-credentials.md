@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8143
 title: Smart Credentials
 description: A specification for blockchain-based credentials.
 author: Prem Makeig (@nxt3d)
