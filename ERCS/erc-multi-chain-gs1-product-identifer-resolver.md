@@ -1,8 +1,8 @@
 ---
-eip: 
+eip: erc-multi-chain-gs1-product-identifer-resolver.md
 title: Multi-Chain GS1 Product Identifier Resolver
 description: A decentralized approach to resolving GS1 product identifiers using EVM-based infrastructure
-author: Ricardo Lando Brown (info@apriloracle.com)
+author: Ricardo Lando Brown (@apriloracle)
 discussions-to: https://ethereum-magicians.org/t/eip-xxxx-multi-chain-product-identifier-resolution-for-gs1/27616
 status: Draft
 type: Informational
