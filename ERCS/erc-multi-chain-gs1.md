@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: TBD
 title: Multi-Chain GS1 Product Identifier Resolver
 description: A decentralized approach to resolving GS1 product identifiers using EVM-based infrastructure
 author: Ricardo Lando Brown (@apriloracle)
