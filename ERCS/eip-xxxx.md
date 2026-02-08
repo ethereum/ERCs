@@ -3,7 +3,7 @@ eip: XXXX
 title: Facet-Based Diamonds
 description: Simplifies deployment and upgrades by standardizing facet introspection.
 author: Nick Mudge (@mudgen)
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/new-erc-facet-based-diamonds/27685
 status: Draft
 type: Standards Track
 category: ERC
