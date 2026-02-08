@@ -1,0 +1,303 @@
+---
+eip: XXXX
+title: Facet-Based Diamonds
+description: Simplifies deployment and upgrades by standardizing facet introspection.
+author: Nick Mudge (@mudgen)
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-02-07
+requires: 8109
+---
+
+## Abstract
+
+This ERC standardizes a facet introspection function, `packedSelectors()`, that every facet MUST implement. The function returns a list of function selectors implemented by the facet, enabling diamonds to discover selectors on-chain at deployment and upgrade time.
+
+This ERC also specifies an optional `upgradeDiamond` function. `upgradeDiamond` uses `packedSelectors()` to determine which selectors to add, replace, or remove when applying facet additions, replacements, or removals.
+
+This standard builds on and extends [ERC-8109 Diamonds, Simplified](./eip-8109).
+
+## Motivation
+
+Deploying and upgrading diamonds suffer from:
+
+1. **High gas costs**
+2. **Function selector management complexity**
+   Deploying or upgrading a diamond requires assembling function selectors off-chain. Since common tooling (e.g., Hardhat, Foundry) does not natively manage diamond selectors, developers rely on custom scripts or third-party libraries to handle diamond "plumbing".
+
+This standard reduces gas costs and eliminates off-chain selector management:
+
+* Diamonds become less expensive to deploy.
+* Function selectors no longer need to be gathered off-chain.
+* Standard deployment tools can be used without special diamond support.
+* ERC-2535 and ERC-8109 introspection functions have simple implementations.
+
+## Specification
+
+### ERC-8109 Compliance
+
+Diamonds that implement this standard are also ERC-8109 diamonds.
+
+Diamonds that implement this standard MUST implement the [Implementation Requirements](./eip-8109#implementation-requirements) section of ERC-8109.
+
+### Facet Introspection
+
+Each facet MUST implement the following pure introspection function:
+
+```solidity
+function packedSelectors() external pure returns (bytes memory selectors)
+```
+
+`packedSelectors()` returns a `bytes` array containing one or more 4-byte function selectors. The returned `bytes` array length is a multiple of 4, and each 4-byte chunk is a selector.
+
+The `bytes` array contains selectors of functions implemented by the facet that are intended to be added to a diamond.
+
+This enables a diamond to discover selectors directly from facets at deployment or upgrade time. A diamond calls `packedSelectors()` on each facet to determine which selectors to add, replace, or remove.
+
+Selector gathering is therefore no longer an off-chain responsibility.
+
+This also means diamonds implementing this ERC are **facet-based** rather than **function-based**. Deployment and upgrades operate on facets.
+
+### `upgradeDiamond` Function
+
+Implementing `upgradeDiamond` is OPTIONAL.
+
+This function is specified for interoperability with tooling (e.g., GUIs and command-line tools) so that upgrades can be executed with consistent and predictable behavior.
+
+`upgradeDiamond` adds, replaces, and removes any number of facets in a single transaction. It can also optionally execute a `delegatecall` to perform initialization or state migration.
+
+The `upgradeDiamond` function works as follows:
+
+#### Adding a Facet
+
+1. Call `packedSelectors()` on the facet to obtain its function selectors. 
+2. Add each selector to the diamond, mapping it to the facet address.
+
+#### Replacing a Facet
+
+1. Call `packedSelectors()` on the old facet to obtain its packed selectors.
+2. Call `packedSelectors()` on the new facet to obtain its packed selectors.
+3. For selectors present in the new facet but not the old facet: add them.
+4. For selectors present in both: replace them to point to the new facet.
+5. For selectors present in the old facet but not the new facet: remove them.
+
+#### Removing a Facet
+1. Call `packedSelectors()` on the facet to obtain its packed selectors.
+2. Remove each selector from the diamond.
+
+#### Errors and Types
+
+```solidity
+/**
+ * @notice The upgradeDiamond function below detects and reverts
+ *         with the following errors.
+ */
+error NoSelectorsForFacet(address _facet);
+error NoBytecodeAtAddress(address _contractAddress);
+error CannotAddFunctionToDiamondThatAlreadyExists(bytes4 _selector);
+error CannotRemoveFacetThatDoesNotExist(address _facet);
+error CannotReplaceFacetWithSameFacet(address _facet);
+error FacetToReplaceDoesNotExist(address _oldFacet);
+error DelegateCallReverted(address _delegate, bytes _delegateCalldata);
+error FunctionSelectorsCallFailed(address _facet);
+
+/**
+ * @dev This error means that a function to replace exists in a
+ *      facet other than the facet that was given to be replaced.
+ */
+error CannotReplaceFunctionFromNonReplacementFacet(bytes4 _selector);
+
+/**
+ * @notice This struct is used to replace old facets with new facets.
+ */
+struct FacetReplacement {
+    address oldFacet;
+    address newFacet;
+}
+```
+
+#### Function Signature
+
+```solidity
+/**
+ * @notice Upgrade the diamond by adding, replacing, or removing facets.
+ *
+ * @dev
+ * Facets are added first, then replaced, then removed.
+ *
+ * These events are emitted to record changes to functions:
+ * - `DiamondFunctionAdded`
+ * - `DiamondFunctionReplaced`
+ * - `DiamondFunctionRemoved`
+ *
+ * If `_delegate` is non-zero, the diamond performs a `delegatecall` to
+ * `_delegate` using `_delegateCalldata`. The `DiamondDelegateCall` event is
+ *  emitted.
+ *
+ * The `delegatecall` is done to alter a diamond's state or to
+ * initialize, modify, or remove state after an upgrade.
+ *
+ * However, if `_delegate` is zero, no `delegatecall` is made and no
+ * `DiamondDelegateCall` event is emitted.
+ *
+ * If _tag is non-zero or if _metadata.length > 0 then the
+ * `DiamondMetadata` event is emitted.
+ *
+ * @param _addFacets        Facets to add.
+ * @param _replaceFacets    (oldFacet, newFacet) pairs, to replace old with new.
+ * @param _removeFacets     Facets to remove.
+ * @param _delegate         Optional contract to delegatecall (zero address to skip).
+ * @param _delegateCalldata Optional calldata to execute on `_delegate`.
+ * @param _tag              Optional arbitrary metadata, such as release version.
+ * @param _metadata         Optional arbitrary data.
+ */
+function upgradeDiamond(
+    address[] calldata _addFacets,
+    FacetReplacement[] calldata _replaceFacets,
+    address[] calldata _removeFacets,
+    address _delegate,
+    bytes calldata _delegateCalldata,
+    bytes32 _tag,
+    bytes calldata _metadata
+);
+```
+The `upgradeDiamond` function MUST adhere to the following requirements:
+
+> The complete definitions of the events referenced below are given in ERC-8109.
+> The complete definitions of custom errors referenced below are given earlier in this section.
+
+1. **Inputs**
+   - `_addFacets` array of facet addresses to add.
+   - `_replaceFacets` array of (`oldFacet`, `newFacet`) pairs.
+   - `_removeFacets` array of facet addresses to remove.
+
+2. **Execution Order**
+   1. Add facets
+   2. Replace facets
+   3. Remove facets
+
+3. **Event Emission**
+   - Every change to a selector mapping MUST emit exactly one of:
+     - `DiamondFunctionAdded`
+     - `DiamondFunctionReplaced`
+     - `DiamondFunctionRemoved`
+
+4. **Error Conditions**
+   - The implementation MUST detect and revert with the specified error when:
+     - Adding a selector that already exists: `CannotAddFunctionToDiamondThatAlreadyExists`.
+     - Removing a facet that does not exist: `CannotRemoveFacetThatDoesNotExist`.
+     - Replacing a facet with itself: `CannotReplaceFacetWithSameFacet`.
+     - Replacing a facet that does not exist: `FacetToReplaceDoesNotExist`.
+     - Replacing a selector that exists in the diamond but is mapped to a facet different than the facet being replaced: `CannotReplaceFunctionFromNonReplacementFacet`.
+
+5. **Facet Validation**
+   - If any facet address contains no contract bytecode, revert with `NoBytecodeAtAddress`.
+   - If `packedSelectors()` is missing, reverts, or cannot be called successfully, revert with `FunctionSelectorsCallFailed`.
+   - If `packedSelectors()` returns zero selectors, revert with `NoSelectorsForFacet`.
+
+6. **Delegate Validation**
+   - If `_delegate` is non-zero but contains no bytecode, revert with `NoBytecodeAtAddress`.
+
+7. **Delegatecall Execution**
+   - If `_delegate` is non-zero, the diamond MUST `delegatecall` `_delegate` with `_delegateCalldata`.
+   - If the `delegatecall` fails and returns revert data, the diamond MUST revert with the same revert data.
+   - If the `delegatecall` fails and returns no revert data, revert with `DelegateCallReverted`.
+   - If a `delegatecall` is performed, the diamond MUST emit the `DiamondDelegateCall` event.
+   - `_delegateCalldata` MAY be empty. If empty, the `delegatecall` executes with no calldata.
+
+8. **Metadata Event**
+   - If `_tag` is non-zero or `_metadata.length > 0`, the diamond MUST emit the `DiamondMetadata` event.
+
+After adding, replacing, or removing facets, the diamond MAY perform a `delegatecall` to initialize, migrate, or clean up state.
+
+It is also valid to call `upgradeDiamond` solely to perform a `delegatecall` (i.e., without adding, replacing, or removing any facets).
+
+To skip an operation, supply an empty array for its parameter (for example, `new address[](0)` for `_addFacets`).
+
+## Rationale
+
+### Eliminating Selector Management
+
+To deploy a facet-based diamond implementing this ERC, the deployer provides an array of facet addresses to the diamond constructor. The constructor calls `packedSelectors()` on each facet and registers those selectors in the diamond.
+
+Because facets self-describe their selectors, deployers no longer need to gather selectors off-chain or depend on specialized selector tooling.
+
+### Reducing Deployment Gas Costs
+
+#### Reducing Calldata
+
+In a non-facet-based diamond, selectors are typically passed to the constructor as one or more `bytes4[]` arrays. These arrays are paid for in calldata and then copied into memory, incurring additional gas.
+
+In a facet-based diamond, only facet addresses are passed to constructors. The diamond calls `packedSelectors()` on each facet to obtain selectors on-chain, avoiding calldata costs for selector lists. While calling `packedSelectors()` introduces some overhead, non-facet-based diamonds typically perform code-existence checks (e.g., `extcodesize`) on facet addresses anyway; the marginal difference is small.
+
+#### Reducing Storage
+
+In a **non-facet-based diamond**, function selectors are stored directly for introspection, typically in a `bytes4[] selectors` array (or an equivalent structure). Because a storage slot is 32 bytes, each slot can hold up to eight `bytes4` selectors. As more functions are added, additional storage slots are required, so storage usage grows linearly with the number of selectors.
+
+In a **facet-based diamond**, introspection data can be stored **per facet instead of per function**. Each facet only needs a single representative selector. This means one 32-byte storage slot can represent up to eight facets, regardless of how many function selectors each facet implements. Storage usage therefore grows with the number of facets, not the number of functions.
+
+Alternatively, a facet-based diamond can be implemented as a **linked list of facets**. With this design, introspection requires a **single 32-byte storage slot**, while supporting any number of facets and any number of selectors per facet.
+
+### `packedSelectors()` Function Return Value
+
+`packedSelectors()` returns `bytes` rather than `bytes4[]` for two reasons:
+
+#### `bytes4[]` Wastes Memory
+
+Each element of a `bytes4[]` array occupies 32 bytes in memory, but only 4 bytes are meaningful. This wastes 87.5% of allocated memory, increasing gas costs. Packing selectors into `bytes` reduces memory overhead.
+
+#### Simple Syntax For Facets
+
+Facets can implement `packedSelectors()` concisely using Solidity's built-in function `bytes.concat`. Example:
+
+```solidity
+function packedSelectors() external pure returns (bytes memory) {
+    return bytes.concat(
+        this.facetAddress.selector,
+        this.facetFunctionSelectors.selector,
+        this.facetAddresses.selector,
+        this.facets.selector,
+        this.functionFacetPairs.selector
+    );
+}
+```
+
+The diamond can traverse the returned bytes and extract selectors efficiently.
+
+
+## Backwards Compatibility
+
+Diamonds implementing this ERC fully comply with ERC-8109.
+
+It is also straightforward for diamonds implementing this ERC to additionally implement ERC-2535 introspection functions.
+
+## Security Considerations
+
+The security considerations of ERC-8109 apply.
+
+Only trusted and verified facets should be added to facet-based diamonds.
+
+`packedSelectors()` MUST be `pure` and should not contain logic that varies the returned bytes. Facets should be immutable so returned selectors cannot change over time.
+
+If a facet’s `packedSelectors()` output changes, upgrades that rely on it may add/remove/replace the wrong selectors and corrupt diamonds.
+
+### Upgrade Integrity Checks
+
+The specified `upgradeDiamond` behavior prevents a number of upgrade mistakes. Upgrades revert when:
+
+- A facet is added that already exists in the diamond.
+- A facet is replaced or removed that does not exist in the diamond.
+- A selector is added that already exists in the diamond.
+- A selector is replaced that exists in the diamond but it is from a different facet than the facet being replaced.
+- A facet address contains no bytecode.
+- A facet does not implement `packedSelectors()` successfully.
+- A facet provides zero selectors.
+- A facet is replaced with itself (same contract address).
+
+Selector collisions (two different signatures with the same 4-byte selector) are handled as “selector already exists” and are therefore prevented.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
