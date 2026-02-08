@@ -60,7 +60,7 @@ interface IERC7586 /** is ERC20, ERC165 */ {
 
     /**
     *  @notice Returns the notional amount in unit of asset to be transferred when swapping IRS. This amount serves as the basis for calculating the interest payments, and may not be exchanged
-    *          Example: If the two parties aggreed to swap interest rates in USDC, then the notional amount may be equal to 1,000,000 USDC 
+    *          Example: If the two parties agreed to swap interest rates in USDC, then the notional amount may be equal to 1,000,000 USDC 
     */
     function notionalAmount() external view returns(uint256);
 
