@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8154
 title: Multichain Agents and Agent Relationships
 description: A standard for linking AI agent registrations across chains and establishing agent-to-agent relationships.
 author: Prem Makeig (@nxt3d)
