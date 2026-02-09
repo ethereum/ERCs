@@ -539,7 +539,11 @@
                     "title": "Field Separator",
                     "description": "An optional separator string that will be used to separate multiple values when the field is an array. A separator use the interpolated string format with one specific parameter {index} replaced by the index of the element in the array.",
                     "type": "string"
-                }
+                },
+                "encryption": {
+                    "$ref": "#/$format/encryptionParameters",
+                    "description": "If present, the field value is encrypted. The format specifies how to display the decrypted value."
+                  }
             },
             "allOf" : [
                 {
@@ -1027,6 +1031,26 @@
                     ]
                 }
             },
+            "additionalProperties": false
+        },
+        "encryptionParameters": {
+            "title": "Encrypted Value Parameters",
+            "type": "object",
+            "properties": {
+              "scheme": {
+                "type": "string",
+                "description": "The encryption scheme used to produce the handle."
+              },
+              "plaintextType": {
+                "type": "string",
+                "description": "Solidity type of the decrypted value (the handle does not encode this)."
+              },
+              "fallbackLabel": {
+                "type": "string",
+                "description": "Optional label to display when decryption is not possible. Defaults to \"[Encrypted]\"."
+              }
+            },
+            "required": ["scheme"],
             "additionalProperties": false
         }
 
