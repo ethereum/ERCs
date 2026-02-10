@@ -53,6 +53,9 @@ Each key below corresponds to a field in the [ERC-8004](./eip-8004.md) registrat
 | `description` | Natural language description of the agent | MUST |
 | `image` | URI pointing to the agent's image | OPTIONAL |
 | `agent_account` | Primary agent account or wallet address (e.g., CAIP-10). When set, this MUST override any `agentWallet` onchain value. | OPTIONAL |
+| `x402_support` | Whether the agent supports X402 / ERC-8042-style cross-chain/offchain resolution (string value, e.g., `\"true\"` or `\"false\"`) | OPTIONAL |
+| `active` | Whether the agent is currently active (string value, e.g., `\"true\"` or `\"false\"`) | OPTIONAL |
+| `supported_trust` | Comma-separated list of supported trust models, mirroring the `"supportedTrust"` array in the ERC-8004 registration JSON | OPTIONAL |
 
 #### Endpoint Fields
 
@@ -98,7 +101,7 @@ When a registry implements this ERC, **onchain metadata MUST take precedence** o
 
 Clients SHOULD use the following strategy to read agent metadata:
 
-1. For each standard key defined above (e.g., `name`, `description`, `agent_account`, `endpoint/ENS`, `endpoint/MCP`), call `getMetadata(agentId, key)`
+1. For each standard key defined above (e.g., `name`, `description`, `agent_account`, `x402_support`, `active`, `supported_trust`, `endpoint/ENS`, `endpoint/MCP`), call `getMetadata(agentId, key)`
 2. If `getMetadata` returns a non-empty `bytes` value for that key, treat it as the **authoritative onchain value** and ignore the corresponding field in the off-chain registration file (or any `data:` URL)
 3. If `getMetadata` returns an empty `bytes` value for that key, fall back to the off-chain [ERC-8004](./eip-8004.md) registration file (or associated `data:` URL) for that field
 
@@ -109,6 +112,9 @@ The mapping between onchain keys and off-chain [ERC-8004](./eip-8004.md) fields 
 | `name`             | Top-level `"name"` field                                                                             |
 | `description`      | Top-level `"description"` field                                                                      |
 | `image`            | Top-level `"image"` field                                                                            |
+| `x402_support`     | Top-level `"x402Support"` field                                                                      |
+| `active`           | Top-level `"active"` field                                                                           |
+| `supported_trust`  | Top-level `"supportedTrust"` array, encoded as a comma-separated string (e.g., `\"reputation,crypto-economic,tee-attestation\"`) |
 | `agent_account`    | Effective agent account / wallet identifier (logically overriding the `agentWallet` reserved field and any wallet/account value implied by ERC-8004 logic) |
 | `endpoint/A2A`     | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"A2A\"`           |
 | `endpoint/MCP`     | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"MCP\"`           |
@@ -135,6 +141,7 @@ This ERC is fully backwards compatible with [ERC-8004](./eip-8004.md). Existing 
 - **Onchain vs. off-chain URLs**: Onchain metadata is generally more secure and predictable than traditional HTTP(S) URLs, which can be changed or repointed at any time without onchain visibility. By preferring onchain values when present, clients reduce their reliance on mutable off-chain infrastructure.
 - **Access control**: The same access control rules that apply to [ERC-8004](./eip-8004.md)'s `setMetadata` apply to the keys defined in this ERC. Only the agent owner or approved operator SHOULD be able to set metadata.
 - **Agent account semantics**: The `agent_account` field is intentionally more flexible than the reserved `agentWallet` in [ERC-8004](./eip-8004.md). It MAY be set to any account identifier chosen by the owner, including counterfactual addresses. The fact that the registry owner (or approved operator) has explicitly set `agent_account` is considered sufficient validation for its use within this standard and is not, by itself, treated as a security issue.
+- **Sync with `agentURI`**: For registries that mirror the full ERC-8004 registration JSON onchain, it is RECOMMENDED to keep onchain metadata values in sync with the `agentURI` (which may itself be a base64 `data:` URI) for maximum compatibility. In practice, this means updating individual onchain metadata keys first, then updating `agentURI` last, so that the `agentURI` update timestamp is always >= the timestamps of the onchain updates. This update order is only a simple guideline and does not guarantee perfect synchronization, and any client following this ERC MUST still treat the onchain per-key values as authoritative over the `agentURI` payload whenever both are present.
 - **Data validation**: Clients MUST NOT assume onchain metadata values are valid URIs, addresses, or identifiers without performing their own validation. Malformed values should be handled gracefully.
 
 ## Copyright
