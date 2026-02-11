@@ -1,7 +1,7 @@
 ---
 eip: TBD
 title: Minimal Tipping Interface
-description: A standard interface for contracts to accept pre-approved tip amounts.
+description: "A standard interface for contracts to accept pre-approved tip amounts."
 author: @nxt3d
 discussions-to: TBD
 status: Draft
