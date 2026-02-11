@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8156
 title: Agent Onchain Metadata
 description: Onchain metadata keys for ERC-8004 agent registration data
 author: Prem Makeig (@nxt3d)
