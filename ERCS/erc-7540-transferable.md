@@ -169,6 +169,10 @@ This standard is fully backward compatible with [ERC-7540](./eip-7540.md). Vault
 
 As with ERC-7540, operators approved by a controller can transfer pending Requests on their behalf. Users must be aware that granting operator permissions extends to the ability to transfer pending Requests to arbitrary addresses, effectively moving locked assets or shares out of the controller's control.
 
+### Pricing of Pending Requests
+
+Unlike Vault shares, which have `convertToShares` and `convertToAssets` as onchain price references, pending Requests have no built-in pricing mechanism. The exchange rate is unknown until fulfillment. Builders of secondary markets around transferable Requests should account for this lack of a canonical price source when designing pricing and settlement mechanisms.
+
 ## Copyright
 
 Copyright and related rights waived via [CC0](../LICENSE.md).
