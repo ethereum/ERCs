@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8160
 title: Primary Agent Registry
 description: A singleton registry that links each Ethereum address to a single agent identity, enabling any address to be resolved to the agent it represents.
 author: Prem Makeig (@nxt3d)
