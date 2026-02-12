@@ -123,6 +123,24 @@ keccak256(abi.encodePacked(account, registry, tokenId, block.chainid, address(th
 
 The nonce MUST be incremented after each successful `register` call to prevent replay of previously-approved signatures.
 
+#### Signed Registrar
+
+Allows an EOA to sign a message off-chain, and then anyone can submit that signature on-chain to register on the EOA's behalf. To clear a registration, pass `registry = address(0)`. The registrar MUST maintain a per-account nonce to prevent signature replay and MUST support an optional deadline for signature expiry.
+
+```solidity
+mapping(address => uint256) public nonces;
+
+function register(address account, address registry, uint256 tokenId, uint256 deadline, bytes calldata signature) external;
+```
+
+If `deadline` is non-zero, the registrar MUST revert if `block.timestamp > deadline`. The registrar MUST verify the signature by recovering the signer using ECDSA over an EIP-191 `personal_sign` hash, where the message hash is computed as:
+
+```solidity
+keccak256(abi.encodePacked(account, registry, tokenId, deadline, block.chainid, address(this), nonces[account]))
+```
+
+The recovered signer MUST equal `account`. The nonce MUST be incremented after each successful `register` call to prevent replay of previously-signed messages.
+
 #### Ownable Registrar
 
 Allows the owner of a contract implementing `owner()` or `getOwner()` to register the contract's agent identity.
@@ -207,7 +225,7 @@ This ERC is designed to work alongside:
 
 ## Security Considerations
 
-The security of the system depends on the correctness of registrar contracts granted `REGISTRAR_ROLE`. The Self Registrar allows any EOA to claim any `(registry, tokenId)` pair without verifying token ownership, so consumers MUST NOT trust a registration at face value and SHOULD complete the Verification Loop to confirm the agent registry points back to the same address. The [ERC-1271](./eip-1271.md) Registrar includes `block.chainid`, `address(this)`, and a per-account `nonce` in the signed hash to prevent cross-chain, cross-contract, and same-contract replay. Because the registry is a singleton, compromise of the admin role could affect all registrations on that chain, so implementations SHOULD use a multisig or governance mechanism for the admin role.
+The security of the system depends on the correctness of registrar contracts granted `REGISTRAR_ROLE`. The Self Registrar allows any EOA to claim any `(registry, tokenId)` pair without verifying token ownership, so consumers MUST NOT trust a registration at face value and SHOULD complete the Verification Loop to confirm the agent registry points back to the same address. The [ERC-1271](./eip-1271.md) Registrar and Signed Registrar both include `block.chainid`, `address(this)`, and a per-account `nonce` in the signed hash to prevent cross-chain, cross-contract, and same-contract replay. The Signed Registrar additionally supports a `deadline` parameter; signers SHOULD set a finite deadline to limit the window during which an unused signature can be submitted. Because the registry is a singleton, compromise of the admin role could affect all registrations on that chain, so implementations SHOULD use a multisig or governance mechanism for the admin role.
 
 ## Copyright
 
