@@ -13,7 +13,7 @@ requires: 165, 7540
 
 ## Abstract
 
-This standard extends [ERC-7540](./eip-7540.md) by adding optional transferability of pending deposit and redeem Requests. It introduces two separate interfaces — `IERC7540DepositTransferable` and `IERC7540RedeemTransferable` — that allow a controller to transfer their pending Request balance to a new controller. Implementations MAY support either or both interfaces independently.
+This standard extends [ERC-7540](./eip-7540.md) by adding optional transferability of pending deposit and redeem Requests. It introduces two separate interfaces that allow a controller to transfer their pending Request balance to a new controller. Implementations MAY support either or both interfaces independently.
 
 ## Motivation
 
