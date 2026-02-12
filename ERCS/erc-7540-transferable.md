@@ -2,7 +2,7 @@
 eip: XXXX
 title: Transferable Asynchronous Tokenized Vault Requests
 description: Extension of ERC-7540 enabling optional transferability of pending deposit and redeem requests
-author: Cain O'Sullivan, Jeroen Offerijns (@hieronx)
+author: Cain O'Sullivan (@cosullivan), Jeroen Offerijns (@hieronx)
 discussions-to: ???
 status: Draft
 type: Standards Track
