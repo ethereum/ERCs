@@ -161,7 +161,7 @@ describe('NestableToken', function () {
       const childId1 = 99;
       await child.nestMint(parent.address, childId1, parentId);
 
-      // owner is the same adress
+      // owner is the same address
       expect(await parent.ownerOf(parentId)).to.equal(tokenOwner.address);
       expect(await child.ownerOf(childId1)).to.equal(tokenOwner.address);
 
@@ -1048,7 +1048,7 @@ describe('NestableToken', function () {
       await child.mint(firstOwner.address, childId1);
     });
 
-    it('cannot nest tranfer from non immediate owner (owner of parent)', async function () {
+    it('cannot nest transfer from non immediate owner (owner of parent)', async function () {
       const otherParentId = 2;
       await parent.mint(firstOwner.address, otherParentId);
       // We send it to the parent first
@@ -1059,14 +1059,14 @@ describe('NestableToken', function () {
       ).to.be.revertedWithCustomError(child, 'NotApprovedOrDirectOwner');
     });
 
-    it('cannot nest tranfer to same NFT', async function () {
+    it('cannot nest transfer to same NFT', async function () {
       // We can no longer nest transfer it, even if we are the root owner:
       await expect(
         child.connect(firstOwner).nestTransfer(child.address, childId1, childId1),
       ).to.be.revertedWithCustomError(child, 'NestableTransferToSelf');
     });
 
-    it('cannot nest tranfer a descendant same NFT', async function () {
+    it('cannot nest transfer a descendant same NFT', async function () {
       // We can no longer nest transfer it, even if we are the root owner:
       await child.connect(firstOwner).nestTransfer(parent.address, childId1, parentId);
       const grandChildId = 999;
@@ -1082,7 +1082,7 @@ describe('NestableToken', function () {
       ).to.be.revertedWithCustomError(child, 'NestableTransferToDescendant');
     });
 
-    it('cannot nest tranfer if ancestors tree is too deep', async function () {
+    it('cannot nest transfer if ancestors tree is too deep', async function () {
       let lastId = childId1;
       for (let i = 101; i <= 200; i++) {
         await child.nestMint(child.address, i, lastId);
@@ -1095,27 +1095,27 @@ describe('NestableToken', function () {
       ).to.be.revertedWithCustomError(child, 'NestableTooDeep');
     });
 
-    it('cannot nest tranfer if not owner', async function () {
+    it('cannot nest transfer if not owner', async function () {
       const notOwner = addrs[3];
       await expect(
         child.connect(notOwner).nestTransfer(parent.address, childId1, parentId),
       ).to.be.revertedWithCustomError(child, 'NotApprovedOrDirectOwner');
     });
 
-    it('cannot nest tranfer to address 0', async function () {
+    it('cannot nest transfer to address 0', async function () {
       await expect(
         child.connect(firstOwner).nestTransfer(ADDRESS_ZERO, childId1, parentId),
       ).to.be.revertedWithCustomError(child, 'ERC721TransferToTheZeroAddress');
     });
 
-    it('cannot nest tranfer to a non contract', async function () {
+    it('cannot nest transfer to a non contract', async function () {
       const newOwner = addrs[2];
       await expect(
         child.connect(firstOwner).nestTransfer(newOwner.address, childId1, parentId),
       ).to.be.revertedWithCustomError(child, 'IsNotContract');
     });
 
-    it('cannot nest tranfer to contract if it does implement IERC7401', async function () {
+    it('cannot nest transfer to contract if it does implement IERC7401', async function () {
       const ERC721 = await ethers.getContractFactory('ERC721Mock');
       const nonNestable = await ERC721.deploy('Non receiver', 'NR');
       await nonNestable.deployed();
@@ -1124,13 +1124,13 @@ describe('NestableToken', function () {
       ).to.be.revertedWithCustomError(child, 'NestableTransferToNonNestableImplementer');
     });
 
-    it('can nest tranfer to IERC7401 contract', async function () {
+    it('can nest transfer to IERC7401 contract', async function () {
       await child.connect(firstOwner).nestTransfer(parent.address, childId1, parentId);
       expect(await child.ownerOf(childId1)).to.eql(firstOwner.address);
       expect(await child.directOwnerOf(childId1)).to.eql([parent.address, bn(parentId), true]);
     });
 
-    it('cannot nest tranfer to non existing parent token', async function () {
+    it('cannot nest transfer to non existing parent token', async function () {
       const notExistingParentId = 9999;
       await expect(
         child.connect(firstOwner).nestTransfer(parent.address, childId1, notExistingParentId),

@@ -1,6 +1,6 @@
 {
   "name": "@finmath.net/sdc",
-  "version": "0.4.4",
+  "version": "0.8.0",
   "description": "Solidity Smart Derivative Contracts",
   "author": "Christian Fries, Peter Kohl-Landgraf, Alexandros Korpis",
   "license": "ISC",
@@ -30,7 +30,8 @@
   "keywords": [
     "Smart Derivative Contract",
     "SDC",
-    "EIP-6123"
+    "EIP-6123",
+    "ERC-6123"
   ],
   "bugs": {
     "url": "https://github.com/finmath/finmath-smart-derivative-contract/issues"
