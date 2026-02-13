@@ -1,6 +1,6 @@
 ---
 eip: 8157
-title: Minimal Tipping Interface
+title: Accept pre-approved tip amounts
 description: A standard interface for contracts to accept pre-approved tip amounts.
 author: Prem Makeig (@nxt3d)
 discussions-to: TBD
