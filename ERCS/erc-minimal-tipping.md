@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8157
 title: Minimal Tipping Interface
 description: A standard interface for contracts to accept pre-approved tip amounts.
 author: Prem Makeig (@nxt3d)
