@@ -12,21 +12,25 @@ pragma solidity ^0.8.19;
  *      all view calls against a single fixed block.
  *
  *      In the context of this ERC, a contract that implements this interface and claims
- *      compliance as an "XML-complete" contract MUST ensure that the XML obtained from
+ *      compliance as an "XML-complete" contract must ensure that the XML obtained from
  *      this template (together with its bindings) is sufficient to reconstruct the full
  *      contract state that is relevant for off-chain decisions (e.g. valuations,
  *      settlements) at a given block.
  *
- *      Contracts that cannot make an XML-completeness guarantee SHOULD implement only
+ *      Contracts that cannot make an XML-completeness guarantee should implement only
  *      IXMLRepresentableStatePart (and not this interface) if they wish to expose
  *      partial XML views of their state.
+ *
+ *      The normative specification is defined in ERC-8100.
+ *      If there is any mismatch, the ERC text is authoritative.
+ *
  * @author Christian Fries
  */
 interface IXMLRepresentableState {
     /**
      * @notice Returns the XML template string, using a dedicated namespace for bindings.
-     * @dev MUST return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
-     *      Implementations SHOULD make this string independent of mutable contract state
+     * @dev must return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
+     *      Implementations should make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      */
     function stateXmlTemplate() external view returns (string memory);
@@ -45,8 +49,8 @@ interface IXMLRepresentableState {
 interface IXMLRepresentableStatePart {
     /**
      * @notice Returns the XML template string for a particular partial state view.
-     * @dev MUST return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
-     *      Implementations SHOULD make this string independent of mutable contract state
+     * @dev must return a well-formed XML 1.0 (or 1.1) document in UTF-8 encoding.
+     *      Implementations should make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      *
      * @param partId Contract-specific identifier of the partial view.
@@ -65,11 +69,11 @@ interface IXMLRepresentableStatePart {
  *      analogous to the XML case.
  *
  *      In the context of this ERC, a contract that implements this interface and claims
- *      compliance as a "JSON-complete" contract MUST ensure that the JSON obtained from
+ *      compliance as a "JSON-complete" contract must ensure that the JSON obtained from
  *      this template (together with its bindings) is sufficient to reconstruct the full
  *      contract state that is relevant for off-chain decisions at a given block.
  *
- *      Contracts that cannot make a JSON-completeness guarantee SHOULD implement only
+ *      Contracts that cannot make a JSON-completeness guarantee should implement only
  *      IJSONRepresentableStatePart (and not this interface) if they wish to expose
  *      partial JSON views of their state.
  * @author Christian Fries
@@ -77,8 +81,8 @@ interface IXMLRepresentableStatePart {
 interface IJSONRepresentableState {
     /**
      * @notice Returns the JSON template string.
-     * @dev MUST return a well-formed JSON document in UTF-8 encoding.
-     *      Implementations SHOULD make this string independent of mutable contract state
+     * @dev must return a well-formed JSON document in UTF-8 encoding.
+     *      Implementations should make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      */
     function stateJsonTemplate() external view returns (string memory);
@@ -89,15 +93,15 @@ interface IJSONRepresentableState {
  * @notice Optional extension exposing partial JSON templates for selected views of the state.
  * @dev The meaning of partId is contract-specific or defined by higher-level standards.
  *
- *      Implementations of this interface alone are NOT required to be JSON-complete:
+ *      Implementations of this interface alone are not required to be JSON-complete:
  *      a contract may expose only partial views of its state without providing a
  *      canonical full JSON representation via IJSONRepresentableState.
  */
 interface IJSONRepresentableStatePart {
     /**
      * @notice Returns the JSON template string for a particular partial state view.
-     * @dev MUST return a well-formed JSON document in UTF-8 encoding.
-     *      Implementations SHOULD make this string independent of mutable contract state
+     * @dev must return a well-formed JSON document in UTF-8 encoding.
+     *      Implementations should make this string independent of mutable contract state
      *      and environment variables, i.e., effectively constant.
      *
      * @param partId Contract-specific identifier of the partial view.
@@ -117,10 +121,10 @@ interface IJSONRepresentableStatePart {
 interface IRepresentableStateVersioned {
     /**
      * @notice Monotonically increasing version of the representable state.
-     * @dev Implementations SHOULD increment this whenever any mutable state that participates
-     *      in the representation changes. It MAY start at 0.
+     * @dev Implementations should increment this whenever any mutable state that participates
+     *      in the representation changes. It may start at 0.
      *
-     *      Off-chain tools MAY use this to:
+     *      Off-chain tools may use this to:
      *        - cache rendered XML/JSON and skip recomputation if the version is unchanged;
      *        - provide a simple ordering of state changes.
      */
@@ -138,14 +142,14 @@ interface IRepresentableStateVersioned {
 interface IRepresentableStateHashed {
     /**
      * @notice Hash of the canonical state tuple used for the representation.
-     * @dev Implementations MAY choose their own canonical encoding of state (e.g.,
+     * @dev Implementations may choose their own canonical encoding of state (e.g.,
      *      abi.encode of a tuple of all fields that are represented).
      *
      *      This function is intended for off-chain integrity checks, for example:
      *        - parties can sign (chainId, contract, blockNumber, stateHash);
      *        - renderers can recompute the same hash from the values they used.
      *
-     *      It is RECOMMENDED that stateHash() is implemented as a pure/view
+     *      It is recommended that stateHash() is implemented as a pure/view
      *      function that computes the hash on the fly, instead of storing it in
      *      contract storage and updating it on every change.
      */
