@@ -72,7 +72,7 @@ contract Diamond {
     * @param _selector The function selector being added.
     * @param _facet    The facet address that will handle calls to `_selector`.
     */
-    event DiamondFunctionAdded(bytes4 indexed _selector, address indexed _facet);
+    event SetDiamondFacet(bytes4 indexed _selector, address indexed _facet);
     
     error NoBytecodeAtAddress(address _contractAddress, string _message);
     error NoSelectorsProvidedForFacet(address _facet);
@@ -123,7 +123,7 @@ contract Diamond {
                 s.facetAndPosition[selector] = FacetAndPosition(facet, selectorPosition);
                 s.selectors.push(selector);
                 selectorPosition++;
-                emit DiamondFunctionAdded(selector, facet);
+                emit SetDiamondFacet(selector, facet);
             }
         }
 
