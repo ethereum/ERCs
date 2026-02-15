@@ -1,10 +1,7 @@
 # Representable Contract State - XML/JSON Rendering of Smart Contract State
 
-This ERC (ERC-8100) introduces standard interfaces that allow an EVM  smart contract to define a static XML/JSON template
-with machine-readable bindings to its state and view functions. An XML binding schema is provided.
-
-Off-chain renderers use this template to build a canonical XML document representing the contract's state at
-a specific block, without incurring any on-chain gas cost.
+Standard interfaces that allow an EVM  smart contract to define a static XML/JSON template
+with machine-readable bindings to its state and view functions.
 
 ## Interfaces
 
