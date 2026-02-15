@@ -39,8 +39,7 @@ interface IXMLRepresentableState {
 /**
  * @title XML Representable State (partial) interface
  * @notice Optional extension exposing partial XML templates for selected views of the state.
- * @dev The meaning of partId is contract-specific or defined by higher-level standards
- *      (e.g. “settlement context” for ERC-6123).
+ * @dev The meaning of partId is contract-specific or defined by higher-level standards.
  *
  *      Implementations of this interface alone are NOT required to be XML-complete:
  *      a contract may expose only partial views of its state without providing a
