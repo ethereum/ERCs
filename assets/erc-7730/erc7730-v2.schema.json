@@ -539,7 +539,11 @@
                     "title": "Field Separator",
                     "description": "An optional separator string that will be used to separate multiple values when the field is an array. A separator use the interpolated string format with one specific parameter {index} replaced by the index of the element in the array.",
                     "type": "string"
-                }
+                },
+                "encryption": {
+                    "$ref": "#/$format/encryptionParameters",
+                    "description": "If present, the field value is encrypted. The format specifies how to display the decrypted value."
+                  }
             },
             "allOf" : [
                 {
@@ -574,6 +578,14 @@
                     "then": {
                         "properties": {
                             "params": { "$ref": "#/$format/tokenAmountParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "tokenTicker" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/tokenTickerParameters" }
                         }
                     }
                 },
@@ -893,11 +905,50 @@
                     "title": "Unlimited Message",
                     "type": "string",
                     "description": "The message to display when the amount is above the threshold."
+                },
+                "chainId": {
+                    "title": "Chain ID",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve token metadata (ticker, decimals) for this chain. Useful for cross-chain swap clear signing where the same token address may refer to different chains."
+                },
+                "chainIdPath": {
+                    "title": "Chain ID Path",
+                    "type": "string",
+                    "description": "Optional. Path to the chain ID in the structured data. When present, the wallet SHOULD resolve token metadata for the chain at this path. Useful for cross-chain swap clear signing."
                 }
             },
-            "not": {
-                "required": ["token", "tokenPath"]
+            "allOf": [
+                { "not": { "required": ["token", "tokenPath"] } },
+                { "not": { "required": ["chainId", "chainIdPath"] } }
+            ],
+            "additionalProperties": false
+        },
+        "tokenTickerParameters": {
+            "title": "Token Ticker Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "chainId": {
+                    "title": "Chain ID",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve the token ticker for this chain. Useful for cross-chain swap clear signing."
+                },
+                "chainIdPath": {
+                    "title": "Chain ID Path",
+                    "type": "string",
+                    "description": "Optional. Path to the chain ID in the structured data. When present, the wallet SHOULD resolve the token ticker for the chain at this path. Useful for cross-chain swap clear signing."
+                }
             },
+            "allOf": [
+                { "not": { "required": ["chainId", "chainIdPath"] } }
+            ],
             "additionalProperties": false
         },
         "nftNameParameters" : {
@@ -1027,6 +1078,26 @@
                     ]
                 }
             },
+            "additionalProperties": false
+        },
+        "encryptionParameters": {
+            "title": "Encrypted Value Parameters",
+            "type": "object",
+            "properties": {
+              "scheme": {
+                "type": "string",
+                "description": "The encryption scheme used to produce the handle."
+              },
+              "plaintextType": {
+                "type": "string",
+                "description": "Solidity type of the decrypted value (the handle does not encode this)."
+              },
+              "fallbackLabel": {
+                "type": "string",
+                "description": "Optional label to display when decryption is not possible. Defaults to \"[Encrypted]\"."
+              }
+            },
+            "required": ["scheme"],
             "additionalProperties": false
         }
 
