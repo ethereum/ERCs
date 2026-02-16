@@ -141,9 +141,9 @@ MUST be emitted when a pending redeem Request is transferred using the `transfer
 
 Smart contracts implementing this standard MUST implement the [ERC-165](./eip-165.md) `supportsInterface` function.
 
-Vaults implementing `IERC7540DepositTransferable` MUST return the constant value `true` when the `IERC7540DepositTransferable` interface ID is passed through the `interfaceID` argument.
+Vaults implementing `IERC7540DepositTransferable` MUST return the constant value `true` when `0x53b3bb0a` is passed through the `interfaceID` argument.
 
-Vaults implementing `IERC7540RedeemTransferable` MUST return the constant value `true` when the `IERC7540RedeemTransferable` interface ID is passed through the `interfaceID` argument.
+Vaults implementing `IERC7540RedeemTransferable` MUST return the constant value `true` when `0x7846f5bd` is passed through the `interfaceID` argument.
 
 ## Rationale
 
