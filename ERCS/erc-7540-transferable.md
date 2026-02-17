@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8161
 title: Transferable Asynchronous Tokenized Vault Requests
 description: Extension of ERC-7540 enabling optional transferability of pending deposit and redeem requests
 author: Cain O'Sullivan (@cosullivan), Jeroen Offerijns (@hieronx)
