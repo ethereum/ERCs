@@ -18,13 +18,15 @@ This minimal standard interface allows tooling to discover the ABI of these prox
 
 ## Motivation
 
-Proxy contracts utilizing `delegatecall` are widely used both for code sharing and for upgradeability.
-Monolithic proxy architectures can bump into codesize limits.
+Proxy contracts utilizing `delegatecall` are widely used for both code sharing and upgradeability.
+Most common proxies forward calldata to a singular implementation contract. 
+Sometimes the implementation address is hardcoded, a pattern used by cloning factories to reduce deployment costs, and sometimes the implementation address is mutable, a pattern used by upgradeable proxies.
+However, monolithic proxy architectures can bump into codesize limits.
 Additionally, replacing the implementation of an entire contract at once can be riskier than smaller, more incremental changes.
 
 ### Shared Logic Modules
 
-Many contracts share common code for things like tokens but cannot share their entire implementation because of their own uniqueness.
+Many contracts share common code for things like tokens but cannot share their entire implementation because of their own uniquenesses.
 For example, two tokens might share their code balance logic and transfer interface but differ in their name metadata and monetary policy.
 With a monolithic architecture, these differences require two separate contracts.
 With a logic module architecture, they can share a standardized token implementation but customize their metadata and monetary plicy.
@@ -39,9 +41,8 @@ With logic modules, the interface could be extended with a new module to support
 ### Upgrade
 
 Monolithic proxy architectures require replacing the entire implementation during upgrade.
-Such upgrades embrace risk and are difficult to test and verify.
-Upgrades can still be batched atomically for modular dispatch proxies.
-Their modular architecture allows incremental improvements and fixes without risking the unintentional breakage of unrelated components.
+Such upgrades batch changesets but embrace risk and are difficult to test and verify.
+Modular dispatch proxies can still atomically batch upgrades, but their modular architecture allows incremental improvements and fixes without risking the unintentional breakage of unrelated components.
 
 ### Hardening
 
@@ -51,7 +52,6 @@ Upgradeable dispatch proxies can be permanently hardened into immutable systems 
 
 A standard interface for the modular proxy architecture can help tools, user interfaces, and indexers determine the ABI of these proxies.
 Such systems may also want to surface the full upgrade history of these proxies to facilitate investigation.
-
 
 ## Specification
 
@@ -87,11 +87,14 @@ A modular dispatch proxy constructor SHOULD configure at least one delegate.
 
 ### `bytes4 selector`
 
-The most widely-supported ABI is solidity' 4byte ABI, which uses the first four bytes, called the selector, to dispatch functions.
+The most widely-supported ABI is solidity's 4byte ABI, which uses the first four bytes of calldata, called the selector, to dispatch functions.
+The dispatch proxy also considers those same bytes to dispatch function calls to their delegate.
 
 ### `implementation(bytes4)`
 
-This terminology is consistent with other proxies, but with a parameter.
+While implementations can be discovered with `eth_getStorageAt`, a common interface can support a variety of possible storage layouts and implementations.
+
+This function's naming is consistent with monolithic proxies, but with a parameter.
 
 ### `selectors()`
 
@@ -106,6 +109,7 @@ Although selectors are also retrievable by querying `SetDelegate` events, the `i
 Log queries can be slow if they are not indexed in a database.
 
 While a packed encoding would reduce memory allocation, `bytes4` is simplest for tooling to decode.
+It is anticipated that his method will primarily be used by tooling.
 
 ### Upgrades
 
@@ -125,6 +129,11 @@ This standard improves upon [ERC-2535](./eip-2535.md) in the following ways:
 2. Fewer and simpler introspection functions.
 3. Simpler upgrade event.
 
+Existing upgradeable monolithic proxies MAY upgrade to this standard using the following upgrade plan:
+1. Upgrade to an implementation with a method to populate the selector delegate mapping.
+2. Populate the selector delegate mapping for all methods in the ABI.
+3. Set the implementation to a dispatch proxy using the populated selector delegate mapping.
+
 Existing modular proxies MAY upgrade to this standard by performing an upgrade that does the following:
 
 1. Adds the new introspection functions.
@@ -143,7 +152,10 @@ This proxy consults a solidity mapping at storage index 0 to lookup the delegate
 
 ## Security Considerations
 
-Access control is outside the scope of this standard.
+### Access control
+
+Upgrade functions should have some form of access control.
+Access control designs are outside the scope of this standard.
 
 ### Avoid self-destruct
 
