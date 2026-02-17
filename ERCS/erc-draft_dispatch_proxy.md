@@ -1,0 +1,168 @@
+---
+eip: TBD
+title: Modular Dispatch Proxies
+description: Proxy-level function dispatch via delegatecall
+author: William Morriss (@wjmelements), Radek Svarz (@radeksvarz)
+discussions-to: TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-02-16
+---
+
+## Abstract
+
+This proposal standardizes dispatch proxies, which dispatch calls to logic modules, called delegates, according to function selector.
+A modular proxy architecture facilitates upgrades, extensions, and hardening, while working around codesize limits. 
+This minimal standard interface allows tooling to discover the ABI of these proxies and examine their upgrade history.
+
+## Motivation
+
+Proxy contracts utilizing `delegatecall` are widely used both for code sharing and for upgradeability.
+Monolithic proxy architectures can bump into codesize limits.
+Additionally, replacing the implementation of an entire contract at once can be riskier than smaller, more incremental changes.
+
+### Shared Logic Modules
+
+Many contracts share common code for things like tokens but cannot share their entire implementation because of their own uniqueness.
+For example, two tokens might share their code balance logic and transfer interface but differ in their name metadata and monetary policy.
+With a monolithic architecture, these differences require two separate contracts.
+With a logic module architecture, they can share a standardized token implementation but customize their metadata and monetary plicy.
+
+### Extension
+
+Sometimes new standards arise which provide new functionality or guarantees.
+For example, a popular token interface extension might arise to provide a new and better method for modifying allowances.
+With a monolithic architecture, token implementations must be wrapped or wholly replaced to support the new method.
+With logic modules, the interface could be extended with a new module to support the new method.
+
+### Upgrade
+
+Monolithic proxy architectures require replacing the entire implementation during upgrade.
+Such upgrades embrace risk and are difficult to test and verify.
+Upgrades can still be batched atomically for modular dispatch proxies.
+Their modular architecture allows incremental improvements and fixes without risking the unintentional breakage of unrelated components.
+
+### Hardening
+
+Upgradeable dispatch proxies can be permanently hardened into immutable systems by uninstalling the upgrade methods.
+
+### Standardization
+
+A standard interface for the modular proxy architecture can help tools, user interfaces, and indexers determine the ABI of these proxies.
+Such systems may also want to surface the full upgrade history of these proxies to facilitate investigation.
+
+
+## Specification
+
+A modular dispatch proxy MUST use `delegatecall` to relay the entire calldata to the delegate corresponding to the first four bytes of the calldata.
+If the delegate for that selector is not set, the proxy MUST revert, and SHOULD revert with `FunctionNotFound(bytes4)`.
+
+```solidity
+interface IDispatchProxy {
+    // REQUIRED
+    // Emitted when assigning a delegate logic module to a selector
+    // An address(0) delegate signals removal
+    event SetDelegate(bytes4 indexed selector, address indexed delegate);
+
+    // REQUIRED
+    // Returns the delegate for the selector, using address(0) for function not found
+    function implementation(bytes4 selector) external view returns (address);
+
+    // RECOMMENDED
+    // Surfaces the ABI
+    // SHOULD return all function selectors with implementations
+    function selectors() external view returns (bytes4[]);
+
+    // RECOMMENDED
+    error FunctionNotFound(bytes4 selector);
+}
+```
+
+`IDispatchProxy` functions SHOULD be implemented by delegates rather than in the proxy.
+
+A modular dispatch proxy constructor SHOULD configure at least one delegate.
+
+## Rationale
+
+### `bytes4 selector`
+
+The most widely-supported ABI is solidity' 4byte ABI, which uses the first four bytes, called the selector, to dispatch functions.
+
+### `implementation(bytes4)`
+
+This terminology is consistent with other proxies, but with a parameter.
+
+### `selectors()`
+
+This is a minimal function to surface ABI to tools.
+While selectors are ambiguous, they can be resolved if their delegate has a verified ABI.
+Thereby, these steps produce the ABI of the proxy:
+1. For each `selector` in `selectors()`, query `implementation(selector)`.
+2. For each unique implementation, check if its code is verified. If verified, retrieve the ABI. If not, allow the user to supply the missing ABI.
+3. Identify the functions supported by the proxy by matching its selectors with their implementation's ABI.
+
+Although selectors are also retrievable by querying `SetDelegate` events, the `interface` function provides a way to get this information without access to the logs.
+Log queries can be slow if they are not indexed in a database.
+
+While a packed encoding would reduce memory allocation, `bytes4` is simplest for tooling to decode.
+
+### Upgrades
+
+This standard does not specify an upgrade function.
+Other standards could extend this one with versioning frameworks for atomic batch upgrades.
+
+### Storage Layout
+
+This standard does not specify a storage layout.
+Other standards could suggest patterns to protect against storage collisions and other mistakes.
+
+## Backwards Compatibility
+
+This standard improves upon [ERC-2535](./eip-2535.md) in the following ways:
+
+1. Removed diamond jargon.
+2. Fewer and simpler introspection functions.
+3. Simpler upgrade event.
+
+Existing modular proxies MAY upgrade to this standard by performing an upgrade that does the following:
+
+1. Adds the new introspection functions.
+2. Emits a `SetDelegate` event for every function.
+
+## Reference Implementation
+
+TODO
+
+### Example Proxy Bytecode
+
+```hex
+5f5f365f60045f5f3760405f205480602457635416eb985f5260045f6020376024601cfd5b365f5f375af43d5f5f3e6035573d5ffd5b3d5ff3
+```
+This proxy consults a solidity mapping at storage index 0 to lookup the delegate for the selector.
+
+## Security Considerations
+
+Access control is outside the scope of this standard.
+
+### Avoid self-destruct
+
+Delegates MUST NOT self-destruct.
+If a delegate can self-destruct, it can break proxies that use it.
+
+### Storage Layout
+
+Proxy upgrades must take care not to shift storage indices because this corrupts contract data.
+
+Delegates should be designed to minimize the risk of accidental overlap in their storage layouts.
+There are two known approaches to protect storage layouts against such collision.
+
+The first is to define a single shared proxy storage layout in a common superclass inherited by all of the proxy's delegates.
+Such subclasses SHOULD NOT declare their own storage.
+
+The second is to use storage namespaces, such as [ERC-7201](./eip-7201.md) and [ERC-8042](./eip-8042.md).
+This approach is appropriate for shared libraries.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
