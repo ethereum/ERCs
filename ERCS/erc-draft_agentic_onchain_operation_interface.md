@@ -1,7 +1,7 @@
 ---
 title: Agentic On-Chain Operation Interface
 description: Standardized end-to-end workflow for agent-issued intents, permissionless fulfillment, atomic settlement, and verifiable receipts
-author: Qin Wang <qin.wang@data61.csiro.au>, Ruiqiang Li <richard.620.research@gmail.com> (@richard-620), Saber Yu (@OniReimu), Shiping Chen <shiping.chen@data61.csiro.au>
+author: Qin Wang <@qinwang-git>, Ruiqiang Li (@richard-620), Saber Yu (@OniReimu), Shiping Chen <shiping.chen@data61.csiro.au>
 discussions-to: https://ethereum-magicians.org/t/erc-xxx-agentic-on-chain-operation-interface/27773
 status: Draft
 type: Standards Track
