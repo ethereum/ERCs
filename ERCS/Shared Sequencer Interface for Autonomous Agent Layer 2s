@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 7951
 title: Shared Sequencer Interface for Autonomous Agent Layer 2s
 description: A minimal, stateless interface for shared sequencer contracts optimized for autonomous agent compatibility.
 author: Michael Winczuk (@michaelwinczuk)
