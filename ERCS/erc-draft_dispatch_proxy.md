@@ -38,6 +38,9 @@ For example, a popular token interface extension might arise to provide a new an
 With a monolithic architecture, token implementations must be wrapped or wholly replaced to support the new method.
 With logic modules, the interface could be extended with a new module to support the new method.
 
+Modular designs are also appropriate for personal smart accounts such as [EIP-7702](./eip-7702.md) EOAs.
+User accounts could install features such as DEX-specific callbacks without temporarily disabling other functionality.
+
 ### Upgrade
 
 Monolithic proxy architectures require replacing the entire implementation during an upgrade.
