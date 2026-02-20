@@ -110,7 +110,7 @@ interface ICallDecryptionOracle {
         bytes32 argsPublicKeyId,
         bytes   argsCiphertext,
         bytes32 argsHash,
-        bytes     secondFactor
+        bytes   secondFactor
     );
 
     /// @notice Emitted when a call has been fulfilled.
