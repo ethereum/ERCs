@@ -163,7 +163,6 @@ interface ICallDecryptionOracle {
      *                     If a secondFactor is required depends on the implementation of the decryption, if not leave empty (0x).
      *
      * @dev MUST:
-     * - require encArgs.argsHash to be consistent with any application-level commitments,
      * - register a unique requestId and store callDescriptor data + requester,
      * - emit CallRequested.
      */
@@ -222,6 +221,9 @@ interface ICallDecryptionOracle {
      *
      * @dev MUST:
      * - verify that requestId exists and was created with requestEncryptedCall,
+     * - load stored CallDescriptor from state,
+     * - verify storedCall.validUntilBlock is zero or >= current block.number,
+     * - verify that keccak256(argsPlain) equals the stored argsHash,
      * - perform low-level call:
      *     callDescriptor.targetContract.call(abi.encodePacked(callDescriptor.selector, argsPlain))
      * - emit CallFulfilled(requestId, returnData),
