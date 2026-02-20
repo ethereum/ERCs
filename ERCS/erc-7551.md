@@ -1,0 +1,277 @@
+---
+eip: 7551
+title: Crypto Security Token Interface
+description: Interface for regulated security tokens with compliance checks, operator-controlled supply, freezing, forced transfers, and on-chain terms
+author: Lars Olsson <lars.olsson@cashlink.de>, Hagen Hübel (@itinance) <hagen@token-forge.io>, Markus Kluge <markus@token-forge.io>, Andreas Berghammer <andreas@tokenforge.io>, Ryan Sauge (@rya-sge)
+discussions-to: https://ethereum-magicians.org/t/erc-7551-crypto-security-token-smart-contract-interface-ewpg-reworked/25477
+status: Draft
+type: Standards Track
+category: ERC
+created: 2023-09-05
+---
+
+## Abstract
+
+This proposal defines an interface that extends existing token standards such as [ERC-20](./eip-20.md) or [ERC-1155](./eip-1155.md) to support regulated crypto-securities. While the underlying token standard manages balances and transfers, crypto-securities require additional functionality for compliance, operator-driven supply control, and legally mandated enforcement actions.
+
+The interface introduces transfer-compliance checks (`canTransfer`, `canTransferFrom`) that allow wallets and exchanges to determine whether a transfer would succeed under the current regulatory or eligibility rules. It also defines operator-controlled minting and burning of tokens, aligned with the semantics of [EIP-5679](./eip-5679.md) for contract-level issuance and redemption.
+
+To support legal enforcement, the interface provides a `forcedTransfer` function for operator-initiated transfers without holder consent. Implementations may automatically unfreeze balances when executing such transfers, and enforcement-related events are available for auditing.
+
+Additional mechanisms include freezing and unfreezing portions of an account's balance, pausing standard transfers, and anchoring the legally binding issuance documents on-chain via a deterministic `termsHash`. A metadata field allows machine-readable descriptions of the security.
+
+## Motivation
+
+The compliant representation of securities on a distributed ledger network (“crypto securities”) remains one of the most prominent use cases for distributed ledger systems. Up until recent developments such activities were not always fully recognized by local securities laws. This led to different views on what information and functionality they should provide. Germany, as one of the first countries in the world, has enhanced its legal framework to fully cover the issuance of securities in electronic form on a distributed ledger network. This standard aims to capture these legal requirements and use them as a framework to define a smart contract interface that enables interactions with crypto securities on-ledger. This standard is backed by the Federal Association of Crypto Registrars and a result of its task force for standardization.
+
+While standards like [ERC-20](./eip-20.md) and [ERC-1155](./eip-1155.md) provide complete interfaces to interact with utility tokens, in order to represent securities in the form of a token more advanced features are necessary. This is caused by two main characteristics of crypto securities:
+
+* In contrast to utility tokens where transfers usually only require the sender to have a sufficient balance, for crypto securities more complex rules can apply that use other data to determine the validity of a transfer. In many cases, token holders with their respective addresses need to be eligible, for example, according to KYC/AML regulation or qualification of the investor to receive and hold tokens.
+* Crypto securities need a trusted operator that is granted certain permissions such as pausing transfers or managing the token supply. This trusted operator is sometimes even recognized by local securities laws and licensed by the authorities.
+
+This standard should facilitate the interaction of wallet software, exchanges as well as crypto security operators with different implementations of crypto securities. For wallets and exchanges, this eases the listing of crypto securities no matter who their issuer or operator is. It also makes sure that in case of an operator becoming unavailable, other operators can step in and take over control of the token, securing the rights of token holders.
+
+## Specification
+
+The following specification describes events and functions of a token smart contract representing a crypto security.
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+
+### General
+Tokens MAY be received by externally owned accounts as well as smart contract accounts ("token holders"). An externally owned account or smart contract account MAY be granted special administrative permissions ("operator"). There MAY be more than one operator.
+
+### Functions
+#### `getActiveBalanceOf`
+This function MUST return the unfrozen balance of an account. This balance can be used by the token holder for transfers to other account addresses.
+
+```solidity
+function getActiveBalanceOf(address tokenHolder) external view returns (uint256);
+```
+
+#### `getFrozenTokens`
+This function MUST return the frozen balance of an account. Frozen tokens cannot be transferred using standard [ERC-20](./eip-20.md) functions. Implementations MAY support transferring frozen tokens via `forcedTransfer`. Implementations MAY also support burning frozen tokens via `burn`. This function is informational and does not define compliance behavior.
+
+```solidity
+function getFrozenTokens(address tokenHolder) external view returns (uint256);
+```
+
+#### `paused`
+This function MUST return `true` if token transfers are paused and MUST return `false` otherwise. When `true`, standard holder‑to‑holder transfers MUST revert and `canTransfer()` / `canTransferFrom()` MUST return `false`. The functions `mint`, `burn`, and `forcedTransfer` are not affected.
+
+```solidity
+function paused() external view returns (bool);
+```
+
+#### `termsHash`
+The document hash MUST deterministically represent the full document content. The hashing algorithm SHOULD be SHA-256 and MUST be exposed as `bytes32`.
+A terms hash with the value `0x0` has a special meaning: As long as it is `0x0`, transfers cannot be unpaused.
+
+
+```solidity
+function termsHash() external view returns (bytes32);
+```
+
+#### `metaData`
+This function MUST return a JSON object containing metadata about the crypto security in the form of key-value pairs. It MAY be empty.
+
+```solidity
+function metaData() external view returns (string memory);
+```
+
+#### `canTransfer`
+This function MUST return `true` if `from` is able to transfer `value` tokens to `to` respecting all compliance, investor eligibility and other implemented restrictions. Otherwise it MUST return `false`.
+If `paused()` returns `true`, the function MUST return `false`. Balance and access-control checks are out of scope for this function.
+
+```solidity
+function canTransfer(address from, address to, uint256 value) external view returns (bool);
+```
+
+#### `canTransferFrom`
+This function MUST return `true` if `spender` can transfer `value` tokens from `from` to `to` respecting all compliance, investor eligibility and other implemented restrictions. Otherwise it MUST return `false`.
+If `paused()` returns `true`, the function MUST return `false`. Balance and access-control checks are out of scope for this function.
+
+```solidity
+function canTransferFrom(address spender, address from, address to, uint256 value) external view returns (bool);
+```
+
+#### `mint`
+This function MUST increase the balance of `to` by `amount` and MUST NOT decrease the balance of any other holder. It MUST increase the token's `totalSupply` by `amount` as reported by the underlying token standard (e.g., [ERC-20](./eip-20.md) or [ERC-1155](./eip-1155.md)).
+
+The function MUST emit both a `Transfer` event and a `Mint` event. Ideally, the `Transfer` event is emitted by the underlying token implementation. Paused transfers SHOULD NOT prevent minting. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function mint(address to, uint256 amount, bytes calldata data) external;
+```
+
+#### `burn`
+This function MUST reduce the balance of `tokenHolder` by `amount` without increasing the amount of tokens of any other holder. It MUST emit a `Burn` as well as a `Transfer` event. The `Transfer` event MUST contain `0x0` as the recipient account address. The function MUST revert if `tokenHolder`'s balance is less than `amount` (including frozen tokens). If frozen balance is used, a `TokensUnfrozen` event SHOULD be emitted. Paused transfers SHOULD NOT prevent burning tokens. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function burn(address tokenHolder, uint256 amount, bytes calldata data) external;
+```
+
+#### `forcedTransfer`
+This function MUST transfer `value` tokens from `account` to `to` without requiring the consent of `account`. The function MUST revert if `account`'s balance is less than `value` (including frozen tokens). The function MUST emit a standard `Transfer` event and SHOULD emit a `ForcedTransfer` event. If frozen balance is used, a `TokensUnfrozen` event SHOULD be emitted. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function forcedTransfer(address account, address to, uint256 value, bytes calldata data) external returns (bool);
+```
+
+#### `freezePartialTokens`
+This function MUST freeze `amount` tokens of `account`. Frozen tokens cannot be transferred to other accounts. The function MUST emit a `TokensFrozen` event. The function MUST revert if `account`'s active balance is less than `amount` (excluding already frozen tokens). The `data` parameter MAY be used to further document the action.
+
+```solidity
+function freezePartialTokens(address account, uint256 amount, bytes calldata data) external;
+```
+
+#### `unfreezePartialTokens`
+This function MUST unfreeze `amount` tokens of `account`. The function MUST emit a `TokensUnfrozen` event. The function MUST revert if `account`'s frozen balance is less than `amount`. The `data` parameter MAY be used to further document the action.
+
+```solidity
+function unfreezePartialTokens(address account, uint256 amount, bytes calldata data) external;
+```
+
+#### `pause`
+Calling this function MUST pause all token transfers. The function MUST revert if the contract is already paused.
+
+```solidity
+function pause() external;
+```
+
+#### `unpause`
+Calling this function MUST unpause all token transfers.
+The function MUST revert if the contract is not currently paused.
+The function MUST also revert if `termsHash()` returns `0x0`. In all cases, `unpause()` MUST fail unless a non-zero document hash is set on-chain.
+
+```solidity
+function unpause() external;
+```
+
+#### `setTerms`
+This function MUST update the `termsHash` value. `_hash` MUST deterministically represent the full document content. The hashing algorithm SHOULD be SHA-256. It SHOULD emit a `Terms(_hash, _uri)` event.
+
+```solidity
+function setTerms(bytes32 _hash, string calldata _uri) external;
+```
+
+#### `setMetaData`
+This function MUST update the `metaData` value. `_metadata` MUST be a JSON object containing metadata about the crypto security in the form of key-value pairs. It MAY be empty.
+
+```solidity
+function setMetaData(string calldata _metadata) external;
+```
+
+### Events
+Alternative event names with equivalent semantics (e.g., a dedicated forced-transfer event vs. a generic Transfer) are allowed; however, a Transfer event MUST be emitted on state-changing token movements.
+
+#### `Mint`
+This event MUST be emitted when new tokens are issued and the token's `totalSupply` increases.
+
+```solidity
+event Mint(address indexed minter, address indexed account, uint256 value, bytes data);
+```
+
+#### `Burn`
+This event MUST be triggered when tokens are destroyed of a `tokenHolder`.
+
+```solidity
+event Burn(address indexed burner, address indexed account, uint256 value, bytes data);
+```
+
+#### `ForcedTransfer`
+This event SHOULD be triggered when a forced transfer is executed via `forcedTransfer(...)`.
+
+```solidity
+event ForcedTransfer(address indexed operator, address indexed from, address indexed to, uint256 value, bytes data);
+```
+
+#### `TokensFrozen`
+This event SHOULD be triggered if tokens are frozen for an account.
+
+```solidity
+event TokensFrozen(address indexed account, uint256 value, bytes data);
+```
+
+#### `TokensUnfrozen`
+This event SHOULD be triggered if tokens are unfrozen for an account.
+
+```solidity
+event TokensUnfrozen(address indexed account, uint256 value, bytes data);
+```
+
+#### `Terms`
+This event SHOULD be triggered when the `termsHash` value (and/or the associated URI) is updated.
+
+```solidity
+event Terms(bytes32 hash, string uri);
+```
+
+#### `MetaData`
+This event SHOULD be triggered when the `metaData` value is updated.
+
+```solidity
+event MetaData(string newMetaData);
+```
+
+### Interface
+```solidity
+interface IERC7551 {
+	// Events
+	event Mint(address indexed minter, address indexed account, uint256 value, bytes data);
+	event Burn(address indexed burner, address indexed account, uint256 value, bytes data);
+	event ForcedTransfer(address indexed operator, address indexed from, address indexed to, uint256 value, bytes data);
+	event TokensFrozen(address indexed account, uint256 value, bytes data);
+	event TokensUnfrozen(address indexed account, uint256 value, bytes data);
+	event Terms(bytes32 hash, string uri);
+	event MetaData(string newMetaData);
+
+	// View functions
+	function getActiveBalanceOf(address tokenHolder) external view returns (uint256);
+	function getFrozenTokens(address tokenHolder) external view returns (uint256);
+	function paused() external view returns (bool);
+	function termsHash() external view returns (bytes32);
+	function metaData() external view returns (string memory);
+	function canTransfer(address from, address to, uint256 value) external view returns (bool);
+	function canTransferFrom(address spender, address from, address to, uint256 value) external view returns (bool);
+	// Operator functions
+	function mint(address to, uint256 amount, bytes calldata data) external;
+	function burn(address tokenHolder, uint256 amount, bytes calldata data) external;
+	function forcedTransfer(address account, address to, uint256 value, bytes calldata data) external returns (bool);
+	function freezePartialTokens(address account, uint256 amount, bytes calldata data) external;
+	function unfreezePartialTokens(address account, uint256 amount, bytes calldata data) external;
+	function pause() external;
+	function unpause() external;
+	function setTerms(bytes32 _hash, string calldata _uri) external;
+	function setMetaData(string calldata _metadata) external;
+}
+```
+
+## Rationale
+
+This standard is the result of the standardization working group of the German Federal Association of Crypto Registrars. It's based on the smart contract implementations of its members. The design draws conceptual inspiration from a set of security-token specifications published by the Security Token Roundtable outside the official Ethereum EIP process. These documents influenced early security-token implementations but were never formalized as official ERCs. We also acknowledge [ERC-3643](./eip-3643.md) as a related standard. Both were considered as alternatives to drafting this standard, but we decided to propose an alternative standard instead of using them directly. 
+
+The reasons include: 
+- Mandatory identity layer (onchainID): [ERC-3643](./eip-3643.md) tightly couples transfer compliance with a specific decentralized identity framework. This limits flexibility and imposes implementation constraints not aligned with the regulatory environment in certain jurisdictions, such as Germany. 
+
+- Access control model: [ERC-3643](./eip-3643.md) introduces constraints through the Agent role, which reduces flexibility for implementing alternative RBAC systems. 
+
+- Completeness: Some of the features defined by the Roundtable and [ERC-3643](./eip-3643.md) address very specific use cases that are not common to all association members. To support compatibility, we deliberately kept the same function names as [ERC-3643](./eip-3643.md) whenever possible. In contrast, this ERC aims to define a minimal and flexible foundational interface that can be combined with the underlying token standard (e.g. [ERC-20](./eip-20.md) or [ERC-1155](./eip-1155.md)), operator permission management, and compliance modules. 
+
+This standard should not be understood to be a guideline for developing security token implementations. For a full security token implementation, we expect this standard to be combined with the underlying token itself (e.g. based on [ERC-20](./eip-20.md) or [ERC-1155](./eip-1155.md)), permission management and authorization logic for operators, different mechanisms to determine the compliance of a specific token transfer, as well as mechanisms to upgrade the token smart contract logic. In contrast, this interface standard describes minimum requirements for the token smart contract representing a crypto security.
+
+These functions follow the standard OpenZeppelin Pausable pattern and are compatible with existing Ethereum infrastructure.
+
+**Informative note:** Some deployments may prefer not to gate `unpause()` on the presence of an on‑chain terms document. This ERC mandates the `termsHash != 0x0` gate to ensure there is a tamper‑evident, immutable reference to the issuance documents before enabling standard transfers. Jurisdictions that do not require an on‑chain linkage can still deploy the interface and delay setting `termsHash`; until then, standard holder‑to‑holder transfers remain paused while `mint`, `burn`, and `forcedTransfer` remain available.
+
+## Security Considerations
+
+The standard specifications don't include requirements for permission management of operators. Implementations SHOULD make sure that the operator functions can only be executed with sufficient authorization. 
+
+In addition, to be able to fix security issues, the token smart contract's logic SHOULD be upgradable by the operator or another account with sufficient authorization.
+
+The specification puts a lot of trust into the operators because they can manage the token supply and even force transfer token amounts. Therefore, entities managing operator accounts must ensure that they use secure off-chain infrastructures to manage and interact with the smart contract implementation.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
