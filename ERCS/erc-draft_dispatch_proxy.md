@@ -26,23 +26,23 @@ Additionally, replacing the implementation of an entire contract at once can be 
 
 ### Shared Logic Modules
 
-Many contracts share common code for things like tokens but cannot share their entire implementation because of their own uniquenesses.
+Many contracts share common code for things like tokens but cannot share their entire implementation because of their own unique characteristics.
 For example, two tokens might share their balance logic and transfer interface but differ in their name metadata and monetary policy.
 With a monolithic architecture, these differences require two separate contracts.
 With a logic module architecture, they can share a standardized token implementation but customize their metadata and monetary policy.
 
 ### Extension
 
-Sometimes new standards arise which provide new functionality or guarantees.
+Sometimes new standards arise that provide new functionality or guarantees.
 For example, a popular token interface extension might arise to provide a new and better method for modifying allowances.
 With a monolithic architecture, token implementations must be wrapped or wholly replaced to support the new method.
 With logic modules, the interface could be extended with a new module to support the new method.
 
 ### Upgrade
 
-Monolithic proxy architectures require replacing the entire implementation during upgrade.
-Such upgrades batch changesets but embrace risk and are difficult to test and verify.
-Modular dispatch proxies can still atomically batch upgrades, but their modular architecture allows incremental improvements and fixes without risking the unintentional breakage of unrelated components.
+Monolithic proxy architectures require replacing the entire implementation during an upgrade.
+Such upgrades batch changesets but introduce risk and are difficult to test and verify.
+Modular dispatch proxies can still atomically batch upgrades, but their modular architecture allows incremental improvements and fixes without unintentionally breaking unrelated components.
 
 ### Hardening
 
@@ -87,8 +87,8 @@ A modular dispatch proxy constructor SHOULD configure at least one delegate.
 
 ### `bytes4 selector`
 
-The most widely-supported ABI is solidity's 4byte ABI, which uses the first four bytes of calldata, called the selector, to dispatch functions.
-The dispatch proxy also considers those same four bytes to dispatch function calls to their delegate.
+The most widely-supported ABI is Solidity's 4-byte ABI, which uses the first four bytes of calldata, called the selector, to dispatch functions.
+The dispatch proxy also uses those same four bytes to dispatch function calls to their delegate.
 
 ### `implementation(bytes4)`
 
@@ -100,7 +100,7 @@ This function's naming is consistent with monolithic proxies, but with a paramet
 
 This is a minimal function to surface ABI to tools.
 While selectors are ambiguous, they can be resolved if their delegate has a verified ABI.
-Thereby, these steps produce the ABI of the proxy:
+Together, these steps produce the ABI of the proxy:
 1. For each `selector` in `selectors()`, query `implementation(selector)`.
 2. For each unique implementation, check if its code is verified. If verified, retrieve the ABI. If not, allow the user to supply the missing ABI.
 3. Identify the functions supported by the proxy by matching its selectors with their implementation's ABI.
@@ -108,7 +108,7 @@ Thereby, these steps produce the ABI of the proxy:
 Although selectors are also retrievable by querying `SetDelegate` events, the `selectors` function provides a way to get this information without access to the logs.
 Log queries can be slow without a database index.
 
-While a packed encoding would reduce memory allocation, `bytes4` is simplest for tooling to decode.
+While a packed encoding would reduce memory allocation, an array of `bytes4` is the simplest for tooling to decode.
 It is anticipated that this method will primarily be used by tooling.
 
 ### Upgrades
@@ -125,7 +125,7 @@ Other standards could suggest patterns to protect against storage collisions and
 
 This standard improves upon [ERC-2535](./eip-2535.md) in the following ways:
 
-1. Removed diamond jargon.
+1. Removal of diamond jargon.
 2. Fewer and simpler introspection functions.
 3. Simpler upgrade event.
 
@@ -148,7 +148,7 @@ TODO
 ```hex
 5f5f365f60045f5f3760405f205480602457635416eb985f5260045f6020376024601cfd5b365f5f375af43d5f5f3e6035573d5ffd5b3d5ff3
 ```
-This proxy consults a solidity mapping at storage index 0 to lookup the delegate for the selector.
+This proxy consults a Solidity mapping at storage index 0 to look up the delegate for the selector.
 
 ## Security Considerations
 
@@ -166,8 +166,8 @@ If a delegate can self-destruct, it can break proxies that use it.
 
 Proxy upgrades must take care not to shift storage indices because this corrupts contract data.
 
-Delegates should be designed to minimize the risk of storage layout overlap between one another.
-There are two known approaches to protect storage layouts against such collision.
+Delegates should be designed to minimize the risk of storage layout overlap between them.
+There are two known approaches to protect storage layouts against such collisions.
 
 The first is to define a single shared proxy storage layout in a common superclass inherited by all of the proxy's delegates.
 Such subclasses SHOULD NOT declare additional storage.
