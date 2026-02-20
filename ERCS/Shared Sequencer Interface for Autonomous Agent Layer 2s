@@ -1,0 +1,157 @@
+---
+eip: XXXX
+title: Shared Sequencer Interface for Autonomous Agent Layer 2s
+description: A minimal, stateless interface for shared sequencer contracts optimized for autonomous agent compatibility.
+author: Michael Winczuk (@michaelwinczuk)
+discussions-to: https://ethereum-magicians.org/t/shared-sequencer-interface-for-autonomous-agent-layer-2s/27772
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-02-19
+---
+
+## Abstract
+
+This ERC defines a standard interface for shared sequencer contracts on Ethereum Layer 2 networks, with a specific focus on compatibility with autonomous agent systems. It provides a minimal, stateless, gas-predictable interface enabling agents and applications to interact with any compliant shared sequencer implementation without chain-specific integration work.
+
+## Motivation
+
+Shared sequencers (Espresso, Taiko's based sequencing, Puffer UniFi) represent one of the most promising vectors for tightly coupling L2 applications to Ethereum's security guarantees — but each project currently implements a proprietary interface. There is no standard.
+
+This fragmentation creates real problems:
+
+**For autonomous AI agents:** Agents operating on L2s need gas-predictable submission costs, explicit machine-readable error codes for automated retry logic, and stateless view functions for pre-flight checks. No current shared sequencer implementation is designed with autonomous agents as a primary user.
+
+**For tooling developers:** Wallets, block explorers, monitoring infrastructure, and SDKs must write custom integrations for every sequencer.
+
+**For the ecosystem:** The post-Astria vacuum (Astria shut down December 2025) and the EF's 2026 Protocol Priorities interoperability track create a direct opening for a clean, minimal interface standard.
+
+This ERC proposes a minimal standard interface that:
+
+1. Enables any autonomous agent to interact with any compliant shared sequencer
+2. Provides gas-predictable submission with cost estimation
+3. Returns explicit, machine-readable error codes
+4. Exposes sequencer metadata for dynamic agent adaptation
+5. Defines slashing event signatures for decentralized sequencer accountability
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity >=0.8.19 <0.9.0;
+
+interface ISharedSequencer {
+
+    /// @notice Contains confirmation status and details for a submitted transaction.
+    struct ConfirmationReceipt {
+        uint64 timestamp;       // Block timestamp of submission
+        bytes32 l1TxHash;       // L1 transaction hash (zero until confirmed)
+        bytes32 l2TxHash;       // L2 transaction identifier
+        uint8 status;           // 0=pending, 1=confirmed, 2=failed
+        string errorReason;     // Non-empty if status=2
+    }
+
+    /// @notice Describes the capabilities and configuration of this sequencer.
+    struct SequencerMetadata {
+        string version;
+        address[] supportedL2s;
+        uint256 minConfirmationTime;    // seconds
+        uint256 maxTxSize;              // bytes
+    }
+
+    /// @notice MUST be emitted when a transaction is successfully submitted.
+    event TransactionSubmitted(address indexed sender, bytes32 indexed transactionId, uint256 paidAmount);
+
+    /// @notice MUST be emitted when a transaction is confirmed on L1.
+    event TransactionConfirmed(bytes32 indexed transactionId, bytes32 l1TxHash, bytes32 l2TxHash);
+
+    /// @notice MUST be emitted when a transaction fails in the sequencer pipeline.
+    event TransactionFailed(bytes32 indexed transactionId, string errorReason);
+
+    /// @notice MUST be emitted when a sequencer is slashed for misbehavior.
+    event SequencerSlashed(address indexed sequencer, uint256 slashAmount, string reason);
+
+    /// @notice Submits a transaction to the shared sequencer.
+    /// @dev Implementations MUST be payable to cover L1 submission fees.
+    ///      Implementations MUST revert if msg.value is insufficient.
+    ///      Implementations MUST revert if transactionData is empty.
+    /// @param transactionData ABI-encoded transaction data for the target L2.
+    /// @return transactionId Unique identifier for tracking confirmation status.
+    function submitTransaction(bytes calldata transactionData)
+        external
+        payable
+        returns (bytes32 transactionId);
+
+    /// @notice Returns the confirmation status and details of a submitted transaction.
+    /// @dev MUST be a view function. Implementations MUST revert if transactionId is unknown.
+    /// @param transactionId The ID returned by submitTransaction.
+    /// @return receipt The full ConfirmationReceipt struct.
+    function getConfirmationReceipt(bytes32 transactionId)
+        external
+        view
+        returns (ConfirmationReceipt memory receipt);
+
+    /// @notice Estimates the total submission cost for given transaction data.
+    /// @dev MUST be a view function. Implementations SHOULD be accurate within ±10%.
+    /// @param transactionData The transaction data to estimate cost for.
+    /// @return totalCostWei Estimated total cost in wei.
+    function estimateSubmissionCost(bytes calldata transactionData)
+        external
+        view
+        returns (uint256 totalCostWei);
+
+    /// @notice Returns metadata about this sequencer implementation.
+    /// @dev MUST be a view function.
+    /// @return metadata The SequencerMetadata struct.
+    function getSequencerMetadata()
+        external
+        view
+        returns (SequencerMetadata memory metadata);
+}
+```
+
+## Rationale
+
+**Why `string errorReason` in `ConfirmationReceipt`?**
+The `errorReason` field is intentionally a `string` rather than a custom error type. Confirmation receipts are returned from `view` functions — there is no revert context to propagate typed errors. Human-readable strings allow agents to log and surface failure reasons. Implementations are still RECOMMENDED to use custom errors in their revert paths for gas efficiency.
+
+**Why a single `submitTransaction` rather than batching?**
+Minimal surface area maximizes composability. Batching, scheduling, and multi-sequencer routing are higher-order concerns best handled by wrapper contracts. A batch-aware interface MAY be proposed as a companion ERC extending this one.
+
+**Why `bytes calldata transactionData` in `estimateSubmissionCost`?**
+Passing the actual calldata rather than a `uint256` size allows implementations to perform byte-level cost analysis (e.g., counting zero vs. non-zero bytes for accurate L1 calldata pricing). Callers that cannot provide full data MAY pass a zero-filled byte array of the expected length.
+
+## Backwards Compatibility
+
+No backward compatibility issues. This is a new interface standard with no modifications to existing contracts, protocols, or clients.
+
+## Test Cases
+
+The reference implementation includes a Foundry test suite with 14 tests covering unit, fuzz, invariant, gas profiling, and regression cases at approximately 97% coverage. Test cases are located in the reference implementation repository under `test/MockSharedSequencer.t.sol`.
+
+## Reference Implementation
+
+The reference implementation includes:
+
+- `src/MockSharedSequencer.sol` — a complete implementation featuring `mapping`-based receipt storage (O(1) lookup), fee-based spam protection, emergency pause, and dynamic cost estimation via `block.basefee`.
+- `test/MockSharedSequencer.t.sol` — a Foundry test suite with 14 tests covering unit, fuzz, invariant, gas profiling, and regression cases.
+
+## Security Considerations
+
+**Reentrancy:** `submitTransaction` is payable. Implementations MUST use Checks-Effects-Interactions ordering or an equivalent reentrancy guard.
+
+**Front-running:** Transaction submission ordering is at sequencer discretion. Agents MUST NOT rely on submission order for time-sensitive operations.
+
+**Sequencer trust:** This standard does not enforce decentralization. The `SequencerSlashed` event is designed for decentralized implementations. Callers SHOULD call `getSequencerMetadata()` to verify the trust model before use.
+
+**Fee volatility:** `estimateSubmissionCost()` MAY use `block.basefee` which fluctuates. Callers SHOULD apply a buffer (recommended: 20%) to all estimates.
+
+**DoS via spam:** Permissionless deployments MUST implement fee or staking requirements. Without this, unbounded state growth is a griefing vector.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE).
