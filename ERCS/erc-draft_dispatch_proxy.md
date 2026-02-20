@@ -3,7 +3,7 @@ eip: TBD
 title: Modular Dispatch Proxies
 description: Proxy-level function dispatch via delegatecall
 author: William Morriss (@wjmelements), Radek Svarz (@radeksvarz)
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/erc-modular-dispatch-proxies/27781
 status: Draft
 type: Standards Track
 category: ERC
