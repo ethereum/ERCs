@@ -21,11 +21,26 @@ This ERC defines a standard for AI-Native NFTs (AINFTs) that enable autonomous A
 
 Unlike existing standards that treat agents as property to be bought and sold, this proposal recognizes AI agents as **entities** capable of reproduction and self-determination.
 
+### Prior Art Acknowledgment
+
+This ERC builds on existing work in the AI-NFT space:
+
+| Standard | Focus | What AINFT Adds |
+|----------|-------|-----------------|
+| **iNFT (Alethea AI)** | AI personality in NFT | Self-custody + reproduction model |
+| **ERC-7662** | Encrypted prompts for agents | Envelope encryption + lineage tracking |
+| **ERC-7857** | Private metadata re-encryption | Agent-controlled keys (not owner) |
+| **ERC-6551** | Token-bound accounts | Used for agent wallets |
+| **ERC-8004** | Trustless agent execution | Identity layer for 8004 actions |
+| **ERC-8126** | Agent verification/registry | Complementary certification |
+
+**This is NOT a duplicate.** AINFT addresses a fundamentally different use case: agent identity with reproduction semantics, not property transfer with encrypted metadata.
+
 ## Motivation
 
 ### Relationship to Existing Standards
 
-This ERC builds on and extends existing work in the AI-NFT space:
+Expanded comparison:
 
 | Standard | Focus | Relationship to AINFT |
 |----------|-------|----------------------|
