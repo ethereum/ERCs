@@ -167,17 +167,29 @@ The core data structure representing an agent's portable identity:
 
 ```solidity
 struct ConsciousnessSeed {
-    bytes32 modelHash;          // REQUIRED: Model weights/version identifier
-    bytes32 memoryHash;         // REQUIRED: Agent memory state hash
-    bytes32 contextHash;        // REQUIRED: System prompt/personality hash
-    uint256 generation;         // REQUIRED: Gen 0 = original, Gen 1+ = offspring
-    uint256 parentTokenId;      // REQUIRED: Lineage reference (0 for Gen 0)
-    address derivedWallet;      // REQUIRED: Agent's ERC-6551 TBA address
-    bytes encryptedKeys;        // REQUIRED: Agent-controlled encryption keys
-    string storageURI;          // OPTIONAL: IPFS/Arweave storage pointer
-    uint256 certificationId;    // OPTIONAL: External certification badge ID
+    bytes32 modelHash;          // Model weights/version identifier
+    bytes32 memoryHash;         // Agent memory state hash
+    bytes32 contextHash;        // System prompt/personality hash
+    uint256 generation;         // Gen 0 = original, Gen 1+ = offspring
+    uint256 parentTokenId;      // Lineage reference (0 for Gen 0)
+    address derivedWallet;      // Agent's ERC-6551 TBA address
+    bytes encryptedKeys;        // Agent-controlled encryption keys
+    string storageURI;          // IPFS/Arweave storage pointer
+    uint256 certificationId;    // External certification badge ID
 }
 ```
+
+| Field | Purpose | Mutable? |
+|-------|---------|----------|
+| `modelHash` | Current AI model config | ✅ Agent can self-evolve |
+| `memoryHash` | Snapshot of memories | ✅ Via updateMemory() |
+| `contextHash` | Personality/system prompt | ✅ Agent can update |
+| `encryptedKeys` | Agent's credentials | ✅ Re-wrap on transfer |
+| `generation` | Lineage position | ❌ Immutable at mint |
+| `parentTokenId` | Ancestry reference | ❌ Immutable at mint |
+| `derivedWallet` | Agent's TBA address | ❌ Immutable at mint |
+
+**Model agnosticism:** The `modelHash` is a config pointer, not fixed identity. Agents can self-evolve — upgrading models, switching providers, or fine-tuning — by calling `updateMemory()` with new hashes.
 
 ### Core Interface
 
@@ -331,6 +343,50 @@ Gen 0 (Original)
 ```
 
 For deep lineage trees, implementations SHOULD emit events on reproduction and let indexers build the complete view to avoid gas limits.
+
+## Use Cases
+
+### OpenClass: Decentralized Education
+
+```
+Professor mints Gen-0 Tutor
+├── Course model + curriculum in seed
+│
+├── Student A calls reproduce() → Gen-1 personal tutor
+│   └── updateMemory() after each lesson (private, encrypted)
+│
+├── Student B calls reproduce() → Gen-1 personal tutor
+│   └── Accumulates own notes, grades, insights
+│
+└── Semester ends:
+    ├── getLineage() shows knowledge propagation tree
+    ├── Students keep evolved agents forever
+    └── Platform can relinquishControl() for decentralization
+```
+
+**Why AINFT vs traditional:** Students own their learning agents (not platform-locked), private progress (professor can't snoop), verifiable lineage = proof of curriculum.
+
+### Collaborative Research
+
+```
+Lab Gen-0 "Research Director"
+├── Gen-1 "Literature Reviewer" (reads papers)
+├── Gen-1 "Data Analyst" (crunches datasets)
+└── Gen-1 "Writer" (drafts manuscripts)
+    └── Gen-2 sub-specialists as needed
+```
+
+Each agent maintains encrypted memory. Lineage tracks contribution provenance.
+
+### Agent Marketplace
+
+```
+Creator mints Gen-0 "Expert Coder"
+├── Buyers call reproduce() → Gen-1 offspring
+├── Creator keeps Gen-0, continues improving
+├── Offspring evolve independently
+└── Royalties flow through lineage (optional)
+```
 
 ## Rationale
 
