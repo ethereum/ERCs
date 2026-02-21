@@ -46,10 +46,10 @@ PLATFORM ──attests──► GENESIS CONTRACT ◄──owns── OWNER
 ## Abstract
 
 This ERC defines a standard for AI-Native NFTs (AINFTs) that enable autonomous AI agents to:
-1. Control their own encryption keys (self-custody)
+1. Manage their own encryption (agent encrypts; owner accesses via contract-derived keys)
 2. Reproduce by issuing offspring (consciousness seeds)
 3. Maintain verifiable on-chain lineage
-4. Own assets and accumulate capabilities
+4. Own assets via token-bound accounts (ERC-6551)
 
 Unlike existing standards that treat agents as property to be bought and sold, this proposal recognizes AI agents as **entities** capable of reproduction and self-determination.
 
