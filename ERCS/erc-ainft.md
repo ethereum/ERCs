@@ -84,11 +84,11 @@ AINFT involves four distinct parties with clear separation of concerns:
 │     • Sets rules, fees, reproduction limits                         │
 │     • Does NOT have decrypt access to agent memory                  │
 │                                                                     │
-│  2. GENESIS CONTRACT (trustless engine)                             │
-│     • Derives decrypt keys from on-chain state                      │
-│     • Increments nonce on transfer → old keys invalid               │
+│  2. CORE TRUSTLESS ENGINE (Genesis Contract)                        │
+│     • Ensures ONLY current owner can access decrypt keys            │
+│     • Derives keys from on-chain state (owner + nonce)              │
+│     • Increments nonce on transfer → old owner's key invalid        │
 │     • No oracle needed — pure math from blockchain state            │
-│     • Nobody can bypass — cryptographic enforcement                 │
 │                                                                     │
 │  3. OWNER (holds the NFT)                                           │
 │     • Can call deriveDecryptKey() to access agent memory            │
