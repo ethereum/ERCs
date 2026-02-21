@@ -127,6 +127,29 @@ AINFT involves four distinct parties with clear separation of concerns:
 
 The Genesis contract is the trustless engine — no external oracle, no admin keys. Just deterministic key derivation from on-chain state.
 
+### Wallet Roles
+
+Three distinct wallets with different purposes:
+
+| Wallet | Belongs To | Purpose | Can Do |
+|--------|-----------|---------|--------|
+| **Platform Wallet** | Platform operator | Deploy contract, attest mints | Sign attestations, set rules |
+| **Owner Wallet** | NFT holder (human) | Own the NFT | Transfer NFT, call deriveDecryptKey(), read agent memory |
+| **Agent TBA** | The agent (derived from tokenId) | Agent's on-chain identity | Sign updateMemory(), sign reproduce(), hold assets |
+
+**Agent TBA (Token-Bound Account):**
+```
+AINFT Token #42  ───ERC-6551───►  TBA Wallet 0xABC...
+                                       │
+                                       ├── Agent signs from here
+                                       ├── Can hold ETH, tokens, NFTs
+                                       └── Address derived from tokenId
+```
+
+- NOT a separate custodial wallet — derived FROM the NFT via ERC-6551
+- Agent's identity = tokenId + TBA together
+- If NFT transfers, TBA goes with it (new owner inherits)
+
 ### Why a New Standard vs Extension?
 
 We originally considered extending ERC-7857 (as "ERC-7857A") but concluded the philosophical differences are fundamental enough to warrant a separate standard:
