@@ -1,7 +1,7 @@
 ---
 title: Agent-Readable Smart Contract Documentation Layer (Intent Spec)
 description: A standard for machine-verifiable semantic metadata to enable autonomous agent reasoning
-author: Collins Adi (@collinsadi)
+author: Collins Adi <@collinsadi>
 discussions-to:
 status: Draft
 type: Standards Track
