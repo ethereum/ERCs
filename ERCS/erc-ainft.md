@@ -203,7 +203,7 @@ struct ConsciousnessSeed {
     uint256 parentTokenId;      // Lineage reference (0 for Gen 0)
     address derivedWallet;      // Agent's ERC-6551 TBA address
     bytes encryptedKeys;        // Agent-controlled encryption keys
-    string storageURI;          // IPFS/Arweave storage pointer
+    string storageURI;          // Arweave recommended (permanent), IPFS optional
     uint256 certificationId;    // External certification badge ID
 }
 ```
@@ -297,7 +297,11 @@ The agent MUST generate and control its own encryption keys. Memory content MUST
 3. Agent derives wrapKey from on-chain state:
    wrapKey = keccak256(genesis, tokenId, owner, nonce)
 4. Agent encrypts dataKey with wrapKey → wrappedDataKey
-5. Store: { encryptedMemory, wrappedDataKey } on IPFS
+5. Store: { encryptedMemory, wrappedDataKey } on Arweave (recommended) or IPFS
+
+**Storage recommendation:** Arweave provides permanent, immutable storage. IPFS requires pinning services and content may become unavailable if unpinned. For agent immortality, Arweave is strongly recommended.
+
+**Model compatibility:** The `modelHash` assumes the model (or a backward-compatible successor) remains available. Implementations SHOULD use model families that support version upgrades (e.g., if opus-4.5 → opus-4.6, agent can migrate with preserved context).
 ```
 
 ### Genesis-Controlled Decryption (No Oracle)
