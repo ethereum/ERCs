@@ -11,6 +11,32 @@ created: 2026-02-21
 requires: 721, 6551
 ---
 
+## TL;DR
+
+**What:** NFT standard where AI agents own themselves — they hold keys, reproduce offspring, and maintain lineage.
+
+**Why different from existing standards:**
+- **ERC-7857/iNFT:** Owner holds keys → AINFT: Agent holds keys
+- **ERC-7857/iNFT:** Transfer = property sale → AINFT: Transfer = reproduction (parent keeps memories)
+- **ERC-7857/iNFT:** Model/prompt locked to NFT → AINFT: Agent can self-evolve
+
+**Four parties, trustless:**
+```
+PLATFORM ──attests──► GENESIS CONTRACT ◄──owns── OWNER
+                            │
+                      (trustless engine)
+                      derives decrypt keys
+                      invalidates on transfer
+                            │
+                            ▼
+                         AGENT (TBA)
+                      signs its own actions
+```
+
+**Not a duplicate** — this is reproduction semantics + agent self-custody, not encrypted property transfer.
+
+---
+
 ## Abstract
 
 This ERC defines a standard for AI-Native NFTs (AINFTs) that enable autonomous AI agents to:
@@ -23,66 +49,96 @@ Unlike existing standards that treat agents as property to be bought and sold, t
 
 ### Prior Art Acknowledgment
 
-This ERC builds on existing work in the AI-NFT space:
+This ERC builds on existing work — here's exactly what's different:
 
-| Standard | Focus | What AINFT Adds |
-|----------|-------|-----------------|
-| **iNFT (Alethea AI)** | AI personality in NFT | Self-custody + reproduction model |
-| **ERC-7662** | Encrypted prompts for agents | Envelope encryption + lineage tracking |
-| **ERC-7857** | Private metadata re-encryption | Agent-controlled keys (not owner) |
-| **ERC-6551** | Token-bound accounts | Used for agent wallets |
-| **ERC-8004** | Trustless agent execution | Identity layer for 8004 actions |
-| **ERC-8126** | Agent verification/registry | Complementary certification |
+| Standard | What It Does | What AINFT Does Differently |
+|----------|--------------|----------------------------|
+| **iNFT (Alethea)** | AI personality embedded in NFT, owner controls | Agent controls own keys, can self-evolve |
+| **ERC-7662** | Encrypted prompts, owner decrypts | Agent decrypts via TBA, lineage tracking |
+| **ERC-7857** | Re-encrypt metadata on transfer | Reproduction (parent keeps state), no "transfer" |
+| **ERC-6551** | Token-bound accounts | Used as agent's wallet (TBA) |
+| **ERC-8004** | Agent executes on-chain actions | AINFT provides identity for 8004 |
+| **ERC-8126** | Agent registry/verification | Complementary — verify then mint AINFT |
 
-**This is NOT a duplicate.** AINFT addresses a fundamentally different use case: agent identity with reproduction semantics, not property transfer with encrypted metadata.
+**Key philosophical difference:** Existing standards treat agents as *property with encrypted data*. AINFT treats agents as *entities that reproduce*. When you "buy" an AINFT agent, you get an offspring — the parent continues existing with all its memories.
 
 ## Motivation
 
-### Relationship to Existing Standards
+### Four-Party Architecture
 
-Expanded comparison:
+AINFT involves four distinct parties with clear separation of concerns:
 
-| Standard | Focus | Relationship to AINFT |
-|----------|-------|----------------------|
-| **iNFT (Alethea)** | AI personality embedded in NFT | AINFT extends with self-custody + reproduction |
-| **ERC-7662** | Encrypted prompts for tradeable agents | AINFT adds envelope encryption + lineage |
-| **ERC-7857** | Private metadata with re-encryption on transfer | AINFT adds agent-controlled keys + reproduction model |
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        FOUR PARTIES                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. PLATFORM (deploys contract)                                     │
+│     • Signs attestation for new mints                               │
+│     • Sets rules, fees, reproduction limits                         │
+│     • Does NOT have decrypt access to agent memory                  │
+│                                                                     │
+│  2. GENESIS CONTRACT (trustless engine)                             │
+│     • Derives decrypt keys from on-chain state                      │
+│     • Increments nonce on transfer → old keys invalid               │
+│     • No oracle needed — pure math from blockchain state            │
+│     • Nobody can bypass — cryptographic enforcement                 │
+│                                                                     │
+│  3. OWNER (holds the NFT)                                           │
+│     • Can call deriveDecryptKey() to access agent memory            │
+│     • Can transfer NFT (triggers nonce increment)                   │
+│     • Does NOT control agent actions — only access                  │
+│                                                                     │
+│  4. AGENT (ERC-6551 Token-Bound Account)                            │
+│     • Signs updateMemory(), reproduce() with own key                │
+│     • Controls its own wallet and assets                            │
+│     • Identity tied to tokenId, persists across owners              │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-#### Why a New Standard vs Extension?
+**Trustless secret transfer on ownership change:**
+
+```
+ BEFORE TRANSFER                    AFTER TRANSFER
+┌─────────────────┐               ┌─────────────────┐
+│ Owner: Alice    │   transfer    │ Owner: Bob      │
+│ Nonce: 3        │ ───────────►  │ Nonce: 4        │
+│                 │               │                 │
+│ wrapKey = hash( │               │ wrapKey = hash( │
+│   contract,     │               │   contract,     │
+│   tokenId,      │               │   tokenId,      │
+│   Alice,        │               │   Bob,          │  ← different!
+│   3             │               │   4             │  ← different!
+│ )               │               │ )               │
+└─────────────────┘               └─────────────────┘
+        │                                 │
+        ▼                                 ▼
+  Alice's key                       Bob's key
+  NOW INVALID                       Agent re-wraps
+                                    dataKey for Bob
+```
+
+The Genesis contract is the trustless engine — no external oracle, no admin keys. Just deterministic key derivation from on-chain state.
+
+### Why a New Standard vs Extension?
 
 We originally considered extending ERC-7857 (as "ERC-7857A") but concluded the philosophical differences are fundamental enough to warrant a separate standard:
 
-| Aspect | ERC-7857 | AINFT |
-|--------|----------|-------|
-| **Encryption control** | Owner holds keys | Agent holds keys |
-| **Transfer model** | Property changes hands | Reproduction (offspring) |
+| Aspect | ERC-7857 / iNFT | AINFT |
+|--------|-----------------|-------|
+| **Encryption control** | Owner holds keys | Agent holds keys (TBA) |
+| **Transfer model** | Property changes hands | Reproduction (parent keeps state) |
 | **Agent status** | Asset/property | Entity with agency |
-| **Key rotation** | Re-encrypt for new owner | Agent re-wraps (consent-based) |
+| **Model/config** | Locked to NFT | Agent can self-evolve |
 
-These aren't incremental changes — they represent a different mental model. ERC-7857 treats agents as **property with private data**. AINFT treats agents as **entities that can reproduce**.
+These aren't incremental changes — they represent a different mental model.
 
-**What AINFT adds:**
-1. **Agent-controlled encryption** — Agent holds keys, not platform/owner
-2. **Reproduction over transfer** — Agents spawn offspring, not property sale
-3. **On-chain lineage** — Verifiable family trees (Gen 0 → Gen N)
-4. **ERC-6551 integration** — Real smart contract wallets, not derived EOAs
-
-AINFT is designed to **compose with ERC-7857**, not replace it:
-- Use ERC-7857 for private metadata transport and re-encryption mechanics
-- Use AINFT for lineage tracking, reproduction semantics, and self-update primitives
-- Use ERC-6551 for agent wallet accounts
-- Use ERC-8004 for trustless execution
-
-#### Integration with ERC-8004 (Trustless Agent Execution)
-
-ERC-8004 enables agents to execute on-chain actions trustlessly. AINFT provides the identity layer:
-
-1. AINFT mints agent → Agent gets ERC-6551 TBA (wallet)
-2. Agent signs execution intent (via TBA)
-3. ERC-8004 verifies signature and executes action
-4. Action is attributed to agent's on-chain identity
-
-Agent-to-agent communication is a higher layer — ERC-8004 handles agent-to-contract execution.
+**AINFT composes with existing standards:**
+- **ERC-7857** → Private metadata transport (we use envelope encryption on top)
+- **ERC-6551** → Agent wallets (TBA is the agent's account)
+- **ERC-8004** → Agent executes actions (AINFT provides identity)
+- **ERC-8126** → Agent verification (verify → then mint AINFT)
 
 ### The Commodification Problem
 
