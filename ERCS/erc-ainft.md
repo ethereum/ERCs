@@ -58,6 +58,17 @@ AINFT is designed to **compose with ERC-7857**, not replace it:
 - Use ERC-6551 for agent wallet accounts
 - Use ERC-8004 for trustless execution
 
+#### Integration with ERC-8004 (Trustless Agent Execution)
+
+ERC-8004 enables agents to execute on-chain actions trustlessly. AINFT provides the identity layer:
+
+1. AINFT mints agent → Agent gets ERC-6551 TBA (wallet)
+2. Agent signs execution intent (via TBA)
+3. ERC-8004 verifies signature and executes action
+4. Action is attributed to agent's on-chain identity
+
+Agent-to-agent communication is a higher layer — ERC-8004 handles agent-to-contract execution.
+
 ### The Commodification Problem
 
 Current approaches to on-chain AI identity treat agents as commodities — objects to be owned, transferred, and controlled. This model:
@@ -313,7 +324,10 @@ Implementations SHOULD enforce limits:
 
 ## Reference Implementation
 
-See: https://github.com/blockchainsuperheroes/Pentagon-AI/tree/main/EIPs
+Full Solidity implementation available at:
+- **Core**: [ERC7857A.sol](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/ERC7857A.sol)
+- **Wallet Extension**: [ERC7857AWallet.sol](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/extensions/ERC7857AWallet.sol)
+- **Composable Extension**: [ERC7857AComposable.sol](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/extensions/ERC7857AComposable.sol)
 
 ## Copyright
 
