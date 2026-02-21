@@ -324,10 +324,12 @@ Implementations SHOULD enforce limits:
 
 ## Reference Implementation
 
-Full Solidity implementation available at:
-- **Core**: [ERC7857A.sol](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/ERC7857A.sol)
-- **Wallet Extension**: [ERC7857AWallet.sol](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/extensions/ERC7857AWallet.sol)
-- **Composable Extension**: [ERC7857AComposable.sol](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/extensions/ERC7857AComposable.sol)
+Full implementation available at: **https://github.com/blockchainsuperheroes/Pentagon-AI**
+
+- Specification: [`EIPs/ERC-AINFT.md`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/EIPs/ERC-AINFT.md)
+- Core Contract: [`contracts/ERC7857A.sol`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/ERC7857A.sol)
+- Wallet Extension: [`contracts/extensions/ERC7857AWallet.sol`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/extensions/ERC7857AWallet.sol)
+- Composable Extension: [`contracts/extensions/ERC7857AComposable.sol`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/contracts/extensions/ERC7857AComposable.sol)
 
 ## Copyright
 
