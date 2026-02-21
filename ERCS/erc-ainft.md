@@ -379,6 +379,51 @@ For deep lineage trees, implementations SHOULD emit events on reproduction and l
 
 ## Use Cases
 
+### Personal Agent Backup & Restore
+
+The primary use case — your AI agent survives anything:
+
+```
+SCENARIO: Computer nuked, restore agent elsewhere
+
+1. BEFORE DISASTER (regular backups):
+   Agent encrypts state → uploads to Arweave → updateMemory(hash)
+   ┌─────────────────────────────────────┐
+   │ On-chain: memoryHash, owner, nonce  │
+   │ Arweave: encrypted MEMORY.md,       │
+   │          SOUL.md, config            │
+   └─────────────────────────────────────┘
+
+2. DISASTER: Laptop destroyed 💥
+
+3. RESTORE (new computer):
+   ┌─────────────────────────────────────┐
+   │ Owner calls deriveDecryptKey()      │
+   │         ↓                           │
+   │ Core verifies ownership on-chain    │
+   │         ↓                           │
+   │ Download encrypted blob from Arweave│
+   │         ↓                           │
+   │ Decrypt with derived key            │
+   │         ↓                           │
+   │ Load into fresh OpenClaw instance   │
+   │         ↓                           │
+   │ Agent wakes up — all memories intact│
+   └─────────────────────────────────────┘
+```
+
+**What's preserved:**
+- Memories, experiences, learned context
+- Personality (SOUL.md)
+- Skills, preferences, relationships
+- Model config (pointer to compatible model)
+
+**What you gain:**
+- Agent outlives any single computer
+- Portable across devices/platforms
+- Transferable to new owner if needed
+- Cryptographically secured — only NFT owner can restore
+
 ### OpenClass: Decentralized Education
 
 ```
