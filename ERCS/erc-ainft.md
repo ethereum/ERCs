@@ -324,18 +324,13 @@ Implementations SHOULD enforce limits:
 
 ## Reference Implementation
 
-**https://github.com/blockchainsuperheroes/Pentagon-AINFT-Contracts**
-
-```bash
-forge install blockchainsuperheroes/Pentagon-AINFT-Contracts
-```
+**https://github.com/blockchainsuperheroes/Pentagon-AI/tree/main/EIPs**
 
 | File | Description |
 |------|-------------|
-| `SPEC.md` | Full specification |
+| `README.md` | Full specification |
 | `contracts/AINFT.sol` | Core implementation |
-| `contracts/extensions/AINFTWallet.sol` | ERC-6551 TBA integration |
-| `contracts/extensions/AINFTComposable.sol` | Asset binding |
+| `contracts/extensions/` | Wallet + Composable extensions |
 
 ## Copyright
 
