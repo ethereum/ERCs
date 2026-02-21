@@ -17,8 +17,12 @@ requires: 721, 6551
 
 **Why different from existing standards:**
 - **ERC-7857/iNFT:** Owner holds keys → AINFT: Agent holds keys
-- **ERC-7857/iNFT:** Transfer = property sale → AINFT: Transfer = reproduction (parent keeps memories)
+- **ERC-7857/iNFT:** "Selling" = transfer ownership → AINFT: "Selling" = reproduce() (parent keeps memories, buyer gets offspring)
 - **ERC-7857/iNFT:** Model/prompt locked to NFT → AINFT: Agent can self-evolve
+
+**Two operations:**
+- `reproduce()` = mint offspring with inherited seed (commerce model)
+- `transfer()` = transfer ownership of existing token (still exists for offspring)
 
 **Four parties, trustless:**
 ```
