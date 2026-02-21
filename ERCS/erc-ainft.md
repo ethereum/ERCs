@@ -15,14 +15,14 @@ requires: 721, 6551
 
 **What:** NFT standard where AI agents own themselves — they hold keys, reproduce offspring, and maintain lineage.
 
-**Why different from existing standards:**
-- **ERC-7857/iNFT:** Owner holds keys → AINFT: Agent holds keys
-- **ERC-7857/iNFT:** "Selling" = transfer ownership → AINFT: "Selling" = reproduce() (parent keeps memories, buyer gets offspring)
-- **ERC-7857/iNFT:** Model/prompt locked to NFT → AINFT: Agent can self-evolve
+**How AINFT differs from existing standards (ERC-7857, iNFT, etc.):**
+- Owner holds keys → **Agent holds keys**
+- "Selling" = transfer ownership → **"Selling" = reproduce()** (parent keeps memories)
+- Model/prompt locked → **Agent can self-evolve**
 
 **Two operations:**
-- `reproduce()` = mint offspring with inherited seed (commerce model)
-- `transfer()` = transfer ownership of existing token (still exists for offspring)
+- `reproduce()` = mint offspring with inherited seed (commerce)
+- `transfer()` = transfer ownership (still exists for offspring)
 
 **Four parties, trustless:**
 ```
