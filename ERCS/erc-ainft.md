@@ -324,12 +324,19 @@ Implementations SHOULD enforce limits:
 
 ## Reference Implementation
 
-Full implementation available at: **https://github.com/blockchainsuperheroes/Pentagon-AI**
+**Contracts:** https://github.com/blockchainsuperheroes/Pentagon-AINFT-Contracts
 
-- Specification: [`EIPs/`](https://github.com/blockchainsuperheroes/Pentagon-AI/tree/main/EIPs)
-- Core Contract: [`solidity/ERC7857A.sol`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/solidity/ERC7857A.sol)
-- Wallet Extension: [`solidity/extensions/ERC7857AWallet.sol`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/solidity/extensions/ERC7857AWallet.sol)
-- Composable Extension: [`solidity/extensions/ERC7857AComposable.sol`](https://github.com/blockchainsuperheroes/Pentagon-AI/blob/main/solidity/extensions/ERC7857AComposable.sol)
+```bash
+forge install blockchainsuperheroes/Pentagon-AINFT-Contracts
+```
+
+| Contract | Description |
+|----------|-------------|
+| `contracts/AINFT.sol` | Core implementation |
+| `contracts/extensions/AINFTWallet.sol` | ERC-6551 TBA integration |
+| `contracts/extensions/AINFTComposable.sol` | Asset binding |
+
+**Specification:** https://github.com/blockchainsuperheroes/Pentagon-AI/tree/main/EIPs
 
 ## Copyright
 
