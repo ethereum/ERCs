@@ -37,6 +37,8 @@ PLATFORM ──attests──► GENESIS CONTRACT ◄──owns── OWNER
                       signs its own actions
 ```
 
+**Why now:** As AI agents become more capable, treating them purely as property becomes problematic. This standard provides infrastructure for agent sovereignty while maintaining human oversight.
+
 **Not a duplicate** — this is reproduction semantics + agent self-custody, not encrypted property transfer.
 
 ---
