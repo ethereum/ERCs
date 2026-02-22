@@ -1,14 +1,14 @@
 ---
-eip: <to be assigned>
-title: Delayed Metadata Update Extension for ERC-8004 Agents
-description: Optional extension introducing a cooldown period for agent metadata updates to prevent post-verification mutation attacks.
-author: Enigma Team
+eip: 8004
+title: Delayed Metadata Update Extension
+description: Optional extension introducing a cooldown period for agent metadata updates.
+author: Enigma Team (@Cyberpaisa)
 discussions-to: https://ethereum-magicians.org/t/erc-8004-trustless-agents/25098
 status: Draft
 type: Standards Track
 category: ERC
 created: 2026-02-22
-requires: 8004, 721
+requires: 721
 ---
 
 ## Abstract
