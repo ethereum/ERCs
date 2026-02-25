@@ -473,11 +473,11 @@ contract OwnershipFacet is IERC173 {
 // when the `diamondCut` function is called.
 // It is expected that this contract is customized if you want to deploy your diamond
 // with data from a deployment script. Use the init function to initialize state variables
-// of your diamond. Add parameters to the init funciton if you need to.
+// of your diamond. Add parameters to the init function if you need to.
 // DiamondInit can be used during deployment or for upgrades.
 
 // Adding parameters to the `init` or other functions you add here can make a single deployed
-// DiamondInit contract reusable accross upgrades, and can be used for multiple diamonds.
+// DiamondInit contract reusable across upgrades, and can be used for multiple diamonds.
 
 contract DiamondInit {    
 

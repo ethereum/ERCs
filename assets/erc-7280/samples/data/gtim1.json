@@ -1,0 +1,67 @@
+{
+  "flightEmissions": [
+    {
+      "flight": {
+        "origin": "ZRH",
+        "destination": "CDG",
+        "operatingCarrierCode": "AF",
+        "flightNumber": 1115,
+        "departureDate": {
+          "year": 2024,
+          "month": 6,
+          "day": 1
+        }
+      },
+      "emissionsGramsPerPax": {
+        "first": 92137,
+        "business": 92137,
+        "premiumEconomy": 61425,
+        "economy": 61425
+      }
+    },
+    {
+      "flight": {
+        "origin": "CDG",
+        "destination": "BOS",
+        "operatingCarrierCode": "AF",
+        "flightNumber": 334,
+        "departureDate": {
+          "year": 2024,
+          "month": 6
+          "day": 1
+        }
+      },
+      "emissionsGramsPerPax": {
+        "first": 1384120,
+        "business": 1107296,
+        "premiumEconomy": 415236,
+        "economy": 276824
+      }
+    },
+    {
+      "flight": {
+        "origin": "ZRH",
+        "destination": "BOS",
+        "operatingCarrierCode": "LX",
+        "flightNumber": 52,
+        "departureDate": {
+          "year": 2024,
+          "month": 5,
+          "day": 1
+        }
+      },
+      "emissionsGramsPerPax": {
+        "first": 1887615,
+        "business": 1510092,
+        "premiumEconomy": 566284,
+        "economy": 377523
+      }
+    }
+  ],
+  "modelVersion": {
+    "major": 1,
+    "minor": 7,
+    "patch": 0,
+    "dated": "20230817"
+  }
+}

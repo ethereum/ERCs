@@ -1,0 +1,80 @@
+{
+  "token_attributes": [
+    {
+      "name": "level",
+      "type": "uint"
+    },
+    {
+      "name": "attack",
+      "type": "uint"
+    },
+    {
+      "name": "dual mode",
+      "type": "boolean",
+      "conditional_value": { "<": [0, { "var": "level" }, 10] }
+    },
+    {
+      "name": "block_chance",
+      "type": "uint",
+      "decimals": 5,
+      "conditional_value": {
+        "if": [
+          { "==": [{ "var": "level" }, 0] },
+          0,
+          { "<": [{ "var": "level" }, 5] },
+          200,
+          { "<": [{ "var": "level" }, 10] },
+          500,
+          800
+        ]
+      }
+    },
+    {
+      "name": "attack_boost",
+      "type": "uint",
+      "decimals": 2,
+      "modifiers": [
+        {
+          "new_value": {
+            "/": [
+              { "*": [{ "var": "parent.attack" }, { "var": "value" }] },
+              100
+            ]
+          },
+          "target_attribute": "parent.attack"
+        }
+      ]
+    },
+    {
+      "name": "stats",
+      "type": "uint",
+      "multi_storage": [
+        {
+          "from": 0,
+          "to": 24,
+          "name": "defense"
+        },
+        {
+          "from": 25,
+          "to": 28,
+          "name": "attack"
+        },
+        {
+          "from": 29,
+          "to": 52,
+          "name": "health"
+        }
+      ]
+    }
+  ],
+  "collection_attributes": [
+    {
+      "name": "max_level",
+      "type": "uint"
+    },
+    {
+      "name": "health_recovered_by_hour",
+      "type": "uint"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ pragma solidity >=0.8.0 <0.9.0;
  * @member chainId: The chain where the o-transaction is initiated
  * @member initiateSC: The contract address from which the o-transaction is first initiated
  * @member from: The Omniverse account which signs the o-transaction
- * @member payload: The encoded bussiness logic data, which is maintained by the developer
+ * @member payload: The encoded business logic data, which is maintained by the developer
  * @member signature: The signature of the above informations. 
  */
 struct ERC6358TransactionData {
@@ -39,7 +39,7 @@ interface IERC6358 {
      * Note: The actual execution of an omniverse transaction is RECOMMENDED to be in another function and MAY be delayed for a time,
      * which is determined all by who publishes an O-DLT token
      * @param _data: the omniverse transaction data with type {ERC6358TransactionData}
-     * See more information in the defination of {ERC6358TransactionData}
+     * See more information in the definition of {ERC6358TransactionData}
      *
      * Emit a {TransactionSent} event
      */

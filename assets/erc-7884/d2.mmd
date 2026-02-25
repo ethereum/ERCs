@@ -1,0 +1,16 @@
+sequenceDiagram
+  Note over Client: calldata = encode(func(...args))
+  rect rgb(220, 240, 220)
+      Note over Client,L1 Contract: view call
+      Client ->> L1 Contract: getOperationHandler(calldata)
+      L1 Contract -->> Client: revert OperationHandledOffchain(sender, url, data)
+  end
+  Client ->> Client: EIP-712 signature
+
+  rect rgb(220, 220, 240)
+      Note over Client,Gateway: HTTP request
+      Client->>Gateway: POST url {sender, data, signature}
+      Gateway->>Gateway: Verify EIP-712 signature
+      Gateway->>Gateway: Process mutation
+      Gateway -->> Client: response
+  end
