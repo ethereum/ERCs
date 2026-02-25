@@ -2,8 +2,8 @@
 'https://plantuml.com/sequence-diagram
 title SmartDerivativeContract (ERC-6123). Variant with Cash- and Collateral-Token and off-chain Valuation Oracle
 
-actor CP1
-actor CP2
+actor "Counterparty 1" as CP1
+actor "Counterparty 2" as CP2
 
 participant SDC [
     **SDC** :
@@ -60,6 +60,10 @@ loop Every Settlement
 
     alt Adjust Collateral
 
+        note left of CollateralToken #white
+          Collateral Adjustment reflecting Market Move
+        end note
+
         SDC->CollateralToken: tx '**transferAndCallback**' transfer collateral adjustment
 
     else success
@@ -86,11 +90,16 @@ loop Every Settlement
 
 
     ' hack - invisible boundary for the activation
-    EventHandler-[#FFF]->SDC
-    alt Upon Coupon Payment - **Secure Delivery (Collateral) versus Payment (Cash)**
+    EventHandler<-[#FFF]->SDC
+    alt #F0F0F0 Upon Coupon Payment - **Secure Delivery (Collateral) versus Payment (Cash)**
+
+        note left of CollateralToken #white
+          Atomic DvP: of Cash vs Collateral
+        end note
 
         activate SDC #8080FF
-        |||
+        ' hack - invisible to widen the boundary
+        EventHandler<-[#F0F0F0]->SDC:
         SDC->CollateralToken: tx '**transferAndCallback**' lock collateral
 
         activate CollateralToken #40C040
@@ -140,7 +149,6 @@ loop Every Settlement
 
     end
 
-
 == TradeState '**Settled**' ==
 
     EventHandler-[#FFF]->SDC
@@ -165,11 +173,12 @@ loop Every Settlement
 
     end
 
+    end
 
     ' hack - invisible boundary for the activation
     SDC-[#FFF]->EventHandler
 
-    alt <color:red>Upon Termination (Settlement Failed)</color>
+    alt #FFF8F8 <color:red>Upon Termination</color>
 
         activate SDC #8080FF
 
@@ -177,16 +186,16 @@ loop Every Settlement
         SDC-->EventHandler: emit SettlementFailed
 
         SDC->CollateralToken: tx '**transferBatchAndCallback**'\n- transfer Settlement Amount from SDC Balance to Receiving Party\n- transfer Termination Fee from SDC Balance to Receiving Party\n- transfer Release remaining balances to parties
-        activate CollateralToken #40C040
-        SDC-->EventHandler: emit TradeTerminated
-
         deactivate SDC
+        activate CollateralToken #40C040
         CollateralToken->SDC: callback tx '**afterTransfer**'
         deactivate CollateralToken
+
         activate SDC #8080FF
+        SDC-->EventHandler: emit TradeTerminated
 
         ' hack - invisible to activate life line
-        SDC-[#FFF]->SDC
+        SDC-[#FFFCFC]->SDC
 
         destroy SDC
         deactivate SDC
@@ -195,7 +204,6 @@ loop Every Settlement
 
     end
 
-
-end
+        |||
 
 @enduml
