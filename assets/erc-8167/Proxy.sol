@@ -40,11 +40,12 @@ contract FullAdmin is Setup {
     function uninstall(bytes4 selector) public onlyOwner {
         ProxyAdminStorage storage sudo = adminStorage();
         require(sudo.selectorInfo[selector].delegate != FUNCTION_NOT_FOUND);
+        // O(1) swap and pop
         uint96 index = sudo.selectorInfo[selector].index;
-        delete sudo.selectorInfo[selector];
         bytes4 last = sudo.selectors[sudo.selectors.length - 1];
-        sudo.selectors[index] = last;
         sudo.selectorInfo[last].index = index;
+        delete sudo.selectorInfo[selector];
+        sudo.selectors[index] = last;
         sudo.selectors.pop();
         emit IERC8167.SetDelegate(selector, FUNCTION_NOT_FOUND);
     }
@@ -72,8 +73,10 @@ contract ProxyStorageView is IERC8167, ProxyStorageBase {
 }
 
 contract Proxy is ProxyStorageBase {
+    // A modular dispatch proxy constructor SHOULD configure at least one delegate
     constructor() {
         address installDelegate = address(new Setup(msg.sender));
+        // Setup bootstraps itself, installing `install`
         (bool success,) = installDelegate.delegatecall(
             abi.encodeWithSelector(Setup.install.selector, Setup.install.selector, installDelegate)
         );
@@ -81,8 +84,14 @@ contract Proxy is ProxyStorageBase {
     }
 
     fallback() external payable {
-        address delegate = adminStorage().selectorInfo[msg.sig].delegate;
-        require(delegate != FUNCTION_NOT_FOUND, IERC8167.FunctionNotFound(msg.sig));
+        SelectorInfo storage info = adminStorage().selectorInfo[msg.sig];
+        uint256 delegate;
+        assembly ("memory-safe") {
+            // No need to bitmask away the info.index
+            // EVM delegatecall evaluates address modulo 2^{160}
+            delegate := sload(info.slot)
+        }
+        require(delegate != 0, IERC8167.FunctionNotFound(msg.sig));
         assembly ("memory-safe") {
             calldatacopy(0, 0, calldatasize())
             let success := delegatecall(gas(), delegate, 0, calldatasize(), 0, 0)

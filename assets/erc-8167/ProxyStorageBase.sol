@@ -13,10 +13,11 @@ contract ProxyStorageBase {
     }
 
     function adminStorage() internal pure returns (ProxyAdminStorage storage sudo) {
-        // 0xf3435b31e1c1e77c1a
-        uint256 s = uint72(bytes9(keccak256("erc8167.admin.delegates")));
+        // Solady storage layout pattern:
+        // Truncating the offset reduces codesize by 23 bytes
+        // uint72(bytes9(keccak256("erc8167.admin.delegates")))
         assembly ("memory-safe") {
-            sudo.slot := s
+            sudo.slot := 0xf3435b31e1c1e77c1a
         }
     }
 }
