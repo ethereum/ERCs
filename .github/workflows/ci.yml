@@ -51,6 +51,16 @@ jobs:
       - name: Restore EIPs mtimes from git history
         uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2.3
 
+      - name: Debug EIPs mtimes after restore
+        run: |
+          echo "=== EIPs mtime samples (after git-restore-mtime) ==="
+          stat -c '%n %y' EIPS/eip-20.md EIPS/eip-721.md EIPS/eip-1.md 2>/dev/null || \
+          ls -l --time-style=full-iso EIPS/eip-20.md EIPS/eip-721.md EIPS/eip-1.md 2>/dev/null
+          echo "=== git log dates for comparison ==="
+          for f in EIPS/eip-20.md EIPS/eip-721.md EIPS/eip-1.md; do
+            echo "$f: $(git log -1 --format='%ci' -- "$f" 2>/dev/null)"
+          done
+
       - name: Get EIPs Version
         id: eips
         run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
@@ -66,6 +76,21 @@ jobs:
         uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2.3
         with:
           working-directory: ERCs
+
+      - name: Debug ERCs mtimes after restore
+        run: |
+          echo "=== ERCs mtime samples (after git-restore-mtime) ==="
+          stat -c '%n %y' ERCs/ERCS/erc-20.md ERCs/ERCS/erc-721.md ERCs/ERCS/erc-5485.md 2>/dev/null || \
+          ls -l --time-style=full-iso ERCs/ERCS/erc-20.md ERCs/ERCS/erc-721.md ERCs/ERCS/erc-5485.md 2>/dev/null
+          echo "=== git log dates for comparison ==="
+          cd ERCs
+          for f in ERCS/erc-20.md ERCS/erc-721.md ERCS/erc-5485.md; do
+            echo "$f: $(git log -1 --format='%ci' -- "$f" 2>/dev/null)"
+          done
+          echo ""
+          echo "=== Check if EIPs mtimes survived ERCs checkout ==="
+          stat -c '%n %y' $GITHUB_WORKSPACE/EIPS/eip-20.md 2>/dev/null || \
+          ls -l --time-style=full-iso $GITHUB_WORKSPACE/EIPS/eip-20.md 2>/dev/null
 
       - name: Get Changed Files
         id: changed
@@ -103,6 +128,16 @@ jobs:
           find . -name "erc-*" -type d -exec sh -c 'echo mv "$1" "$(echo "$1" | sed s/erc/eip/)"' _ {} \; | sh
           cd $GITHUB_WORKSPACE
           rm -rf ERCs
+
+      - name: Debug mtimes after merge
+        run: |
+          echo "=== EIPS/ mtimes after merge (should match git log dates) ==="
+          stat -c '%n %y' EIPS/eip-20.md EIPS/eip-721.md EIPS/eip-1.md 2>/dev/null || \
+          ls -l --time-style=full-iso EIPS/eip-20.md EIPS/eip-721.md EIPS/eip-1.md 2>/dev/null
+          echo "=== Merged ERC files (renamed to eip-*) ==="
+          stat -c '%n %y' EIPS/eip-5485.md 2>/dev/null || \
+          ls -l --time-style=full-iso EIPS/eip-5485.md 2>/dev/null
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@fb404b9557c186e349162b0d8efb06e2bc36edea # v1.232.0
         with:
