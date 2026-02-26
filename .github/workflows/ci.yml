@@ -128,6 +128,37 @@ jobs:
           restore-keys: |
             jekyll-${{ runner.os }}-
 
+      - name: Debug Cache & Timestamps
+        run: |
+          echo "=== Cache Status ==="
+          echo "cache-hit: ${{ steps.cache.outputs.cache-hit }}"
+          echo "cache-matched-key: ${{ steps.cache.outputs.cache-matched-key }}"
+          echo "changed mode: ${{ steps.changed.outputs.mode }}"
+          echo ""
+          echo "=== .jekyll-metadata ==="
+          if [ -f ".jekyll-metadata" ]; then
+            echo "EXISTS, size: $(wc -c < .jekyll-metadata) bytes"
+            echo "First 20 lines:"
+            head -20 .jekyll-metadata
+          else
+            echo "NOT FOUND"
+          fi
+          echo ""
+          echo "=== _site directory ==="
+          if [ -d "_site" ]; then
+            echo "EXISTS, file count: $(find _site -type f | wc -l)"
+          else
+            echo "NOT FOUND"
+          fi
+          echo ""
+          echo "=== Sample source file mtimes (EIPS/) ==="
+          ls -l --time-style=full-iso EIPS/eip-20.md EIPS/eip-721.md EIPS/eip-1.md 2>/dev/null | awk '{print $6, $7, $9}'
+          echo ""
+          echo "=== Sample mtimes from .jekyll-metadata (if exists) ==="
+          if [ -f ".jekyll-metadata" ]; then
+            grep -E "eip-20\.md|eip-721\.md|eip-1\.md" .jekyll-metadata | head -6
+          fi
+
       # See .github/workflows/README.md for how incremental builds and caching work.
       - name: Build Website
         run: |
