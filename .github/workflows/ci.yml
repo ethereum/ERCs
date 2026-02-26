@@ -171,6 +171,7 @@ jobs:
           key: jekyll-${{ runner.os }}-eips-${{ steps.eips.outputs.sha }}
           restore-keys: |
             jekyll-${{ runner.os }}-
+          save-always: true
 
       - name: Debug Cache & Timestamps
         run: |
