@@ -125,4 +125,6 @@ from the previous step would be lost.
 
 In incremental mode, HTMLProofer only checks the pages corresponding to
 changed ERCs (e.g., `_site/EIPS/eip-1234/`), avoiding a full-site scan
-that would add several minutes.
+that would add several minutes. The `--root-dir ./_site` flag is required
+so that internal links from layouts (e.g., `/assets/css/style.css`, `/all`)
+resolve correctly against the full built site, not just the individual file.
