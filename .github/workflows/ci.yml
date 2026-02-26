@@ -46,11 +46,39 @@ jobs:
         with:
           repository: ethereum/EIPs
           path: ''
+
+      - name: Get EIPs Version
+        id: eips
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: Checkout ERCs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: ethereum/ERCs
           path: ERCs
+
+      - name: Get Changed Files
+        id: changed
+        continue-on-error: true
+        run: |
+          ALL_CHANGED=$(gh pr diff ${{ github.event.number }} --name-only --repo ${{ github.repository }})
+          NON_ERC=$(echo "$ALL_CHANGED" | grep -v -E '^(ERCS/erc-[0-9]+\.md|assets/erc-[0-9]+/)' | grep -v '^\s*$' || true)
+          if [ -n "$NON_ERC" ]; then
+            echo "Non-ERC files changed, will run full check"
+            echo "mode=full" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          CHANGED_NUMS=$(echo "$ALL_CHANGED" | grep -oE 'erc-[0-9]+' | sed 's/erc-//' | sort -u | tr '\n' ' ')
+          if [ -z "$CHANGED_NUMS" ]; then
+            echo "mode=full" >> $GITHUB_OUTPUT
+          else
+            echo "mode=incremental" >> $GITHUB_OUTPUT
+            echo "nums=${CHANGED_NUMS}" >> $GITHUB_OUTPUT
+            echo "Will check only changed ERCs: ${CHANGED_NUMS}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Merge Repos
         run: |
           mkdir -p $GITHUB_WORKSPACE/ERCs/ERCS
@@ -58,6 +86,7 @@ jobs:
           cp -rp $GITHUB_WORKSPACE/ERCs/ERCS/. $GITHUB_WORKSPACE/EIPS
           cp -rp $GITHUB_WORKSPACE/ERCs/EIPS/. $GITHUB_WORKSPACE/EIPS
           cp -rp $GITHUB_WORKSPACE/ERCs/assets/. $GITHUB_WORKSPACE/assets
+          cp -rp $GITHUB_WORKSPACE/ERCs/_layouts/. $GITHUB_WORKSPACE/_layouts 2>/dev/null || true
           cd $GITHUB_WORKSPACE/EIPS
           find . -name "erc-*.md" -type f -exec sh -c 'echo mv "$1" "$(echo "$1" | sed s/erc/eip/)"' _ {} \; | sh
           cd $GITHUB_WORKSPACE/assets
@@ -67,21 +96,68 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@fb404b9557c186e349162b0d8efb06e2bc36edea # v1.232.0
         with:
-          ruby-version: '3.1' # Not needed with a .ruby-version file
-          bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-          cache-version: 0 # Increment this number if you need to re-download cached gems
-      - name: Build with Jekyll
-        run: bundle exec jekyll build
-        env:
-          JEKYLL_ENV: production
+          ruby-version: '3.1'
+          bundler-cache: true
+          cache-version: 0
+
+      - name: Restore Jekyll Cache
+        id: cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            _site
+            .jekyll-metadata
+          key: jekyll-${{ runner.os }}-eips-${{ steps.eips.outputs.sha }}
+          restore-keys: |
+            jekyll-${{ runner.os }}-
+
+      - name: Prepare Incremental Build
+        if: steps.cache.outputs.cache-hit == 'true' && steps.changed.outputs.mode == 'incremental'
+        id: incremental
+        run: |
+          find EIPS -name "*.md" -exec touch -t 200001010000 {} +
+          find assets -type f -exec touch -t 200001010000 {} + 2>/dev/null || true
+          for num in ${{ steps.changed.outputs.nums }}; do
+            [ -f "EIPS/eip-${num}.md" ] && touch "EIPS/eip-${num}.md"
+            [ -d "assets/eip-${num}" ] && find "assets/eip-${num}" -type f -exec touch {} +
+          done
+          echo "enabled=true" >> $GITHUB_OUTPUT
 
       - name: Build Website
         run: |
           bundle exec jekyll doctor
-          bundle exec jekyll build
+          if [ "${{ steps.incremental.outputs.enabled }}" = "true" ]; then
+            echo "::notice::Using incremental Jekyll build"
+            bundle exec jekyll build --incremental
+          else
+            bundle exec jekyll build
+          fi
 
       - name: HTML Proofer
-        run: bundle exec htmlproofer --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https ./_site
+        run: |
+          if [ "${{ steps.changed.outputs.mode }}" = "incremental" ]; then
+            PATHS=""
+            for num in ${{ steps.changed.outputs.nums }}; do
+              slug="eip-${num}"
+              if [ -d "./_site/EIPS/${slug}" ]; then
+                PATHS="${PATHS} ./_site/EIPS/${slug}"
+              elif [ -f "./_site/EIPS/${slug}.html" ]; then
+                PATHS="${PATHS} ./_site/EIPS/${slug}.html"
+              elif [ -d "./_site/${slug}" ]; then
+                PATHS="${PATHS} ./_site/${slug}"
+              elif [ -f "./_site/${slug}.html" ]; then
+                PATHS="${PATHS} ./_site/${slug}.html"
+              fi
+            done
+            if [ -n "$PATHS" ]; then
+              echo "::notice::Running HTMLProofer on changed files only:${PATHS}"
+              bundle exec htmlproofer --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https ${PATHS}
+              exit $?
+            fi
+            echo "::warning::Changed ERC HTML files not found in build output, falling back to full check"
+          fi
+          bundle exec htmlproofer --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https ./_site
+
       - name: DNS Validator
         run: bundle exec github-pages health-check
 
