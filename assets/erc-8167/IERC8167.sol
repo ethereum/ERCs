@@ -9,7 +9,7 @@ interface IERC8167 {
     // REQUIRED
     // Emitted when assigning a delegate logic module to a selector
     // An address(0) delegate signals removal
-    event SetDelegate(bytes4 indexed selector, address indexed delegate);
+    event DelegateSet(bytes4 indexed selector, address indexed delegate);
 
     // REQUIRED
     // Returns the delegate for the selector, using address(0) for function not found
