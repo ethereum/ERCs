@@ -115,8 +115,7 @@ jobs:
         if: steps.cache.outputs.cache-hit == 'true' && steps.changed.outputs.mode == 'incremental'
         id: incremental
         run: |
-          find EIPS -name "*.md" -exec touch -t 200001010000 {} +
-          find assets -type f -exec touch -t 200001010000 {} + 2>/dev/null || true
+          find . -not -path './_site/*' -not -path './.git/*' -not -path './vendor/*' -not -path './.jekyll-metadata' -type f -exec touch -t 200001010000 {} +
           for num in ${{ steps.changed.outputs.nums }}; do
             [ -f "EIPS/eip-${num}.md" ] && touch "EIPS/eip-${num}.md"
             [ -d "assets/eip-${num}" ] && find "assets/eip-${num}" -type f -exec touch {} +
