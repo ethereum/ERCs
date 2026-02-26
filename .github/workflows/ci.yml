@@ -50,10 +50,8 @@ jobs:
 
       - name: Restore EIPs mtimes from git history
         run: |
-          git ls-files -z | while IFS= read -r -d '' file; do
-            ts=$(git log -1 --format=%ct -- "$file" || true)
-            [ -n "$ts" ] && touch -d "@$ts" "$file"
-          done
+          pip install git-restore-mtime
+          git restore-mtime
 
       - name: Get EIPs Version
         id: eips
@@ -69,10 +67,8 @@ jobs:
       - name: Restore ERCs mtimes from git history
         run: |
           cd ERCs
-          git ls-files -z | while IFS= read -r -d '' file; do
-            ts=$(git log -1 --format=%ct -- "$file" || true)
-            [ -n "$ts" ] && touch -d "@$ts" "$file"
-          done
+          pip install git-restore-mtime
+          git restore-mtime
 
       - name: Get Changed Files
         id: changed
