@@ -63,7 +63,7 @@ jobs:
 
       - name: Get EIPs Version
         id: eips
-        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: echo "sha=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
 
       - name: Checkout ERCs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
