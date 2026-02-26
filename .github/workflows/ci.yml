@@ -204,16 +204,13 @@ jobs:
           fi
 
       # See .github/workflows/README.md for how incremental builds and caching work.
+      # Always use --incremental: it creates .jekyll-metadata for future runs,
+      # and falls back to a full build when .jekyll-metadata is missing.
       - name: Build Website
         run: |
           bundle exec jekyll doctor
-          if [ "${{ steps.changed.outputs.mode }}" = "incremental" ]; then
-            echo "::notice::Using incremental Jekyll build"
-            bundle exec jekyll build --incremental
-          else
-            echo "::notice::Using full Jekyll build (mode=${{ steps.changed.outputs.mode }})"
-            bundle exec jekyll build
-          fi
+          echo "::notice::Jekyll incremental build (mode=${{ steps.changed.outputs.mode }})"
+          bundle exec jekyll build --incremental
 
       - name: HTML Proofer
         run: |
