@@ -49,9 +49,7 @@ jobs:
           fetch-depth: 0
 
       - name: Restore EIPs mtimes from git history
-        run: |
-          pip install git-restore-mtime
-          git restore-mtime
+        uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2.3
 
       - name: Get EIPs Version
         id: eips
@@ -65,10 +63,9 @@ jobs:
           fetch-depth: 0
 
       - name: Restore ERCs mtimes from git history
-        run: |
-          cd ERCs
-          pip install git-restore-mtime
-          git restore-mtime
+        uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2.3
+        with:
+          working-directory: ERCs
 
       - name: Get Changed Files
         id: changed
