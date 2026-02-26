@@ -129,6 +129,22 @@ jobs:
           cd $GITHUB_WORKSPACE
           rm -rf ERCs
 
+      # TODO: Remove this step before final submission — debug only
+      - name: Debug - reduce files for testing
+        run: |
+          echo "=== Before cleanup ==="
+          echo "EIPS file count: $(ls EIPS/*.md 2>/dev/null | wc -l)"
+          cd $GITHUB_WORKSPACE/EIPS
+          for f in *.md; do
+            case "$f" in
+              eip-1.md|eip-20.md|eip-5485.md|eip-721.md) ;;
+              *) rm -f "$f" ;;
+            esac
+          done
+          cd $GITHUB_WORKSPACE
+          echo "After cleanup: $(ls EIPS/*.md 2>/dev/null | wc -l) files kept"
+          ls EIPS/*.md
+
       - name: Debug mtimes after merge
         run: |
           echo "=== EIPS/ mtimes after merge (should match git log dates) ==="
