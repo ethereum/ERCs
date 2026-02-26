@@ -139,7 +139,11 @@ jobs:
             PATHS=""
             for num in ${{ steps.changed.outputs.nums }}; do
               slug="eip-${num}"
-              if [ -d "./_site/${slug}" ]; then
+              if [ -d "./_site/EIPS/${slug}" ]; then
+                PATHS="${PATHS} ./_site/EIPS/${slug}"
+              elif [ -f "./_site/EIPS/${slug}.html" ]; then
+                PATHS="${PATHS} ./_site/EIPS/${slug}.html"
+              elif [ -d "./_site/${slug}" ]; then
                 PATHS="${PATHS} ./_site/${slug}"
               elif [ -f "./_site/${slug}.html" ]; then
                 PATHS="${PATHS} ./_site/${slug}.html"
