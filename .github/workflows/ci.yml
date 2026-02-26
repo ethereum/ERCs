@@ -46,6 +46,14 @@ jobs:
         with:
           repository: ethereum/EIPs
           path: ''
+          fetch-depth: 0
+
+      - name: Restore EIPs mtimes from git history
+        run: |
+          git ls-files -z | while IFS= read -r -d '' file; do
+            ts=$(git log -1 --format=%ct -- "$file" || true)
+            [ -n "$ts" ] && touch -d "@$ts" "$file"
+          done
 
       - name: Get EIPs Version
         id: eips
@@ -56,6 +64,15 @@ jobs:
         with:
           repository: ethereum/ERCs
           path: ERCs
+          fetch-depth: 0
+
+      - name: Restore ERCs mtimes from git history
+        run: |
+          cd ERCs
+          git ls-files -z | while IFS= read -r -d '' file; do
+            ts=$(git log -1 --format=%ct -- "$file" || true)
+            [ -n "$ts" ] && touch -d "@$ts" "$file"
+          done
 
       - name: Get Changed Files
         id: changed
@@ -111,21 +128,10 @@ jobs:
           restore-keys: |
             jekyll-${{ runner.os }}-
 
-      - name: Prepare Incremental Build
-        if: steps.cache.outputs.cache-hit == 'true' && steps.changed.outputs.mode == 'incremental'
-        id: incremental
-        run: |
-          find . -not -path './_site/*' -not -path './.git/*' -not -path './vendor/*' -not -path './.jekyll-metadata' -type f -exec touch -t 200001010000 {} +
-          for num in ${{ steps.changed.outputs.nums }}; do
-            [ -f "EIPS/eip-${num}.md" ] && touch "EIPS/eip-${num}.md"
-            [ -d "assets/eip-${num}" ] && find "assets/eip-${num}" -type f -exec touch {} +
-          done
-          echo "enabled=true" >> $GITHUB_OUTPUT
-
       - name: Build Website
         run: |
           bundle exec jekyll doctor
-          if [ "${{ steps.incremental.outputs.enabled }}" = "true" ]; then
+          if [ "${{ steps.cache.outputs.cache-hit }}" = "true" ] && [ "${{ steps.changed.outputs.mode }}" = "incremental" ]; then
             echo "::notice::Using incremental Jekyll build"
             bundle exec jekyll build --incremental
           else
