@@ -1,0 +1,328 @@
+---
+eip: <TBD – assigned by editors upon merge>
+title: Token Puller Interface
+description: Standardized interface for permissioned, on-demand token pulls with custom sourcing logic, permit support, and allowance delegation
+author: Guillermo Narvaja (@gnarvaja)
+discussions-to: https://ethereum-magicians.org/t/erc-draft-token-puller-interface-for-permissioned-pulls-with-custom-sourcing/xxxx (link to be updated after posting)
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-02-27
+requires: 20, 2612, 6492, 712
+---
+
+## Abstract
+
+This ERC proposes a standardized interface for "Puller" contracts that enable approved spenders to initiate token transfers from an owner's account without requiring the owner to maintain liquid balances. The Puller handles custom logic for sourcing tokens (e.g., withdrawing from lending protocols like Aave, liquidating positions, or other operations) and executes the transfer to a specified destination.
+
+The interface supports:
+
+-   On-chain approvals with limits
+-   Off-chain EIP-712 signed permits (with ERC-6492 universal signature validation)
+-   Allowance delegation/transfer between spenders
+-   Infinite approval handling
+-   Renunciation of allowances
+-   Atomic permit + pull operations
+
+This enables use cases such as recurring payments, subscriptions, automated settlements, guardian-managed limits, and credit-card-like spending controls in DeFi and payment applications, while improving security and yield optimization.
+
+## Motivation
+
+Current token approval standards (ERC-20 `approve`/`transferFrom`, ERC-2612 permits) require owners to hold liquid balances and often involve multiple transactions or direct balance pulls. This creates friction and risks:
+
+-   Owners forgo yield from invested positions (Aave, Compound, etc.)
+-   Atomization of funds in multiple accounts linked to different spending mechanisms (like crypto credit cards)
+-   Large liquid balances in hot wallets increase security risks
+-   Recurring or delegated payments require frequent owner interaction
+-   No standardized way for one spender to delegate portions of their allowance (e.g., budget enforcers or guardians)
+
+The Token Puller Interface addresses these by introducing an intermediary Puller contract that:
+
+-   Manages approvals and limits
+-   Executes custom sourcing logic during pulls
+-   Supports signature-based approvals compatible with EOAs, smart accounts, and pre-deploy contracts
+-   Allows spenders to transfer/renounce portions of their allowances
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+### Definitions
+
+The following terms are used with these specific meanings in this specification:
+
+-   **Puller** — The smart contract that implements the `IPuller` interface. It acts as the intermediary responsible for:
+
+    -   Managing pull allowances granted by owners to spenders,
+    -   Validating pull requests,
+    -   Executing implementation-specific sourcing logic to obtain tokens (e.g. withdrawing from a lending protocol, redeeming from a vault, swapping, etc.),
+    -   Transferring the obtained tokens to the requested destination,
+    -   Supporting off-chain signed permits and allowance delegation.
+
+-   **Token** — An ERC-20 compliant fungible token contract whose tokens can be pulled through this interface. The Puller MUST be able to ultimately transfer such tokens to the destination address after sourcing them.
+
+-   **Owner** — The address (EOA or smart contract account) that:
+
+    -   Owns or has control over the tokens (directly or indirectly through pre-approvals to the Puller or other protocols),
+    -   Grants pull allowances to spenders (via `approvePull` or `permitPull`),
+    -   Is the entity from which tokens are sourced during a `pullFrom` or `pullFromWithPermit` call.
+
+-   **Spender** — An address (EOA, smart contract, or relayer) that has been granted a pull allowance by an owner (via on-chain approval or signed permit) and is authorized to call `pullFrom`, `pullFromWithPermit`, or `transferPullAllowance` to initiate token movements or delegate portions of its allowance.
+
+Additional terms that appear frequently and benefit from clear definition:
+
+-   **Pull Allowance** (or simply **Allowance**) — The maximum cumulative amount of a specific token that a given spender is permitted to pull from a given owner via the Puller, as tracked by `pullAllowance(token, owner, spender)`. This value can be finite or infinite (`type(uint256).max`).
+
+-   **Sourcing Logic** — The implementation-specific mechanism executed by the Puller during a successful `pullFrom` or `pullFromWithPermit` call to make tokens available for transfer. Examples include calling `withdraw` on Aave/Compound, redeeming vault shares, unwrapping tokens, or performing swaps. The exact logic is outside the scope of this ERC and is defined by each Puller implementation.
+
+-   **Permit** — An off-chain EIP-712 signed message (following the `PullPermit` struct) that authorizes setting or updating a pull allowance without requiring an on-chain `approvePull` transaction from the owner.
+
+Here is the **Interface** section rewritten in the exact style of ERC-4626 (from line ~52 onward in the linked file): pure Markdown with function/event names as headings, followed by NatSpec-style descriptions using bullet points, no Solidity code blocks for individual items, and consistent formatting for parameters, returns, and notes.
+
+### Methods
+
+#### approvePull
+
+```solidity
+function approvePull(address token, address spender, uint256 limit) external
+```
+
+Sets or updates the pull allowance of `spender` for `token` from `msg.sender` (the owner).
+
+-   MUST revert if called by any address other than the owner.
+-   Setting `limit` to 0 revokes the spender's permission to pull that token.
+-   MUST overwrite any previous allowance for `(token, owner, spender)` with the new `limit`.
+-   MUST emit the `PullApproval` event.
+
+#### pullFrom
+
+```solidity
+function pullFrom(address token, address owner, address to, uint256 amount) external
+```
+
+Pulls `amount` of `token` from `owner` and transfers it to `to`, after executing the Puller's implementation-specific sourcing logic.
+
+-   MUST revert unless `msg.sender` has sufficient allowance: `pullAllowance(token, owner, msg.sender) >= amount`.
+-   If the current allowance is not `type(uint256).max`, MUST decrease the allowance by `amount` after the check (following checks-effects-interactions).
+-   MAY choose not to decrease the allowance when it is `type(uint256).max` (infinite approval).
+-   SHOULD execute the Puller's custom sourcing logic to obtain the tokens (implementation-defined).
+-   MUST transfer exactly `amount` tokens to `to` using the ERC-20 `transfer` function.
+-   MUST revert if sourcing fails, allowance is insufficient, caller is unauthorized, or the transfer reverts.
+-   MUST emit the `TokensPulled` event on success.
+
+#### transferPullAllowance
+
+```solidity
+function transferPullAllowance(address token, address owner, address toSpender, uint256 amount) external
+```
+
+Transfers `amount` of pull allowance from `msg.sender` (the current spender) to `toSpender` for the `(token, owner)` pair.
+
+-   MUST revert unless `pullAllowance(token, owner, msg.sender) >= amount`.
+-   Special case — infinite allowance transfer:
+    -   If `amount == type(uint256).max` **and** current allowance == `type(uint256).max`:
+        -   MUST set `msg.sender`'s allowance to 0
+        -   MUST set `toSpender`'s allowance to `type(uint256).max`
+-   Otherwise:
+    -   MUST decrease `msg.sender`'s allowance by `amount` (unless infinite)
+    -   MUST increase `toSpender`'s allowance by `amount` (unless `toSpender == address(0)`)
+-   SHOULD allow `toSpender == address(0)` as a mechanism to renounce allowance (decrease only, no increase).
+-   MUST revert if `toSpender == msg.sender` (self-transfer is a no-op and should be prevented).
+-   MUST emit the `TransferPullAllowance` event on success.
+
+#### pullAllowance
+
+```solidity
+function pullAllowance(address token, address owner, address spender) external view returns (uint256)
+```
+
+Returns the units of `token` that `spender` is still allowed to pull from `_owner`.
+
+#### maxPullable
+
+```solidity
+function maxPullable(address token, address owner, uint256 upTo) external view returns (uint256)
+```
+
+Returns the max amount that can be pulled of a given `token` from a given `owner`. The `upTo` parameter allows early
+termination if that amount is reached.
+
+-   The returned value MUST be between 0 and `upTo`.
+
+#### DOMAIN_SEPARATOR
+
+```solidity
+function DOMAIN_SEPARATOR() external view returns (bytes32)
+```
+
+Returns the EIP-712 domain separator used when computing permit digests.
+
+#### nonces
+
+```solidity
+function nonces(address owner) external view returns (uint256)
+```
+
+Returns the current nonce for `owner`, used for replay protection in permits.
+
+#### permitPull
+
+```solidity
+function permitPull(
+    address token,
+    address owner,
+    address spender,
+    uint256 limit,
+    uint256 deadline,
+    bytes calldata signature
+) external
+```
+
+Approves or updates a pull allowance using an off-chain EIP-712 signature.
+
+-   The signature MUST be over the `PullPermit` struct:
+    -   `token`, `owner`, `spender`, `limit`, `nonce = nonces(owner)`, `deadline`
+-   `PullPermit` typehash:
+    ```solidity
+    keccak256("PullPermit(address token,address owner,address spender,uint256 limit,uint256 nonce,uint256 deadline)")
+    ```
+-   Digest computation:
+    ```solidity
+    keccak256(abi.encodePacked(
+        "\x19\x01",
+        DOMAIN_SEPARATOR(),
+        keccak256(abi.encode(TYPEHASH, token, owner, spender, limit, nonces(owner), deadline))
+    ))
+    ```
+-   SHOULD validate the signature following ERC-6492 rules (EOA via `ecrecover`, ERC-1271 contracts, pre-deploy via magic suffix).
+-   MUST revert if `block.timestamp > deadline`, signature is invalid, or nonce does not match.
+-   On success:
+    -   MUST increment `nonces(owner)`
+    -   MUST set `pullAllowance(token, owner, spender)` to `limit` (overwriting previous value)
+    -   MUST emit `PullApproval(token, owner, spender, limit)`
+-   MAY be called by anyone (e.g., spender, relayer).
+
+#### pullFromWithPermit
+
+```solidity
+function pullFromWithPermit(
+    address token,
+    address owner,
+    address to,
+    uint256 amount,
+    uint256 deadline,
+    bytes calldata signature
+) external
+```
+
+Atomically applies a permit (with `limit == amount`) and executes a pull in a single transaction.
+
+-   The signature MUST correspond to a `PullPermit` where `limit == amount` and `spender == msg.sender`.
+-   SHOULD call `permitPull(token, owner, msg.sender, amount, deadline, signature)`, but it SHOULDN'T revert if
+    this call fails, to avoid front-run DOS attack.
+-   On successful permit:
+    -   MUST set allowance to `amount`
+    -   MUST immediately call the equivalent of `pullFrom(token, owner, to, amount)`
+-   MUST revert only if the pull fails.
+-   MUST emit `PullApproval` followed by `TokensPulled`.
+-   MUST only be callable by the spender (`msg.sender == spender` in the permit).
+
+### Events
+
+#### PullApproval
+
+```solidity
+event PullApproval(address indexed token, address indexed owner, address indexed spender, uint256 limit)
+```
+
+Emitted when an owner approves or updates a spender's pull allowance for a given token.
+
+-   MUST be emitted whenever `approvePull` is successfully called.
+-   MUST be emitted whenever `permitPull` successfully sets or overwrites an allowance.
+-   MUST NOT be emitted on allowance transfers via `transferPullAllowance`.
+
+#### TokensPulled
+
+```solidity
+event TokensPulled(address indexed token, address indexed owner, address indexed spender, address to, uint256 amount)
+```
+
+Emitted when tokens are successfully pulled from an owner and transferred to the destination.
+
+-   MUST be emitted on every successful `pullFrom` or `pullFromWithPermit` call.
+-   The `amount` parameter MUST reflect the exact amount transferred to `to`.
+
+#### TransferPullAllowance
+
+```solidity
+event TransferPullAllowance(address indexed token, address indexed owner, address indexed fromSpender, address toSpender, uint256 amount)
+```
+
+Emitted when a spender transfers part or all of their pull allowance to another spender (or renounces it by transferring to `address(0)`).
+
+-   MUST be emitted on every successful `transferPullAllowance` call.
+-   When renouncing (`toSpender == address(0)`), the event MUST still be emitted with `toSpender = address(0)`.
+
+### Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.0;
+
+interface IPuller {
+    // Events
+    event PullApproval(address indexed token, address indexed owner, address indexed spender, uint256 limit);
+    event TokensPulled(address indexed token, address indexed owner, address indexed spender, address to, uint256 amount);
+    event TransferPullAllowance(address indexed token, address indexed owner, address indexed fromSpender, address toSpender, uint256 amount);
+
+    // Core functions
+    function approvePull(address token, address spender, uint256 limit) external;
+    function pullFrom(address token, address owner, address to, uint256 amount) external;
+    function pullAllowance(address token, address owner, address spender) external view returns (uint256);
+
+    // Allowance delegation
+    function transferPullAllowance(address token, address owner, address toSpender, uint256 amount) external;
+
+    // EIP-712 / Permit support
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+    function nonces(address owner) external view returns (uint256);
+
+    function permitPull(
+        address token,
+        address owner,
+        address spender,
+        uint256 limit,
+        uint256 deadline,
+        bytes calldata signature
+    ) external;
+
+    function pullFromWithPermit(
+        address token,
+        address owner,
+        address to,
+        uint256 amount,
+        uint256 deadline,
+        bytes calldata signature
+    ) external;
+}
+```
+
+## Rationale
+
+The core motivation behind this ERC is to cleanly separate spending logic from asset management strategies. By introducing a Puller contract (or, in the smart-account case, the account itself), the act of sourcing tokens — whether from a lending position, a vault, a swap, or simply an internal balance — becomes an implementation detail hidden from the spender. The spender only requests a pull for a certain amount and token; it never needs to know or interact with how those tokens are actually obtained. This atomic sourcing + transfer pattern reduces complexity on the payment or spending side while letting users keep their funds invested until the moment they are needed.
+
+Gasless approvals via signed permits and the ability to transfer allowances between spenders were added specifically to support credit-card-like experiences and delegated spending flows. For example, a user might grant a large or infinite allowance to a trusted "guardian" service that enforces daily/monthly limits and automatically refills sub-allowances for individual spenders (e.g., a payment app or merchant processor). These features make recurring or delegated payments more practical without requiring the owner to sign every transaction or maintain liquid balances.
+
+The interface deliberately mirrors familiar ERC-20 patterns (approve / allowance / transferFrom) and builds on established extensions like ERC-2612 (Permit) to minimize the learning curve and avoid unnecessary naming collisions. Where possible, function names, event structures, and parameter ordering stay close to precedents so developers and tools can adopt the standard quickly.
+
+The `maxPullable` function provides a standardized way to query available pull capacity (similar to balanceOf for direct holdings or maxWithdraw in ERC-4626), independent of spender allowances. The upTo parameter allows efficient checks in cascaded sourcing implementations without forcing full strategy evaluation every time.
+
+Finally, the design is intentionally compatible with both EOAs and smart accounts, while leaning into the current direction of account abstraction (ERC-4337, ERC-6900, ERC-7579, etc.). A particularly powerful pattern is for a smart account to implement the IPuller interface directly on itself. In that case owner == address(this), the account already controls its own funds (and any pre-approved external positions), and there is no need to grant approvals or trust an external Puller contract. This reduces deployment overhead, eliminates an extra approval step, and allows the pull logic to participate in batched user operations — a natural fit for modular wallets that already expose custom execution and spending-limit interfaces.
+
+## Reference Implementation
+
+Coming soon...
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
