@@ -1,0 +1,589 @@
+---
+eip: TBD
+title: Blob Space Segments
+description: Minimal interface for declaring field element sub-ranges within EIP-4844 blobs
+author: Vitalik Buterin (@vbuterin), Skeletor Spaceman (@skeletor-spaceman)
+discussions-to: https://ethereum-magicians.org/t/blob-space-segments-bss/27867
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-02-08
+requires: 4844
+---
+
+## Abstract
+
+This ERC defines a minimal interface for on-chain declaration of field element sub-ranges ("segments") within [EIP-4844](./eip-4844.md) blobs.
+A single function, `declareBlobSegment`, emits an event binding a `[startFE, endFE)` half-open range to the blob's versioned hash, allowing unambiguous sub-blob coordination across protocols.
+Zero storage (event-only) makes declarations ~7x cheaper than stateful alternatives.
+
+## Motivation
+
+EIP-4844 blobs are 128 KiB (4,096 field elements), but most L2 rollups do not fill them.
+Empirical analysis of 26 rollups over six months ([arXiv:2410.04111](https://arxiv.org/abs/2410.04111)) shows a bimodal distribution: large rollups near full utilization, small rollups below 5%.
+The study reports 80-99% DA cost savings achievable through sharing.
+The cited study reflects pre-PeerDAS economics (target 3 blobs/block); PeerDAS and subsequent scaling upgrades will increase blob throughput and may reduce per-blob cost pressure, but lower per-blob costs reduce the barrier to sharing; they do not eliminate the waste.
+
+No standard exists for sub-blob coordination.
+Projects that share blob space each invent their own mechanism (proprietary events, custom registries, bespoke indexing), producing fragmentation and incompatible tooling.
+
+Every L2 that submits blobs already pays for 128 KiB of data availability; unused field elements are wasted.
+A standard declaration interface lets L2s open unused capacity to other protocols at zero marginal DA cost, whether those protocols are social layers, DA systems posting namespace proofs to L1, or any application producing fewer than 4,096 FEs per blob.
+
+Blob sharing requires two primitives: a declaration of which field elements a protocol uses, and off-chain indexers that track those declarations.
+The declaration is the part worth standardizing: a single event signature for indexers to track across all protocols, a uniform integration surface for tooling, and unambiguous boundaries between participants.
+
+This ERC covers only the declaration primitive.
+Blob construction, fee splitting, and segment negotiation are out of scope.
+
+Prior work:
+
+- [arXiv:2410.04111](https://arxiv.org/abs/2410.04111): empirical analysis of 26 rollups showing
+  80-99% DA cost savings from blob sharing
+- Blob Aggregation (ethresear.ch): Shared Blob Registry prototype with on-chain allocation
+- Nethermind "Blob Sharing for Based Rollups": working demo using [EIP-7702](./eip-7702.md) fan-out
+- BlobFusion / Ephema: blob space sharing service with bid-based pricing
+- [ERC-7588](./eip-7588.md) (Blob Transaction Metadata): orthogonal standard for blob metadata;
+  composes with this ERC
+
+## Specification
+
+This ERC builds upon [EIP-4844](./eip-4844.md) and relies on the `BLOBHASH` opcode defined therein.
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT",
+"RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as
+described in RFC 2119 and RFC 8174.
+
+### Definitions
+
+| Term                   | Definition                                                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Field element (FE)** | One of 4,096 elements in an EIP-4844 blob. Each FE is 32 bytes and must be less than the BLS12-381 scalar field modulus. The standard encoding convention places data in the low 31 bytes with the high byte set to zero. |
+| **Segment**            | A contiguous half-open range `[startFE, endFE)` of field elements within a blob.                                                                                                                                          |
+| **Versioned hash**     | The EIP-4844 blob commitment hash, retrieved via the `BLOBHASH` opcode.                                                                                                                                                   |
+| **Content tag**        | A `bytes32` identifier for the protocol or content type using a segment. Typically `keccak256("protocol.version")`.                                                                                                       |
+| **Declarer**           | The `msg.sender` that calls `declareBlobSegment`.                                                                                                                                                                         |
+
+### Interface
+
+Every compliant contract MUST implement the `IERC_BSS` interface:
+
+```solidity
+interface IERC_BSS {
+    /// @notice Emitted when a blob segment is declared.
+    /// @param versionedHash The EIP-4844 versioned hash of the blob.
+    /// @param declarer      The address declaring the segment (msg.sender).
+    /// @param startFE       Start field element index (inclusive).
+    /// @param endFE         End field element index (exclusive).
+    /// @param contentTag    Protocol/content identifier.
+    event BlobSegmentDeclared(
+        bytes32 indexed versionedHash,
+        address indexed declarer,
+        uint16 startFE,
+        uint16 endFE,
+        bytes32 indexed contentTag
+    );
+
+    /// @notice Thrown when startFE >= endFE or endFE > 4096.
+    error InvalidSegment(uint16 startFE, uint16 endFE);
+
+    /// @notice Thrown when BLOBHASH returns bytes32(0) for the given index.
+    error NoBlobAtIndex(uint256 blobIndex);
+
+    /// @notice Declare a segment of a blob in the current transaction.
+    /// @param blobIndex  Index of the blob within the transaction (0-based).
+    /// @param startFE    Start field element (inclusive). MUST be < endFE.
+    /// @param endFE      End field element (exclusive). MUST be <= 4096.
+    /// @param contentTag Protocol/content identifier.
+    /// @return versionedHash The EIP-4844 versioned hash of the blob.
+    function declareBlobSegment(
+        uint256 blobIndex,
+        uint16 startFE,
+        uint16 endFE,
+        bytes32 contentTag
+    ) external returns (bytes32 versionedHash);
+}
+```
+
+### Behavior
+
+1. If `startFE >= endFE` or `endFE > 4096`, the implementation MUST revert with
+   `InvalidSegment(startFE, endFE)`.
+2. The implementation MUST retrieve the versioned hash using the `BLOBHASH` opcode with the provided
+   `blobIndex`.
+3. If `BLOBHASH` returns `bytes32(0)`, the implementation MUST revert with
+   `NoBlobAtIndex(blobIndex)`.
+4. The implementation MUST emit `BlobSegmentDeclared` with the versioned hash, `msg.sender`, the
+   validated range, and the content tag.
+5. The implementation MUST return the versioned hash.
+6. Core `IERC_BSS` implementations MUST NOT write to storage. The event log is the sole record of
+   the declaration in the core interface. Optional extensions MAY use storage and MUST document
+   those costs and tradeoffs.
+7. Multiple segments MAY be declared for the same blob, by the same or different callers. Calling
+   `declareBlobSegment` twice with identical parameters emits two events; implementations MUST NOT
+   deduplicate. Indexers should handle this.
+8. Overlapping segments are permitted on-chain. Overlap detection is an off-chain concern (see
+   Security Considerations).
+9. The `blobIndex` parameter is not capped to a specific maximum. The `BLOBHASH` opcode returns
+   `bytes32(0)` for any index without a blob, which triggers the `NoBlobAtIndex` revert. This keeps
+   the interface forward-compatible with future EIPs that increase the blob limit.
+
+### Content Tag Convention
+
+Content tags SHOULD be generated as `keccak256("protocol.version")` to avoid collisions without
+requiring a registry. A `contentTag` of `bytes32(0)` is permitted but NOT RECOMMENDED because it is
+computationally infeasible to produce as a `keccak256` output and may confuse indexers that use zero
+as a sentinel value. Examples:
+
+| Protocol            | Content Tag                       |
+| ------------------- | --------------------------------- |
+| Social-Blobs v4     | `keccak256("social-blobs.v4")`    |
+| Optimism batches    | `keccak256("optimism.bedrock")`   |
+| Celestia namespace  | `keccak256("celestia.namespace")` |
+| Generic rollup data | `keccak256("rollup.generic")`     |
+
+### Full Blob Declaration
+
+To declare an entire blob, a caller SHOULD use `startFE = 0` and `endFE = 4096`. This preserves
+backward compatibility for protocols that do not share blob space.
+
+### Optional Extensions
+
+#### Queryable Extension (`IERC_BSS_Queryable`)
+
+For use cases requiring on-chain segment queries (e.g., contracts that verify a segment was
+declared):
+
+```solidity
+interface IERC_BSS_Queryable is IERC_BSS {
+    /// @notice A stored segment record.
+    struct BlobSegment {
+        address declarer;
+        uint16 startFE;
+        uint16 endFE;
+        bytes32 contentTag;
+    }
+
+    /// @notice Returns a page of segments declared for a given versioned hash.
+    /// @param versionedHash Blob versioned hash.
+    /// @param offset Zero-based start index into the segment list.
+    /// @param limit Maximum number of segments to return.
+    /// @return segments Segment page.
+    /// @return nextOffset Cursor for the next page (equal to segmentCount when exhausted).
+    function getSegments(bytes32 versionedHash, uint256 offset, uint256 limit)
+        external
+        view
+        returns (BlobSegment[] memory segments, uint256 nextOffset);
+
+    /// @notice Returns the number of segments declared for a given versioned hash.
+    function segmentCount(bytes32 versionedHash) external view returns (uint256);
+}
+```
+
+This extension uses storage and is significantly more expensive. It SHOULD only be adopted when
+on-chain queries are strictly required. Implementations SHOULD support bounded page sizes and avoid
+interfaces that return unbounded arrays.
+
+No reference implementations are provided for optional extensions. The interfaces above define the
+intended extension points.
+
+#### Batch Extension (`IERC_BSS_Batch`)
+
+For declaring multiple segments in a single call (e.g., an L2 and a social protocol declaring their
+respective portions atomically):
+
+```solidity
+interface IERC_BSS_Batch is IERC_BSS {
+    /// @notice Parameters for a single segment declaration.
+    struct BlobSegmentParams {
+        uint256 blobIndex;
+        uint16 startFE;
+        uint16 endFE;
+        bytes32 contentTag;
+    }
+
+    /// @notice Declare multiple segments in a single call.
+    /// @param segments Array of segment parameters.
+    /// @return versionedHashes Array of versioned hashes (one per segment).
+    function declareBlobSegments(BlobSegmentParams[] calldata segments)
+        external
+        returns (bytes32[] memory versionedHashes);
+}
+```
+
+A single batch call MAY declare segments across different blobs (different `blobIndex` values). If
+any segment is invalid, the entire call MUST revert.
+
+### Worked Examples
+
+#### Example 1: L2 + Social Protocol (50% cost saving)
+
+Optimism submits a blob where rollup batch data occupies field elements 0-1999 (62,000 usable
+bytes). A social protocol fills the remaining space.
+
+```
+Transaction calldata:
+  1. optimismBatcher.submitBatch(...)          // includes blob at index 0
+  2. bss.declareBlobSegment(0, 0,    2000, keccak256("optimism.bedrock"))
+  3. bss.declareBlobSegment(0, 2000, 4096, keccak256("social-blobs.v4"))
+
+Blob layout:
+  FE [0,    2000)  ->  Optimism rollup batch       (62,000 bytes)
+  FE [2000, 4096)  ->  Social-Blobs message batch  (64,976 bytes)
+
+Cost: Social-Blobs pays 0 blob gas (rides on Optimism's blob). Only calldata
+cost for declareBlobSegment (~3,500 gas). 50% DA cost saving for Optimism if
+Social-Blobs reimburses half the blob fee.
+```
+
+#### Example 2: Three Protocols Tiling One Blob
+
+Base, a social protocol, and a Celestia namespace proof tile a single blob with zero waste.
+
+```
+Transaction calldata:
+  1. baseBatcher.submitBatch(...)
+  2. bss.declareBlobSegment(0, 0,    1500, keccak256("base.bedrock"))
+  3. bss.declareBlobSegment(0, 1500, 3000, keccak256("social-blobs.v4"))
+  4. bss.declareBlobSegment(0, 3000, 4096, keccak256("celestia.namespace"))
+
+Blob layout:
+  FE [0,    1500)  ->  Base rollup data       (46,500 bytes)
+  FE [1500, 3000)  ->  Social-Blobs messages  (46,500 bytes)
+  FE [3000, 4096)  ->  Celestia namespace     (33,976 bytes)
+
+Total: 126,976 usable bytes, 0 waste. 3 protocols, 1 blob.
+Each indexer filters by contentTag to find its segments.
+```
+
+#### Example 3: Full Blob (Backward Compatibility)
+
+A protocol using the entire blob declares `[0, 4096)`:
+
+```solidity
+bss.declareBlobSegment(0, 0, 4096, keccak256("myprotocol.v1"));
+```
+
+No change to blob usage. The declaration is added to the existing transaction.
+
+#### Example 4: Batched Declarations (`IERC_BSS_Batch`)
+
+Two declarations in one call (rollup segment + social segment):
+
+```solidity
+IERC_BSS_Batch.BlobSegmentParams[] memory segments =
+    new IERC_BSS_Batch.BlobSegmentParams[](2);
+segments[0] = IERC_BSS_Batch.BlobSegmentParams({
+    blobIndex: 0,
+    startFE: 0,
+    endFE: 2000,
+    contentTag: keccak256("optimism.bedrock")
+});
+segments[1] = IERC_BSS_Batch.BlobSegmentParams({
+    blobIndex: 0,
+    startFE: 2000,
+    endFE: 4096,
+    contentTag: keccak256("social-blobs.v4")
+});
+
+bytes32[] memory hashes = bssBatch.declareBlobSegments(segments);
+```
+
+Both declarations succeed or fail atomically. `hashes[0] == hashes[1]` here because both entries
+reference the same blob.
+
+## Rationale
+
+### Event-only architecture (zero storage)
+
+The core interface uses no `SSTORE` operations. A segment declaration costs approximately 3,500 gas
+(calldata + event emission) versus ~25,600 gas for a stateful implementation, a ~7x reduction that
+matters because declarations happen alongside blob transactions already costing 21,000+ gas base.
+
+Gas breakdown for `declareBlobSegment`:
+
+| Component                         | Gas        |
+| --------------------------------- | ---------- |
+| `BLOBHASH` opcode                 | 3          |
+| Validation comparisons            | ~6         |
+| `LOG4` (base + 4 topics)          | ~1,875     |
+| Event data (64 bytes ABI-encoded) | ~512       |
+| Calldata (132 bytes ABI-encoded)  | ~1,100     |
+| **Total marginal cost**           | **~3,500** |
+
+A stateful implementation adds a cold `SSTORE` at 22,100 gas (post-[EIP-2929](./eip-2929.md)).
+
+### `declareBlobSegment` naming
+
+"Declare" over "register": the function announces intent without creating on-chain state. "Register"
+implies persistent storage and lookup, which would mislead implementers.
+
+### Why `declareBlobSegment` returns `versionedHash`
+
+Returning `versionedHash` avoids redundant `BLOBHASH` calls in routing contracts and multicall
+flows, letting callers pass the hash directly into subsequent logic without recomputing it.
+
+### `uint16` for field element indices
+
+A blob contains 4,096 field elements, requiring 12 bits. `uint16` (max 65,535) is the smallest
+standard Solidity integer type that fits. While ABI encoding pads both `uint16` and `uint32` to 32
+bytes in calldata, `uint16` is the semantically correct choice: it signals that valid values are
+small, and it enables tighter packing in storage-backed extensions (e.g., the Queryable extension's
+`BlobSegment` struct). The field element count per blob is tied to the KZG trusted setup (4,096
+evaluation points) and is unlikely to change; future scaling increases the number of blobs per
+block, not the size of individual blobs.
+
+### Event indexed parameters
+
+The three indexed parameters are `versionedHash`, `declarer`, and `contentTag`. Range parameters
+(`startFE`, `endFE`) are unindexed: filtering by blob hash, sender, or protocol is the common access
+pattern, while range-based filtering is rare and cheap client-side.
+
+### Half-open range `[startFE, endFE)`
+
+Half-open intervals compose without gaps or overlaps: `[0, 2000) + [2000, 4096) = [0, 4096)`.
+Standard convention (C arrays, Python slices, Rust ranges). Closed intervals `[start, end]` require
+`+1` arithmetic to tile, inviting off-by-one errors.
+
+### `bytes32 contentTag`
+
+A `bytes32` tag provides collision-free protocol identification via `keccak256("protocol.version")`
+without a governance-managed registry. It is indexable as an event topic, enabling efficient log
+filtering. Alternatives (string names, uint256 IDs with a registry) waste gas or introduce
+governance overhead.
+
+### Why on-chain events, not in-blob headers
+
+An alternative design embeds segment metadata directly in the blob (e.g., a header in the first N
+field elements listing each protocol's range). Rejected for four reasons:
+
+1. **Blobs are opaque to the EVM.** The EVM cannot read blob content during execution. A blob header
+   is invisible to smart contracts; on-chain verification would require KZG proof verification (see
+   _Segments as KZG verification anchors_ below) or an external oracle. Events are natively
+   queryable via `eth_getLogs`.
+2. **Encoding overhead.** A blob header consumes field elements that would otherwise carry payload.
+   Overhead scales with the number of protocols sharing a blob.
+3. **No retroactive adoption.** Protocols already submitting blobs would need to change their blob
+   encoding. Events require only an additional contract call in the same transaction.
+4. **Composability.** Events are a known primitive with mature tooling (indexers, subgraphs,
+   subscriptions). A custom blob header format requires new parsing logic in every consumer.
+
+The tradeoff: in-blob headers avoid a separate contract call and its calldata cost. For protocols
+already coordinating blob construction tightly, embedding metadata in the blob may be simpler. A
+general-purpose standard should favor the primitive cheapest to index and easiest to adopt.
+
+### Segments as KZG verification anchors
+
+A `BlobSegmentDeclared` event records `(versionedHash, startFE, endFE)`. These map directly to the
+inputs of EIP-4844's point evaluation precompile (`0x0A`). Verification workflow:
+
+1. A protocol calls `declareBlobSegment`, emitting `BlobSegmentDeclared` with the versioned hash and
+   FE range.
+2. A verifier reads the event to obtain `(versionedHash, startFE, endFE)`.
+3. A prover generates KZG proofs for field elements within `[startFE, endFE)`, producing
+   `(z, y, commitment, proof)` tuples.
+4. The verifier contract calls the point evaluation precompile with
+   `(versionedHash, z, y, commitment, proof)` per field element, confirming that value `y` was
+   committed at index `z` in the blob identified by `versionedHash`.
+5. The verified `y` values contain raw field element bytes. The verifier extracts the payload from
+   the declared range.
+
+Cost: ~50,000 gas per field element (precompile fixed cost dominates). A 26-byte message fits in one
+FE (~50k gas). A 100-byte payload spans ~4 FEs (~200k gas). A full blob `[0, 4096)` would cost ~200M
+gas, exceeding the block gas limit. On-chain verification is practical only for small segments.
+
+This ERC does not define verification logic. It provides the anchor data (versioned hash + FE range)
+that application-specific verifier contracts consume. The optional Queryable extension enables
+on-chain segment lookups, making single-transaction verification possible without replaying event
+logs.
+
+### Off-chain overlap detection
+
+Overlapping segments garble both protocols' data at the overlapping field elements, making overlaps
+self-punishing. On-chain enforcement would require storage to track claimed ranges and introduce
+governance complexity around dispute resolution. Indexers trivially detect overlaps.
+
+### No ERC-165 requirement
+
+[ERC-165](./eip-165.md) `supportsInterface` adds deployment overhead and per-query gas (a cold
+`SLOAD` costs 2,100 gas per [EIP-2929](./eip-2929.md)). For a one-function interface identified by
+its event signature, the value is negligible. Implementations may support ERC-165 but it is not
+required. The interface ID is
+`bytes4(keccak256("declareBlobSegment(uint256,uint16,uint16,bytes32)"))`.
+
+### General-purpose vs protocol-specific declarers
+
+Both deployment models are valid:
+
+1. General-purpose shared declarer contracts used by many protocols.
+2. Protocol-specific declarer contracts embedded in one stack.
+
+For interoperability, protocols should publish which contract address(es) they treat as canonical
+for each `contentTag` on each chain. Indexers should treat `(chainId, contentTag, declarerAddress)`
+as policy data supplied by each consuming protocol, not inferable from on-chain state alone.
+
+## Backwards Compatibility
+
+This ERC introduces a new interface and does not modify any existing standards.
+
+Protocols currently using full blobs can adopt this ERC by declaring `[0, 4096)` segments, which is
+semantically equivalent to current behavior. The `BLOBHASH` opcode ([EIP-4844](./eip-4844.md)) is
+required; this ERC cannot be used on chains without EIP-4844 support.
+
+Existing contracts with proprietary blob registration can adopt this ERC by either:
+
+1. Implementing `IERC_BSS` directly
+2. Deploying a standalone `BlobSpaceSegments` contract and calling it within the same transaction
+
+## Test Cases
+
+Test vectors as input/output pairs.
+
+### Successful declarations
+
+| blobIndex | startFE | endFE | contentTag             | Expected result                                                     |
+| --------- | ------- | ----- | ---------------------- | ------------------------------------------------------------------- |
+| 0         | 0       | 4096  | `keccak256("test.v1")` | Emits `BlobSegmentDeclared` with full range, returns versioned hash |
+| 0         | 2000    | 4096  | `keccak256("test.v1")` | Emits `BlobSegmentDeclared` with partial range                      |
+| 0         | 4095    | 4096  | `keccak256("test.v1")` | Single FE segment succeeds                                          |
+| 0         | 0       | 2000  | `keccak256("test.a")`  | First of two segments (same blob)                                   |
+| 0         | 2000    | 4096  | `keccak256("test.b")`  | Second of two segments (same blob)                                  |
+
+### Reverts
+
+| blobIndex | startFE | endFE | Expected error                            |
+| --------- | ------- | ----- | ----------------------------------------- |
+| 0         | 4096    | 0     | `InvalidSegment(4096, 0)`                 |
+| 0         | 100     | 100   | `InvalidSegment(100, 100)`                |
+| 0         | 0       | 5000  | `InvalidSegment(0, 5000)`                 |
+| 0         | 5000    | 6000  | `InvalidSegment(5000, 6000)`              |
+| 99        | 0       | 4096  | `NoBlobAtIndex(99)` (no blob at index 99) |
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+import {IERC_BSS} from "./IERC_BSS.sol";
+
+/// @title BlobSpaceSegments
+/// @notice Reference implementation of ERC-BSS: Blob Space Segments
+/// @dev Zero storage. Events are the sole record. Uses BLOBHASH opcode (EIP-4844).
+contract BlobSpaceSegments is IERC_BSS {
+    uint16 internal constant MAX_FIELD_ELEMENTS = 4096;
+
+    /// @inheritdoc IERC_BSS
+    function declareBlobSegment(
+        uint256 blobIndex,
+        uint16 startFE,
+        uint16 endFE,
+        bytes32 contentTag
+    ) external returns (bytes32 versionedHash) {
+        if (startFE >= endFE || endFE > MAX_FIELD_ELEMENTS) {
+            revert InvalidSegment(startFE, endFE);
+        }
+
+        // BLOBHASH returns bytes32(0) for indices without a blob in this tx
+        assembly {
+            versionedHash := blobhash(blobIndex)
+        }
+        if (versionedHash == bytes32(0)) revert NoBlobAtIndex(blobIndex);
+
+        emit BlobSegmentDeclared(versionedHash, msg.sender, startFE, endFE, contentTag);
+    }
+}
+```
+
+## Security Considerations
+
+### False declarations
+
+The `BLOBHASH` opcode returns non-zero values only for blobs in the current transaction. Segments
+can only be declared for blobs attached to the executing transaction. Note that all contracts in the
+call chain share access to `BLOBHASH`; the restriction is per-transaction, not per-caller.
+
+### Overlapping segments
+
+Two declarations covering overlapping field element ranges garble each other's data at the overlap.
+Off-chain indexers detect and flag this. On-chain enforcement is omitted to avoid storage costs and
+governance complexity.
+
+### Spam declarations
+
+Declaring a segment requires a blob transaction (~21,000 intrinsic gas, ~3,500 execution gas for
+`declareBlobSegment`, plus blob gas fees). Declaring segments for a blob with no useful data wastes
+the declarer's gas without affecting other users.
+
+### Front-running
+
+Front-running a segment declaration is impractical. `BLOBHASH` returns non-zero only for blobs
+attached to the executing transaction, so an attacker cannot reference another transaction's blobs.
+To declare a segment, they must include and pay for the blob themselves.
+
+### Segment exhaustion
+
+No on-chain exclusivity exists for segments. Multiple declarations for the same field elements are
+permitted. Who "owns" a segment is an off-chain concern; there is no denial-of-service vector via
+segment squatting.
+
+### Content tag squatting and declarer authenticity
+
+Any caller can emit declarations with any `contentTag`, including tags associated with other
+protocols. The `contentTag` is a label, not an ownership primitive.
+
+Protocols and indexers should maintain an allowlist of canonical declarer addresses per
+`(chainId, contentTag)` and ignore declarations from non-canonical declarers for attribution.
+Discovery of canonical declarers is out of scope.
+
+### Reorg safety
+
+Segment declarations share finality with the containing blob transaction. If a block is reorged, the
+declaration reverts with it. Indexers must roll back segment declarations for reverted blocks.
+
+### Declaration idempotency
+
+Calling `declareBlobSegment` with identical parameters emits duplicate events. Indexers should treat
+each `(versionedHash, declarer, startFE, endFE, contentTag)` tuple as unique per log index.
+
+### Indexer trust model
+
+This standard relies on off-chain indexers for overlap detection, segment tracking, and
+deduplication. Indexers are not trusted: any party can run their own indexer and independently
+verify declarations from on-chain event logs. The trust model is equivalent to any event-indexed
+system on Ethereum.
+
+### KZG proof verification cost
+
+The EIP-4844 point evaluation precompile costs ~50,000 gas per field element. Costs scale linearly:
+10 FEs at ~500k gas, 100 FEs at ~5M gas, a full blob at ~200M gas (exceeds the block gas limit).
+On-chain KZG verification is practical only for small segments.
+
+Verifiers should scope proofs to the declared `[startFE, endFE)` range. The precompile proves that a
+value was committed at a given field element index; it does not validate the meaning of the bytes.
+Protocols must parse and validate extracted bytes against their expected format independently.
+
+### Over-claiming (declaring more than you use)
+
+A protocol can declare a range larger than the data it wrote. For example, writing 1,000 FEs but
+declaring `[0, 4096)`. The EVM cannot inspect blob content, so nothing on-chain prevents this. The
+field elements outside the actual data contain whatever was in the blob, not the declarer's payload,
+which can mislead indexers. Declarations should be treated as claims, not guarantees; indexers
+should cross-reference with known encoding formats when attribution accuracy matters.
+
+### Blob data pruning
+
+EIP-4844 blob data is pruned after ~18 days (4,096 epochs). Segment declarations persist
+indefinitely as execution-layer events. After pruning, declarations remain in the event log but the
+referenced blob data is no longer available from consensus-layer nodes.
+
+### Queryable extension: unbounded storage growth
+
+The optional `IERC_BSS_Queryable` extension stores segments in an unbounded array per versioned
+hash. A malicious actor could declare many segments for a single blob, inflating read costs.
+Contracts relying on this extension should use bounded pagination
+(`getSegments(versionedHash, offset, limit)`) and set implementation-specific limits.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
