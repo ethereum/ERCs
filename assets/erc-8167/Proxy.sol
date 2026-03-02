@@ -30,7 +30,7 @@ contract Setup is ProxyStorageBase {
         require(sudo.selectorInfo[selector].delegate == FUNCTION_NOT_FOUND);
         sudo.selectorInfo[selector] = SelectorInfo({delegate: delegate, index: uint96(sudo.selectors.length)});
         sudo.selectors.push(selector);
-        emit IERC8167.DelegateSet(selector, delegate);
+        emit IERC8167.SelectorDelegated(selector, delegate);
     }
 }
 
@@ -47,7 +47,7 @@ contract FullAdmin is Setup {
         delete sudo.selectorInfo[selector];
         sudo.selectors[index] = last;
         sudo.selectors.pop();
-        emit IERC8167.DelegateSet(selector, FUNCTION_NOT_FOUND);
+        emit IERC8167.SelectorDelegated(selector, FUNCTION_NOT_FOUND);
     }
 
     function upgrade(bytes4 selector, address delegate) public onlyOwner {
@@ -56,7 +56,7 @@ contract FullAdmin is Setup {
         require(delegate.code.length > 0);
         require(sudo.selectorInfo[selector].delegate != FUNCTION_NOT_FOUND);
         sudo.selectorInfo[selector].delegate = delegate;
-        emit IERC8167.DelegateSet(selector, delegate);
+        emit IERC8167.SelectorDelegated(selector, delegate);
     }
 }
 
