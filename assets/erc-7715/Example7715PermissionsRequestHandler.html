@@ -1,0 +1,227 @@
+<!-- Example7715PermissionsRequestHandler 
+    Not for production use. A minimal reference implementation 
+    for ERC-7715 focusing on focusing on granting a permission from 
+    a minimal EIP-1193 Ethereum provider.
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Example ERC-7715 Permissions Request Handler</title>
+  </head>
+  <body>
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      "
+    >
+      <h1>Example ERC-7715 Permissions Request Handler</h1>
+
+      <button id="request-permission-btn">
+        Request (native-token-allowance) permission
+      </button>
+    </div>
+
+    <h3>Response:</h3>
+    <pre
+      id="response-output"
+      style="
+        background: #f4f4f4;
+        padding: 10px;
+        border: 1px solid #ccc;
+        white-space: pre-wrap; /* wrap long lines */
+        word-break: break-all; /* allow breaking hex strings */
+        overflow-wrap: anywhere; /* fallback for older browsers */
+      "
+    ></pre>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "viem": "https://esm.sh/viem@2.41.2",
+          "viem/accounts": "https://esm.sh/viem@2.41.2/accounts"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import { encodeAbiParameters, hashTypedData, hexToBytes } from "viem";
+      import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+
+      ////////////////////////////// Wallet Provider context //////////////////////////////
+      // The user EVM account stored in the wallet
+      const userEvmWallet = [privateKeyToAccount(generatePrivateKey())];
+
+      // Special authority value indicating the delegator is the root authority
+      const ROOT_AUTHORITY =
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+      // DelegationManger defined in ERC-7710
+      const DELEGATION_MANAGER_ADDRESS =
+        "0x523f0a8d79f9bebb7a4987e8dec51f613cf46f91";
+
+      /**
+       * Signs a EIP-712 typed data using the given delegation struct object
+       */
+      async function signDelegation(params) {
+        const { chainId, delegationStruct } = params;
+
+        // Define EIP-712 data
+        const typedData = {
+          types: {
+            EIP712Domain: [
+              { name: "name", type: "string" },
+              { name: "version", type: "string" },
+              { name: "chainId", type: "uint256" },
+              { name: "verifyingContract", type: "address" },
+            ],
+            Delegation: [
+              { name: "delegate", type: "address" },
+              { name: "delegator", type: "address" },
+              { name: "authority", type: "bytes32" },
+            ],
+          },
+          primaryType: "Delegation",
+          domain: {
+            chainId: chainId,
+            name: "DelegationManager",
+            version: "1",
+            verifyingContract: DELEGATION_MANAGER_ADDRESS,
+          },
+          message: delegationStruct,
+        };
+
+        const account = userEvmWallet[0];
+        const signature = await account.signTypedData(typedData);
+
+        return signature;
+      }
+
+      /**
+       * Encodes delegations into a ERC-7715 permissions context
+       */
+      function encodeDelegations(delegationStructs) {
+        /**
+         * The ABI types for an array of delegations.
+         *  struct Delegation {
+         *   address delegator;    // The address delegating authority
+         *   address delegate;     // The address receiving authority
+         *   bytes32 authority;    // The authority being delegated (or ROOT_AUTHORITY)
+         *   bytes signature;      // The delegator's signature authorizing this delegation
+         * }
+         */
+        const delegationArrayAbi = [
+          {
+            name: "delegations",
+            type: "tuple[]",
+            components: [
+              { name: "delegator", type: "address" },
+              { name: "delegate", type: "address" },
+              { name: "authority", type: "bytes32" },
+              { name: "signature", type: "bytes" },
+            ],
+          },
+        ];
+
+        return encodeAbiParameters(delegationArrayAbi, [
+          delegationStructs.map((d) => ({
+            delegator: d.delegator,
+            delegate: d.delegate,
+            authority: d.authority,
+            signature: d.signature,
+          })),
+        ]);
+      }
+
+      /**
+       * A minimal EIP-1193 Ethereum provider instance.
+       */
+      const providerInstance = {
+        request: async (eip1193RequestArguments) => {
+          const { method, params } = eip1193RequestArguments;
+          switch (method) {
+            case "wallet_requestExecutionPermissions":
+              const responses = await Promise.all(
+                params.map(async (req) => {
+                  // Built  and sign delegation with the user selected account
+                  // Here you can attach terms that match the semantics of the requested permission
+                  // For you implementation of ERC-7710
+                  const delegationStruct = {
+                    delegator: userEvmWallet[0].address,
+                    delegate: req.to,
+                    authority: ROOT_AUTHORITY,
+                    signature: "0x",
+                  };
+
+                  const signature = await signDelegation({
+                    chainId: req.chainId,
+                    delegationStruct,
+                  });
+
+                  const signedDelegation = { ...delegationStruct, signature };
+                  const permissionContext = encodeDelegations([
+                    signedDelegation,
+                  ]);
+
+                  return {
+                    ...req,
+                    from: userEvmWallet[0].address,
+                    context: permissionContext,
+                    dependencies: [], // If the users smart account it not yet deployed, attach (factory, factoryData)
+                    delegationManager: DELEGATION_MANAGER_ADDRESS,
+                  };
+                })
+              );
+
+              return responses;
+            default:
+              throw new Error(`Method not supported: [${method}]`);
+          }
+        },
+      };
+
+      ////////////////////////////// DApp context //////////////////////////////
+
+      const dAppEvmWallet = [privateKeyToAccount(generatePrivateKey())];
+      const output = document.getElementById("response-output");
+
+      document
+        .getElementById("request-permission-btn")
+        .addEventListener("click", async function () {
+          output.textContent = "handling request...";
+
+          const permissionResponse = await providerInstance.request({
+            method: "wallet_requestExecutionPermissions",
+            params: [
+              {
+                chainId: "0x01",
+                to: dAppEvmWallet[0].address,
+                permission: {
+                  type: "native-token-allowance",
+                  isAdjustmentAllowed: false,
+                  data: {
+                    allowance: "0x1DCD6500",
+                  },
+                },
+                rules: [
+                  {
+                    type: "expiry",
+                    data: {
+                      timestamp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+                    },
+                  },
+                ],
+              },
+            ],
+          });
+
+          output.textContent = JSON.stringify(permissionResponse, null, 2);
+        });
+    </script>
+  </body>
+</html>

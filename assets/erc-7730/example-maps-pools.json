@@ -1,0 +1,75 @@
+{
+    "$schema": "./erc7730-v2.schema.json",
+
+    "$comment": "This is an example of a complete ERC-7730 file using maos for better readability.",
+
+    "context": {
+        "$id": "Example Maps for Pools",
+        "contract" : {
+            "deployments": [ 
+                {
+                    "chainId": 1,
+                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
+                }
+            ]
+        }
+    }, 
+
+    "metadata": {
+        "owner": "Example",
+        "info": {
+            "url": "https://example.io/"
+        },
+        "maps": {
+            "underlyingToken": {
+                "$keyType": "Chain ID",
+                "values": {
+                    "1": "0x0000000000000000000000000000000000deadbeef",
+                    "137": "0x0000000000000000000000000000000000feedface",
+                    "42161": "0x0000000000000000000000000000000000cafebabe"
+                }
+            },
+            "shareToken": {
+                "$keyType": "Chain ID",
+                "values": {
+                    "1": "0x00000000000000000000000000000000abcdef01",
+                    "137": "0x00000000000000000000000000000000abcdef02",
+                    "42161": "0x00000000000000000000000000000000abcdef03"
+                }
+            }
+        }
+    },
+
+    "display": {
+        "formats": {
+            "deposit(uint256 amount,uint256 minShares)": {
+                "intent": "Deposit",
+                "interpolatedIntent": "Deposit {amount} to get at least {minShares}",
+                "fields": [
+                    {
+                        "path": "amount",
+                        "label": "Deposit Amount",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": {
+                                "map": "$.metadata.maps.underlyingToken",
+                                "key": "@.chainId"
+                            }   
+                        }
+                    },
+                    {
+                        "path": "minShares",
+                        "label": "Min Received Shares",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": {
+                                "map": "$.metadata.maps.shareToken",
+                                "key": "@.chainId"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
