@@ -1,5 +1,5 @@
 ---
-eip: <TBD – assigned by editors upon merge>
+eip: TBD
 title: Token Puller Interface
 description: Standardized interface for permissioned, on-demand token pulls with custom sourcing logic, permit support, and allowance delegation
 author: Guillermo Narvaja (@gnarvaja)
@@ -31,7 +31,7 @@ This enables use cases such as recurring payments, subscriptions, automated sett
 Current token approval standards (ERC-20 `approve`/`transferFrom`, ERC-2612 permits) require owners to hold liquid balances and often involve multiple transactions or direct balance pulls. This creates friction and risks:
 
 -   Owners forgo yield from invested positions (Aave, Compound, etc.)
--   Atomization of funds in multiple accounts linked to different spending mechanisms (like crypto credit cards)
+-   Atomization of funds in multiple accounts linked to different spending mechanisms (like crypto credit cards/neo banks)
 -   Large liquid balances in hot wallets increase security risks
 -   Recurring or delegated payments require frequent owner interaction
 -   No standardized way for one spender to delegate portions of their allowance (e.g., budget enforcers or guardians)
@@ -77,8 +77,6 @@ Additional terms that appear frequently and benefit from clear definition:
 
 -   **Permit** — An off-chain EIP-712 signed message (following the `PullPermit` struct) that authorizes setting or updating a pull allowance without requiring an on-chain `approvePull` transaction from the owner.
 
-Here is the **Interface** section rewritten in the exact style of ERC-4626 (from line ~52 onward in the linked file): pure Markdown with function/event names as headings, followed by NatSpec-style descriptions using bullet points, no Solidity code blocks for individual items, and consistent formatting for parameters, returns, and notes.
-
 ### Methods
 
 #### approvePull
@@ -103,8 +101,9 @@ function pullFrom(address token, address owner, address to, uint256 amount) exte
 Pulls `amount` of `token` from `owner` and transfers it to `to`, after executing the Puller's implementation-specific sourcing logic.
 
 -   MUST revert unless `msg.sender` has sufficient allowance: `pullAllowance(token, owner, msg.sender) >= amount`.
--   If the current allowance is not `type(uint256).max`, MUST decrease the allowance by `amount` after the check (following checks-effects-interactions).
--   MAY choose not to decrease the allowance when it is `type(uint256).max` (infinite approval).
+-   When `msg.sender == owner`, it MAY not revert and ignore allowance. In that case, the puller just abstracts away sourcing logic.
+-   If the current allowance is not `type(uint256).max`, MUST decrease the allowance by `amount`.
+-   MAY not to decrease the allowance when it is `type(uint256).max` (infinite approval).
 -   SHOULD execute the Puller's custom sourcing logic to obtain the tokens (implementation-defined).
 -   MUST transfer exactly `amount` tokens to `to` using the ERC-20 `transfer` function.
 -   MUST revert if sourcing fails, allowance is insufficient, caller is unauthorized, or the transfer reverts.
@@ -148,22 +147,7 @@ Returns the max amount that can be pulled of a given `token` from a given `owner
 termination if that amount is reached.
 
 -   The returned value MUST be between 0 and `upTo`.
-
-#### DOMAIN_SEPARATOR
-
-```solidity
-function DOMAIN_SEPARATOR() external view returns (bytes32)
-```
-
-Returns the EIP-712 domain separator used when computing permit digests.
-
-#### nonces
-
-```solidity
-function nonces(address owner) external view returns (uint256)
-```
-
-Returns the current nonce for `owner`, used for replay protection in permits.
+-   Maximum amount that can be pulled from a given `owner` by a given `spender` can be computed with `maxPullable(token, owner, pullAllowance(token, owner, spender))`.
 
 #### permitPull
 
@@ -227,6 +211,22 @@ Atomically applies a permit (with `limit == amount`) and executes a pull in a si
 -   MUST emit `PullApproval` followed by `TokensPulled`.
 -   MUST only be callable by the spender (`msg.sender == spender` in the permit).
 
+#### DOMAIN_SEPARATOR
+
+```solidity
+function DOMAIN_SEPARATOR() external view returns (bytes32)
+```
+
+Returns the EIP-712 domain separator used when computing permit digests.
+
+#### nonces
+
+```solidity
+function nonces(address owner) external view returns (uint256)
+```
+
+Returns the current nonce for `owner`, used for replay protection in permits.
+
 ### Events
 
 #### PullApproval
@@ -279,6 +279,7 @@ interface IPuller {
     function approvePull(address token, address spender, uint256 limit) external;
     function pullFrom(address token, address owner, address to, uint256 amount) external;
     function pullAllowance(address token, address owner, address spender) external view returns (uint256);
+    function maxPullable(address token, address owner, uint256 upTo) external view returns (uint256);
 
     // Allowance delegation
     function transferPullAllowance(address token, address owner, address toSpender, uint256 amount) external;
