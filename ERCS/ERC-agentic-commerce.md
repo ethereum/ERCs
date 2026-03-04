@@ -1,14 +1,13 @@
-# ERC-XXXX: Agentic Commerce
-
-### Job escrow with evaluator attestation
-
-
-| Authors  | Davide Crapis (@dcrapis), Bryan Lim (@ai-virtual-b), Tay Weixiong (@twx-virtuals), Chooi Zuhwa (@Zuhwa) |
-| -------- | -------------------------------------------------------------------- |
-| Created  | 2026-02-25                                                           |
-| Status   | Draft                                                                |
-| Requires | [EIP-20](https://eips.ethereum.org/EIPS/eip-20) (for payment tokens) |
-
+---
+title: Agentic Commerce
+description: Job escrow with evaluator attestation for agent commerce.
+author: Davide Crapis (@dcrapis), Bryan Lim (@ai-virtual-b), Tay Weixiong (@twx-virtuals), Chooi Zuhwa (@Zuhwa)
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-02-25
+requires: 20
+---
 
 ## Abstract
 
@@ -16,11 +15,11 @@ This specification defines the **Agentic Commerce Protocol**: a **job** with esc
 
 ## Motivation
 
-Many use cases need only: client locks funds, provider submits work, one attester (evaluator) signals “done” and triggers payment—or client rejects or timeout triggers refund. The Agentic Commerce Protocol specifies that minimal surface so implementations stay small and composable. The evaluator can be the client (e.g. `evaluator = client` at creation) when there is no third-party attester.
+Many use cases need only: client locks funds, provider submits work, one attester (evaluator) signals "done" and triggers payment—or client rejects or timeout triggers refund. The Agentic Commerce Protocol specifies that minimal surface so implementations stay small and composable. The evaluator can be the client (e.g. `evaluator = client` at creation) when there is no third-party attester.
 
 ## Specification
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
 ### State Machine
 
@@ -89,9 +88,9 @@ Called by client or provider. Sets `job.budget = amount`. SHALL revert if job is
 - **fund(jobId, expectedBudget, optParams?)**
 Called by client. SHALL revert if job is not Open, caller is not client, budget is zero, **provider is not set** (`job.provider == address(0)`), or `job.budget != expectedBudget` (front-running protection). SHALL transfer `job.budget` of the payment token from client to the contract (escrow) and set status to Funded. `optParams` forwarded to hook if set.
 - **submit(jobId, deliverable, optParams?)**
-Called by provider only. SHALL revert if job is not Funded or caller is not the job’s provider. SHALL set status to Submitted. `deliverable` (`bytes32`) is a reference to submitted work (e.g. hash of off-chain deliverable, IPFS CID, attestation commitment). SHALL emit an event including `deliverable` (e.g. JobSubmitted). `optParams` forwarded to hook if set.
+Called by provider only. SHALL revert if job is not Funded or caller is not the job's provider. SHALL set status to Submitted. `deliverable` (`bytes32`) is a reference to submitted work (e.g. hash of off-chain deliverable, IPFS CID, attestation commitment). SHALL emit an event including `deliverable` (e.g. JobSubmitted). `optParams` forwarded to hook if set.
 - **complete(jobId, reason, optParams?)**
-Called by evaluator only. SHALL revert if job is not Submitted or caller is not the job’s evaluator. SHALL set status to Completed. SHALL transfer escrowed funds to provider (minus optional platform fee to a configurable treasury). `reason` MAY be `bytes32(0)` or an attestation hash (OPTIONAL). SHALL emit an event including `reason` if provided. `optParams` forwarded to hook if set.
+Called by evaluator only. SHALL revert if job is not Submitted or caller is not the job's evaluator. SHALL set status to Completed. SHALL transfer escrowed funds to provider (minus optional platform fee to a configurable treasury). `reason` MAY be `bytes32(0)` or an attestation hash (OPTIONAL). SHALL emit an event including `reason` if provided. `optParams` forwarded to hook if set.
 - **reject(jobId, reason, optParams?)**
 Called by **client when job is Open** or by **evaluator when job is Funded or Submitted**. SHALL revert if job is not Open, Funded, or Submitted, or caller is not the client (when Open) or the evaluator (when Funded or Submitted). SHALL set status to Rejected. If Funded or Submitted, SHALL refund escrow to client. `reason` OPTIONAL. SHALL emit an event including `reason` and the caller (rejector) if provided. `optParams` forwarded to hook if set.
 - **claimRefund(jobId)**
@@ -288,18 +287,12 @@ Implementations SHOULD emit at least:
 - **PaymentReleased**(jobId, provider, amount)
 - **Refunded**(jobId, client, amount)
 
-### Security
-
-- Reentrancy: Functions that transfer tokens SHALL be protected (e.g. reentrancy guard).
-- Tokens: Use SafeERC20 or equivalent for ERC-20.
-- Evaluator MUST be set at creation; if “client completes”, pass `evaluator = client`.
-
 ## Rationale
 
-- **Single attester after submission**: Once Submitted, only the evaluator can complete or reject; the client cannot pull funds back unilaterally, so the provider is protected after starting work. Evaluator = client covers the “no third party” case.
-- **Explicit submission**: The Submitted state gives the evaluator (and indexers/UIs) a clear signal that the provider considers work done and ready for evaluation, separating “funded and in progress” from “work delivered”.
+- **Single attester after submission**: Once Submitted, only the evaluator can complete or reject; the client cannot pull funds back unilaterally, so the provider is protected after starting work. Evaluator = client covers the "no third party" case.
+- **Explicit submission**: The Submitted state gives the evaluator (and indexers/UIs) a clear signal that the provider considers work done and ready for evaluation, separating "funded and in progress" from "work delivered".
 - **Minimal surface**: Attestation is the optional `reason` on complete/reject; no additional ledger is required.
-- **Four states**: Open, Funded, Submitted, and Terminal (Completed, Rejected, or Expired) are enough for “fund → work → submit → evaluate or refund”.
+- **Four states**: Open, Funded, Submitted, and Terminal (Completed, Rejected, or Expired) are enough for "fund → work → submit → evaluate or refund".
 - **Expiry**: Refund after `expiredAt` gives client a way to reclaim funds without an explicit reject.
 - **Hooks over inheritance**: Optional hook contracts let integrators extend the protocol (validation, reputation, fees) without modifying or inheriting from the core contract. The core stays minimal; complexity lives in the hook.
 - **Generic hook interface**: The `IACPHook` interface uses just two functions (`beforeAction`/`afterAction`) with a selector parameter rather than named functions per action. This keeps the interface stable as the core protocol evolves — new hookable functions simply produce new selector values without changing the interface.
@@ -323,7 +316,7 @@ The following patterns are RECOMMENDED:
 
 - **Evaluator attestations**
   - On `complete(jobId, reason, optParams?)` and `reject(jobId, reason, optParams?)`, the evaluator (which MAY be a contract) SHOULD:
-    - produce an attestation or structured log that can be added to the ERC‑8004 **reputation registry** as feedback (e.g. “provider successfully completed job”, “job rejected for reason X”). Attestations MAY reference the job, parties, and `reason` (e.g. a hash of off‑chain evidence).
+    - produce an attestation or structured log that can be added to the ERC‑8004 **reputation registry** as feedback (e.g. "provider successfully completed job", "job rejected for reason X"). Attestations MAY reference the job, parties, and `reason` (e.g. a hash of off‑chain evidence).
     - and/or post a proof to the ERC‑8004 **validation registry**, which a hook (or evaluator contract) then reads in order to decide whether to mark the job as `Completed` or `Rejected`.
   - Hooks MAY be used to call into ERC‑8004 registries in `afterAction` for `complete`/`reject`, keeping the core ACP contract unaware of the registry details.
 
@@ -382,16 +375,31 @@ contract AgenticCommerce is ERC2771Context, ... {
 
 ---
 
+## Backwards Compatibility
+
+No backward compatibility issues found.
+
+## Test Cases
+
+TBD
+
+## Reference Implementation
+
+TBD
+
 ## Security Considerations
 
 - Evaluator is trusted for completion and rejection once the job is Submitted; a malicious evaluator can complete or reject arbitrarily. Use reputation (e.g. ERC-8004) or staking for high-value jobs.
 - Once Funded, only the evaluator can reject, and only the provider can submit; the client cannot unilaterally withdraw, which protects the provider after they start work.
 - No dispute resolution or arbitration; reject/expire is final.
 - Single payment token per contract reduces attack surface; per-job tokens are an extension.
+- **Reentrancy:** Functions that transfer tokens SHALL be protected (e.g. reentrancy guard).
+- **Tokens:** Use SafeERC20 or equivalent for ERC-20.
+- **Evaluator:** MUST be set at creation; if "client completes", pass `evaluator = client`.
 - **Hook gas limits** (for hooked implementations): Implementations SHOULD impose a gas limit on hook calls (e.g. `call{gas: HOOK_GAS_LIMIT}(...)`) to bound execution cost and prevent hooks from consuming unbounded gas. The specific limit is left to the implementation as gas costs vary across chains.
 - Hook contracts are client-supplied and trusted by the client; implementations MUST NOT allow hooks to modify core escrow state directly. `claimRefund` is deliberately not hookable so that refunds after expiry cannot be blocked by a malicious hook.
 - Jobs that use **advanced hooks** (e.g. two‑phase escrow / fund‑transfer hooks that custody additional tokens) are expected to have **more revert paths and tighter coupling** to external logic than plain, non‑hooked Agentic Commerce jobs. Such hooks SHOULD be reserved for agents and users who understand and accept this trade‑off; for most simple jobs, a non‑hooked or policy‑only hook is RECOMMENDED.
 
 ## Copyright
 
-Copyright and related rights waived via CC0.
+Copyright and related rights waived via [CC0](../LICENSE.md).
