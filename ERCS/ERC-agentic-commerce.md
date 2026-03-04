@@ -379,10 +379,6 @@ contract AgenticCommerce is ERC2771Context, ... {
 
 No backward compatibility issues found.
 
-## Test Cases
-
-TBD
-
 ## Reference Implementation
 
 TBD
