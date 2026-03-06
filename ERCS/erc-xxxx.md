@@ -3,12 +3,12 @@ eip: TBD
 title: Token Puller Interface
 description: Standardized interface for permissioned, on-demand token pulls with custom sourcing logic, permit support, and allowance delegation
 author: Guillermo Narvaja (@gnarvaja)
-discussions-to: https://ethereum-magicians.org/t/erc-draft-token-puller-interface-for-permissioned-pulls-with-custom-sourcing/xxxx (link to be updated after posting)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-token-puller-interface-spending-without-liquid-balances/27896
 status: Draft
 type: Standards Track
 category: ERC
 created: 2026-02-27
-requires: 20, 2612, 6492, 712
+requires: 20, 2612, 6492, 712, 5267
 ---
 
 ## Abstract
@@ -174,7 +174,7 @@ Approves or updates a pull allowance using an off-chain EIP-712 signature.
     ```solidity
     keccak256(abi.encodePacked(
         "\x19\x01",
-        DOMAIN_SEPARATOR(),
+        eip712Domain(),
         keccak256(abi.encode(TYPEHASH, token, owner, spender, limit, nonces(owner), deadline))
     ))
     ```
@@ -211,21 +211,11 @@ Atomically applies a permit (with `limit == amount`) and executes a pull in a si
 -   MUST emit `PullApproval` followed by `TokensPulled`.
 -   MUST only be callable by the spender (`msg.sender == spender` in the permit).
 
-#### DOMAIN_SEPARATOR
+#### Other methods
 
-```solidity
-function DOMAIN_SEPARATOR() external view returns (bytes32)
-```
+Implementations SHOULD expose the domain via [ERC-5267](./erc-5267.md).
 
-Returns the EIP-712 domain separator used when computing permit digests.
-
-#### nonces
-
-```solidity
-function nonces(address owner) external view returns (uint256)
-```
-
-Returns the current nonce for `owner`, used for replay protection in permits.
+Implementations MUST expose `nonces(owner)` as described in [ERC-2612](./erc-2612.md).
 
 ### Events
 
@@ -283,10 +273,6 @@ interface IPuller {
 
     // Allowance delegation
     function transferPullAllowance(address token, address owner, address toSpender, uint256 amount) external;
-
-    // EIP-712 / Permit support
-    function DOMAIN_SEPARATOR() external view returns (bytes32);
-    function nonces(address owner) external view returns (uint256);
 
     function permitPull(
         address token,
