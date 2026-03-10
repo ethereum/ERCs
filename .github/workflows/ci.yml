@@ -72,7 +72,9 @@ jobs:
         continue-on-error: true
         run: |
           ALL_CHANGED=$(gh pr diff ${{ github.event.number }} --name-only --repo ${{ github.repository }})
-          NON_ERC=$(echo "$ALL_CHANGED" | grep -v -E '^(ERCS/erc-[0-9]+\.md|assets/erc-[0-9]+/)' | grep -v '^\s*$' || true)
+          # Only pure ERC markdown changes are safe for the incremental path.
+          # Asset changes can otherwise leave stale files in `_site/`.
+          NON_ERC=$(echo "$ALL_CHANGED" | grep -v -E '^ERCS/erc-[0-9]+\.md$' | grep -v '^\s*$' || true)
           if [ -n "$NON_ERC" ]; then
             echo "Non-ERC files changed, will run full check"
             echo "mode=full" >> $GITHUB_OUTPUT
@@ -134,22 +136,23 @@ jobs:
       - name: HTML Proofer
         run: |
           if [ "${{ steps.changed.outputs.mode }}" = "incremental" ]; then
-            PATHS=""
+            PATHS=()
             for num in ${{ steps.changed.outputs.nums }}; do
               slug="eip-${num}"
               if [ -d "./_site/EIPS/${slug}" ]; then
-                PATHS="${PATHS} ./_site/EIPS/${slug}"
+                PATHS+=("./_site/EIPS/${slug}")
               elif [ -f "./_site/EIPS/${slug}.html" ]; then
-                PATHS="${PATHS} ./_site/EIPS/${slug}.html"
+                PATHS+=("./_site/EIPS/${slug}.html")
               elif [ -d "./_site/${slug}" ]; then
-                PATHS="${PATHS} ./_site/${slug}"
+                PATHS+=("./_site/${slug}")
               elif [ -f "./_site/${slug}.html" ]; then
-                PATHS="${PATHS} ./_site/${slug}.html"
+                PATHS+=("./_site/${slug}.html")
               fi
             done
-            if [ -n "$PATHS" ]; then
-              echo "::notice::Running HTMLProofer on changed files only:${PATHS}"
-              bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https ${PATHS}
+            if [ ${#PATHS[@]} -gt 0 ]; then
+              printf -v PATHS_NOTICE ' %q' "${PATHS[@]}"
+              echo "::notice::Running HTMLProofer on changed files only:${PATHS_NOTICE}"
+              bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "${PATHS[@]}"
               exit $?
             fi
             echo "::warning::Changed ERC HTML files not found in build output, falling back to full check"
