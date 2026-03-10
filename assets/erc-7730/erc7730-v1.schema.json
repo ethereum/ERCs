@@ -718,11 +718,6 @@
             "title": "Embedded Calldata Formatting Parameters",
             "type": "object",
             "properties": {
-                "selector": {
-                    "title": "Called Selector (Optional)",
-                    "type": "string",
-                    "description": "The selector being called, if not contained in the calldata. Hex string representation."
-                },
                 "callee": {
                     "title": "Callee Address",
                     "type": "string",
@@ -732,15 +727,48 @@
                     "title": "Callee Path",
                     "type": "string",
                     "description": "The path to the address of the contract being called by this embedded calldata."
+                },
+                "selector": {
+                    "title": "Called Selector (Optional)",
+                    "type": "string",
+                    "description": "The selector being called, if not contained in the calldata. Hex string representation."
+                },
+                "selectorPath": {
+                    "title": "Called Selector Path (Optional)",
+                    "type": "string",
+                    "description": "The path to the selector being called, if not contained in the calldata. Hex string representation."
+                },
+                "amount": {
+                    "title": "Amount (Optional)",
+                    "type": "integer",
+                    "description": "The associated amount in native currency, if the calldata can be associated with a container value."
+                },
+                "amountPath": {
+                    "title": "Amoun Path (Optional)",
+                    "type": "string",
+                    "description": "The path to the associated amount in native currency, if the calldata can be associated with a container value."
+                },
+                "spender": {
+                    "title": "Spender Path (Optional)",
+                    "type": "string",
+                    "description": "The associated spender, if the calldata can be associated with a container value."
+                },
+                "spenderPath": {
+                    "title": "Spender Path (Optional)",
+                    "type": "string",
+                    "description": "The path to the associated spender, if the calldata can be associated with a container value."
                 }
             },
             "anyOf": [
                 {"required": ["callee"]},
                 {"required": ["calleePath"]}
             ],
-            "not": {
-                "required": ["callee", "calleePath"]
-            },
+            "allOf": [
+                {"not": { "required": ["callee", "calleePath"] }},
+                {"not": { "required": ["selector", "selectorPath"] }},
+                {"not": { "required": ["amount", "amountPath"] }},
+                {"not": { "required": ["spender", "spenderPath"] }}
+            ],
             "additionalProperties": false
         },
         "tokenAmountParameters": {

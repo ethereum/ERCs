@@ -6,7 +6,7 @@ pragma solidity ^0.8.22;
  * @notice Interface defines functions to emit events when fractions are transferred
  */
 interface IFractionTransferEventEmitter {
-    /// @dev Emmited when caller is not one of expected addresses
+    /// @dev Emitted when caller is not one of expected addresses
     error WrongTransferNotificationSource();
 
     /**

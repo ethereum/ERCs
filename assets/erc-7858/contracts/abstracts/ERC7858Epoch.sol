@@ -560,11 +560,6 @@ abstract contract ERC7858Epoch is
         return _window.blocksInEpoch();
     }
 
-    /// @dev See {IERC7858Epoch-epochType}.
-    function epochType() public pure virtual returns (EXPIRY_TYPE) {
-        return IERC7858.EXPIRY_TYPE.BLOCK_BASED;
-    }
-
     /// @dev See {IERC7858Epoch-validityDuration}.
     function validityDuration() public view virtual returns (uint256) {
         return _window.windowSize;

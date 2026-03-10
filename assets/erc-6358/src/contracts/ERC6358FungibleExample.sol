@@ -145,7 +145,7 @@ contract ERC6358FungibleExample is ERC20, Ownable, IERC6358Fungible {
     }
 
     /**
-     * @notice Returns the nearest exexutable delayed transaction info
+     * @notice Returns the nearest executable delayed transaction info
      * or returns default if not found
      */
     function getExecutableDelayedTx() external view returns (DelayedTx memory ret) {
@@ -237,7 +237,7 @@ contract ERC6358FungibleExample is ERC20, Ownable, IERC6358Fungible {
     }
 
     /**
-     * @notice Exucute an omniverse transfer operation
+     * @notice Execute an omniverse transfer operation
      */
     function _omniverseTransfer(bytes memory _from, bytes memory _to, uint256 _amount) internal {
         _checkOmniverseTransfer(_from, _amount);

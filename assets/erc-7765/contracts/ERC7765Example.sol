@@ -20,7 +20,7 @@ contract ERC7765Example is ERC721, IERC7765, IERC7765Metadata {
 
     /// @notice This function exercised a specific privilege of a token if succeeds.
     /// @dev Throws if `_privilegeId` is not a valid privilegeId.
-    /// @param _to  the address to benifit from the privilege.
+    /// @param _to  the address to benefit from the privilege.
     /// @param _tokenId  the NFT tokenID.
     /// @param _privilegeId  the ID of the privileges.
     /// @param _data  extra data passed in for extra message or future extension.
@@ -46,7 +46,7 @@ contract ERC7765Example is ERC721, IERC7765, IERC7765Metadata {
 
     /// @notice This function is to check whether a specific privilege of a token can be exercised.
     /// @dev Throws if `_privilegeId` is not a valid privilegeId.
-    /// @param _to  the address to benifit from the privilege.
+    /// @param _to  the address to benefit from the privilege.
     /// @param _tokenId  the NFT tokenID.
     /// @param _privilegeId  the ID of the privileges.
     function isExercisable(address _to, uint256 _tokenId, uint256 _privilegeId)
@@ -63,7 +63,7 @@ contract ERC7765Example is ERC721, IERC7765, IERC7765Metadata {
 
     /// @notice This function is to check whether a specific privilege of a token has been exercised.
     /// @dev Throws if `_privilegeId` is not a valid privilegeId.
-    /// @param _to  the address to benifit from the privilege.
+    /// @param _to  the address to benefit from the privilege.
     /// @param _tokenId  the NFT tokenID.
     /// @param _privilegeId  the ID of the privileges.
     function isExercised(address _to, uint256 _tokenId, uint256 _privilegeId) external view returns (bool _exercised) {
