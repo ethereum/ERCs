@@ -2,7 +2,7 @@
 title: Unidirectional Payment Channels with Signed Vouchers
 description: A standard for streaming micropayments via off-chain signed vouchers over unidirectional ERC-20 payment channels, designed for high-frequency service commerce.
 author: Artur Markus (@kimbo128)
-discussions-to: <TBD — Ethereum Magicians URL>
+discussions-to: https://github.com/ethereum/ERCs/pull/1592
 status: Draft
 type: Standards Track
 category: ERC
