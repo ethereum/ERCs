@@ -120,6 +120,8 @@ jobs:
           path: |
             _site
             .jekyll-metadata
+          # PR reruns can reuse their own cache via the current PR merge ref.
+          # If that misses, GitHub falls back to caches visible from the base/default branch.
           key: jekyll-${{ runner.os }}-eips-${{ steps.eips.outputs.sha }}
           restore-keys: |
             jekyll-${{ runner.os }}-

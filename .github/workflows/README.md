@@ -18,6 +18,9 @@ The HTMLProofer job keeps pull-request runs fast by combining three tactics:
 The optimization is intentionally conservative:
 
 - any non-ERC-markdown change falls back to a full HTMLProofer run
+- PR reruns can reuse caches created by earlier runs of the same PR, but those
+  caches stay scoped to that PR's merge ref and are not shared with unrelated
+  PRs
 - cache restore/save behavior follows normal GitHub Actions cache scoping for
   the current branch, the pull request base branch, and the default branch
 - the workflow file itself is the source of truth; keep this README high-level
