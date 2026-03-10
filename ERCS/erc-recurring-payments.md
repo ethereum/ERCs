@@ -1,0 +1,605 @@
+---
+eip: <TBD>
+title: Interface for Onchain Recurring Payments
+description: Minimal interface for pull-based onchain subscription billing with lifecycle management and keeper-gated payment collection.
+author: Mike Chasseur (@chasseurmic) <chasseurmic@gmail.com>
+discussions-to: https://ethereum-magicians.org/t/erc-standard-interface-for-onchain-recurring-payments/27946
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-03-10
+requires: 165
+---
+
+## Abstract
+
+This ERC defines a standard interface — `ISubscription` — for onchain recurring payment contracts. It specifies how subscriptions are created, how payments are collected by authorised keeper networks, how the subscription lifecycle is managed (pause, resume, cancel), and how status is exposed to external consumers. The interface supports both ERC-20 token payments and native ETH, includes optional merchant callbacks via `ISubscriptionReceiver`, and is designed for cross-chain portability through `bytes32` subscription identifiers derived from chain-aware inputs. Four optional extension interfaces (`ISubscriptionTrial`, `ISubscriptionTiered`, `ISubscriptionDiscovery`, `ISubscriptionHook`) are defined for implementations that require advanced capabilities beyond the core billing loop.
+
+---
+
+## Motivation
+
+Recurring payments — subscriptions, protocol fees, DAO membership dues, API billing, perpetual licences — are a fundamental primitive in modern digital commerce and on-chain protocols. Yet as of today, there is no standard interface for implementing them on EVM-compatible chains.
+
+The absence of a standard has produced a fragmented landscape:
+
+- **Each protocol reinvents the wheel.** Subscription logic is reimplemented from scratch in every protocol that needs it. The resulting contracts differ in function signatures, event shapes, error conventions, and security properties.
+- **Tooling is bespoke.** Dashboards, keeper networks, indexers, and wallets that want to support subscriptions must integrate with each protocol individually rather than building on a shared abstraction.
+- **Users cannot compare.** Subscribers have no way to enumerate their active recurring commitments across protocols, because there is no shared interface to query.
+- **Cross-chain support is absent.** Existing implementations are single-chain, with no provision for subscriptions that originate on one chain and are settled on another.
+
+Previous work — most notably ERC-1337 — proposed subscription standards but relied on off-chain signed messages and meta-transaction relays, which introduce off-chain coordination dependencies and are poorly suited to the current environment where on-chain automation (keeper networks, EIP-4337 account abstraction, scheduled transactions) is readily available and where L2 transaction costs make fully on-chain pull payments economically viable.
+
+This ERC specifies a minimal, opinionated interface that:
+
+1. Enables **automatic pull payments** without off-chain message signing or relayer infrastructure.
+2. Provides a **full subscription lifecycle** (active, paused, past-due, cancelled, expired) queryable on-chain.
+3. Uses **keeper-gated collection** to protect against payment timing manipulation and griefing.
+4. Is **cross-chain portable** via deterministic `bytes32` subscription identifiers.
+5. Remains **deliberately minimal** at the core, with advanced capabilities delegated to optional extension interfaces discovered via ERC-165.
+
+---
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Data Types
+
+#### `SubscriptionTerms`
+
+Defines the immutable terms of a subscription agreement.
+
+```solidity
+struct SubscriptionTerms {
+    address token;          // ERC-20 payment token, or address(0) for native ETH
+    uint256 amount;         // Amount per interval, in the token's smallest unit
+    uint48  interval;       // Seconds between successive payments (e.g. 2592000 = 30 days)
+    uint48  trialPeriod;    // Trial duration in seconds before first payment; 0 = no trial
+    uint256 maxPayments;    // Maximum payments to collect; 0 = unlimited
+    uint256 originChainId;  // Chain ID on which the subscription was created
+    uint256 paymentChainId; // Chain ID on which payments are collected
+}
+```
+
+#### `Status`
+
+Lifecycle status of a subscription.
+
+```solidity
+enum Status {
+    Active,
+    Paused,
+    Cancelled,
+    Expired,
+    PastDue
+}
+```
+
+`PastDue` MUST be computed dynamically by `getStatus()` and MUST NOT be written to persistent storage. An `Active` subscription is `PastDue` when `block.timestamp > nextPaymentAt[subId]`. All other status transitions occur through explicit state-changing function calls.
+
+### Custom Errors
+
+Conforming implementations MUST define the following errors:
+
+```solidity
+error SubscriptionNotFound(bytes32 subId);
+error SubscriptionNotActive(bytes32 subId, Status currentStatus);
+error PaymentIntervalNotElapsed(bytes32 subId, uint256 nextPaymentAt);
+error UnauthorizedCaller(address caller);
+error InsufficientAllowance(address subscriber, uint256 required, uint256 available);
+error InvalidTerms(string reason);
+error ZeroAmount();
+error ZeroInterval();
+```
+
+### Events
+
+Conforming implementations MUST emit the following events:
+
+```solidity
+event SubscriptionCreated(
+    bytes32 indexed subId,
+    address indexed subscriber,
+    address indexed merchant,
+    SubscriptionTerms terms
+);
+
+event PaymentCollected(
+    bytes32 indexed subId,
+    uint256 amount,
+    address token,
+    uint256 timestamp
+);
+
+event SubscriptionCancelled(
+    bytes32 indexed subId,
+    address cancelledBy,
+    uint256 timestamp
+);
+
+event PaymentFailed(
+    bytes32 indexed subId,
+    uint256 timestamp,
+    string reason
+);
+
+event SubscriptionPaused(
+    bytes32 indexed subId,
+    address pausedBy,
+    uint256 timestamp
+);
+
+event SubscriptionResumed(
+    bytes32 indexed subId,
+    uint256 timestamp
+);
+```
+
+### `ISubscription` Interface
+
+```solidity
+interface ISubscription {
+    // ─── Core Lifecycle ────────────────────────
+
+    /// @notice Create a new subscription between the caller (subscriber) and a merchant.
+    /// @dev MUST emit {SubscriptionCreated}. MUST revert with {ZeroAmount} if terms.amount == 0.
+    ///      MUST revert with {ZeroInterval} if terms.interval == 0.
+    ///      MUST revert with {InvalidTerms} for any other invalid field.
+    ///      For ERC-20 subscriptions, if no trialPeriod is set, the first payment MAY be
+    ///      collected immediately; msg.value MUST be 0. For native ETH subscriptions,
+    ///      msg.value MUST equal terms.amount unless a trialPeriod is set, in which case
+    ///      msg.value MAY be 0.
+    /// @param merchant Address of the merchant to subscribe to
+    /// @param terms    The subscription terms
+    /// @return subId   Unique identifier for the created subscription
+    function subscribe(
+        address merchant,
+        SubscriptionTerms calldata terms
+    ) external payable returns (bytes32 subId);
+
+    /// @notice Collect the next due payment for a subscription.
+    /// @dev MUST revert with {PaymentIntervalNotElapsed} if called before nextPaymentAt.
+    ///      MUST revert with {SubscriptionNotFound} if subId does not exist.
+    ///      MUST revert with {SubscriptionNotActive} if the subscription is not Active or PastDue.
+    ///      On insufficient allowance or insufficient ETH deposit, MUST NOT revert; instead
+    ///      MUST set status to PastDue, emit {PaymentFailed}, and return false.
+    ///      On success, MUST emit {PaymentCollected} and return true.
+    ///      MUST be gated behind an authorisation check in production deployments.
+    /// @param subId Subscription identifier
+    /// @return success True if the payment was collected successfully
+    function collectPayment(bytes32 subId) external returns (bool success);
+
+    /// @notice Cancel a subscription, preventing future payments.
+    /// @dev Callable by the subscriber or the merchant.
+    ///      MUST emit {SubscriptionCancelled} with the caller's address.
+    ///      MUST revert with {UnauthorizedCaller} for any other caller.
+    ///      MUST revert with {SubscriptionNotFound} if subId does not exist.
+    /// @param subId Subscription identifier
+    function cancelSubscription(bytes32 subId) external;
+
+    /// @notice Pause a subscription, temporarily halting payment collection.
+    /// @dev Callable by the subscriber only.
+    ///      MUST emit {SubscriptionPaused}.
+    ///      MUST revert with {UnauthorizedCaller} if caller is not the subscriber.
+    ///      MUST revert with {SubscriptionNotActive} if the subscription is not Active.
+    ///      The next-payment clock MUST freeze while the subscription is paused.
+    /// @param subId Subscription identifier
+    function pauseSubscription(bytes32 subId) external;
+
+    /// @notice Resume a previously paused subscription.
+    /// @dev Callable by the subscriber only.
+    ///      MUST emit {SubscriptionResumed}.
+    ///      MUST reset nextPaymentAt to block.timestamp + terms.interval.
+    ///      MUST revert with {UnauthorizedCaller} if caller is not the subscriber.
+    ///      MUST revert with {SubscriptionNotActive} if the subscription is not Paused.
+    /// @param subId Subscription identifier
+    function resumeSubscription(bytes32 subId) external;
+
+    // ─── View Functions ────────────────────────
+
+    /// @notice Return the current lifecycle status of a subscription.
+    /// @dev MUST return PastDue dynamically when the stored status is Active and
+    ///      block.timestamp > nextPaymentAt[subId]. MUST NOT require a state-changing
+    ///      call to reflect PastDue status.
+    /// @param subId Subscription identifier
+    /// @return      Current {Status} value
+    function getStatus(bytes32 subId) external view returns (Status);
+
+    /// @notice Return the Unix timestamp at which the next payment is due.
+    /// @param subId Subscription identifier
+    /// @return timestamp Unix timestamp of the next scheduled payment
+    function nextPaymentDue(bytes32 subId) external view returns (uint256 timestamp);
+
+    /// @notice Return the full terms of a subscription.
+    /// @param subId Subscription identifier
+    /// @return      The {SubscriptionTerms} struct
+    function getTerms(bytes32 subId) external view returns (SubscriptionTerms memory);
+
+    /// @notice Return the subscriber address for a subscription.
+    /// @param subId Subscription identifier
+    /// @return      Address of the subscriber
+    function getSubscriber(bytes32 subId) external view returns (address);
+
+    /// @notice Return the merchant address for a subscription.
+    /// @param subId Subscription identifier
+    /// @return      Address of the merchant
+    function getMerchant(bytes32 subId) external view returns (address);
+
+    /// @notice Return the total number of payments successfully collected.
+    /// @param subId Subscription identifier
+    /// @return      Number of successful payments collected so far
+    function getPaymentCount(bytes32 subId) external view returns (uint256);
+}
+```
+
+### ERC-165 Support
+
+Conforming implementations MUST implement ERC-165 and MUST return `true` from `supportsInterface()` for the `ISubscription` interface ID.
+
+```solidity
+bytes4 constant CADENCE_INTERFACE_ID = type(ISubscription).interfaceId;
+```
+
+### `ISubscriptionReceiver` — Optional Merchant Callback Interface
+
+Merchants MAY implement `ISubscriptionReceiver` to receive synchronous callbacks when payments are collected or subscriptions are cancelled.
+
+```solidity
+interface ISubscriptionReceiver {
+    /// @notice Called after a payment is successfully collected.
+    /// @return Must return ISubscriptionReceiver.onPaymentCollected.selector
+    function onPaymentCollected(
+        bytes32 subId,
+        uint256 amount,
+        address token
+    ) external returns (bytes4);
+
+    /// @notice Called after a subscription is cancelled.
+    /// @return Must return ISubscriptionReceiver.onSubscriptionCancelled.selector
+    function onSubscriptionCancelled(bytes32 subId) external returns (bytes4);
+}
+```
+
+Implementations that call `ISubscriptionReceiver`:
+
+- MUST check `IERC165.supportsInterface(type(ISubscriptionReceiver).interfaceId)` before issuing any callback.
+- MUST wrap all callbacks in a `try/catch` block. A reverting callback MUST NOT prevent `collectPayment` or `cancelSubscription` from completing successfully.
+- MUST complete all state changes — including updating `paymentCount`, `nextPaymentAt`, and `status` — before issuing any callback.
+
+### Subscription ID Derivation
+
+Subscription IDs MUST be `bytes32` values. The RECOMMENDED derivation is:
+
+```solidity
+bytes32 subId = keccak256(
+    abi.encodePacked(subscriber, merchant, block.timestamp, block.chainid, nonce)
+);
+```
+
+where `nonce` is a contract-internal counter that increments monotonically per `subscribe()` call, ensuring uniqueness for same-block subscriptions by the same subscriber–merchant pair.
+
+### Extension Interfaces
+
+Extension interfaces are OPTIONAL. A contract declares support for an extension exclusively via ERC-165 `supportsInterface()`. No extension requires inheriting from any other extension.
+
+#### `ISubscriptionTrial`
+
+Provides explicit trial-period introspection and merchant-controlled trial extension.
+
+```solidity
+interface ISubscriptionTrial {
+    event TrialExtended(bytes32 indexed subId, uint256 newTrialEnd, uint256 timestamp);
+
+    /// @notice Returns true if the subscription is currently in its trial period.
+    function isInTrial(bytes32 subId) external view returns (bool);
+
+    /// @notice Returns the Unix timestamp at which the trial period ends.
+    function trialEndsAt(bytes32 subId) external view returns (uint256);
+
+    /// @notice Extends the trial for a subscription. Callable by the merchant only.
+    /// @dev MUST emit {TrialExtended}. MUST NOT modify SubscriptionTerms.
+    ///      MUST revert with {UnauthorizedCaller} if caller is not the merchant.
+    /// @param subId           Subscription identifier
+    /// @param additionalTime  Additional seconds to add to the trial end
+    function extendTrial(bytes32 subId, uint48 additionalTime) external;
+}
+```
+
+#### `ISubscriptionTiered`
+
+Enables merchants to define named pricing tiers and associate subscriptions with a tier.
+
+```solidity
+interface ISubscriptionTiered {
+    event TierCreated(bytes32 indexed tierId, address indexed merchant, uint256 amount, uint48 interval, string metadataURI);
+    event TierDeactivated(bytes32 indexed tierId);
+    event TierMetadataUpdated(bytes32 indexed tierId, string newMetadataURI);
+    event SubscriptionTierChanged(bytes32 indexed subId, bytes32 oldTierId, bytes32 newTierId);
+
+    struct Tier {
+        bytes32 tierId;
+        address merchant;
+        uint256 amount;
+        uint48  interval;
+        string  metadataURI;
+        bool    active;
+    }
+
+    /// @notice Create a new pricing tier. Callable by merchant.
+    /// @dev amount and interval are immutable after creation.
+    function createTier(
+        uint256 amount,
+        uint48 interval,
+        string calldata metadataURI
+    ) external returns (bytes32 tierId);
+
+    /// @notice Update only the metadata URI of a tier. amount and interval MUST NOT change.
+    function updateTierMetadata(bytes32 tierId, string calldata newMetadataURI) external;
+
+    /// @notice Deactivate a tier. MUST revert if any active subscribers remain on this tier.
+    function deactivateTier(bytes32 tierId) external;
+
+    /// @notice Return the Tier struct for a given tierId.
+    function getTier(bytes32 tierId) external view returns (Tier memory);
+
+    /// @notice Return the tierId associated with a subscription, or bytes32(0) if none.
+    function getSubscriptionTier(bytes32 subId) external view returns (bytes32);
+}
+```
+
+`tierId` MUST be derived as `keccak256(abi.encodePacked(merchant, name))` or an equivalent deterministic function to ensure cross-chain consistency.
+
+#### `ISubscriptionDiscovery`
+
+A registry for merchant discoverability. Merchants register themselves to be enumerable by frontends and indexers.
+
+```solidity
+interface ISubscriptionDiscovery {
+    event MerchantRegistered(address indexed merchant, string name, string metadataURI, uint256 timestamp);
+    event MerchantVerified(address indexed merchant, bool verified);
+
+    struct MerchantInfo {
+        address merchant;
+        string  name;
+        string  metadataURI;
+        uint256 registeredAt;
+        bool    verified;
+    }
+
+    /// @notice Register as a merchant. Callable by any address.
+    function registerMerchant(string calldata name, string calldata metadataURI) external;
+
+    /// @notice Update a merchant's metadata URI.
+    function updateMerchantMetadata(string calldata newMetadataURI) external;
+
+    /// @notice Set the verified flag for a merchant. Callable by the registry operator only.
+    function setVerified(address merchant, bool verified) external;
+
+    /// @notice Return the MerchantInfo for a registered merchant.
+    function getMerchantInfo(address merchant) external view returns (MerchantInfo memory);
+
+    /// @notice Return a paginated slice of registered merchant addresses.
+    /// @dev offset and limit MUST be respected. limit SHOULD be capped at 100 per call.
+    function getMerchants(uint256 offset, uint256 limit) external view returns (address[] memory);
+
+    /// @notice Return the total number of registered merchants.
+    function getMerchantCount() external view returns (uint256);
+}
+```
+
+#### `ISubscriptionHook`
+
+Enables merchant-defined dunning policy. Called by off-chain automation services, NOT by `collectPayment` directly.
+
+```solidity
+interface ISubscriptionHook {
+    struct DunningConfig {
+        uint48 gracePeriod;    // Seconds after first failure before cancellation
+        uint8  maxRetries;     // Number of retry attempts before cancellation
+        uint48 retryInterval;  // Seconds between retry attempts
+    }
+
+    /// @notice Called by the dunning manager after a payment failure.
+    /// @return Must return ISubscriptionHook.onPaymentFailed.selector
+    function onPaymentFailed(bytes32 subId, uint256 failedAt) external returns (bytes4);
+
+    /// @notice Called by the dunning manager when a subscription is cancelled due to non-payment.
+    /// @return Must return ISubscriptionHook.onDunningCancelled.selector
+    function onDunningCancelled(bytes32 subId) external returns (bytes4);
+
+    /// @notice Return the dunning configuration for a subscription.
+    function getDunningConfig(bytes32 subId) external view returns (DunningConfig memory);
+}
+```
+
+---
+
+## Rationale
+
+### `bytes32` Subscription IDs Instead of `uint256`
+
+Auto-incrementing `uint256` counters are the simplest approach but fail in multi-chain environments: the same counter value will exist in every deployment, making cross-chain correlation impossible without explicit mapping layers. `bytes32` IDs derived via `keccak256` incorporating `block.chainid` and a contract-internal nonce are effectively collision-free across the entire EVM ecosystem and can be reproduced deterministically on any chain given the same inputs. The one-time derivation cost (~30 gas + 6 gas/word at subscription creation) is negligible relative to the cross-chain portability benefits.
+
+### `address(0)` as Native ETH Sentinel
+
+Requiring WETH wrapping introduces a mandatory preliminary transaction for subscribers who hold ETH — a material UX friction point for consumer-facing subscription products. `address(0)` as a sentinel for the native asset is already idiomatic across the EVM ecosystem (Uniswap V3 router, Aave V3 WETHGateway, common token list conventions). The reference implementation resolves the two-code-path complexity through an ETH escrow model: subscribers pre-fund via `depositETH()`, and `collectPayment()` moves funds between internal accounting mappings without issuing outbound ETH transfers, eliminating the re-entrancy vector inherent in direct push-ETH patterns.
+
+### `uint48` for `interval` and `trialPeriod`
+
+`uint48` provides a maximum value of 2⁴⁸ − 1 seconds ≈ 8.9 million years — effectively unbounded for any real-world use case. Two `uint48` fields (6 bytes each) pack into a single 32-byte storage slot alongside additional fields, saving one `SSTORE` per subscription creation compared to `uint256` fields. `uint32` (max ~136 years) was considered but rejected as unnecessarily restrictive for perpetual-licence use cases.
+
+### Keeper-Gated `collectPayment()`
+
+A permissionless `collectPayment()` — callable by anyone — is vulnerable to timing manipulation and griefing: a malicious caller can spam calls, manipulate payment timing at the block level, or front-run legitimate collection to trigger failure events. Restricting collection to merchant-only is equally unacceptable: it reintroduces the manual pull model and negates the value of automation. The `KeeperRegistry` model — with global keepers operated by automation services and per-merchant custom keepers — provides trustless liveness (any authorised party can collect without a central dependency) with configurable access control and an emergency blacklist for compromised keepers. Protocols may pass `address(0)` for the keeper registry to opt into permissionless collection for testing or low-value deployments, with explicit acknowledgement of the trade-offs.
+
+### Dynamic `PastDue` Status
+
+`PastDue` is not stored in contract state; it is returned dynamically by `getStatus()` when `block.timestamp > nextPaymentAt` and the stored status is `Active`. This design eliminates the need for a keeper to submit a dedicated `markPastDue()` transaction. Requiring such a transaction would add gas cost, introduce latency, and add complexity to keeper implementations for a fact that is entirely derivable from existing on-chain data. Any caller can determine `PastDue` status for free via a view call.
+
+### `maxPayments == 0` for Unlimited
+
+`0` is used as the sentinel for "no limit" because it costs zero calldata bytes (encodes as a 32-byte zero word, cheaper in calldata than a non-zero word), whereas `type(uint256).max` encodes as 32 non-zero bytes. For a parameter passed in every `subscribe()` call, this is a meaningful calldata gas saving for the common case of unlimited subscriptions.
+
+### Soft-Fail `collectPayment()`
+
+When an ERC-20 allowance is insufficient or an ETH deposit is underfunded, `collectPayment()` MUST NOT revert. Instead, it sets status to `PastDue`, emits `PaymentFailed`, and returns `false`. Hard reversion would force keepers to handle reverts as primary control flow for what is a normal operational event (the subscriber ran out of funds). Soft failure allows the keeper to detect the outcome from the return value, allows dunning logic to schedule retries, and preserves the subscription record for recovery — rather than requiring a new `subscribe()` call to restart the relationship.
+
+### Optional Extension Interfaces
+
+A monolithic interface including trials, tiers, discovery, and dunning hooks would impose implementation costs on every conforming contract regardless of need. A minimal SaaS contract needs nothing beyond `ISubscription`. A creator platform adds `ISubscriptionTrial`. A DAO governance product adds `ISubscriptionTiered`. The extension model follows the precedent of ERC-721 (base interface + `IERC721Enumerable` + `IERC721Metadata`): a contract declares support for an extension via ERC-165 `supportsInterface()`, and external consumers probe for capability at runtime. Unlike ERC-721, the Cadence extensions are defined in separate interface files to keep the core EIP specification minimal and to allow future extensions to be proposed as independent EIPs without modifying the base standard.
+
+### `ISubscriptionReceiver` vs. `ISubscriptionHook`
+
+`ISubscriptionReceiver` handles success events (payment collected, subscription cancelled) synchronously during the core payment transaction. It is called with `try/catch` isolation, ensuring a reverting merchant hook never blocks payment collection. `ISubscriptionHook` handles failure events and dunning — an inherently multi-step, time-delayed process (detect failure → grace period → retries → cancellation) that cannot be encoded in a single transaction. `ISubscriptionHook` is designed to be called by off-chain automation services, not by `collectPayment()`, keeping all merchant-defined failure logic off the critical payment path. This separation ensures that a bug in a merchant's dunning hook cannot cause `collectPayment()` to revert or exceed its gas limit.
+
+---
+
+## Backwards Compatibility
+
+This ERC defines a new interface and does not modify or deprecate any existing standard. It has no backwards compatibility constraints.
+
+Implementations that wish to remain compatible with protocols built around ERC-20 `approve`/`transferFrom` patterns can do so by requiring `IERC20.approve(subscriptionManager, amount)` as a precondition for `subscribe()`, which is standard ERC-20 practice. No new token primitives are required.
+
+ERC-1337 and other informal subscription proposals are not currently standardised as ERCs, so there is no formal backwards compatibility obligation with respect to them.
+
+---
+
+## Test Cases
+
+The following test cases define normative behaviour that any conforming `ISubscription` implementation MUST satisfy. The full test suite — including fuzz tests and invariant tests — is contained in the reference implementation repository.
+
+### Subscribe
+
+| TC-ID  | Title                                                                 | Type      |
+|--------|-----------------------------------------------------------------------|-----------|
+| TC-01  | ERC-20 subscribe succeeds and collects first payment immediately      | Unit      |
+| TC-02  | ERC-20 subscribe with trial defers first payment                      | Unit      |
+| TC-03  | subscribe reverts when amount is zero                                 | Unit      |
+| TC-04  | subscribe reverts when interval is zero                               | Unit      |
+| TC-05  | subscribe reverts when merchant is the zero address                   | Unit      |
+| TC-06  | subscribe reverts when ERC-20 allowance is insufficient               | Unit      |
+| TC-07  | subscribe reverts when token address is not a contract                | Unit      |
+| TC-08  | subscribe reverts when msg.value is non-zero for ERC-20               | Unit      |
+| TC-09  | ETH subscribe succeeds and credits first payment to merchant          | Unit      |
+| TC-10  | ETH subscribe reverts when msg.value does not equal terms.amount      | Unit      |
+| TC-11  | ETH subscribe with trial credits deposit to subscriber, not merchant  | Unit      |
+| TC-12  | ETH subscribe with trial and zero msg.value succeeds                  | Unit      |
+| TC-71  | subscribe accepts any non-zero amount within uint128 bounds           | Fuzz      |
+| TC-72  | nextPaymentDue equals subscribe time plus interval for any valid interval | Fuzz  |
+
+### Payment Collection
+
+| TC-ID  | Title                                                                          | Type      |
+|--------|--------------------------------------------------------------------------------|-----------|
+| TC-19  | collectPayment transfers token and increments payment count                    | Unit      |
+| TC-20  | collectPayment reverts before the next payment timestamp                       | Unit      |
+| TC-21  | collectPayment reverts on a cancelled subscription                             | Unit      |
+| TC-22  | collectPayment reverts on a paused subscription                                | Unit      |
+| TC-23  | collectPayment reverts for an unauthorised caller                              | Unit      |
+| TC-24  | collectPayment soft-fails and sets PastDue when allowance is zero              | Unit      |
+| TC-25  | collectPayment succeeds after recovering from PastDue status                   | Unit      |
+| TC-26  | collectPayment reverts when maxPayments cap is reached                         | Unit      |
+| TC-27  | collectPayment reverts for a non-existent subscription ID                      | Unit      |
+| TC-28  | ETH collectPayment succeeds when subscriber has sufficient deposit             | Unit      |
+| TC-29  | ETH collectPayment soft-fails and sets PastDue on insufficient deposit         | Unit      |
+| TC-73  | paymentCount reaches exactly maxPayments then collectPayment reverts           | Fuzz      |
+| TC-74  | collectPayment reverts for any warp time strictly before nextPaymentAt         | Fuzz      |
+
+### Lifecycle (Cancel / Pause / Resume)
+
+| TC-ID  | Title                                                                 | Type      |
+|--------|-----------------------------------------------------------------------|-----------|
+| TC-30  | subscriber can cancel their own subscription                          | Unit      |
+| TC-31  | merchant can cancel a subscription                                    | Unit      |
+| TC-32  | cancelSubscription reverts for an unauthorised caller                 | Unit      |
+| TC-33  | cancelSubscription reverts for a non-existent subscription            | Unit      |
+| TC-34  | subscriber can pause and resume a subscription                        | Unit      |
+| TC-35  | pauseSubscription reverts when caller is not the subscriber           | Unit      |
+| TC-36  | pauseSubscription reverts when subscription is already paused         | Unit      |
+| TC-37  | resumeSubscription reverts when subscription is not paused            | Unit      |
+| TC-38  | resumeSubscription reverts when caller is not the subscriber          | Unit      |
+
+### ETH Escrow
+
+| TC-ID  | Title                                                                          | Type      |
+|--------|--------------------------------------------------------------------------------|-----------|
+| TC-13  | depositETH credits subscriber's deposit balance                                | Unit      |
+| TC-14  | depositETH reverts when msg.value is zero                                      | Unit      |
+| TC-15  | withdrawETH decrements subscriber's deposit balance                            | Unit      |
+| TC-16  | withdrawETH reverts when requested amount exceeds deposit balance              | Unit      |
+| TC-17  | claimMerchantETH transfers accrued ETH to merchant                             | Unit      |
+| TC-18  | claimMerchantETH reverts when merchant has no accrued balance                  | Unit      |
+| TC-75  | withdrawETH leaves correct residual balance for any deposit/withdraw pair      | Fuzz      |
+
+### Invariants
+
+| TC-ID  | Title                                                                                  |
+|--------|----------------------------------------------------------------------------------------|
+| TC-76  | payment count never increases after a subscription enters Cancelled state              |
+| TC-77  | nextPaymentAt is strictly greater after every successful collectPayment                |
+| TC-78  | payment count never exceeds maxPayments when a cap is set                              |
+| TC-79  | two consecutive collectPayment calls in the same block cannot both succeed             |
+
+---
+
+## Reference Implementation
+
+A complete reference implementation is available at:
+
+[https://github.com/cadence-protocol/cadence-protocol](https://github.com/cadence-protocol/cadence-protocol)
+
+The repository includes:
+
+- `src/interfaces/ISubscription.sol` — the interface defined in this ERC, including all structs, enums, custom errors, events, `ISubscription`, and `ISubscriptionReceiver`
+- `src/SubscriptionManager.sol` — a reference implementation of `ISubscription` with ERC-20 and native ETH support, trial periods, `maxPayments` caps, keeper-gated `collectPayment`, and `ISubscriptionReceiver` callbacks
+- `src/KeeperRegistry.sol` — a two-tier keeper authorisation registry with global keepers, per-merchant keepers, blacklist, and `Ownable2Step` governance
+- `test/SubscriptionManager.t.sol` — unit and fuzz tests (60+ test cases)
+- `test/KeeperRegistry.t.sol` — unit tests (30 test cases)
+- `test/invariants/SubscriptionInvariant.t.sol` — Foundry invariant suite (4 invariants)
+
+The reference implementation uses Solidity `^0.8.24`, OpenZeppelin `ReentrancyGuard` and `SafeERC20`, and is buildable with Foundry (`forge build && forge test`).
+
+> **Note:** The reference implementation has not yet undergone a formal third-party security audit. A formal audit engagement is planned before the implementation is recommended for production deployment with significant value at risk.
+
+---
+
+## Security Considerations
+
+### Reentrancy
+
+`collectPayment()`, `subscribe()`, `cancelSubscription()`, and all ETH transfer functions MUST be guarded against reentrancy. All state changes — including `paymentCount`, `nextPaymentAt`, and `status` — MUST be applied before any external call (ERC-20 `transferFrom`, ETH transfers, or `ISubscriptionReceiver` callbacks). Merchant callback contracts are user-supplied external addresses and represent the highest-risk call sites. The reference implementation uses OpenZeppelin `ReentrancyGuard` across all state-changing functions and wraps all merchant callbacks in `try/catch`. A reverting callback MUST NOT cause `collectPayment()` to revert.
+
+### Keeper Trust Model
+
+A compromised global keeper can trigger `collectPayment()` for any due subscription. Damage is bounded by the time-lock: only subscriptions where `block.timestamp >= nextPaymentAt` can be collected, and each subscription can be collected at most once per interval. An attacker cannot collect early or collect twice within an interval. The `KeeperRegistry` MUST expose a blacklist mechanism allowing immediate removal of compromised keepers. Deployments SHOULD protect `KeeperRegistry` ownership with a multisig or governance contract with a timelock.
+
+### ERC-20 Allowance Risks
+
+Infinite approvals (`type(uint256).max`) expose the subscriber's entire token balance to the contract. Implementations SHOULD recommend exact per-period approvals or EIP-2612 `permit` signatures (which limit exposure to a single transaction's window). Fee-on-transfer tokens result in merchants receiving less than `terms.amount`; implementations MUST document their handling of this case. Rebasing tokens (e.g. stETH) are unsuitable as payment tokens unless the implementation explicitly tracks balance changes; the fixed `amount` field does not adjust with rebases.
+
+### ETH Escrow
+
+Implementations supporting native ETH SHOULD use an escrow model (subscriber pre-funds a deposit; `collectPayment()` moves balances between internal mappings) rather than a direct ETH push model. Direct ETH push patterns create re-entrancy vectors at the merchant's `receive` function. `withdrawETH` and `claimMerchantETH` MUST follow checks-effects-interactions strictly, zeroing the internal balance before the outbound ETH transfer.
+
+### Subscription ID Integrity
+
+The nonce included in the `subId` derivation MUST be contract-internal and MUST increment monotonically per `subscribe()` call. Including `block.chainid` in the derivation prevents cross-chain ID collisions. An attacker observing a pending `subscribe()` transaction in the mempool can predict the resulting `subId` but cannot exploit this: there is no mechanism to pre-register state against an ID that does not yet exist, and a front-run `subscribe()` call will simply increment the nonce, causing the victim's subscription to receive a different (equally valid) ID.
+
+### Access Control
+
+`cancelSubscription()` is callable by both subscriber and merchant. Merchants can cancel subscriber agreements without subscriber consent; this is intentional (to handle ToS violations, service discontinuation, etc.) and is attributable via the `cancelledBy` field in `SubscriptionCancelled`. `pauseSubscription()` carries no maximum duration in this standard; implementations for continuously consumable services SHOULD implement application-layer limits on pause duration.
+
+### Integer Arithmetic
+
+Implementations MUST use Solidity `^0.8.0` or later (checked arithmetic by default) or equivalent overflow-safe arithmetic. The `block.timestamp + terms.interval` computation MUST be performed in `uint256` arithmetic regardless of the storage type of `interval`, preventing overflow at the maximum `uint48` interval value (~8.9 million years).
+
+### Status Inconsistency at `maxPayments` Boundary
+
+When `paymentCount >= maxPayments` and a keeper calls `collectPayment()`, the implementation MAY write `Status.Expired` to storage and then revert (causing the write to roll back). In this case, `getStatus()` will return `PastDue` (because the stored status remains `Active` and `block.timestamp > nextPaymentAt`), while `collectPayment()` will revert with `SubscriptionNotActive(subId, Status.Expired)`. Off-chain indexers and keepers MUST treat a `SubscriptionNotActive` revert with `Status.Expired` as a terminal signal and MUST NOT rely solely on `getStatus()` to determine collectability at the `maxPayments` boundary.
+
+---
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
