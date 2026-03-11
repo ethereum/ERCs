@@ -1,5 +1,5 @@
 ---
-eip: <TBD>
+eip: 8192
 title: Mandated Execution for Tokenized Vaults
 description: A minimal standard for non-custodial, risk-constrained delegated strategy execution for ERC-4626 vaults.
 author: tabilabs <lancy@tabilabs.org> (@tabilabs)
