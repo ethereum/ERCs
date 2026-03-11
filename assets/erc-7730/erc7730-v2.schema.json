@@ -582,6 +582,14 @@
                     }
                 },
                 {
+                    "if": { "properties": { "format": { "const": "tokenTicker" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/tokenTickerParameters" }
+                        }
+                    }
+                },
+                {
                     "if": { "properties": { "format": { "const": "nftName" } } },
                     "then": {
                         "properties": {
@@ -897,11 +905,50 @@
                     "title": "Unlimited Message",
                     "type": "string",
                     "description": "The message to display when the amount is above the threshold."
+                },
+                "chainId": {
+                    "title": "Chain ID",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve token metadata (ticker, decimals) for this chain. Useful for cross-chain swap clear signing where the same token address may refer to different chains."
+                },
+                "chainIdPath": {
+                    "title": "Chain ID Path",
+                    "type": "string",
+                    "description": "Optional. Path to the chain ID in the structured data. When present, the wallet SHOULD resolve token metadata for the chain at this path. Useful for cross-chain swap clear signing."
                 }
             },
-            "not": {
-                "required": ["token", "tokenPath"]
+            "allOf": [
+                { "not": { "required": ["token", "tokenPath"] } },
+                { "not": { "required": ["chainId", "chainIdPath"] } }
+            ],
+            "additionalProperties": false
+        },
+        "tokenTickerParameters": {
+            "title": "Token Ticker Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "chainId": {
+                    "title": "Chain ID",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve the token ticker for this chain. Useful for cross-chain swap clear signing."
+                },
+                "chainIdPath": {
+                    "title": "Chain ID Path",
+                    "type": "string",
+                    "description": "Optional. Path to the chain ID in the structured data. When present, the wallet SHOULD resolve the token ticker for the chain at this path. Useful for cross-chain swap clear signing."
+                }
             },
+            "allOf": [
+                { "not": { "required": ["chainId", "chainIdPath"] } }
+            ],
             "additionalProperties": false
         },
         "nftNameParameters" : {
