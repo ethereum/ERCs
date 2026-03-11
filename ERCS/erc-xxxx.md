@@ -3,7 +3,7 @@ eip: 8192
 title: Mandated Execution for Tokenized Vaults
 description: A minimal standard for non-custodial, risk-constrained delegated strategy execution for ERC-4626 vaults.
 author: tabilabs <lancy@tabilabs.org> (@tabilabs)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-mandated-execution-for-tokenized-vaults-erc-4626-risk-constrained-delegated-strategy-execution/27877
+discussions-to: https://ethereum-magicians.org/t/erc-8192-mandated-execution-for-tokenized-vaults/27877
 status: Draft
 type: Standards Track
 category: ERC
