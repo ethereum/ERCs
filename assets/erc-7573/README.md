@@ -22,8 +22,8 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 
 #### Decryption Oracle
 
-- `contracts/IDecryptionOracle.sol` - Interface implemented by a decryption oracle proxy contract.
-- `contracts/IDecryptionOracleCallback.sol` - Interface to be implemented by a callback receiving the decrypted key.
+- `contracts/IKeyDecryptionOracle.sol` - Interface implemented by a decryption oracle proxy contract.
+- `contracts/IKeyDecryptionOracleCallback.sol` - Interface to be implemented by a callback receiving the decrypted key.
 
 ### Documentation
 

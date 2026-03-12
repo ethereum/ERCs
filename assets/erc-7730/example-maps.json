@@ -1,5 +1,5 @@
 {
-    "$schema": "./erc7730-v1.schema.json",
+    "$schema": "./erc7730-v2.schema.json",
 
     "$comment": "This is an example of a complete ERC-7730 file using maos for better readability.",
 
@@ -30,7 +30,7 @@
         },
         "maps": {
             "underlyingToken": {
-                "keyPath": "@.chainId",
+                "$keyType": "Chain ID",
                 "values": {
                     "1": "0x0000000000000000000000000000000000deadbeef",
                     "137": "0x0000000000000000000000000000000000feedface",
@@ -38,7 +38,7 @@
                 }
             },
             "shareToken": {
-                "keyPath": "@.chainId",
+                "$keyType": "Chain ID",
                 "values": {
                     "1": "0x00000000000000000000000000000000abcdef01",
                     "137": "0x00000000000000000000000000000000abcdef02",
@@ -59,7 +59,10 @@
                         "label": "Deposit Amount",
                         "format": "tokenAmount",
                         "params": {
-                            "tokenPath": "@.metadata.maps.underlyingToken"
+                            "token": {
+                                "map": "$.metadata.maps.underlyingToken",
+                                "key": "@.chainId"
+                            }
                         }
                     },
                     {
@@ -67,7 +70,10 @@
                         "label": "Min Received Shares",
                         "format": "tokenAmount",
                         "params": {
-                            "tokenPath": "@.metadata.maps.shareToken"
+                            "token": {
+                                "map": "$.metadata.maps.shareToken",
+                                "key": "@.chainId"
+                            }
                         }
                     }
                 ]
