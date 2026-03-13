@@ -1,5 +1,5 @@
 {
-    "$schema": "./erc7730-v1.schema.json",
+    "$schema": "./erc7730-v2.schema.json",
 
     "$comment": "This is an example of ERC-7730 display schema that demonstrates how to format array iterations in bundled mode, as well as nested calldata formatting with arrays.",
 
