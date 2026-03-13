@@ -142,6 +142,8 @@ Each EIP must begin with an [RFC 822](https://www.ietf.org/rfc/rfc822.txt) style
 
 `withdrawal-reason`: *A sentence explaining why the EIP was withdrawn.* (Optional field, only needed when status is `Withdrawn`)
 
+`sequencing`: One of `based`, `shared`, `other` or `N/A`.
+
 Headers that permit lists must separate elements with commas.
 
 Headers requiring dates will always do so in the format of ISO 8601 (yyyy-mm-dd).
@@ -191,6 +193,14 @@ The `created` header records the date that the EIP was assigned a number. Both h
 EIPs may have a `requires` header, indicating the EIP numbers that this EIP depends on. If such a dependency exists, this field is required.
 
 A `requires` dependency is created when the current EIP cannot be understood or implemented without a concept or technical element from another EIP. Merely mentioning another EIP does not necessarily create such a dependency.
+
+### `sequencing` header
+
+The `sequencing` header specifies whether an ERC relates to `based` sequencing, non-based `shared` sequencing, `other` forms of sequencing, or does not invovle sequencing at all (which is indicated by the use of `N/A`).
+
+EIPs MUST include a `sequencing` header if and only if the `category` is `ERC` and MUST NOT include one otherwise.
+
+For example, those applications using Ethereum mainnet's validators to sequence transactions would be noted as `based`. Those using [EIP-7727](./eip-7727.md) style sequencing would be considered `shared` because they may not choose to sequence transactions via the L1 validators.
 
 ## Linking to External Resources
 
@@ -571,6 +581,7 @@ For each new EIP that comes in, an editor does the following:
 - Read the EIP to check if it is ready: sound and complete. The ideas must make technical sense, even if they don't seem likely to get to final status.
 - The title should accurately describe the content.
 - Check the EIP for language (spelling, grammar, sentence structure, etc.), markup (GitHub flavored Markdown), code style
+- Check the EIP for required headers.
 
 If the EIP isn't ready, the editor will send it back to the author for revision, with specific instructions.
 
