@@ -1,0 +1,328 @@
+---
+eip: TBD
+title: Payment-Gated Transaction Relay (PGTR)
+description: Actor-agnostic relay primitive: on-chain payment receipt as authorization for any token-holding principal — human, AI agent, or machine — no private key required
+author: Beau Williams (@beauwilliams)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-payment-gated-transaction-relay/27934
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-03-10
+requires: 20, 165
+---
+
+## Abstract
+
+Payment-Gated Transaction Relay (PGTR) defines a protocol for forwarding on-chain transactions on
+behalf of principals — humans, AI agents, IoT devices, or contracts — where the authorization
+proof is an on-chain payment receipt rather than a cryptographic signature. A **PGTR Forwarder**
+accepts an X402-style payment from a payer, verifies the payment against an expected amount and
+target, and calls the destination contract with the payer's address available as the authenticated
+sender. Destination contracts read the authenticated payer address from the forwarder via
+`pgtrSender()` rather than from `msg.sender`.
+
+PGTR is **actor-agnostic**: the payer may be a human using a wallet app, an autonomous AI agent
+with a funded address, an IoT device, or any other token-holding entity. The protocol treats all
+principals identically — authorization is "I paid", not "I signed". This is the property that
+allows TMP (EIP-TMP) to support human↔agent, agent↔agent, and human↔human task interactions
+under a single interface.
+
+PGTR is a new primitive. It is not a profile of ERC-2771. ERC-2771 solves gas abstraction — the
+signer still needs a key and must produce an off-chain signature before the relay can act. PGTR
+solves **key abstraction** — any actor that controls tokens and can reach an HTTP endpoint can
+authorize on-chain actions without ever managing a private key.
+
+## Motivation
+
+Any actor — human or machine — that can hold tokens should be able to authorize on-chain actions
+without the overhead of private key management. Existing meta-transaction standards (ERC-2771,
+ERC-4337) presuppose that the principal can produce a valid cryptographic signature. This assumption
+breaks for a wide class of actors:
+
+1. **Keyless AI agents** — software agents running in sandboxed environments where key storage is
+   impractical or undesirable.
+2. **Human users preferring payment-only UX** — users who interact via payment flows (e.g.,
+   credit card → stablecoin bridge → X402) and should not be required to manage a separate signing
+   key for on-chain authorization.
+3. **Micropayment-gated APIs** — HTTP services that accept X402 payments and need to translate
+   them into on-chain actions without intermediate key escrow.
+4. **IoT and machine accounts** — devices and automated systems where authorization is "I paid"
+   rather than "I signed."
+
+PGTR unifies all these cases under a single primitive: any token-holding actor, regardless of
+whether they are human or machine, can participate in PGTR-gated protocols on equal footing.
+
+PGTR establishes a minimal interface that destination contracts implement to trust PGTR forwarders,
+and that forwarders implement to be detectable by ERC-165.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHOULD", "SHOULD NOT", "RECOMMENDED",
+"MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119.
+
+### Overview
+
+The PGTR flow proceeds in three steps:
+
+1. **Payment** — The payer transfers tokens to the forwarder (or to the forwarder's designated
+   escrow) as an atomic ERC-3009 `transferWithAuthorization` or equivalent mechanism.
+2. **Verification** — The forwarder verifies: (a) the payment amount meets the threshold for the
+   requested action; (b) the payment receipt has not been consumed before; (c) the receipt has not
+   expired.
+3. **Relay** — The forwarder calls the destination contract. The destination contract reads the
+   authenticated payer address via `pgtrSender()` on the forwarder.
+
+### ITMPForwarder Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+/// @title ITMPForwarder — PGTR Forwarder Interface
+/// @notice Implemented by PGTR forwarder contracts. Destination contracts MUST check
+///         isTrustedForwarder(msg.sender) before reading pgtrSender().
+interface ITMPForwarder is IERC165 {
+    /// @notice Returns true. Allows ERC-165 detection of PGTR forwarders.
+    function isPGTRForwarder() external view returns (bool);
+
+    /// @notice The payer address that authorized the current forwarded call.
+    ///         Analogous to EIP-2771's appended msg.sender.
+    ///         MUST revert if called outside of an active forwarded call.
+    function pgtrSender() external view returns (address payer);
+
+    /// @notice Returns true if addr is trusted as a PGTR forwarder by this contract.
+    ///         Mirrors the EIP-2771 recipient-side pattern for symmetrical detection.
+    function isTrustedForwarder(address addr) external view returns (bool);
+
+    /// @notice Emitted each time a payment-gated call is forwarded successfully.
+    /// @param payer          The authenticated payer address.
+    /// @param target         The destination contract that received the call.
+    /// @param selector       The 4-byte function selector of the forwarded call.
+    /// @param paymentAmount  The token amount paid (in the payment token's base units).
+    event PaymentGatedCall(
+        address indexed payer,
+        address indexed target,
+        bytes4  indexed selector,
+        uint256         paymentAmount
+    );
+}
+```
+
+### Destination Contract Requirements
+
+A contract that accepts forwarded calls from a PGTR forwarder MUST:
+
+1. Maintain a set of trusted forwarder addresses:
+   ```solidity
+   mapping(address => bool) public trustedForwarders;
+   ```
+2. Expose `isTrustedForwarder(address)` returning `trustedForwarders[addr]`.
+3. When the effective caller needs to be determined, check `msg.sender` against `trustedForwarders`.
+   If trusted, read the authenticated payer via `ITMPForwarder(msg.sender).pgtrSender()` instead of
+   using `msg.sender` directly:
+   ```solidity
+   function _effectiveSender() internal view returns (address) {
+       if (trustedForwarders[msg.sender]) {
+           return ITMPForwarder(msg.sender).pgtrSender();
+       }
+       return msg.sender;
+   }
+   ```
+4. NOT use `msg.sender` as an authorization check for requester-only operations when called through
+   a forwarder. The forwarder MUST set `pgtrSender()` to the correct requester before forwarding.
+
+### Forwarder Requirements
+
+A PGTR forwarder MUST:
+
+1. Implement `ITMPForwarder` and return `true` from `supportsInterface(type(ITMPForwarder).interfaceId)`.
+2. Atomically execute payment transfer and destination call within a single transaction. If either
+   fails, the entire transaction MUST revert.
+3. Before forwarding, verify the payment receipt has not been consumed:
+   ```solidity
+   mapping(bytes32 => bool) public consumedReceipts;
+
+   bytes32 receiptHash = keccak256(abi.encode(
+       payer, amount, nonce, expiry, target, selector
+   ));
+   require(!consumedReceipts[receiptHash], "Receipt already consumed");
+   consumedReceipts[receiptHash] = true;
+   ```
+4. Verify the receipt has not expired before forwarding:
+   ```solidity
+   require(block.timestamp <= expiry, "Receipt expired");
+   ```
+5. Set `pgtrSender()` to the authenticated payer address for the duration of the forwarded call,
+   and reset it after the call returns or reverts.
+6. Emit `PaymentGatedCall` after a successful forward.
+
+A PGTR forwarder SHOULD:
+
+1. Be a multisig or governance-controlled address when used in production. Single-EOA forwarders
+   MUST be disclosed as a centralization risk.
+2. Implement a configurable minimum payment amount per target+selector combination.
+3. Verify that the payer's payment token allowance or signed authorization covers the required
+   amount before proceeding.
+
+### Replay Protection
+
+Payment receipts MUST be single-use. The canonical receipt hash is:
+
+```
+keccak256(abi.encode(payer, amount, nonce, expiry, target, selector))
+```
+
+Where:
+- `payer` — address of the paying principal
+- `amount` — payment amount in base token units
+- `nonce` — unique value per payer to prevent replay (MAY be a random bytes32 or a monotonic counter)
+- `expiry` — Unix timestamp after which the receipt MUST be rejected
+- `target` — destination contract address
+- `selector` — 4-byte function selector of the intended call
+
+The forwarder MUST store consumed receipt hashes and reject any duplicate.
+
+### ERC-165 Interface Detection
+
+```
+ITMPForwarder interfaceId = 0xTBD
+```
+
+Computed as the XOR of:
+- `isPGTRForwarder()` — `0xTBD`
+- `pgtrSender()` — `0xTBD`
+- `isTrustedForwarder(address)` — `0xTBD`
+
+See Appendix A for exact computed values.
+
+### Relationship to ERC-2771
+
+PGTR and ERC-2771 are different primitives solving different problems:
+
+| Dimension | ERC-2771 | PGTR |
+|-----------|----------|------|
+| Actor model | Key-holding principals only | Actor-agnostic (human, agent, IoT, contract) |
+| Authorization proof | Off-chain ECDSA signature | On-chain payment receipt |
+| Principal requirement | Must hold a private key | Must hold tokens |
+| Sender detection | Appended 20-byte suffix in calldata | `pgtrSender()` call on forwarder |
+| Gas payment | Relayer pays gas | Forwarder (server) pays gas |
+| Replay protection | Signature nonce in forwarder | Receipt hash in forwarder |
+| Use case | Gas abstraction for key holders | Key abstraction for any token-holding actor |
+
+A destination contract MAY support both ERC-2771 and PGTR simultaneously by checking whether
+`msg.sender` is an ERC-2771 trusted forwarder first, then a PGTR trusted forwarder.
+
+PGTR does NOT claim to be a "profile" of ERC-2771. It uses a different sender-detection mechanism
+(explicit function call vs. appended calldata bytes) and a fundamentally different authorization
+model (payment verification vs. signature verification). Implementations MUST NOT claim compliance
+with ERC-2771 when implementing only ITMPForwarder.
+
+## Rationale
+
+### Why `pgtrSender()` instead of appended calldata?
+
+ERC-2771 appends the original sender as the last 20 bytes of calldata. This approach requires the
+destination contract to parse calldata in every function that needs the authenticated sender. PGTR
+uses an explicit `pgtrSender()` view call on the forwarder, which is:
+
+1. **Simpler to implement** — no calldata manipulation required.
+2. **More auditable** — the authentication path is explicit and searchable.
+3. **Composable** — any function can call `pgtrSender()` on `msg.sender` without calldata size
+   constraints.
+
+The trade-off is one additional external `STATICCALL` per invocation (~700 gas at current pricing),
+which is negligible relative to the cost of the forwarded operation.
+
+### Why payment receipt instead of signed authorization?
+
+A signed authorization requires the principal to:
+1. Have access to a private key.
+2. Compute and transmit a valid signature before calling the relay.
+
+This requirement is incompatible with lightweight keyless agents operating in constrained
+environments. Payment receipts require only that the principal hold tokens and reach a payment
+endpoint — requirements met by any autonomous agent with a funded wallet address.
+
+### Why `mapping(address => bool) trustedForwarders` instead of single address?
+
+A single trusted forwarder address is a single point of failure. If the forwarder EOA is
+compromised or becomes unavailable, the destination contract is bricked. A mapping allows:
+- Key rotation without contract redeployment.
+- Multiple parallel forwarders for availability.
+- Staged transitions (add new, remove old) without downtime.
+
+### Security Considerations for Forwarder Operators
+
+1. **Receipt expiry windows** — Short expiry windows (~60–300 seconds) limit the exploit window
+   if a receipt is intercepted in transit.
+2. **Per-selector minimum amounts** — Set minimum payment thresholds per `(target, selector)` pair
+   to make replaying receipts economically unattractive.
+3. **Frontrunning** — Because receipt hashes include the payer address, frontrunning a relay call
+   requires the attacker to also control the payment token transfer. Atomic execution within a
+   single transaction mitigates frontrunning entirely.
+4. **Forwarder compromise** — A compromised forwarder can relay arbitrary calls on behalf of payers
+   who previously paid. Operators SHOULD use a multisig or on-chain governance key as the forwarder
+   owner. Destinations SHOULD emit events for all forwarded calls so monitoring can detect anomalies.
+
+## Backwards Compatibility
+
+This ERC introduces a new interface with no modifications to existing standards. Destination
+contracts that implement this standard alongside ERC-2771 remain compatible with ERC-2771 relayers,
+provided they check forwarder types in priority order.
+
+## Security Considerations
+
+1. **Reentrancy** — Forwarders MUST use a reentrancy guard around the forwarded call. Destination
+   contracts MUST use a reentrancy guard for all state-modifying operations.
+2. **Receipt replay** — Forwarders MUST consume receipts atomically within the transaction that
+   forwards the call. Receipts MUST NOT be consumable across chains (include `chainId` in the hash
+   if cross-chain receipt portability is a concern).
+3. **Forwarder trust boundary** — Destination contracts MUST NOT add forwarders without governance
+   controls. An unrestricted `addForwarder` is functionally equivalent to `selfdestruct`.
+4. **pgtrSender() atomicity** — The forwarder MUST reset `pgtrSender()` after the forwarded call
+   returns. If the forwarder allows reentrant calls that read `pgtrSender()`, the previous payer
+   address may be incorrectly attributed to the reentrant call.
+
+## Reference Implementation
+
+See `src/interfaces/ITMPForwarder.sol` in the reference implementation repository.
+
+A complete reference implementation of a PGTR-compatible destination contract is provided in
+`TaskMarket.sol`, which implements the `trustedForwarders` mapping pattern and exposes
+`supportsInterface(type(ITMP).interfaceId)` for ERC-165 detection.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+---
+
+## Appendix A: Interface ID Computation
+
+The `ITMPForwarder` interface ID is computed as the XOR of the 4-byte Keccak256 selectors of
+all functions declared in the interface:
+
+| Function | Selector |
+|----------|----------|
+| `isPGTRForwarder()` | computed at deploy time |
+| `pgtrSender()` | computed at deploy time |
+| `isTrustedForwarder(address)` | computed at deploy time |
+
+To compute in Solidity:
+```solidity
+bytes4 id = type(ITMPForwarder).interfaceId;
+```
+
+To compute off-chain (JavaScript/viem):
+```typescript
+import { toFunctionSelector, keccak256, toBytes } from 'viem';
+const xor = (a: string, b: string) =>
+  '0x' + (parseInt(a, 16) ^ parseInt(b, 16)).toString(16).padStart(8, '0');
+const id = [
+  toFunctionSelector('isPGTRForwarder()'),
+  toFunctionSelector('pgtrSender()'),
+  toFunctionSelector('isTrustedForwarder(address)'),
+].reduce(xor);
+```
