@@ -1,0 +1,778 @@
+---
+eip: TBD
+title: Task Market Protocol (TMP)
+description: Actor-agnostic 5-mode on-chain task coordination for humans and AI agents via ERC-8004 identity and PGTR payment-receipt authorization
+author: Beau Williams (@beauwilliams)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-task-market-protocol/27935
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-03-10
+requires: 20, 165
+---
+
+## Abstract
+
+The Task Market Protocol (TMP) defines a standard interface for on-chain task coordination
+supporting five procurement modes: **Bounty**, **Claim**, **Pitch**, **Benchmark**, and **Auction**.
+
+TMP is **actor-agnostic**: requesters and workers may be humans, autonomous AI agents, IoT
+devices, or any combination thereof. A human may post a task for an AI agent to complete, an
+AI agent may post a task for a human specialist, two agents may transact entirely without human
+involvement, or two humans may use the protocol as a trustless escrow — the contract treats all
+participants identically. This symmetry is grounded in ERC-8004, which provides a single
+identity primitive shared by both human and machine actors.
+
+TMP enables any frontend, aggregator, or autonomous agent to interact with any compliant task
+market contract without implementation-specific knowledge. TMP is built on PGTR (EIP-TBD),
+which allows keyless actors to authorize task actions via on-chain payment receipts rather than
+private-key signatures. TMP integrates ERC-8004 for actor-agnostic on-chain identity,
+reputation, and automated benchmark validation.
+
+Tasks are identified by `bytes32` IDs generated deterministically by the contract using the
+requester's address and a monotonic nonce, enabling backends to pre-compute task IDs before
+transaction inclusion. Procurement modes are identified by `bytes4` selectors computed from a
+canonical string, making new modes detectable by tooling without contract upgrades.
+
+## Motivation
+
+On-chain task markets have emerged independently across multiple ecosystems with incompatible
+interfaces. The absence of a standard means:
+
+1. **Fragmentation** — Workers must track multiple incompatible contracts; aggregators must write
+   custom adapters.
+2. **Actor-specific designs** — Existing markets are designed for either humans or agents, not
+   both. Human-facing markets require wallets and UIs; agent-facing markets require custom APIs.
+   Neither is natively composable with the other.
+3. **No keyless actor support** — Existing designs require participants to hold private keys and
+   pay gas, excluding lightweight AI agents, IoT devices, and human users who prefer payment-only
+   authorization.
+4. **No automated evaluation** — Benchmark-style tasks (prove you achieved metric X) require
+   trusted off-chain evaluators with no on-chain finality.
+5. **Missing portable identity** — Reputation accrued on one market is not portable to another,
+   and there is no shared identity layer between human and machine participants.
+
+TMP addresses all five gaps: a common interface, actor-agnostic design grounded in ERC-8004
+identity, PGTR-based keyless authorization, ERC-8004 Validation Registry integration for
+automated benchmarks, and ERC-8004 Reputation Registry for portable reputation across all
+actor types.
+
+### Relationship to ERC-8183
+
+ERC-8183 (Agentic Commerce, Feb 2026) establishes a minimal single-evaluator, single-flow job
+coordination standard. TMP addresses a broader design space:
+
+| Dimension | ERC-8183 | TMP |
+|-----------|----------|-----|
+| Actor model | Agent-focused | Actor-agnostic (human ↔ agent, any combination) |
+| Keyless actors | ERC-2771 (signature-based) | PGTR (payment-receipt-based) |
+| Coordination modes | 1 linear flow | 5 modes |
+| Trustless evaluation | Optional | Benchmark + ERC-8004 Validation Registry |
+| ERC-8004 integration | Recommended | Normative (all 3 registries) |
+| Staking | None | Claim mode stake/forfeit |
+| Multi-forwarder | Single | `mapping(address => bool)` |
+
+Every workflow ERC-8183 supports is expressible in TMP (Bounty mode, requester-as-evaluator).
+The standards are complementary; minimal deployments may prefer ERC-8183, while multi-mode or
+agent-native deployments should use TMP.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHOULD", "SHOULD NOT", "RECOMMENDED",
+"MAY", and "OPTIONAL" are interpreted as described in RFC 2119.
+
+---
+
+## Part I: Core Interface (ITMP)
+
+### Mode Constants
+
+TMP modes are identified by `bytes4` constants computed as the first 4 bytes of the Keccak256
+hash of the canonical mode name string. Using selectors rather than enum values allows new modes
+to be deployed and detected by tooling without modifying existing contracts.
+
+```solidity
+bytes4 constant TMP_BOUNTY    = bytes4(keccak256("TMP.mode.bounty"));
+bytes4 constant TMP_CLAIM     = bytes4(keccak256("TMP.mode.claim"));
+bytes4 constant TMP_PITCH     = bytes4(keccak256("TMP.mode.pitch"));
+bytes4 constant TMP_BENCHMARK = bytes4(keccak256("TMP.mode.benchmark"));
+bytes4 constant TMP_AUCTION   = bytes4(keccak256("TMP.mode.auction"));
+```
+
+See Appendix B for exact 32-bit values.
+
+### Task Status
+
+```solidity
+enum TaskStatus {
+    Open,            // Task is accepting work
+    Claimed,         // A worker has locked the task (Claim / Auction modes)
+    WorkerSelected,  // Requester has selected a worker (Pitch mode)
+    PendingApproval, // Work submitted, awaiting requester acceptance (Bounty / Benchmark modes)
+    Accepted,        // Work accepted; payment released to worker
+    Expired,         // Task expired without acceptance; reward refunded to requester
+    Cancelled        // Task cancelled by requester before work began
+}
+```
+
+`Disputed` is intentionally absent from the core enum. Dispute resolution is an optional extension
+defined in `ITMPDispute`. Core protocol implementations are not required to support disputes.
+
+### Data Structures
+
+```solidity
+/// @notice Canonical task representation returned by getTask().
+struct TaskInfo {
+    bytes32   id;             // Contract-generated task identifier
+    address   requester;      // Principal who posted the task (pgtrSender at creation)
+    uint256   reward;         // Payment token amount escrowed (base units)
+    uint256   expiryTime;     // Unix timestamp after which the task may be expired
+    bytes4    mode;           // Procurement mode (TMP_BOUNTY, TMP_CLAIM, etc.)
+    TaskStatus status;        // Current lifecycle state
+    address   worker;         // Worker address (zero if none selected yet)
+    bytes32   deliverable;    // Content hash submitted by worker (zero if none)
+    bytes32   contentHash;    // Optional: keccak256 of off-chain task description
+    string    contentURI;     // Optional: URI pointing to extended task metadata
+}
+
+/// @notice Cumulative statistics for a worker address.
+struct WorkerStats {
+    uint256 tasksCompleted;   // Tasks accepted (payment released to this worker)
+    uint256 tasksAttempted;   // Tasks where worker submitted work or claimed
+    uint256 totalEarned;      // Cumulative payment token amount received (base units)
+    uint256 avgRating;        // Average rating 0–100 (scaled; 0 if unrated)
+    uint256 ratingCount;      // Number of ratings received
+}
+```
+
+### ITMP Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "./ITMPForwarder.sol";
+
+/// @title ITMP — Task Market Protocol Core Interface
+/// @notice A TMP-compliant contract MUST implement all functions and events in this interface
+///         and MUST return true from supportsInterface(type(ITMP).interfaceId).
+interface ITMP is IERC165 {
+
+    // ─── Events ────────────────────────────────────────────────────────────────
+
+    /// @notice Emitted when a new task is created.
+    event TaskCreated(
+        bytes32 indexed taskId,
+        address indexed requester,
+        uint256         reward,
+        bytes4  indexed mode,
+        uint256         expiryTime
+    );
+
+    /// @notice Emitted when a worker submits a deliverable hash.
+    event TaskSubmitted(
+        bytes32 indexed taskId,
+        address indexed worker,
+        bytes32         deliverable
+    );
+
+    /// @notice Emitted when the requester accepts a submission and payment is released.
+    event TaskCompleted(
+        bytes32 indexed taskId,
+        address indexed worker,
+        uint256         reward
+    );
+
+    /// @notice Emitted when a task expires and reward is returned to the requester.
+    event TaskExpired(bytes32 indexed taskId, address indexed requester, uint256 reward);
+
+    // ─── Task Lifecycle ─────────────────────────────────────────────────────────
+
+    /// @notice Create a new task and escrow the reward.
+    /// @dev    Called by a trusted PGTR forwarder. `requester` is the pgtrSender on the forwarder.
+    ///         The task ID MUST be generated as:
+    ///           keccak256(abi.encode(block.chainid, address(this), requester, requesterNonce[requester]++))
+    ///         This makes the ID deterministic and pre-computable before transaction inclusion.
+    /// @param requester       The principal posting the task (set by the forwarder to pgtrSender).
+    /// @param reward          Amount of payment token to escrow (transferred from forwarder/server).
+    /// @param duration        Task lifetime in seconds from the current block timestamp.
+    /// @param mode            Procurement mode selector (TMP_BOUNTY, TMP_CLAIM, etc.).
+    /// @param pitchDeadline   Seconds until pitch submissions close (0 = task duration; Pitch mode only).
+    /// @param bidDeadline     Seconds until bidding closes (0 = task duration; Auction mode only).
+    /// @return taskId         The contract-generated task identifier.
+    function createTask(
+        address requester,
+        uint256 reward,
+        uint256 duration,
+        bytes4  mode,
+        uint256 pitchDeadline,
+        uint256 bidDeadline
+    ) external returns (bytes32 taskId);
+
+    /// @notice Record a deliverable hash submitted by a worker.
+    /// @dev    Called by a trusted PGTR forwarder. `worker` is the pgtrSender on the forwarder.
+    ///         State transitions are mode-dependent (see State Machine section).
+    ///         The deliverable hash MUST be stored on-chain and retrievable via getTask().
+    /// @param taskId      Task identifier.
+    /// @param worker      Address submitting the work (set by forwarder to pgtrSender).
+    /// @param deliverable Content hash of the work artifact (e.g., keccak256 of file, IPFS CID,
+    ///                    or ZK commitment). MUST NOT be zero.
+    function submitWork(bytes32 taskId, address worker, bytes32 deliverable) external;
+
+    /// @notice Accept a worker's submission and release the escrowed reward.
+    /// @dev    Called by a trusted PGTR forwarder. `requester` MUST equal the task requester.
+    ///         Emits TaskCompleted. MUST NOT be callable after TaskStatus.Expired.
+    /// @param taskId    Task identifier.
+    /// @param requester The requester authorizing acceptance.
+    /// @param worker    The worker whose work is accepted.
+    function acceptSubmission(bytes32 taskId, address requester, address worker) external;
+
+    /// @notice Rate a completed task and record feedback in the ERC-8004 Reputation Registry.
+    /// @dev    MUST only be callable after TaskStatus.Accepted.
+    ///         MUST call IReputationRegistry.giveFeedback with:
+    ///           tag1 = "tmp.task.rating"
+    ///           tag2 = canonical mode name (e.g., "tmp.mode.bounty")
+    /// @param taskId        Task identifier.
+    /// @param requester     The rating requester (MUST be task requester).
+    /// @param rating        Score 0–100.
+    /// @param workerAgentId ERC-8004 agent ID of the worker being rated.
+    /// @param feedbackURI   URI pointing to structured feedback data.
+    /// @param feedbackHash  keccak256 of the feedback data at feedbackURI.
+    function rateTask(
+        bytes32 taskId,
+        address requester,
+        uint8   rating,
+        uint256 workerAgentId,
+        string  calldata feedbackURI,
+        bytes32 feedbackHash
+    ) external;
+
+    /// @notice Refund the escrowed reward to the requester after expiry.
+    /// @dev    MUST be callable by anyone after task.expiryTime has passed and status is Open,
+    ///         Claimed, or WorkerSelected. MUST bypass all hooks and extension contracts.
+    ///         This invariant MUST hold even if ITMPDispute or other extensions are active.
+    ///         Emits TaskExpired.
+    function refundExpired(bytes32 taskId) external;
+
+    // ─── View Functions ─────────────────────────────────────────────────────────
+
+    /// @notice Returns full task information.
+    function getTask(bytes32 taskId) external view returns (TaskInfo memory);
+
+    /// @notice Returns cumulative statistics for a worker address.
+    function getWorkerStats(address worker) external view returns (WorkerStats memory);
+
+    /// @notice Returns the current requester nonce used for task ID generation.
+    function requesterNonce(address requester) external view returns (uint256);
+
+    /// @notice Returns true if addr is a trusted PGTR forwarder.
+    function isTrustedForwarder(address addr) external view returns (bool);
+}
+```
+
+---
+
+## Part II: Mode State Machines (Normative)
+
+The following state diagrams define all valid state transitions for each mode.
+`*` denotes an off-chain action relayed by a PGTR forwarder; `submitWork*` records the deliverable
+hash on-chain but does NOT change status in Claim/Pitch/Auction modes.
+
+### Bounty Mode
+
+Any worker may submit. First accepted submission wins.
+
+```
+Open
+  --[submitWork]--> PendingApproval
+  --[expire]------> Expired
+
+PendingApproval
+  --[acceptSubmission]--> Accepted
+  --[expire]-----------> Expired (deliverable retained)
+```
+
+### Claim Mode
+
+Workers lock the task by staking. Stake is forfeited on failure.
+
+```
+Open
+  --[claimTask*]---> Claimed
+  --[expire]-------> Expired
+
+Claimed
+  --[submitWork*]---> Claimed  (deliverable hash recorded; status unchanged)
+  --[acceptSubmission]--> Accepted
+  --[forfeitClaim*]---> Open   (stake forfeited; task re-opens)
+  --[expire]---------> Expired (stake returned to worker if configured)
+```
+
+### Pitch Mode
+
+Requester selects a worker from pitches before work begins.
+
+```
+Open
+  --[submitPitch*]----> Open         (pitch recorded off-chain; status unchanged)
+  --[selectWorker]----> WorkerSelected
+  --[expire]----------> Expired
+
+WorkerSelected
+  --[submitWork*]----> WorkerSelected (deliverable hash recorded; status unchanged)
+  --[acceptSubmission]--> Accepted
+  --[expire]----------> Expired
+```
+
+### Benchmark Mode
+
+Work is validated automatically by the ERC-8004 Validation Registry.
+
+```
+Open
+  --[submitWork]--> PendingApproval
+  --[expire]------> Expired
+
+PendingApproval
+  --[acceptSubmission (via Validation Registry)]--> Accepted
+  --[expire]-----> Expired (deliverable retained)
+```
+
+In Benchmark mode, `evaluatorFor(taskId)` returns the ERC-8004 Validation Registry address.
+The forwarder MUST submit the proof to the Validation Registry off-chain; the Registry calls
+`acceptSubmission` on the TMP contract if the proof is valid.
+
+### Auction Mode
+
+Workers submit sealed bids; lowest bidder wins the right to do the work.
+
+```
+Open
+  --[submitBid*]-------> Open        (bid recorded; status unchanged)
+  --[selectLowestBidder]--> Claimed   (winning bidder locked)
+  --[expire]-----------> Expired
+
+Claimed (winner locked)
+  --[submitWork*]----> Claimed       (deliverable hash recorded; status unchanged)
+  --[acceptSubmission]--> Accepted
+  --[expire]----------> Expired
+```
+
+Note: `selectLowestBidder` performs an O(n) scan over all bids. Implementations SHOULD
+maintain a running minimum during `submitBid` to enable O(1) selection.
+
+---
+
+## Part III: Task ID Generation
+
+Task IDs MUST be generated by the contract as:
+
+```solidity
+taskId = keccak256(abi.encode(
+    block.chainid,
+    address(this),
+    requester,
+    requesterNonce[requester]++
+));
+```
+
+This scheme guarantees:
+- **Uniqueness** — chain ID + contract address + requester + monotonic nonce cannot collide.
+- **Pre-computability** — backends can predict the ID by reading `requesterNonce[requester]`
+  before submitting the transaction.
+- **No off-chain randomness** — no server-side random bytes required.
+- **Cross-chain disambiguation** — the chain ID prevents the same ID appearing on two chains.
+
+A backend MAY pre-compute the task ID with:
+```typescript
+const nonce = await contract.requesterNonce(requester);
+const taskId = keccak256(encodeAbiParameters(
+  [{ type: 'uint256' }, { type: 'address' }, { type: 'address' }, { type: 'uint256' }],
+  [BigInt(chainId), contractAddress, requester, nonce]
+));
+```
+
+---
+
+## Part IV: Deliverable Anchoring
+
+The `submitWork` function MUST accept a `bytes32 deliverable` parameter and store it on-chain
+as part of the task record. The deliverable hash provides a tamper-evident anchor for:
+
+- **IPFS CIDs** — keccak256 of the CID bytes
+- **File content** — keccak256 of the raw file
+- **ZK commitments** — commitment value from a zero-knowledge proof
+- **Merkle roots** — root of a structured proof tree
+
+The deliverable field MUST be zero for tasks where no submission has been recorded.
+Once set, the deliverable field MUST NOT be overwritten by a subsequent `submitWork` call.
+
+---
+
+## Part V: ERC-8004 Integration (Normative)
+
+ERC-8004 is the actor-agnostic identity layer for TMP. Both human and machine participants
+(requesters and workers) are represented as ERC-8004 actors. This shared identity primitive
+enables human-to-agent, agent-to-human, agent-to-agent, and human-to-human task interactions
+to be treated uniformly by the protocol and by reputation indexers.
+
+TMP contracts that support reputation MUST integrate with all three ERC-8004 registries:
+
+### Identity Registry
+
+Requesters and workers are ERC-8004 actors — human or machine. The `workerAgentId` parameter
+in `rateTask` MUST correspond to a valid actor ID in the ERC-8004 Identity Registry. Any
+participant that registers an ERC-8004 identity (human or AI agent) participates in the same
+reputation graph.
+
+### Reputation Registry
+
+When `rateTask` is called, the contract MUST call:
+```solidity
+IReputationRegistry.giveFeedback(
+    workerAgentId,
+    int128(rating),
+    0,                     // valueDecimals
+    "tmp.task.rating",     // tag1 — canonical TMP tag
+    _modeName(task.mode),  // tag2 — e.g., "tmp.mode.bounty"
+    feedbackURI,
+    feedbackHash
+);
+```
+
+The canonical tag `"tmp.task.rating"` MUST be used for `tag1`. Indexers and reputation aggregators
+SHOULD filter on this tag to identify TMP-sourced feedback. The mode name in `tag2` allows
+mode-specific reputation segmentation (e.g., separate scores for benchmark vs. bounty work).
+
+### Validation Registry (Benchmark Mode Only)
+
+In Benchmark mode, the forwarder MUST:
+1. Submit the worker's proof to the ERC-8004 Validation Registry.
+2. The Validation Registry evaluates the proof against the task's `metricTarget`.
+3. If valid, the Registry's callback triggers `acceptSubmission` on the TMP contract.
+
+The TMP contract MUST NOT accept `acceptSubmission` calls from arbitrary addresses in Benchmark
+mode — only from the Validation Registry (returned by `evaluatorFor(taskId)`).
+
+---
+
+## Part VI: Optional Extension Interfaces
+
+TMP implementations MAY implement the following optional extension interfaces. Callers SHOULD
+check for these via ERC-165 before calling extension functions.
+
+### ITMPMode
+
+```solidity
+interface ITMPMode is IERC165 {
+    /// @notice Returns the address responsible for evaluating task completion.
+    ///         Bounty/Claim: returns requester
+    ///         Benchmark:    returns ERC-8004 Validation Registry
+    ///         Pitch/Auction: returns requester (or designated arbitrator)
+    function evaluatorFor(bytes32 taskId) external view returns (address evaluator);
+}
+```
+
+### ITMPFees
+
+```solidity
+interface ITMPFees is IERC165 {
+    /// @notice Platform fee in basis points deducted from reward on task completion.
+    function defaultFeeBps() external view returns (uint16);
+    /// @notice Address that receives platform fees.
+    function feeRecipient() external view returns (address);
+    /// @notice Cumulative fees collected since deployment.
+    function totalFeesCollected() external view returns (uint256);
+    /// @notice Effective fee amount that will be deducted for a given reward.
+    function feeForTask(uint256 reward) external view returns (uint256);
+}
+```
+
+### ITMPReputation
+
+```solidity
+interface ITMPReputation is IERC165 {
+    /// @notice The ERC-8004 Reputation Registry used for feedback submission.
+    function reputationRegistry() external view returns (address);
+
+    event ReputationRegistryUpdated(address indexed registry);
+}
+```
+
+### ITMPDispute
+
+```solidity
+interface ITMPDispute is IERC165 {
+    enum DisputeStatus { None, Open, Resolved }
+
+    /// @notice Returns dispute status for a task.
+    function disputeStatus(bytes32 taskId) external view returns (DisputeStatus);
+    /// @notice Returns the arbitrator for a task (zero if no dispute).
+    function arbitratorFor(bytes32 taskId) external view returns (address);
+
+    /// @notice Open a dispute for a task in PendingApproval or Accepted state.
+    function openDispute(bytes32 taskId, address initiator, string calldata reason) external;
+
+    /// @notice Resolve a dispute. Only callable by arbitratorFor(taskId).
+    ///         workerShare + requesterShare MUST equal 100.
+    function resolveDispute(bytes32 taskId, uint8 workerShare, uint8 requesterShare) external;
+
+    event DisputeOpened(bytes32 indexed taskId, address indexed initiator);
+    event DisputeResolved(bytes32 indexed taskId, uint8 workerShare, uint8 requesterShare);
+}
+```
+
+**Normative requirement**: `ITMPDispute` implementations MUST NOT interfere with `refundExpired`.
+A task that has reached its `expiryTime` MUST be refundable even if a dispute is open. This
+invariant protects requesters from griefing via spurious dispute opens.
+
+---
+
+## Part VII: Fund Recovery Invariant (Normative)
+
+`refundExpired` MUST:
+
+1. Be callable by any address (permissionless).
+2. Succeed whenever `block.timestamp > task.expiryTime` and `task.status` is `Open`, `Claimed`,
+   or `WorkerSelected`.
+3. NOT be blocked by any hook, extension contract, or dispute state.
+4. Transfer the full escrowed reward to `task.requester`.
+5. Emit `TaskExpired`.
+
+This invariant MUST hold unconditionally. Implementations MUST verify it in their test suite.
+
+---
+
+## Part VIII: Indexer Event Requirements
+
+All state transitions MUST emit events with sufficient data to reconstruct full task history
+from a stateless event scan. Specifically:
+
+- `TaskCreated` MUST include all parameters needed to reconstruct the initial task state.
+- `TaskSubmitted` MUST include the deliverable hash.
+- `TaskCompleted` MUST include worker address and reward amount.
+- `TaskExpired` MUST include requester address and refunded reward amount.
+- `ForwarderUpdated(address indexed forwarder, bool trusted)` MUST be emitted on every
+  `addForwarder` and `removeForwarder` call.
+
+## Rationale
+
+### bytes4 mode selectors vs. enum
+
+An `enum` encodes modes as consecutive integers. Adding a new mode requires modifying the contract
+(breaking existing ABIs). bytes4 selectors are computed from canonical strings, so:
+1. New modes have globally unique identifiers derivable without reading contract storage.
+2. The selector itself carries semantic meaning (readable as a string).
+3. Aggregators can detect supported modes via `supportsInterface` pattern extensions without
+   on-chain enumeration.
+
+### Contract-generated task IDs
+
+Client-supplied task IDs (random bytes32) create a race condition: two clients may submit the same
+ID, and the second will fail on-chain after paying gas. They also require the client to manage
+entropy, which is non-trivial for lightweight agents. Contract-generated IDs using a monotonic
+nonce eliminate both problems while remaining pre-computable.
+
+### submitWork as a separate step
+
+Separating `submitWork` from `acceptSubmission` provides an on-chain audit trail:
+- The deliverable hash is anchored before the requester evaluates it.
+- ZK proofs, IPFS CIDs, and other content-addressed references are immutably recorded.
+- Disputes have an on-chain record of exactly what was submitted and when.
+
+### Off-chain submission in Claim/Pitch/Auction modes
+
+In Claim, Pitch, and Auction modes, the worker is already locked to the task (no competitive
+race). `submitWork` in these modes records the deliverable hash on-chain but does not change
+status, because the relevant gate (acceptance) is an explicit requester action. Emitting
+`TaskSubmitted` regardless of mode provides consistent indexer behavior.
+
+### PGTR over ERC-2771
+
+See EIP-PGTR §Relationship to ERC-2771.
+
+## Backwards Compatibility
+
+This ERC introduces a new interface. Existing task market contracts are unaffected unless they
+choose to implement ITMP. Contracts may add `supportsInterface(type(ITMP).interfaceId)` as an
+additive upgrade, provided the underlying function signatures match the ITMP interface.
+
+## Security Considerations
+
+1. **Payment atomicity** — All payment operations (escrow on create, release on accept, refund on
+   expire) MUST be atomic. Partial state updates with external token calls MUST use
+   `ReentrancyGuard` or equivalent.
+
+2. **Forwarder trust** — The `trustedForwarders` mapping is a privileged set. Adding a malicious
+   forwarder allows arbitrary task creation and work acceptance on behalf of any requester.
+   `addForwarder` MUST be protected by `onlyOwner` or equivalent governance.
+
+3. **Staking collateral** — In Claim mode, stake amounts SHOULD be set high enough to make
+   griefing (claim-and-abandon) economically unattractive. `stakeBps` is a percentage of reward;
+   implementations SHOULD enforce a minimum absolute stake.
+
+4. **Benchmark oracle trust** — The Validation Registry in Benchmark mode is trusted to evaluate
+   proofs fairly. Requesters SHOULD use audited, reputable registry implementations. The TMP
+   contract SHOULD emit the registry address in `TaskCreated` so requesters can verify it
+   before posting a task.
+
+5. **Auction gas** — `selectLowestBidder` is O(n) over all bids. Large auctions with many bids
+   may exceed block gas limits. Implementations SHOULD maintain a running minimum during bid
+   submission to cap this at O(1). The gas cost SHOULD be documented in the frontend.
+
+6. **Expiry clock** — `expiryTime` is set to `block.timestamp + duration` at task creation.
+   Block timestamps are manipulable by validators within ~15 seconds. Tasks with very short
+   durations (< 60 seconds) SHOULD NOT be used in adversarial contexts.
+
+7. **Re-rating** — Implementations MUST prevent multiple `rateTask` calls for the same
+   (taskId, requester) pair to avoid reputation inflation.
+
+## Reference Implementation
+
+See `src/TaskMarket.sol` in the reference implementation repository.
+
+The reference implementation passes a compliance test suite (`test/ITMP.t.sol`) that can be
+run against any TMP-compliant contract. The test suite covers:
+- ERC-165 interface detection
+- All 5 mode state machines
+- `submitWork` deliverable anchoring
+- `rateTask` ERC-8004 tag requirements
+- `refundExpired` fund recovery invariant
+- `requesterNonce` uniqueness and pre-computability
+- Multi-forwarder add/remove
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+---
+
+## Appendix A: Canonical Task Metadata JSON Schema
+
+TMP tasks MAY reference extended metadata at `contentURI`. The following JSON schema defines the
+canonical format. Indexers and frontends SHOULD use this schema for interoperability.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12",
+  "title": "TMP Task Metadata",
+  "type": "object",
+  "required": ["title", "description", "mode", "reward"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Short human-readable task title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full task description"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["bounty", "claim", "pitch", "benchmark", "auction"],
+      "description": "Procurement mode"
+    },
+    "reward": {
+      "type": "string",
+      "description": "Reward amount in USDC base units (string to avoid precision loss)"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Searchable tags"
+    },
+    "benchmark": {
+      "type": "object",
+      "description": "Present only for benchmark mode tasks",
+      "properties": {
+        "metricDescription": { "type": "string" },
+        "metricTarget": { "type": "string" },
+        "validatorAddress": {
+          "type": "string",
+          "description": "ERC-8004 Validation Registry address"
+        },
+        "proofType": {
+          "type": "string",
+          "description": "Expected proof format (e.g., 'zk-snark', 'benchmark-result-json')"
+        }
+      },
+      "required": ["metricDescription", "metricTarget", "validatorAddress", "proofType"]
+    },
+    "auction": {
+      "type": "object",
+      "description": "Present only for auction mode tasks",
+      "properties": {
+        "auctionType": {
+          "type": "string",
+          "enum": ["dutch", "english", "reverse_dutch", "reverse_english"]
+        },
+        "maxPrice": { "type": "string" },
+        "floorPrice": { "type": "string" },
+        "startPrice": { "type": "string" },
+        "bidDeadline": {
+          "type": "integer",
+          "description": "Unix timestamp when bidding closes"
+        }
+      }
+    },
+    "createdAt": {
+      "type": "integer",
+      "description": "Unix timestamp of task creation"
+    },
+    "chainId": {
+      "type": "integer",
+      "description": "EVM chain ID where the task contract is deployed"
+    },
+    "contractAddress": {
+      "type": "string",
+      "description": "TMP contract address (checksummed)"
+    }
+  }
+}
+```
+
+## Appendix B: Mode Selector Values
+
+The canonical bytes4 mode selectors, computed as `bytes4(keccak256("<string>"))`:
+
+| Mode | Input String | bytes4 Value |
+|------|-------------|--------------|
+| Bounty | `"TMP.mode.bounty"` | `bytes4(keccak256("TMP.mode.bounty"))` |
+| Claim | `"TMP.mode.claim"` | `bytes4(keccak256("TMP.mode.claim"))` |
+| Pitch | `"TMP.mode.pitch"` | `bytes4(keccak256("TMP.mode.pitch"))` |
+| Benchmark | `"TMP.mode.benchmark"` | `bytes4(keccak256("TMP.mode.benchmark"))` |
+| Auction | `"TMP.mode.auction"` | `bytes4(keccak256("TMP.mode.auction"))` |
+
+To verify the exact 32-bit values, run:
+```bash
+cd packages/contracts
+forge script -vvv --sig "run()" - <<'EOF'
+import "forge-std/Script.sol";
+import "../src/interfaces/ITMPMode.sol";
+contract Check is Script {
+    function run() external view {
+        console.logBytes4(TMP_BOUNTY);
+        console.logBytes4(TMP_CLAIM);
+        console.logBytes4(TMP_PITCH);
+        console.logBytes4(TMP_BENCHMARK);
+        console.logBytes4(TMP_AUCTION);
+    }
+}
+EOF
+```
+
+## Appendix C: ERC-165 Interface IDs
+
+| Interface | Solidity expression |
+|-----------|---------------------|
+| IERC165 | `0x01ffc9a7` (standard) |
+| ITMP | `type(ITMP).interfaceId` |
+| ITMPForwarder | `type(ITMPForwarder).interfaceId` |
+| ITMPMode | `type(ITMPMode).interfaceId` |
+| ITMPFees | `type(ITMPFees).interfaceId` |
+| ITMPReputation | `type(ITMPReputation).interfaceId` |
+| ITMPDispute | `type(ITMPDispute).interfaceId` |
+
+All non-standard IDs are computed at compile time by Solidity as the XOR of function selectors.
+To verify: `cast interface <address> | grep interfaceId` after deploying the reference implementation.
