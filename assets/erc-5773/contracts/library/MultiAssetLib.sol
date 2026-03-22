@@ -19,7 +19,7 @@ library MultiAssetLib {
         return (0, false);
     }
 
-    //For reasource storage array
+    //For resource storage array
     function removeItemByIndex(uint64[] storage array, uint256 index) internal {
         //Check to see if this is already gated by require in all calls
         require(index < array.length);

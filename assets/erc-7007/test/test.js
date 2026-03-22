@@ -116,7 +116,7 @@ describe("ERC7007Opml.sol", function () {
             expect(await erc7007.balanceOf(owner.address)).to.equal(1);
         });
 
-        it("should verify a fianlized request", async function () {
+        it("should verify a finalized request", async function () {
             const erc7007 = await deployERC7007Fixture();
             const [owner] = await ethers.getSigners();
             await erc7007.mint(owner.address, prompt, aigcData, uri, 0x00);
