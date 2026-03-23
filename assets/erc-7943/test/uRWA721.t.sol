@@ -52,25 +52,31 @@ contract uRWA721Test is Test {
         token.grantRole(FORCE_TRANSFER_ROLE, forceTransferrer);
         token.grantRole(WHITELIST_ROLE, whitelister);
 
-        // Whitelist initial users
-        token.changeWhitelist(admin, true);
-        token.changeWhitelist(user1, true);
-        token.changeWhitelist(user2, true);
-        token.changeWhitelist(minter, true);
-        token.changeWhitelist(burner, true);
-        token.changeWhitelist(freezer, true);
-        token.changeWhitelist(forceTransferrer, true);
-        token.changeWhitelist(whitelister, true);
+        // Whitelist initial users (both send and receive)
+        _whitelistBoth(admin);
+        _whitelistBoth(user1);
+        _whitelistBoth(user2);
+        _whitelistBoth(minter);
+        _whitelistBoth(burner);
+        _whitelistBoth(freezer);
+        _whitelistBoth(forceTransferrer);
+        _whitelistBoth(whitelister);
         vm.stopPrank();
 
         // Deploy mock receiver
         receiverContract = new MockERC721Receiver();
-        vm.prank(admin);
-        token.changeWhitelist(address(receiverContract), true);
+        vm.startPrank(admin);
+        _whitelistBoth(address(receiverContract));
+        vm.stopPrank();
 
         // Mint initial token for tests
         vm.prank(minter);
         token.safeMint(user1, TOKEN_ID_1);
+    }
+
+    function _whitelistBoth(address account) internal {
+        token.changeSendWhitelist(account, true);
+        token.changeReceiveWhitelist(account, true);
     }
 
     // --- Constructor Tests ---
@@ -91,30 +97,47 @@ contract uRWA721Test is Test {
 
     // --- Whitelist Tests ---
 
-    function test_Whitelist_ChangeStatus() public {
-        assertFalse(token.canTransact(otherUser));
+    function test_SendWhitelist_ChangeStatus() public {
+        assertFalse(token.canSend(otherUser));
         vm.prank(whitelister);
         vm.expectEmit(true, false, false, true);
-        emit uRWA721.Whitelisted(otherUser, true);
-        token.changeWhitelist(otherUser, true);
-        assertTrue(token.canTransact(otherUser));
+        emit uRWA721.SendWhitelisted(otherUser, true);
+        token.changeSendWhitelist(otherUser, true);
+        assertTrue(token.canSend(otherUser));
 
         vm.prank(whitelister);
         vm.expectEmit(true, false, false, true);
-        emit uRWA721.Whitelisted(otherUser, false);
-        token.changeWhitelist(otherUser, false);
-        assertFalse(token.canTransact(otherUser));
+        emit uRWA721.SendWhitelisted(otherUser, false);
+        token.changeSendWhitelist(otherUser, false);
+        assertFalse(token.canSend(otherUser));
+    }
+
+    function test_ReceiveWhitelist_ChangeStatus() public {
+        assertFalse(token.canReceive(otherUser));
+        vm.prank(whitelister);
+        vm.expectEmit(true, false, false, true);
+        emit uRWA721.ReceiveWhitelisted(otherUser, true);
+        token.changeReceiveWhitelist(otherUser, true);
+        assertTrue(token.canReceive(otherUser));
+
+        vm.prank(whitelister);
+        vm.expectEmit(true, false, false, true);
+        emit uRWA721.ReceiveWhitelisted(otherUser, false);
+        token.changeReceiveWhitelist(otherUser, false);
+        assertFalse(token.canReceive(otherUser));
     }
 
     function test_Revert_Whitelist_ChangeStatus_NotWhitelister() public {
         vm.prank(otherUser);
         vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, otherUser, WHITELIST_ROLE));
-        token.changeWhitelist(nonWhitelistedUser, true);
+        token.changeSendWhitelist(nonWhitelistedUser, true);
     }
 
     function test_Whitelist_IsUserAllowed() public view {
-        assertTrue(token.canTransact(user1));
-        assertFalse(token.canTransact(nonWhitelistedUser));
+        assertTrue(token.canSend(user1));
+        assertTrue(token.canReceive(user1));
+        assertFalse(token.canSend(nonWhitelistedUser));
+        assertFalse(token.canReceive(nonWhitelistedUser));
     }
 
     // --- Minting Tests ---
@@ -134,9 +157,9 @@ contract uRWA721Test is Test {
         token.safeMint(user2, TOKEN_ID_2);
     }
 
-    function test_Revert_Mint_ToNonWhitelisted() public {
+    function test_Revert_Mint_ToCannotReceive() public {
         vm.prank(minter);
-        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotTransact.selector, nonWhitelistedUser));
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotReceive.selector, nonWhitelistedUser));
         token.safeMint(nonWhitelistedUser, TOKEN_ID_2);
     }
 
@@ -175,7 +198,7 @@ contract uRWA721Test is Test {
         vm.expectEmit(true, true, true, true);
         emit IERC721.Transfer(user1, address(0), TOKEN_ID_1);
         token.burn(TOKEN_ID_1);
-        
+
         assertEq(token.balanceOf(user1), 0);
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, TOKEN_ID_1));
         token.ownerOf(TOKEN_ID_1);
@@ -189,31 +212,27 @@ contract uRWA721Test is Test {
         vm.expectEmit(true, true, true, true);
         emit IERC721.Transfer(user1, address(0), TOKEN_ID_1);
         token.burn(TOKEN_ID_1);
-        
+
         assertEq(token.balanceOf(user1), 0);
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, TOKEN_ID_1));
         token.ownerOf(TOKEN_ID_1);
     }
 
     function test_Burn_Success_UnfreezesFrozenToken() public {
-        // Grant burner role to user1
         vm.prank(admin);
         token.grantRole(BURNER_ROLE, user1);
 
-        // Freeze the token first
         vm.prank(freezer);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
         assertTrue(token.getFrozenTokens(user1, TOKEN_ID_1));
 
-        // Burn should succeed and unfreeze the token
         vm.prank(user1);
-        vm.expectEmit(true, true, true, true); // Frozen event from _excessFrozenUpdate
+        vm.expectEmit(true, true, true, true);
         emit IERC7943NonFungible.Frozen(user1, TOKEN_ID_1, false);
-        vm.expectEmit(true, true, true, true); // Transfer event
+        vm.expectEmit(true, true, true, true);
         emit IERC721.Transfer(user1, address(0), TOKEN_ID_1);
         token.burn(TOKEN_ID_1);
-        
-        // Token should be burned
+
         vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, TOKEN_ID_1));
         token.ownerOf(TOKEN_ID_1);
     }
@@ -236,22 +255,30 @@ contract uRWA721Test is Test {
         token.burn(NON_EXISTENT_TOKEN_ID);
     }
 
+    function test_Revert_Burn_CannotSend() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        vm.prank(whitelister);
+        token.changeSendWhitelist(user1, false);
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotSend.selector, user1));
+        token.burn(TOKEN_ID_1);
+    }
+
     function test_GetFrozenTokens_NonOwner() public {
-        // user1 owns TOKEN_ID_1
         assertEq(token.ownerOf(TOKEN_ID_1), user1);
-        
-        // Freeze for user2 (who doesn't own it)
+
         vm.prank(freezer);
         token.setFrozenTokens(user2, TOKEN_ID_1, true);
-        
+
         assertTrue(token.getFrozenTokens(user2, TOKEN_ID_1));
-        
-        // Transfer token to user2
+
         vm.prank(user1);
         token.transferFrom(user1, user2, TOKEN_ID_1);
         assertEq(token.ownerOf(TOKEN_ID_1), user2);
-        
-        // user2 should not be able to transfer it because it was pre-frozen
+
         vm.prank(user2);
         vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943InsufficientUnfrozenBalance.selector, user2, TOKEN_ID_1));
         token.transferFrom(user2, user1, TOKEN_ID_1);
@@ -270,8 +297,9 @@ contract uRWA721Test is Test {
     function test_Transfer_Success_ByApprovedWhitelisted() public {
         vm.prank(user1);
         token.approve(otherUser, TOKEN_ID_1);
-        vm.prank(admin);
-        token.changeWhitelist(otherUser, true);
+        vm.startPrank(admin);
+        _whitelistBoth(otherUser);
+        vm.stopPrank();
 
         vm.prank(otherUser);
         vm.expectEmit(true, true, true, true);
@@ -280,18 +308,18 @@ contract uRWA721Test is Test {
         assertEq(token.ownerOf(TOKEN_ID_1), user2);
     }
 
-    function test_Revert_Transfer_FromNotWhitelisted() public {
+    function test_Revert_Transfer_FromCannotSend() public {
         vm.prank(whitelister);
-        token.changeWhitelist(user1, false);
+        token.changeSendWhitelist(user1, false);
 
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotTransact.selector, user1));
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotSend.selector, user1));
         token.transferFrom(user1, user2, TOKEN_ID_1);
     }
 
-    function test_Revert_Transfer_ToNotWhitelisted() public {
+    function test_Revert_Transfer_ToCannotReceive() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotTransact.selector, nonWhitelistedUser));
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotReceive.selector, nonWhitelistedUser));
         token.transferFrom(user1, nonWhitelistedUser, TOKEN_ID_1);
     }
 
@@ -328,9 +356,9 @@ contract uRWA721Test is Test {
         assertEq(token.ownerOf(TOKEN_ID_1), user2);
     }
 
-    function test_ForcedTransfer_Success_FromNonWhitelistedToWhitelisted() public {
+    function test_ForcedTransfer_Success_FromCannotSendToWhitelisted() public {
         vm.prank(whitelister);
-        token.changeWhitelist(user1, false);
+        token.changeSendWhitelist(user1, false);
 
         vm.prank(forceTransferrer);
         vm.expectEmit(true, true, true, true);
@@ -342,34 +370,16 @@ contract uRWA721Test is Test {
     }
 
     function test_ForcedTransfer_Success_UnfreezesFrozenToken() public {
-        // Freeze the token first
         vm.prank(freezer);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
         assertTrue(token.getFrozenTokens(user1, TOKEN_ID_1));
 
         vm.prank(forceTransferrer);
-        vm.expectEmit(true, true, true, true); // Frozen event from _excessFrozenUpdate
+        vm.expectEmit(true, true, true, true);
         emit IERC7943NonFungible.Frozen(user1, TOKEN_ID_1, false);
-        vm.expectEmit(true, true, true, true); // Transfer event
+        vm.expectEmit(true, true, true, true);
         emit IERC721.Transfer(user1, user2, TOKEN_ID_1);
-        vm.expectEmit(true, true, true, true); // ForcedTransfer event
-        emit IERC7943NonFungible.ForcedTransfer(user1, user2, TOKEN_ID_1);
-        token.forcedTransfer(user1, user2, TOKEN_ID_1);
-
-        assertEq(token.ownerOf(TOKEN_ID_1), user2);
-        assertFalse(token.getFrozenTokens(user1, TOKEN_ID_1)); // Should be unfrozen for original owner
-        assertFalse(token.getFrozenTokens(user2, TOKEN_ID_1)); // Should not be frozen for new owner
-    }
-
-    function test_ForcedTransfer_Success_NoChangeWhenNotFrozen() public {
-        // Token is not frozen initially
-        assertFalse(token.getFrozenTokens(user1, TOKEN_ID_1));
-
-        vm.prank(forceTransferrer);
-        // Should NOT emit Frozen event since token wasn't frozen
-        vm.expectEmit(true, true, true, true); // Transfer event
-        emit IERC721.Transfer(user1, user2, TOKEN_ID_1);
-        vm.expectEmit(true, true, true, true); // ForcedTransfer event
+        vm.expectEmit(true, true, true, true);
         emit IERC7943NonFungible.ForcedTransfer(user1, user2, TOKEN_ID_1);
         token.forcedTransfer(user1, user2, TOKEN_ID_1);
 
@@ -378,9 +388,24 @@ contract uRWA721Test is Test {
         assertFalse(token.getFrozenTokens(user2, TOKEN_ID_1));
     }
 
-    function test_Revert_ForcedTransfer_ToNonWhitelisted() public {
+    function test_ForcedTransfer_Success_NoChangeWhenNotFrozen() public {
+        assertFalse(token.getFrozenTokens(user1, TOKEN_ID_1));
+
         vm.prank(forceTransferrer);
-        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotTransact.selector, nonWhitelistedUser));
+        vm.expectEmit(true, true, true, true);
+        emit IERC721.Transfer(user1, user2, TOKEN_ID_1);
+        vm.expectEmit(true, true, true, true);
+        emit IERC7943NonFungible.ForcedTransfer(user1, user2, TOKEN_ID_1);
+        token.forcedTransfer(user1, user2, TOKEN_ID_1);
+
+        assertEq(token.ownerOf(TOKEN_ID_1), user2);
+        assertFalse(token.getFrozenTokens(user1, TOKEN_ID_1));
+        assertFalse(token.getFrozenTokens(user2, TOKEN_ID_1));
+    }
+
+    function test_Revert_ForcedTransfer_ToCannotReceive() public {
+        vm.prank(forceTransferrer);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943CannotReceive.selector, nonWhitelistedUser));
         token.forcedTransfer(user1, nonWhitelistedUser, TOKEN_ID_1);
     }
 
@@ -419,11 +444,9 @@ contract uRWA721Test is Test {
     }
 
     function test_SetFrozenTokens_Success_UnfreezeToken() public {
-        // First freeze the token
         vm.prank(freezer);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
 
-        // Then unfreeze it
         vm.prank(freezer);
         vm.expectEmit(true, true, true, true);
         emit IERC7943NonFungible.Frozen(user1, TOKEN_ID_1, false);
@@ -432,19 +455,15 @@ contract uRWA721Test is Test {
     }
 
     function test_SetFrozenTokens_Success_ChangeFromFrozenToFrozen() public {
-        // First freeze the token
         vm.prank(freezer);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
 
-        // Try to "freeze" again (should still emit event)
         vm.prank(freezer);
         vm.expectEmit(true, true, true, true);
         emit IERC7943NonFungible.Frozen(user1, TOKEN_ID_1, true);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
         assertTrue(token.getFrozenTokens(user1, TOKEN_ID_1));
     }
-
-    // Note: InvalidAmount tests removed as setFrozenTokens now uses boolean parameter
 
     function test_Revert_SetFrozenTokens_NotFreezer() public {
         vm.prank(user1);
@@ -478,13 +497,13 @@ contract uRWA721Test is Test {
         assertFalse(token.canTransfer(user1, user2, NON_EXISTENT_TOKEN_ID));
     }
 
-    function test_CanTransfer_Fail_FromNotWhitelisted() public {
+    function test_CanTransfer_Fail_FromCannotSend() public {
         vm.prank(whitelister);
-        token.changeWhitelist(user1, false);
+        token.changeSendWhitelist(user1, false);
         assertFalse(token.canTransfer(user1, user2, TOKEN_ID_1));
     }
 
-    function test_CanTransfer_Fail_ToNotWhitelisted() public view {
+    function test_CanTransfer_Fail_ToCannotReceive() public view {
         assertFalse(token.canTransfer(user1, nonWhitelistedUser, TOKEN_ID_1));
     }
 
@@ -537,24 +556,19 @@ contract uRWA721Test is Test {
     // --- Edge Case Tests ---
 
     function test_EdgeCase_MultipleTokensFreezingIndependently() public {
-        // Mint another token
         vm.prank(minter);
         token.safeMint(user1, TOKEN_ID_2);
 
-        // Freeze only TOKEN_ID_1
         vm.prank(freezer);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
 
-        // TOKEN_ID_1 should be frozen, TOKEN_ID_2 should not
         assertTrue(token.getFrozenTokens(user1, TOKEN_ID_1));
         assertFalse(token.getFrozenTokens(user1, TOKEN_ID_2));
 
-        // Transfer TOKEN_ID_2 should work
         vm.prank(user1);
         token.transferFrom(user1, user2, TOKEN_ID_2);
         assertEq(token.ownerOf(TOKEN_ID_2), user2);
 
-        // Transfer TOKEN_ID_1 should fail
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(IERC7943NonFungible.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1));
         token.transferFrom(user1, user2, TOKEN_ID_1);
@@ -571,15 +585,12 @@ contract uRWA721Test is Test {
     }
 
     function test_EdgeCase_BurnAfterForceTransfer() public {
-        // Force transfer to user2
         vm.prank(forceTransferrer);
         token.forcedTransfer(user1, user2, TOKEN_ID_1);
 
-        // Give burner role to user2
         vm.prank(admin);
         token.grantRole(BURNER_ROLE, user2);
 
-        // user2 should be able to burn the token
         vm.prank(user2);
         token.burn(TOKEN_ID_1);
 
@@ -587,26 +598,25 @@ contract uRWA721Test is Test {
         token.ownerOf(TOKEN_ID_1);
     }
 
-    // --- Helper Functions for Complex Scenarios ---
+    // --- canSend / canReceive asymmetry tests ---
 
-    function _setupTokenWithOwner(address owner, uint256 tokenId) internal {
-        vm.prank(admin);
-        token.changeWhitelist(owner, true);
-        vm.prank(minter);
-        token.safeMint(owner, tokenId);
+    function test_CanSend_True_CanReceive_False() public {
+        vm.startPrank(whitelister);
+        token.changeSendWhitelist(otherUser, true);
+        token.changeReceiveWhitelist(otherUser, false);
+        vm.stopPrank();
+
+        assertTrue(token.canSend(otherUser));
+        assertFalse(token.canReceive(otherUser));
     }
 
-    function _verifyTokenState(address expectedOwner, uint256 tokenId, uint256 expectedFrozenAmount, string memory errorMsg) internal {
-        if (expectedOwner == address(0)) {
-            vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, tokenId));
-            token.ownerOf(tokenId);
-        } else {
-            assertEq(token.ownerOf(tokenId), expectedOwner, string.concat(errorMsg, " - Owner mismatch"));
-        }
-        if (expectedFrozenAmount == 1) {
-            assertTrue(token.getFrozenTokens(expectedOwner, tokenId), string.concat(errorMsg, " - Should be frozen"));
-        } else {
-            assertFalse(token.getFrozenTokens(expectedOwner, tokenId), string.concat(errorMsg, " - Should not be frozen"));
-        }
+    function test_CanSend_False_CanReceive_True() public {
+        vm.startPrank(whitelister);
+        token.changeSendWhitelist(otherUser, false);
+        token.changeReceiveWhitelist(otherUser, true);
+        vm.stopPrank();
+
+        assertFalse(token.canSend(otherUser));
+        assertTrue(token.canReceive(otherUser));
     }
 }
