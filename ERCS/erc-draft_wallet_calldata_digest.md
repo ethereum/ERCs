@@ -1,6 +1,6 @@
 ---
 eip: 8213
-title: Wallet Signature and Calldata Digest Display Standard
+title: Wallet Signature and Calldata Digest Display
 description: Standardizes digest terminology and display requirements for EIP-712 signed data and transaction calldata in wallets.
 author: Patrick Collins (@PatrickAlphaC)
 discussions-to: https://ethereum-magicians.org/t/standardizing-wallet-information-so-humans-can-actually-know-what-they-are-signing/24295
