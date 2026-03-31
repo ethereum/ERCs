@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8213
 title: Wallet Signature and Calldata Digest Display Standard
 description: Standardizes digest terminology and display requirements for EIP-712 signed data and transaction calldata in wallets.
 author: Patrick Collins (@PatrickAlphaC)
