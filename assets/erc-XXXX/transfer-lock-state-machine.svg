@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Transfer Lock State Machine</title>
+  <desc id="desc">State diagram for the controller token transfer lock showing Locked, Unlock Proposed, Unlock Ready, and Unlocked states, with execute and executeBatch allowed in the locked states and blocked only while unlocked.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .state { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .locked { fill: #e9f0ff; }
+    .pending { fill: #edf4ff; }
+    .ready { fill: #fff1cf; }
+    .unlocked { fill: #ffe5df; }
+    .note-blue { fill: #f3f7ff; stroke: #8ea8c7; stroke-width: 2; rx: 18; ry: 18; }
+    .note-amber { fill: #fff8e8; stroke: #c9a14d; stroke-width: 2; rx: 18; ry: 18; }
+    .note-orange { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .join { stroke: #304254; stroke-width: 3.2; fill: none; }
+    .dash { stroke-dasharray: 8 7; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="900"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Transfer Lock State Machine</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">The token stays locked under ERC-5192 until completeUnlock().</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">execute() and executeBatch() are blocked only while the token is actually unlocked and transferable.</text>
+
+  <rect class="state locked" x="30" y="170" width="220" height="145"/>
+  <text class="title2" x="140" y="208" text-anchor="middle">Locked</text>
+  <text class="mono" x="140" y="238" text-anchor="middle">locked() = true</text>
+  <text class="body" x="140" y="270" text-anchor="middle">Transfers revert.</text>
+  <text class="body" x="140" y="292" text-anchor="middle">Exec allowed.</text>
+
+  <rect class="state pending" x="420" y="170" width="220" height="145"/>
+  <text class="title2" x="530" y="208" text-anchor="middle">Unlock Proposed</text>
+  <text class="mono" x="530" y="238" text-anchor="middle">locked() = true</text>
+  <text class="body" x="530" y="270" text-anchor="middle">Ready time is future.</text>
+  <text class="body" x="530" y="292" text-anchor="middle">Exec allowed.</text>
+
+  <rect class="state ready" x="800" y="170" width="220" height="145"/>
+  <text class="title2" x="910" y="208" text-anchor="middle">Unlock Ready</text>
+  <text class="mono" x="910" y="238" text-anchor="middle">locked() = true</text>
+  <text class="body" x="910" y="270" text-anchor="middle">Ready time reached.</text>
+  <text class="body" x="910" y="292" text-anchor="middle">Exec allowed.</text>
+
+  <rect class="state unlocked" x="1190" y="170" width="220" height="145"/>
+  <text class="title2" x="1300" y="208" text-anchor="middle">Unlocked</text>
+  <text class="mono" x="1300" y="238" text-anchor="middle">locked() = false</text>
+  <text class="body" x="1300" y="270" text-anchor="middle">Transfers allowed.</text>
+  <text class="body" x="1300" y="292" text-anchor="middle">Exec blocked.</text>
+
+  <path class="edge" d="M 250 244 L 420 244"/>
+  <text class="label" x="335" y="220" text-anchor="middle">proposeUnlock()</text>
+  <text class="body" x="335" y="275" text-anchor="middle">emit UnlockProposed</text>
+
+  <path class="edge dash" d="M 640 244 L 800 244"/>
+  <text class="label" x="720" y="220" text-anchor="middle">time passes</text>
+  <text class="body" x="720" y="280" text-anchor="middle">ready time reached</text>
+
+  <path class="edge" d="M 1020 244 L 1190 244"/>
+  <text class="label" x="1105" y="220" text-anchor="middle">completeUnlock()</text>
+  <text class="body" x="1105" y="275" text-anchor="middle">emit Unlocked</text>
+
+  <path class="join" d="M 530 315 L 530 420"/>
+  <path class="edge" d="M 910 315 L 910 420 L 200 420 L 200 315"/>
+  <text class="label" x="500" y="370" text-anchor="middle">lock()</text>
+  <text class="label" x="880" y="370" text-anchor="middle">lock()</text>
+  <text class="body" x="500" y="445" text-anchor="middle">emit UnlockCancelled</text>
+
+  <path class="edge" d="M 1225 315 L 1225 505 L 200 505 L 200 315"/>
+  <text class="label" x="1195" y="370" text-anchor="middle">lock()</text>
+  <text class="body" x="1100" y="530" text-anchor="middle">emit Locked</text>
+
+  <path class="edge" d="M 1370 315 L 1370 590 L 80 590 L 80 315"/>
+  <text class="label" x="1335" y="370" text-anchor="middle">transfer</text>
+  <text class="label" x="1245" y="582" text-anchor="middle">transfer: immediate relock</text>
+  <text class="body" x="1240" y="610" text-anchor="middle">emit Locked</text>
+
+  <rect class="note-blue" x="95" y="730" width="390" height="110"/>
+  <text class="label" x="290" y="764" text-anchor="middle">ERC-5192 Surface</text>
+  <text class="body" x="290" y="796" text-anchor="middle">Locked, Unlock Proposed, and Unlock Ready</text>
+  <text class="body" x="290" y="820" text-anchor="middle">all still report `locked() = true`.</text>
+
+  <rect class="note-amber" x="525" y="730" width="390" height="110"/>
+  <text class="label" x="720" y="764" text-anchor="middle">Pending Visibility</text>
+  <text class="body" x="720" y="796" text-anchor="middle">UnlockProposed, UnlockCancelled, and</text>
+  <text class="body" x="720" y="820" text-anchor="middle">unlockReadyAt() distinguish progress to transfer.</text>
+
+  <rect class="note-orange" x="955" y="730" width="390" height="110"/>
+  <text class="label" x="1150" y="764" text-anchor="middle">Execution / Transfer Split</text>
+  <text class="body" x="1150" y="796" text-anchor="middle">Only Unlocked is transferable, and that same</text>
+  <text class="body" x="1150" y="820" text-anchor="middle">state blocks execute() and executeBatch().</text>
+</svg>
