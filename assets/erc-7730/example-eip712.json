@@ -1,5 +1,5 @@
 {
-    "$schema": "./erc7730-v1.schema.json",
+    "$schema": "./erc7730-v2.schema.json",
     
     "metadata": {
         "owner": "MyContract",
