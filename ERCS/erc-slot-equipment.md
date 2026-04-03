@@ -1,0 +1,105 @@
+---
+eip: TBD
+title: Slot-Based Equipment Interface for ERC-6551 Token Bound Accounts
+description: A standard interface for equipping, unequipping, and permanently locking tokens within ERC-6551 Token Bound Accounts using named slots.
+author: LordThisDrip (@LordThisDrip)
+discussions-to: https://ethereum-magicians.org/t/erc-slot-based-equipment-for-erc-6551-token-bound-accounts/28139
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-03-28
+requires: 165, 721, 1155, 6551
+---
+
+## Abstract
+
+This EIP defines a standard interface for managing slot-based equipment within ERC-6551 Token Bound Accounts (TBAs). It allows tokens (ERC-721 or ERC-1155) to be equipped into application-defined slots, queried as a structured loadout, and optionally permanently locked.
+
+The interface includes single and batch operations and exposes lock status per slot via the SlotEntry struct, allowing frontends and marketplaces to render a complete character view in a single call.
+
+## Motivation
+
+ERC-6551 gives every NFT its own smart contract account, but defines no standard for what goes inside. Applications have independently built equipment, loadout, and trait systems with incompatible interfaces, making cross-application composability impossible.
+
+A standard equipment interface enables gaming characters with equippable gear, social profiles with locked credentials, composable art with swappable accessories, and universal marketplace loadout display.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+Every compliant contract MUST implement the IERC6551Equipment interface and MUST register support via ERC-165.
+
+The ERC-165 identifier for this interface is 0xd38f0891.
+
+### Interface
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+interface IERC6551Equipment {
+
+    struct SlotEntry {
+        bytes32 slotId;
+        address tokenContract;
+        uint256 tokenId;
+        uint256 amount;
+        bool locked;
+    }
+
+    event Equipped(bytes32 indexed slotId, address indexed tokenContract, uint256 indexed tokenId, uint256 amount);
+    event Unequipped(bytes32 indexed slotId, address indexed tokenContract, uint256 indexed tokenId, uint256 amount);
+    event SlotLocked(bytes32 indexed slotId, address indexed tokenContract, uint256 tokenId);
+
+    function equip(bytes32 slotId, address tokenContract, uint256 tokenId, uint256 amount) external;
+    function unequip(bytes32 slotId) external;
+    function lockSlot(bytes32 slotId) external;
+    function equipBatch(bytes32[] calldata slotIds, address[] calldata tokenContracts, uint256[] calldata tokenIds, uint256[] calldata amounts) external;
+    function lockSlots(bytes32[] calldata slotIds) external;
+    function getEquipped(bytes32 slotId) external view returns (address tokenContract, uint256 tokenId, uint256 amount);
+    function getLoadout() external view returns (SlotEntry[] memory entries);
+    function isSlotOccupied(bytes32 slotId) external view returns (bool);
+    function isSlotLocked(bytes32 slotId) external view returns (bool);
+}
+```
+
+### Slot Identifiers
+
+Slots are identified by bytes32 values. The RECOMMENDED convention is keccak256("slot.name"). Applications define their own slot taxonomy. Applications sharing a TBA across multiple contexts SHOULD namespace slots to avoid collisions.
+
+### Behavior
+
+equip: MUST revert if caller is not a valid signer, slot is occupied, slot is locked, or amount is zero. MUST update state before external transfers (CEI). MUST emit Equipped event.
+
+unequip: MUST revert if caller is not a valid signer, slot is empty, or slot is locked. MUST delete state before external transfers (CEI). MUST emit Unequipped event.
+
+lockSlot: MUST revert if caller is not a valid signer, slot is empty, or slot is already locked. MUST set slot as permanently locked. This action is irreversible. MUST emit SlotLocked event.
+
+equipBatch: MUST revert if array lengths do not match or any individual equip would revert. All-or-nothing semantics.
+
+lockSlots: MUST revert if any individual lock would revert. All-or-nothing semantics.
+
+getLoadout: Returns an array of SlotEntry structs for every occupied slot including lock status.
+
+### Ownership Transfer Semantics
+
+When the parent NFT is transferred, all equipped items remain in the TBA. Unlocked slots can be modified by the new owner. Locked slots remain locked and cannot be modified.
+
+## Rationale
+
+bytes32 slot identifiers allow arbitrary taxonomies without a central registry. Permanent locking with no unlock provides absolute trust for marketplaces and contracts. No swap function keeps the interface minimal. Batch operations reduce mint flows from many transactions to two. bool locked in SlotEntry enables single-call character rendering. CEI pattern is mandatory to prevent reentrancy via safeTransferFrom callbacks.
+
+## Backwards Compatibility
+
+This EIP introduces no backwards compatibility issues. It extends ERC-6551 Token Bound Accounts with new functionality.
+
+## Reference Implementation
+
+A complete reference implementation is available at https://github.com/LordThisDrip/erc-equipment with 27 Foundry tests. A live frontend consuming the deployed interface is available at https://phantoma.io.
+
+## Security Considerations
+
+Implementations MUST follow checks-effects-interactions pattern. lockSlot is permanent and irreversible. Batch operations use all-or-nothing semantics. Buyers SHOULD inspect loadout before purchasing character NFTs. Marketplaces SHOULD call supportsInterface before equipment-related calls.
+
+## Copyright
+
+Copyright and related rights waived via CC0.
