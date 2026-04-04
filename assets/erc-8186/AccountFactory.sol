@@ -24,7 +24,7 @@ contract AccountFactory is IAccountFactory {
         )))));
     }
 
-    function deployAccount(bytes32 id) external returns (address account) {
+    function deployAccount(bytes32 id) public returns (address account) {
         require(predictAddress(id).code.length == 0, "already deployed");
         bytes memory code = _creationCode(id);
         assembly {
@@ -33,11 +33,11 @@ contract AccountFactory is IAccountFactory {
         require(account != address(0), "deploy failed");
 
         IdentityAccount(payable(account)).initialize(registry, id);
+
         emit AccountDeployed(id, account);
     }
 
-    /// @dev Minimal clone creation code that deploys a proxy delegating to `implementation`.
-    ///      Uses EIP-1167 minimal proxy pattern.
+    /// @dev Minimal clone creation code (EIP-1167).
     function _creationCode(bytes32) private view returns (bytes memory) {
         address impl = implementation;
         return abi.encodePacked(
