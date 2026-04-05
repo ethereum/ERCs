@@ -1,6 +1,6 @@
 # ERC-8210: Agent Assurance — Test Vectors
 
-Foundry test vectors for [ERC-8210](../../ERCS/erc-8210.md) (Agent Assurance Protocol).
+Foundry test vectors for [ERC-8210](https://eips.ethereum.org/EIPS/eip-8210) (Agent Assurance Protocol).
 
 Implements the 14 test scenarios specified in the ERC-8210 **Test Cases** section.
 
