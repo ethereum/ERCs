@@ -1,0 +1,142 @@
+---
+eip: TBD
+title: Builder Discovery
+description: Standard interfaces for permissionless and permissioned on-chain registration and enumeration of execution-layer builders.
+author: Caner Çıdam (@canercidam), Faheel Sattar (@faheelsattar), Davide Rezzoli (@DavideRezzoli), Bharath Vedartham (@bharath-123)
+discussions-to: TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: TBD
+requires: 2537
+---
+
+## Abstract
+
+This proposal defines a new interface for permissionless on-chain registration of builders authenticated by their BLS12-381 public keys, and a new composable enumeration interface allowing consensus-layer clients to discover registered builders. These interfaces are to be implemented by permissionless and permissioned registry contracts and enable the discovery of builders from consensus clients, flexibly, through one or many registries. No consensus changes are required.
+
+## Motivation
+
+Several approaches exist for builder discovery after EIP-7732. All of these are viable in appropriate contexts:
+
+| Approach | Notes |
+|---|---|
+| Static lists | Simple but hard to make permissionless and inclusive |
+| Peer-to-peer gossip | Decentralised; however, incumbent builders have a structural incentive to censor competitor announcements |
+| Smart contract registry | Supports both permissionless or permissioned options |
+
+This proposal standardises the smart contract approach as the default because it best satisfies the properties an open, ecosystem-wide discovery layer requires:
+
+- **No single point of failure**: a smart contract has no centralized host.
+- **Open entry**: supports registration without approval.
+- **Censorship resistance**: registration is an ordinary transaction.
+
+We foresee a single global permissionless registry to exist for any builder to register and many permissioned registries. The same interfaces allow custom registry implementations with different functionality and value.
+
+## Specification
+
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions
+
+| Term | Definition |
+|---|---|
+| **Builder** | An entity that constructs execution payloads, as introduced with Proposer-Builder Separation and enshrined in the consensus protocol by EIP-7732, identified by a BLS12-381 public key |
+| **FQDN** | The fully-qualified domain name of the builder's API endpoint, which includes the method to get the execution payload bid |
+| **Global Registry** | A canonical, permissionless deployment of both `IBuilderRegistry` and `IBuilderList` |
+| **Custom Registry** | Any contract implementing `IBuilderList`, and optionally `IBuilderRegistry`, with its own admission logic |
+| **listId** | An opaque `uint256` scoping queries to a sub-list within a registry |
+
+### Data Types
+
+```solidity
+struct BuilderRecord {
+    bytes pubkey;   // 48 bytes, BLS12-381 compressed G1 point
+    string fqdn;
+}
+```
+
+### `IBuilderRegistry`
+
+The registration function MUST verify the BLS12-381 signature using the BLS12_PAIRING_CHECK precompile (EIP-2537, address `0x0f`). The signed message is:
+
+```
+message = abi.encode(block.chainid, address(this), pubkey, fqdn, nonce)
+```
+
+Signing MUST use the ciphersuite `BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_` as specified by [IETF BLS signature draft standard v4](https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-04) — the same suite used by the Ethereum consensus layer.
+
+Each `nonce` SHOULD be a value not previously used for the given `pubkey`. Nonce tracking is an implementation detail and is not prescribed by this interface.
+
+On success the function MUST emit `BuilderRegistered` and MUST either add the builder to the enumerable list (first registration) or update its stored record in place (subsequent registrations).
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+interface IBuilderRegistry {
+    event BuilderRegistered(bytes pubkey, string fqdn, bytes32 nonce);
+
+    function registerBuilder(
+        bytes calldata pubkey,
+        string calldata fqdn,
+        bytes32         nonce,
+        bytes  calldata signature
+    ) external;
+}
+```
+
+### `IBuilderList`
+
+`builderCount` MUST return the number of builders in the list identified by `listId`. Implementations MAY ignore `listId` when exposing a single global list.
+
+`getBuilderAtIndex` MUST return the builder record at position `index` within the list identified by `listId`, and MUST revert if `index >= builderCount(listId)`. Implementations MAY ignore `listId` when exposing a single global list.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+interface IBuilderList {
+    function builderCount(uint256 listId) external view returns (uint256);
+
+    function getBuilderAtIndex(uint256 listId, uint256 index)
+        external view returns (BuilderRecord memory);
+}
+```
+
+## Rationale
+
+### Why a smart contract
+
+A permissionless smart contract is the only option that simultaneously provides open entry, persistent availability, and cryptographic authenticity without a trusted party. Among the alternatives, peer-to-peer gossip is worth examining in more depth: while it avoids a central registry entirely, it introduces a critical economic misalignment — builders who are already participants in the network have a direct incentive to suppress or delay announcements from competitors, undermining the openness the discovery layer is meant to guarantee. However, discovery through smart contracts is not suggested as a competitor against other discovery options and those options are to be explored more later.
+
+### Permissionless and permissioned registries
+
+The two-tier model allows a single permissionless global registry to serve as a source of truth that any builder can join, while custom registries add governance, SLA requirements, geographic filtering, or allowlists that individual operators may require. Because both tiers expose the same `IBuilderList` interface, consumers require exactly one code path regardless of which registry they query.
+
+### Builder handshake
+
+The builder handshake, defined concurrently with this standard and outside its scope, enables proposers to verify that a builder operating at a given FQDN is the same entity that registered the corresponding public key on-chain. When a proposer connects to a builder's FQDN, the builder's response includes a BLS signature over the connection parameters. This allows the proposer to verify that the endpoint is controlled by the holder of the private key corresponding to the public key recorded in the registry.
+
+## Security Considerations
+
+### Signature authentication and replay protection
+
+Each registration MUST be accompanied by a BLS12-381 signature over `abi.encode(chainid, contractAddress, pubkey, fqdn, nonce)`. The chain ID prevents a valid registration on one network from being replayed on another. The contract address prevents replay across different registry deployments on the same chain. The nonce — which SHOULD NOT be reused for the same public key — prevents replay of any prior registration transaction.
+
+### Off-chain stake validation
+
+The registry records BLS public keys but does not verify that a key belongs to an active EIP-7732 builder validator or that the corresponding beacon-chain deposit meets any threshold. Consensus-layer clients MUST cross-reference registered public keys against the beacon state and apply a minimum-effective-balance filter before treating a registered entry as a legitimate builder. Treating on-chain registration alone as proof of a builder's legitimacy is unreliable.
+
+### Permissionless registry inflation
+
+Because registration is permissionless and requires no application-layer stake, an adversary can register large numbers of dummy entries to inflate the list and increase enumeration costs. Mitigating factors:
+
+- **Gas cost**: each registration is an on-chain transaction; bulk registration at mainnet prices is expensive.
+- **Stake filter**: clients applying a minimum-balance filter automatically discard builders that are not active validators.
+- **Connection filtering**: clients performing DNS resolution and connection attempts will discard entries pointing to unreachable or unresponsive endpoints, recording them on an ignore list so that failed entries are skipped on subsequent registry refreshes without requiring repeated connection attempts.
+- **Registration fee**: If deemed necessary, a minimal fee could be introduced - which is reasonably small for registration but hurts at scale.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
