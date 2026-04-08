@@ -10,7 +10,7 @@ abstract contract IERC721 {
     event Transfer(
         address indexed from,
         address indexed to,
-        uint256 indexed tokenaId
+        uint256 indexed tokenId
     );
 
     event Approval(

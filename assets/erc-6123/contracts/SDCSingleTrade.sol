@@ -19,7 +19,7 @@ import "./ERC20Settlement.sol";
  * - upon termination all remaining 'locked' amounts will be transferred back to the counterparties
 */
 
-abstract contract SDCSingleTrade is ISDC {
+abstract contract SDCSingleTrade is ISDCTrade {
     /*
      * Trade States
      */
