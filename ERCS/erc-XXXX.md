@@ -95,6 +95,7 @@ For the purposes of this ERC:
 - **Control version** means the monotonically increasing value returned by `controlVersionOf(tokenId)`.
 - **Validator** means a contract authorized by the current controller for the current control version to validate delegated signatures or equivalent off-chain authorization proofs for the account.
 - **Transfer approval version** means a per-token monotonically increasing counter used internally to invalidate stale [ERC-721](./eip-721) single-token approvals on the controller token.
+- **Pending unlock delay change** means a requested reduction in `unlockDelayOf(tokenId)` that has been scheduled via `setUnlockDelay` but has not yet taken effect. Increases to the unlock delay take effect immediately and never produce a pending change. A pending change is surfaced by the `UnlockDelayChangePending` event and the `pendingUnlockDelayOf` view.
 - **Deployed account** means an account whose controller token has been minted and whose runtime code has been deployed at the encoded address.
 
 ### Token model
@@ -156,13 +157,26 @@ The current `ownerOf(tokenId)` MAY call `completeUnlock(tokenId)` after `unlockR
 
 The current `ownerOf(tokenId)` MAY call `lock(tokenId)` to return the token to the locked state or cancel a proposed unlock. `lock` MUST clear any pending or ready-but-not-completed unlock, MUST make the token non-transferable immediately, and MUST increment the transfer approval version. If the token was transferable immediately before the call, `lock` MUST emit [EIP-5192](./eip-5192) `Locked(tokenId)`. If the token was still locked under [EIP-5192](./eip-5192) immediately before the call but had a pending or ready-but-not-completed unlock, `lock` MUST emit `UnlockCancelled(tokenId)`.
 
-The controller MAY configure `unlockDelay` via `setUnlockDelay(tokenId, unlockDelay)`. Only the current `ownerOf(tokenId)` MAY change it. `setUnlockDelay(tokenId, 0)` MUST revert for tokens that remain transferable under this ERC.
+The controller MAY reconfigure `unlockDelay` via `setUnlockDelay(tokenId, newDelay)`. Only the current `ownerOf(tokenId)` MAY call it, and `setUnlockDelay(tokenId, 0)` MUST revert for tokens that remain transferable under this ERC.
+
+Let `currentDelay = unlockDelayOf(tokenId)` read at call time, before any state change. This value already reflects any previously pending decrease whose `effectiveAt` has been reached. Changes are asymmetric:
+
+- **Increase (`newDelay >= currentDelay`).** The change MUST take effect immediately. The controller token MUST set `unlockDelayOf(tokenId)` to `newDelay`, MUST clear any pending decrease, and MUST emit `UnlockDelayChanged(tokenId, newDelay)`.
+- **Decrease (`newDelay < currentDelay`).** The change MUST be recorded as pending, with `effectiveAt = block.timestamp + currentDelay`. `unlockDelayOf(tokenId)` MUST continue to return the old value until `block.timestamp >= effectiveAt`, at which point it MUST return `newDelay`. The auto-transition is silent: the controller token MUST NOT emit `UnlockDelayChanged` when it happens. The controller token MUST emit `UnlockDelayChangePending(tokenId, newDelay, effectiveAt)` at the time of the call. If a decrease is already pending, it MUST be replaced; the new `effectiveAt` MUST be computed from the `currentDelay` observed on the new call, not from the old pending value.
+
+A pending unlock delay decrease is independent of the binary lock state and of any in-progress unlock. `lock(tokenId)` MUST NOT clear or alter a pending unlock delay decrease; the meta-timelock timer is orthogonal to the unlock flow. Correspondingly, a pending decrease MUST NOT affect the `unlockReadyAt` of any unlock proposal that was already pending when the decrease was scheduled; an in-progress `unlockReadyAt` is fixed at `proposeUnlock` time and MUST NOT be recomputed.
+
+A pending unlock delay decrease MUST survive a successful transfer of the controller token. The new owner MAY cancel a pending decrease by calling `setUnlockDelay(tokenId, currentDelay)` (or any value `>= currentDelay`), which under the increase branch takes effect immediately and clears the pending decrease.
+
+`pendingUnlockDelayOf(tokenId)` MUST return `(newDelay, effectiveAt)` while a decrease is pending and its `effectiveAt` has not been reached, and `(0, 0)` otherwise (including after the pending decrease has auto-transitioned into effect).
+
+This meta-timelock guarantees that at any moment, `unlockDelayOf(tokenId)` has held its current value for at least that many seconds. Without the pending-decrease rule, an owner could configure a long `unlockDelay` while accumulating buyer trust and then collapse it to a single second in one transaction immediately before `proposeUnlock`, defeating the required separation between sale preparation and custody handoff.
 
 `unlockReadyAt(tokenId)` MUST return `0` when no unlock is pending and otherwise the earliest timestamp at which `completeUnlock(tokenId)` may succeed. While an unlock is pending or ready but not completed, `locked(tokenId)` MUST still return `true`.
 
 After any successful transfer, the token MUST be locked immediately. If the token was transferable immediately before the transfer, the controller token MUST emit [EIP-5192](./eip-5192) `Locked(tokenId)` as part of the transfer transaction.
 
-Whenever the [EIP-5192](./eip-5192) binary lock status changes, the controller token MUST emit the corresponding [EIP-5192](./eip-5192) `Locked(tokenId)` or `Unlocked(tokenId)` event on the transaction that performs the binary state change. `UnlockDelayChanged`, `UnlockProposed`, and `UnlockCancelled` remain available for pending-state visibility, but implementations MUST NOT define a second standardized lock-status event or a duplicate `isLocked`-style view.
+Whenever the [EIP-5192](./eip-5192) binary lock status changes, the controller token MUST emit the corresponding [EIP-5192](./eip-5192) `Locked(tokenId)` or `Unlocked(tokenId)` event on the transaction that performs the binary state change. `UnlockDelayChanged`, `UnlockDelayChangePending`, `UnlockProposed`, and `UnlockCancelled` remain available for pending-state visibility, but implementations MUST NOT define a second standardized lock-status event or a duplicate `isLocked`-style view.
 
 While any unlock proposal exists for the controlling token - pending, ready-but-not-completed, or completed and transferable - the controlled account MUST reject both `execute` and `executeBatch`. Execution is permitted only when the token is fully locked with no outstanding unlock proposal, i.e. when `locked(tokenId) == true` and `unlockReadyAt(tokenId) == 0`. A controller that wishes to execute after calling `proposeUnlock()` MUST first call `lock(tokenId)` to cancel the pending unlock; `lock(tokenId)` increments the transfer approval version and thereby invalidates any single-token transfer approvals granted under the proposed-unlock version. This separation depends on a strictly positive `unlockDelay`; zero-delay unlocks would make the transfer window effectively immediate and reintroduce same-block sell-and-drain risk.
 
@@ -475,12 +489,13 @@ interface IERCXXXXControllerToken {
 
     function locked(uint256 tokenId) external view returns (bool);
     function unlockDelayOf(uint256 tokenId) external view returns (uint256);
+    function pendingUnlockDelayOf(uint256 tokenId) external view returns (uint256 newDelay, uint256 effectiveAt);
     function unlockReadyAt(uint256 tokenId) external view returns (uint256);
     function proposeUnlock(uint256 tokenId) external;
     function completeUnlock(uint256 tokenId) external;
     function lock(uint256 tokenId) external;
     function resetDelegations(uint256 tokenId) external;
-    function setUnlockDelay(uint256 tokenId, uint256 unlockDelay) external;
+    function setUnlockDelay(uint256 tokenId, uint256 newDelay) external;
 }
 ```
 
@@ -659,6 +674,12 @@ event UnlockDelayChanged(
     uint256 unlockDelay
 );
 
+event UnlockDelayChangePending(
+    uint256 indexed tokenId,
+    uint256 newDelay,
+    uint256 effectiveAt
+);
+
 ```
 
 Implementations SHOULD consider using [ERC-6093](./eip-6093)-style custom errors where appropriate, especially for controller-token operations that naturally map to standardized token failure modes such as invalid sender, invalid receiver, insufficient approval, or unauthorized transfer attempts. This ERC does not require [ERC-6093](./eip-6093) support, but aligning revert surfaces with that error vocabulary improves interoperability with tooling and integrators.
@@ -824,6 +845,8 @@ Risk isolation between multiple accounts under a single controller does not prot
 
 The transfer lock mechanism mitigates accidental or unauthorized control rotation. Because controller tokens are minted locked, require an explicit `proposeUnlock` plus `completeUnlock` flow before they become transferable, and immediately re-lock on transfer, [ERC-721](./eip-721) single-token approvals cannot by themselves trigger a transfer, and `setApprovalForAll` is forbidden. The transfer approval version is incremented on every `proposeUnlock`, `lock`, and successful transfer, which automatically invalidates all prior single-token approvals. This eliminates the risk of stale approvals becoming active when the owner prepares the token for transfer: any approval granted before the unlock proposal is no longer recognized. The owner must explicitly re-approve after initiating unlock if delegated transfer is desired.
 
+The asymmetric `setUnlockDelay` semantics (defined in the Transfer lock section) are load-bearing for the sell-and-drain mitigation. Counterparties who inspect `pendingUnlockDelayOf(tokenId)` and recent `UnlockDelayChangePending` logs before purchase MAY rely on the current effective `unlockDelay` as a commitment that has held for at least that many seconds, because a decrease cannot take effect faster than the old delay and a pending decrease is observable on-chain from the moment it is scheduled. Wallets and marketplaces SHOULD display `pendingUnlockDelayOf(tokenId)` alongside `unlockDelayOf(tokenId)` so that a scheduled decrease is visible to buyers during the pending window.
+
 The transfer lock mechanism also closes the sell-and-drain attack surface on NFT-mediated account sales. Execution is frozen for the entire duration of an unlock proposal - from `proposeUnlock()` through `completeUnlock()` and the transferable window - not only once the token becomes transferable. The drain path and the sale path are therefore mutually exclusive: a seller who wants to drain the account MUST first cancel the pending unlock via `lock(tokenId)`, which increments the transfer approval version and invalidates any marketplace approval granted under the proposed-unlock version. After draining, the seller must call `proposeUnlock()` again and wait the full `unlockDelay` before the token is transferable, giving counterparties a visible interval in which to observe the drained state before any subsequent sale. Freezing execution only at `completeUnlock()` would be insufficient, because the pending-unlock window would otherwise allow the seller to drain the account while a buyer's marketplace approval under the proposed-unlock transfer approval version remained valid through to sale.
 
 Execution sets a transient execution-active flag via `TSTORE` at entry. The controller token checks this flag before completing any transfer. If the controlled account has active execution in progress, the transfer reverts. This prevents mid-execution control rotation at the transfer layer rather than detecting it after the fact. The cost is borne by transfers (one `STATICCALL` to the account per transfer) rather than by subcalls (zero overhead). The transfer lock makes this scenario unlikely in normal operation, but the execution-active guard makes mid-call control rotation impossible rather than merely detectable.
@@ -906,7 +929,7 @@ A reference implementation SHOULD:
 - use `CREATE2` with immutable account implementation,
 - prefer immutable or minimally upgradeable account logic,
 - revert `setApprovalForAll` on the controller token,
-- expose `unlockDelayOf` and `unlockReadyAt` so wallets can surface pending unlock state,
+- expose `unlockDelayOf`, `pendingUnlockDelayOf`, and `unlockReadyAt` so wallets can surface pending unlock state and any pending meta-timelocked decrease of the unlock delay,
 - authorize direct execution by exact comparison of `msg.sender` with current `ownerOf(tokenId)`,
 - reject direct execution whenever an unlock proposal exists for the controller token, including pending, ready-but-not-completed, and fully unlocked transferable states (i.e. unless `locked(tokenId) == true` AND `unlockReadyAt(tokenId) == 0`),
 - document or surface when an account owns multiple controlling NFTs or is itself controlled by another compliant account,
