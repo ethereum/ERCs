@@ -178,7 +178,9 @@ After any successful transfer, the token MUST be locked immediately. If the toke
 
 Whenever the [EIP-5192](./eip-5192) binary lock status changes, the controller token MUST emit the corresponding [EIP-5192](./eip-5192) `Locked(tokenId)` or `Unlocked(tokenId)` event on the transaction that performs the binary state change. `UnlockDelayChanged`, `UnlockDelayChangePending`, `UnlockProposed`, and `UnlockCancelled` remain available for pending-state visibility, but implementations MUST NOT define a second standardized lock-status event or a duplicate `isLocked`-style view.
 
-While the controller token is in the unlocked transferable state, the controlled account MUST reject both `execute` and `executeBatch`. Execution remains allowed while the token is still locked under [EIP-5192](./eip-5192), including pending or ready-but-not-completed unlock states. Execution and transfer are intentionally separated: a controller that wishes to execute after preparing for transfer MUST do so before `completeUnlock()` or after re-locking. This separation depends on a strictly positive `unlockDelay`; zero-delay unlocks would make the transfer window effectively immediate and reintroduce same-block sell-and-drain risk.
+While any unlock proposal exists for the controlling token - pending, ready-but-not-completed, or completed and transferable - the controlled account MUST reject both `execute` and `executeBatch`. Execution is permitted only when the token is fully locked with no outstanding unlock proposal, i.e. when `locked(tokenId) == true` and `unlockReadyAt(tokenId) == 0`. A controller that wishes to execute after calling `proposeUnlock()` MUST first call `lock(tokenId)` to cancel the pending unlock; `lock(tokenId)` increments the transfer approval version and thereby invalidates any single-token transfer approvals granted under the proposed-unlock version. This separation depends on a strictly positive `unlockDelay`; zero-delay unlocks would make the transfer window effectively immediate and reintroduce same-block sell-and-drain risk.
+
+By construction, "a marketplace approval is valid for transfer" and "the account is permitted to execute" are mutually exclusive across every sale-preparation state. A seller cannot drain the account during the unlock-delay window while a buyer's marketplace approval remains valid, because any drain path requires first canceling the pending unlock via `lock(tokenId)`, which invalidates the approval the buyer would rely on. Freezing execution only at `completeUnlock()` is insufficient: the pending-unlock window is otherwise a drain window in which the seller can empty the account while an already-granted marketplace approval under the proposed-unlock transfer approval version remains valid through to sale.
 
 #### Cycle detection on transfer
 
@@ -300,7 +302,7 @@ A compliant account MUST implement arbitrary call execution and atomic batch exe
 `execute(target, value, data)` MUST:
 
 - be callable by the current controller through an ordinary transaction,
-- revert unless `locked(tokenId)` on the controller token is `true`,
+- revert unless `locked(tokenId)` on the controller token is `true` AND `unlockReadyAt(tokenId)` on the controller token is `0`,
 - increment the transient execution-active reference count (`TSTORE`) at entry,
 - perform a single `CALL` to `target` with `value` and `data`,
 - decrement the transient execution-active reference count (`TSTORE`) on successful exit,
@@ -311,7 +313,7 @@ A compliant account MUST implement arbitrary call execution and atomic batch exe
 `executeBatch(calls)` MUST:
 
 - be callable by the current controller through an ordinary transaction,
-- revert unless `locked(tokenId)` on the controller token is `true`,
+- revert unless `locked(tokenId)` on the controller token is `true` AND `unlockReadyAt(tokenId)` on the controller token is `0`,
 - increment the transient execution-active reference count (`TSTORE`) at batch entry,
 - decrement the transient execution-active reference count (`TSTORE`) on successful batch exit,
 - execute calls in order,
@@ -845,6 +847,8 @@ The transfer lock mechanism mitigates accidental or unauthorized control rotatio
 
 The asymmetric `setUnlockDelay` semantics (defined in the Transfer lock section) are load-bearing for the sell-and-drain mitigation. Counterparties who inspect `pendingUnlockDelayOf(tokenId)` and recent `UnlockDelayChangePending` logs before purchase MAY rely on the current effective `unlockDelay` as a commitment that has held for at least that many seconds, because a decrease cannot take effect faster than the old delay and a pending decrease is observable on-chain from the moment it is scheduled. Wallets and marketplaces SHOULD display `pendingUnlockDelayOf(tokenId)` alongside `unlockDelayOf(tokenId)` so that a scheduled decrease is visible to buyers during the pending window.
 
+The transfer lock mechanism also closes the sell-and-drain attack surface on NFT-mediated account sales. Execution is frozen for the entire duration of an unlock proposal - from `proposeUnlock()` through `completeUnlock()` and the transferable window - not only once the token becomes transferable. The drain path and the sale path are therefore mutually exclusive: a seller who wants to drain the account MUST first cancel the pending unlock via `lock(tokenId)`, which increments the transfer approval version and invalidates any marketplace approval granted under the proposed-unlock version. After draining, the seller must call `proposeUnlock()` again and wait the full `unlockDelay` before the token is transferable, giving counterparties a visible interval in which to observe the drained state before any subsequent sale. Freezing execution only at `completeUnlock()` would be insufficient, because the pending-unlock window would otherwise allow the seller to drain the account while a buyer's marketplace approval under the proposed-unlock transfer approval version remained valid through to sale.
+
 Execution sets a transient execution-active flag via `TSTORE` at entry. The controller token checks this flag before completing any transfer. If the controlled account has active execution in progress, the transfer reverts. This prevents mid-execution control rotation at the transfer layer rather than detecting it after the fact. The cost is borne by transfers (one `STATICCALL` to the account per transfer) rather than by subcalls (zero overhead). The transfer lock makes this scenario unlikely in normal operation, but the execution-active guard makes mid-call control rotation impossible rather than merely detectable.
 
 Front-running around transfer and execution is ordering-sensitive. If a direct owner call is included before the NFT transfer, it MAY succeed. If the transfer lands first, later operations tied to the old controller or old control version MUST fail. This ERC cannot eliminate ordering risk between two valid transactions, but it can make post-transfer authorization invalid deterministically.
@@ -927,7 +931,7 @@ A reference implementation SHOULD:
 - revert `setApprovalForAll` on the controller token,
 - expose `unlockDelayOf`, `pendingUnlockDelayOf`, and `unlockReadyAt` so wallets can surface pending unlock state and any pending meta-timelocked decrease of the unlock delay,
 - authorize direct execution by exact comparison of `msg.sender` with current `ownerOf(tokenId)`,
-- reject direct execution while the controller token is in the unlocked transferable state,
+- reject direct execution whenever an unlock proposal exists for the controller token, including pending, ready-but-not-completed, and fully unlocked transferable states (i.e. unless `locked(tokenId) == true` AND `unlockReadyAt(tokenId) == 0`),
 - document or surface when an account owns multiple controlling NFTs or is itself controlled by another compliant account,
 - preserve a direct-owner path that remains an ordinary transaction and does not require ERC-specific public-mempool prevalidation,
 - implement [ERC-5267](./eip-5267) `eip712Domain()` for the account and use it as the canonical [EIP-712](./eip-712) verification domain,
