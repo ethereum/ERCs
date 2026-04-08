@@ -15,17 +15,21 @@ author of ERC-8210, in post #107 of the ERC-8183 Ethereum Magicians thread):
 | Layer | Name | What it does | Enforced by |
 |-------|------|-------------|-------------|
 | **1** | **Structure** | Enforces what contracts can verify directly: auto-assignment, role separation, state machines | ERC-8183 core |
-| **2** | **Behavior** | Evaluates behavioral independence and risk through hooks and oracles (`IRiskHook`, off-chain scorers) | Risk hooks, evaluator registries, AHS oracles |
+| **2** | **Behavior** | Evaluates behavioral independence and risk through hooks and oracles (`IRiskHook`, off-chain scorers) | Risk hooks, evaluator registries, scoring oracles |
 | **3** | **Recovery** | Provides post-hoc redress when Layers 1 and 2 do not catch the attack in time | ERC-8210 / AAP |
 
 The three scenarios below demonstrate how Layer 3 (recovery) **composes** with
-the other two layers through concrete, tested patterns.
+the other two layers through concrete, tested patterns. All three scenarios use
+the canonical ERC-8210 v1 interface, encoding their composition metadata
+(upstream references, slash record references, off-chain scoring CIDs) into
+the opaque `bytes calldata evidence` payload that AAP's `fileClaim` already
+defines.
 
 ## Scenarios
 
 | # | Scenario | Layers | Key pattern |
 |---|----------|--------|-------------|
-| 1 | [Multi-Hop Dependency Tracking](docs/scenario-1-multi-hop-dependency.md) | 3 (+ 1, 2 context) | `upstream` field traces root cause across A→B→C→D pipeline |
+| 1 | [Multi-Hop Dependency Tracking](docs/scenario-1-multi-hop-dependency.md) | 3 (+ 1, 2 context) | Upstream reference encoded in `evidence` traces root cause across A→B→C→D pipeline |
 | 2 | [EvaluatorSlashed → fileClaim](docs/scenario-2-evaluator-slash-claim.md) | 2 → 3 | Slash event serves as automatic proof for AAP claim — no re-adjudication |
 | 3 | [Hybrid Off-chain Scoring](docs/scenario-3-hybrid-offchain-scoring.md) | 1 + 2 + 3 | Same `reasoningCID` consumed by task rejection and claim filing |
 
@@ -39,10 +43,10 @@ scenarios/
 ├── .gitignore
 ├── contracts/
 │   ├── interfaces/
-│   │   ├── IAAP.sol                           # Minimal AAP interface
+│   │   ├── IAAP.sol                           # Minimal subset of ERC-8210 v1 interface
 │   │   └── IERC20.sol                         # Minimal ERC-20 interface
 │   └── mocks/
-│       ├── AAPMockMinimal.sol                 # AAP — just fileClaim + reviewClaim
+│       ├── AAPMockMinimal.sol                 # Minimal AAP implementation (deposit, commit, file, resolve, payout)
 │       ├── MockERC20.sol                      # ERC-20 with mint
 │       ├── EvaluatorRegistryMock.sol          # Slash events (Scenario 2)
 │       ├── OffchainScorerMock.sol             # AHS-style scoring (Scenario 3)

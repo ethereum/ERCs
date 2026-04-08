@@ -14,7 +14,7 @@ The challenge is encapsulating off-chain scoring as an on-chain "assessor rule" 
 | **Suspect Agent** | Agent whose behavior is being evaluated |
 | **Task Manager** | Entity that uses the score to decide on task completion/rejection |
 | **Claimant** | Party harmed by the suspect agent, who files a claim using the score as evidence |
-| **AAP Reviewer** | Reviews the claim using the posted score |
+| **AAP Resolver** | Resolves the claim using the posted score |
 | **OffchainScorer contract** | On-chain record of scores posted by the oracle |
 | **AAP contract** | Assurance protocol where the claim is filed |
 
@@ -29,25 +29,31 @@ The challenge is encapsulating off-chain scoring as an on-chain "assessor rule" 
 
 3. The Task Manager reads the score and, seeing a DENY verdict with high confidence, rejects the suspect agent's task output (in an ERC-8183 context, this would be a `reject()` call).
 
-4. The Claimant — a party harmed by the suspect agent's non-compliant behavior — files a claim in AAP using:
-   - `amount`: the damages suffered
-   - `evidenceHash`: the `reasoningCID` from the score (same CID used in step 3)
-   - `upstream`: `keccak256(abi.encode("OffchainScore", subject))` — links back to the scoring event
+4. The Claimant — a party harmed by the suspect agent's non-compliant behavior — files a claim in AAP via `fileClaim(assuranceId, requestedAmount, evidence)`. The opaque `evidence` payload encodes the same `reasoningCID` used in step 3, together with a marker for the score type and the scorer address:
 
-5. The AAP Reviewer verifies the claim by:
-   - Reading the score from the OffchainScorer contract
+   ```solidity
+   bytes memory evidence = abi.encode(
+       "OffchainScore",
+       address(scorer),
+       suspectAgent,
+       REASONING_CID
+   );
+   ```
+
+5. The AAP Resolver verifies the claim by:
+   - Re-reading the score from the OffchainScorer contract using `scorer.score(suspectAgent)`
    - Confirming the verdict is DENY and confidence exceeds a threshold
-   - Confirming the `reasoningCID` matches the claim's `evidenceHash`
-   - Approving the claim
+   - Confirming the on-chain `reasoningCID` matches the one encoded in the evidence payload
+   - Calling `resolveClaim(claimId, true, approvedAmount, reason)`
 
-6. The AAP contract transfers the approved amount to the claimant.
+6. The Claimant (or anyone) calls `payout(claimId)` to settle the approved claim.
 
 ## What This Demonstrates
 
 - Off-chain scoring can be encapsulated as an on-chain "assessor rule" that both the task layer (ERC-8183) and the assurance layer (ERC-8210) can consume.
 - The same `reasoningCID` serves as evidence in both task rejection and claim filing, ensuring consistency and avoiding redundant evaluation.
 - The confidence score provides a quantitative basis for claim review, enabling threshold-based automation in the future.
-- The pattern is oracle-agnostic: any off-chain scoring system (AHS, reputation models, ML classifiers) can post scores in this format.
+- The composition pattern lives entirely in the `evidence` payload, not in the AAP interface — the spec stays minimal and any off-chain scoring system (AHS, reputation models, ML classifiers) can plug in by encoding its result the same way.
 
 ## Architectural Layers
 
@@ -61,5 +67,6 @@ This scenario demonstrates **full 3-layer composition**: the off-chain scorer br
 
 ## References
 
-- The AHS (Agent Health Score) concept is inspired by **pablocactus** (RNWY) contributions to the ERC-8183 Ethereum Magicians thread, where off-chain scoring was discussed as an assessor rule pattern.
+- The AHS (Agent Health Score) concept is inspired by contributions from **pablocactus** to the ERC-8183 Ethereum Magicians thread, where off-chain scoring was discussed as an assessor rule pattern.
+- **RNWY is a separate project** with related but distinct multidimensional scoring (soulbound identity, explicit sybil signal weights, live ERC-8183 hook integration). It will be referenced separately in the AAP v2 IRiskHook section once their methodology document is published. The two efforts overlap conceptually but are independent.
 - The 3-layer architecture was articulated by [@wangbin9953](https://github.com/wangbin9953) (ERC-8210 author) in post #107 of the ERC-8183 Ethereum Magicians thread.

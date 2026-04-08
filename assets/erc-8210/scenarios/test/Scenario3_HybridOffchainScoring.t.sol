@@ -5,39 +5,62 @@ import "forge-std/Test.sol";
 import "../contracts/mocks/AAPMockMinimal.sol";
 import "../contracts/mocks/MockERC20.sol";
 import "../contracts/mocks/OffchainScorerMock.sol";
+import "../contracts/interfaces/IAAP.sol";
 
 /// @title Scenario 3 — Hybrid Off-chain Scoring + On-chain Assurance
-/// @notice Demonstrates that an off-chain score (AHS-style) can serve as shared
-///         evidence for both task rejection (Layer 1) and claim filing (Layer 3),
-///         using the same reasoningCID.
+/// @notice Demonstrates the "evidence-first composability" principle: a single
+///         off-chain scoring artifact (referenced by `reasoningCID`) is used as
+///         shared evidence by both the task rejection path (Layer 2 prevention)
+///         and the AAP claim filing path (Layer 3 recovery), without requiring
+///         re-attestation or additional oracles.
+///
+///         The same `reasoningCID` is encoded into the AAP evidence payload,
+///         giving the resolver a direct lookup path back to the off-chain score
+///         that drove the rejection decision in the first place.
 contract Scenario3_HybridOffchainScoring is Test {
     AAPMockMinimal     aap;
     MockERC20          token;
     OffchainScorerMock scorer;
 
-    address oracle       = makeAddr("oracle");
-    address suspectAgent = makeAddr("suspectAgent");
-    address taskManager  = makeAddr("taskManager");
-    address claimant     = makeAddr("claimant");
-    address reviewer     = makeAddr("reviewer");
+    address oracle           = makeAddr("oracle");
+    address suspectAgent     = makeAddr("suspectAgent");
+    address assuredAgent     = makeAddr("assuredAgent");
+    address beneficiary      = makeAddr("beneficiary");
+    address resolver         = makeAddr("resolver");
 
-    uint256 constant CLAIM_AMOUNT     = 300e18;
+    uint256 constant DEPOSIT      = 1000e18;
+    uint256 constant COMMIT       = 300e18;
+    uint64  constant FAR_FUTURE   = type(uint64).max;
+    uint256 constant CLAIM_AMOUNT = 300e18;
     uint8   constant CONFIDENCE_THRESHOLD = 70;
+    uint256 constant SUSPECT_JOB_ID = 99;
 
-    // Simulated CID for the full off-chain reasoning
     bytes32 constant REASONING_CID = keccak256("ipfs://QmReasoningReport_SuspectAgent_v1");
 
     function setUp() public {
         token  = new MockERC20("Assurance Token", "ASR");
-        aap    = new AAPMockMinimal(address(token), reviewer);
+        aap    = new AAPMockMinimal(address(token), resolver);
         scorer = new OffchainScorerMock();
 
-        // Fund AAP
-        token.mint(address(aap), 10_000e18);
+        token.mint(assuredAgent, DEPOSIT * 10);
+        vm.prank(assuredAgent);
+        token.approve(address(aap), type(uint256).max);
     }
 
     function test_HybridOffchainScoring() public {
-        // ── Step 1: Oracle posts a DENY score for the suspect agent ────
+        // ── Step 1: AssuredAgent commits to the suspect job ────────────
+        vm.startPrank(assuredAgent);
+        aap.depositAssurance(DEPOSIT);
+        bytes32 assuranceId = aap.commitToJob(
+            bytes32(SUSPECT_JOB_ID),
+            IAAP.CoverageType.JobFailure,
+            beneficiary,
+            COMMIT,
+            FAR_FUTURE
+        );
+        vm.stopPrank();
+
+        // ── Step 2: Oracle posts a DENY score for the suspect agent ────
         vm.prank(oracle);
         vm.expectEmit(true, false, false, true, address(scorer));
         emit OffchainScorerMock.ScorePosted(
@@ -49,64 +72,75 @@ contract Scenario3_HybridOffchainScoring is Test {
         scorer.postScore(
             suspectAgent,
             OffchainScorerMock.ScorerVerdict.DENY,
-            87,              // confidence
+            87,
             REASONING_CID
         );
 
-        // ── Step 2: Task manager reads the score and rejects the task ──
-        // (In a real ERC-8183 setup this would call reject() on the task
-        //  contract. Here we just verify the score is readable and actionable.)
+        // ── Step 3: A downstream task manager reads the score and acts on it ──
+        // This is the Layer 2 (Behavior) consumption: the same score is used
+        // here as a prevention signal. In a real ERC-8183 deployment this would
+        // trigger a reject() call. Here we simply verify the score is readable.
         (
             OffchainScorerMock.ScorerVerdict verdict,
             uint8 confidence,
             bytes32 reasoningCID
         ) = scorer.score(suspectAgent);
-
         assertEq(uint8(verdict), uint8(OffchainScorerMock.ScorerVerdict.DENY));
-        assertTrue(confidence >= CONFIDENCE_THRESHOLD, "Confidence should exceed threshold");
-        assertEq(reasoningCID, REASONING_CID, "CID should match posted value");
+        assertTrue(confidence >= CONFIDENCE_THRESHOLD, "confidence must exceed threshold");
+        assertEq(reasoningCID, REASONING_CID);
 
-        // Task manager would call reject() here — simulated as a logged action
-        emit log_named_string("Task Manager action", "Task rejected based on DENY score");
+        emit log_named_string("Layer 2 action", "Task rejected based on DENY score");
 
-        // ── Step 3: Claimant files a claim using the SAME reasoningCID ─
-        bytes32 upstreamRef = keccak256(abi.encode("OffchainScore", suspectAgent));
-
-        vm.prank(claimant);
-        uint256 claimId = aap.fileClaim(CLAIM_AMOUNT, REASONING_CID, upstreamRef);
-
-        // The evidenceHash in the claim IS the reasoningCID — same artifact
-        IAAP.Claim memory c = aap.getClaim(claimId);
-        assertEq(c.evidenceHash, REASONING_CID, "Claim evidence must be the same CID used for task rejection");
-
-        // ── Step 4: Reviewer verifies score and approves claim ─────────
-        // Reviewer reads the on-chain score to verify
-        (
-            OffchainScorerMock.ScorerVerdict reviewVerdict,
-            uint8 reviewConfidence,
-            bytes32 reviewCID
-        ) = scorer.score(suspectAgent);
-
-        // Verify the score matches the claim
-        assertEq(uint8(reviewVerdict), uint8(OffchainScorerMock.ScorerVerdict.DENY), "Verdict must be DENY");
-        assertTrue(reviewConfidence >= CONFIDENCE_THRESHOLD, "Confidence must exceed threshold");
-        assertEq(reviewCID, c.evidenceHash, "Score CID must match claim evidence");
-
-        bytes32 approvalReason = keccak256(
-            abi.encode("score_verified", suspectAgent, reviewConfidence)
+        // ── Step 4: Beneficiary files a claim, encoding the SAME reasoningCID
+        //           into the evidence payload ──────────────────────────
+        // This is the key invariant of the scenario: the off-chain reasoning
+        // artifact serves both Layer 2 (prevention) and Layer 3 (recovery)
+        // through the same CID, with no re-attestation needed.
+        bytes memory evidence = abi.encode(
+            "OffchainScore",
+            address(scorer),
+            suspectAgent,
+            REASONING_CID
         );
 
-        vm.prank(reviewer);
-        aap.reviewClaim(claimId, IAAP.Verdict.Approve, approvalReason);
+        vm.prank(beneficiary);
+        bytes32 claimId = aap.fileClaim(assuranceId, CLAIM_AMOUNT, evidence);
 
-        // ── Step 5: Verify final state ─────────────────────────────────
-        IAAP.Claim memory resolved = aap.getClaim(claimId);
-        assertEq(uint8(resolved.status), uint8(IAAP.ClaimStatus.Approved));
-        assertEq(token.balanceOf(claimant), CLAIM_AMOUNT, "Claimant should receive payout");
+        IAAP.Claim memory c = aap.getClaim(claimId);
+        assertEq(c.beneficiary, beneficiary);
+        assertEq(aap.evidenceHashes(claimId), keccak256(evidence),
+            "stored evidence hash must match submitted payload");
 
-        // The key invariant: both the task rejection and the claim used
-        // the same reasoningCID as their evidence, demonstrating that a
-        // single off-chain evaluation serves both Layer 1 and Layer 3.
-        assertEq(REASONING_CID, c.evidenceHash, "Shared evidence invariant holds");
+        // ── Step 5: Resolver re-reads the score from the scorer to verify ──
+        (
+            OffchainScorerMock.ScorerVerdict reVerdict,
+            uint8 reConfidence,
+            bytes32 reCID
+        ) = scorer.score(suspectAgent);
+        assertEq(uint8(reVerdict), uint8(OffchainScorerMock.ScorerVerdict.DENY));
+        assertTrue(reConfidence >= CONFIDENCE_THRESHOLD);
+        assertEq(reCID, REASONING_CID,
+            "the CID consumed by the resolver must equal the one cited in the claim evidence");
+
+        bytes memory approvalReason = abi.encode(
+            "score_verified",
+            suspectAgent,
+            reConfidence,
+            REASONING_CID
+        );
+
+        vm.prank(resolver);
+        aap.resolveClaim(claimId, true, CLAIM_AMOUNT, approvalReason);
+
+        // ── Step 6: Payout ─────────────────────────────────────────────
+        aap.payout(claimId);
+
+        IAAP.Claim memory paid = aap.getClaim(claimId);
+        assertEq(uint8(paid.state), uint8(IAAP.ClaimState.Paid));
+        assertEq(token.balanceOf(beneficiary), CLAIM_AMOUNT);
+
+        // The shared-evidence invariant: the reasoningCID consumed by Layer 2
+        // (task rejection) and Layer 3 (claim filing) is identical.
+        emit log_bytes32(REASONING_CID);
     }
 }
