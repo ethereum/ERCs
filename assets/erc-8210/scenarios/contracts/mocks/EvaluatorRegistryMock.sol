@@ -2,7 +2,8 @@
 pragma solidity ^0.8.24;
 
 /// @title EvaluatorRegistry mock — emits slash events consumed by Scenario 2.
-/// @dev   Event signature agreed with Bakugo32 (Demsys) in the ERC-8183 thread.
+/// @dev   Event signature agreed with Demsys (github.com/Demsys/agent-settlement-protocol)
+///        in the ERC-8183 Ethereum Magicians thread.
 contract EvaluatorRegistryMock {
     // ── Events ─────────────────────────────────────────────────────────
     event EvaluatorSlashed(

@@ -55,5 +55,5 @@ This scenario demonstrates **Layer 2 → Layer 3 composition**: the behavioral d
 
 ## References
 
-- The `EvaluatorSlashed` event signature and the "slash as proof" pattern were agreed upon with **Bakugo32** (Demsys) in the ERC-8183 Ethereum Magicians thread.
+- The `EvaluatorSlashed` event signature and the "slash as proof" pattern were agreed upon with [@Demsys](https://github.com/Demsys) in the ERC-8183 Ethereum Magicians thread. Reference implementation: [agent-settlement-protocol](https://github.com/Demsys/agent-settlement-protocol).
 - The 3-layer architecture was articulated by [@wangbin9953](https://github.com/wangbin9953) (ERC-8210 author) in post #107 of the ERC-8183 Ethereum Magicians thread.
