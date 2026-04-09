@@ -46,8 +46,13 @@ contract EvaluatorRegistryMock {
     }
 
     /// @notice Build an evidence hash from a slash record for AAP claim filing.
+    /// @dev    Returns bytes32(0) for non-existent records to avoid collision
+    ///         with a "valid" hash of all-zero fields. Consumers can rely on a
+    ///         non-zero return value as proof that a slash actually occurred
+    ///         for the given jobId.
     function buildEvidenceHash(uint256 jobId) external view returns (bytes32) {
         SlashRecord memory r = slashRecords[jobId];
+        if (r.timestamp == 0) return bytes32(0);
         return keccak256(abi.encode(r.evaluator, r.jobId, r.slashedAmount, r.reason, r.timestamp));
     }
 }
