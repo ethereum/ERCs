@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 840" role="img" aria-labelledby="title desc">
+  <title id="title">Recovery Flow via NFT Transfer</title>
+  <desc id="desc">Timeline diagram showing the optional social recovery flow: guardians propose recovery, a configurable delay allows the current owner to cancel, finalization transfers the controlling NFT to a replacement owner, controlVersion increments, and all prior delegated authority is invalidated. Recovery never bypasses NFT ownership as root control.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .step-box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .guardian { fill: #f8f2ff; }
+    .delay { fill: #fff3db; }
+    .transfer { fill: #eaf7ef; }
+    .result { fill: #eef3ff; }
+    .cancel { fill: #fff0ec; stroke: #b45d42; stroke-width: 2; rx: 18; ry: 18; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .dead { fill: #f0e8e6; stroke: #b45d42; stroke-width: 1.8; rx: 14; ry: 14; }
+    .active { fill: #d8eadf; stroke: #4d7a63; stroke-width: 1.8; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .axis { stroke: #304254; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .edge-cancel { stroke: #b45d42; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 8 7; }
+    .strike { text-decoration: line-through; fill: #9a7a72; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="840"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Recovery Flow: Root Control Rotation via NFT Transfer</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Social recovery under this ERC culminates in NFT transfer. It never bypasses NFT ownership.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">Recovery is optional. If implemented, it must preserve the core invariant.</text>
+
+  <!-- Timeline axis -->
+  <line class="axis" x1="100" y1="220" x2="1350" y2="220"/>
+  <text class="body" x="1370" y="225" text-anchor="start">time</text>
+
+  <!-- Step labels on the axis, clearly above -->
+  <text class="label" x="210" y="200" text-anchor="middle">1. Propose</text>
+  <text class="label" x="505" y="200" text-anchor="middle">2. Delay Window</text>
+  <text class="label" x="805" y="200" text-anchor="middle">3. Finalize</text>
+  <text class="label" x="1105" y="200" text-anchor="middle">4. New Controller</text>
+
+  <!-- Step boxes hanging below axis -->
+
+  <!-- 1. Guardians propose -->
+  <rect class="step-box guardian" x="90" y="260" width="240" height="130"/>
+  <text class="title2" x="210" y="296" text-anchor="middle">Guardians Propose</text>
+  <text class="body" x="210" y="324" text-anchor="middle">Threshold of guardians</text>
+  <text class="body" x="210" y="348" text-anchor="middle">initiate recovery with a</text>
+  <text class="body" x="210" y="372" text-anchor="middle">replacement owner address.</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <path class="edge" d="M 330 325 L 385 325"/>
+
+  <!-- 2. Delay window -->
+  <rect class="step-box delay" x="385" y="260" width="240" height="130"/>
+  <text class="title2" x="505" y="296" text-anchor="middle">Configurable Delay</text>
+  <text class="body" x="505" y="324" text-anchor="middle">Recovery does not complete</text>
+  <text class="body" x="505" y="348" text-anchor="middle">immediately. Current owner</text>
+  <text class="body" x="505" y="372" text-anchor="middle">can observe and respond.</text>
+
+  <!-- Cancel branch -->
+  <rect class="cancel" x="415" y="430" width="180" height="48"/>
+  <text class="label" x="505" y="450" text-anchor="middle">Cancel</text>
+  <text class="body" x="505" y="468" text-anchor="middle">Owner vetoes recovery.</text>
+  <path class="edge-cancel" d="M 505 390 L 505 430"/>
+
+  <!-- Arrow 2 -> 3 (dashed for time passing) -->
+  <path class="edge dash" d="M 625 325 L 685 325"/>
+
+  <!-- 3. Finalize -->
+  <rect class="step-box transfer" x="685" y="260" width="240" height="130"/>
+  <text class="title2" x="805" y="296" text-anchor="middle">Finalize Recovery</text>
+  <text class="body" x="805" y="324" text-anchor="middle">Recovery system transfers</text>
+  <text class="body" x="805" y="348" text-anchor="middle">the controller NFT (T) to</text>
+  <text class="body" x="805" y="372" text-anchor="middle">the replacement owner.</text>
+
+  <!-- Arrow 3 -> 4 -->
+  <path class="edge" d="M 925 325 L 965 325"/>
+
+  <!-- 4. New controller -->
+  <rect class="step-box result" x="965" y="260" width="280" height="220"/>
+  <text class="title2" x="1105" y="296" text-anchor="middle">New Controller Active</text>
+  <text class="mono" x="1105" y="328" text-anchor="middle">controlVersion++</text>
+
+  <rect class="active" x="990" y="350" width="230" height="28"/>
+  <text class="body" x="1105" y="369" text-anchor="middle">New owner is root controller</text>
+
+  <rect class="dead" x="990" y="392" width="230" height="28"/>
+  <text class="body strike" x="1105" y="411" text-anchor="middle">Old validators inactive</text>
+
+  <rect class="dead" x="990" y="434" width="230" height="28"/>
+  <text class="body strike" x="1105" y="453" text-anchor="middle">Old signed requests invalid</text>
+
+  <!-- ═══════ BOTTOM PANELS ═══════ -->
+  <rect class="good" x="70" y="525" width="420" height="120"/>
+  <text class="label" x="280" y="558" text-anchor="middle">Core Invariant Preserved</text>
+  <text class="body" x="280" y="586" text-anchor="middle">Recovery culminates in NFT transfer.</text>
+  <text class="body" x="280" y="608" text-anchor="middle">Guardians never directly become controllers</text>
+  <text class="body" x="280" y="630" text-anchor="middle">while NFT ownership is unchanged.</text>
+
+  <rect class="warn" x="530" y="525" width="380" height="120"/>
+  <text class="label" x="720" y="558" text-anchor="middle">Guardian Collusion Risk</text>
+  <text class="body" x="720" y="586" text-anchor="middle">Guardians can collude to steal the account.</text>
+  <text class="body" x="720" y="608" text-anchor="middle">Configurable delay and cancellation are</text>
+  <text class="body" x="720" y="630" text-anchor="middle">the primary mitigations.</text>
+
+  <rect class="note" x="950" y="525" width="420" height="120"/>
+  <text class="label" x="1160" y="558" text-anchor="middle">Implementation Flexibility</text>
+  <text class="body" x="1160" y="586" text-anchor="middle">Recovery may live on the controller token</text>
+  <text class="body" x="1160" y="608" text-anchor="middle">contract or in a separate recovery manager.</text>
+  <text class="body" x="1160" y="630" text-anchor="middle">This ERC does not standardize the mechanism.</text>
+
+  <rect class="note" x="70" y="680" width="1300" height="60"/>
+  <text class="label" x="720" y="708" text-anchor="middle">Recovery is the same operation as any other control rotation: NFT transfer + controlVersion increment.</text>
+  <text class="body" x="720" y="730" text-anchor="middle">The only difference is who initiates the transfer: the owner (normal) versus a guardian-authorized recovery system (recovery).</text>
+</svg>

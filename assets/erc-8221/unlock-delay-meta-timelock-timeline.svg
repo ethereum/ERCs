@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
+  <title id="title">Unlock Delay Meta-Timelock: Asymmetric Increase and Decrease</title>
+  <desc id="desc">Two timelines showing the asymmetric setUnlockDelay behavior. Increases take effect immediately. Decreases are pending for the duration of the current delay before auto-transitioning, so that the current effective delay has always held for at least that many seconds.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .increase { fill: #eaf7ef; }
+    .decrease { fill: #fff3db; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .axis { stroke: #304254; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    .bar { rx: 8; ry: 8; }
+    .bar-old { fill: #c8d8e8; stroke: #6a8099; stroke-width: 2; }
+    .bar-new { fill: #a8dbb8; stroke: #3d7a4f; stroke-width: 2; }
+    .bar-pending { fill: #ffe6a8; stroke: #c5963d; stroke-width: 2; stroke-dasharray: 6 4; }
+    .tick { stroke: #304254; stroke-width: 2; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="1020"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Unlock Delay Meta-Timelock</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">setUnlockDelay changes are asymmetric: increases take effect immediately, decreases are pending.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">This guarantees the current effective delay has held for at least that many seconds.</text>
+
+  <!-- ═══════════════════════ INCREASE TIMELINE ═══════════════════════ -->
+  <rect class="box increase" x="60" y="140" width="920" height="230"/>
+  <text class="title2" x="520" y="178" text-anchor="middle">Increase: newDelay >= currentDelay</text>
+
+  <!-- Time axis -->
+  <line class="axis" x1="140" y1="300" x2="880" y2="300"/>
+  <text class="body" x="905" y="305" text-anchor="start">time</text>
+
+  <!-- Tick: call time -->
+  <line class="tick" x1="400" y1="288" x2="400" y2="312"/>
+  <text class="mono" x="400" y="340" text-anchor="middle">setUnlockDelay()</text>
+
+  <!-- Bar: old delay (short, before tick) -->
+  <rect class="bar bar-old" x="180" y="260" width="220" height="30"/>
+  <text class="body" x="290" y="280" text-anchor="middle">currentDelay = 1h</text>
+
+  <!-- Bar: new delay (taller, after tick, no overlap with old) -->
+  <rect class="bar bar-new" x="400" y="240" width="460" height="50"/>
+  <text class="label" x="630" y="270" text-anchor="middle">newDelay = 4h takes effect immediately</text>
+
+  <!-- Annotation: to the right of the section, outside the timeline box -->
+  <rect class="good" x="1020" y="165" width="380" height="100"/>
+  <text class="label" x="1210" y="200" text-anchor="middle">Immediate Effect</text>
+  <text class="body" x="1210" y="226" text-anchor="middle">Emit UnlockDelayChanged.</text>
+  <text class="body" x="1210" y="248" text-anchor="middle">Clears any pending decrease.</text>
+
+  <!-- ═══════════════════════ DECREASE TIMELINE ═══════════════════════ -->
+  <rect class="box decrease" x="60" y="410" width="920" height="310"/>
+  <text class="title2" x="520" y="448" text-anchor="middle">Decrease: newDelay &lt; currentDelay</text>
+
+  <!-- Emit label inside decrease box at the top -->
+  <text class="body" x="300" y="478" text-anchor="middle">emit UnlockDelayChangePending</text>
+
+  <!-- Time axis -->
+  <line class="axis" x1="140" y1="600" x2="880" y2="600"/>
+  <text class="body" x="905" y="605" text-anchor="start">time</text>
+
+  <!-- Tick: call time -->
+  <line class="tick" x1="300" y1="588" x2="300" y2="612"/>
+  <text class="mono" x="300" y="640" text-anchor="middle">setUnlockDelay()</text>
+
+  <!-- Tick: effectiveAt -->
+  <line class="tick" x1="720" y1="588" x2="720" y2="612"/>
+  <text class="mono" x="720" y="640" text-anchor="middle">effectiveAt</text>
+
+  <!-- Bar: old delay continues (tall, from start to effectiveAt) -->
+  <rect class="bar bar-old" x="180" y="520" width="540" height="50"/>
+  <text class="body" x="450" y="550" text-anchor="middle">currentDelay = 4h remains in effect</text>
+
+  <!-- Bar: new delay takes over (shorter, after effectiveAt, no overlap) -->
+  <rect class="bar bar-new" x="720" y="540" width="160" height="30"/>
+  <text class="body" x="800" y="560" text-anchor="middle">newDelay = 10m</text>
+
+  <!-- Pending dashed bar below axis between ticks -->
+  <rect class="bar bar-pending" x="300" y="605" width="420" height="16"/>
+  <text class="body" x="510" y="668" text-anchor="middle">pending for currentDelay (4 hours)</text>
+
+  <!-- Annotation: to the right of the section, outside the timeline box -->
+  <rect class="good" x="1020" y="435" width="380" height="100"/>
+  <text class="label" x="1210" y="470" text-anchor="middle">Silent Auto-Transition</text>
+  <text class="body" x="1210" y="496" text-anchor="middle">No event at effectiveAt.</text>
+  <text class="body" x="1210" y="518" text-anchor="middle">unlockDelayOf reads new value.</text>
+
+  <!-- ═══════════════════════ BOTTOM PANELS ═══════════════════════ -->
+  <rect class="warn" x="70" y="770" width="420" height="130"/>
+  <text class="label" x="280" y="808" text-anchor="middle">Why the Asymmetry</text>
+  <text class="body" x="280" y="836" text-anchor="middle">Without the pending-decrease rule, an owner could</text>
+  <text class="body" x="280" y="858" text-anchor="middle">set a long delay for buyer trust, then collapse it</text>
+  <text class="body" x="280" y="880" text-anchor="middle">to 1 second right before proposeUnlock.</text>
+
+  <rect class="note" x="530" y="770" width="380" height="130"/>
+  <text class="label" x="720" y="808" text-anchor="middle">Counterparty Guarantee</text>
+  <text class="body" x="720" y="836" text-anchor="middle">At any moment, unlockDelayOf has held</text>
+  <text class="body" x="720" y="858" text-anchor="middle">its current value for at least that many</text>
+  <text class="body" x="720" y="880" text-anchor="middle">seconds. Buyers can rely on this.</text>
+
+  <rect class="good" x="950" y="770" width="420" height="130"/>
+  <text class="label" x="1160" y="808" text-anchor="middle">Observable On-Chain</text>
+  <text class="body" x="1160" y="836" text-anchor="middle">pendingUnlockDelayOf(tokenId) exposes</text>
+  <text class="body" x="1160" y="858" text-anchor="middle">any scheduled decrease and its effectiveAt.</text>
+  <text class="body" x="1160" y="880" text-anchor="middle">Wallets and marketplaces SHOULD display it.</text>
+</svg>
