@@ -67,6 +67,6 @@ This scenario demonstrates **full 3-layer composition**: the off-chain scorer br
 
 ## References
 
-- The AHS (Agent Health Score) concept is inspired by contributions from **pablocactus** to the ERC-8183 Ethereum Magicians thread, where off-chain scoring was discussed as an assessor rule pattern.
+- The AHS (Agent Health Score) concept is inspired by the [agent-health-monitor](https://github.com/moonshot-cyber/agent-health-monitor) project by [@moonshot-cyber](https://github.com/moonshot-cyber), discussed in the ERC-8183 Ethereum Magicians thread as an assessor rule pattern.
 - **RNWY is a separate project** with related but distinct multidimensional scoring (soulbound identity, explicit sybil signal weights, live ERC-8183 hook integration). It will be referenced separately in the AAP v2 IRiskHook section once their methodology document is published. The two efforts overlap conceptually but are independent.
 - The 3-layer architecture was articulated by [@wangbin9953](https://github.com/wangbin9953) (ERC-8210 author) in post #107 of the ERC-8183 Ethereum Magicians thread.

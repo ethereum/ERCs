@@ -2,7 +2,9 @@
 pragma solidity ^0.8.24;
 
 /// @title Off-chain scorer mock — simulates AHS-style scoring (Scenario 3).
-/// @notice Inspired by the conceptual AHS (Agent Health Score) approach.
+/// @notice Inspired by the conceptual AHS (Agent Health Score) approach by
+///         moonshot-cyber (project: agent-health-monitor,
+///         https://github.com/moonshot-cyber/agent-health-monitor).
 ///         RNWY is a separate project with related but distinct multidimensional
 ///         scoring (soulbound identity, explicit sybil signal weights, live
 ///         ERC-8183 hook integration) and will be referenced separately in the
