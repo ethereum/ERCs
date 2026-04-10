@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 940" role="img" aria-labelledby="title desc">
   <title id="title">Unlock Delay Meta-Timelock: Asymmetric Increase and Decrease</title>
   <desc id="desc">Two timelines showing the asymmetric setUnlockDelay behavior. Increases take effect immediately. Decreases are pending for the duration of the current delay before auto-transitioning, so that the current effective delay has always held for at least that many seconds.</desc>
   <defs>
@@ -28,7 +28,7 @@
     .tick { stroke: #304254; stroke-width: 2; }
   </style>
 
-  <rect class="bg" x="0" y="0" width="1440" height="1020"/>
+  <rect class="bg" x="0" y="0" width="1440" height="940"/>
 
   <text class="title" x="720" y="48" text-anchor="middle">Unlock Delay Meta-Timelock</text>
   <text class="subtitle" x="720" y="80" text-anchor="middle">setUnlockDelay changes are asymmetric: increases take effect immediately, decreases are pending.</text>

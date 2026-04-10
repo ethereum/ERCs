@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1040" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 970" role="img" aria-labelledby="title desc">
   <title id="title">Signed Execution Sequence</title>
   <desc id="desc">Sequence diagram showing the controller signing an EIP-712 execution request offline, a relayer submitting it as an ordinary transaction, the account validating the signature through the cascade, incrementing the nonce, and executing the call. The relayer pays gas; the controller never sends a transaction.</desc>
   <defs>
@@ -34,7 +34,7 @@
     .result { stroke: #4c7a62; stroke-width: 3.2; fill: none; marker-end: url(#arrow-green); }
   </style>
 
-  <rect class="bg" x="0" y="0" width="1440" height="1040"/>
+  <rect class="bg" x="0" y="0" width="1440" height="970"/>
 
   <text class="title" x="720" y="48" text-anchor="middle">Signed Execution Sequence</text>
   <text class="subtitle" x="720" y="80" text-anchor="middle">The controller signs offline. Any third party relays as an ordinary protocol transaction.</text>

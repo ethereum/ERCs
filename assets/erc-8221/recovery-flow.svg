@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 860" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 790" role="img" aria-labelledby="title desc">
   <title id="title">Recovery Flow via NFT Transfer</title>
   <desc id="desc">Timeline diagram showing the optional social recovery flow: guardians propose recovery, a configurable delay allows the current owner to cancel, finalization transfers the controlling NFT to a replacement owner, controlVersion increments, and all prior delegated authority is invalidated. Recovery never bypasses NFT ownership as root control.</desc>
   <defs>
@@ -33,7 +33,7 @@
     .strike { text-decoration: line-through; fill: #9a7a72; }
   </style>
 
-  <rect class="bg" x="0" y="0" width="1440" height="860"/>
+  <rect class="bg" x="0" y="0" width="1440" height="790"/>
 
   <text class="title" x="720" y="48" text-anchor="middle">Recovery Flow: Root Control Rotation via NFT Transfer</text>
   <text class="subtitle" x="720" y="80" text-anchor="middle">Social recovery under this ERC culminates in NFT transfer. It never bypasses NFT ownership.</text>
