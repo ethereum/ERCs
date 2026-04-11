@@ -154,9 +154,7 @@ jobs:
             if [ ${#PATHS[@]} -gt 0 ]; then
               printf -v PATHS_NOTICE ' %q' "${PATHS[@]}"
               echo "::notice::Running HTMLProofer on changed files only:${PATHS_NOTICE}"
-              for path in "${PATHS[@]}"; do
-                bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "$path"
-              done
+              bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "${PATHS[@]}"
               exit $?
             fi
             echo "::warning::Changed ERC HTML files not found in build output, falling back to full check"
