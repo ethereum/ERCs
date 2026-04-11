@@ -72,21 +72,35 @@ jobs:
         continue-on-error: true
         run: |
           ALL_CHANGED=$(gh pr diff ${{ github.event.number }} --name-only --repo ${{ github.repository }})
-          # Only pure ERC markdown changes are safe for the incremental path.
-          # Asset changes can otherwise leave stale files in `_site/`.
+          ERC_ONLY=$(echo "$ALL_CHANGED" | grep -E '^ERCS/erc-[0-9]+\.md$' || true)
+          ERC_COUNT=$(echo "$ERC_ONLY" | grep -c . || true)
           NON_ERC=$(echo "$ALL_CHANGED" | grep -v -E '^ERCS/erc-[0-9]+\.md$' | grep -v '^\s*$' || true)
+
+          if [ "$ERC_COUNT" -gt 1 ]; then
+            echo "::error::Each ERC content PR must touch exactly one ERC markdown file. Split this PR into one file per PR."
+            exit 1
+          fi
+
+          if [ "$ERC_COUNT" -eq 1 ] && [ -n "$NON_ERC" ]; then
+            echo "::error::ERC content PRs must touch exactly one ERC markdown file and no other files. Put workflow or asset changes in a separate PR."
+            exit 1
+          fi
+
+          # Only pure single-ERC markdown changes are safe for the incremental path.
+          # Other changes fall back to the full site check.
           if [ -n "$NON_ERC" ]; then
             echo "Non-ERC files changed, will run full check"
             echo "mode=full" >> $GITHUB_OUTPUT
             exit 0
           fi
-          CHANGED_NUMS=$(echo "$ALL_CHANGED" | grep -oE 'erc-[0-9]+' | sed 's/erc-//' | sort -u | tr '\n' ' ')
+
+          CHANGED_NUMS=$(echo "$ERC_ONLY" | grep -oE 'erc-[0-9]+' | sed 's/erc-//' | sort -u | tr '\n' ' ')
           if [ -z "$CHANGED_NUMS" ]; then
             echo "mode=full" >> $GITHUB_OUTPUT
           else
             echo "mode=incremental" >> $GITHUB_OUTPUT
             echo "nums=${CHANGED_NUMS}" >> $GITHUB_OUTPUT
-            echo "Will check only changed ERCs: ${CHANGED_NUMS}"
+            echo "Will check only changed ERC: ${CHANGED_NUMS}"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
