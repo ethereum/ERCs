@@ -374,7 +374,7 @@ The compliance responsibilities across the three layers are as follows:
 | Mandate compliance | Agent authority from this principal for this scope | This ERC |
 | Agent identity | Agent exists and is registered | [ERC-8004](./eip-8004.md) |
 
-### [EIP-712](https://eips.ethereum.org/EIPS/eip-712) Typed Signature
+### [EIP-712](./eip-721.md) Typed Signature
 
 The `grantMandateWithSig` function uses the following type hash:
 
