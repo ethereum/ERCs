@@ -2,8 +2,8 @@
 eip: <TBD>
 title: Regulated Agent Mandate
 description: A compliance delegation layer for AI agents operating on tokenized regulated assets governed by ERC-7943.
-author: Ludovico Rossi <ludovico@brickken.com>, Dario Lo Buglio (@xaler5) <dario@brickken.com>, Thamer Dridi (@thamerdridi) <thamer@brickken.com>
-discussions-to: <ETH Magicians URL to be added>
+author: Ludovico Rossi (@ludovicor-eth) <ludovico@brickken.com>, Dario Lo Buglio (@xaler5) <dario@brickken.com>, Thamer Dridi (@thamerdridi) <thamer@brickken.com>
+discussions-to: https://ethereum-magicians.org/t/regulated-agent-mandate-standard-rams/28208
 status: Draft
 type: Standards Track
 category: ERC
