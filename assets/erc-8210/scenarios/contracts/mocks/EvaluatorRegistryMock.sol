@@ -9,7 +9,7 @@ contract EvaluatorRegistryMock {
     event EvaluatorSlashed(
         address indexed evaluator,
         uint256 indexed jobId,
-        uint256 slashedAmount,
+        uint256 amount,
         bytes32 reason
     );
 
@@ -17,7 +17,7 @@ contract EvaluatorRegistryMock {
     struct SlashRecord {
         address evaluator;
         uint256 jobId;
-        uint256 slashedAmount;
+        uint256 amount;
         bytes32 reason;
         uint256 timestamp;
     }
@@ -31,18 +31,18 @@ contract EvaluatorRegistryMock {
     function slashEvaluator(
         address evaluator,
         uint256 jobId,
-        uint256 slashedAmount,
+        uint256 amount,
         bytes32 reason
     ) external {
         slashRecords[jobId] = SlashRecord({
-            evaluator:     evaluator,
-            jobId:         jobId,
-            slashedAmount: slashedAmount,
-            reason:        reason,
-            timestamp:     block.timestamp
+            evaluator: evaluator,
+            jobId:     jobId,
+            amount:    amount,
+            reason:    reason,
+            timestamp: block.timestamp
         });
         slashCount++;
-        emit EvaluatorSlashed(evaluator, jobId, slashedAmount, reason);
+        emit EvaluatorSlashed(evaluator, jobId, amount, reason);
     }
 
     /// @notice Build an evidence hash from a slash record for AAP claim filing.
@@ -53,6 +53,6 @@ contract EvaluatorRegistryMock {
     function buildEvidenceHash(uint256 jobId) external view returns (bytes32) {
         SlashRecord memory r = slashRecords[jobId];
         if (r.timestamp == 0) return bytes32(0);
-        return keccak256(abi.encode(r.evaluator, r.jobId, r.slashedAmount, r.reason, r.timestamp));
+        return keccak256(abi.encode(r.evaluator, r.jobId, r.amount, r.reason, r.timestamp));
     }
 }
