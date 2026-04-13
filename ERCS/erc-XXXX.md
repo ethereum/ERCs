@@ -1,5 +1,5 @@
 ---
-eip: 1680
+eip: XXXX
 title: Encrypted Token Interface
 description: An interface for fungible tokens with FHE-encrypted balances and zero-knowledge transfer verification.
 author: Valisthea (@Valisthea)
