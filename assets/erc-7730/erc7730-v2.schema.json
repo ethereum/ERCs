@@ -350,10 +350,10 @@
                     "propertyNames": {
                         "anyOf": [
                             {
-                                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_:]*\\(\\s*(?:(?:(?:(?:tuple)?\\s*\\((?:[^()]|\\([^()]*\\))*\\)|[A-Za-z0-9_:]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:(?:tuple)?\\s*\\((?:[^()]|\\([^()]*\\))*\\)|[A-Za-z0-9_:]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
                             },
                             {
-                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
+                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
                             }
                         ]
                         
@@ -472,16 +472,30 @@
                 "value": {
                     "$ref": "#/$format/value"
                 },
+                "label": {
+                    "description": "This value overrides the label in the referenced definition if set.",
+                    "type": "string"
+                },
                 "$ref": {
-                    "title": "Internal Definition",
                     "description": "An internal definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME.",
                     "type": "string"
                 },
                 "params": {
-                    "title": "Parameters",
                     "description": "Parameters override. These values takes precedence over the ones in the definition itself",
                     "type": "object",
                     "additionalProperties": { "type": "string" }
+                },
+                "separator": {
+                    "description": "Separator override for the referenced definition.",
+                    "type": "string"
+                },
+                "visible": {
+                    "description": "Visibility override for the referenced definition.",
+                    "$ref": "#/$format/rules"
+                },
+                "encryption": {
+                    "description": "Encryption override for the referenced definition.",
+                    "$ref": "#/$format/encryptionParameters"
                 }
             },
             "required": [ "$ref" ],
