@@ -3,7 +3,7 @@ eip: XXXX
 title: Encrypted Token Interface
 description: An interface for fungible tokens with FHE-encrypted balances and zero-knowledge transfer verification.
 author: Valisthea (@Valisthea)
-discussions-to: https://ethereum-magicians.org/
+discussions-to: https://ethereum-magicians.org/t/erc-encrypted-token-standard-fhe-encrypted-balances-with-zk-transfer-verification/28214
 status: Draft
 type: Standards Track
 category: ERC
