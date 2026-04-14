@@ -658,7 +658,7 @@
                         },
                         "minItems": 1
                     },
-                    "mustBe": {
+                    "mustMatch": {
                         "type": "array",
                         "description": "Always skip display, but value MUST match one of these values.",
                         "items": {
@@ -671,11 +671,11 @@
                 "allOf": [
                     {
                     "not": {
-                        "required": ["notIn", "mustBe"]
+                        "required": ["ifNotIn", "mustMatch"]
                     }
                     }
                 ],
-                "description": "Conditional display rules. Either 'notIn' or 'mustBe' must be defined, but not both."
+                "description": "Conditional display rules. Either 'ifNotIn' or 'mustMatch' must be defined, but not both."
                 }
             ]    
         },
