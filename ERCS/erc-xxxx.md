@@ -1,5 +1,5 @@
 ---
-eip: 
+eip: XXXX
 title: Referable NFTs Authorization
 description: A standalone interface that allows any ERC-5521 NFT to refer to another NFT, with optional on-chain or off-chain authorization.
 author: Ruiqiang Li (@richard-620) <richard.620.research@gmail.com>, Qin Wang <qin.wang@data61.csiro.au>, Shiping Chen <shiping.chen@data61.csiro.au>, Saber Yu (@OniReimu), John Le <johnle@uow.edu.au>, Brian Yecies <byecies@uow.edu.au>
