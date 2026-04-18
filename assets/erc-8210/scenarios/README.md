@@ -18,12 +18,12 @@ author of ERC-8210, in post #107 of the ERC-8183 Ethereum Magicians thread):
 | **2** | **Behavior** | Evaluates behavioral independence and risk through hooks and oracles (`IRiskHook`, off-chain scorers) | Risk hooks, evaluator registries, scoring oracles |
 | **3** | **Recovery** | Provides post-hoc redress when Layers 1 and 2 do not catch the attack in time | ERC-8210 / AAP |
 
-The three scenarios below demonstrate how Layer 3 (recovery) **composes** with
-the other two layers through concrete, tested patterns. All three scenarios use
+The scenarios below demonstrate how Layer 3 (recovery) **composes** with
+the other two layers through concrete, tested patterns. All scenarios use
 the canonical ERC-8210 v1 interface, encoding their composition metadata
-(upstream references, slash record references, off-chain scoring CIDs) into
-the opaque `bytes calldata evidence` payload that AAP's `fileClaim` already
-defines.
+(upstream references, slash record references, off-chain scoring CIDs,
+solvency snapshots) into the opaque `bytes calldata evidence` payload
+that AAP's `fileClaim` already defines.
 
 ## Scenarios
 
@@ -32,6 +32,7 @@ defines.
 | 1 | [Multi-Hop Dependency Tracking](docs/scenario-1-multi-hop-dependency.md) | 3 (+ 1, 2 context) | Upstream reference encoded in `evidence` traces root cause across A→B→C→D pipeline |
 | 2 | [EvaluatorSlashed → fileClaim](docs/scenario-2-evaluator-slash-claim.md) | 2 → 3 | Slash event serves as automatic proof for AAP claim — no re-adjudication |
 | 3 | [Hybrid Off-chain Scoring](docs/scenario-3-hybrid-offchain-scoring.md) | 1 + 2 + 3 | Same `reasoningCID` consumed by task rejection and claim filing |
+| 4 | [Solvency-Aware Claim Assessment](docs/scenario-4-solvency-aware-claim.md) | 2 → 3 | `EvaluatorSlashed` + `EvaluatorStakeUpdated` in the same tx enable stateless solvency assessment |
 
 ## Project Structure
 
@@ -49,16 +50,19 @@ scenarios/
 │       ├── AAPMockMinimal.sol                 # Minimal AAP implementation (deposit, commit, file, resolve, payout)
 │       ├── MockERC20.sol                      # ERC-20 with mint
 │       ├── EvaluatorRegistryMock.sol          # Slash events (Scenario 2)
+│       ├── EvaluatorRegistryWithStake.sol     # Slash + stake tracking (Scenario 4)
 │       ├── OffchainScorerMock.sol             # AHS-style scoring (Scenario 3)
 │       └── ChainedJobsMock.sol                # Job pipeline A→B→C→D (Scenario 1)
 ├── docs/
 │   ├── scenario-1-multi-hop-dependency.md
 │   ├── scenario-2-evaluator-slash-claim.md
-│   └── scenario-3-hybrid-offchain-scoring.md
+│   ├── scenario-3-hybrid-offchain-scoring.md
+│   └── scenario-4-solvency-aware-claim.md
 └── test/
     ├── Scenario1_MultiHopDependency.t.sol
     ├── Scenario2_EvaluatorSlashClaim.t.sol
-    └── Scenario3_HybridOffchainScoring.t.sol
+    ├── Scenario3_HybridOffchainScoring.t.sol
+    └── Scenario4_SolvencyAwareClaimAssessment.t.sol
 ```
 
 ## Build & Test
@@ -79,6 +83,8 @@ forge test -vv
 [PASS] test_MultiHopDependencyTracking()
 [PASS] test_EvaluatorSlashToClaim()
 [PASS] test_HybridOffchainScoring()
+[PASS] test_SolvencyAwareClaimAssessment()
+[PASS] test_ZeroStakePostSlash_FullWipeout()
 ```
 
 ## Spec Reference
