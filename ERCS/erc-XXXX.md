@@ -3,7 +3,7 @@ eip: 8234
 title: Referable NFTs Authorization
 description: A standalone interface that allows any ERC-5521 NFT to refer to another NFT, with optional on-chain or off-chain authorization.
 author: Ruiqiang Li (@richard-620) <richard.620.research@gmail.com>, Qin Wang <qin.wang@data61.csiro.au>, Shiping Chen <shiping.chen@data61.csiro.au>, Saber Yu (@OniReimu), John Le <johnle@uow.edu.au>, Brian Yecies <byecies@uow.edu.au>
-discussions-to: https://ethereum-magicians.org/t/referable-nfts-authorization/28258
+discussions-to: https://ethereum-magicians.org/t/erc-8234-referable-nfts-authorization/28258
 status: Draft
 type: Standards Track
 category: ERC
