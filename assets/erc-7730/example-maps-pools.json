@@ -5,7 +5,7 @@
 
     "context": {
         "$id": "Example Maps for Pools",
-        "contract" : {
+        "contract": {
             "deployments": [ 
                 {
                     "chainId": 1,
@@ -53,7 +53,7 @@
                         "params": {
                             "token": {
                                 "map": "$.metadata.maps.underlyingToken",
-                                "key": "@.chainId"
+                                "keyPath": "@.chainId"
                             }   
                         }
                     },
@@ -64,7 +64,7 @@
                         "params": {
                             "token": {
                                 "map": "$.metadata.maps.shareToken",
-                                "key": "@.chainId"
+                                "keyPath": "@.chainId"
                             }
                         }
                     }
