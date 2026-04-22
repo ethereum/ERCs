@@ -17,7 +17,7 @@ requires: 165
 
 This ERC defines a minimal interface for permanently deactivating a contract and exposing that terminal state on-chain. It introduces a one-way `deactivateContract()` operation and a `deactivated()` status view so wallets, exchanges, custodians, and protocols can reliably detect that a contract is no longer active.
 
-The proposal is motivated by regulated Real-World Asset (RWA) use cases where issuers may need to irreversibly stop token operations due to corporate actions, legal migration, or end-of-life lifecycle events. It is also useful for DeFi applications (for example lending markets or AMM pools) that need to publish a clear on-chain signal that an instance is no longer active. The interface is intentionally small and can be combined with existing token standards such as [ERC-20](./eip-20.md), [ERC-721](./eip-721.md), or [ERC-1155](./eip-1155.md). The proposal adopts [ERC-165](./eip-165.md) so integrators can discover support programmatically.
+The proposal is motivated by regulated Real-World Asset (RWA) use cases where issuers may need to irreversibly stop token operations due to corporate actions, legal migration, or end-of-life lifecycle events. It is also useful for DeFi applications (for example lending markets or AMM pools) that need to publish a clear on-chain signal that an instance is no longer active. The interface is intentionally small and can be combined with existing token standards such as [ERC-20](./eip-20.md), [ERC-721](./eip-721.md), or [ERC-1155](./eip-1155.md). The proposal adopts [ERC-165](./erc-165.md) so integrators can discover support programmatically.
 
 ## Motivation
 
@@ -65,7 +65,7 @@ interface IERCDeactivation is IERC165 {
 
 ### ERC-165 Support
 
-Implementations MUST implement [ERC-165](./eip-165.md) and MUST return `true` from `supportsInterface` for:
+Implementations MUST implement [ERC-165](./erc-165.md) and MUST return `true` from `supportsInterface` for:
 
 - `0x01ffc9a7` (`IERC165`)
 - `0xe9cd80b0` (`IERCDeactivation`)
