@@ -8,11 +8,12 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-02-12
+requires: 165
 ---
 
 ## Abstract
 
-This ERC defines a minimal interface to expose a contract version string through a standardized `version()` view function. The design is based on the version pattern used by [ERC-3643](./eip-3643.md), while remaining token-agnostic and applicable to other smart contract domains, including DeFi applications such as lending protocols.
+This ERC defines a minimal interface to expose a contract version string through a standardized `version()` view function. The design is based on the version pattern used by [ERC-3643](./erc-3643.md), while remaining token-agnostic and applicable to other smart contract domains, including DeFi applications such as lending protocols.
 
 ## Motivation
 
@@ -25,7 +26,7 @@ Integrators frequently need a simple, on-chain way to identify which contract im
 
 It is also useful for end-users, developers, and security auditors to identify which version of a codebase is currently used by a deployed contract.
 
-The same requirement appears in permissioned token systems ([ERC-3643](./eip-3643.md)) and in DeFi systems where contracts evolve over time.
+The same requirement appears in permissioned token systems ([ERC-3643](./erc-3643.md)) and in DeFi systems where contracts evolve over time.
 
 ## Specification
 
@@ -58,24 +59,23 @@ interface IERCVersion {
    - This interface is compatible with immutable deployments and proxy-based upgradeable deployments.
    - In upgradeable systems, `version()` SHOULD reflect the active implementation seen by users and integrators.
 
-### ERC-165 (Optional)
+### [ERC-165](./erc-165.md)
 
-Implementations MAY support [ERC-165](./eip-165.md) interface discovery for this interface.
+Implementations MUST support [ERC-165](./erc-165.md) interface discovery for this interface.
 
-- If implemented, `supportsInterface(type(IERCVersion).interfaceId)` SHOULD return `true`.
-- If implemented, the interface id for `IERCVersion` is `0x54fd4d50`.
-- ERC-165 support is OPTIONAL in this ERC to avoid unnecessary complexity in systems that do not rely on interface introspection.
+- `supportsInterface(type(IERCVersion).interfaceId)` MUST return `true`.
+- The interface id for `IERCVersion` is `0x54fd4d50`.
 
 ### Compatibility Note for ERC-3643 Integrations
 
-Integrators SHOULD treat ERC-3643 token contracts exposing a compatible `version()` function as implementing this ERC, even if ERC-165 does not explicitly advertise support.
+Integrators MAY treat legacy ERC-3643 token contracts exposing a compatible `version()` function as implementing this ERC even if they do not advertise ERC-165 support.
 
 ## Rationale
 
 - **Minimal scope**: A single function maximizes adoption and keeps gas/runtime complexity negligible.
 - **ERC-3643 alignment**: Reuses a proven pattern already used in regulated token implementations.
 - **Token-agnostic design**: The interface applies to token contracts and non-token contracts alike.
-- **Optional ERC-165**: Preserves interoperability where needed, without forcing introspection costs everywhere. Implementations in constrained deployments are not required to support interface detection.
+- **Required ERC-165**: Standardized interface discovery ensures integrators can detect support consistently and reduce integration ambiguity.
 - **`string` over `bytes32`**: A human-readable string is preferred to a fixed-size bytes32 for legibility in explorers and tooling, at the cost of marginally higher gas for the return value.
 
 ## Backwards Compatibility
