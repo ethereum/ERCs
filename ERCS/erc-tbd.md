@@ -3,7 +3,7 @@ eip: TBD
 title: Agent Skill Registry
 description: A canonical onchain registry for agent skills with usage and installation attestations.
 author: Craig Branscom (@craigbranscom)
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/draft-erc-agent-skill-registry/28335
 status: Draft
 type: Standards Track
 category: ERC
