@@ -18,6 +18,7 @@ This ERC defines a minimal, canonical, machine-readable interface for raw protoc
 The ERC core standardizes raw protocol control disclosure, while summaries, claims, profiles, diagnostics, and audit evidence are optional extension surfaces or verifier-side interpretations.
 
 The mandatory core standardizes only raw structural facts:
+
 - protocol metadata
 - disclosure scope commitments
 - declared components
@@ -36,6 +37,7 @@ This ERC does not standardize safety ratings, trust scores, criticality labels, 
 Wallets, explorers, scanners, auditors, AI agents, and users need a common way to retrieve raw machine-readable facts about protocol control.
 
 Today, the most important control information is often fragmented across:
+
 - documentation
 - audit PDFs
 - repositories
@@ -51,13 +53,14 @@ What is missing is not another rating system. What is missing is a thin canonica
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-
 ### Core compliance
 
 A compliant implementation:
+
 - MUST implement ERC-165
 - MUST implement `IProtocolSafetyCore`
 - MAY implement optional extensions such as:
+
   - `IProtocolSafetySummary`
   - `IProtocolSafetyClaims`
   - `IProtocolSafetyProfiles`
@@ -70,7 +73,9 @@ Optional extensions are not required for base compliance.
 The mandatory core consists of raw machine-retrievable records:
 
 #### ProtocolMetadata
+
 The core MUST expose:
+
 - protocol name
 - claimed `standardVersion`
 - chain ID
@@ -79,7 +84,9 @@ The core MUST expose:
 - optional metadata URI
 
 #### DisclosureScope
+
 The core MUST expose current scope commitments including:
+
 - covered components
 - covered assets
 - exclusions
@@ -87,7 +94,9 @@ The core MUST expose current scope commitments including:
 - scope-related declarations
 
 #### Component
+
 A `Component` MUST identify:
+
 - component address
 - associated `nodeId`
 - declared type
@@ -98,7 +107,9 @@ A `Component` MUST identify:
 - metadata commitment hash where applicable
 
 #### GraphNode
+
 A `GraphNode` MUST identify:
+
 - canonical `nodeId`
 - declared node type
 - optional address binding
@@ -106,7 +117,9 @@ A `GraphNode` MUST identify:
 - metadata commitment hash where applicable
 
 #### PowerDescriptor
+
 A `PowerDescriptor` MUST identify:
+
 - canonical `powerId`
 - declared `PowerKind`
 - enabled status
@@ -116,7 +129,9 @@ A `PowerDescriptor` MUST identify:
 - scope / notes commitment hashes where applicable
 
 #### GraphEdge
+
 A `GraphEdge` MUST identify:
+
 - canonical `edgeId`
 - declared `EdgeKind`
 - related `PowerKind` where applicable
@@ -126,7 +141,9 @@ A `GraphEdge` MUST identify:
 - notes commitment hash where applicable
 
 #### Freshness
+
 The core MUST expose a freshness boundary for current-state disclosure, such as:
+
 - a monotonic disclosure nonce
 - update events for core-state changes
 
@@ -151,6 +168,7 @@ Consumers SHOULD prefer canonical IDs over numeric indices.
 ### Zero/default semantics
 
 Unless a stricter field-specific rule is defined:
+
 - zero values mean unset, undeclared, unbound, or no stronger claim made
 - zero values MUST NOT be interpreted as affirmative safety guarantees
 
@@ -159,6 +177,7 @@ Unless a stricter field-specific rule is defined:
 Core outputs are declared facts about the implementation’s current disclosure state.
 
 They do not, by themselves, prove:
+
 - safety
 - completeness
 - honesty
@@ -170,6 +189,7 @@ They do not, by themselves, prove:
 Protocol control is not flat.
 
 Real authority often propagates through:
+
 - proxy admins
 - timelocks
 - multisigs
@@ -204,6 +224,7 @@ Foundry test coverage for the reference implementation is maintained in the publ
 ## Reference Implementation
 
 A reference implementation exists in this repository, centered on:
+
 - `IProtocolSafetyCore`
 - graph-native disclosure records
 - freshness / nonce boundaries
