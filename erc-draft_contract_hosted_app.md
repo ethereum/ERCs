@@ -75,6 +75,35 @@ The function MUST be `view`, MUST NOT revert under normal operation, and
 MUST return a valid UTF-8 byte sequence. How the bytes are stored is out
 of scope.
 
+### Registry Interface
+
+For contracts that cannot implement `html()` directly (already deployed and
+immutable), a registry contract may store HTML on their behalf.
+
+A conforming registry implements:
+
+```solidity
+interface IContractHostedAppRegistry {
+    function html(address target) external view returns (string memory);
+}
+```
+
+A client MAY fall back to a known registry when a direct call to `target.html()`
+returns empty or reverts.
+
+A registry MAY support versioned reads via an overloaded
+`html(address target, uint256 version)` to allow clients to query historical
+document versions.
+
+A registry MAY also support cross-authored reads via an overloaded
+`html(address author, address target)`, where `author` is the address that
+registered the document on behalf of `target`.
+
+Write access and authorization rules for updating registry entries are out of
+scope for this proposal and left to the contract's implementer. The registry and
+the standalone interface share the same document constraints defined in this
+proposal.
+
 ### Document
 
 The string returned by `html()` is the *document*. It MUST satisfy:
