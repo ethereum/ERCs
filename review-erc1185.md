@@ -1,6 +1,5 @@
 # Review: ERC-1185 — Storage of DNS Records in ENS
 
-**Reviewer:** zzn@d3serve.xyz
 **Date:** 2026-04-30
 **Status under review:** Review
 **File:** `ERCS/erc-1185.md`
