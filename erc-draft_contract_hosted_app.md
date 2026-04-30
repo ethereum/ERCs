@@ -2,7 +2,7 @@
 eip: XXXX
 title: Contract-Hosted Application HTML
 description: A view-only interface for a contract to serve its own self-contained HTML dapp.
-author: z0r0z (@z0r0z)
+author: z0r0z (@z0r0z), ndavd (@ndavd)
 discussions-to: https://ethereum-magicians.org/t/erc-xxxx-contract-hosted-application-html/28407
 status: Draft
 type: Standards Track
