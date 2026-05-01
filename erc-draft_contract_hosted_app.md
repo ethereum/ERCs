@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8244
 title: Contract-Hosted Application HTML
 description: A view-only interface for a contract to serve its own self-contained HTML dapp.
 author: z0r0z (@z0r0z), ndavd (@ndavd)
