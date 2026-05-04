@@ -630,7 +630,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC7401 {
                 // At this point we know pendingRecursiveBurns must be at least 1
                 pendingRecursiveBurns = maxChildrenBurns - totalChildBurns;
             }
-            // We substract one to the next level to count for the token being burned, then add it again on returns
+            // We subtract one to the next level to count for the token being burned, then add it again on returns
             // This is to allow the behavior of 0 recursive burns meaning only the current token is deleted.
             totalChildBurns +=
                 IERC7401(children[i].contractAddress).burn(
@@ -1226,7 +1226,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC7401 {
      *  ]
      * @param parentId ID of the parent token for which the pending child token is being retrieved
      * @param index Index of the child token in the parent token's pending child tokens array
-     * @return struct A Child struct containting data about the specified child
+     * @return struct A Child struct containing data about the specified child
      */
     function pendingChildOf(
         uint256 parentId,
@@ -1391,7 +1391,7 @@ contract NestableToken is Context, IERC165, IERC721, IERC7401 {
      *  ]
      * @dev To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      * @param parentId ID of the token that has accepted a pending child token
-     * @param childIndex Index of the child token that was accpeted in the given parent token's pending children array
+     * @param childIndex Index of the child token that was accepted in the given parent token's pending children array
      * @param childAddress Address of the collection smart contract of the child token that was expected to be located
      *  at the specified index of the given parent token's pending children array
      * @param childId ID of the child token that was expected to be located at the specified index of the given parent

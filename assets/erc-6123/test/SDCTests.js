@@ -59,6 +59,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(confirm_call).to.emit(sdc, "TradeConfirmed");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
      await expect(trade_state).equal(TradeState.Settled);
+     await expect(confirm_call).to.emit(sdc, "SettlementAwaitingInitiation");
      let sdc_balance = await token.connect(counterparty1).balanceOf(sdc.address);
      let cp1_balance = await token.connect(counterparty1).balanceOf(counterparty1.address);
      let cp2_balance = await token.connect(counterparty1).balanceOf(counterparty2.address);
@@ -260,7 +261,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
      await expect(initSettlementPhase).to.emit(sdc, "SettlementRequested");
 
-     const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount,"settlementData");
+     const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount, "settlementData");
      await expect(performSettlementCall).to.emit(sdc, "SettlementDetermined");
      let trade_state =  await sdc.connect(counterparty1).getTradeState();
      await expect(trade_state).equal(TradeState.Settled);
@@ -271,6 +272,8 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
      await expect(cp1_balance).equal(initialLiquidityBalance-terminationFee-marginBufferAmount+upfront+settlementAmount);
      await expect(cp2_balance).equal(initialLiquidityBalance-terminationFee-marginBufferAmount-upfront-settlementAmount);
 
+     const afterSettlementCall = sdc.connect(counterparty1).afterSettlement();
+     await expect(performSettlementCall).to.emit(sdc, "SettlementAwaitingInitiation");
    });
 
     it("11. Failed settlement followed by Termination with Pledge Case", async () => {
@@ -290,7 +293,7 @@ describe("Livecycle Unit-Tests for SDC Plege Balance", () => {
         const initSettlementPhase = sdc.connect(counterparty2).initiateSettlement();
         await expect(initSettlementPhase).to.emit(sdc, "SettlementRequested");
 
-        const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount,"settlementData");
+        const performSettlementCall = sdc.connect(counterparty1).performSettlement(settlementAmount, "settlementData");
         await expect(performSettlementCall).to.emit(sdc, "SettlementDetermined");
         let trade_state =  await sdc.connect(counterparty1).getTradeState();
         let sdc_balance = await token.connect(counterparty1).balanceOf(sdc.address);

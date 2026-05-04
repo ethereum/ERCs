@@ -12,7 +12,7 @@ import {ChainidTools} from "../utils/ChainidTools.sol";
 
 /**
  * @title Minimalistic Fungible Fractions Data Object
- * @notice DataObject with base funtionality of Fungible Fractions (Can be used for ERC1155-Compatible DataManagers)
+ * @notice DataObject with base functionality of Fungible Fractions (Can be used for ERC1155-Compatible DataManagers)
  * @dev This contract exposes base functionality of Fungible Fraction tokens, including
  *      balanceOf, totalSupply, exists, transferFrom, mint, burn and their batch variants.
  *

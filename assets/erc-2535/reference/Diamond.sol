@@ -477,7 +477,7 @@ contract OwnershipFacet is IERC173 {
 // DiamondInit can be used during deployment or for upgrades.
 
 // Adding parameters to the `init` or other functions you add here can make a single deployed
-// DiamondInit contract reusable accross upgrades, and can be used for multiple diamonds.
+// DiamondInit contract reusable across upgrades, and can be used for multiple diamonds.
 
 contract DiamondInit {    
 
