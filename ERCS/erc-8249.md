@@ -2,6 +2,7 @@
 title: Generic Relayer Architecture for Smart Accounts
 description: A standardized off-chain relayer architecture enabling gasless and token-fee transactions smart accounts.
 author: Sean Sing (@seansing), Lucas Lim (@limyeechern), Pedro Cruz (@pedrocrvz), Ben Price (@bennoprice), Luis Schliesske (@gitpusha), Charlie Sibbach (@csibbach), Todd Chapman (@TtheBC01), Nicholas Yong (@yongqjn), Ralph Li (@hsuanmingli), Lyu Min (@rockmin216), Jinzhou Wu (@jinzhou.wu)
+discussions-to: https://ethereum-magicians.org/t/erc-8249-generic-relayer-architecture-for-smart-accounts/28426
 status: Draft
 type: Standards Track
 category: ERC
