@@ -22,7 +22,7 @@
     },
     "display": {
       "formats": {
-        "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline) PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
+        "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
           "$id": "Permit2 Permit Single",
           "intent": "Authorize spending of token",
           "fields": [
@@ -33,7 +33,7 @@
             { "path": "sigDeadline", "visible": "never" }
           ]
         },
-        "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline) PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
+        "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)": {
           "$id": "Permit2 Permit Batch",
           "intent": "Authorize spending of tokens",
           "fields": [
