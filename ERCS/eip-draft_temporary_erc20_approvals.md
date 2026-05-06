@@ -1,0 +1,190 @@
+---
+title: Temporary ERC-20 Approvals
+description: ERC-20 approvals that expire after a bounded duration
+author: Moody Salem (@moodysalem) <moody.salem@gmail.com>
+discussions-to: https://x.com/sendmoodz/status/2051768616660406649?s=20
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-05-06
+requires: 20
+---
+
+## Abstract
+
+This specification extends [ERC-20](./eip-20.md) approvals with an expiration timestamp. Existing `approve(address,uint256)` calls remain valid, but approvals created through that function expire after the token contract's default maximum approval duration. A new overload allows token owners to approve a spender for a shorter duration, and a new view function exposes both the current allowance and its expiration.
+
+## Motivation
+
+ERC-20 approvals are commonly granted for values much larger than the intended immediate spend, including unlimited approvals. These allowances remain valid until explicitly changed, creating a durable authorization that can be used long after the user has forgotten the original interaction.
+
+Temporary approvals preserve the existing ERC-20 approval workflow while bounding the lifetime of each authorization. Wallets and applications can continue to call `approve(address,uint256)`, while contracts and interfaces that understand this extension can request shorter-lived approvals and display expiration information to users.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+Compliant contracts MUST implement the following interface in addition to [ERC-20](./eip-20.md):
+
+```solidity
+interface IERC20TemporaryApprovals /* is IERC20 */ {
+    /// @notice Returns the maximum approval duration, in seconds.
+    function maxApprovalDuration() external view returns (uint32);
+
+    /// @notice Returns the expiration timestamp and current allowance.
+    function allowanceAndExpiration(address owner, address spender)
+        external
+        view
+        returns (uint64 expiration, uint256 allowance);
+
+    /// @notice Approves `spender` for `amount` tokens for `duration` seconds.
+    function approve(address spender, uint256 amount, uint32 duration)
+        external
+        returns (bool success);
+}
+```
+
+### Approval expiration
+
+`maxApprovalDuration()` MUST return the maximum duration, in seconds, that any approval can remain valid after it is created. The same value is the default duration used by `approve(address spender, uint256 amount)`.
+
+For every successful call to `approve(address spender, uint256 amount)`, the contract MUST set `spender`'s allowance from `msg.sender` to `amount` and MUST set its expiration to `block.timestamp + maxApprovalDuration()`.
+
+For every successful call to `approve(address spender, uint256 amount, uint32 duration)`, the contract MUST set `spender`'s allowance from `msg.sender` to `amount` and MUST set its expiration to `block.timestamp + duration`.
+
+The `duration` argument MUST be less than or equal to `maxApprovalDuration()`. A call with a longer duration MUST revert or return `false`.
+
+If `amount` is zero, the contract MUST set the allowance to zero. The contract SHOULD set the corresponding expiration to zero.
+
+Implementations MUST NOT create an approval whose expiration is greater than `type(uint64).max`. Implementations MAY revert if `block.timestamp + duration` cannot be represented as a `uint64`.
+
+### Allowance accounting
+
+The ERC-20 `allowance(address owner, address spender)` function MUST return zero when the allowance has expired. Otherwise, it MUST return the unexpired allowance.
+
+The `allowanceAndExpiration(address owner, address spender)` function MUST return the expiration timestamp for the approval and the same effective allowance that `allowance(owner, spender)` would return. Therefore, if the approval has expired, `allowanceAndExpiration(owner, spender)` MUST return zero as the allowance.
+
+The ERC-20 `transferFrom(address from, address to, uint256 amount)` function MUST treat an expired allowance as zero. If the allowance is unexpired and sufficient, `transferFrom` MUST decrease the allowance by `amount` unless the implementation uses an allowance sentinel that is not decreased by ERC-20 transfers.
+
+When `transferFrom` decreases an unexpired allowance, the expiration timestamp MUST remain unchanged. If the resulting allowance is zero, the implementation MAY set the expiration to zero.
+
+### Events
+
+Every successful call to either `approve(address spender, uint256 amount)` or `approve(address spender, uint256 amount, uint32 duration)` MUST emit the ERC-20 `Approval` event.
+
+This specification does not define a new approval event. Consumers that need expiration data SHOULD call `allowanceAndExpiration(owner, spender)`.
+
+### Storage layout
+
+This specification does not require a particular storage layout.
+
+Implementations MAY store the expiration timestamp in the upper 64 bits of a token allowance storage word and the allowance amount in the lower 192 bits:
+
+```solidity
+uint256 packed = (uint256(expiration) << 192) | allowance;
+```
+
+This layout leaves 192 bits for the allowance amount. 192 bits is more than enough to represent the total supply of every ERC-20 token in existence at the time of writing, while preserving a single storage slot for the owner-spender allowance entry.
+
+Implementations that use this layout MUST ensure that the stored allowance amount fits in 192 bits, or MUST use a separate representation for larger allowances.
+
+## Rationale
+
+Using `approve(address,uint256)` as a temporary approval with a default duration preserves the existing ERC-20 approval flow. Applications that are unaware of this extension can keep using the existing ABI, and users receive a bounded authorization instead of a permanent one.
+
+The `approve(address,uint256,uint32)` overload allows applications to request a shorter duration without introducing a new verb or changing the meaning of ERC-20 `approve`. A `uint32` duration is sufficient to express approximately 136 years in seconds, which is longer than any reasonable temporary approval.
+
+`allowanceAndExpiration` returns `expiration` before `allowance` so callers can decode both values without ambiguity and can present the expiration even when the effective allowance is zero.
+
+The packed storage layout is optional because some tokens may need to preserve full-width `uint256` allowance values or existing storage layouts. For new tokens with bounded supply and ordinary allowance semantics, the packed layout allows this extension to be implemented without adding a second storage slot per allowance.
+
+## Backwards Compatibility
+
+The new methods are ABI-compatible with ERC-20 because they use new function selectors. Existing calls to `approve(address,uint256)`, `allowance(address,address)`, and `transferFrom(address,address,uint256)` remain valid.
+
+This specification changes the long-term behavior of allowances created by `approve(address,uint256)`: they expire after `maxApprovalDuration()` seconds instead of remaining valid indefinitely. Contracts that assume an ERC-20 allowance remains valid forever SHOULD refresh approvals before use or query `allowanceAndExpiration`.
+
+Applications that use unlimited approvals MAY need to request a new approval after expiration. The approval amount can remain unchanged; only the approval lifetime is bounded.
+
+## Test Cases
+
+1. If `maxApprovalDuration()` returns `86400` and `approve(spender, 100)` is called at timestamp `1_000_000`, then `allowanceAndExpiration(owner, spender)` returns expiration `1_086_400` and allowance `100`.
+
+2. If `approve(spender, 100, 3600)` is called at timestamp `1_000_000`, then `allowanceAndExpiration(owner, spender)` returns expiration `1_003_600` and allowance `100`.
+
+3. If `approve(spender, 100, maxApprovalDuration() + 1)` is called, the call reverts or returns `false`.
+
+4. If an allowance has expiration `1_003_600` and the current timestamp is `1_003_600`, `allowance(owner, spender)` returns `0` and `transferFrom(owner, to, 1)` fails unless another authorization applies.
+
+5. If an unexpired allowance is `100` and `transferFrom(owner, to, 25)` succeeds, `allowanceAndExpiration(owner, spender)` returns the same expiration timestamp and allowance `75`.
+
+## Reference Implementation
+
+The following example shows the core packing behavior. It omits unrelated ERC-20 balance and supply logic.
+
+```solidity
+abstract contract ERC20TemporaryApprovals {
+    uint32 public immutable maxApprovalDuration;
+
+    mapping(address owner => mapping(address spender => uint256 packed)) internal _allowances;
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    function allowance(address owner, address spender) public view returns (uint256) {
+        (, uint256 amount) = allowanceAndExpiration(owner, spender);
+        return amount;
+    }
+
+    function allowanceAndExpiration(address owner, address spender)
+        public
+        view
+        returns (uint64 expiration, uint256 amount)
+    {
+        uint256 packed = _allowances[owner][spender];
+        expiration = uint64(packed >> 192);
+        amount = packed & ((uint256(1) << 192) - 1);
+
+        if (amount == 0) {
+            return (0, 0);
+        }
+
+        if (expiration <= block.timestamp) {
+            return (expiration, 0);
+        }
+    }
+
+    function approve(address spender, uint256 amount) public returns (bool) {
+        return approve(spender, amount, maxApprovalDuration);
+    }
+
+    function approve(address spender, uint256 amount, uint32 duration) public returns (bool) {
+        require(duration <= maxApprovalDuration, "duration exceeds maximum");
+        require(amount <= type(uint192).max, "allowance exceeds 192 bits");
+
+        uint256 expirationValue = amount == 0 ? 0 : block.timestamp + duration;
+        require(expirationValue <= type(uint64).max, "expiration exceeds 64 bits");
+
+        uint64 expiration = uint64(expirationValue);
+        _allowances[msg.sender][spender] = (uint256(expiration) << 192) | amount;
+
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+}
+```
+
+## Security Considerations
+
+Temporary approvals reduce the duration of approval risk but do not remove the ERC-20 approval race condition. User interfaces SHOULD continue to follow ERC-20 guidance for changing a non-zero allowance to another non-zero allowance.
+
+Contracts that pull tokens using `transferFrom` SHOULD be prepared for approvals to expire between transaction construction and execution. This is especially relevant for transactions submitted through public mempools or delayed execution systems.
+
+Short approval durations can improve user safety but can also cause failed transactions if a user signs an approval and the intended use is delayed. Wallets and applications SHOULD choose durations that account for expected transaction latency.
+
+Implementations using packed storage MUST avoid truncating allowance values silently. If an approval amount does not fit in the lower 192 bits, the implementation MUST reject it or store it using another representation.
+
+The expiration timestamp is based on `block.timestamp`, which block producers can influence within normal consensus bounds. Approval durations SHOULD include enough margin that small timestamp variation does not change the user's expected outcome.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
