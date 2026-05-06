@@ -1,24 +1,24 @@
 ---
-title: Temporary ERC-20 Approvals
-description: ERC-20 approvals that expire after a bounded duration
+title: Temporary Token Approvals
+description: Token approvals expire after a bounded duration.
 author: Moody Salem (@moodysalem) <moody.salem@gmail.com>
 discussions-to: https://x.com/sendmoodz/status/2051768616660406649?s=20
 status: Draft
 type: Standards Track
 category: ERC
 created: 2026-05-06
-requires: 20
+requires: 20, 2612
 ---
 
 ## Abstract
 
-This specification extends [ERC-20](./eip-20.md) approvals with an expiration timestamp. Existing `approve(address,uint256)` calls remain valid, but approvals created through that function expire after the token contract's default maximum approval duration. A new overload allows token owners to approve a spender for a shorter duration, and a new view function exposes both the current allowance and its expiration.
+This specification extends [ERC-20](./eip-20.md) approvals with an expiration timestamp. Existing `approve(address,uint256)` calls remain valid, but approvals created through that function expire after the token contract's default maximum approval duration. If the token also implements [ERC-2612](./eip-2612.md), approvals created through `permit` expire under the same default-duration rule without changing the `permit` signature. A new overload allows token owners to approve a spender for a shorter duration, and a new view function exposes both the current allowance and its expiration.
 
 ## Motivation
 
 ERC-20 approvals are commonly granted for values much larger than the intended immediate spend, including unlimited approvals. These allowances remain valid until explicitly changed, creating a durable authorization that can be used long after the user has forgotten the original interaction.
 
-Temporary approvals preserve the existing ERC-20 approval workflow while bounding the lifetime of each authorization. Wallets and applications can continue to call `approve(address,uint256)`, while contracts and interfaces that understand this extension can request shorter-lived approvals and display expiration information to users.
+Temporary approvals preserve the existing ERC-20 approval workflow while bounding the lifetime of each authorization. Wallets and applications can continue to call `approve(address,uint256)` or, where supported, `permit`, while contracts and interfaces that understand this extension can request shorter-lived approvals and display expiration information to users.
 
 ## Specification
 
@@ -58,6 +58,14 @@ If `amount` is zero, the contract MUST set the allowance to zero. The contract S
 
 Implementations MUST NOT create an approval whose expiration is greater than `type(uint64).max`. Implementations MAY revert if `block.timestamp + duration` cannot be represented as a `uint64`.
 
+### Signed approvals
+
+If a compliant contract also implements [ERC-2612](./eip-2612.md), every successful call to `permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)` MUST set `spender`'s allowance from `owner` to `value` and MUST set its expiration to `block.timestamp + maxApprovalDuration()`.
+
+The `permit` function signature, signed typed data, and nonce behavior MUST remain unchanged from ERC-2612. This specification does not add a duration parameter to `permit`.
+
+The ERC-2612 `deadline` parameter MUST continue to define only the latest timestamp at which the signed permit may be submitted. It MUST NOT be treated as the approval expiration timestamp.
+
 ### Allowance accounting
 
 The ERC-20 `allowance(address owner, address spender)` function MUST return zero when the allowance has expired. Otherwise, it MUST return the unexpired allowance.
@@ -71,6 +79,8 @@ When `transferFrom` decreases an unexpired allowance, the expiration timestamp M
 ### Events
 
 Every successful call to either `approve(address spender, uint256 amount)` or `approve(address spender, uint256 amount, uint32 duration)` MUST emit the ERC-20 `Approval` event.
+
+Every successful call to ERC-2612 `permit`, if supported, MUST emit the ERC-20 `Approval` event.
 
 This specification does not define a new approval event. Consumers that need expiration data SHOULD call `allowanceAndExpiration(owner, spender)`.
 
@@ -94,6 +104,8 @@ Using `approve(address,uint256)` as a temporary approval with a default duration
 
 The `approve(address,uint256,uint32)` overload allows applications to request a shorter duration without introducing a new verb or changing the meaning of ERC-20 `approve`. A `uint32` duration is sufficient to express approximately 136 years in seconds, which is longer than any reasonable temporary approval.
 
+The ERC-2612 `permit` signature is unchanged so that existing wallets, typed-data encoders, and permit-aware applications do not need to support a second signed approval format. This means signed approvals use the token's default maximum approval duration. Bundling exact-spend approvals into transactions is expected to become more common over time, which reduces the need for a duration-specific permit variant.
+
 `allowanceAndExpiration` returns `expiration` before `allowance` so callers can decode both values without ambiguity and can present the expiration even when the effective allowance is zero.
 
 The packed storage layout is optional because some tokens may need to preserve full-width `uint256` allowance values or existing storage layouts. For new tokens with bounded supply and ordinary allowance semantics, the packed layout allows this extension to be implemented without adding a second storage slot per allowance.
@@ -102,9 +114,11 @@ The packed storage layout is optional because some tokens may need to preserve f
 
 The new methods are ABI-compatible with ERC-20 because they use new function selectors. Existing calls to `approve(address,uint256)`, `allowance(address,address)`, and `transferFrom(address,address,uint256)` remain valid.
 
-This specification changes the long-term behavior of allowances created by `approve(address,uint256)`: they expire after `maxApprovalDuration()` seconds instead of remaining valid indefinitely. Contracts that assume an ERC-20 allowance remains valid forever SHOULD refresh approvals before use or query `allowanceAndExpiration`.
+This specification changes the long-term behavior of allowances created by `approve(address,uint256)` and, if supported, ERC-2612 `permit`: they expire after `maxApprovalDuration()` seconds instead of remaining valid indefinitely. Contracts that assume an ERC-20 allowance remains valid forever SHOULD refresh approvals before use or query `allowanceAndExpiration`.
 
 Applications that use unlimited approvals MAY need to request a new approval after expiration. The approval amount can remain unchanged; only the approval lifetime is bounded.
+
+This specification does not change the ERC-2612 `permit` ABI or signed typed data.
 
 ## Test Cases
 
@@ -117,6 +131,10 @@ Applications that use unlimited approvals MAY need to request a new approval aft
 4. If an allowance has expiration `1_003_600` and the current timestamp is `1_003_600`, `allowance(owner, spender)` returns `0` and `transferFrom(owner, to, 1)` fails unless another authorization applies.
 
 5. If an unexpired allowance is `100` and `transferFrom(owner, to, 25)` succeeds, `allowanceAndExpiration(owner, spender)` returns the same expiration timestamp and allowance `75`.
+
+6. If an ERC-2612 `permit(owner, spender, 100, deadline, v, r, s)` succeeds at timestamp `1_000_000` and `maxApprovalDuration()` returns `86400`, then `allowanceAndExpiration(owner, spender)` returns expiration `1_086_400` and allowance `100`.
+
+7. If an ERC-2612 `permit` has `deadline` `1_200_000` and succeeds at timestamp `1_000_000`, the approval expiration is still `block.timestamp + maxApprovalDuration()`, not `1_200_000`.
 
 ## Reference Implementation
 
@@ -154,10 +172,21 @@ abstract contract ERC20TemporaryApprovals {
     }
 
     function approve(address spender, uint256 amount) public returns (bool) {
-        return approve(spender, amount, maxApprovalDuration);
+        _approve(msg.sender, spender, amount, maxApprovalDuration);
+        return true;
     }
 
     function approve(address spender, uint256 amount, uint32 duration) public returns (bool) {
+        _approve(msg.sender, spender, amount, duration);
+        return true;
+    }
+
+    // ERC-2612 implementations call this after validating the permit signature and nonce.
+    function _approveWithDefaultDuration(address owner, address spender, uint256 amount) internal {
+        _approve(owner, spender, amount, maxApprovalDuration);
+    }
+
+    function _approve(address owner, address spender, uint256 amount, uint32 duration) internal {
         require(duration <= maxApprovalDuration, "duration exceeds maximum");
         require(amount <= type(uint192).max, "allowance exceeds 192 bits");
 
@@ -165,10 +194,9 @@ abstract contract ERC20TemporaryApprovals {
         require(expirationValue <= type(uint64).max, "expiration exceeds 64 bits");
 
         uint64 expiration = uint64(expirationValue);
-        _allowances[msg.sender][spender] = (uint256(expiration) << 192) | amount;
+        _allowances[owner][spender] = (uint256(expiration) << 192) | amount;
 
-        emit Approval(msg.sender, spender, amount);
-        return true;
+        emit Approval(owner, spender, amount);
     }
 }
 ```
@@ -180,6 +208,8 @@ Temporary approvals reduce the duration of approval risk but do not remove the E
 Contracts that pull tokens using `transferFrom` SHOULD be prepared for approvals to expire between transaction construction and execution. This is especially relevant for transactions submitted through public mempools or delayed execution systems.
 
 Short approval durations can improve user safety but can also cause failed transactions if a user signs an approval and the intended use is delayed. Wallets and applications SHOULD choose durations that account for expected transaction latency.
+
+Wallets and applications displaying ERC-2612 permits SHOULD distinguish the permit submission deadline from the resulting approval expiration. The former controls signature validity; the latter controls allowance validity after the permit is submitted.
 
 Implementations using packed storage MUST avoid truncating allowance values silently. If an approval amount does not fit in the lower 192 bits, the implementation MUST reject it or store it using another representation.
 
