@@ -56,6 +56,8 @@ The `duration` argument MUST be less than or equal to `maxApprovalDuration()`. A
 
 If `amount` is zero, the contract MUST set the allowance to zero. The contract SHOULD set the corresponding expiration to zero.
 
+Implementations MAY support `type(uint256).max` as a maximum allowance sentinel. If such a sentinel is used, `allowance(owner, spender)` and `allowanceAndExpiration(owner, spender)` MUST return `type(uint256).max` while the approval is unexpired.
+
 Implementations MUST NOT create an approval whose expiration is greater than `type(uint64).max`. Implementations MAY revert if `block.timestamp + duration` cannot be represented as a `uint64`.
 
 ### Signed approvals
@@ -74,7 +76,7 @@ The `allowanceAndExpiration(address owner, address spender)` function MUST retur
 
 The ERC-20 `transferFrom(address from, address to, uint256 amount)` function MUST treat an expired allowance as zero. If the allowance is unexpired and sufficient, `transferFrom` MUST decrease the allowance by `amount` unless the implementation uses an allowance sentinel that is not decreased by ERC-20 transfers.
 
-When `transferFrom` decreases an unexpired allowance, the expiration timestamp MUST remain unchanged. If the resulting allowance is zero, the implementation MAY set the expiration to zero.
+When `transferFrom` decreases an unexpired allowance, the expiration timestamp MUST remain unchanged. If the resulting allowance is zero, the implementation MAY zero the allowance storage slot. If the slot is zeroed, `allowanceAndExpiration(owner, spender)` returns expiration `0` even if the original approval expiration had not passed.
 
 ### Events
 
@@ -96,7 +98,9 @@ uint256 packed = (uint256(expiration) << 192) | allowance;
 
 This layout leaves 192 bits for the allowance amount. 192 bits is more than enough to represent the total supply of every ERC-20 token in existence at the time of writing, while preserving a single storage slot for the owner-spender allowance entry.
 
-Implementations that use this layout MUST ensure that the stored allowance amount fits in 192 bits, or MUST use a separate representation for larger allowances.
+Implementations that use this layout MUST ensure that the stored allowance amount fits in 192 bits, is exactly `type(uint256).max`, or uses a separate representation for larger allowances. Packed implementations that do not use a separate representation SHOULD reject approval amounts greater than `type(uint192).max` and less than `type(uint256).max`.
+
+If a packed implementation represents `type(uint256).max` by reserving one lower-192-bit value, it MUST also reject approval of that reserved value unless the requested amount is `type(uint256).max`.
 
 ## Rationale
 
@@ -109,6 +113,8 @@ The ERC-2612 `permit` signature is unchanged so that existing wallets, typed-dat
 `allowanceAndExpiration` returns `expiration` before `allowance` so callers can decode both values without ambiguity and can present the expiration even when the effective allowance is zero.
 
 The packed storage layout is optional because some tokens may need to preserve full-width `uint256` allowance values or existing storage layouts. For new tokens with bounded supply and ordinary allowance semantics, the packed layout allows this extension to be implemented without adding a second storage slot per allowance.
+
+Some ERC-20 implementations treat `type(uint256).max` as an infinite-approval sentinel and do not decrement that allowance during `transferFrom`, saving gas for repeated transfers. Allowing this single full-width value preserves compatibility with applications that request maximum approvals while still rejecting intermediate values that cannot be represented in the 192-bit packed amount field.
 
 ## Backwards Compatibility
 
@@ -132,9 +138,17 @@ This specification does not change the ERC-2612 `permit` ABI or signed typed dat
 
 5. If an unexpired allowance is `100` and `transferFrom(owner, to, 25)` succeeds, `allowanceAndExpiration(owner, spender)` returns the same expiration timestamp and allowance `75`.
 
-6. If an ERC-2612 `permit(owner, spender, 100, deadline, v, r, s)` succeeds at timestamp `1_000_000` and `maxApprovalDuration()` returns `86400`, then `allowanceAndExpiration(owner, spender)` returns expiration `1_086_400` and allowance `100`.
+6. If an unexpired allowance is `25` and `transferFrom(owner, to, 25)` succeeds, the implementation may clear the storage slot so `allowanceAndExpiration(owner, spender)` returns expiration `0` and allowance `0`.
 
-7. If an ERC-2612 `permit` has `deadline` `1_200_000` and succeeds at timestamp `1_000_000`, the approval expiration is still `block.timestamp + maxApprovalDuration()`, not `1_200_000`.
+7. If `approve(spender, type(uint256).max)` succeeds, `allowance(owner, spender)` returns `type(uint256).max` until the approval expires and `transferFrom` may leave the allowance unchanged.
+
+8. If a packed implementation does not use a separate representation for larger allowances, `approve(spender, type(uint192).max + 1)` reverts or returns `false`.
+
+9. If a packed implementation reserves `type(uint192).max` to represent `type(uint256).max`, `approve(spender, type(uint192).max)` reverts or returns `false`.
+
+10. If an ERC-2612 `permit(owner, spender, 100, deadline, v, r, s)` succeeds at timestamp `1_000_000` and `maxApprovalDuration()` returns `86400`, then `allowanceAndExpiration(owner, spender)` returns expiration `1_086_400` and allowance `100`.
+
+11. If an ERC-2612 `permit` has `deadline` `1_200_000` and succeeds at timestamp `1_000_000`, the approval expiration is still `block.timestamp + maxApprovalDuration()`, not `1_200_000`.
 
 ## Reference Implementation
 
@@ -143,6 +157,8 @@ The following example shows the core packing behavior. It omits unrelated ERC-20
 ```solidity
 abstract contract ERC20TemporaryApprovals {
     uint32 public immutable maxApprovalDuration;
+    uint256 internal constant _AMOUNT_MASK = (uint256(1) << 192) - 1;
+    uint256 internal constant _MAX_AMOUNT_SENTINEL = _AMOUNT_MASK;
 
     mapping(address owner => mapping(address spender => uint256 packed)) internal _allowances;
 
@@ -160,7 +176,7 @@ abstract contract ERC20TemporaryApprovals {
     {
         uint256 packed = _allowances[owner][spender];
         expiration = uint64(packed >> 192);
-        amount = packed & ((uint256(1) << 192) - 1);
+        amount = packed & _AMOUNT_MASK;
 
         if (amount == 0) {
             return (0, 0);
@@ -168,6 +184,10 @@ abstract contract ERC20TemporaryApprovals {
 
         if (expiration <= block.timestamp) {
             return (expiration, 0);
+        }
+
+        if (amount == _MAX_AMOUNT_SENTINEL) {
+            amount = type(uint256).max;
         }
     }
 
@@ -188,13 +208,17 @@ abstract contract ERC20TemporaryApprovals {
 
     function _approve(address owner, address spender, uint256 amount, uint32 duration) internal {
         require(duration <= maxApprovalDuration, "duration exceeds maximum");
-        require(amount <= type(uint192).max, "allowance exceeds 192 bits");
+        require(
+            amount < type(uint192).max || amount == type(uint256).max,
+            "unsupported allowance"
+        );
 
         uint256 expirationValue = amount == 0 ? 0 : block.timestamp + duration;
         require(expirationValue <= type(uint64).max, "expiration exceeds 64 bits");
 
         uint64 expiration = uint64(expirationValue);
-        _allowances[owner][spender] = (uint256(expiration) << 192) | amount;
+        uint256 storedAmount = amount == type(uint256).max ? _MAX_AMOUNT_SENTINEL : amount;
+        _allowances[owner][spender] = (uint256(expiration) << 192) | storedAmount;
 
         emit Approval(owner, spender, amount);
     }
