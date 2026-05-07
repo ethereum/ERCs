@@ -3,7 +3,7 @@ eip: 8257
 title: Agent Tool Registry
 description: Minimal onchain registry for AI agent tools with extensible predicate-based access control
 author: Cody Sears (@CodySearsOS), Ryan Ghods (@ryanio)
-discussions-to: https://ethereum-magicians.org/t/erc-draft-agent-tool-registry/28457
+discussions-to: https://ethereum-magicians.org/t/erc-8257-agent-tool-registry/28457
 status: Draft
 type: Standards Track
 category: ERC
