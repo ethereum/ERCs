@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8257
 title: Agent Tool Registry
 description: Minimal onchain registry for AI agent tools with extensible predicate-based access control
 author: Cody Sears (@CodySearsOS), Ryan Ghods (@ryanio)
