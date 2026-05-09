@@ -520,7 +520,7 @@ Contracts implementing this standard MUST also implement [ERC-165](./eip-165.md)
 
 ## Reference Implementation
 
-A reference implementation is provided in the assets directory as `../assets/eip-XXXX/SovereignDiveLog.sol`. It implements the complete `IDiveLog` interface with:
+A reference implementation is provided in the assets directory as `../assets/erc-XXXX/SovereignDiveLog.sol`. It implements the complete `IDiveLog` interface with:
 
 - Sequential dive ID assignment
 - Append-only storage with date indexing
