@@ -110,6 +110,16 @@ struct DiverProfile {
     UnitSystem units;
 }
 
+struct DiveInput {
+    uint64 diveDate;
+    UnitSystem units;
+    DiveData data;
+    Environment env;
+    Decompression decomp;
+    GasData gas;
+    string remarks;
+}
+
 struct DiveLog {
     uint256 id;
     uint64 diveDate;
@@ -122,8 +132,8 @@ struct DiveLog {
 }
 
 struct VoidInfo {
-    bool isVoided;
     uint256 supersededById;
+    bool isVoided;
     address voidedBy;
     uint64 voidedAt;
     string reason;

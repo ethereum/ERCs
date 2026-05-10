@@ -16,6 +16,7 @@ contract SovereignDiveLog is IDiveLog {
     mapping(uint256 => Attestation[]) private _attestations;
     mapping(uint256 => mapping(address => bool)) private _hasAttested;
     mapping(uint64 => uint256[]) private _divesByDate;
+    mapping(address => uint256) private _attesterNonces;
 
     constructor(
         address _owner,
@@ -47,75 +48,54 @@ contract SovereignDiveLog is IDiveLog {
         _;
     }
 
-    function logDive(
-        uint64 diveDate,
-        UnitSystem units,
-        DiveData calldata data,
-        Environment calldata env,
-        Decompression calldata decomp,
-        GasData calldata gas,
-        string calldata remarks
-    ) external onlyOwner returns (uint256) {
-        if (data.maxDepth <= 0) revert InvalidDepth();
-        if (data.bottomTimeMinutes == 0) revert InvalidTimes();
+    function logDive(DiveInput calldata input) external onlyOwner returns (uint256) {
+        if (input.data.maxDepth <= 0) revert InvalidDepth();
+        if (input.data.bottomTimeMinutes == 0) revert InvalidTimes();
 
         uint256 diveId = ++diveCount;
 
         _dives[diveId] = DiveLog({
             id: diveId,
-            diveDate: diveDate,
-            units: units,
-            data: data,
-            env: env,
-            decomp: decomp,
-            gas: gas,
-            remarks: remarks
+            diveDate: input.diveDate,
+            units: input.units,
+            data: input.data,
+            env: input.env,
+            decomp: input.decomp,
+            gas: input.gas,
+            remarks: input.remarks
         });
 
-        _divesByDate[diveDate].push(diveId);
+        _divesByDate[input.diveDate].push(diveId);
 
-        emit DiveLogged(diveId, diveDate);
+        emit DiveLogged(diveId, input.diveDate);
         return diveId;
     }
 
-    function batchLogDives(
-        uint64[] calldata diveDates,
-        UnitSystem[] calldata units,
-        DiveData[] calldata dataArr,
-        Environment[] calldata envArr,
-        Decompression[] calldata decompArr,
-        GasData[] calldata gasArr,
-        string[] calldata remarksArr
-    ) external onlyOwner returns (uint256[] memory) {
-        uint256 len = diveDates.length;
-        if (units.length != len || dataArr.length != len || envArr.length != len
-            || decompArr.length != len || gasArr.length != len || remarksArr.length != len) {
-            revert ArrayLengthMismatch();
-        }
-
+    function batchLogDives(DiveInput[] calldata inputs) external onlyOwner returns (uint256[] memory) {
+        uint256 len = inputs.length;
         uint256[] memory ids = new uint256[](len);
 
         for (uint256 i; i < len; ) {
-            if (dataArr[i].maxDepth <= 0) revert InvalidDepth();
-            if (dataArr[i].bottomTimeMinutes == 0) revert InvalidTimes();
+            if (inputs[i].data.maxDepth <= 0) revert InvalidDepth();
+            if (inputs[i].data.bottomTimeMinutes == 0) revert InvalidTimes();
 
             uint256 diveId = ++diveCount;
 
             _dives[diveId] = DiveLog({
                 id: diveId,
-                diveDate: diveDates[i],
-                units: units[i],
-                data: dataArr[i],
-                env: envArr[i],
-                decomp: decompArr[i],
-                gas: gasArr[i],
-                remarks: remarksArr[i]
+                diveDate: inputs[i].diveDate,
+                units: inputs[i].units,
+                data: inputs[i].data,
+                env: inputs[i].env,
+                decomp: inputs[i].decomp,
+                gas: inputs[i].gas,
+                remarks: inputs[i].remarks
             });
 
-            _divesByDate[diveDates[i]].push(diveId);
+            _divesByDate[inputs[i].diveDate].push(diveId);
             ids[i] = diveId;
 
-            emit DiveLogged(diveId, diveDates[i]);
+            emit DiveLogged(diveId, inputs[i].diveDate);
 
             unchecked { ++i; }
         }
@@ -130,13 +110,14 @@ contract SovereignDiveLog is IDiveLog {
     ) external onlyOwner {
         if (diveId == 0 || diveId > diveCount) revert DiveNotFound(diveId);
         if (_voids[diveId].isVoided) revert DiveAlreadyVoided(diveId);
-        if (supersededById != 0 && (supersededById == diveId || supersededById > diveCount)) {
-            revert InvalidSupersede(diveId, supersededById);
+        if (supersededById != 0) {
+            if (supersededById == diveId) revert InvalidSupersede(diveId, supersededById);
+            if (supersededById > diveCount) revert InvalidSupersede(diveId, supersededById);
         }
 
         _voids[diveId] = VoidInfo({
-            isVoided: true,
             supersededById: supersededById,
+            isVoided: true,
             voidedBy: msg.sender,
             voidedAt: uint64(block.timestamp),
             reason: reason
@@ -147,6 +128,7 @@ contract SovereignDiveLog is IDiveLog {
 
     function attestDive(
         uint256 diveId,
+        uint256 nonce,
         bytes calldata signature
     ) external {
         if (diveId == 0 || diveId > diveCount) revert DiveNotFound(diveId);
@@ -155,13 +137,16 @@ contract SovereignDiveLog is IDiveLog {
         bytes32 digest = DiveLogTypedData.attestationDigest(
             diveId,
             address(this),
-            block.chainid
+            block.chainid,
+            nonce
         );
 
         address attester = _recoverSigner(digest, signature);
         if (attester == address(0)) revert InvalidSignature();
+        if (_attesterNonces[attester] != nonce) revert NonceMismatch(_attesterNonces[attester], nonce);
         if (_hasAttested[diveId][attester]) revert AlreadyAttested(diveId, attester);
 
+        _attesterNonces[attester] = nonce + 1;
         _hasAttested[diveId][attester] = true;
         _attestations[diveId].push(Attestation({
             attester: attester,
@@ -222,6 +207,10 @@ contract SovereignDiveLog is IDiveLog {
 
     function profile() external view override returns (DiverProfile memory) {
         return _profile;
+    }
+
+    function attesterNonce(address attester) external view returns (uint256) {
+        return _attesterNonces[attester];
     }
 
     function updateProfile(

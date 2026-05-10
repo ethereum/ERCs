@@ -19,26 +19,11 @@ interface IDiveLog is IERC165 {
     error InvalidSupersede(uint256 voidedId, uint256 supersededId);
     error AlreadyAttested(uint256 diveId, address attester);
     error InvalidSignature();
+    error NonceMismatch(uint256 expected, uint256 provided);
 
-    function logDive(
-        uint64 diveDate,
-        UnitSystem units,
-        DiveData calldata data,
-        Environment calldata env,
-        Decompression calldata decomp,
-        GasData calldata gas,
-        string calldata remarks
-    ) external returns (uint256 diveId);
+    function logDive(DiveInput calldata input) external returns (uint256 diveId);
 
-    function batchLogDives(
-        uint64[] calldata diveDates,
-        UnitSystem[] calldata units,
-        DiveData[] calldata dataArr,
-        Environment[] calldata envArr,
-        Decompression[] calldata decompArr,
-        GasData[] calldata gasArr,
-        string[] calldata remarksArr
-    ) external returns (uint256[] memory diveIds);
+    function batchLogDives(DiveInput[] calldata inputs) external returns (uint256[] memory diveIds);
 
     function voidDive(
         uint256 diveId,
@@ -48,6 +33,7 @@ interface IDiveLog is IERC165 {
 
     function attestDive(
         uint256 diveId,
+        uint256 nonce,
         bytes calldata signature
     ) external;
 
@@ -60,6 +46,7 @@ interface IDiveLog is IERC165 {
     function getVoidInfo(uint256 diveId) external view returns (VoidInfo memory);
     function getAttestations(uint256 diveId) external view returns (Attestation[] memory);
     function profile() external view returns (DiverProfile memory);
+    function attesterNonce(address attester) external view returns (uint256);
 
     function updateProfile(
         string calldata name,
