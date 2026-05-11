@@ -1,5 +1,5 @@
 ---
-eip: <to be assigned>
+eip: 8260
 title: Dive Logbook
 description: A standard interface for storing, retrieving, and verifying dive log data.
 author: Brad Myrick (@BradMyrick)
