@@ -20,12 +20,6 @@ enum BreathingGas {
     Mixed
 }
 
-enum BiologicalSex {
-    Male,
-    Female,
-    Unspecified
-}
-
 enum DivePurpose {
     Training,
     Inspection,
@@ -64,7 +58,7 @@ struct DiveData {
     uint32 leaveBottomTime;
     uint32 reachSurfaceTime;
     uint32 bottomTimeMinutes;
-    int32 maxDepth;
+    uint32 maxDepth;
     int32 averageDepth;
     DiveMode mode;
     DivePurpose purpose;
@@ -99,15 +93,6 @@ struct GasData {
     uint32 cylinderPressureOut;
     uint32 gasConsumed;
     uint32 bailoutPressure;
-}
-
-struct DiverProfile {
-    string name;
-    uint8 age;
-    uint16 height;
-    uint16 weight;
-    BiologicalSex sex;
-    UnitSystem units;
 }
 
 struct DiveInput {

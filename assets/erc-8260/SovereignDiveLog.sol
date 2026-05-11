@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
 import "../interfaces/IDiveLogTypes.sol";
@@ -8,7 +8,6 @@ import "../interfaces/IDiveLogTypedData.sol";
 contract SovereignDiveLog is IDiveLog {
     address public immutable owner;
 
-    DiverProfile internal _profile;
     uint256 public diveCount;
 
     mapping(uint256 => DiveLog) private _dives;
@@ -18,24 +17,8 @@ contract SovereignDiveLog is IDiveLog {
     mapping(uint64 => uint256[]) private _divesByDate;
     mapping(address => uint256) private _attesterNonces;
 
-    constructor(
-        address _owner,
-        string memory _name,
-        uint8 _age,
-        uint16 _height,
-        uint16 _weight,
-        BiologicalSex _sex,
-        UnitSystem _units
-    ) {
+    constructor(address _owner) {
         owner = _owner;
-        _profile = DiverProfile({
-            name: _name,
-            age: _age,
-            height: _height,
-            weight: _weight,
-            sex: _sex,
-            units: _units
-        });
     }
 
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
@@ -49,7 +32,7 @@ contract SovereignDiveLog is IDiveLog {
     }
 
     function logDive(DiveInput calldata input) external onlyOwner returns (uint256) {
-        if (input.data.maxDepth <= 0) revert InvalidDepth();
+        if (input.data.maxDepth == 0) revert InvalidDepth();
         if (input.data.bottomTimeMinutes == 0) revert InvalidTimes();
 
         uint256 diveId = ++diveCount;
@@ -76,7 +59,7 @@ contract SovereignDiveLog is IDiveLog {
         uint256[] memory ids = new uint256[](len);
 
         for (uint256 i; i < len; ) {
-            if (inputs[i].data.maxDepth <= 0) revert InvalidDepth();
+            if (inputs[i].data.maxDepth == 0) revert InvalidDepth();
             if (inputs[i].data.bottomTimeMinutes == 0) revert InvalidTimes();
 
             uint256 diveId = ++diveCount;
@@ -205,31 +188,8 @@ contract SovereignDiveLog is IDiveLog {
         return _attestations[diveId];
     }
 
-    function profile() external view override returns (DiverProfile memory) {
-        return _profile;
-    }
-
     function attesterNonce(address attester) external view returns (uint256) {
         return _attesterNonces[attester];
-    }
-
-    function updateProfile(
-        string calldata _name,
-        uint8 _age,
-        uint16 _height,
-        uint16 _weight,
-        BiologicalSex _sex,
-        UnitSystem _units
-    ) external onlyOwner {
-        _profile = DiverProfile({
-            name: _name,
-            age: _age,
-            height: _height,
-            weight: _weight,
-            sex: _sex,
-            units: _units
-        });
-        emit ProfileUpdated();
     }
 
     function _recoverSigner(bytes32 digest, bytes calldata signature) internal pure returns (address) {

@@ -8,13 +8,11 @@ interface IDiveLog is IERC165 {
     event DiveLogged(uint256 indexed diveId, uint64 indexed diveDate);
     event DiveVoided(uint256 indexed diveId, uint256 indexed supersededById, address indexed voidedBy, string reason);
     event DiveAttested(uint256 indexed diveId, address indexed attester);
-    event ProfileUpdated();
 
     error NotOwner();
     error InvalidDepth();
     error InvalidTimes();
     error DiveNotFound(uint256 diveId);
-    error ArrayLengthMismatch();
     error DiveAlreadyVoided(uint256 diveId);
     error InvalidSupersede(uint256 voidedId, uint256 supersededId);
     error AlreadyAttested(uint256 diveId, address attester);
@@ -45,15 +43,5 @@ interface IDiveLog is IERC165 {
     function isDiveVoided(uint256 diveId) external view returns (bool);
     function getVoidInfo(uint256 diveId) external view returns (VoidInfo memory);
     function getAttestations(uint256 diveId) external view returns (Attestation[] memory);
-    function profile() external view returns (DiverProfile memory);
     function attesterNonce(address attester) external view returns (uint256);
-
-    function updateProfile(
-        string calldata name,
-        uint8 age,
-        uint16 height,
-        uint16 weight,
-        BiologicalSex sex,
-        UnitSystem units
-    ) external;
 }

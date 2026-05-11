@@ -16,7 +16,7 @@ library DiveLogTypedData {
     );
 
     bytes32 internal constant DIVE_DATA_TYPEHASH = keccak256(
-        "DiveData(uint32 leaveSurfaceTime,uint32 leaveBottomTime,uint32 reachSurfaceTime,uint32 bottomTimeMinutes,int32 maxDepth,int32 averageDepth,uint8 mode,uint8 purpose,uint8 suit)"
+        "DiveData(uint32 leaveSurfaceTime,uint32 leaveBottomTime,uint32 reachSurfaceTime,uint32 bottomTimeMinutes,uint32 maxDepth,int32 averageDepth,uint8 mode,uint8 purpose,uint8 suit)"
     );
 
     bytes32 internal constant ENVIRONMENT_TYPEHASH = keccak256(
