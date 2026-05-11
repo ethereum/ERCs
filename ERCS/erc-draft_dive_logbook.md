@@ -1,9 +1,9 @@
 ---
 eip: 8260
-title: Dive Logbook
+title: Dive Log
 description: A standard interface for storing, retrieving, and verifying dive log data.
 author: Brad Myrick (@BradMyrick)
-discussions-to: https://ethereum-magicians.org/t/erc-tbd-on-chain-dive-log-standard/28433?u=bradmyrick
+discussions-to: https://ethereum-magicians.org/t/erc-8260-dive-logbook/28433
 status: Draft
 type: Standards Track
 category: ERC
