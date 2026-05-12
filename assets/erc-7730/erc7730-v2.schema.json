@@ -1216,7 +1216,12 @@
                 "expectedValue": {
                     "type": "string",
                     "pattern": "^0x[a-fA-F0-9]{1,64}$",
-                    "description": "Value of the slot at descriptor authoring time, 0x-prefixed hex up to 32 bytes. Wallets verify the live slot value matches this before applying the descriptor's formatting."
+                    "description": "Value of the slot at descriptor authoring time, 0x-prefixed hex up to 32 bytes. Wallets verify the live slot value matches this before applying the descriptor's formatting. When mask is present, only the masked bits are compared on both sides."
+                },
+                "mask": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Optional bitmask, 0x-prefixed hex up to 32 bytes. When present, wallets compare (liveValue & mask) == (expectedValue & mask) instead of the full slot. Use this for packed slots where only a subset of bits bounds the displayed intent. When omitted, the full 32-byte slot value is compared."
                 },
                 "description": {
                     "type": "string",
