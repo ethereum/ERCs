@@ -35,10 +35,6 @@
 
         "display": {
             "$ref": "#/$display/main"
-        },
-
-        "intentMutability": {
-            "$ref": "#/$intentMutability/main"
         }
     },
     "additionalProperties": false,
@@ -101,8 +97,18 @@
                                 "deployEvent"
                             ],
                             "additionalProperties": false
+                        },
+                        "proxy": {
+                            "$ref": "#/$context/proxy"
+                        },
+                        "stateRefs": {
+                            "title": "State preconditions",
+                            "type": "array",
+                            "description": "Storage slot preconditions that bound the displayed intent's correctness. Wallets MUST verify each entry's expectedValue against live state before applying the descriptor. Use for admin-controlled parameters (pause flags, fee values), state-dependent branches, custom (non-standard) proxy implementation slots, or any other mutable on-chain state whose value affects the displayed intent.",
+                            "items": {
+                                "$ref": "#/$context/stateRef"
+                            }
                         }
-
                     },
                     "additionalProperties": false
                 }
@@ -180,6 +186,87 @@
                     }
                 }
             }
+        },
+
+        "proxy": {
+            "title": "Proxy precondition",
+            "type": "object",
+            "description": "Declares that the bound contract is a standardised upgradeable proxy and pins the set of implementation addresses (and, for diamonds, the selector-to-facet routing) that the descriptor was authored against. Wallets dispatch on `type` to choose the verification primitive: a fixed-slot read for EIP-1967/EIP-1822, a `facets()` loupe call for EIP-2535. For non-standard (custom) proxy layouts, use `stateRefs` instead.",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [ "eip-1967", "eip-1822", "eip-2535" ],
+                    "description": "The standardised proxy pattern the contract implements. `eip-1967` covers Transparent Proxies and other patterns that store the implementation address at the EIP-1967 implementation slot. `eip-1822` is UUPS. `eip-2535` is the Diamond multi-facet pattern; wallets enumerate facets via the standard diamond loupe `facets()` interface."
+                },
+                "expectedImplementations": {
+                    "type": "array",
+                    "description": "The set of implementation addresses (with chain IDs) the descriptor was authored and audited against. A descriptor remains valid as long as the live implementation(s) resolved from the proxy are contained in this set; non-semantic upgrades can be accommodated by appending the new implementation address rather than republishing the descriptor. For EIP-2535 diamonds, each entry MUST also declare the function selectors it serves so that wallets can verify selector-to-facet routing.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "chainId": {
+                                "type": "integer",
+                                "format": "eip155"
+                            },
+                            "address": {
+                                "type": "string",
+                                "format": "eip55"
+                            },
+                            "selectors": {
+                                "type": "array",
+                                "description": "Function selectors (4-byte, 0x-prefixed hex) served by this facet. REQUIRED when the enclosing proxy `type` is `eip-2535`; MUST be absent otherwise. Wallets verify every (selector, facet) pair returned by the diamond loupe matches a declared (selectors, address) entry.",
+                                "items": {
+                                    "type": "string",
+                                    "pattern": "^0x[a-fA-F0-9]{8}$"
+                                }
+                            }
+                        },
+                        "required": [ "chainId", "address" ],
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": [ "type", "expectedImplementations" ],
+            "additionalProperties": false
+        },
+
+        "stateRef": {
+            "title": "State Reference",
+            "type": "object",
+            "description": "A storage slot whose value bounds the correctness of the descriptor's displayed intent. Wallets read the live slot value and compare to expectedValue before applying the descriptor.",
+
+            "properties": {
+                "chainId": {
+                    "type": "integer",
+                    "description": "Chain ID of the contract holding this slot. Defaults to the descriptor's deployment chain when omitted."
+                },
+                "address": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$",
+                    "description": "Address of the contract holding this slot. Defaults to the descriptor's contract address when omitted."
+                },
+                "slot": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Storage slot index, 0x-prefixed hex up to 32 bytes. For mapping or array slots, the author pre-computes the slot (e.g., keccak256(abi.encode(key, baseSlot))) and SHOULD include the pre-image formula in the description."
+                },
+                "expectedValue": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Value of the slot at descriptor authoring time, 0x-prefixed hex up to 32 bytes. Wallets verify the live slot value matches this before applying the descriptor's formatting. When mask is present, only the masked bits are compared on both sides."
+                },
+                "mask": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Optional bitmask, 0x-prefixed hex up to 32 bytes. When present, wallets compare (liveValue & mask) == (expectedValue & mask) instead of the full slot. Use this for packed slots where only a subset of bits bounds the displayed intent. When omitted, the full 32-byte slot value is compared."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable explanation of what this slot controls and how a change to it would affect the displayed intent. For computed slots, SHOULD include the pre-image formula."
+                }
+            },
+            "required": [ "slot", "expectedValue", "description" ],
+            "additionalProperties": false
         }
     },
 
@@ -217,6 +304,12 @@
 
                 "enums": {
                     "$ref": "#/$metadata/enums"
+                },
+
+                "intentMutability": {
+                    "title": "Intent mutability disclosure",
+                    "type": "string",
+                    "description": "Free-form description of intent-mutability vectors that cannot be reduced to a precondition the wallet can verify on-chain. Examples: off-chain oracle endpoints, deployment-time library linkage, dependencies on time, block environment, or composition with externally-controlled contracts. This is documentation only; wallets cannot verify these claims. The trust anchor for off-chain mutability is auditor attestation, not this field."
                 }
             }
 
@@ -1119,118 +1212,6 @@
             "additionalProperties": false
         }
 
-    },
-
-    "$intentMutability": {
-        "main": {
-            "title": "Intent Mutability Section",
-            "type": "object",
-            "description": "Declares on-chain and off-chain factors that can cause a function's executed behavior to diverge from its displayed intent. Wallets verify each (slot, expectedValue) pair against live state before applying the descriptor's formatting; when this section is absent from a descriptor, wallets warn the user or downgrade to opaque signing.",
-
-            "properties": {
-                "contract": {
-                    "title": "Contract-Level Mutability",
-                    "description": "Mutability declaration applied to every entry in display.formats unless overridden by an entry in `functions`.",
-                    "$ref": "#/$intentMutability/entry"
-                },
-                "functions": {
-                    "title": "Per-Function Mutability Overrides",
-                    "description": "Per-function mutability declarations, keyed by the same signature strings used in display.formats. A function with an entry here REPLACES the contract-level entry for that function; merging is not performed.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/$intentMutability/entry"
-                    }
-                }
-            },
-            "additionalProperties": false
-        },
-
-        "entry": {
-            "title": "Mutability Entry",
-            "type": "object",
-            "description": "Mutability declaration for a contract or a specific function. Either asserts stability (`stable: true`) or enumerates the storage slots and free-form notes that bound the displayed intent's correctness.",
-
-            "properties": {
-                "stable": {
-                    "type": "boolean",
-                    "description": "When true, the author asserts that nothing on-chain or off-chain can change the displayed intent. When stable is true, stateRefs and notes MUST be absent."
-                },
-                "stateRefs": {
-                    "type": "array",
-                    "description": "Storage slots whose values bound the displayed intent's correctness. Wallets verify each entry's expectedValue against live state before signing.",
-                    "items": {
-                        "$ref": "#/$intentMutability/stateRef"
-                    }
-                },
-                "notes": {
-                    "type": "string",
-                    "description": "Free-form description of mutability vectors that cannot be expressed as a storage slot (e.g., off-chain oracle endpoints, composition with externally-controlled contracts, deployment-time library linkage)."
-                }
-            },
-            "additionalProperties": false,
-
-            "allOf": [
-                {
-                    "if": {
-                        "properties": { "stable": { "const": true } },
-                        "required": [ "stable" ]
-                    },
-                    "then": {
-                        "not": {
-                            "anyOf": [
-                                { "required": [ "stateRefs" ] },
-                                { "required": [ "notes" ] }
-                            ]
-                        }
-                    },
-                    "else": {
-                        "anyOf": [
-                            { "required": [ "stateRefs" ] },
-                            { "required": [ "notes" ] }
-                        ]
-                    }
-                }
-            ]
-        },
-
-        "stateRef": {
-            "title": "State Reference",
-            "type": "object",
-            "description": "A storage slot whose value bounds the correctness of the descriptor's displayed intent. Wallets read the live slot value and compare to expectedValue before applying the descriptor.",
-
-            "properties": {
-                "chainId": {
-                    "type": "integer",
-                    "description": "Chain ID of the contract holding this slot. Defaults to the descriptor's deployment chain when omitted."
-                },
-                "address": {
-                    "type": "string",
-                    "pattern": "^0x[a-fA-F0-9]{40}$",
-                    "description": "Address of the contract holding this slot. Defaults to the descriptor's contract address when omitted."
-                },
-                "slot": {
-                    "type": "string",
-                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
-                    "description": "Storage slot index, 0x-prefixed hex up to 32 bytes. For mapping or array slots, the author pre-computes the slot (e.g., keccak256(abi.encode(key, baseSlot))) and SHOULD include the pre-image formula in the description."
-                },
-                "expectedValue": {
-                    "type": "string",
-                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
-                    "description": "Value of the slot at descriptor authoring time, 0x-prefixed hex up to 32 bytes. Wallets verify the live slot value matches this before applying the descriptor's formatting. When mask is present, only the masked bits are compared on both sides."
-                },
-                "mask": {
-                    "type": "string",
-                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
-                    "description": "Optional bitmask, 0x-prefixed hex up to 32 bytes. When present, wallets compare (liveValue & mask) == (expectedValue & mask) instead of the full slot. Use this for packed slots where only a subset of bits bounds the displayed intent. When omitted, the full 32-byte slot value is compared."
-                },
-                "description": {
-                    "type": "string",
-                    "description": "Human-readable explanation of what this slot controls and how a change to it would affect the displayed intent. For computed slots, SHOULD include the pre-image formula."
-                }
-            },
-            "required": [ "slot", "expectedValue", "description" ],
-            "additionalProperties": false
-        }
     },
 
     "$definitions": {
