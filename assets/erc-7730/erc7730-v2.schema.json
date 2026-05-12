@@ -195,7 +195,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": [ "eip-1967", "eip-1822", "eip-2535" ],
+                    "enum": [ "eip1967", "eip1822", "eip2535" ],
                     "description": "The standardised proxy pattern the contract implements. `eip-1967` covers Transparent Proxies and other patterns that store the implementation address at the EIP-1967 implementation slot. `eip-1822` is UUPS. `eip-2535` is the Diamond multi-facet pattern; wallets enumerate facets via the standard diamond loupe `facets()` interface."
                 },
                 "expectedImplementations": {
