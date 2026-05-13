@@ -304,12 +304,6 @@
 
                 "enums": {
                     "$ref": "#/$metadata/enums"
-                },
-
-                "intentMutability": {
-                    "title": "Intent mutability disclosure",
-                    "type": "string",
-                    "description": "Free-form description of intent-mutability vectors that cannot be reduced to a precondition the wallet can verify on-chain. Examples: off-chain oracle endpoints, deployment-time library linkage, dependencies on time, block environment, or composition with externally-controlled contracts. This is documentation only; wallets cannot verify these claims. The trust anchor for off-chain mutability is auditor attestation, not this field."
                 }
             }
 
