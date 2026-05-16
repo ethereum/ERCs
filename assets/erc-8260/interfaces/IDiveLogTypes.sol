@@ -53,13 +53,27 @@ enum DecompressionType {
     ExceptionalExposure
 }
 
+enum BottomType {
+    Sand,
+    Coral,
+    Rock,
+    Wreck,
+    Silt,
+    Other
+}
+
+struct Coordinates {
+    int32 latitude;
+    int32 longitude;
+}
+
 struct DiveData {
-    uint32 leaveSurfaceTime;
-    uint32 leaveBottomTime;
-    uint32 reachSurfaceTime;
+    uint64 leaveSurfaceTime;
+    uint64 leaveBottomTime;
+    uint64 reachSurfaceTime;
     uint32 bottomTimeMinutes;
     uint32 maxDepth;
-    int32 averageDepth;
+    uint32 averageDepth;
     DiveMode mode;
     DivePurpose purpose;
     SuitType suit;
@@ -69,8 +83,9 @@ struct Environment {
     int32 airTemp;
     int32 waterTemp;
     int16 currentKnots;
+    BottomType bottomType;
+    Coordinates coords;
     string location;
-    string bottomType;
     string weatherConditions;
 }
 
@@ -127,4 +142,5 @@ struct VoidInfo {
 struct Attestation {
     address attester;
     uint64 attestedAt;
+    uint256 nonce;
 }

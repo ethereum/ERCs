@@ -15,12 +15,16 @@ library DiveLogTypedData {
         "Attestation(uint256 diveId,address verifyingContract,uint256 nonce)"
     );
 
+    bytes32 internal constant COORDINATES_TYPEHASH = keccak256(
+        "Coordinates(int32 latitude,int32 longitude)"
+    );
+
     bytes32 internal constant DIVE_DATA_TYPEHASH = keccak256(
-        "DiveData(uint32 leaveSurfaceTime,uint32 leaveBottomTime,uint32 reachSurfaceTime,uint32 bottomTimeMinutes,uint32 maxDepth,int32 averageDepth,uint8 mode,uint8 purpose,uint8 suit)"
+        "DiveData(uint64 leaveSurfaceTime,uint64 leaveBottomTime,uint64 reachSurfaceTime,uint32 bottomTimeMinutes,uint32 maxDepth,uint32 averageDepth,uint8 mode,uint8 purpose,uint8 suit)"
     );
 
     bytes32 internal constant ENVIRONMENT_TYPEHASH = keccak256(
-        "Environment(int32 airTemp,int32 waterTemp,int16 currentKnots,string location,string bottomType,string weatherConditions)"
+        "Environment(int32 airTemp,int32 waterTemp,int16 currentKnots,uint8 bottomType,Coordinates coords,string location,string weatherConditions)Coordinates(int32 latitude,int32 longitude)"
     );
 
     bytes32 internal constant DECOMPRESSION_TYPEHASH = keccak256(
@@ -32,7 +36,7 @@ library DiveLogTypedData {
     );
 
     bytes32 internal constant DIVE_LOG_TYPEHASH = keccak256(
-        "DiveLog(uint256 id,uint64 diveDate,uint8 units,DiveData data,Environment env,Decompression decomp,GasData gas,string remarks)"
+        "DiveLog(uint256 id,uint64 diveDate,uint8 units,DiveData data,Environment env,Decompression decomp,GasData gas,string remarks)Coordinates(int32 latitude,int32 longitude)Decompression(uint8 decompType,uint32 totalDecompTimeMinutes,int32 maxDepthAttained,bytes32 tableSchedule,bytes1 repetitiveGroup,uint32 surfaceIntervalMinutes,bytes1 newRepetitiveGroup)DiveData(uint64 leaveSurfaceTime,uint64 leaveBottomTime,uint64 reachSurfaceTime,uint32 bottomTimeMinutes,uint32 maxDepth,uint32 averageDepth,uint8 mode,uint8 purpose,uint8 suit)Environment(int32 airTemp,int32 waterTemp,int16 currentKnots,uint8 bottomType,Coordinates coords,string location,string weatherConditions)GasData(uint8 gasType,uint16 o2Percent,uint16 hePercent,uint16 n2Percent,uint32 cylinderPressureIn,uint32 cylinderPressureOut,uint32 gasConsumed,uint32 bailoutPressure)"
     );
 
     function domainSeparator(uint256 chainId, address verifyingContract) internal pure returns (bytes32) {
@@ -80,14 +84,23 @@ library DiveLogTypedData {
         ));
     }
 
+    function hashCoordinates(Coordinates calldata c) internal pure returns (bytes32) {
+        return keccak256(abi.encode(
+            COORDINATES_TYPEHASH,
+            c.latitude,
+            c.longitude
+        ));
+    }
+
     function hashEnvironment(Environment calldata e) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             ENVIRONMENT_TYPEHASH,
             e.airTemp,
             e.waterTemp,
             e.currentKnots,
+            uint8(e.bottomType),
+            hashCoordinates(e.coords),
             keccak256(bytes(e.location)),
-            keccak256(bytes(e.bottomType)),
             keccak256(bytes(e.weatherConditions))
         ));
     }

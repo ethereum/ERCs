@@ -133,7 +133,8 @@ contract SovereignDiveLog is IDiveLog {
         _hasAttested[diveId][attester] = true;
         _attestations[diveId].push(Attestation({
             attester: attester,
-            attestedAt: uint64(block.timestamp)
+            attestedAt: uint64(block.timestamp),
+            nonce: nonce
         }));
 
         emit DiveAttested(diveId, attester);
