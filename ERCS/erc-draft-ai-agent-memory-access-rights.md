@@ -2,7 +2,7 @@
 eip: XXXX
 title: AI Agent Memory Access Rights
 description: An interface for user-controlled read, write, delete and export of AI agent memory records stored by any on-chain or off-chain memory provider.
-author: clavote-boop (@clavote-boop)
+author: Clavote (@clavote-boop)
 discussions-to: https://ethereum-magicians.org/c/ercs/57
 status: Draft
 type: Standards Track
