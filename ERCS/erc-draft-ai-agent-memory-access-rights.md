@@ -1,0 +1,234 @@
+---
+eip: XXXX
+title: AI Agent Memory Access Rights
+description: An interface for user-controlled read, write, delete and export of AI agent memory records stored by any on-chain or off-chain memory provider.
+author: clavote-boop (@clavote-boop)
+discussions-to: https://ethereum-magicians.org/c/ercs/57
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-05-17
+requires: 165
+---
+
+## Abstract
+
+This ERC defines a minimal four-function interface — `readMemory`, `writeMemory`, `deleteMemory`, and `exportMemory` — through which an Ethereum address (the *subject*) asserts sovereign control over AI agent memory records that reference that address. Any smart contract or verifier gateway that stores, indexes, or proxies AI agent memory records for a subject MUST implement this interface. The interface is deliberately narrow: it carries no opinion about storage backend, memory format, or agent business logic, and is fully orthogonal to existing ERC standards addressing agent identity (ERC-8259), agentic commerce (ERC-8183), agent skill registries (ERC-8239), or on-chain action proofs (ERC-8888/TruthAnchor).
+
+## Motivation
+
+AI agents operating on EVM-compatible networks accumulate memory records that describe their principals: preferences, conversation history, delegated context, and behavioural patterns. Today, no standardised on-chain mechanism allows the principal (the Ethereum address whose data is stored) to read, correct, delete, or port those records independently of the platform that operates the agent.
+
+Virtuals Protocol's whitepaper (2024) documents this precisely: agent Long Term Memory is stored in a proprietary RAG pipeline keyed on a platform-assigned `user_identifier`, not on the principal's public key. The principal has no cryptographically verifiable right to inspect or remove that data. Similar patterns appear in mem0, Synaptic, and Memoreum: memory ownership resides with the operator, not the subject.
+
+This gap has direct regulatory consequences. GDPR Articles 15-20 grant natural persons enforceable rights of access, rectification, erasure, and portability over personal data. Where an AI agent's memory store constitutes personal data processing, a principal's Ethereum address should be sufficient to assert those rights on-chain, enabling verifiable compliance without relying on platform-specific API calls.
+
+This ERC addresses the gap by defining the smallest possible on-chain surface: a four-function interface that any memory provider — whether a fully on-chain contract, a verifier gateway, or a bridge to an off-chain vector database — can implement to make user rights machine-verifiable.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+/// @title IERC-XXXX AI Agent Memory Access Rights
+/// @dev   Implementors MUST also implement ERC-165 and return true
+///        for the interfaceId of this interface.
+interface IAgentMemoryAccess {
+
+    /// @notice Emitted when a memory record is written for a subject.
+    /// @param subject  The Ethereum address whose memory was written.
+    /// @param recordId An implementor-defined identifier for the record.
+    event MemoryWritten(address indexed subject, bytes32 indexed recordId);
+
+    /// @notice Emitted when a memory record is deleted for a subject.
+    /// @param subject  The Ethereum address whose memory was deleted.
+    /// @param recordId The identifier of the deleted record.
+    event MemoryDeleted(address indexed subject, bytes32 indexed recordId);
+
+    /// @notice Read a memory record belonging to `subject`.
+    /// @dev    MUST revert if `msg.sender` is not authorised to read
+    ///         `subject`'s memory.  Authorisation logic is implementor-defined
+    ///         (e.g. subject == msg.sender, or a delegated operator).
+    /// @param subject  The address whose memory is being read.
+    /// @param recordId The implementor-defined record identifier.
+    /// @return data    ABI-encoded memory payload.  Format is implementor-defined.
+    function readMemory(address subject, bytes32 recordId)
+        external view returns (bytes memory data);
+
+    /// @notice Write or update a memory record for `subject`.
+    /// @dev    MUST revert if `msg.sender` is not authorised to write
+    ///         `subject`'s memory.
+    ///         MUST emit MemoryWritten on success.
+    /// @param subject  The address whose memory is being written.
+    /// @param recordId The implementor-defined record identifier.
+    /// @param data     ABI-encoded memory payload.
+    function writeMemory(address subject, bytes32 recordId, bytes calldata data)
+        external;
+
+    /// @notice Delete a memory record for `subject`.
+    /// @dev    MUST revert if `msg.sender` is not authorised to delete
+    ///         `subject`'s memory.
+    ///         MUST emit MemoryDeleted on success.
+    ///         After deletion, readMemory for the same recordId MUST revert
+    ///         or return empty bytes, at the implementor's discretion.
+    /// @param subject  The address whose memory is being deleted.
+    /// @param recordId The record to delete.
+    function deleteMemory(address subject, bytes32 recordId)
+        external;
+
+    /// @notice Export all memory records for `subject` as a single payload.
+    /// @dev    MUST revert if `msg.sender` is not authorised.
+    ///         The returned encoding is implementor-defined.  Implementors
+    ///         SHOULD use ABI-encoded `(bytes32[] recordIds, bytes[] payloads)`.
+    /// @param subject  The address whose memory is being exported.
+    /// @return payload ABI-encoded export bundle.
+    function exportMemory(address subject)
+        external view returns (bytes memory payload);
+}
+```
+
+### ERC-165 Support
+
+Compliant contracts MUST implement [ERC-165](./eip-165.md) and MUST return `true` when queried for the `IAgentMemoryAccess` interface identifier.
+
+The `interfaceId` is computed as:
+
+```
+bytes4(keccak256("readMemory(address,bytes32)")) ^
+bytes4(keccak256("writeMemory(address,bytes32,bytes)")) ^
+bytes4(keccak256("deleteMemory(address,bytes32)")) ^
+bytes4(keccak256("exportMemory(address)"))
+```
+
+### Authorisation Model
+
+This ERC intentionally does not mandate a single authorisation scheme. Implementors MAY use any of the following patterns or their combination:
+
+- **Subject-only:** Only `subject == msg.sender` is authorised.
+- **Delegated operator:** Subject pre-authorises one or more operators via an on-chain registry.
+- **ERC-173 owner:** The contract owner can read/write on behalf of any subject (e.g. for agent-side writes).
+
+Implementors MUST clearly document their chosen authorisation model.
+
+### Record Identifier Convention
+
+`recordId` is a `bytes32` value whose interpretation is implementor-defined. Implementors SHOULD use `keccak256(abi.encode(subject, sequenceNumber))` or a content-addressed hash of the payload to ensure global uniqueness.
+
+## Rationale
+
+**Why four functions?** The set mirrors the four GDPR data-subject rights most relevant to memory stores: access (read), rectification (write), erasure (delete), and portability (export). This mapping is intentional: it allows legal compliance frameworks to reference a single on-chain interface identifier rather than platform-specific APIs.
+
+**Why `bytes32 recordId`?** A fixed-width key avoids dynamic-length calldata overhead for the common case while remaining format-agnostic. Implementors embedding vector-database UUIDs SHOULD use `keccak256(uuid)`.
+
+**Why not mandate a storage layout?** Memory backends vary enormously: on-chain mappings, IPFS CIDs, encrypted off-chain databases, vector stores. Mandating a layout would exclude most practical deployments. The interface is intentionally a rights surface, not a storage specification.
+
+**Why not extend ERC-8183, ERC-8259, or ERC-8239?** ERC-8183 defines agentic commerce (task/payment flows). ERC-8259 defines agent identity and threat registries. ERC-8239 defines agent skill registries. None address user data rights over stored memory. This ERC is orthogonal to all three and may be composed with any of them.
+
+**Why not extend ERC-8888/TruthAnchor?** TruthAnchor anchors agent *actions* (outputs) on-chain for auditability. This ERC addresses user *rights* over stored *inputs* (memory). The two are complementary: TruthAnchor can record that a memory write occurred; this interface allows the subject to later delete it.
+
+## Backwards Compatibility
+
+This ERC introduces a new interface with no conflict with any existing ERC. Existing agent memory systems (mem0, Synaptic, Memoreum, proprietary Virtuals Protocol memory) are off-chain and do not implement any ERC interface. On-chain integrations of those systems may adopt this ERC by implementing the four-function interface on a gateway or proxy contract.
+
+## Reference Implementation
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+import "./IAgentMemoryAccess.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+
+/// @title  SimpleAgentMemory
+/// @notice Reference implementation: subject-only authorisation,
+///         ABI-encoded bytes stored in a mapping.
+contract SimpleAgentMemory is IAgentMemoryAccess, ERC165 {
+
+    // subject => recordId => payload
+    mapping(address => mapping(bytes32 => bytes)) private _store;
+
+    // subject => ordered list of recordIds (for export)
+    mapping(address => bytes32[]) private _index;
+
+    modifier onlySubject(address subject) {
+        require(msg.sender == subject, "AgentMemory: not authorised");
+        _;
+    }
+
+    // ---------------------------------------------------------------
+    // IAgentMemoryAccess
+    // ---------------------------------------------------------------
+
+    function readMemory(address subject, bytes32 recordId)
+        external view override onlySubject(subject)
+        returns (bytes memory)
+    {
+        return _store[subject][recordId];
+    }
+
+    function writeMemory(address subject, bytes32 recordId, bytes calldata data)
+        external override onlySubject(subject)
+    {
+        if (_store[subject][recordId].length == 0) {
+            _index[subject].push(recordId);
+        }
+        _store[subject][recordId] = data;
+        emit MemoryWritten(subject, recordId);
+    }
+
+    function deleteMemory(address subject, bytes32 recordId)
+        external override onlySubject(subject)
+    {
+        delete _store[subject][recordId];
+        // Note: _index is not pruned here for gas efficiency.
+        // Callers SHOULD check readMemory for empty return on export.
+        emit MemoryDeleted(subject, recordId);
+    }
+
+    function exportMemory(address subject)
+        external view override onlySubject(subject)
+        returns (bytes memory)
+    {
+        bytes32[] storage ids = _index[subject];
+        bytes[] memory payloads = new bytes[](ids.length);
+        for (uint256 i = 0; i < ids.length; i++) {
+            payloads[i] = _store[subject][ids[i]];
+        }
+        return abi.encode(ids, payloads);
+    }
+
+    // ---------------------------------------------------------------
+    // ERC-165
+    // ---------------------------------------------------------------
+
+    function supportsInterface(bytes4 interfaceId)
+        public view virtual override returns (bool)
+    {
+        return interfaceId == type(IAgentMemoryAccess).interfaceId
+            || super.supportsInterface(interfaceId);
+    }
+}
+```
+
+## Security Considerations
+
+**Authorisation bypass:** Implementors MUST ensure that the authorisation check in each function cannot be bypassed by crafted `subject` addresses or delegated calls. In particular, if an agent contract calls `writeMemory` on behalf of a subject, the implementing contract MUST verify that the agent has been explicitly authorised by that subject, not merely that it holds some platform-level role.
+
+**Replay and ordering:** `writeMemory` does not include a nonce. Implementors requiring write-ordering guarantees SHOULD encode a sequence number into `recordId` or `data`.
+
+**Export size and DoS:** `exportMemory` returns all records for a subject in a single call. Implementors with unbounded record sets SHOULD implement pagination (e.g. `exportMemory(address subject, uint256 offset, uint256 limit)`) and document the maximum expected payload size. A single large export call could exhaust block gas limits if implemented naively on-chain.
+
+**Off-chain bridge trust:** When this interface is implemented by a gateway contract that bridges to an off-chain memory store, the security of the interface is bounded by the trust assumptions of that bridge. Implementors MUST document those trust assumptions and, where possible, provide cryptographic proofs (e.g. signed attestations, Merkle proofs) that the off-chain store faithfully executes the on-chain instruction.
+
+**Data confidentiality:** This interface does not mandate encryption. Sensitive memory payloads SHOULD be encrypted before storage, with decryption keys managed by the subject. Implementors SHOULD document their confidentiality model.
+
+**Deletion finality:** On a public blockchain, deleted records may persist in historical state or off-chain archives. Implementors MUST document the finality semantics of `deleteMemory` and, where true erasure is required (e.g. for GDPR compliance), SHOULD store only content-addressed hashes on-chain while purging the actual payload from off-chain storage.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
