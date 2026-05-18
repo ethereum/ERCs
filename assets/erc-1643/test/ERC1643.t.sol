@@ -18,7 +18,7 @@ contract ERC1643ModuleTest is Test {
     address internal owner = address(0xA11CE);
     address internal alice = address(0xB0B);
 
-    bytes32 internal constant DOC1 = bytes32("TERMS");
+    bytes32 internal constant DOC1 = bytes32("TERMS_V001");
     bytes32 internal constant DOC2 = bytes32("DISCLOSURE");
 
     function setUp() public {
