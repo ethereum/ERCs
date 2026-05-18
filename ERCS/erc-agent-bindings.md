@@ -36,6 +36,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 Binding adapters compliant with this ERC MUST expose a minimal interface that allows clients to:
 
 - retrieve the stored binding for an agent id
+- index newly written bindings
 
 The required interface is:
 
@@ -54,6 +55,14 @@ interface IERCAgentBindings {
         address tokenContract;
         uint256 tokenId;
     }
+
+    event AgentBound(
+        uint256 indexed agentId,
+        TokenStandard indexed standard,
+        address indexed tokenContract,
+        uint256 tokenId,
+        address registeredBy
+    );
 
     function bindingOf(uint256 agentId) external view returns (Binding memory);
 }
@@ -89,6 +98,8 @@ The field means:
 
 Token standard, token contract, and token id MUST be obtained only from `bindingOf` on this contract (see `IERCAgentBindings.Binding`).
 
+The `AgentBound` event records the immutable binding when it is first written. `registeredBy` is the address that caused the binding to be registered.
+
 ### Required Behavior
 
 An implementation that uses this ERC to represent a binding for an [ERC-8004](./erc-8004.md) agent:
@@ -96,9 +107,13 @@ An implementation that uses this ERC to represent a binding for an [ERC-8004](./
 1. MUST write the binding record under the `agent-binding` key as exactly 20 bytes (the binding contract address)
 2. MUST ensure the address matches the contract that serves `bindingOf` for this agent
 3. MUST treat `agent-binding` as a reserved key and prevent untrusted callers from overwriting it arbitrarily
-4. MAY define any control semantics it wants in the binding contract itself, including ERC-721 ownership or ERC-1155 / ERC-6909 balance-based control
+4. MUST NOT update the binding for an `agentId` once it has been written
+5. MUST emit `AgentBound(agentId, standard, tokenContract, tokenId, registeredBy)` when the binding is first written
+6. MAY define any control semantics it wants in the binding contract itself, including ERC-721 ownership or ERC-1155 / ERC-6909 balance-based control
 
 This ERC standardizes discovery and canonical binding verification only. It does not standardize authorization rules inside the binding contract.
+
+Bindings are immutable: once `agent-binding` has been written for an `agentId`, both the stored binding contract address and the `Binding` returned by `bindingOf(agentId)` MUST remain unchanged. This allows clients and indexers to verify a binding once and rely on the result without cache invalidation.
 
 ### Verification Flow
 
@@ -122,6 +137,12 @@ For `bindingContract = 0x9c4e8f2a1b7d6e3c0a5f8d2b9e1c4a7f3d6e8b0c`, the metadata
 
 Clients then call `bindingOf(agentId)` on that address to obtain `standard`, `tokenContract`, and `tokenId`.
 
+When the binding is first written, the binding contract emits:
+
+```solidity
+AgentBound(agentId, standard, tokenContract, tokenId, registeredBy)
+```
+
 ## Rationale
 
 ### Why store the binding contract?
@@ -132,7 +153,7 @@ In some implementations, the token contract itself defines the binding logic. In
 
 ### Why not store token standard, token contract, and token id in metadata?
 
-Duplicating those fields in the registry would risk drift if the binding contract is updated. The binding contract is the single source of truth; metadata only points clients to which contract to query.
+Duplicating those fields in the registry would add unnecessary bytes to the metadata record. The binding contract is the single source of truth; metadata only points clients to which contract to query. Because bindings are immutable, clients and indexers can cache the result of `bindingOf(agentId)` after verification.
 
 ## Backwards Compatibility
 
@@ -168,6 +189,8 @@ Clients MUST:
 3. read the canonical binding with `bindingOf(agentId)`
 
 Implementations MUST reserve the `agent-binding` metadata key so that untrusted callers cannot overwrite or forge the canonical record after registration.
+
+Implementations MUST NOT change the binding contract address stored under `agent-binding` or the `Binding` returned by `bindingOf(agentId)` after the binding has been written. Upgradeable implementations MUST preserve this immutability across upgrades.
 
 This metadata format is EVM-address based. It does not describe non-EVM bindings and does not itself encode chain context.
 
