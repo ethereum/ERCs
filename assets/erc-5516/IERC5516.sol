@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 
 /**
     @title Soulbound, Multi-Token standard.
-    @notice Interface of the EIP-5516
+    @notice Interface of the ERC-5516
     Note: The ERC-165 identifier for this interface is 0xe150bdab.
  */
 

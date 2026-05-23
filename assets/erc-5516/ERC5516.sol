@@ -1,9 +1,8 @@
 //SPDX-License-Identifier: CC0-1.0
 
 /**
- * @notice Reference implementation of the eip-5516 interface.
+ * @notice Reference implementation of the erc-5516 interface.
  * @author Lucas Martín Grasso Ramos <lucasgrassoramos@gmail.com>, Matias Arazi <matiasarazi@gmail.com>
- * See https://github.com/ethereum/EIPs/pull/5516
  */
 
 pragma solidity ^0.8.4;
@@ -54,7 +53,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         address[] memory recipients,
         string calldata metadataURI
     ) external virtual override returns (uint256 tokenId) {
-        require(recipients.length > 0, "EIP5516: Empty recipients list");
+        require(recipients.length > 0, "ERC5516: Empty recipients list");
 
         address minter = _msgSender();
 
@@ -79,7 +78,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
             //      credential.
             require(
                 _minters[tokenId] == minter,
-                "EIP5516: Not original issuer"
+                "ERC5516: Not original issuer"
             );
         }
 
@@ -88,15 +87,15 @@ contract ERC5516 is Context, ERC165, IERC5516 {
 
             require(
                 recipient != address(0),
-                "EIP5516: Transfer to address zero"
+                "ERC5516: Transfer to address zero"
             );
             require(
                 !_holdings[recipient][tokenId],
-                "EIP5516: Token already owned"
+                "ERC5516: Token already owned"
             );
             require(
                 !_renounced[tokenId][recipient],
-                "EIP5516: Recipient renounced this token"
+                "ERC5516: Recipient renounced this token"
             );
 
             _holdings[recipient][tokenId] = true;
@@ -117,7 +116,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         address sender = _msgSender();
         require(
             _holdings[sender][tokenId],
-            "EIP5516: Sender does not own a token under `tokenId`"
+            "ERC5516: Sender does not own a token under `tokenId`"
         );
 
         delete _holdings[sender][tokenId];
@@ -153,7 +152,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     ) external view virtual override returns (string memory) {
         require(
             bytes(_tokenURIs[tokenId]).length > 0,
-            "EIP5516: Token does not exist"
+            "ERC5516: Token does not exist"
         );
         return string(abi.encodePacked(_uri, _tokenURIs[tokenId]));
     }
