@@ -15,6 +15,8 @@ requires: 165, 721, 1155, 5615, 6909
 
 This ERC defines a minimal `ownerOf(uint256 id)` interface for non-fungible token IDs managed by [ERC-1155](./eip-1155.md) and [ERC-6909](./eip-6909.md) multi-token contracts. A covered token ID has a maximum supply of one unit, and its current holder can be read with the same function selector used by [ERC-721](./eip-721.md). The interface lets wallets, marketplaces, delegation registries, indexers, token-bound integrations, and agent-binding integrations consume non-fungible multi-token IDs through a single-owner accessor without requiring the contract to implement ERC-721.
 
+Implementations of this profile are informally referred to as ERC-1155F and ERC-6909F, where the `F` denotes the fixed-supply, single-unit non-fungible profile of the respective base standard.
+
 ## Motivation
 
 ERC-1155 and ERC-6909 can both represent fungible and non-fungible token IDs within one contract. Their base interfaces expose balances by `(owner, id)`, but they do not expose a canonical single-owner read for IDs whose supply is fixed to one. Integrators that understand ERC-721 ownership through `ownerOf(uint256)` therefore need bespoke adapters, offchain indexing, or contract-specific logic for non-fungible multi-token IDs.
