@@ -1,0 +1,68 @@
+---
+title: Canonical Validator Wrapper
+description: Minimalist contract to make Beacon Chain withdrawal credentials transferable
+author: Julie B. (@bbjubjub2494)
+discussions-to: https://ethereum-magicians.org/t/draft-erc-canonical-validator-wrapper/28599
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-05-23
+requires: EIP-1014, EIP-7002, EIP-7251
+---
+## Abstract
+
+We propose a straightforward, trustless contract that issues NFTs conferring their holder control over the stake of a single validator on the Beacon Chain.
+
+## Motivation
+
+The Beacon Chain allows a validator to provide a withdrawal address on the Execution Layer where all of their ether will be directed once it leaves the Beacon Chain. By design, this address cannot be changed once set. In practice, it is set either to the owner's wallet, or to a contract associated with a pooled staking protocol. After that, the only way to change to a different arrangement is to exit the validator entirely and create a new one.
+This ERC introduces a thin wrapper around the withdrawal address. A non-fungible token, which can be kept in the user's wallet or escrowed in any protocol, trustlessly controls the withdrawal address. This allows building interoperable pooled staking protocols, whether trustless or intermediated, that validator operators can enter or exit at will depending on their liquidity needs.
+In order to avoid fragmentation, there should be one standard wrapper contract.
+
+## Specification
+
+The source code for the ERC-XXXX contract is available at https://github.com/bbjubjub2494/erc-xxxx, and can be deployed trustlessly using Arachnid's deterministic deployment proxy. It consists of a minimal withdrawal receiver contract which is deployed using a proxy for each NFT, and the main contract, which implements the ERC-721 interface as well as the metadata and enumeration extensions.
+The main contract allows anyone to mint a token associated with a specific validator public key. A proxy contract is immediately deployed to a unique withdrawal address. Holding the token confers full control over the withdrawal address and thus, once the validator is deployed, of its stake. More specifically, the main contract offers the following bespoke methods for the token holder to call:
+- `pullNativeBalance(tokenId, destination)` move the ether in the withdrawal address to the destination via a call.
+- `requestFullWithdrawal(tokenId)` use EIP-7002 to force an exit of the validator. The EIP-7002 fee will be paid from the balance of the withdrawal address. If necessary, the caller can add value to the call that will first be added to the withdrawal address balance.
+- `requestPartialWithdrawal(tokenId, amount)` use EIP-7002 to withdraw part of the validator's consensus layer balance. The fee is handled as described previously.
+- `requestConsolidation(tokenId, targetKeyHi, targetKeyLo)` send and EIP-7251 request to consolidate the validator's stake into another validator. The fee is handled identically to the EIP-7002 fee.
+- `requestSwitchToCompounding(tokenId)` special case of the previous function to consolidate the validator into itself in order to make it compound its rewards on the beacon chain.
+- `arbitraryCall(tokenId, target, data)` perform an EVM call from the withdrawal address, forwarding the call value passed by the caller. This is intended to be used for anything not anticipated by this ERC, such as collecting airdropped ERC-20s.
+In addition, the main contract implements ERC-5646, which allows other contracts to query the implementation-defined state fingerprint of a given token. Since information about validators is not synchronously accessible on the execution layer, the token state in ERC-XXXX is defined as the list of past actions performed through the main contract that could affect the funds of the validator, i.e. consolidation requests, pulling the execution layer balance and performing arbitrary calls.
+
+## Rationale
+
+### ERC-721
+The decision to use non-fungible tokens stems from the fact that one unit of stake in one validator is not inherently interchangeable with one in another, since both validators can earn different rewards, get slashed, or exit independently from one another. A complex layer of abstraction would be necessary to make them fungible, which we avoid for the sake of minimalism. Wrappers on top of ERC-XXXX can implement their preferred fungibility concept if desired.
+
+### ERC-5646
+Implementing ERC-5646 counters the attack vector described in [[#Collateral Value]], only using one storage slot per token. It also allows ERC-XXXX to be used as collateral in generic trustless lending protocols such as [PWN](https://pwn.xyz/).
+
+### CREATE2 salt
+When a user requests a token be minted, the resulting withdrawal address depends only on the user provided validator key and initial owner address. This means that withdrawal addresses are predictable (but not ERC-721 token ids) and thus that validator deposits can safely be performed ahead of time. This also protects in some reorg scenarios. Since the owner address is also included, this is not a DoS vector.
+
+### Storage Layout
+The main contract keeps storage slots associated with a given token adjacent, and aligns them to a power of two. This has little impact under current conditions, but should a state tree upgrade similar to EIP-6800 or EIP-7864 occur, it ensures all the slots are warmed up at once, saving gas, and that consecutively minted batches of tokens are cheaper to manipulate.
+
+## Security Considerations
+
+### Smart Contract Correctness
+A bug in the ERC-XXXX contracts could have serious consequences. To reduce the probability of one, ERC-XXXX contracts are designed to be minimal, taking on just enough complexity so that higher layers can implement all foreseeable features. They are written using high-level constructs in the Vyper language — for which a formally verified compiler is expected soon, and only perform sensible and conservative gas optimisations. Third-party code review and formal verification are TBD.
+
+### Collateral Value
+The existence of an ERC-XXXX token does not guarantee that a validator with the same public key is present on the consensus layer and that its withdrawal credentials are correctly set. Counterparties treating ERC-XXXX tokens as collateral should ensure that this is the case by querying the consensus layer. Additionally, if the token is under the immediate control of a counterparty, they should use ERC-5646 to guard against front-running attacks, where the counterparty withdraws part of the stake at the last moment.
+Smart contracts dealing with ERC-XXXX tokens can use EIP-4788 to verify proofs of the validator's state if needed.
+
+### Deposit Front-running
+If no deposit has been made for a given validator yet, care should be taken to deal with deposit front-running by the party holding the validator key. ([An attack described in detail here](https://ethresear.ch/t/deposit-contract-exploit/6528)) There are two trustless ways to address this: one is to require the party to perform a 1 ETH pre-deposit to set the credentials, the other is to use the deposit contract Merkle root to detect the attack and revert the deposit. If EIP-8025 is activated, it can also be used to mitigate this attack.
+
+### Slashing and Penalties
+The validator can leak or get slashed if its operator misbehaves. This issue can be handled economically by ensuring the operator retains exposure to a fraction of the validator's stake that can be seized in case the value of the stake goes down. This is also why ERC-XXXX tokens should not be naively bought or sold.
+
+### MEV Income
+The withdrawal credential does not capture MEV-related income that the operator may be able to extract by running the node. This can be accounted for by charging a sufficient interest rate to the operator.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
