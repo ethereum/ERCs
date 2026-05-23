@@ -97,6 +97,10 @@ contract ERC5516 is Context, ERC165, IERC5516 {
                 !_renounced[tokenId][recipient],
                 "ERC5516: Recipient renounced this token"
             );
+            require(
+                !_renounced[tokenId][recipient],
+                "EIP5516: Recipient renounced this token"
+            );
 
             _holdings[recipient][tokenId] = true;
 
