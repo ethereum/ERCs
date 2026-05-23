@@ -52,7 +52,7 @@ An ERC-1155 or ERC-6909 contract that implements this ERC:
 - MAY cover all token IDs or only a subset of token IDs.
 - MUST ensure every covered token ID has total supply less than or equal to one at all times.
 - MUST NOT allow a covered token ID to be owned by more than one address at the same time.
-- MUST return the current owner from `ownerOf(id)` when `id` is covered, minted, and has supply one.
+- MUST return the current owner from `ownerOf(id)` when `id` is covered, minted, and has supply one. The returned owner MUST hold a balance of exactly one for that id: whenever `ownerOf(id) != address(0)`, `balanceOf(ownerOf(id), id)` MUST equal `1`.
 - MUST return `address(0)` from `ownerOf(id)` when `id` is covered and currently has supply zero, including before minting and after burning.
 - MUST ensure that `ownerOf(id) == owner` if and only if `balanceOf(owner, id) == 1` for a covered token ID with supply one.
 - MUST ensure that `balanceOf(account, id)` is either `0` or `1` for every account and every covered token ID.
