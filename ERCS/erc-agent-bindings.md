@@ -13,7 +13,7 @@ requires: 8004
 
 ## Abstract
 
-This ERC defines a standard onchain metadata record and verification interface for expressing that an [ERC-8004](./erc-8004.md) agent identity is bound to an external NFT or tokenized asset contract. The metadata record stores only the binding contract address (20 bytes) under a reserved metadata key. Token standard, token contract, and token id are read from that contract via `bindingOf(agentId)` and are not duplicated in metadata.
+This ERC defines a standard onchain metadata record and verification interface for expressing that an [ERC-8004](./erc-8004.md) agent identity is bound to an external NFT or tokenized asset contract. The metadata record stores only the binding contract address (20 bytes) under a reserved metadata key. The binding contract is expected to be deployed as a canonical per-chain singleton. Token standard, token contract, and token id are read from that contract via `bindingOf(agentId)` and are not duplicated in metadata.
 
 ## Motivation
 
@@ -25,7 +25,7 @@ Without a standard metadata format:
 - marketplaces and wallets cannot decode bound-token information consistently
 - indexers must support adapter-specific formats
 
-This ERC provides a canonical metadata key, minimal binary encoding, and verification interface so clients can discover the binding contract and read the canonical bound-token record from `bindingOf(agentId)`, whether the binding logic lives in a separate adapter contract or directly in the token contract itself.
+This ERC provides a canonical metadata key, minimal binary encoding, and verification interface so clients can discover the binding contract and read the canonical bound-token record from `bindingOf(agentId)`.
 
 ## Specification
 
@@ -33,7 +33,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Simplified Interface
 
-Binding adapters compliant with this ERC MUST expose a minimal interface that allows clients to:
+Binding contracts compliant with this ERC MUST expose a minimal interface that allows clients to:
 
 - retrieve the stored binding for an agent id
 - index newly written bindings
@@ -70,6 +70,10 @@ interface IERCAgentBindings {
 
 Contracts MAY expose richer functions such as registration, URI updates, metadata updates, wallet binding, or administrative upgrade controls, but these are outside the verification scope of this ERC.
 
+### Deployment Model
+
+The binding contract can be deployed on any L2 or on Mainnet as a per-chain singleton. Implementations MUST write the address of that chain's canonical binding singleton as the `agent-binding` metadata value. Multiple independently operated binding contracts on the same chain are NOT RECOMMENDED because they fragment trust assumptions and indexing.
+
 ### Metadata Key
 
 Implementations compliant with this ERC MUST store the binding record under the [ERC-8004](./erc-8004.md) metadata key:
@@ -80,7 +84,7 @@ agent-binding
 
 ### Binding Record Format
 
-The metadata value for `agent-binding` MUST be exactly the 20-byte EVM address of the binding or adapter contract:
+The metadata value for `agent-binding` MUST be exactly the 20-byte EVM address of the canonical binding contract:
 
 ```solidity
 abi.encodePacked(bindingContract)
@@ -94,7 +98,7 @@ For example, the stored `bytes` are exactly the 20-byte address:
 
 The field means:
 
-- `bindingContract`: address of the contract that implements `IERCAgentBindings` and returns the canonical `Binding` for `bindingOf(agentId)`.
+- `bindingContract`: address of the canonical per-chain singleton that implements `IERCAgentBindings` and returns the canonical `Binding` for `bindingOf(agentId)`.
 
 Token standard, token contract, and token id MUST be obtained only from `bindingOf` on this contract (see `IERCAgentBindings.Binding`).
 
@@ -109,7 +113,8 @@ An implementation that uses this ERC to represent a binding for an [ERC-8004](./
 3. MUST treat `agent-binding` as a reserved key and prevent untrusted callers from overwriting it arbitrarily
 4. MUST NOT update the binding for an `agentId` once it has been written
 5. MUST emit `AgentBound(agentId, standard, tokenContract, tokenId, registeredBy)` when the binding is first written
-6. MAY define any control semantics it wants in the binding contract itself, including ERC-721 ownership or ERC-1155 / ERC-6909 balance-based control
+6. MUST use the canonical per-chain binding singleton as the binding contract
+7. MAY define control semantics in the binding contract, including ERC-721 ownership or ERC-1155 / ERC-6909 balance-based control
 
 This ERC standardizes discovery and canonical binding verification only. It does not standardize authorization rules inside the binding contract.
 
@@ -125,7 +130,7 @@ Clients verifying an [ERC-8004](./erc-8004.md) binding under this ERC MUST:
 
 If any step fails, clients MUST treat the binding relationship as unverified.
 
-The `bindingContract` and `Binding.tokenContract` MAY be the same address or different addresses. Clients MUST NOT assume they are distinct.
+The `bindingContract` is expected to be the canonical per-chain singleton. `Binding.tokenContract` identifies the external token contract whose ownership or balance semantics are used by that singleton.
 
 ### Example Encoding
 
@@ -147,13 +152,11 @@ AgentBound(agentId, standard, tokenContract, tokenId, registeredBy)
 
 ### Why store the binding contract?
 
-The token contract and token id alone are not sufficient. The same token may be interpreted differently by different adapter or binding contracts. Including the binding contract makes the control system explicitly discoverable and lets clients inspect or query the contract that actually defines the authorization rules.
-
-In some implementations, the token contract itself defines the binding logic. In those cases, `bindingContract` and `tokenContract` are the same address.
+The token contract and token id alone are not sufficient. The same token may be interpreted differently by different authorization rules. Including the binding contract makes the control system explicitly discoverable and lets clients inspect or query the canonical per-chain singleton that actually defines the authorization rules.
 
 ### Why not store token standard, token contract, and token id in metadata?
 
-Duplicating those fields in the registry would add unnecessary bytes to the metadata record. The binding contract is the single source of truth; metadata only points clients to which contract to query. Because bindings are immutable, clients and indexers can cache the result of `bindingOf(agentId)` after verification.
+Duplicating those fields in the registry would add unnecessary bytes to the metadata record. The binding contract is the single source of truth; metadata only points clients to which contract to query. Under the expected deployment model, that contract is the canonical per-chain singleton. Because bindings are immutable, clients and indexers can cache the result of `bindingOf(agentId)` after verification.
 
 ## Backwards Compatibility
 
@@ -181,6 +184,10 @@ For the same `bindingContract`, `bindingOf(agentId)` might return for example ER
 Clients MUST NOT assume that decoding `agent-binding` alone is sufficient to determine the current controller of an agent. The metadata reveals only which binding contract to use; the bound token and control semantics come from `bindingOf` and remain implementation-specific.
 
 The trust for this system lies in the contract code of the binding contract. The result of the `bindingOf` function is only as secure and verifiable as the security of the binding contract itself. Clients SHOULD assess that contract (for example audits, reputation, and upgrade risk) before relying on its return values.
+
+We expect the binding contract to be deployed as a singleton per chain. A single canonical binding contract per chain concentrates security and trust around one well-audited contract, and lets indexers and clients watch and verify a single contract per chain instead of an open-ended set of binding contracts.
+
+Implementations MUST store the address of the canonical per-chain singleton under `agent-binding`. Deployments that use multiple binding contracts on the same chain create fragmented trust assumptions and require clients and indexers to discover, assess, and monitor each contract independently.
 
 Clients MUST:
 
