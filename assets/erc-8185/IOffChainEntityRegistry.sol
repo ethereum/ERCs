@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /// @title IOffChainEntityRegistry
 /// @notice Maps off-chain entity identifiers to Ethereum addresses.
 interface IOffChainEntityRegistry {
-    event Claimed(bytes32 indexed id, string namespace, string canonicalString, address indexed owner);
+    event Claimed(bytes32 indexed id, string namespace, string canonicalString, address indexed owner, address verifier);
     event Revoked(bytes32 indexed id, string namespace, string canonicalString, address indexed previousOwner);
     event Linked(bytes32 indexed aliasId, bytes32 indexed primaryId);
     event Unlinked(bytes32 indexed aliasId, bytes32 indexed primaryId);

@@ -58,7 +58,7 @@ contract OffChainEntityRegistry is IOffChainEntityRegistry {
         }
 
         owners[id] = msg.sender;
-        emit Claimed(id, namespace, canonicalString, msg.sender);
+        emit Claimed(id, namespace, canonicalString, msg.sender, verifier);
     }
 
     function revoke(
