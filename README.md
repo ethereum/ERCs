@@ -15,6 +15,17 @@ The [status page](https://eips.ethereum.org/) tracks and lists both EIPs and ERC
 
 **Before you write an ERC, ideas MUST be thoroughly discussed on [Ethereum Magicians](https://ethereum-magicians.org/) or [Ethereum Research](https://ethresear.ch/t/read-this-before-posting/8). Once consensus is reached, thoroughly read and review [EIP-1](https://eips.ethereum.org/EIPS/eip-1), which describes the EIP/ERC process.**
 
+## ERC Author Checklist
+
+Before opening a pull request, confirm that:
+
+- The idea has been discussed on Ethereum Magicians or Ethereum Research.
+- The proposal follows the structure and requirements in EIP-1.
+- The ERC targets the Ethereum application layer, not consensus, networking, or interface-level changes.
+- The preamble includes a valid `discussions-to` link.
+- The document is written as a standard, not an implementation support request.
+- The ERC uses the canonical citation format once published at `https://eips.ethereum.org/`.
+
 Please note that this repository is for documenting standards and not for help implementing them. These types of inquiries should be directed to the [Ethereum Stack Exchange](https://ethereum.stackexchange.com). For specific questions and concerns regarding ERCs, it's best to comment on the relevant discussion thread of the ERC denoted by the `discussions-to` tag in the ERC's preamble.
 
 If you would like to become an EIP Editor, please read [EIP-5069](https://eips.ethereum.org/EIPS/eip-5069).
