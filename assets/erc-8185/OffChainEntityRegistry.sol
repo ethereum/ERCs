@@ -5,7 +5,7 @@ import {IOffChainEntityRegistry} from "./IOffChainEntityRegistry.sol";
 import {IVerifier} from "./IVerifier.sol";
 
 /// @title OffChainEntityRegistry — Reference Implementation
-/// @notice Minimal implementation of ERC-XXXX. Production deployments should
+/// @notice Minimal implementation of ERC-8185. Production deployments should
 ///         add appropriate access control to setVerifier().
 contract OffChainEntityRegistry is IOffChainEntityRegistry {
     address public admin;
@@ -37,6 +37,11 @@ contract OffChainEntityRegistry is IOffChainEntityRegistry {
 
     function ownerOf(bytes32 id) public view returns (address) {
         return owners[canonicalOf(id)];
+    }
+
+    function verifierOf(string calldata namespace) public view returns (address) {
+        _requireValidNamespace(namespace);
+        return verifiers[keccak256(bytes(namespace))];
     }
 
     // -- Registration --------------------------------------------------------
@@ -109,6 +114,7 @@ contract OffChainEntityRegistry is IOffChainEntityRegistry {
 
     function setVerifier(string calldata namespace, address verifier) external onlyAdmin {
         _requireValidNamespace(namespace);
+        require(verifier != address(0), "zero verifier");
         bytes32 key = keccak256(bytes(namespace));
         verifiers[key] = verifier;
         emit VerifierUpdated(key, namespace, verifier);

@@ -14,7 +14,7 @@ contract OracleVerifier is IVerifier {
 
     bytes32 private constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    bytes32 private constant NAME_HASH = keccak256("CanonicalRegistry");
+    bytes32 private constant NAME_HASH = keccak256("OffChainEntityRegistry");
     bytes32 private constant VERSION_HASH = keccak256("1");
     bytes32 public constant PROOF_TYPEHASH =
         keccak256("OwnershipProof(bytes32 id,address claimant,uint256 expiry)");

@@ -13,6 +13,7 @@ interface IOffChainEntityRegistry {
     function toId(string calldata namespace, string calldata canonicalString) external pure returns (bytes32);
     function canonicalOf(bytes32 id) external view returns (bytes32);
     function ownerOf(bytes32 id) external view returns (address);
+    function verifierOf(string calldata namespace) external view returns (address);
 
     function claim(string calldata namespace, string calldata canonicalString, bytes calldata proof) external;
     function revoke(string calldata namespace, string calldata canonicalString) external;
