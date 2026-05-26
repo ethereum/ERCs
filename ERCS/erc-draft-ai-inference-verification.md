@@ -2,7 +2,7 @@
 eip: XXXX
 title: Standard Interfaces for AI Inference Proof Verification
 description: Minimal abstract interfaces for AI inference proof backends (IProofVerifier) and consuming contracts (IVerificationMethod)
-author: JimmyShi22 (@JimmyShi22)
+author: JimmyShi22 (@JimmyShi22) <jimmyshixiang22@gmail.com>
 discussions-to: https://ethereum-magicians.org/t/draft-erc-universal-ai-inference-verification-registry/28083
 status: Draft
 type: Standards Track
