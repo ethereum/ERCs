@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8276
 title: Non-Fungible Multi-Token ownerOf
 description: A canonical ownerOf interface for non-fungible ERC-1155 and ERC-6909 token IDs.
 author: Prem Makeig (@nxt3d)
