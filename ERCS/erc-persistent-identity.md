@@ -3,7 +3,7 @@ eip: TBD
 title: Persistent Identity Token
 description: A standard for persistent, human-readable identity tokens mapped to EVM addresses with support for resolution, lifecycle management, URL records, and policy-controlled governance.
 author: Idon Liu (@nftprof)
-discussions-to: TBD
+discussions-to: https://ethereum-magicians.org/t/erc-persistent-identity-token-pip-on-chain-identity-with-bind-to-lock-model/28641
 status: Draft
 type: Standards Track
 category: ERC
