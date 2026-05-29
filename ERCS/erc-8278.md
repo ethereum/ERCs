@@ -3,7 +3,7 @@ eip: 8278
 title: Service Objects
 description: An ERC-721 extension for service manifests, operators, and payment routes.
 author: MeltedMindz (@MeltedMindz)
-discussions-to: https://ethereum-magicians.org/t/erc-service-objects/28659
+discussions-to: https://ethereum-magicians.org/t/erc-8278-service-objects/28659
 status: Draft
 type: Standards Track
 category: ERC
