@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "description": "ERC-7730 Translation File Schema. A translation file provides a flat map of English source strings to translated strings for a specific locale. It is referenced from the '$i18n' field of a parent ERC-7730 document.",
+  "properties": {
+    "$schema": {
+      "title": "Schema",
+      "type": "string",
+      "format": "uri-reference",
+      "description": "The schema this translation file conforms to."
+    },
+    "$locale": {
+      "title": "Locale",
+      "type": "string",
+      "description": "The BCP-47 language tag for this translation (e.g. 'fr', 'zh-Hans', 'pt-BR'). MUST match the key used in the parent document's '$i18n' map."
+    },
+    "translations": {
+      "title": "Translations",
+      "type": "object",
+      "description": "Flat map from English source string as it appears in the parent ERC-7730 document to the translated string in the target locale. Keys are exact English strings; values are the corresponding translations. Placeholders in interpolatedIntent strings (e.g. '{value}', '{to}') MUST be preserved verbatim in translations. Strings absent from this map fall back to the English original.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["$locale", "translations"],
+  "additionalProperties": false
+}

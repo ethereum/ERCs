@@ -1,0 +1,12 @@
+{
+    "$schema": "./erc7730-i18n.schema.json",
+    "$locale": "fr",
+    "translations": {
+        "Send":                 "Envoyer",
+        "Send {value} to {to}": "Envoyer {value} à {to}",
+        "To":                   "Destinataire",
+        "Amount":               "Montant",
+        "Example":              "Exemple",
+        "MyToken":              "MonToken"
+    }
+}
