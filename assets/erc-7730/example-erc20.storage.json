@@ -1,0 +1,103 @@
+{
+    "$schema": "./erc7730-storage.schema.json",
+
+    "$comment": "Annotated storage layout for a standard ERC-20 token. The 'storage' and 'types' sections match Solidity compiler output (solc --storage-layout). The 'display' objects are the ERC-7730 addition.",
+
+    "storage": [
+        {
+            "astId": 1,
+            "contract": "ERC20",
+            "label": "_totalSupply",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint256",
+            "display": {
+                "label": "Total Supply",
+                "format": "tokenAmount",
+                "params": { "tokenPath": "@.to" }
+            }
+        },
+        {
+            "astId": 2,
+            "contract": "ERC20",
+            "label": "_balances",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_mapping(t_address,t_uint256)",
+            "display": {
+                "label": "Balance of {key[0]}",
+                "format": "tokenAmount",
+                "params": { "tokenPath": "@.to" }
+            }
+        },
+        {
+            "astId": 3,
+            "contract": "ERC20",
+            "label": "_allowances",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
+            "display": {
+                "label": "Allowance of {key[1]} granted by {key[0]}",
+                "format": "tokenAmount",
+                "params": { "tokenPath": "@.to" }
+            }
+        },
+        {
+            "astId": 4,
+            "contract": "ERC20",
+            "label": "_name",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_string_storage",
+            "display": {
+                "label": "Token name",
+                "format": "raw"
+            }
+        },
+        {
+            "astId": 5,
+            "contract": "ERC20",
+            "label": "_symbol",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_string_storage",
+            "display": {
+                "label": "Token symbol",
+                "format": "raw"
+            }
+        }
+    ],
+
+    "types": {
+        "t_uint256": {
+            "encoding": "inplace",
+            "label": "uint256",
+            "numberOfBytes": "32"
+        },
+        "t_address": {
+            "encoding": "inplace",
+            "label": "address",
+            "numberOfBytes": "20"
+        },
+        "t_string_storage": {
+            "encoding": "bytes",
+            "label": "string",
+            "numberOfBytes": "32"
+        },
+        "t_mapping(t_address,t_uint256)": {
+            "encoding": "mapping",
+            "key": "t_address",
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32",
+            "value": "t_uint256"
+        },
+        "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
+            "encoding": "mapping",
+            "key": "t_address",
+            "label": "mapping(address => mapping(address => uint256))",
+            "numberOfBytes": "32",
+            "value": "t_mapping(t_address,t_uint256)"
+        }
+    }
+}

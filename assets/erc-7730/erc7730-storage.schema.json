@@ -1,0 +1,146 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "description": "ERC-7730 Storage Layout File. Extends the Solidity compiler storageLayout output (--storage-layout flag) with optional ERC-7730 display annotations. The 'storage' array and 'types' object are compatible with Solidity compiler output; each storage entry may carry a 'display' object describing how to present that variable's value to users during transaction simulation display.",
+
+    "properties": {
+
+        "$schema": {
+            "title": "Schema",
+            "type": "string",
+            "format": "uri-reference",
+            "description": "The schema this file conforms to."
+        },
+
+        "$comment": {
+            "title": "Comment",
+            "type": "string",
+            "description": "An optional comment string documenting the purpose or provenance of this file."
+        },
+
+        "storage": {
+            "title": "Storage variables",
+            "type": "array",
+            "description": "Ordered list of contract state variables, matching the Solidity compiler storageLayout 'storage' array. Each entry may include an optional 'display' object with ERC-7730 display annotations.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "astId": {
+                        "type": "integer",
+                        "description": "AST node ID of the variable declaration. Matches Solidity compiler output."
+                    },
+                    "contract": {
+                        "type": "string",
+                        "description": "Fully-qualified contract name (file:ContractName). Matches Solidity compiler output."
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Solidity variable name as declared in source. Matches Solidity compiler output."
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Byte offset within the storage slot where this variable begins (for packed variables). Matches Solidity compiler output."
+                    },
+                    "slot": {
+                        "type": "string",
+                        "description": "Storage slot number as a decimal string. Matches Solidity compiler output."
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Type identifier referencing an entry in the 'types' object. Matches Solidity compiler output."
+                    },
+                    "display": {
+                        "$ref": "#/$defs/displayAnnotation"
+                    }
+                },
+                "required": ["label", "offset", "slot", "type"]
+            }
+        },
+
+        "types": {
+            "title": "Type definitions",
+            "type": "object",
+            "description": "Type definitions referenced by storage entries, matching the Solidity compiler storageLayout 'types' object.",
+            "additionalProperties": {
+                "$ref": "#/$defs/typeDefinition"
+            }
+        }
+    },
+
+    "required": ["storage", "types"],
+    "additionalProperties": false,
+
+    "$defs": {
+
+        "displayAnnotation": {
+            "title": "Display annotation",
+            "type": "object",
+            "description": "ERC-7730 display annotation for a storage variable. Describes how to present the variable's value to users during transaction simulation display. Uses the same formatter vocabulary as display.formats[*].fields[*] in the parent ERC-7730 file. For mapping and array types, the 'label' field may use {key[N]} placeholders to embed key values: {key[0]} is the outermost mapping key, {key[1]} the next level, and so on. {index} is available for array entries.",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "User-facing name for this storage variable. For mappings, {key[N]} placeholders embed key values (e.g. 'Balance of {key[0]}'). For arrays, {index} embeds the element index."
+                },
+                "format": {
+                    "type": "string",
+                    "description": "ERC-7730 formatter to apply when displaying the value. Same set as display.formats[*].fields[*].format (tokenAmount, addressName, raw, date, enum, unit, etc.)."
+                },
+                "params": {
+                    "type": "object",
+                    "description": "Formatter parameters. Same structure as display.formats[*].fields[*].params for the chosen format."
+                }
+            },
+            "additionalProperties": false
+        },
+
+        "typeDefinition": {
+            "title": "Type definition",
+            "type": "object",
+            "description": "A Solidity type definition, matching the Solidity compiler storageLayout 'types' object entries.",
+            "properties": {
+                "encoding": {
+                    "type": "string",
+                    "enum": ["inplace", "mapping", "dynamic_array", "bytes"],
+                    "description": "Storage encoding strategy. 'inplace': value stored directly in slot (or packed). 'mapping': slot is computed via keccak256(key || baseSlot). 'dynamic_array': length at base slot, elements at keccak256(baseSlot) + index. 'bytes': short strings/bytes packed in slot, long ones at keccak256(baseSlot)."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human-readable Solidity type name (e.g. 'uint256', 'mapping(address => uint256)')."
+                },
+                "numberOfBytes": {
+                    "type": "string",
+                    "description": "Number of bytes this type occupies in storage, as a decimal string."
+                },
+                "key": {
+                    "type": "string",
+                    "description": "For mapping types: type identifier of the mapping key."
+                },
+                "value": {
+                    "type": "string",
+                    "description": "For mapping and dynamic_array types: type identifier of the value/element type."
+                },
+                "base": {
+                    "type": "string",
+                    "description": "For dynamic_array types: type identifier of the element type (alias of 'value', matches compiler output)."
+                },
+                "members": {
+                    "type": "array",
+                    "description": "For struct types: ordered list of struct member descriptions.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "astId":  { "type": "integer" },
+                            "contract": { "type": "string" },
+                            "label":  { "type": "string" },
+                            "offset": { "type": "integer" },
+                            "slot":   { "type": "string" },
+                            "type":   { "type": "string" }
+                        },
+                        "required": ["label", "offset", "slot", "type"]
+                    }
+                }
+            },
+            "required": ["encoding", "label", "numberOfBytes"]
+        }
+    }
+}

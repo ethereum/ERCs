@@ -3,6 +3,8 @@
 
     "$comment": "This is an example of ERC-7730 display definition for an ERC-20 token contract, intended as an interface definition to be included in other files.",
 
+    "storageLayout": "./example-erc20.storage.json",
+
     "display": {
         "formats": {
             "approve(address spender,uint256 value)": {
