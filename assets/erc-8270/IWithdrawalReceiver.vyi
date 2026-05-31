@@ -1,0 +1,38 @@
+@external
+@view
+def validator_key() -> (bytes32, bytes16):
+    ...
+
+
+@external
+def _set_validator_key(key_hi: bytes32, key_lo: bytes16):
+    ...
+
+
+@external
+@payable
+def _request_withdrawal(amount: bytes8):
+    ...
+
+
+@external
+@payable
+def _request_consolidation(target_key_hi: bytes32, target_key_lo: bytes16):
+    ...
+
+
+@external
+@payable
+def _request_switch_to_compounding():
+    ...
+
+
+@external
+def _pull_native_balance(target: address, data: Bytes[2**16]):
+    ...
+
+
+@external
+@payable
+def _arbitrary_call(target: address, data: Bytes[2**16]):
+    ...
