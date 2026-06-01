@@ -97,8 +97,18 @@
                                 "deployEvent"
                             ],
                             "additionalProperties": false
+                        },
+                        "proxy": {
+                            "$ref": "#/$context/proxy"
+                        },
+                        "stateRefs": {
+                            "title": "State preconditions",
+                            "type": "array",
+                            "description": "Storage slot preconditions that bound the displayed intent's correctness. Wallets MUST verify each entry's expectedValue against live state before applying the descriptor. Use for admin-controlled parameters (pause flags, fee values), state-dependent branches, custom (non-standard) proxy implementation slots, or any other mutable on-chain state whose value affects the displayed intent.",
+                            "items": {
+                                "$ref": "#/$context/stateRef"
+                            }
                         }
-
                     },
                     "additionalProperties": false
                 }
@@ -176,6 +186,87 @@
                     }
                 }
             }
+        },
+
+        "proxy": {
+            "title": "Proxy precondition",
+            "type": "object",
+            "description": "Declares that the bound contract is a standardised upgradeable proxy and pins the set of implementation addresses (and, for diamonds, the selector-to-facet routing) that the descriptor was authored against. Wallets dispatch on `type` to choose the verification primitive: a fixed-slot read for EIP-1967/EIP-1822, a `facets()` loupe call for EIP-2535. For non-standard (custom) proxy layouts, use `stateRefs` instead.",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [ "eip1967", "eip1822", "eip2535" ],
+                    "description": "The standardised proxy pattern the contract implements. `eip-1967` covers Transparent Proxies and other patterns that store the implementation address at the EIP-1967 implementation slot. `eip-1822` is UUPS. `eip-2535` is the Diamond multi-facet pattern; wallets enumerate facets via the standard diamond loupe `facets()` interface."
+                },
+                "expectedImplementations": {
+                    "type": "array",
+                    "description": "The set of implementation addresses (with chain IDs) the descriptor was authored and audited against. A descriptor remains valid as long as the live implementation(s) resolved from the proxy are contained in this set; non-semantic upgrades can be accommodated by appending the new implementation address rather than republishing the descriptor. For EIP-2535 diamonds, each entry MUST also declare the function selectors it serves so that wallets can verify selector-to-facet routing.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "chainId": {
+                                "type": "integer",
+                                "format": "eip155"
+                            },
+                            "address": {
+                                "type": "string",
+                                "format": "eip55"
+                            },
+                            "selectors": {
+                                "type": "array",
+                                "description": "Function selectors (4-byte, 0x-prefixed hex) served by this facet. REQUIRED when the enclosing proxy `type` is `eip-2535`; MUST be absent otherwise. Wallets verify every (selector, facet) pair returned by the diamond loupe matches a declared (selectors, address) entry.",
+                                "items": {
+                                    "type": "string",
+                                    "pattern": "^0x[a-fA-F0-9]{8}$"
+                                }
+                            }
+                        },
+                        "required": [ "chainId", "address" ],
+                        "additionalProperties": false
+                    }
+                }
+            },
+            "required": [ "type", "expectedImplementations" ],
+            "additionalProperties": false
+        },
+
+        "stateRef": {
+            "title": "State Reference",
+            "type": "object",
+            "description": "A storage slot whose value bounds the correctness of the descriptor's displayed intent. Wallets read the live slot value and compare to expectedValue before applying the descriptor.",
+
+            "properties": {
+                "chainId": {
+                    "type": "integer",
+                    "description": "Chain ID of the contract holding this slot. Defaults to the descriptor's deployment chain when omitted."
+                },
+                "address": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$",
+                    "description": "Address of the contract holding this slot. Defaults to the descriptor's contract address when omitted."
+                },
+                "slot": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Storage slot index, 0x-prefixed hex up to 32 bytes. For mapping or array slots, the author pre-computes the slot (e.g., keccak256(abi.encode(key, baseSlot))) and SHOULD include the pre-image formula in the description."
+                },
+                "expectedValue": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Value of the slot at descriptor authoring time, 0x-prefixed hex up to 32 bytes. Wallets verify the live slot value matches this before applying the descriptor's formatting. When mask is present, only the masked bits are compared on both sides."
+                },
+                "mask": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{1,64}$",
+                    "description": "Optional bitmask, 0x-prefixed hex up to 32 bytes. When present, wallets compare (liveValue & mask) == (expectedValue & mask) instead of the full slot. Use this for packed slots where only a subset of bits bounds the displayed intent. When omitted, the full 32-byte slot value is compared."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable explanation of what this slot controls and how a change to it would affect the displayed intent. For computed slots, SHOULD include the pre-image formula."
+                }
+            },
+            "required": [ "slot", "expectedValue", "description" ],
+            "additionalProperties": false
         }
     },
 
