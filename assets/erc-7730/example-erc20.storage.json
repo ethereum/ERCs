@@ -3,6 +3,11 @@
 
     "$comment": "Annotated storage layout for a standard ERC-20 token. The 'storage' and 'types' sections match Solidity compiler output (solc --storage-layout). The 'display' objects are the ERC-7730 addition.",
 
+    "compiler": {
+        "language": "Solidity",
+        "version": "0.8.24"
+    },
+
     "storage": [
         {
             "astId": 1,
@@ -31,7 +36,19 @@
                 ],
                 "format": "tokenAmount",
                 "params": { "tokenPath": "@.to" },
-                "template": "{label} increases from {oldValue} to {newValue}"
+                "template": [
+                {
+                    "condition": { ">": [{ "var": "newValue" }, { "var": "oldValue" }] },
+                    "value": "Balance of {key[0]} increased from {oldValue} to {newValue}"
+                },
+                {
+                    "condition": { "<": [{ "var": "newValue" }, { "var": "oldValue" }] },
+                    "value": "Balance of {key[0]} decreased from {oldValue} to {newValue}"
+                },
+                {
+                    "value": "Balance of {key[0]} changed from {oldValue} to {newValue}"
+                }
+            ]
             }
         },
         {

@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
-    "description": "ERC-7730 Storage Layout File. Extends the Solidity compiler storageLayout output (--storage-layout flag) with optional ERC-7730 display annotations. The 'storage' array and 'types' object are compatible with Solidity compiler output; each storage entry may carry a 'display' object describing how to present that variable's value to users during transaction simulation display.",
+    "description": "ERC-7730 Storage Layout File. Extends the compiler storageLayout output (Solidity --storage-layout flag or Vyper equivalent) with optional ERC-7730 display annotations. The 'storage' array and 'types' object are compatible with compiler output; each storage entry may carry a 'display' object describing how to present that variable's value to users during transaction simulation display.",
 
     "properties": {
 
@@ -18,10 +18,33 @@
             "description": "An optional comment string documenting the purpose or provenance of this file."
         },
 
+        "compiler": {
+            "title": "Compiler information",
+            "type": "object",
+            "description": "Identifies the source language and compiler used to produce this storage layout. Used to select the correct slot derivation formula. If omitted, Solidity is assumed.",
+            "properties": {
+                "language": {
+                    "type": "string",
+                    "description": "Source language. Standard values: 'Solidity' (default when omitted), 'Vyper'.",
+                    "default": "Solidity"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Compiler version string (e.g. '0.8.24'). Informative only."
+                },
+                "settings": {
+                    "type": "object",
+                    "description": "Compiler settings (e.g. optimizer configuration). Informative only.",
+                    "additionalProperties": true
+                }
+            },
+            "additionalProperties": false
+        },
+
         "storage": {
             "title": "Storage variables",
             "type": "array",
-            "description": "Ordered list of contract state variables, matching the Solidity compiler storageLayout 'storage' array. Each entry may include an optional 'display' object with ERC-7730 display annotations.",
+            "description": "Ordered list of contract state variables, matching the compiler storageLayout 'storage' array. Each entry may include an optional 'display' object with ERC-7730 display annotations.",
             "items": {
                 "type": "object",
                 "properties": {
@@ -35,23 +58,19 @@
                     },
                     "label": {
                         "type": "string",
-                        "description": "Solidity variable name as declared in source. Matches Solidity compiler output."
+                        "description": "Source variable name as declared in the contract."
                     },
                     "offset": {
                         "type": "integer",
-                        "description": "Byte offset within the storage slot where this variable begins (for packed variables). Matches Solidity compiler output."
+                        "description": "Byte offset within the storage slot where this variable begins (for packed variables). Matches compiler output."
                     },
                     "slot": {
                         "type": "string",
-                        "description": "Storage slot number as a decimal string. Matches Solidity compiler output."
+                        "description": "Storage slot number as a decimal string. For mappings and dynamic arrays this is the base slot used to derive child slots."
                     },
                     "type": {
                         "type": "string",
-                        "description": "Type identifier referencing an entry in the 'types' object. Matches Solidity compiler output."
-                    },
-                    "strategy": {
-                        "type": "string",
-                        "description": "The slot derivation strategy used for this variable. If omitted, the default for the language is assumed. See ERC-7730 for the list of standard strategies (e.g., 'solidity:mapping', 'vyper:mapping', 'eip1967')."
+                        "description": "Type identifier referencing an entry in the 'types' object. Matches compiler output."
                     },
                     "display": {
                         "$ref": "#/$defs/displayAnnotation"
@@ -64,7 +83,7 @@
         "types": {
             "title": "Type definitions",
             "type": "object",
-            "description": "Type definitions referenced by storage entries, matching the Solidity compiler storageLayout 'types' object.",
+            "description": "Type definitions referenced by storage entries, matching the compiler storageLayout 'types' object.",
             "additionalProperties": {
                 "$ref": "#/$defs/typeDefinition"
             }
@@ -79,15 +98,15 @@
         "displayAnnotation": {
             "title": "Display annotation",
             "type": "object",
-            "description": "ERC-7730 display annotation for a storage variable. Describes how to present the variable's value to users during transaction simulation display. Uses the same formatter vocabulary as display.formats[*].fields[*] in the parent ERC-7730 file. For mapping and array types, the 'label' field may use {key[N]} placeholders to embed key values: {key[0]} is the outermost mapping key, {key[1]} the next level, and so on. {index} is available for array entries.",
+            "description": "ERC-7730 display annotation for a storage variable or struct member. Describes how to present the variable's value to users during transaction simulation. Uses the same formatter vocabulary as display.formats[*].fields[*] in the parent ERC-7730 file. In 'label' strings: {key[N]} embeds the Nth mapping key (outermost = {key[0]}); {index[N]} embeds the Nth array element index. In 'template' strings: {label}, {oldValue}, and {newValue} are the supported placeholders.",
             "properties": {
                 "label": {
                     "type": "string",
-                    "description": "User-facing name for this storage variable. For mappings, {key[N]} placeholders embed key values (e.g. 'Balance of {key[0]}'). For arrays, {index} embeds the element index."
+                    "description": "User-facing name for this storage variable. For mappings, {key[N]} placeholders embed key values (e.g. 'Balance of {key[0]}'). For arrays, {index[N]} embeds element indices."
                 },
                 "keyFormats": {
                     "type": "array",
-                    "description": "Formatters for mapping keys or array indices. keyFormats[0] applies to {key[0]}, and so on. Uses the same format/params structure as fields.",
+                    "description": "Formatters for mapping keys or array indices. keyFormats[0] applies to {key[0]}/{index[0]}, and so on. Uses the same format/params structure as call data fields.",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -99,15 +118,40 @@
                 },
                 "format": {
                     "type": "string",
-                    "description": "ERC-7730 formatter to apply when displaying the storage value itself (old and new values). Same set as display.formats[*].fields[*].format."
+                    "description": "ERC-7730 formatter to apply when displaying the storage value (old and new). Same set as display.formats[*].fields[*].format."
                 },
                 "params": {
                     "type": "object",
                     "description": "Formatter parameters for the storage value."
                 },
                 "template": {
-                    "type": "string",
-                    "description": "Optional natural language template for the storage change. Supports {label}, {oldValue}, and {newValue} placeholders. {label} is the resolved label after key formatting."
+                    "description": "Natural language template for the storage change. Either a plain string or an ordered array of conditional entries evaluated using JSON Logic (https://jsonlogic.com). Template strings support {label}, {oldValue}, and {newValue} placeholders. In conditional entries, the condition is a JSON Logic expression with access to variables: 'oldValue' (raw bigint), 'newValue' (raw bigint), 'key' (array of raw mapping keys), 'index' (array of element indices). The wallet evaluates entries in order and uses the first matching entry. An entry without a condition matches unconditionally.",
+                    "oneOf": [
+                        {
+                            "type": "string",
+                            "description": "Unconditional template string."
+                        },
+                        {
+                            "type": "array",
+                            "description": "Ordered list of conditional template entries. First matching entry is used.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "condition": {
+                                        "type": "object",
+                                        "description": "JSON Logic expression (https://jsonlogic.com). Required operators: ==, !=, >, >=, <, <=, !, and, or, var. If absent, this entry matches unconditionally."
+                                    },
+                                    "value": {
+                                        "type": "string",
+                                        "description": "Template string rendered when the condition matches. Supports {label}, {oldValue}, {newValue} placeholders."
+                                    }
+                                },
+                                "required": ["value"],
+                                "additionalProperties": false
+                            },
+                            "minItems": 1
+                        }
+                    ]
                 }
             },
             "additionalProperties": false
@@ -116,19 +160,19 @@
         "typeDefinition": {
             "title": "Type definition",
             "type": "object",
-            "description": "A Solidity type definition, matching the Solidity compiler storageLayout 'types' object entries.",
+            "description": "A type definition, matching the compiler storageLayout 'types' object entries. The 'encoding' field determines the slot derivation formula in combination with the file-level 'compiler.language'.",
             "properties": {
                 "encoding": {
                     "type": "string",
-                    "description": "Storage encoding strategy. Standard values include 'inplace', 'mapping', 'dynamic_array', 'bytes'. Can be extended for other languages."
+                    "description": "Storage encoding. Standard values: 'inplace' (value types and structs), 'mapping', 'dynamic_array', 'bytes' (bytes and string). Determines the slot derivation formula together with compiler.language."
                 },
                 "label": {
                     "type": "string",
-                    "description": "Human-readable Solidity type name (e.g. 'uint256', 'mapping(address => uint256)')."
+                    "description": "Human-readable type name as it appears in the source language (e.g. 'uint256', 'mapping(address => uint256)')."
                 },
                 "numberOfBytes": {
                     "type": "string",
-                    "description": "Number of bytes this type occupies in storage, as a decimal string."
+                    "description": "Number of bytes this type occupies in storage, as a decimal string. For packed variables, used together with the entry's 'offset' to extract the value from a raw slot word."
                 },
                 "key": {
                     "type": "string",
@@ -140,11 +184,11 @@
                 },
                 "base": {
                     "type": "string",
-                    "description": "For dynamic_array types: type identifier of the element type (alias of 'value', matches compiler output)."
+                    "description": "For dynamic_array types: type identifier of the element type (alias of 'value', matches Solidity compiler output)."
                 },
                 "members": {
                     "type": "array",
-                    "description": "For struct types: ordered list of struct member descriptions.",
+                    "description": "For struct types: ordered list of struct member descriptions. Each member may carry its own 'display' annotation.",
                     "items": {
                         "type": "object",
                         "properties": {
