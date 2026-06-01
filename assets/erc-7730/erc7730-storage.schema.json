@@ -49,6 +49,10 @@
                         "type": "string",
                         "description": "Type identifier referencing an entry in the 'types' object. Matches Solidity compiler output."
                     },
+                    "strategy": {
+                        "type": "string",
+                        "description": "The slot derivation strategy used for this variable. If omitted, the default for the language is assumed. See ERC-7730 for the list of standard strategies (e.g., 'solidity:mapping', 'vyper:mapping', 'eip1967')."
+                    },
                     "display": {
                         "$ref": "#/$defs/displayAnnotation"
                     }
@@ -81,13 +85,29 @@
                     "type": "string",
                     "description": "User-facing name for this storage variable. For mappings, {key[N]} placeholders embed key values (e.g. 'Balance of {key[0]}'). For arrays, {index} embeds the element index."
                 },
+                "keyFormats": {
+                    "type": "array",
+                    "description": "Formatters for mapping keys or array indices. keyFormats[0] applies to {key[0]}, and so on. Uses the same format/params structure as fields.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "format": { "type": "string" },
+                            "params": { "type": "object" }
+                        },
+                        "required": ["format"]
+                    }
+                },
                 "format": {
                     "type": "string",
-                    "description": "ERC-7730 formatter to apply when displaying the value. Same set as display.formats[*].fields[*].format (tokenAmount, addressName, raw, date, enum, unit, etc.)."
+                    "description": "ERC-7730 formatter to apply when displaying the storage value itself (old and new values). Same set as display.formats[*].fields[*].format."
                 },
                 "params": {
                     "type": "object",
-                    "description": "Formatter parameters. Same structure as display.formats[*].fields[*].params for the chosen format."
+                    "description": "Formatter parameters for the storage value."
+                },
+                "template": {
+                    "type": "string",
+                    "description": "Optional natural language template for the storage change. Supports {label}, {oldValue}, and {newValue} placeholders. {label} is the resolved label after key formatting."
                 }
             },
             "additionalProperties": false
@@ -100,8 +120,7 @@
             "properties": {
                 "encoding": {
                     "type": "string",
-                    "enum": ["inplace", "mapping", "dynamic_array", "bytes"],
-                    "description": "Storage encoding strategy. 'inplace': value stored directly in slot (or packed). 'mapping': slot is computed via keccak256(key || baseSlot). 'dynamic_array': length at base slot, elements at keccak256(baseSlot) + index. 'bytes': short strings/bytes packed in slot, long ones at keccak256(baseSlot)."
+                    "description": "Storage encoding strategy. Standard values include 'inplace', 'mapping', 'dynamic_array', 'bytes'. Can be extended for other languages."
                 },
                 "label": {
                     "type": "string",
@@ -134,7 +153,8 @@
                             "label":  { "type": "string" },
                             "offset": { "type": "integer" },
                             "slot":   { "type": "string" },
-                            "type":   { "type": "string" }
+                            "type":   { "type": "string" },
+                            "display": { "$ref": "#/$defs/displayAnnotation" }
                         },
                         "required": ["label", "offset", "slot", "type"]
                     }
