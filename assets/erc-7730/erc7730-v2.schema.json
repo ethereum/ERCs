@@ -33,6 +33,10 @@
             "$ref": "#/$metadata/main"
         },
 
+        "alert": {
+            "$ref": "#/$alert/main"
+        },
+
         "display": {
             "$ref": "#/$display/main"
         }
@@ -326,6 +330,31 @@
         }
     },
 
+    "$alert": {
+        "main": {
+            "title": "Alert Section",
+            "type": "object",
+            "description": "An optional security alert communicating that the targeted contract is known to be compromised, malicious, destructed or rendered inoperative. When present, wallets MUST display the message prominently instead of the normal signing screen.",
+
+            "properties": {
+                "severity": {
+                    "title": "Alert Severity",
+                    "type": "string",
+                    "description": "The severity of the alert: 'warning' means proceed with caution; wallets MUST show the message but MAY allow signing; 'critical' means the contract is known malicious or compromised; wallets SHOULD block signing or require explicit risk acknowledgment.",
+                    "enum": ["warning", "critical"]
+                },
+                "message": {
+                    "title": "Alert Message",
+                    "type": "string",
+                    "description": "A plain-text description of the alert. MUST NOT exceed 500 characters. Should include enough context for a user to understand the risk and recommended action.",
+                    "maxLength": 500
+                }
+            },
+            "required": ["severity", "message"],
+            "additionalProperties": false
+        }
+    },
+
     "$display": {
         "main": {
             "title": "Display Formatting Info Section",
@@ -356,7 +385,7 @@
                                 "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
                             }
                         ]
-                        
+
                     },
 
                     "additionalProperties": {
@@ -677,13 +706,13 @@
                 ],
                 "description": "Conditional display rules. Either 'ifNotIn' or 'mustMatch' must be defined, but not both."
                 }
-            ]    
+            ]
         },
         "mapReference": {
             "title": "Map Reference",
             "type": "object",
             "properties": {
-                "map": { 
+                "map": {
                     "type": "string",
                     "description": "The path to the referenced map."
                 },
