@@ -1,5 +1,5 @@
 ---
-eip: 8258
+eip: xxxx
 title: On-Chain Registry for ERC-7730 Clear Signing Descriptors
 description: An open on-chain protocol-agnostic registry for ERC-7730 descriptors with EAS-backed attestations
 author: Alex Forshtat (@forshtat)
@@ -108,13 +108,17 @@ Any address may permissionlessly call this function, and the attester identity i
 The `attestations` parameter supports multiple EAS attestation requests in a single transaction, however `attestations[0]` MUST use the ERC-8176 schema UID, and `attestations[0].data[0].data` MUST ABI-decode to `bytes32` equal to `descriptorId`.
 All other entries in the batch are supplementary and are passed through to EAS without registry-level validation.
 
+The `uris` parameter MUST NOT be empty.
+
+The `revocations` parameter MAY be empty on first registration. When an attester already has an active attestation for any of the supplied `contextIds`, the corresponding attestation UID MUST appear in the `revocations` batch; otherwise the call reverts with `MissingRevocation`.
+
 The returned `attestationId` is `uids[0]` — the first element of the flat `bytes32[]` returned by `eas.multiAttestByDelegation`. Because `multiAttestByDelegation` returns UIDs in insertion order (one per `data[]` entry, across all requests), `uids[0]` always corresponds to `attestations[0].data[0]`, making the convention unambiguous.
 
 Wallets MUST independently validate the descriptor's `context` section against the actual transaction before applying any formatting, per ERC-7730 Binding context format rules.
 
 #### `updateURIs(bytes32 descriptorId, string[] uris)`
 
-Replaces the URI list for `(msg.sender, descriptorId)`. Only callable after `msg.sender` has successfully called `createDescriptorAttestation` for this `descriptorId`. Allows attesters to update retrieval endpoints without creating a new EAS attestation.
+Replaces the URI list for `(msg.sender, descriptorId)`. Only callable after `msg.sender` has successfully called `createDescriptorAttestation` for this `descriptorId`. Allows attesters to update retrieval endpoints without creating a new EAS attestation. The `uris` parameter MUST NOT be empty.
 
 #### `getDescriptors(address[] attesters, bytes32 contextId)`
 
@@ -171,6 +175,10 @@ Wallet vendors SHOULD publish their trusted attester addresses and key rotation 
 ### EAS attestation revoked after slot update (staleness)
 
 An attester may revoke their EAS attestation directly after calling `createDescriptorAttestation`. The registry's active slot continues to point to the revoked attestation until cleared by the caller.
+
+### Atomicity of slot replacement and revocation
+
+When `createDescriptorAttestation` replaces an existing active slot, the registry requires that every displaced attestation UID is present in the supplied `revocations` batch. This prevents a permissionless relay from silently updating a slot while leaving a stale active attestation on EAS.
 
 ### Caller asserts incorrect context IDs
 

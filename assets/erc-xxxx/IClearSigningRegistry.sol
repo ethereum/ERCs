@@ -1,56 +1,14 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-// ---------------------------------------------------------------------------
-// EAS types (from ethereum-attestation-service/eas-contracts)
-// Defined at file scope so both IERC8258 and implementations can use them
-// without the interface prefix.
-// ---------------------------------------------------------------------------
+import "./IEAS.sol";
 
-struct Signature {
-    uint8   v;
-    bytes32 r;
-    bytes32 s;
-}
-
-struct AttestationRequestData {
-    address recipient;
-    uint64  expirationTime;
-    bool    revocable;
-    bytes32 refUID;
-    bytes   data;
-    uint256 value;
-}
-
-struct MultiDelegatedAttestationRequest {
-    bytes32                    schema;
-    AttestationRequestData[]   data;
-    Signature[]                signatures;
-    address                    attester;
-    uint64                     deadline;
-}
-
-struct RevocationRequestData {
-    bytes32 uid;
-    uint256 value;
-}
-
-struct MultiDelegatedRevocationRequest {
-    bytes32                   schema;
-    RevocationRequestData[]   data;
-    Signature[]               signatures;
-    address                   revoker;
-    uint64                    deadline;
-}
-
-// ---------------------------------------------------------------------------
-
-/// @title IERC8258 — On-Chain Registry for ERC-7730 Clear Signing Descriptors
+/// @title  IClearSigningRegistry — On-Chain Registry for ERC-7730 Clear Signing Descriptors
 /// @notice Defines the interface for an Ethereum-mainnet registry that maps
 ///         context IDs derived from ERC-7730 binding constraints to attester-
 ///         endorsed descriptor IDs, with EAS-backed attestations
 ///         (per ERC-8176) as the sole trust mechanism.
-interface IERC8258 {
+interface IClearSigningRegistry {
 
     // =========================================================================
     // Events
@@ -92,6 +50,9 @@ interface IERC8258 {
     /// @notice Thrown when attestations is empty or attestations[0].data is empty.
     error EmptyAttestations();
 
+    /// @notice Thrown when an empty URI list is passed where URIs are required.
+    error EmptyURIs();
+
     /// @notice Thrown when attestations[0].schema does not match the registry's
     ///         configured ERC-8176 schema UID.
     error WrongEASSchema(bytes32 expected, bytes32 got);
@@ -99,6 +60,10 @@ interface IERC8258 {
     /// @notice Thrown when the descriptor ID encoded in attestations[0].data[0].data
     ///         does not match the descriptorId argument.
     error EASHashMismatch(bytes32 attestedId, bytes32 claimedId);
+
+    /// @notice Thrown when createDescriptorAttestation replaces an active slot but
+    ///         the previously active attestation UID is not included in revocations.
+    error MissingRevocation(bytes32 missingUid);
 
     /// @notice Thrown when updateURIs is called by an address that has never
     ///         successfully called createDescriptorAttestation for this descriptor ID.
@@ -135,12 +100,12 @@ interface IERC8258 {
     ///         this on-chain. Wallets MUST independently validate the descriptor's
     ///         context section against the transaction (per ERC-7730 §Binding context).
     ///
-    /// @param contextIds    Context IDs this descriptor should be discoverable under.
-    ///                      MUST NOT be empty.
     /// @param descriptorId  keccak256 of the canonical ERC-7730 descriptor file.
     ///                      MUST NOT be bytes32(0).
+    /// @param contextIds    Context IDs this descriptor should be discoverable under.
+    ///                      MUST NOT be empty.
     /// @param uris          Initial URI hints for retrieving the descriptor file.
-    ///                      MAY be empty. Replaces any prior URI list for this
+    ///                      MUST NOT be empty. Replaces any prior URI list for this
     ///                      (attester, descriptorId) pair.
     /// @param attestations  EAS delegated attestation batch. attestations[0] is the
     ///                      active attestation; all others are supplementary.
@@ -149,8 +114,8 @@ interface IERC8258 {
     ///                      MAY be empty (e.g. on first registration).
     /// @return attestationId  The EAS UID of the active attestation (uids[0]).
     function createDescriptorAttestation(
-        bytes32[]                               calldata contextIds,
         bytes32                                          descriptorId,
+        bytes32[]                               calldata contextIds,
         string[]                                calldata uris,
         MultiDelegatedAttestationRequest[]      calldata attestations,
         MultiDelegatedRevocationRequest[]       calldata revocations
@@ -162,18 +127,8 @@ interface IERC8258 {
     ///         Replaces the entire URI list. URIs are hints only; wallets MUST
     ///         verify keccak256(retrievedBytes) == descriptorId.
     /// @param descriptorId  The descriptor ID.
-    /// @param uris          New URI list. MAY be empty.
+    /// @param uris          New URI list. MUST NOT be empty.
     function updateURIs(bytes32 descriptorId, string[] calldata uris) external;
-
-    /// @notice Clear an attester's active slot for a context ID after verifying
-    ///         that the backing EAS attestation has been revoked on EAS.
-    ///         Permissionless: any address may call this.
-    ///         No-op if there is no active slot.
-    ///         Reverts if the backing EAS attestation is not currently revoked.
-    ///         Emits AttesterEndorsementUpdated with newDescriptorId = bytes32(0).
-    /// @param attester   The attester whose slot should be cleared.
-    /// @param contextId  The context ID to clear.
-    function clearRevokedEndorsement(address attester, bytes32 contextId) external;
 
     // =========================================================================
     // Queries
@@ -198,43 +153,6 @@ interface IERC8258 {
     /// @param attester     The attester address.
     /// @param descriptorId The descriptor ID.
     /// @return uris  The URI list (may be empty).
-    function getURIs(address attester, bytes32 descriptorId)
+    function getDescriptorURIs(address attester, bytes32 descriptorId)
         external view returns (string[] memory uris);
-
-    // =========================================================================
-    // Context ID derivation helpers (pure)
-    // =========================================================================
-
-    /// @notice Derive the context ID for an EVM contract deployment binding.
-    ///         Equivalent to:
-    ///         keccak256(abi.encode(CONTEXT_TAG_CONTRACT, chainId, contractAddress))
-    ///         Implements ERC-7730 §context.contract per-deployment binding.
-    function computeContractContextId(uint256 chainId, address contractAddress)
-        external pure returns (bytes32 contextId);
-
-    /// @notice Derive the context ID for an EIP-712 deployment binding.
-    ///         Equivalent to:
-    ///         keccak256(abi.encode(CONTEXT_TAG_EIP712_DEP, chainId, verifyingContract))
-    ///         Implements ERC-7730 §context.eip712.deployments per-deployment binding.
-    function computeEIP712DeploymentContextId(uint256 chainId, address verifyingContract)
-        external pure returns (bytes32 contextId);
-
-    /// @notice Derive the context ID for an EIP-712 domain-separator binding.
-    ///         Equivalent to:
-    ///         keccak256(abi.encode(CONTEXT_TAG_EIP712_DS, domainSeparator))
-    ///         Implements ERC-7730 §context.eip712.domainSeparator binding.
-    function computeEIP712DomainSeparatorContextId(bytes32 domainSeparator)
-        external pure returns (bytes32 contextId);
-
-    /// @notice Derive the context ID for a factory-deployed contract binding.
-    ///         Equivalent to:
-    ///         keccak256(abi.encode(CONTEXT_TAG_FACTORY, chainId, factoryAddress, deployEventTopic))
-    ///         Implements ERC-7730 §context.contract.factory binding.
-    ///         deployEventTopic = keccak256(deployEventSignatureString) = topic[0] of the deploy event,
-    ///         e.g. keccak256("TokenDeployed(address)").
-    function computeFactoryContextId(
-        uint256 chainId,
-        address factoryAddress,
-        bytes32 deployEventTopic
-    ) external pure returns (bytes32 contextId);
 }
