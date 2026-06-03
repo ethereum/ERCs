@@ -14,7 +14,7 @@ requires: 165, 7201
 
 This ERC defines a minimal interface for smart contracts that host third-party runtime apps. A compliant host exposes local app enablement and a permissionless execution entry point for enabled apps.
 
-Runtime app execution MUST occur in the host's context rather than as a plain external call into app-owned state. Shared-storage hosts and apps MUST isolate persistent state with [ERC-7201](./erc-7201.md)-compatible namespaced storage.
+Runtime app execution MUST occur in the host's context rather than as a plain external call into app-owned state. Shared-storage hosts and apps MUST isolate persistent state with [ERC-7201](./eip-7201.md)-compatible namespaced storage.
 
 ## Motivation
 
@@ -57,7 +57,7 @@ interface IERCRuntimeAppHost {
 }
 ```
 
-Runtime hosts MUST implement [ERC-165](./erc-165.md) and:
+Runtime hosts MUST implement [ERC-165](./eip-165.md) and:
 
 - `supportsInterface(type(IERCRuntimeAppHost).interfaceId)` MUST return `true`;
 - `supportsInterface(type(IERC165).interfaceId)` MUST return `true`.
@@ -102,7 +102,7 @@ This ERC does not add runtime context getter functions because app code can use 
 Shared-storage runtime hosts and runtime apps:
 
 - MUST use independent namespaced storage for host state and each app's persistent state; and
-- MUST use storage locations compatible with [ERC-7201](./erc-7201.md).
+- MUST use storage locations compatible with ERC-7201.
 
 They MUST NOT rely on default Solidity storage slot ordering to separate host state from app state or one app's state from another app's state. This requirement is equivalent in spirit to diamond storage, but this ERC does not require a diamond proxy architecture.
 
@@ -120,7 +120,7 @@ Permissionless triggering allows counterparties, relayers, keepers, and executor
 
 Rejecting nested runtime execution keeps caller, storage, and reentrancy semantics simple across implementations.
 
-[ERC-7201](./erc-7201.md)-compatible namespaced storage is required for shared-storage runtimes because storage collisions can let one app overwrite host state or another app's state.
+ERC-7201-compatible namespaced storage is required for shared-storage runtimes because storage collisions can let one app overwrite host state or another app's state.
 
 ## Backwards Compatibility
 
@@ -141,8 +141,8 @@ Implementers SHOULD cover at least the following cases:
 - `enableApp` and `disableApp` change the value returned by `isAppEnabled`.
 - `AppEnabled` and `AppDisabled` are emitted with the expected arguments.
 - if a host layers additional non-standard execution conditions, `isAppEnabled` still reflects local enablement state rather than aggregate execution eligibility.
-- the runtime host reports support for this ERC through [ERC-165](./erc-165.md).
-- shared-storage runtimes isolate host state and each app's state through [ERC-7201](./erc-7201.md)-compatible namespaced storage.
+- the runtime host reports support for this ERC through ERC-165.
+- shared-storage runtimes isolate host state and each app's state through ERC-7201-compatible namespaced storage.
 
 ## Reference Implementation
 
@@ -156,7 +156,7 @@ Because arbitrary external callers may invoke `executeRuntimeApp`, runtime apps 
 
 Runtime apps MUST NOT modify the host's app enablement state except through the host's authorized enablement mechanism. Shared-storage hosts MUST treat enablement storage as host state and isolate it from app storage.
 
-Shared-storage runtimes are particularly sensitive to storage collisions. [ERC-7201](./erc-7201.md)-compatible namespaced storage is REQUIRED because otherwise a runtime app may overwrite host-owned state or another app's state.
+Shared-storage runtimes are particularly sensitive to storage collisions. ERC-7201-compatible namespaced storage is REQUIRED because otherwise a runtime app may overwrite host-owned state or another app's state.
 
 Any execution-local runtime state is security-sensitive. Implementations MUST prevent leakage across executions.
 
