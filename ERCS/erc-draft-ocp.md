@@ -1,0 +1,130 @@
+---
+eip: 1
+title: Observation Commitment Protocol
+description: A minimal proof envelope and verification invariant for independently confirming that a specific byte sequence was committed on-chain.
+author: Damon Zwicker (@damonzwicker) <damon@ocp-labs.org>
+discussions-to: https://ethereum-magicians.org/t/draft-erc-observation-commitment-protocol-ocp-chain-agnostic-cryptographic-commitment-primitive/28399
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-04-05
+---
+
+## Abstract
+
+This ERC defines a minimal proof envelope format, an extraction rule for retrieving committed digests from raw ledger data, and a verification invariant: recompute → compare → confirm inclusion.
+
+A conforming verifier confirms that a specific byte sequence was committed on-chain at a given point in time using only a public RPC endpoint and raw transaction receipt data. No trusted SDK, gateway, or indexer is required.
+
+## Motivation
+
+Ethereum does not define a standard procedure for a third party to confirm that a specific byte sequence was committed on-chain, independent of the system that produced the commitment.
+
+In practice, each implementation defines its own encoding of observed data, its own proof artifact structure, its own transaction reference format, and its own verification logic. Proofs produced by one system are not independently verifiable by another without custom integration.
+
+The gap is not access to data or correctness of execution. The gap is the absence of a shared verification boundary — a minimal, portable procedure that any third party can follow to confirm a commitment without trusting the originating system.
+
+This ERC defines that boundary.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Contract Interface
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.0;
+
+interface IObservationCommitment {
+    /// @notice Commit a digest on-chain.
+    /// @param digest The hash of the canonical observation bytes.
+    function record(bytes32 digest) external;
+
+    /// @notice Emitted on every successful record() call.
+    event Recorded(
+        bytes32 indexed digest,
+        address indexed committer,
+        uint256 timestamp
+    );
+}
+```
+
+The canonical event topic is `keccak256("Recorded(bytes32,address,uint256)")`.
+
+### Proof Envelope Schema
+
+A proof envelope is a JSON object with the following REQUIRED fields:
+
+```json
+{
+  "version":       "ocp/1.0",
+  "digest":        "<hex-encoded bytes32>",
+  "hash_function": "<hash function identifier, e.g. sha2-256>",
+  "chain_id":      "<EIP-155 chain ID as decimal string>",
+  "contract":      "<checksummed EVM address>",
+  "tx_hash":       "<hex-encoded transaction hash>",
+  "block_number":  "<decimal block number>",
+  "committer":     "<checksummed EVM address>",
+  "timestamp":     "<Unix timestamp as decimal string>"
+}
+```
+
+### Extraction Rule
+
+Given a proof envelope:
+
+1. Fetch the transaction receipt for `tx_hash` on `chain_id` via any public RPC endpoint.
+2. Filter receipt logs for entries where `address` matches `contract` and `topics[0]` matches `keccak256("Recorded(bytes32,address,uint256)")`.
+3. Decode `topics[1]` as `bytes32`. This is the on-chain digest.
+
+### Verification Invariant
+
+A conforming verifier MUST execute the following procedure:
+
+1. **Recompute:** Apply the declared `hash_function` to the canonical observation bytes. Produce `H_prime`.
+2. **Compare:** Assert `H_prime == digest`.
+3. **Confirm inclusion:** Apply the extraction rule. Assert `on_chain_digest == digest`.
+
+If all three assertions pass, the observation was committed on-chain at the referenced block, independently of the system that produced the proof envelope. If any assertion fails, the verification MUST be rejected.
+
+### Out of Scope
+
+This ERC does not define identity, authorship, sanitization, data availability, canonical encoding, or application-layer semantics. These are explicit non-goals. Systems building on this standard are responsible for the layers above this boundary.
+
+## Rationale
+
+The verification invariant is the smallest boundary that enables independent, system-agnostic verification of an on-chain commitment. The proof envelope bundles the committed digest and chain reference into a single portable artifact that travels independently of the infrastructure that produced it. No canonicalization procedure is mandated — the `hash_function` field declares which function was used and the verifier evaluates it.
+
+The contract interface is minimal by design. `record()` takes a single `bytes32` digest and emits a single `Recorded` event. The contract enforces no constraints on the digest content, the committer identity, or the observation semantics. These are the responsibility of the caller.
+
+## Backwards Compatibility
+
+No backwards compatibility issues. This ERC introduces no changes to the Ethereum protocol. Existing systems that commit hashes on-chain through other patterns are unaffected.
+
+## Test Cases
+
+A conformance suite with 11 test cases covering correct verification, rejection of invalid envelopes, extraction rule correctness, and cross-chain verification is available in the reference implementation repository.
+
+## Reference Implementation
+
+Reference deployments:
+
+- EVM (Base Sepolia): 0x0963Fd33DF80c94360F2DC22e5c09517AeE7ED5c
+
+## Security Considerations
+
+**Digest collision resistance:** Implementations SHOULD use hash functions with at least 128 bits of collision resistance. SHA-256 is RECOMMENDED.
+
+**Transaction receipt integrity:** Receipt integrity is guaranteed by the chain's consensus mechanism. A verifier MAY independently verify the receipt against a block header using standard Merkle proof techniques.
+
+**Committer address does not imply authorship:** The `committer` field identifies the address that called `record()`. It does not imply that the committer authored the observation or holds any identity claim.
+
+**Timestamp precision:** Block timestamps are set by block producers within consensus-allowed bounds and SHOULD be interpreted as approximate to the block interval.
+
+**No revocation:** This ERC does not define a revocation mechanism. Systems requiring revocation MUST implement it at the application layer.
+
+## Copyright
+
+Copyright and related rights waived via CC0.
+
