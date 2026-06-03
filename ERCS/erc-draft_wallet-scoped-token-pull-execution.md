@@ -12,7 +12,7 @@ requires: 20, 165
 
 ## Abstract
 
-This ERC defines a wallet-native primitive for temporary [ERC-20](./erc-20.md) pull authorization during one external call.
+This ERC defines a wallet-native primitive for temporary [ERC-20](./eip-20.md) pull authorization during one external call.
 
 A compliant account exposes `executeWithTokenPull`, which opens a transient pull context for one target, one asset, and one maximum amount. During that call, the bound target may pull tokens by calling `tokenPullToCaller`. Outside the active call window, pull attempts MUST fail.
 
@@ -58,7 +58,7 @@ interface IERCWalletTokenPullExecutor {
 }
 ```
 
-Accounts implementing this ERC MUST also implement [ERC-165](./erc-165.md).
+Accounts implementing this ERC MUST also implement [ERC-165](./eip-165.md).
 
 - `supportsInterface(type(IERCWalletTokenPullExecutor).interfaceId)` MUST return `true`.
 - `supportsInterface(type(IERC165).interfaceId)` MUST return `true`.
