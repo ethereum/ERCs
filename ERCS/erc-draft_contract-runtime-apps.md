@@ -3,7 +3,7 @@ eip: 8280
 title: Contract Runtime Apps
 description: Minimal runtime interfaces for smart contracts that host third-party runtime apps.
 author: Xiang (@wenzhenxiang)
-discussions-to: https://ethereum-magicians.org/t/erc-contract-runtime-apps
+discussions-to: https://ethereum-magicians.org/t/erc-8280-contract-runtime-apps/28685
 status: Draft
 type: Standards Track
 category: ERC
