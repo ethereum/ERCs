@@ -1,4 +1,5 @@
 ---
+eip: 8280
 title: Contract Runtime Apps
 description: Minimal runtime interfaces for smart contracts that host third-party runtime apps.
 author: Xiang (@wenzhenxiang)
