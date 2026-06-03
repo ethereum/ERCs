@@ -18,12 +18,12 @@ interface IClearSigningRegistry {
     ///         Emitted once per contextId on each createDescriptorAttestation call.
     ///         When clearRevokedEndorsement resets the slot, newDescriptorId and
     ///         attestationId are bytes32(0).
-    /// @param attester           The attester whose endorsement changed.
-    /// @param contextId          The context ID affected.
+    /// @param attester              The attester whose endorsement changed.
+    /// @param contextId             The context ID affected.
     /// @param previousDescriptorId  The previously active descriptor ID (bytes32(0) if none).
-    /// @param newDescriptorId    The newly active descriptor ID (bytes32(0) if cleared).
-    /// @param attestationId      The EAS attestation UID backing the new endorsement
-    ///                           (bytes32(0) if cleared).
+    /// @param newDescriptorId       The newly active descriptor ID (bytes32(0) if cleared).
+    /// @param attestationId         The EAS attestation UID backing the new endorsement
+    ///                              (bytes32(0) if cleared).
     event AttesterEndorsementUpdated(
         address indexed attester,
         bytes32 indexed contextId,
@@ -32,10 +32,19 @@ interface IClearSigningRegistry {
         bytes32 indexed attestationId
     );
 
-    /// @notice Emitted when an attester updates their URI list for a descriptor.
-    /// @param attester     The attester updating the list.
-    /// @param descriptorId The descriptor ID.
-    event URIsUpdated(address indexed attester, bytes32 indexed descriptorId);
+    /// @notice Emitted the first time a MirrorList is stored on-chain.
+    /// @param mirrorListId  The content hash of the published MirrorList.
+    event MirrorListPublished(bytes32 indexed mirrorListId);
+
+    /// @notice Emitted when an attester's active MirrorList for a descriptor changes.
+    /// @param attester      The attester updating the list.
+    /// @param descriptorId  The descriptor ID.
+    /// @param mirrorListId  The new MirrorList ID.
+    event MirrorListUpdated(
+        address indexed attester,
+        bytes32 indexed descriptorId,
+        bytes32 indexed mirrorListId
+    );
 
     // =========================================================================
     // Errors
@@ -50,8 +59,11 @@ interface IClearSigningRegistry {
     /// @notice Thrown when attestations is empty or attestations[0].data is empty.
     error EmptyAttestations();
 
-    /// @notice Thrown when an empty URI list is passed where URIs are required.
-    error EmptyURIs();
+    /// @notice Thrown when an empty URI list is passed to publishMirrorList.
+    error EmptyMirrorList();
+
+    /// @notice Thrown when an unknown or zero mirrorListId is passed.
+    error UnknownMirrorList(bytes32 mirrorListId);
 
     /// @notice Thrown when attestations[0].schema does not match the registry's
     ///         configured ERC-8176 schema UID.
@@ -64,10 +76,6 @@ interface IClearSigningRegistry {
     /// @notice Thrown when createDescriptorAttestation replaces an active slot but
     ///         the previously active attestation UID is not included in revocations.
     error MissingRevocation(bytes32 missingUid);
-
-    /// @notice Thrown when updateURIs is called by an address that has never
-    ///         successfully called createDescriptorAttestation for this descriptor ID.
-    error NotActiveAttester(bytes32 descriptorId, address caller);
 
     // =========================================================================
     // Write functions
@@ -104,31 +112,34 @@ interface IClearSigningRegistry {
     ///                      MUST NOT be bytes32(0).
     /// @param contextIds    Context IDs this descriptor should be discoverable under.
     ///                      MUST NOT be empty.
-    /// @param uris          Initial URI hints for retrieving the descriptor file.
-    ///                      MUST NOT be empty. Replaces any prior URI list for this
-    ///                      (attester, descriptorId) pair.
+    /// @param mirrorListId  ID of a MirrorList previously published via publishMirrorList.
+    ///                      MUST be a known, non-zero ID. The MirrorList may have been
+    ///                      published by any address in any prior transaction.
     /// @param attestations  EAS delegated attestation batch. attestations[0] is the
     ///                      active attestation; all others are supplementary.
     ///                      MUST NOT be empty; attestations[0].data MUST NOT be empty.
     /// @param revocations   EAS delegated revocation batch for prior attestations.
-    ///                      MAY be empty (e.g. on first registration).
+    ///                      MAY be empty on first registration.
+    ///                      When an attester already has an active attestation for any supplied contextId,
+    ///                      the corresponding UID MUST appear in this batch.
     /// @return attestationId  The EAS UID of the active attestation (uids[0]).
     function createDescriptorAttestation(
         bytes32                                          descriptorId,
         bytes32[]                               calldata contextIds,
-        string[]                                calldata uris,
+        bytes32                                          mirrorListId,
         MultiDelegatedAttestationRequest[]      calldata attestations,
         MultiDelegatedRevocationRequest[]       calldata revocations
     ) external returns (bytes32 attestationId);
 
-    /// @notice Update the URI list for (msg.sender, descriptorId).
-    ///         Only callable after msg.sender has successfully called
-    ///         createDescriptorAttestation for this descriptorId.
-    ///         Replaces the entire URI list. URIs are hints only; wallets MUST
-    ///         verify keccak256(retrievedBytes) == descriptorId.
-    /// @param descriptorId  The descriptor ID.
-    /// @param uris          New URI list. MUST NOT be empty.
-    function updateURIs(bytes32 descriptorId, string[] calldata uris) external;
+    /// @notice Publish a MirrorList on-chain and return its content hash.
+    ///         Idempotent: if the list is already stored, returns its ID without
+    ///         re-writing or emitting an event.
+    ///         MirrorLists are shared across all attesters: publishing once makes
+    ///         the list available for any subsequent createDescriptorAttestation
+    ///         or updateMirrorList call, regardless of who published it.
+    /// @param uris          Retrieval URIs for a descriptor. MUST NOT be empty.
+    /// @return mirrorListId keccak256(abi.encode(uris))
+    function publishMirrorList(string[] calldata uris) external returns (bytes32 mirrorListId);
 
     // =========================================================================
     // Queries
@@ -149,10 +160,17 @@ interface IClearSigningRegistry {
         bytes32[] memory attestationIds
     );
 
-    /// @notice Return the URI list an attester has set for a descriptor.
-    /// @param attester     The attester address.
-    /// @param descriptorId The descriptor ID.
-    /// @return uris  The URI list (may be empty).
-    function getDescriptorURIs(address attester, bytes32 descriptorId)
+    /// @notice Return the MirrorList ID and URI list an attester has set for a descriptor.
+    /// @param attester      The attester address.
+    /// @param descriptorId  The descriptor ID.
+    /// @return mirrorListId  The MirrorList ID (bytes32(0) if none set).
+    /// @return uris          The URI list (empty if none set).
+    function getMirrorList(address attester, bytes32 descriptorId)
+        external view returns (bytes32 mirrorListId, string[] memory uris);
+
+    /// @notice Return the URI list for a given MirrorList ID.
+    /// @param mirrorListId  The MirrorList content hash.
+    /// @return uris  The URI list (empty if the ID is unknown).
+    function getMirrorListById(bytes32 mirrorListId)
         external view returns (string[] memory uris);
 }

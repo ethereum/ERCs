@@ -31,14 +31,17 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     // The ERC-8176 EAS UID of the active attestation for the current descriptor by the given attester.
     mapping(address attester => mapping(bytes32 contextId => bytes32)) private _attestationId;
 
-    // The URI array for fetching the descriptor file, supplied by the given attester.
-    mapping(address attester => mapping(bytes32 descriptorId => string[])) private _descriptorURIs;
+    // Global store of MirrorLists, written once per unique URI set. Key = keccak256(abi.encode(uris)).
+    mapping(bytes32 mirrorListId => string[]) private _mirrorLists;
+
+    // Per-attester pointer: which MirrorList does this attester use for this descriptor?
+    mapping(address attester => mapping(bytes32 descriptorId => bytes32)) private _mirrorListId;
 
     /// @inheritdoc IClearSigningRegistry
     function createDescriptorAttestation(
         bytes32                            descriptorId,
         bytes32[]                          calldata contextIds,
-        string[]                           calldata descriptorUris,
+        bytes32                            mirrorListId,
         MultiDelegatedAttestationRequest[] calldata attestations,
         MultiDelegatedRevocationRequest[]  calldata revocations
     ) external returns (bytes32 attestationId) {
@@ -46,7 +49,7 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         if (contextIds.length == 0)    revert EmptyContextIds();
         if (attestations.length == 0 || attestations[0].data.length == 0)
             revert EmptyAttestations();
-        if (descriptorUris.length == 0) revert EmptyURIs();
+        if (_mirrorLists[mirrorListId].length == 0) revert UnknownMirrorList(mirrorListId);
 
         // Validate active attestation: must use ERC-8176 schema.
         if (attestations[0].schema != easSchemaUID)
@@ -88,9 +91,9 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes32[] memory uids = eas.multiAttestByDelegation(attestations);
         attestationId = uids[0];
 
-        // Set URI list (replaces any prior list).
-        _descriptorURIs[attester][descriptorId] = descriptorUris;
-        emit URIsUpdated(attester, descriptorId);
+        // Set MirrorList pointer (replaces any prior pointer).
+        _mirrorListId[attester][descriptorId] = mirrorListId;
+        emit MirrorListUpdated(attester, descriptorId, mirrorListId);
 
         // Update active slot for each contextId.
         for (uint256 i; i < contextIds.length; ++i) {
@@ -103,10 +106,13 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     }
 
     /// @inheritdoc IClearSigningRegistry
-    function updateURIs(bytes32 descriptorId, string[] calldata uris) external {
-        if (uris.length == 0) revert EmptyURIs();
-        _descriptorURIs[msg.sender][descriptorId] = uris;
-        emit URIsUpdated(msg.sender, descriptorId);
+    function publishMirrorList(string[] calldata uris) external returns (bytes32 mirrorListId) {
+        if (uris.length == 0) revert EmptyMirrorList();
+        mirrorListId = keccak256(abi.encode(uris));
+        if (_mirrorLists[mirrorListId].length == 0) {
+            _mirrorLists[mirrorListId] = uris;
+            emit MirrorListPublished(mirrorListId);
+        }
     }
 
     /// @inheritdoc IClearSigningRegistry
@@ -117,8 +123,8 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes32[] memory descriptorIds,
         bytes32[] memory attestationIds
     ) {
-        descriptorIds   = new bytes32[](attesters.length);
-        attestationIds  = new bytes32[](attesters.length);
+        descriptorIds  = new bytes32[](attesters.length);
+        attestationIds = new bytes32[](attesters.length);
         for (uint256 i = 0; i < attesters.length; i++) {
             descriptorIds[i]  = _descriptorId[attesters[i]][contextId];
             attestationIds[i] = _attestationId[attesters[i]][contextId];
@@ -126,9 +132,17 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     }
 
     /// @inheritdoc IClearSigningRegistry
-    function getDescriptorURIs(address attester, bytes32 descriptorId)
+    function getMirrorList(address attester, bytes32 descriptorId)
+        external view returns (bytes32 mirrorListId, string[] memory uris)
+    {
+        mirrorListId = _mirrorListId[attester][descriptorId];
+        uris         = _mirrorLists[mirrorListId];
+    }
+
+    /// @inheritdoc IClearSigningRegistry
+    function getMirrorListById(bytes32 mirrorListId)
         external view returns (string[] memory)
     {
-        return _descriptorURIs[attester][descriptorId];
+        return _mirrorLists[mirrorListId];
     }
 }

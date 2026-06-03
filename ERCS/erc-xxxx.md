@@ -30,7 +30,7 @@ The maintenance and distribution of descriptors' registry is an important compon
 
 2. **Unified on-chain attestation surface.** ERC-8176 defines EAS-based attestation records, but EAS contracts have no suitable attestation lookup mechanisms.
 
-3. **Protocol-agnostic descriptor resolution.** Attesters are free to serve the descriptors via IPFS, Swarm, BitTorrent, or any other content-addressed scheme using the `URI` parameter.
+3. **Protocol-agnostic descriptor resolution.** Attesters are free to serve the descriptors via IPFS, Swarm, BitTorrent, or any other content-addressed scheme.
 
 4. **Unified revocation and upgrade path.** An on-chain mechanism for an attester to atomically replace their endorsement with either a newer descriptor version or a revocation message.
 
@@ -45,6 +45,8 @@ The maintenance and distribution of descriptors' registry is an important compon
 | **active slot**      | The single `(descriptorId, attestationId)` pair an attester currently endorses for a given `contextId`                |
 | **attester**         | An `address` whose ERC-8176 EAS attestation has been submitted to the registry                                        |
 | **attestationId**    | The EAS UID of the active ERC-8176 attestation backing an attester's endorsement                                      |
+| **MirrorList**       | A `string[]` of retrieval URIs for a descriptor file, stored once globally and referenced by its content hash         |
+| **mirrorListId**     | `keccak256(abi.encode(uris))` — the content hash identifying a MirrorList                                             |
 | **deployEventTopic** | The factory contract's deploy event signature `topic[0]` in Ethereum logs, e.g. `keccak256("TokenDeployed(address)")` |
 
 Descriptor IDs are computed as `keccak256` of the canonical UTF-8 byte sequence of the descriptor file.
@@ -91,15 +93,22 @@ mapping(address attester => mapping(bytes32 contextId => bytes32)) descriptorId;
 // The ERC-8176 EAS UID of the active attestation for the current descriptor by the given attester.
 mapping(address attester => mapping(bytes32 contextId => bytes32)) attestationId;
 
-// The URI array for fetching the descriptor file, supplied by the given attester.
-mapping(address attester => mapping(bytes32 descriptorId => string[])) attesterURIs;
+// Global store of MirrorLists, written once per unique URI set.
+// A "mirror list" is an array of URIs for fetching the descriptor file, supplied by the given attester.
+// Key = keccak256(abi.encode(uris)).
+mapping(bytes32 mirrorListId => string[]) mirrorLists;
+
+// Per-attester pointer to the MirrorList for a given descriptor.
+mapping(address attester => mapping(bytes32 descriptorId => bytes32)) mirrorListId;
 ```
+
+MirrorLists are immutable and are stored once globally and shared across all attesters.
 
 ### Interface
 
-The full normative interface is provided in [`../assets/eip-8258/IERC8258.sol`](../assets/eip-8258/IERC8258.sol).
+The full normative interface is provided in [`../assets/eip-xxxx/IClearSigningRegistry.sol`](../assets/eip-xxxx/IClearSigningRegistry.sol).
 
-#### `createDescriptorAttestation(bytes32 descriptorId, bytes32[] contextIds, string[] uris, MultiDelegatedAttestationRequest[] attestations, MultiDelegatedRevocationRequest[] revocations) returns (bytes32 attestationId)`
+#### `createDescriptorAttestation(bytes32 descriptorId, bytes32[] contextIds, bytes32 mirrorListId, MultiDelegatedAttestationRequest[] attestations, MultiDelegatedRevocationRequest[] revocations) returns (bytes32 attestationId)`
 
 The primary write function that calls `eas.multiAttestByDelegation(attestations)` to create all attestations on-chain, then calls `eas.multiRevokeByDelegation(revocations)` to revoke any previously active attestations that are being replaced.
 
@@ -108,7 +117,10 @@ Any address may permissionlessly call this function, and the attester identity i
 The `attestations` parameter supports multiple EAS attestation requests in a single transaction, however `attestations[0]` MUST use the ERC-8176 schema UID, and `attestations[0].data[0].data` MUST ABI-decode to `bytes32` equal to `descriptorId`.
 All other entries in the batch are supplementary and are passed through to EAS without registry-level validation.
 
-The `uris` parameter MUST NOT be empty.
+The `mirrorListId` parameter MUST reference a MirrorList previously published via `publishMirrorList`.
+The MirrorList may have been published by any address.
+The first attester for a descriptor must call `publishMirrorList` beforehand or in the same transaction.
+Subsequent attesters endorsing the same descriptor with the same retrieval endpoints pass the existing `mirrorListId` directly without repeating the URI data.
 
 The `revocations` parameter MAY be empty on first registration. When an attester already has an active attestation for any of the supplied `contextIds`, the corresponding attestation UID MUST appear in the `revocations` batch; otherwise the call reverts with `MissingRevocation`.
 
@@ -116,23 +128,40 @@ The returned `attestationId` is `uids[0]` — the first element of the flat `byt
 
 Wallets MUST independently validate the descriptor's `context` section against the actual transaction before applying any formatting, per ERC-7730 Binding context format rules.
 
-#### `updateURIs(bytes32 descriptorId, string[] uris)`
-
-Replaces the URI list for `(msg.sender, descriptorId)`. Only callable after `msg.sender` has successfully called `createDescriptorAttestation` for this `descriptorId`. Allows attesters to update retrieval endpoints without creating a new EAS attestation. The `uris` parameter MUST NOT be empty.
-
 #### `getDescriptors(address[] attesters, bytes32 contextId)`
 
 Returns parallel arrays `(descriptorIds[], attestationIds[])` — the active slot values for each attester in `attesters` for the given `contextId`.
 
 This function is the primary wallet-facing query entry point that resolves the full trusted-attester list.
 
-### Descriptor files URIs
+#### `publishMirrorList(string[] uris) returns (bytes32 mirrorListId)`
 
-URI lists are stored per `(attester, descriptorId)`, and only attesters that have previously called `createDescriptorAttestation` for a given `descriptorId` may write URIs for that ID.
+Stores a list of retrieval URIs on-chain and returns its content hash `keccak256(abi.encode(uris))`. The call is idempotent: if a MirrorList with the same content has already been published, it returns the existing ID without re-writing storage or emitting an event.
 
-This ensures the retrieved URIs list size is bounded by the number of trusted attesters, which should be a small, accountable set, preventing DoS attacks.
+Any address may publish a MirrorList. The published list is immediately available for use by any attester in `createDescriptorAttestation` or `updateMirrorList`.
 
-Retrieving the descriptors from the published URIs is never the source of trust, and wallets MUST verify attestations' cryptographic signatures before using any descriptor. 
+The `uris` parameter MUST NOT be empty.
+
+#### `getMirrorList(address attester, bytes32 descriptorId)`
+
+Returns `(mirrorListId, uris)` — the active MirrorList ID and the corresponding URI list for the given attester and descriptor.
+Returns `(bytes32(0), [])` if no MirrorList has been set.
+
+#### `getMirrorListById(bytes32 mirrorListId)`
+
+Returns the URI list for a given MirrorList ID. Returns an empty array if the ID is unknown.
+
+### MirrorLists
+
+A MirrorList is a `string[]` of retrieval URIs for a descriptor file.
+URIs may use any content-addressed scheme: `ipfs://`, `ar://`, `bzz://`, `magnet:`, etc.
+The list is identified by `keccak256(abi.encode(uris))` and stored once globally in the registry.
+
+Attesters reference a MirrorList by ID rather than by value.
+When multiple attesters endorse the same descriptor using the same retrieval endpoints, the URI strings exist exactly once in contract storage regardless of attester count.
+
+Retrieval via the published URIs is never the source of trust.
+Wallets MUST verify that `keccak256` of the retrieved descriptor bytes equals the `descriptorId` before using the descriptor.
 
 ## Rationale
 
@@ -143,6 +172,20 @@ Having two parallel attestation mechanisms, native and EAS, would mean the same 
 EAS provides on-chain `attest()` and `revoke()` with full lifecycle guarantees.
 
 The registry adds the context-keyed discovery surface that EAS itself does not provide.
+
+### Content-addressed MirrorLists
+
+With tens of thousands of descriptors and dozens of attesters, sharing identical retrieval endpoints may save a lot of on-chain storage.
+
+A per-attester state is reduced to a single 32-byte pointer.
+
+Any attester can endorse an existing descriptor by providing only their EAS signature and the `mirrorListId` — no URI data needs to be re-transmitted or stored.
+
+Once a MirrorList is published, it cannot be modified.
+
+Changing an attester's active MirrorList for a descriptor requires calling `createDescriptorAttestation` with a new `mirrorListId`, which in turn requires a fresh EAS attestation.
+
+This ensures that every change to retrieval endpoints is fully backed by the same attestation chain as the descriptor itself and prevents any party from silently redirecting downloads without a verifiable on-chain record.
 
 ### Mainnet-only deployment
 
@@ -196,8 +239,8 @@ ERC-7730 descriptor files require no changes. The context section fields used fo
 
 The reference implementation is provided in two files:
 
-- [`../assets/eip-8258/IERC8258.sol`](../assets/eip-8258/IERC8258.sol) — the normative interface
-- [`../assets/eip-8258/ERC8258Registry.sol`](../assets/eip-8258/ERC8258Registry.sol) — the reference implementation
+- [`../assets/eip-xxxx/IClearSigningRegistry.sol`](../assets/eip-xxxx/IClearSigningRegistry.sol) — the normative interface
+- [`../assets/eip-xxxx/ClearSigningRegistry.sol`](../assets/eip-xxxx/ClearSigningRegistry.sol) — the reference implementation
 
 Both files are provided under CC0. The reference implementation is not audited and is intended for specification clarity only; production deployments SHOULD undergo independent security review.
 
