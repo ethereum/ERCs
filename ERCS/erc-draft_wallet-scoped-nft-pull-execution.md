@@ -1,4 +1,5 @@
 ---
+eip: 8285
 title: Wallet-Scoped NFT Pull Execution
 description: Wallet primitive for temporary NFT pull authorization during one external call.
 author: Xiang (@wenzhenxiang)
