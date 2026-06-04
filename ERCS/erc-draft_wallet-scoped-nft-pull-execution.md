@@ -2,7 +2,7 @@
 title: Wallet-Scoped NFT Pull Execution
 description: Wallet primitive for temporary NFT pull authorization during one external call.
 author: Xiang (@wenzhenxiang)
-discussions-to: https://ethereum-magicians.org/t/erc-wallet-nft-pull-execution/28693
+discussions-to: https://ethereum-magicians.org/t/erc-8285-wallet-nft-pull-execution/28693
 status: Draft
 type: Standards Track
 category: ERC
