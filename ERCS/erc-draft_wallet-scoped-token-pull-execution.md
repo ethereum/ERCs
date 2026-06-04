@@ -2,7 +2,7 @@
 title: Wallet-Scoped Token Pull Execution
 description: Wallet primitive for temporary ERC-20 pull authorization during one external call.
 author: Xiang (@wenzhenxiang)
-discussions-to: https://ethereum-magicians.org/t/erc-wallet-scoped-token-pull-execution/28691
+discussions-to: https://ethereum-magicians.org/t/erc-8284-wallet-scoped-token-pull-execution/28691
 status: Draft
 type: Standards Track
 category: ERC
