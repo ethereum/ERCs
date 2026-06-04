@@ -1,4 +1,5 @@
 ---
+eip: 8284
 title: Wallet-Scoped Token Pull Execution
 description: Wallet primitive for temporary ERC-20 pull authorization during one external call.
 author: Xiang (@wenzhenxiang)
