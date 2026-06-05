@@ -1,9 +1,9 @@
 ---
-eip: xxxx
-title: On-Chain Registry for ERC-7730 Clear Signing Descriptors
+eip: 8283
+title: Clear signing descriptors onchain registry
 description: An open on-chain protocol-agnostic registry for ERC-7730 descriptors with EAS-backed attestations
 author: Alex Forshtat (@forshtat)
-discussions-to: https://ethereum-magicians.org/
+discussions-to: https://ethereum-magicians.org/t/erc-8283-on-chain-registry-for-erc-7730-clear-signing-descriptors/28717
 status: Draft
 type: Standards Track
 category: ERC
