@@ -1,5 +1,5 @@
 ---
-eip: TBD
+eip: 8290
 title: Shielded Note Teleportation
 description: A method for importing and exporting notes between UTXO-based privacy protocols.
 author: georgeh (@geovgy)
