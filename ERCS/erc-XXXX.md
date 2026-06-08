@@ -3,7 +3,7 @@ eip: 8290
 title: Shielded Note Teleportation
 description: A method for importing and exporting notes between UTXO-based privacy protocols.
 author: georgeh (@geovgy)
-discussions-to: https://ethereum-magicians.org/t/draft-erc-shielded-note-teleportation/28721
+discussions-to: https://ethereum-magicians.org/t/erc-8290-shielded-note-teleportation/28721
 status: Draft
 type: Standards Track
 category: ERC
