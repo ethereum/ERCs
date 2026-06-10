@@ -1,0 +1,41 @@
+{
+  "name": "@finmath.net/representable-contract-state",
+  "version": "0.1.0",
+  "description": "Interface declaring a contract (XML-)representation-complete with machine-readable bindings to its state and view functions.",
+  "author": "Christian Fries, Peter Kohl-Landgraf",
+  "license": "ISC",
+  "homepage": "http://finmath.gitlab.io/representable-contract-state",
+  "main": "index.js",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat coverage"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-waffle": "^2.0.6",
+    "chai": "^4.3.10",
+    "ethereum-waffle": "^4.0.10",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.18.1",
+    "solidity-coverage": "^0.8.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.com/finmath/representable-contract-state"
+  },
+  "keywords": [
+    "Smart Contracts",
+    "XML",
+    "State"
+  ],
+  "bugs": {
+    "url": "https://gitlab.com/finmath/representable-contract-state/-/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
