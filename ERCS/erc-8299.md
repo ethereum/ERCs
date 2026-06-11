@@ -1,6 +1,6 @@
 ---
 eip: 8299
-title: "WYRIWE: Input Provenance for Verifiable AI Inference"
+title: WYRIWE — Input Provenance for AI Inference
 description: An input-provenance commitment scheme and attestation profile for verifiable AI agent inference
 author: Tiago Merlini (@TMerlini), Vincent Wu (@TruthAnchor-AI), Damon Zwicker (@damonzwicker), Jimmy Shi (@JimmyShi22), babyblueviper1 (@babyblueviper1)
 discussions-to: https://ethereum-magicians.org/t/erc-8299-wyriwe-what-you-read-is-what-you-execute/28655
