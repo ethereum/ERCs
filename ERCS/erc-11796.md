@@ -13,7 +13,7 @@ requires: 712, 8004
 
 ## Abstract
 
-This ERC defines a triple-hash commitment scheme and [EIP-712](./eip-712.md) attestation profile for proving that the input a model received is the input the user intended. It introduces three linked fields — `raw_input_hash`, `sanitization_pipeline_hash`, and `input_hash` — that together form a verifiable chain of custody for AI inference inputs. A verifier can confirm input integrity using only the committed hashes and the public sanitization specification, without trusting the agent, gateway, or execution environment. This standard occupies the input-provenance layer of the AI inference trust stack, complementing [ERC-8004](./erc-8004.md) (agent identity), [ERC-8126](./erc-8126.md) (agent verification), TruthAnchorV1 (on-chain proof commitment and anchor layer), and OCP (observation commitment protocol).
+This ERC defines a triple-hash commitment scheme and [EIP-712](./eip-712.md) attestation profile for proving that the input a model received is the input the user intended. It introduces three linked fields — `raw_input_hash`, `sanitization_pipeline_hash`, and `input_hash` — that together form a verifiable chain of custody for AI inference inputs. A verifier can confirm input integrity using only the committed hashes and the public sanitization specification, without trusting the agent, gateway, or execution environment. This standard occupies the input-provenance layer of the AI inference trust stack, complementing [ERC-8004](./eip-8004.md) (agent identity), [ERC-8126](./eip-8126.md) (agent verification), TruthAnchorV1 (on-chain proof commitment and anchor layer), and OCP (observation commitment protocol).
 
 ---
 
@@ -196,7 +196,7 @@ EIP-712 typed structured data signatures are natively verifiable on-chain by Eth
 
 ### Why include `agentId` and `registry`?
 
-Linking attestations to an ERC-8004 agent identity makes the attestation attributable — not just to a signing key, but to an on-chain registered agent. This is load-bearing for settlement systems (e.g. [ERC-8183](./erc-8183.md)) that need to associate an output with a specific funded agent.
+Linking attestations to an ERC-8004 agent identity makes the attestation attributable — not just to a signing key, but to an on-chain registered agent. This is load-bearing for settlement systems (e.g. [ERC-8183](./eip-8183.md)) that need to associate an output with a specific funded agent.
 
 ### Why `IDENTITY_SENTINEL_CID` instead of a null value?
 
@@ -614,9 +614,9 @@ The CID was derived from the above JSON content (UTF-8 encoded, no trailing newl
 
 ### References
 
-- [ERC-8004](./erc-8004.md) — Verified Node Identity (agent identity layer)
-- [ERC-8126](./erc-8126.md) — AI Agent Verification (Final)
-- [ERC-8183](./erc-8183.md) — Agentic Commerce
+- [ERC-8004](./eip-8004.md) — Verified Node Identity (agent identity layer)
+- [ERC-8126](./eip-8126.md) — AI Agent Verification (Final)
+- [ERC-8183](./eip-8183.md) — Agentic Commerce
 
 ---
 
