@@ -332,7 +332,7 @@ Slot mapping against WYRIWE's L3 scheme:
 
 The `snapshotRoot` is derived from rows of `(address contributor, uint256 score, uint256 timestamp)` sorted by contributor address ascending, ABI-encoded. The `commitmentHash` is what a node submits during the commit phase; the full snapshot rows are revealed and verified against it during the reveal phase. The commit-reveal scheme closes the "committed → executed" gap by construction: a node can only reveal data whose hash matches its commit.
 
-Reference implementation: `POST /contributions/snapshot/freeze` in [ccip-router v0.6.0](https://github.com/Echo-Merlini/ccip-router).
+Reference implementation: `POST /contributions/snapshot/freeze` in ccip-router v0.6.0.
 
 ### L4 Judgment validator binding (@babyblueviper1)
 
@@ -420,7 +420,7 @@ Domain separator: `ERC8004AttestationGateway` / version `"1"` / `block.chainid` 
 - Entries predating the wiring carry a partial block with `executed_action_hash: null` and an explicit `"not backfilled by design"` status. A commitment you did not make at the time is not one you get to manufacture later.
 - Where a production system records a single timestamp per governance cycle, `executedTimestamp` is `null` with an ordering note rather than a fabricated reveal time. The strict `verdictTimestamp < executedTimestamp` invariant belongs to the on-chain attestation; an off-chain production mapping should record what it actually measured.
 
-Reference implementation: [api.babyblueviper.com/ledger](https://api.babyblueviper.com/ledger) — live production ledger. Entry `/ledger/3` shows a pre-wiring partial block; new entries carry the full `judgment_execution` block. Running against real capital.
+Reference implementation: api.babyblueviper.com/ledger — live production ledger. Entry `/ledger/3` shows a pre-wiring partial block; new entries carry the full `judgment_execution` block. Running against real capital.
 
 5. **`string recordPointer` is the correct type for EIP-712.** The `RecordPointer` struct (Appendix B) is the resolved payload schema — it is NOT inlined into the signed type. The attestation is signed once and frozen at verdict time; the record it points to is alive and grows over time (`outcomeEvidence` does not exist when the verdict attestation is signed). Inlining `RecordPointer` into the EIP-712 struct would require signing a permanently incomplete field. The on-chain anchoring of the verdict artifact (Nostr event ID or IPFS CID in `verdictHash`) already secures commitment integrity independently of the pointer. The 9-field type string is therefore stable and MUST NOT be changed pre-review.
 
@@ -428,7 +428,7 @@ Reference implementation: [api.babyblueviper.com/ledger](https://api.babybluevip
 
 ### Appendix A — Cross-system settlement: GenericCommitRevealSettler integration
 
-This appendix documents the integration pattern for judgment attestations with `GenericCommitRevealSettler` as a reference for any L4 producer. First demonstrated in the cross-system settlement of ledger entry 19 at [api.babyblueviper.com/ledger/19](https://api.babyblueviper.com/ledger/19) — commit block 11030402, reveal block 11030403.
+This appendix documents the integration pattern for judgment attestations with `GenericCommitRevealSettler` as a reference for any L4 producer. First demonstrated in the cross-system settlement of ledger entry 19 at api.babyblueviper.com/ledger/19 — commit block 11030402, reveal block 11030403.
 
 **Contract:** `GenericCommitRevealSettler` on Sepolia: `0xFe7Ab6d95f7567a311B98D029373d0fc1511aCCe`
 
