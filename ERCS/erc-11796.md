@@ -13,7 +13,7 @@ requires: 712, 8004
 
 ## Abstract
 
-This ERC defines a triple-hash commitment scheme and EIP-712 attestation profile for proving that the input a model received is the input the user intended. It introduces three linked fields — `raw_input_hash`, `sanitization_pipeline_hash`, and `input_hash` — that together form a verifiable chain of custody for AI inference inputs. A verifier can confirm input integrity using only the committed hashes and the public sanitization specification, without trusting the agent, gateway, or execution environment. This standard occupies the input-provenance layer of the AI inference trust stack, complementing ERC-8004 (agent identity), ERC-8126 (agent verification), TruthAnchorV1 (on-chain proof commitment and anchor layer), and OCP (observation commitment protocol).
+This ERC defines a triple-hash commitment scheme and [EIP-712](./eip-712.md) attestation profile for proving that the input a model received is the input the user intended. It introduces three linked fields — `raw_input_hash`, `sanitization_pipeline_hash`, and `input_hash` — that together form a verifiable chain of custody for AI inference inputs. A verifier can confirm input integrity using only the committed hashes and the public sanitization specification, without trusting the agent, gateway, or execution environment. This standard occupies the input-provenance layer of the AI inference trust stack, complementing [ERC-8004](./erc-8004.md) (agent identity), [ERC-8126](./erc-8126.md) (agent verification), TruthAnchorV1 (on-chain proof commitment and anchor layer), and OCP (observation commitment protocol).
 
 ---
 
@@ -196,7 +196,7 @@ EIP-712 typed structured data signatures are natively verifiable on-chain by Eth
 
 ### Why include `agentId` and `registry`?
 
-Linking attestations to an ERC-8004 agent identity makes the attestation attributable — not just to a signing key, but to an on-chain registered agent. This is load-bearing for settlement systems (e.g. ERC-8183) that need to associate an output with a specific funded agent.
+Linking attestations to an ERC-8004 agent identity makes the attestation attributable — not just to a signing key, but to an on-chain registered agent. This is load-bearing for settlement systems (e.g. [ERC-8183](./erc-8183.md)) that need to associate an output with a specific funded agent.
 
 ### Why `IDENTITY_SENTINEL_CID` instead of a null value?
 
@@ -266,7 +266,7 @@ Example query:
 https://gateway.ensub.org/agent/verify/758d61f26a44448384e5c4468a0dcb7a2abe456067b0f7b505bc28b9411fe931
 ```
 
-Source code: https://github.com/Echo-Merlini/ccip-router
+Source code: `https://github.com/Echo-Merlini/ccip-router`
 
 **L2 settlement reference node:** `https://gateway.gen-plasma.com` — live ccip-router node tracking spec revisions. Runs `CommitRevealSettlerV2` (bond/slash, Router+Hybrid gate) and `GenericCommitRevealSettler` (bytes-generic, Appendix A) against Sepolia. Each spec revision is reviewed against the deployed node before commit; drift found in review is fixed before the revision is pushed. Conformance is tracked at the npm package version — `ccip-router` on npmjs.com mirrors the deployed spec layer.
 
@@ -274,7 +274,7 @@ Source code: https://github.com/Echo-Merlini/ccip-router
 
 **External implementations:**
 
-- WyriweVerifier (Jimmy Shi) — `IProofVerifier` wrapper: https://ethereum-magicians.org/t/erc-8274-ai-inference-proof-verification/28083
+- WyriweVerifier (Jimmy Shi) — `IProofVerifier` implementation of the WYRIWE triple-hash scheme
 - WyriweProofVerifier (mainnet): `0xd8a09d830b27697e1b24e8c9800e562d20318a09`
 - WyriweAttestationVerifier (mainnet): referenced in ccip-router npm package
 
@@ -614,15 +614,9 @@ The CID was derived from the above JSON content (UTF-8 encoded, no trailing newl
 
 ### References
 
-- [ERC-8004](https://ethereum-magicians.org/t/erc-8004-trustless-agents/25098) — Verified Node Identity (agent identity layer)
-- [ERC-8126](https://eips.ethereum.org/EIPS/eip-8126) — AI Agent Verification (Final)
-- [TruthAnchorV1 draft](https://ethereum-magicians.org/t/erc-8263) — Onchain Proof Layer for AI Agent Actions (Vincent Wu / @TruthAnchor-AI)
-- [Inference Proof Verification draft](https://ethereum-magicians.org/t/erc-8274-ai-inference-proof-verification/28083) — AI Inference Proof Verification (Jimmy Shi)
-- [Mesh Node Compensation draft](https://ethereum-magicians.org/t/erc-8275-agent-service-discovery-and-escrow-payments/28622) — Mesh Node Compensation (Panini)
-- [OCP draft](https://github.com/damonzwicker/observation-commitment-protocol) — Observation Commitment Protocol (Damon Zwicker)
-- [OCP Composition Note](https://gist.github.com/damonzwicker/8742e742bdc627b8e2179c00b81289dc) — L3+L4 AI inference attestation profile
-- [Live AnchorProof interop tx](https://etherscan.io/tx/0xc32b66ae9446e0d5282a6fc813ba106126a8da05bced638b83840d9c2510e4d0) — ccip-router `commitmentHash` carried as `proofHash` in TruthAnchorV1, mainnet block 25289963. `agentIdScheme=1` (REGISTRY), `aux="ccip-router"`. Cross-reference: AttestationIndex `commitmentHash` in block 25289932.
-- [Proof Verification Worked Example](https://gist.github.com/damonzwicker/b6bef149db0bb4faa390a760b516db51) — claimType field mapping, RecordPointer schema, and verify() semantics for judgment claims (Damon Zwicker)
+- [ERC-8004](./erc-8004.md) — Verified Node Identity (agent identity layer)
+- [ERC-8126](./erc-8126.md) — AI Agent Verification (Final)
+- [ERC-8183](./erc-8183.md) — Agentic Commerce
 
 ---
 
@@ -634,7 +628,7 @@ The CID was derived from the above JSON content (UTF-8 encoded, no trailing newl
 
 - **Damon Zwicker** (@damonzwicker) — co-author. Contributions: `ClaimType` enum definition and proofSystem / claimType separation rationale (Section 7); `RecordPointer` typed schema formalizing the `commitmentProof` / `outcomeEvidence` distinction; `JudgmentVerificationCompleted` event definition; `verify()` three-layer accountability boundary for `ClaimType.Judgment`; OCP commitment discipline integration; worked example gist (claimType field mapping, RecordPointer schema, verify() semantics).
 
-- **babyblueviper1** (@babyblueviper1) — co-author. Production judgment validator operator. Primary author of the L4 Composition section: `JudgmentExecutionAttestation` EIP-712 struct and triple-hash construction; slot-for-slot WYRIWE mapping; `claimType` field concept; `verify()` semantic clarification (authenticates verdict, does not endorse soundness); `recordPointer` field and commitment/outcome separability invariant; Nostr relay anchoring as timestamp commitment primitive; `codeMeasurement` MUST be absent for `claimType = Judgment`; `verdictHash` construction clarification (`verdict_artifact_ref` covers both IPFS CID and Nostr event ID forms); closing the `string recordPointer` vs inline struct question ("attestation frozen, record alive"); Appendix A verification against deployed code. Production reference implementation at [api.babyblueviper.com/ledger](https://api.babyblueviper.com/ledger) — running against real capital.
+- **babyblueviper1** (@babyblueviper1) — co-author. Production judgment validator operator. Primary author of the L4 Composition section: `JudgmentExecutionAttestation` EIP-712 struct and triple-hash construction; slot-for-slot WYRIWE mapping; `claimType` field concept; `verify()` semantic clarification (authenticates verdict, does not endorse soundness); `recordPointer` field and commitment/outcome separability invariant; Nostr relay anchoring as timestamp commitment primitive; `codeMeasurement` MUST be absent for `claimType = Judgment`; `verdictHash` construction clarification (`verdict_artifact_ref` covers both IPFS CID and Nostr event ID forms); closing the `string recordPointer` vs inline struct question ("attestation frozen, record alive"); Appendix A verification against deployed code. Production reference implementation at api.babyblueviper.com/ledger — running against real capital.
 
 ---
 
