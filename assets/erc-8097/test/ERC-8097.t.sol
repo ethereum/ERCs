@@ -2,256 +2,300 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC8097} from "../contracts/ERC8097.sol";
-import {IERC8097, IRO, IGO, ICO, IEXO, IEO} from "../contracts/IERC8097.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ERC8097} from "../contracts/ERC-8097.sol";
+import {
+    IERC8097,
+    AssetRecord,
+    CPAttestation,
+    LifecycleState,
+    ProductionStatus
+} from "../contracts/IERC-8097.sol";
 
 contract ERC8097Test is Test {
+    ERC8097 registry;
 
-    ERC8097 public erc;
+    address owner = makeAddr("owner");
+    address relayer = makeAddr("relayer");
+    address stranger = makeAddr("stranger");
 
-    // Test CP/QP key
-    uint256 constant CP_PRIVATE_KEY = 0xA11CE;
+    uint256 cpPrivateKey = 0xA11CE;
     address cpAddress;
 
-    bytes32 constant DEPOSIT_ID = keccak256(abi.encodePacked("Boddington Gold Mine", "AU:M70/1388"));
+    string constant SLUG = "bellevue-gold-project";
+    string constant MINE_NAME = "Bellevue Gold Project";
+    string constant SCHEMA = "erc8097-v0.2";
+    string constant RULEBOOK = "v1.1";
+    string constant IPFS_URI = "ipfs://QmBellevueGoldReport";
 
-    IRO baseIRO;
-    IGO baseIGO;
+    // Test-only stand-ins for SHA-256 object/report hashes. Production anchors
+    // SHA-256 hashes of canonical off-chain JSON objects and report PDFs.
+    bytes32 constant IRO_HASH = bytes32(uint256(1));
+    bytes32 constant IGO_HASH = bytes32(uint256(2));
+    bytes32 constant ICO_HASH = bytes32(uint256(3));
+    bytes32 constant IEXO_HASH = bytes32(uint256(4));
+    bytes32 constant IEO_HASH = bytes32(uint256(5));
+    bytes32 constant SML_HASH = bytes32(uint256(6));
+    bytes32 constant PDF_HASH = bytes32(uint256(7));
 
-    function setUp() public {
-        erc = new ERC8097();
-        cpAddress = vm.addr(CP_PRIVATE_KEY);
-
-        baseIRO = IRO({
-            depositId:        DEPOSIT_ID,
-            commodity:        "AU",
-            reportingStandard: "JORC2012",
-            totalInGround:    34_200_000_000, // 34,200 kg in grams
-            resourceClass:    2,              // Measured
-            anchorHash:       keccak256("mock_report_pdf_bytes"),
-            anchoredAt:       0              // set by contract
-        });
-
-        baseIGO = _makeIGO(1);
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────
-
-    bytes32 constant IGO_TYPEHASH = keccak256(
-        "IGOAttestation(bytes32 depositId,string country,string depositStyle,"
-        "string hostRock,address cpAddress,uint256 siteVisitDate,"
-        "bytes32 reportHash,uint256 version)"
+    bytes32 constant CP_ATTESTATION_TYPEHASH = keccak256(
+        "CPAttestation(bytes32 assetId,bytes32 objectHash,string cpName,string cpBody,string cpMembershipNumber,uint256 attestationTimestamp)"
     );
 
-    function _makeIGO(uint256 version) internal view returns (IGO memory igo) {
-        igo.depositId    = DEPOSIT_ID;
-        igo.country      = "AU";
-        igo.depositStyle = "Orogenic Gold";
-        igo.hostRock     = "granite";
-        igo.cpAddress    = cpAddress;
-        igo.siteVisitDate = 1_700_000_000;
-        igo.reportHash   = keccak256("mock_report_pdf_bytes");
-        igo.version      = version;
-        igo.cpSignature  = _signIGO(igo);
+    function setUp() public {
+        cpAddress = vm.addr(cpPrivateKey);
+        vm.startPrank(owner);
+        registry = new ERC8097(owner);
+        registry.setRelayer(relayer, true);
+        vm.stopPrank();
     }
 
-    function _signIGO(IGO memory igo) internal view returns (bytes memory) {
-        // Reconstruct EIP-712 domain separator matching contract
-        bytes32 domainSep = keccak256(abi.encode(
-            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-            keccak256("ERC8097"),
-            keccak256("1"),
-            block.chainid,
-            address(erc)
-        ));
-        bytes32 structHash = keccak256(abi.encode(
-            IGO_TYPEHASH,
-            igo.depositId,
-            keccak256(bytes(igo.country)),
-            keccak256(bytes(igo.depositStyle)),
-            keccak256(bytes(igo.hostRock)),
-            igo.cpAddress,
-            igo.siteVisitDate,
-            igo.reportHash,
-            igo.version
-        ));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(CP_PRIVATE_KEY, digest);
-        return abi.encodePacked(r, s, v);
+    function _register(string memory slug) internal returns (bytes32 assetId) {
+        vm.prank(relayer);
+        assetId = registry.register(slug, MINE_NAME, SCHEMA);
     }
 
-    // ── anchorResource ────────────────────────────────────────────────────
-
-    function test_anchorResource_emitsEvent() public {
-        vm.expectEmit(true, false, false, true);
-        emit IERC8097.ResourceAnchored(DEPOSIT_ID, "AU", baseIRO.totalInGround, baseIRO.anchorHash);
-        erc.anchorResource(baseIRO);
+    function _verifiedAsset(string memory slug) internal returns (bytes32 assetId) {
+        assetId = _register(slug);
+        vm.startPrank(relayer);
+        registry.advanceLifecycle(assetId, LifecycleState.CLAIMED);
+        registry.advanceLifecycle(assetId, LifecycleState.VERIFIED);
+        vm.stopPrank();
     }
 
-    function test_anchorResource_setsAnchoredAt() public {
-        vm.warp(1_800_000_000);
-        erc.anchorResource(baseIRO);
-        IRO memory stored = erc.getIRO(DEPOSIT_ID);
-        assertEq(stored.anchoredAt, 1_800_000_000);
-    }
-
-    function test_anchorResource_initializesIEXO() public {
-        erc.anchorResource(baseIRO);
-        assertEq(erc.remainingInGround(DEPOSIT_ID), baseIRO.totalInGround);
-    }
-
-    function test_anchorResource_revertsIfAlreadyAnchored() public {
-        erc.anchorResource(baseIRO);
-        vm.expectRevert(abi.encodeWithSelector(IERC8097.AlreadyAnchored.selector, DEPOSIT_ID));
-        erc.anchorResource(baseIRO);
-    }
-
-    function test_anchorResource_revertsIfZeroQuantity() public {
-        baseIRO.totalInGround = 0;
-        vm.expectRevert(IERC8097.ZeroResourceQuantity.selector);
-        erc.anchorResource(baseIRO);
-    }
-
-    // ── updateGeology ─────────────────────────────────────────────────────
-
-    function test_updateGeology_setsVersion1() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        IGO memory stored = erc.getIGO(DEPOSIT_ID);
-        assertEq(stored.version, 1);
-    }
-
-    function test_updateGeology_emitsCPAttestation() public {
-        erc.anchorResource(baseIRO);
-        vm.expectEmit(true, true, false, true);
-        emit IERC8097.CPAttestation(DEPOSIT_ID, cpAddress, baseIGO.reportHash, baseIGO.siteVisitDate, 1);
-        erc.updateGeology(baseIGO);
-    }
-
-    function test_updateGeology_invalidatesAttestation() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        erc.verifyAttestation(DEPOSIT_ID);
-        assertTrue(erc.getICO(DEPOSIT_ID).attestationValid);
-        // Update geology again — should invalidate
-        IGO memory v2 = _makeIGO(2);
-        erc.updateGeology(v2);
-        assertFalse(erc.getICO(DEPOSIT_ID).attestationValid);
-    }
-
-    function test_updateGeology_revertsOnBadSignature() public {
-        erc.anchorResource(baseIRO);
-        IGO memory bad = baseIGO;
-        bad.cpSignature = bytes("bad_signature");
-        vm.expectRevert();
-        erc.updateGeology(bad);
-    }
-
-    function test_updateGeology_revertsIfNotAnchored() public {
-        vm.expectRevert(abi.encodeWithSelector(IERC8097.DepositNotFound.selector, DEPOSIT_ID));
-        erc.updateGeology(baseIGO);
-    }
-
-    // ── verifyAttestation ─────────────────────────────────────────────────
-
-    function test_verifyAttestation_setsValid() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        bool result = erc.verifyAttestation(DEPOSIT_ID);
-        assertTrue(result);
-        assertTrue(erc.getICO(DEPOSIT_ID).attestationValid);
-    }
-
-    // ── recordDepletion ───────────────────────────────────────────────────
-
-    function test_recordDepletion_decreasesRemaining() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        erc.verifyAttestation(DEPOSIT_ID);
-        uint256 before = erc.remainingInGround(DEPOSIT_ID);
-        erc.recordDepletion(DEPOSIT_ID, 1_000_000);
-        assertEq(erc.remainingInGround(DEPOSIT_ID), before - 1_000_000);
-    }
-
-    function test_recordDepletion_maintainsInvariant() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        erc.verifyAttestation(DEPOSIT_ID);
-        erc.recordDepletion(DEPOSIT_ID, 5_000_000);
-        IEXO memory e = erc.getIEXO(DEPOSIT_ID);
-        IRO memory r  = erc.getIRO(DEPOSIT_ID);
-        assertEq(e.totalDepleted + e.remainingInGround, r.totalInGround);
-    }
-
-    function test_recordDepletion_emitsEvent() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        erc.verifyAttestation(DEPOSIT_ID);
-        vm.expectEmit(true, true, false, true);
-        emit IERC8097.DepletionRecorded(
-            DEPOSIT_ID, 1_000_000, baseIRO.totalInGround - 1_000_000, address(this)
+    function _anchor(string memory slug) internal returns (bytes32 assetId) {
+        assetId = _verifiedAsset(slug);
+        vm.prank(relayer);
+        registry.anchor(
+            assetId,
+            IRO_HASH,
+            IGO_HASH,
+            ICO_HASH,
+            IEXO_HASH,
+            IEO_HASH,
+            SML_HASH,
+            762,
+            PDF_HASH,
+            IPFS_URI,
+            RULEBOOK,
+            SCHEMA
         );
-        erc.recordDepletion(DEPOSIT_ID, 1_000_000);
     }
 
-    function test_recordDepletion_revertsIfExceedsRemaining() public {
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        erc.verifyAttestation(DEPOSIT_ID);
-        uint256 tooMuch = baseIRO.totalInGround + 1;
-        vm.expectRevert(abi.encodeWithSelector(
-            IERC8097.DepletionExceedsRemaining.selector,
-            DEPOSIT_ID, tooMuch, baseIRO.totalInGround
+    function _signAttestation(
+        bytes32 assetId,
+        bytes32 objectHash,
+        string memory cpName,
+        string memory cpBody,
+        string memory cpMembershipNumber,
+        uint256 attestationTimestamp,
+        uint256 privateKey
+    ) internal view returns (bytes memory signature) {
+        bytes32 structHash = keccak256(abi.encode(
+            CP_ATTESTATION_TYPEHASH,
+            assetId,
+            objectHash,
+            keccak256(bytes(cpName)),
+            keccak256(bytes(cpBody)),
+            keccak256(bytes(cpMembershipNumber)),
+            attestationTimestamp
         ));
-        erc.recordDepletion(DEPOSIT_ID, tooMuch);
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", registry.getDomainSeparator(), structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        signature = abi.encodePacked(r, s, v);
     }
 
-    function test_recordDepletion_revertsIfAttestationInvalid() public {
-        erc.anchorResource(baseIRO);
-        // No verifyAttestation call
-        vm.expectRevert(abi.encodeWithSelector(IERC8097.AttestationNotValid.selector, DEPOSIT_ID));
-        erc.recordDepletion(DEPOSIT_ID, 1_000_000);
+    function test_registerCreatesIndexedAsset() public {
+        bytes32 assetId = _register(SLUG);
+        AssetRecord memory asset = registry.getAsset(assetId);
+        assertEq(asset.mineSlug, SLUG);
+        assertEq(asset.mineName, MINE_NAME);
+        assertEq(uint8(asset.lifecycleState), uint8(LifecycleState.INDEXED));
+        assertEq(registry.getAssetBySlug(SLUG), assetId);
     }
 
-    function test_recordDepletion_cannotIncrease() public {
-        // This test verifies monotonic decrease by attempting two depletions
-        erc.anchorResource(baseIRO);
-        erc.updateGeology(baseIGO);
-        erc.verifyAttestation(DEPOSIT_ID);
-        erc.recordDepletion(DEPOSIT_ID, 1_000_000);
-        erc.recordDepletion(DEPOSIT_ID, 1_000_000);
-        IEXO memory e = erc.getIEXO(DEPOSIT_ID);
-        assertEq(e.totalDepleted, 2_000_000);
-        assertEq(e.remainingInGround, baseIRO.totalInGround - 2_000_000);
+    function test_registerRejectsDuplicateSlug() public {
+        _register(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: slug already registered");
+        registry.register(SLUG, MINE_NAME, SCHEMA);
     }
 
-    // ── updateEnvironmental ───────────────────────────────────────────────
+    function test_registerRequiresRelayer() public {
+        vm.prank(stranger);
+        vm.expectRevert("ERC8097: not an authorised relayer");
+        registry.register(SLUG, MINE_NAME, SCHEMA);
+    }
 
-    function test_updateEnvironmental_emitsEvent() public {
-        erc.anchorResource(baseIRO);
-        IEO memory ieo = IEO({
-            depositId: DEPOSIT_ID, eiaSubmitted: true, waterRightsPresent: true,
-            tailingsPlanPresent: true, ghgReportHash: keccak256("ghg_report"),
-            rehabilitationBond: 1 ether, lastUpdated: 0
-        });
+    function test_lifecycleAdvancesOneStepOnly() public {
+        bytes32 assetId = _register(SLUG);
+        vm.prank(relayer);
+        registry.advanceLifecycle(assetId, LifecycleState.CLAIMED);
+        assertEq(uint8(registry.getLifecycleState(assetId)), uint8(LifecycleState.CLAIMED));
+    }
+
+    function test_lifecycleRejectsSkip() public {
+        bytes32 assetId = _register(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: lifecycle must advance exactly one step");
+        registry.advanceLifecycle(assetId, LifecycleState.VERIFIED);
+    }
+
+    function test_lifecycleRejectsAnchoredViaAdvance() public {
+        bytes32 assetId = _verifiedAsset(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: use anchor() to reach ANCHORED state");
+        registry.advanceLifecycle(assetId, LifecycleState.ANCHORED);
+    }
+
+    function test_anchorRequiresVerified() public {
+        bytes32 assetId = _register(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: lifecycle must reach VERIFIED before anchoring");
+        registry.anchor(assetId, IRO_HASH, IGO_HASH, ICO_HASH, IEXO_HASH, IEO_HASH, SML_HASH, 762, PDF_HASH, IPFS_URI, RULEBOOK, SCHEMA);
+    }
+
+    function test_anchorStoresHashesAndScore() public {
+        bytes32 assetId = _anchor(SLUG);
+        AssetRecord memory asset = registry.getAsset(assetId);
+        assertEq(asset.iroHash, IRO_HASH);
+        assertEq(asset.reportPdfHash, PDF_HASH);
+        assertEq(asset.reportIpfsUri, IPFS_URI);
+        assertEq(uint8(asset.lifecycleState), uint8(LifecycleState.ANCHORED));
+        assertEq(registry.getCurrentScore(assetId), 762);
+        assertTrue(registry.isAnchored(assetId));
+    }
+
+    function test_anchorRejectsMissingReport() public {
+        bytes32 assetId = _verifiedAsset(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: reportPdfHash required");
+        registry.anchor(assetId, IRO_HASH, IGO_HASH, ICO_HASH, IEXO_HASH, IEO_HASH, SML_HASH, 762, bytes32(0), IPFS_URI, RULEBOOK, SCHEMA);
+    }
+
+    function test_anchorRejectsScoreAbove1000() public {
+        bytes32 assetId = _verifiedAsset(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: score must be 0-1000");
+        registry.anchor(assetId, IRO_HASH, IGO_HASH, ICO_HASH, IEXO_HASH, IEO_HASH, SML_HASH, 1001, PDF_HASH, IPFS_URI, RULEBOOK, SCHEMA);
+    }
+
+    function test_reanchorEmitsAndUpdatesLatestHash() public {
+        bytes32 assetId = _anchor(SLUG);
+        bytes32 newIroHash = bytes32(uint256(111));
+
         vm.expectEmit(true, false, false, true);
-        emit IERC8097.ESGUpdated(DEPOSIT_ID, ieo.ghgReportHash, true, 1 ether);
-        erc.updateEnvironmental(ieo);
+        emit IERC8097.AssetAnchored(
+            assetId,
+            SLUG,
+            newIroHash,
+            IGO_HASH,
+            ICO_HASH,
+            IEXO_HASH,
+            IEO_HASH,
+            SML_HASH,
+            PDF_HASH,
+            block.timestamp
+        );
+        vm.expectEmit(true, false, false, true);
+        emit IERC8097.AssetReAnchored(assetId, IRO_HASH, newIroHash, block.timestamp);
+        vm.prank(relayer);
+        registry.anchor(assetId, newIroHash, IGO_HASH, ICO_HASH, IEXO_HASH, IEO_HASH, SML_HASH, 800, PDF_HASH, IPFS_URI, RULEBOOK, SCHEMA);
+
+        assertEq(registry.getAsset(assetId).iroHash, newIroHash);
+        assertEq(registry.getCurrentScore(assetId), 800);
     }
 
-    // ── depositId computation ─────────────────────────────────────────────
+    function test_cpAttestationStoresSignerAndTimestamp() public {
+        bytes32 assetId = _anchor(SLUG);
+        uint256 ts = 1_800_000_000;
+        bytes memory sig = _signAttestation(assetId, IRO_HASH, "Peter Burge", "MAusIMM", "12345", ts, cpPrivateKey);
 
-    function test_depositId_deterministic() public pure {
-        bytes32 id1 = keccak256(abi.encodePacked("Boddington Gold Mine", "AU:M70/1388"));
-        bytes32 id2 = keccak256(abi.encodePacked("Boddington Gold Mine", "AU:M70/1388"));
-        assertEq(id1, id2);
+        registry.recordCPAttestation(assetId, IRO_HASH, "Peter Burge", "MAusIMM", "12345", cpAddress, ts, sig);
+        CPAttestation[] memory attestations = registry.getCPAttestations(IRO_HASH);
+        assertEq(attestations.length, 1);
+        assertEq(attestations[0].signerAddress, cpAddress);
+        assertEq(attestations[0].attestationTimestamp, ts);
     }
 
-    function test_depositId_differentForDifferentDeposits() public pure {
-        bytes32 id1 = keccak256(abi.encodePacked("Boddington Gold Mine", "AU:M70/1388"));
-        bytes32 id2 = keccak256(abi.encodePacked("Olympic Dam",          "AU:M6/2671"));
-        assertTrue(id1 != id2);
+    function test_cpAttestationRejectsUnrelatedHash() public {
+        bytes32 assetId = _anchor(SLUG);
+        bytes32 unrelatedHash = keccak256("unrelated");
+        bytes memory sig = _signAttestation(assetId, unrelatedHash, "Peter Burge", "MAusIMM", "12345", 1, cpPrivateKey);
+
+        vm.expectRevert("ERC8097: objectHash not a current hash of this asset");
+        registry.recordCPAttestation(assetId, unrelatedHash, "Peter Burge", "MAusIMM", "12345", cpAddress, 1, sig);
+    }
+
+    function test_cpAttestationRejectsReplay() public {
+        bytes32 assetId = _anchor(SLUG);
+        bytes memory sig = _signAttestation(assetId, IGO_HASH, "Peter Burge", "MAusIMM", "12345", 2, cpPrivateKey);
+
+        registry.recordCPAttestation(assetId, IGO_HASH, "Peter Burge", "MAusIMM", "12345", cpAddress, 2, sig);
+        vm.expectRevert("ERC8097: attestation digest already used");
+        registry.recordCPAttestation(assetId, IGO_HASH, "Peter Burge", "MAusIMM", "12345", cpAddress, 2, sig);
+    }
+
+    function test_cpAttestationRejectsSignerMismatch() public {
+        bytes32 assetId = _anchor(SLUG);
+        bytes memory sig = _signAttestation(assetId, IGO_HASH, "Peter Burge", "MAusIMM", "12345", 3, cpPrivateKey);
+
+        vm.expectRevert("ERC8097: signer does not match expectedSigner");
+        registry.recordCPAttestation(assetId, IGO_HASH, "Peter Burge", "MAusIMM", "12345", makeAddr("wrong"), 3, sig);
+    }
+
+    function test_productionTransitionTable() public {
+        assertTrue(registry.isProductionTransitionAllowed(ProductionStatus.PRODUCTION, ProductionStatus.CARE_AND_MAINTENANCE));
+        assertTrue(registry.isProductionTransitionAllowed(ProductionStatus.CARE_AND_MAINTENANCE, ProductionStatus.PRODUCTION));
+        assertFalse(registry.isProductionTransitionAllowed(ProductionStatus.EXPLORATION, ProductionStatus.PRODUCTION));
+        assertFalse(registry.isProductionTransitionAllowed(ProductionStatus.CLOSED, ProductionStatus.PRODUCTION));
+    }
+
+    function test_advanceProductionStatusUsesTable() public {
+        bytes32 assetId = _anchor(SLUG);
+        vm.startPrank(relayer);
+        registry.advanceProductionStatus(assetId, ProductionStatus.EXPLORATION);
+        registry.advanceProductionStatus(assetId, ProductionStatus.PRE_FEASIBILITY);
+        registry.advanceProductionStatus(assetId, ProductionStatus.FEASIBILITY);
+        registry.advanceProductionStatus(assetId, ProductionStatus.DEVELOPMENT);
+        registry.advanceProductionStatus(assetId, ProductionStatus.PRODUCTION);
+        registry.advanceProductionStatus(assetId, ProductionStatus.CARE_AND_MAINTENANCE);
+        registry.advanceProductionStatus(assetId, ProductionStatus.PRODUCTION);
+        vm.stopPrank();
+        assertEq(uint8(registry.getProductionStatus(assetId)), uint8(ProductionStatus.PRODUCTION));
+    }
+
+    function test_advanceProductionStatusRejectsSkippedTransition() public {
+        bytes32 assetId = _anchor(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: production status transition not permitted");
+        registry.advanceProductionStatus(assetId, ProductionStatus.PRODUCTION);
+    }
+
+    function test_updateDepletionRequiresProduction() public {
+        bytes32 assetId = _anchor(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: production status must be PRODUCTION");
+        registry.updateDepletion(assetId, 10);
+    }
+
+    function test_updateDepletionIncreasesOnly() public {
+        bytes32 assetId = _anchor(SLUG);
+        vm.startPrank(relayer);
+        registry.advanceProductionStatus(assetId, ProductionStatus.EXPLORATION);
+        registry.advanceProductionStatus(assetId, ProductionStatus.PRE_FEASIBILITY);
+        registry.advanceProductionStatus(assetId, ProductionStatus.FEASIBILITY);
+        registry.advanceProductionStatus(assetId, ProductionStatus.DEVELOPMENT);
+        registry.advanceProductionStatus(assetId, ProductionStatus.PRODUCTION);
+        registry.updateDepletion(assetId, 10);
+        vm.expectRevert("ERC8097: depletion can only increase");
+        registry.updateDepletion(assetId, 10);
+        vm.stopPrank();
+    }
+
+    function test_updateSMLRejectsScoreAbove1000() public {
+        bytes32 assetId = _anchor(SLUG);
+        vm.prank(relayer);
+        vm.expectRevert("ERC8097: score must be 0-1000");
+        registry.updateSML(assetId, keccak256("new-sml"), 1001);
     }
 }
