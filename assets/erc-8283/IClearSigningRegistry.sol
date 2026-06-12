@@ -11,6 +11,32 @@ import "./IEAS.sol";
 interface IClearSigningRegistry {
 
     // =========================================================================
+    // Types
+    // =========================================================================
+
+    /// @notice A fully resolved active endorsement, combining the registry slot,
+    ///         the backing EAS attestation's lifecycle fields, and the attester's
+    ///         MirrorList for the descriptor.
+    struct ResolvedDescriptor {
+        /// The endorsing attester.
+        address attester;
+        /// The context ID the slot was found under.
+        bytes32 contextId;
+        /// The endorsed descriptor hash.
+        bytes32 descriptorHash;
+        /// The backing EAS attestation UID.
+        bytes32 attestationId;
+        /// The EAS attestation expiration time (0 = never expires).
+        uint64 expirationTime;
+        /// The EAS attestation revocation time (0 = not revoked).
+        uint64 revocationTime;
+        /// The attester's MirrorList ID for the descriptor (bytes32(0) if none).
+        bytes32 mirrorListId;
+        /// The MirrorList contents (empty if none).
+        string[] uris;
+    }
+
+    // =========================================================================
     // Events
     // =========================================================================
 
@@ -204,6 +230,28 @@ interface IClearSigningRegistry {
     // Queries
     // =========================================================================
 
+    /// @notice Resolve all active endorsements for the given attesters across the
+    ///         given context IDs in a single call. For every non-empty
+    ///         (attester, contextId) slot, returns the descriptor hash, the backing
+    ///         EAS attestation's expiration and revocation times (read from EAS in
+    ///         the same call), and the attester's MirrorList for the descriptor.
+    ///
+    ///         Designed as the wallet-facing entry point: a wallet derives its
+    ///         candidate context IDs locally (the contract key for a calldata
+    ///         transaction; the deployment and domain-separator keys for an
+    ///         EIP-712 message; factory keys for factories it knows), then
+    ///         resolves slots, attestation validity, and retrieval URIs in one
+    ///         eth_call. The wallet remains responsible for its trust policy and
+    ///         for verifying the fetched descriptor against descriptorHash.
+    /// @param attesters   Ordered attester addresses (index 0 = highest priority).
+    /// @param contextIds  Candidate context IDs to look up.
+    /// @return resolved   One entry per non-empty slot, ordered by attesters
+    ///                    first, then contextIds.
+    function resolveDescriptors(
+        address[] calldata attesters,
+        bytes32[] calldata contextIds
+    ) external view returns (ResolvedDescriptor[] memory resolved);
+
     /// @notice Batch-query the active descriptor and attestation for each attester
     ///         at a given context ID. Designed for wallet use: one call resolves
     ///         the full trusted-attester list.
@@ -219,15 +267,11 @@ interface IClearSigningRegistry {
         bytes32[] memory attestationIds
     );
 
-    /// @notice Return the MirrorList ID and URI list an attester has set for a descriptor.
-    /// @param attester        The attester address.
-    /// @param descriptorHash  The descriptor hash.
-    /// @return mirrorListId  The MirrorList ID (bytes32(0) if none set).
-    /// @return uris          The URI list (empty if none set).
-    function getMirrorList(address attester, bytes32 descriptorHash)
-        external view returns (bytes32 mirrorListId, string[] memory uris);
-
     /// @notice Return the URI list for a given MirrorList ID.
+    ///         The MirrorListPublished event carries only the ID, so this getter is
+    ///         the standalone way to read a published list's contents; an attester's
+    ///         current MirrorList for a descriptor is part of resolveDescriptors
+    ///         output and of MirrorListUpdated events.
     /// @param mirrorListId  The MirrorList content hash.
     /// @return uris  The URI list (empty if the ID is unknown).
     function getMirrorListById(bytes32 mirrorListId)

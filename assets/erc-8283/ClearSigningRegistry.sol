@@ -175,6 +175,43 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     }
 
     /// @inheritdoc IClearSigningRegistry
+    function resolveDescriptors(
+        address[] calldata attesters,
+        bytes32[] calldata contextIds
+    ) external view returns (ResolvedDescriptor[] memory resolved) {
+        // First pass: count non-empty slots to size the result array.
+        uint256 count;
+        for (uint256 a; a < attesters.length; ++a)
+            for (uint256 c; c < contextIds.length; ++c)
+                if (_attestationId[attesters[a]][contextIds[c]] != bytes32(0))
+                    ++count;
+
+        resolved = new ResolvedDescriptor[](count);
+        uint256 k;
+        for (uint256 a; a < attesters.length; ++a) {
+            for (uint256 c; c < contextIds.length; ++c) {
+                bytes32 uid = _attestationId[attesters[a]][contextIds[c]];
+                if (uid == bytes32(0)) continue;
+
+                bytes32 descriptorHash = _descriptorHash[attesters[a]][contextIds[c]];
+                bytes32 mirrorListId   = _mirrorListId[attesters[a]][descriptorHash];
+                IEAS.Attestation memory attestation = eas.getAttestation(uid);
+
+                resolved[k++] = ResolvedDescriptor({
+                    attester:       attesters[a],
+                    contextId:      contextIds[c],
+                    descriptorHash: descriptorHash,
+                    attestationId:  uid,
+                    expirationTime: attestation.expirationTime,
+                    revocationTime: attestation.revocationTime,
+                    mirrorListId:   mirrorListId,
+                    uris:           _mirrorLists[mirrorListId]
+                });
+            }
+        }
+    }
+
+    /// @inheritdoc IClearSigningRegistry
     function getDescriptors(
         address[] calldata attesters,
         bytes32            contextId
@@ -188,14 +225,6 @@ contract ClearSigningRegistry is IClearSigningRegistry {
             descriptorHashes[i] = _descriptorHash[attesters[i]][contextId];
             attestationIds[i]   = _attestationId[attesters[i]][contextId];
         }
-    }
-
-    /// @inheritdoc IClearSigningRegistry
-    function getMirrorList(address attester, bytes32 descriptorHash)
-        external view returns (bytes32 mirrorListId, string[] memory uris)
-    {
-        mirrorListId = _mirrorListId[attester][descriptorHash];
-        uris         = _mirrorLists[mirrorListId];
     }
 
     /// @inheritdoc IClearSigningRegistry
