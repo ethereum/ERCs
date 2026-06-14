@@ -1,5 +1,5 @@
 ---
-eip: 0
+eip: xxxx
 title: Contract Deactivation Interface
 description: Interface for permanently deactivating a token contract and exposing its deactivation status
 author: Ryan Sauge (@rya-sge)
@@ -17,7 +17,7 @@ requires: 165
 
 This ERC defines a minimal interface for permanently deactivating a contract and exposing that terminal state on-chain. It introduces a one-way `deactivateContract()` operation and a `deactivated()` status view so wallets, exchanges, custodians, and protocols can reliably detect that a contract is no longer active.
 
-The proposal is motivated by regulated Real-World Asset (RWA) use cases where issuers may need to irreversibly stop token operations due to corporate actions, legal migration, or end-of-life lifecycle events. It is also useful for DeFi applications (for example lending markets or AMM pools) that need to publish a clear on-chain signal that an instance is no longer active. The interface is intentionally small and can be combined with existing token standards such as [ERC-20](./eip-20.md), [ERC-721](./eip-721.md), or [ERC-1155](./eip-1155.md). The proposal adopts [ERC-165](./erc-165.md) so integrators can discover support programmatically.
+The proposal is motivated by regulated Real-World Asset (RWA) use cases where issuers may need to irreversibly stop token operations due to corporate actions, legal migration, or end-of-life lifecycle events. It is also useful for DeFi applications (for example lending markets or AMM pools) that need to publish a clear on-chain signal that an instance is no longer active. The interface is intentionally small and can be combined with existing token standards such as [ERC-20](./eip-20.md), [ERC-721](./eip-721.md), or [ERC-1155](./eip-1155.md). The proposal adopts [ERC-165](./eip-165.md) so integrators can discover support programmatically.
 
 ## Motivation
 
@@ -65,7 +65,7 @@ interface IERCDeactivation is IERC165 {
 
 ### ERC-165 Support
 
-Implementations MUST implement [ERC-165](./erc-165.md) and MUST return `true` from `supportsInterface` for:
+Implementations MUST implement [ERC-165](./eip-165.md) and MUST return `true` from `supportsInterface` for:
 
 - `0x01ffc9a7` (`IERC165`)
 - `0xe9cd80b0` (`IERCDeactivation`)
@@ -92,16 +92,20 @@ Implementations MUST return `false` for `supportsInterface(0xffffffff)`.
 
 4. **Post-deactivation operational guarantees**
    - After deactivation, holder-initiated asset movement operations MUST revert. For example:
-     - ERC-20: `transfer`, `transferFrom`, `safeTransferFrom` 
+     - ERC-20: `transfer`, `transferFrom` 
      - ERC-721
      - ERC-1155
+   - After `deactivated() == true`, all non-privileged, non-view, and non-pure holder operations MUST revert.
    - After deactivation, supply-changing operations intended for normal lifecycle management (for example standard `mint` and `burn`) MUST revert.
    - If the implementation includes `unpause`, it MUST revert when `deactivated() == true`.
-   - Implementations MAY keep explicitly privileged emergency/regulatory operations (for example forced transfer) available, but MUST document this behavior.
+   - Implementations MAY keep only explicitly named privileged emergency/regulatory operations (for example `forcedTransfer`) available after deactivation.
+   - Any privileged operation that remains available after deactivation MUST be listed in the implementation documentation and clearly marked as post-deactivation-enabled.
+   - Privileged operations that are not explicitly named as post-deactivation-enabled MUST revert when `deactivated() == true`.
    
 5. **Observability**
    - `deactivated()` MUST be a non-reverting view function.
-   - Indexers and off-chain systems SHOULD treat `Deactivated` as a terminal lifecycle event.
+   - Indexers and off-chain systems SHOULD treat `Deactivated` as a terminal lifecycle event for public holder operations, rather than as a guarantee that no privileged operation can ever execute.
+   - This interpretation does not imply restrictions on view or pure read-only functions.
    - For upgradeable proxy deployments, integrators are RECOMMENDED to adopt a conservative default assumption that once deactivated, the contract remains permanently deactivated, unless governance documentation explicitly states otherwise.
 
 ## Rationale
