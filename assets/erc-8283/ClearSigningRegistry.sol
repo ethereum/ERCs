@@ -218,24 +218,6 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     }
 
     /// @inheritdoc IClearSigningRegistry
-    function getDescriptors(
-        address[] calldata attesters,
-        bytes32            contextId
-    ) external view returns (
-        bytes32[] memory descriptorHashes,
-        bytes32[] memory attestationIds
-    ) {
-        descriptorHashes = new bytes32[](attesters.length);
-        attestationIds   = new bytes32[](attesters.length);
-        for (uint256 i = 0; i < attesters.length; i++) {
-            bytes32 uid = _attestationId[attesters[i]][contextId];
-            if (uid == bytes32(0)) continue;
-            attestationIds[i]   = uid;
-            descriptorHashes[i] = abi.decode(eas.getAttestation(uid).data, (bytes32));
-        }
-    }
-
-    /// @inheritdoc IClearSigningRegistry
     function getMirrorListById(bytes32 mirrorListId)
         external view returns (string[] memory)
     {
