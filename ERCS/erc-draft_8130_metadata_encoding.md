@@ -62,6 +62,12 @@ A record with no recognized keys, or missing `payload`, is malformed and SHOULD 
 
 A consumer SHOULD ignore the `scope` (treating the record as whole-transaction) of any record whose `scope` references a phase or call index that does not exist in `calls`. Multiple records MAY share the same scope, and a single call MAY be described by records at call, phase, and transaction scope simultaneously.
 
+Wallets MUST encode `scope` values only after the `calls` array is finalized. The final phase structure is not known until all parties — sender, payer, and any other contributors — have determined their calls. Encoding scope before that point risks pointing at the wrong phase if a payer prepends a payment phase or if calls are otherwise reordered during construction.
+
+> **Note (non-normative):** In [ERC-8168](./erc-8168.md) sponsored flows, the typical construction order is: (1) app sends `wallet_sendCalls` with its calls and attribution intent; (2) wallet contacts the payer service, which may prepend a payment phase via `payer_fillTransaction`; (3) wallet resolves each call's final phase index in the assembled `calls`; (4) wallet encodes `metadata` with correct absolute indices and signs. The app's original calls may shift from phase 0 to phase 1 when a payer prepends — the wallet holds both the original intent and the final structure, so it resolves the correct index before encoding.
+
+> **Note (non-normative):** When a wallet assembles calls from multiple independent `wallet_sendCalls` requests (multi-app batching), it SHOULD track which metadata contributions came with which calls, then resolve each contribution's scope to the phase those calls occupy in the final `calls`. Each app's attribution record ends up scoped to its own phase independently.
+
 ### Record types
 
 This proposal defines an initial registry of record types. The `type` value is a hint: a consumer that does not recognize a `type`, or whose `payload` does not validate against the named format, MUST treat that record's `payload` as opaque rather than rejecting the transaction.
@@ -112,6 +118,10 @@ An alternative transport carries metadata as a no-op call to a reserved sink add
 ### Scope mirrors the calls structure
 
 Metadata is useful at different granularities: a builder code describes the whole transaction, while a remittance memo describes one transfer in a batch. Encoding `scope` as a phase index or `[phase, call]` pair reuses [EIP-8130](./eip-8130.md)'s existing two-level `calls` structure rather than inventing a parallel addressing scheme, so a record points directly at the calls it annotates.
+
+### Scope stability under construction reordering
+
+Using absolute phase indices is safe in practice because the wallet — which both receives the app's attribution intent and assembles the final `calls` — is the sole encoder of `metadata`. When a payer prepends a phase, the wallet observes the final structure and maps the app's calls to their correct index before encoding. The requirement that scope be resolved only after `calls` is finalized makes this explicit. An alternative using relative indices (e.g. offset from end) was considered but adds consumer complexity without solving a real problem: the wallet's position as final assembler already ensures correctness with absolute indices.
 
 ### Commitments for privacy
 
