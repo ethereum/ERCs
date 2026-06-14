@@ -105,6 +105,64 @@ For an [EIP-8130](./eip-8130.md) transaction whose `metadata` is structured per 
 
 A consumer MUST treat metadata as describing only the transaction it appears in, and MUST NOT infer any execution effect from it: records are inert annotations, never dispatched or executed.
 
+## Examples
+
+### ERC-8021 attribution on a sponsored USDC transfer
+
+**Scenario.** An app ("baseapp") sends a USDC transfer via `wallet_sendCalls`. The wallet ("privy") contacts a payer service via [ERC-8168](./erc-8168.md), which prepends a payment phase. The final `calls` structure is:
+
+```
+calls:
+  phase 0: [{to: payerContract, data: <pay 10 USDC to payer>}]   // payer payment
+  phase 1: [{to: usdcContract,  data: <transfer 100 USDC to Alice>}]  // user call
+```
+
+The wallet encodes attribution for both the app and wallet, scoped to phase 1 (the user call), after `calls` is finalized.
+
+**Step 1 — 8021 payload (schema 2, forward-parsed for EIP-8130).**
+
+The [ERC-8021](./eip-8021.md) schema 2 CBOR map `{"a":"baseapp","w":"privy"}` is prepended with the schema ID byte. The `cborLength` prefix and `ercMarker` used in legacy calldata are omitted because the `metadata` field is already length-delimited.
+
+```
+02                       schemaId = 2
+a2                       CBOR map(2)
+  61 61                    text "a"
+  67 62 61 73 65 61 70 70  text "baseapp"
+  61 77                    text "w"
+  65 70 72 69 76 79        text "privy"
+
+= 02a2616167626173656170706177657072697679  (20 bytes)
+```
+
+**Step 2 — outer record (type 1, scope = phase 1).**
+
+```
+a3              map(3)
+  00  01          key 0 (type) = 1 (attribution)
+  01  01          key 1 (scope) = 1 (phase 1)
+  02  54          key 2 (payload) = bstr(20)
+  02a2616167626173656170706177657072697679
+```
+
+**Step 3 — metadata field (array of one record).**
+
+```
+81              array(1)
+  a300010101025402a2616167626173656170706177657072697679
+
+metadata = 0x81a300010101025402a2616167626173656170706177657072697679
+         = 28 bytes
+```
+
+**Construction flow (non-normative).** The app's original call was call 0 of the only phase, i.e. `[0, 0]` in the pre-fill structure. After the payer prepends phase 0, that call becomes phase 1, call 0. The wallet, which receives the filled transaction before signing, observes the final `calls` and encodes `scope: 1`. It then signs `sender_auth` over the RLP that includes this `metadata` value; the payer co-signs the same bytes via `payer_auth`.
+
+**For comparison — same attribution, whole-transaction scope (scope absent).**
+
+```
+metadata = 0x81a20001025402a2616167626173656170706177657072697679
+         = 26 bytes  (map(2) instead of map(3), no scope key)
+```
+
 ## Rationale
 
 ### A typed, self-describing container
