@@ -4,75 +4,57 @@ pragma solidity ^0.8.24;
 import "./IEAS.sol";
 
 /// @title  IClearSigningRegistry — On-Chain Registry for ERC-7730 Clear Signing Descriptors
-/// @notice Defines the interface for an Ethereum-mainnet registry that maps
-///         context IDs derived from ERC-7730 binding constraints to attester-
-///         endorsed descriptor hashes, with EAS-backed attestations
-///         (per ERC-8176) as the sole trust mechanism.
+/// @notice Defines the interface for an Ethereum registry that maps
+///         context IDs derived from ERC-7730 binding constraints to
+///         attester-endorsed descriptors with EAS-backed attestations.
 interface IClearSigningRegistry {
 
-    // =========================================================================
-    // Types
-    // =========================================================================
-
-    /// @notice A single descriptor registration within a batch.
+    /// @notice An descriptor input structure for registration operations.
     struct DescriptorRegistration {
-        /// The ERC-8176 descriptorHash of the descriptor file. MUST NOT be bytes32(0).
+        /// The ERC-8176 descriptorHash of the descriptor file.
         bytes32 descriptorHash;
-        /// Context IDs this descriptor should be discoverable under. MUST NOT be empty.
+        /// Context IDs this descriptor should be discoverable under.
         bytes32[] contextIds;
-        /// Reference flow: the MirrorList this attester endorses for the
-        /// descriptor. MUST reference a list previously published (by any
-        /// address) via publishMirrorLists or an earlier registration.
-        /// MUST be bytes32(0) when mirrorListUris is provided instead.
+        /// Optional MirrorList ID this attester endorses for the descriptor.
+        /// References a previously published list using the 'publishMirrorLists' or an earlier registration.
+        /// Set to bytes32(0) if using 'mirrorListUris' instead.
         bytes32 mirrorListId;
-        /// Inline flow: when non-empty, the list is published idempotently as
-        /// part of the registration and its content hash becomes the effective
-        /// mirrorListId.
+        /// The MirrorList being published and endorsed atomically as part of the registration transaction.
         string[] mirrorListUris;
     }
 
-    /// @notice A fully resolved active endorsement, combining the registry slot,
-    ///         the backing EAS attestation's lifecycle fields, and the attester's
-    ///         MirrorList for the descriptor.
+    /// @notice A fully resolved active descriptor with attestation.
     struct ResolvedDescriptor {
         /// The endorsing attester.
         address attester;
-        /// The context ID the slot was found under.
+        /// The context ID the descriptor was found under.
         bytes32 contextId;
-        /// The endorsed descriptor hash (decoded from the attestation data).
+        /// The endorsed descriptor hash decoded from the attestation data.
         bytes32 descriptorHash;
-        /// The backing EAS attestation UID.
+        /// The EAS attestation UID.
         bytes32 attestationId;
-        /// The EAS attestation expiration time (0 = never expires).
+        /// The EAS attestation expiration time.
         uint64 expirationTime;
-        /// The EAS attestation revocation time (0 = not revoked).
+        /// The EAS attestation revocation time.
         uint64 revocationTime;
-        /// The attester's MirrorList ID for the descriptor (bytes32(0) if none).
-        bytes32 mirrorListId;
-        /// The MirrorList contents (empty if none).
+        /// The MirrorList contents.
         string[] uris;
     }
 
-    // =========================================================================
-    // Events
-    // =========================================================================
-
     /// @notice Emitted when an attester's active endorsement for a context ID changes.
-    ///         Emitted once per contextId on each createDescriptorAttestations call.
-    ///         When clearRevokedEndorsements resets the slot, descriptorHash and
-    ///         attestationId are bytes32(0).
+    ///         Emitted once per contextId on each 'createDescriptorAttestations' call.
+    ///         When 'clearRevokedEndorsements' removes a descriptor, descriptorHash and attestationId are bytes32(0).
     /// @param attester               The attester whose endorsement changed.
     /// @param contextId              The context ID affected.
-    /// @param previousAttestationId  The previously active attestation UID (bytes32(0) if none).
-    /// @param descriptorHash         The newly endorsed descriptor hash (bytes32(0) if cleared).
-    /// @param attestationId          The EAS attestation UID backing the new endorsement
-    ///                               (bytes32(0) if cleared).
-    event AttesterEndorsementUpdated(
+    /// @param attestationId          The EAS attestation UID for this descriptor.
+    /// @param previousAttestationId  The previously active attestation UID.
+    /// @param descriptorHash         The newly endorsed descriptor hash.
+    event AttestationUpdated(
         address indexed attester,
         bytes32 indexed contextId,
+        bytes32 indexed attestationId,
         bytes32         previousAttestationId,
-        bytes32         descriptorHash,
-        bytes32 indexed attestationId
+        bytes32         descriptorHash
     );
 
     /// @notice Emitted the first time a MirrorList is stored on-chain.
@@ -80,8 +62,7 @@ interface IClearSigningRegistry {
     event MirrorListPublished(bytes32 indexed mirrorListId);
 
     /// @notice Emitted when an attester's active MirrorList for a descriptor changes.
-    ///         Not emitted when the new MirrorList ID equals the currently stored one.
-    /// @param attester        The attester updating the list.
+    /// @param attester        The attester updating their list.
     /// @param descriptorHash  The descriptor hash.
     /// @param mirrorListId    The new MirrorList ID.
     event MirrorListUpdated(
@@ -89,10 +70,6 @@ interface IClearSigningRegistry {
         bytes32 indexed descriptorHash,
         bytes32 indexed mirrorListId
     );
-
-    // =========================================================================
-    // Errors
-    // =========================================================================
 
     /// @notice Thrown when registrations is empty.
     error EmptyRegistrations();
@@ -150,84 +127,28 @@ interface IClearSigningRegistry {
     ///         attestations[0].data does not have one entry per registration.
     error ArrayLengthMismatch();
 
-    // =========================================================================
-    // Write functions
-    // =========================================================================
-
-    /// @notice Create EAS attestations and register a batch of descriptors, each
-    ///         under one or more context IDs, atomically replacing any prior
-    ///         active slots.
-    ///
-    ///         The function first calls eas.multiRevokeByDelegation(revocations)
-    ///         to revoke any previously active attestations being replaced, then
-    ///         calls eas.multiAttestByDelegation(attestations) to create all
-    ///         attestations in the same transaction.
-    ///
-    ///         Active-attestation convention:
-    ///         attestations[0] MUST use the ERC-8176 schema UID and MUST contain
-    ///         exactly one data entry per registration: attestations[0].data[i] is
-    ///         the active attestation for registrations[i]. Each entry's data MUST
-    ///         be exactly 32 bytes and ABI-decode to registrations[i].descriptorHash,
-    ///         and MUST be revocable. The UIDs returned by EAS for these entries
-    ///         (uids[0..registrations.length) of the flat return) become the stored
-    ///         attestation IDs. Entries in attestations[1..] are supplementary and
-    ///         passed through to EAS without registry-level validation.
+    /// @notice Create EAS attestations and register a batch of descriptors.
     ///
     ///         Each registration endorses a MirrorList, with two supported flows.
-    ///         Reference flow (mirrorListId set, mirrorListUris empty): the list
-    ///         MUST have been published before — by any address, in any prior
-    ///         transaction — allowing mirror operation to be a separate role from
-    ///         attestation. Inline flow (mirrorListUris non-empty, mirrorListId
-    ///         zero): the list is published idempotently as part of this call and
-    ///         its content hash becomes the effective mirrorListId, so a first
-    ///         registration needs no separate publication transaction.
-    ///         The registration signature always covers the effective mirrorListId.
+    ///         
+    ///         Reference flow:
+    ///         The list has been published before by any address in any prior
+    ///         transaction.
+    ///         
+    ///         Inline flow:
+    ///         The list is published as part of this call and its content hash becomes the effective 'mirrorListId'.
     ///
-    ///         The registry stores only the attestation UID per (attester,
-    ///         contextId) slot. The endorsed descriptor hash is carried in the
-    ///         attestation's data and read from EAS when queried.
     ///
-    ///         The attester identity is taken from attestations[0].attester.
-    ///         Any address may call this function (permissionless relay), but unless
-    ///         msg.sender == attester the call MUST carry a registration signature:
-    ///         an EIP-712 signature by the attester over
-    ///
-    ///           ClearSigningRegistrationBatch(
-    ///             DescriptorRegistration[] registrations,
-    ///             bytes32 attestationSignaturesHash
-    ///           )
-    ///           DescriptorRegistration(
-    ///             bytes32 descriptorHash,
-    ///             bytes32 contextIdsHash,           // keccak256(abi.encodePacked(contextIds))
-    ///             bytes32 mirrorListId
-    ///           )
-    ///
-    ///         where attestationSignaturesHash = keccak256(abi.encode(attestations[0].signatures)),
-    ///         in the registry's own EIP-712 domain
-    ///         (name "ClearSigningRegistry", version "1", chainId, verifyingContract).
-    ///         Binding the batch to the single-use EAS delegated attestation
-    ///         signatures makes the registration signature single-use as well, with
-    ///         no additional nonce state. Contract attesters are verified via
-    ///         ERC-1271 isValidSignature.
-    ///
-    ///         For each contextId of each registration: atomically replaces any
-    ///         previous active slot. One AttesterEndorsementUpdated event is
-    ///         emitted per contextId.
-    ///
-    /// @param registrations  The descriptors to register. MUST NOT be empty.
-    /// @param attestations   EAS delegated attestation batch. attestations[0] holds
-    ///                       the active attestations (one data entry per
-    ///                       registration); all others are supplementary.
+    /// @param registrations  The descriptors to register.
+    /// @param attestations   EAS attestation batch.
+    ///                       The 'attestations[0]' holds the active attestations with one data entry per registration.
     /// @param revocations    EAS delegated revocation batch for prior attestations.
     ///                       MAY be empty when no active slots are replaced.
     ///                       When the attester already has an active attestation for
     ///                       any supplied contextId, the corresponding UID MUST
     ///                       appear in this batch.
-    /// @param registrationSignature  EIP-712 signature by the attester authorizing
-    ///                       this batch (see above). MAY be empty when
-    ///                       msg.sender == attestations[0].attester.
-    /// @return attestationIds  The EAS UIDs of the active attestations, one per
-    ///                       registration.
+    /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when registration transaction is relayed.
+    /// @return attestationIds  The EAS UIDs of the active attestations.
     function createDescriptorAttestations(
         DescriptorRegistration[]                calldata registrations,
         MultiDelegatedAttestationRequest[]      calldata attestations,
@@ -235,80 +156,36 @@ interface IClearSigningRegistry {
         bytes                                   calldata registrationSignature
     ) external returns (bytes32[] memory attestationIds);
 
-    /// @notice Publish a batch of MirrorLists on-chain and return their content
-    ///         hashes. Idempotent per list: a list whose content is already stored
-    ///         is not re-written and emits no event.
-    ///         Permissionless: mirror operation may be a separate role — a pinning
-    ///         service, mirror operator, or any other party can publish lists that
-    ///         attesters then reference by ID in createDescriptorAttestations,
-    ///         without the attesters ever handling URI payloads.
+    /// @notice Publish a batch of MirrorLists on-chain and return their content hashes.
     /// @param uriLists       The URI lists to publish. No list may be empty.
     /// @return mirrorListIds keccak256(abi.encode(uris)) per list.
     function publishMirrorLists(string[][] calldata uriLists)
         external returns (bytes32[] memory mirrorListIds);
 
-    /// @notice Clear active slots whose backing EAS attestation has been revoked
-    ///         or has expired. Permissionless: anyone may clean up stale slots,
-    ///         allowing a watchdog to sweep multiple attesters in one transaction.
-    ///         contextIds[i] lists the context IDs to clear for attesters[i].
-    ///         A slot is cleared when it is non-empty and its backing attestation
-    ///         is revoked (revocationTime != 0) or expired (expirationTime != 0
-    ///         and in the past); all other slots are skipped, so a sweep cannot
-    ///         be blocked by a slot changing state while the sweep is in flight.
-    ///         Emits AttesterEndorsementUpdated with bytes32(0) new values per
-    ///         cleared slot.
+    /// @notice Clear active attestation records whose backing EAS attestation has been revoked or has expired.
+    ///         Permissionless function allowing anyone to clean up stale attestations.
+    ///         Invalid revocations are skipped, so a sweep cannot be blocked by a single failure.
     /// @param attesters   The attesters whose stale endorsements are cleared.
-    ///                    MUST NOT be empty.
-    /// @param contextIds  Per-attester lists of context IDs to clear. MUST have the
-    ///                    same length as attesters; no list may be empty.
+    /// @param contextIds  Per-attester lists of context IDs to clear.
+    ///                    Must have the same length as attesters.
     /// @return cleared    The number of slots actually cleared.
-    function clearRevokedEndorsements(
+    function clearRevokedAttestations(
         address[]   calldata attesters,
         bytes32[][] calldata contextIds
     ) external returns (uint256 cleared);
 
-    // =========================================================================
-    // Queries
-    // =========================================================================
-
-    /// @notice Resolve all active endorsements for the given attesters across the
-    ///         given context IDs in a single call. For every non-empty
-    ///         (attester, contextId) slot, returns the descriptor hash (decoded
-    ///         from the attestation data), the backing EAS attestation's
-    ///         expiration and revocation times, and the attester's MirrorList for
-    ///         the descriptor.
+    /// @notice Resolve all active attestations filtered
+    ///         by a list of attesters and a list of potential context IDs in a single call.
+    ///         Returns the descriptor hash, the backing EAS attestations,
+    ///         and the attester's MirrorList for the descriptor.
     ///
-    ///         Designed as the wallet-facing entry point: a wallet derives its
-    ///         candidate context IDs locally (the contract key for a calldata
-    ///         transaction; the deployment and domain-separator keys for an
-    ///         EIP-712 message; factory keys for factories it knows), then
-    ///         resolves slots, attestation validity, and retrieval URIs in one
-    ///         eth_call. The wallet remains responsible for its trust policy and
-    ///         for verifying the fetched descriptor against descriptorHash.
-    /// @param attesters   Ordered attester addresses (index 0 = highest priority).
+    /// @param attesters   Queried attester addresses.
     /// @param contextIds  Candidate context IDs to look up.
-    /// @return resolved   One entry per non-empty slot, ordered by attesters
-    ///                    first, then contextIds.
+    /// @return resolved   One 'ResolvedDescriptor' entry per non-empty attestation entry.
     function resolveDescriptors(
         address[] calldata attesters,
         bytes32[] calldata contextIds
     ) external view returns (ResolvedDescriptor[] memory resolved);
-
-    /// @notice Batch-query the active descriptor and attestation for each attester
-    ///         at a given context ID. The registry stores only attestation UIDs;
-    ///         descriptor hashes are decoded from the corresponding EAS
-    ///         attestations' data.
-    /// @param attesters  Ordered attester addresses (index 0 = highest priority).
-    /// @param contextId  The context ID to query.
-    /// @return descriptorHashes  Active descriptor hash per attester (bytes32(0) = none).
-    /// @return attestationIds   Backing attestation UID per attester (bytes32(0) = none).
-    function getDescriptors(
-        address[] calldata attesters,
-        bytes32            contextId
-    ) external view returns (
-        bytes32[] memory descriptorHashes,
-        bytes32[] memory attestationIds
-    );
 
     /// @notice Return the URI list for a given MirrorList ID.
     ///         The MirrorListPublished event carries only the ID, so this getter is

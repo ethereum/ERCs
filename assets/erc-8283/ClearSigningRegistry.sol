@@ -53,14 +53,13 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     }
 
     // The EAS UID of the active ERC-8176 attestation for the given attester and context ID.
-    // The endorsed descriptor hash is carried in the attestation's data and is not
-    // duplicated in registry storage.
+    // The endorsed descriptor hash is stored inside the attestation's 'data' field.
     mapping(address attester => mapping(bytes32 contextId => bytes32)) private _attestationId;
 
-    // Global store of MirrorLists, written once per unique URI set. Key = keccak256(abi.encode(uris)).
+    // Global store of MirrorLists, written once per unique URI set.
     mapping(bytes32 mirrorListId => string[]) private _mirrorLists;
 
-    // Per-attester pointer: which MirrorList does this attester use for this descriptor?
+    // Per-attester pointer to the MirrorList this attester endorses for the given descriptor hash.
     mapping(address attester => mapping(bytes32 descriptorHash => bytes32)) private _mirrorListId;
 
     /// @inheritdoc IClearSigningRegistry
@@ -70,29 +69,35 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         MultiDelegatedRevocationRequest[]  calldata revocations,
         bytes                              calldata registrationSignature
     ) external returns (bytes32[] memory attestationIds) {
-        if (registrations.length == 0) revert EmptyRegistrations();
-        if (attestations.length == 0)  revert EmptyAttestations();
-
+        if (registrations.length == 0) {
+          revert EmptyRegistrations();
+        }
+        if (attestations.length == 0){
+          revert EmptyAttestations();
+        }
         // Validate active attestations: must use ERC-8176 schema, one entry per registration.
         if (attestations[0].schema != easSchemaUID)
             revert WrongEASSchema(easSchemaUID, attestations[0].schema);
         if (
             attestations[0].data.length != registrations.length ||
             attestations[0].signatures.length != registrations.length
-        ) revert ArrayLengthMismatch();
+        ) {
+          revert ArrayLengthMismatch();
+        }
 
         address attester = attestations[0].attester;
 
         // Validate each registration against its active attestation, publish its
         // MirrorList, and collect the EIP-712 hash of each registration item.
         bytes32[] memory itemHashes = new bytes32[](registrations.length);
-        for (uint256 i; i < registrations.length; ++i)
+        for (uint256 i; i < registrations.length; ++i) {
             itemHashes[i] = _processRegistration(attester, registrations[i], attestations[0].data[i]);
+        }
 
-        // Unless submitted by the attester directly, the registration parameters not
-        // covered by the EAS signatures (contextIds, MirrorLists) must be authorized
-        // by the attester's EIP-712 registration signature over the whole batch.
-        _verifyRegistrationSignature(attester, itemHashes, attestations[0].signatures, registrationSignature);
+        // Validate the attester's signature over the attestation metadata for relayed registrations.
+        if (msg.sender != attester) {
+          _verifyRegistrationSignature(attester, itemHashes, attestations[0].signatures, registrationSignature);
+        }
 
         // Every active attestation being displaced must be explicitly revoked.
         _checkRevocations(attester, registrations, revocations);
@@ -116,7 +121,7 @@ contract ClearSigningRegistry is IClearSigningRegistry {
                 bytes32 cid  = contextIds[j];
                 bytes32 prev = _attestationId[attester][cid];
                 _attestationId[attester][cid] = uids[i];
-                emit AttesterEndorsementUpdated(
+                emit AttestationUpdated(
                     attester, cid, prev, registrations[i].descriptorHash, uids[i]
                 );
             }
@@ -242,45 +247,53 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     // =========================================================================
 
     /// @dev Validates one registration against its active attestation data,
-    ///      updates the attester's MirrorList pointer, and returns the
-    ///      registration's EIP-712 item hash.
+    ///      updates the attester's MirrorList pointer
+    /// @returns the registration's EIP-712 item hash.
     function _processRegistration(
         address                          attester,
         DescriptorRegistration  calldata registration,
         AttestationRequestData  calldata attestationData
-    ) private returns (bytes32 itemHash) {
-        if (registration.descriptorHash == bytes32(0)) revert ZeroDescriptorHash();
-        if (registration.contextIds.length == 0)       revert EmptyContextIds();
-
+    ) private returns (bytes32) {
+        if (registration.descriptorHash == bytes32(0)) { 
+          revert ZeroDescriptorHash();
+        }
+        if (registration.contextIds.length == 0) {
+          revert EmptyContextIds();
+        }
         bytes32 mirrorListId;
         if (registration.mirrorListUris.length > 0) {
-            // Inline flow: publish the provided URIs (idempotent); their content
-            // hash is the effective MirrorList ID and must not be declared too.
-            if (registration.mirrorListId != bytes32(0)) revert RedundantMirrorListId();
+            // inline flow - hash the supplied MirrorList to get its ID
+            if (registration.mirrorListId != bytes32(0)) {
+              revert RedundantMirrorListId();
+            }
             mirrorListId = _publishMirrorList(registration.mirrorListUris);
         } else {
-            // Reference flow: the list must have been published before.
+            // reference flow - the MirrorList must have been published before
             mirrorListId = registration.mirrorListId;
             if (_mirrorLists[mirrorListId].length == 0) revert UnknownMirrorList(mirrorListId);
         }
 
         // The active attestation must be revocable so the slot can be replaced later.
-        if (!attestationData.revocable) revert NonRevocableAttestation();
+        if (!attestationData.revocable) {
+          revert NonRevocableAttestation();
+        }
 
         // Validate active attestation data encodes exactly the claimed descriptorHash.
-        if (attestationData.data.length != 32) revert InvalidAttestationData();
+        if (attestationData.data.length != 32) {
+          revert InvalidAttestationData();
+        }
         bytes32 attestedHash = abi.decode(attestationData.data, (bytes32));
-        if (attestedHash != registration.descriptorHash)
+        if (attestedHash != registration.descriptorHash){
             revert EASHashMismatch(attestedHash, registration.descriptorHash);
+        }
 
-        // Set the attester's MirrorList pointer (no-op if unchanged).
+        // Set the attester's active MirrorList pointer if changed.
         if (_mirrorListId[attester][registration.descriptorHash] != mirrorListId) {
             _mirrorListId[attester][registration.descriptorHash] = mirrorListId;
             emit MirrorListUpdated(attester, registration.descriptorHash, mirrorListId);
         }
 
-        // The registration signature always covers the effective MirrorList ID.
-        itemHash = keccak256(
+        return keccak256(
             abi.encode(
                 REGISTRATION_TYPEHASH,
                 registration.descriptorHash,
@@ -293,16 +306,13 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     /// @dev Verifies the attester's EIP-712 registration signature binding the
     ///      parameters not covered by the EAS delegated attestation signatures.
     ///      Skipped when the attester submits the transaction directly.
-    ///      Replay protection: the signed struct includes the hash of the EAS
-    ///      delegated attestation signatures, which EAS accepts only once.
+    ///      The signed struct includes the hash of the EAS delegated attestation signatures, which EAS accepts only once.
     function _verifyRegistrationSignature(
         address              attester,
         bytes32[]   memory   itemHashes,
         Signature[] calldata attestationSignatures,
         bytes       calldata registrationSignature
     ) private view {
-        if (msg.sender == attester) return;
-
         bytes32 structHash = keccak256(
             abi.encode(
                 REGISTRATION_BATCH_TYPEHASH,
@@ -316,19 +326,20 @@ contract ClearSigningRegistry is IClearSigningRegistry {
             if (IERC1271(attester).isValidSignature(digest, registrationSignature) != ERC1271_MAGIC_VALUE)
                 revert InvalidRegistrationSignature();
         } else {
-            if (registrationSignature.length != 65) revert InvalidRegistrationSignature();
+            if (registrationSignature.length != 65) {
+              revert InvalidRegistrationSignature();
+            }
             bytes32 r = bytes32(registrationSignature[0:32]);
             bytes32 s = bytes32(registrationSignature[32:64]);
             uint8   v = uint8(registrationSignature[64]);
             address recovered = ecrecover(digest, v, r, s);
-            if (recovered == address(0) || recovered != attester)
+            if (recovered == address(0) || recovered != attester) {
                 revert InvalidRegistrationSignature();
+            }
         }
     }
 
-    /// @dev Requires that every active attestation displaced by this batch is
-    ///      present in the supplied revocation batch. Runs even when the batch
-    ///      is empty so an existing active slot can never be silently replaced.
+    /// @dev Requires that every active attestation displaced by this batch is present in the supplied revocation batch.
     function _checkRevocations(
         address                                     attester,
         DescriptorRegistration[]           calldata registrations,
@@ -336,23 +347,34 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     ) private view {
         // Build flat set of UIDs included in the revocation batch.
         uint256 total = 0;
-        for (uint256 i; i < revocations.length; ++i)
+        for (uint256 i; i < revocations.length; ++i) {
             total += revocations[i].data.length;
+        }
         bytes32[] memory revokedUids = new bytes32[](total);
         uint256 ri = 0;
-        for (uint256 i; i < revocations.length; ++i)
-            for (uint256 j; j < revocations[i].data.length; ++j)
+        for (uint256 i; i < revocations.length; ++i) {
+            for (uint256 j; j < revocations[i].data.length; ++j) {
                 revokedUids[ri++] = revocations[i].data[j].uid;
+            }
+        }
 
         for (uint256 i; i < registrations.length; ++i) {
             bytes32[] calldata contextIds = registrations[i].contextIds;
             for (uint256 j; j < contextIds.length; ++j) {
                 bytes32 oldUid = _attestationId[attester][contextIds[j]];
-                if (oldUid == bytes32(0)) continue;
+                if (oldUid == bytes32(0)) {
+                  continue;
+                }
                 bool found = false;
-                for (uint256 k; k < revokedUids.length; ++k)
-                    if (revokedUids[k] == oldUid) { found = true; break; }
-                if (!found) revert MissingRevocation(oldUid);
+                for (uint256 k; k < revokedUids.length; ++k) {
+                    if (revokedUids[k] == oldUid) {
+                      found = true;
+                      break;
+                    }
+                }
+                if (!found) {
+                  revert MissingRevocation(oldUid);
+                }
             }
         }
     }
