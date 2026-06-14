@@ -75,10 +75,26 @@ This proposal defines an initial registry of record types. The `type` value is a
 | `type` | Name | `payload` |
 | --- | --- | --- |
 | `0` | Opaque | A CBOR byte string of application-defined bytes. |
-| `1` | Attribution | A byte string carrying [ERC-8021](./eip-8021.md) attribution (its `schemaId` and schema data), parsed per [ERC-8021](./eip-8021.md). |
+| `1` | Attribution | [ERC-8021](./eip-8021.md) attribution. See [Attribution records](#attribution-records). |
 | `2` | Commitment | A commitment to off-chain data. See [Commitment records](#commitment-records). |
 
 Future ERCs MAY define additional `type` values. A defined `type` SHOULD be self-validating (structurally checkable) so a coincidental match on opaque bytes is rejected.
+
+### Attribution records
+
+An **attribution record** (`type 1`) carries [ERC-8021](./eip-8021.md) transaction attribution. Its `payload` is a byte string encoding `schemaId (1 byte) || schemaData`, forward-parsed. Because the `metadata` field is already length-delimited by RLP, the `ercMarker` (the 16-byte reverse-parse sentinel in legacy calldata) and any length prefixes used for reverse parsing are omitted from the payload.
+
+Producers SHOULD use **[ERC-8021](./eip-8021.md) schema 2** (`schemaId = 0x02`). Schema 2 encodes a CBOR map with defined keys:
+
+| Key | Description |
+| --- | --- |
+| `a` | Application code (string) |
+| `w` | Wallet code (string) |
+| `s` | Service codes (array of strings — block builders, relayers, solvers) |
+| `r` | Custom registries (per-entity chain and address overrides) |
+| `m` | Arbitrary application metadata (sub-map of key-value pairs) |
+
+Schema 2 is the preferred format on [EIP-8130](./eip-8130.md) for three reasons: it is CBOR-encoded (compact and self-describing), its `m` key carries per-party application metadata without requiring a separate record type, and it is extensible without a new `schemaId`. Schemas 0 and 1 (ASCII code lists, canonical or custom registry) remain valid for minimal-overhead attribution where extensibility is not needed.
 
 ### Commitment records
 
