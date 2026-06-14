@@ -109,59 +109,67 @@ A consumer MUST treat metadata as describing only the transaction it appears in,
 
 ### ERC-8021 attribution on a sponsored USDC transfer
 
-**Scenario.** An app ("baseapp") sends a USDC transfer via `wallet_sendCalls`. The wallet ("privy") contacts a payer service via [ERC-8168](./erc-8168.md), which prepends a payment phase. The final `calls` structure is:
+**Scenario.** An app (code `"baseapp"`) sends a USDC transfer via `wallet_sendCalls`. The wallet (code `"mywallet"`) contacts a payer service via [ERC-8168](./erc-8168.md), which prepends a payment phase. The final `calls` structure is:
 
 ```
 calls:
-  phase 0: [{to: payerContract, data: <pay 10 USDC to payer>}]   // payer payment
-  phase 1: [{to: usdcContract,  data: <transfer 100 USDC to Alice>}]  // user call
+  phase 0: [{to: payerContract, data: <pay 10 USDC to payer>}]
+  phase 1: [{to: usdcContract,  data: <transfer 100 USDC to Alice>}]
 ```
 
-The wallet encodes attribution for both the app and wallet, scoped to phase 1 (the user call), after `calls` is finalized.
+The wallet attaches [ERC-8021](./eip-8021.md) attribution scoped to the whole transaction, encoding `metadata` after `calls` is finalized and signing.
 
 **Step 1 — 8021 payload (schema 2, forward-parsed for EIP-8130).**
 
-The [ERC-8021](./eip-8021.md) schema 2 CBOR map `{"a":"baseapp","w":"privy"}` is prepended with the schema ID byte. The `cborLength` prefix and `ercMarker` used in legacy calldata are omitted because the `metadata` field is already length-delimited.
+The [ERC-8021](./eip-8021.md) schema 2 CBOR map `{"a":"baseapp","w":"mywallet"}` is prepended with the schema ID byte. The `cborLength` prefix and `ercMarker` used in legacy calldata are omitted because the `metadata` field is already length-delimited by RLP.
 
 ```
-02                       schemaId = 2
-a2                       CBOR map(2)
-  61 61                    text "a"
-  67 62 61 73 65 61 70 70  text "baseapp"
-  61 77                    text "w"
-  65 70 72 69 76 79        text "privy"
+02                          schemaId = 2 (ERC-8021 schema 2, CBOR)
+a2                          CBOR map(2)
+  61 61                       text "a"  (key)
+  67 62 61 73 65 61 70 70     text "baseapp"
+  61 77                       text "w"  (key)
+  68 6d 79 77 61 6c 6c 65 74  text "mywallet"
 
-= 02a2616167626173656170706177657072697679  (20 bytes)
+= 02a2616167626173656170706177686d7977616c6c6574  (23 bytes)
 ```
 
-**Step 2 — outer record (type 1, scope = phase 1).**
+**Step 2 — outer record (type 1, whole-transaction scope).**
+
+Scope is absent (whole transaction), so the record map has two pairs: `type` and `payload`.
 
 ```
-a3              map(3)
-  00  01          key 0 (type) = 1 (attribution)
-  01  01          key 1 (scope) = 1 (phase 1)
-  02  54          key 2 (payload) = bstr(20)
-  02a2616167626173656170706177657072697679
+a2                          map(2)          ← record
+  00  01                      key 0 (type) = 1 (attribution)
+  02  57                      key 2 (payload) = bstr(23)
+  02 a2                         schemaId=2, CBOR map(2)
+    61 61                           "a"
+    67 62 61 73 65 61 70 70         "baseapp"
+    61 77                           "w"
+    68 6d 79 77 61 6c 6c 65 74      "mywallet"
+```
+
+Key/value layout at a glance:
+
+```
+a2 | 00 01 | 02 57 | 02a2616167626173656170706177686d7977616c6c6574
+└┘   └──┘   └──┘   └──────────────── bstr(23) ─────────────────────┘
+ │    type   payload
+map(2)
 ```
 
 **Step 3 — metadata field (array of one record).**
 
 ```
-81              array(1)
-  a300010101025402a2616167626173656170706177657072697679
+81                          array(1)
+  a2 00 01 02 57            record (28 bytes)
+  02a2616167626173656170706177686d7977616c6c6574
 
-metadata = 0x81a300010101025402a2616167626173656170706177657072697679
-         = 28 bytes
+metadata = 0x81a20001025702a2616167626173656170706177686d7977616c6c6574
+         = 29 bytes total
 ```
 
-**Construction flow (non-normative).** The app's original call was call 0 of the only phase, i.e. `[0, 0]` in the pre-fill structure. After the payer prepends phase 0, that call becomes phase 1, call 0. The wallet, which receives the filled transaction before signing, observes the final `calls` and encodes `scope: 1`. It then signs `sender_auth` over the RLP that includes this `metadata` value; the payer co-signs the same bytes via `payer_auth`.
-
-**For comparison — same attribution, whole-transaction scope (scope absent).**
-
-```
-metadata = 0x81a20001025402a2616167626173656170706177657072697679
-         = 26 bytes  (map(2) instead of map(3), no scope key)
-```
+**Construction flow (non-normative).** The wallet receives the filled transaction (including the payer's prepended phase 0) from `payer_fillTransaction`, assembles the above `metadata` bytes, and signs `sender_auth` over the complete RLP including `metadata`. The payer co-signs the same bytes via `payer_auth`. Both signatures commit to the attribution.
 
 ## Rationale
 
