@@ -122,6 +122,8 @@ These rules make accidental or adversarial collision negligible: an arbitrary by
 
 This proposal does not reserve a CBOR semantic tag or version prefix. A future revision MAY introduce one for explicit versioning; consumers that do not recognize a future tag fall back to opaque per the rules above.
 
+**Foreign encodings.** A producer MAY treat `metadata` as wholly opaque to this proposal and use a different encoding. The strict rules above already route any field that is not a canonical array of record maps to opaque, so no action is strictly required. To eliminate even an accidental match and give consumers a fast reject, such a producer SHOULD either make its encoding self-describing, or begin the field with the byte `0xFF`. `0xFF` is the CBOR "break" code and can never begin a well-formed CBOR data item, so a strict decoder rejects it immediately. A structured `metadata` field under this proposal always begins with a CBOR array header (`0x80`–`0x9F`) and never with `0xFF`, so the two coexist without ambiguity.
+
 ### Consumer behavior
 
 For an [EIP-8130](./eip-8130.md) transaction whose `metadata` satisfies [Identification and strict decoding](#identification-and-strict-decoding), a consumer:
