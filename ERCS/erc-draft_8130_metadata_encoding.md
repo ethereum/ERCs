@@ -7,12 +7,12 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-06-11
-requires: 8130
+requires: 5792, 8021, 8130, 8168
 ---
 
 ## Abstract
 
-[EIP-8130](./eip-8130.md) adds an optional, opaque `metadata` field to its transaction type for attribution and annotation data, but leaves the byte layout to a companion specification. This proposal defines that layout: `metadata` is a deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) array of **records**, where each record carries a **type** (how its payload is interpreted), an optional **scope** (the whole transaction, a phase, or a single call), and a **payload**. The encoding lets multiple independent parties attach metadata to one transaction, scope each annotation to the relevant calls, and commit to off-chain data without revealing it on-chain. This proposal defines the container, the record envelope, and an initial set of record types; payload formats for individual types MAY be defined by other specifications.
+[EIP-8130](./eip-8130.md) adds an optional, opaque `metadata` field to its transaction type for attribution and annotation data, but leaves the byte layout to a companion specification. This proposal defines that layout: `metadata` is a deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) array of **records**, where each record carries a **type** (how its payload is interpreted), an optional **scope** (the whole transaction, a phase, or a single call), and a **payload**. It defines an initial set of record types, including native **attribution** (whose vocabulary is interoperable with [ERC-8021](./eip-8021.md) schema 2) and **commitments** to off-chain data, and an [ERC-5792](./eip-5792.md) `metadata` capability that lets applications contribute records through `wallet_sendCalls`, superseding the `dataSuffix` capability. The encoding lets multiple independent parties attach metadata to one transaction, scope each annotation to the relevant calls, and commit to off-chain data without revealing it on-chain. Because the protocol never interprets `metadata`, the encoding is self-identifying through strict deterministic decoding rather than any protocol enforcement.
 
 ## Motivation
 
@@ -75,26 +75,26 @@ This proposal defines an initial registry of record types. The `type` value is a
 | `type` | Name | `payload` |
 | --- | --- | --- |
 | `0` | Opaque | A CBOR byte string of application-defined bytes. |
-| `1` | Attribution | [ERC-8021](./eip-8021.md) attribution. See [Attribution records](#attribution-records). |
+| `1` | Attribution | A CBOR map of attribution codes. See [Attribution records](#attribution-records). |
 | `2` | Commitment | A commitment to off-chain data. See [Commitment records](#commitment-records). |
 
 Future ERCs MAY define additional `type` values. A defined `type` SHOULD be self-validating (structurally checkable) so a coincidental match on opaque bytes is rejected.
 
 ### Attribution records
 
-An **attribution record** (`type 1`) carries [ERC-8021](./eip-8021.md) transaction attribution. Its `payload` is a byte string encoding `schemaId (1 byte) || schemaData`, forward-parsed. Because the `metadata` field is already length-delimited by RLP, the `ercMarker` (the 16-byte reverse-parse sentinel in legacy calldata) and any length prefixes used for reverse parsing are omitted from the payload.
-
-Producers SHOULD use **[ERC-8021](./eip-8021.md) schema 2** (`schemaId = 0x02`). Schema 2 encodes a CBOR map with defined keys:
+An **attribution record** (`type 1`) identifies the parties responsible for a transaction or a part of it. Its `payload` is a CBOR map with the following keys, all OPTIONAL:
 
 | Key | Description |
 | --- | --- |
 | `a` | Application code (string) |
 | `w` | Wallet code (string) |
-| `s` | Service codes (array of strings — block builders, relayers, solvers) |
-| `r` | Custom registries (per-entity chain and address overrides) |
+| `s` | Service codes (array of strings: block builders, relayers, solvers) |
+| `r` | Custom registries (sub-map keyed by entity type, each with a chain id and registry address override) |
 | `m` | Arbitrary application metadata (sub-map of key-value pairs) |
 
-Schema 2 is the preferred format on [EIP-8130](./eip-8130.md) for three reasons: it is CBOR-encoded (compact and self-describing), its `m` key carries per-party application metadata without requiring a separate record type, and it is extensible without a new `schemaId`. Schemas 0 and 1 (ASCII code lists, canonical or custom registry) remain valid for minimal-overhead attribution where extensibility is not needed.
+These keys are intentionally **identical to [ERC-8021](./eip-8021.md) schema 2**, so that ERC-8021 code registries, payout resolution, and existing schema-2 parsers apply to an attribution payload unchanged, and an ERC-8021 schema-2 map drops in as the payload without modification. The `a`, `w`, and `s` values are ERC-8021 codes resolved through the code registry mechanism that ERC-8021 defines; this proposal reuses that vocabulary and registry rather than re-specifying it, and references ERC-8021 only for the *meaning* of the codes, not for byte framing.
+
+The payload is the map itself. The ERC-8021 calldata `ercMarker`, `schemaId` byte, and `cborLength` prefix are not used: the record envelope already provides the type tag, and the CBOR map is self-delimiting and length-known from the RLP `metadata` field. The `m` key carries per-party application metadata without requiring a separate record, mirroring schema 2.
 
 ### Commitment records
 
@@ -108,18 +108,54 @@ A commitment record's `scope` ties the off-chain data to its subject: absent for
 
 ### Determinism
 
-Producers MUST encode `metadata` using CBOR core deterministic encoding ([RFC 8949 §4.2](https://www.rfc-editor.org/rfc/rfc8949#section-4.2)): definite-length items, integers and lengths in their shortest form, and map keys sorted in bytewise lexicographic order of their encodings. Determinism ensures the signed bytes are reproducible by any party validating the transaction and that a digest computed over a record is stable.
+Producers MUST encode `metadata` using CBOR core deterministic encoding ([RFC 8949 §4.2](https://www.rfc-editor.org/rfc/rfc8949#section-4.2)): definite-length items only, integers and lengths in their shortest form, and map keys sorted in bytewise lexicographic order of their encodings. Determinism ensures the signed bytes are reproducible by any party validating the transaction and that a digest computed over a record is stable.
+
+### Identification and strict decoding
+
+The protocol never parses `metadata`, so this proposal is not identified by any protocol tag or magic prefix; a `metadata` field is recognized as structured per this proposal purely by whether it decodes under the strict rules below. A consumer MUST treat the field as structured **only if all** of the following hold, and MUST otherwise treat the entire field as opaque bytes:
+
+1. The bytes decode as a single CBOR array that **consumes the entire `metadata` field** with no trailing bytes. The field length is known from RLP, so this check is always available.
+2. The encoding is canonically deterministic per [Determinism](#determinism); a non-canonical encoding (indefinite-length items, non-shortest integers, unsorted or duplicate map keys) MUST be rejected as opaque.
+3. Every array element is a CBOR map whose keys are a subset of the defined record keys (`0`, `1`, `2`).
+
+These rules make accidental or adversarial collision negligible: an arbitrary byte string essentially never forms a canonical CBOR array of well-formed record maps that exactly fills the field. A consumer MUST NOT use a lax decoder that accepts a complete item followed by trailing bytes, because many unrelated byte strings begin with a parseable CBOR item.
+
+This proposal does not reserve a CBOR semantic tag or version prefix. A future revision MAY introduce one for explicit versioning; consumers that do not recognize a future tag fall back to opaque per the rules above.
 
 ### Consumer behavior
 
-For an [EIP-8130](./eip-8130.md) transaction whose `metadata` is structured per this proposal, a consumer:
+For an [EIP-8130](./eip-8130.md) transaction whose `metadata` satisfies [Identification and strict decoding](#identification-and-strict-decoding), a consumer:
 
-1. Decodes `metadata` as a CBOR array; if decoding fails, treats `metadata` as wholly opaque.
-2. For each record, reads `type` (default `0`), `scope` (default whole transaction), and `payload`.
-3. Resolves `scope` against `calls` per [Scope](#scope), ignoring out-of-range scopes.
-4. Interprets `payload` per `type`, falling back to opaque for unknown or non-validating types.
+1. For each record, reads `type` (default `0`), `scope` (default whole transaction), and `payload`.
+2. Resolves `scope` against `calls` per [Scope](#scope), ignoring out-of-range scopes.
+3. Interprets `payload` per `type`, falling back to opaque for unknown or non-validating types.
 
 A consumer MUST treat metadata as describing only the transaction it appears in, and MUST NOT infer any execution effect from it: records are inert annotations, never dispatched or executed.
+
+### Application and wallet integration ([ERC-5792](./eip-5792.md))
+
+Applications contribute metadata through a `metadata` capability on [ERC-5792](./eip-5792.md) `wallet_sendCalls`. This capability supersedes the `dataSuffix` capability: where `dataSuffix` passed opaque bytes for the wallet to append blindly, `metadata` passes typed, scoped records that the wallet places in the signed [EIP-8130](./eip-8130.md) `metadata` field.
+
+```typescript
+interface MetadataCapability {
+  metadata: {
+    records: Array<{
+      type: number; // record type (0 opaque, 1 attribution, 2 commitment, ...)
+      scope?: number | [number, number]; // index into THIS request's calls; omit for whole transaction
+      payload: unknown; // per type; e.g. an attribution map, a digest, or opaque bytes
+    }>;
+    optional?: boolean; // if true, wallet MAY proceed without honoring; if false (default), wallet MUST reject when it cannot
+  };
+}
+```
+
+The application provides records describing its own calls; any `scope` index refers to the call array the application submits in this request. The wallet is the final assembler and MUST:
+
+1. Map each contributed record's `scope` to the corresponding phase or call index in the finalized `calls` (which MAY differ from the request, for example when a payer prepends a phase under [ERC-8168](./erc-8168.md), or when calls from several requests are batched).
+2. Add its own attribution as appropriate (for example its wallet code `w` in an attribution record).
+3. Encode all records into the `metadata` field per this proposal, deterministically, and sign.
+
+If the wallet cannot honor the capability and `optional` is not `true`, it MUST reject the request. A wallet that still receives a legacy `dataSuffix` capability MAY carry those bytes as an opaque (`type 0`) record, or as an attribution (`type 1`) record if it recognizes them as [ERC-8021](./eip-8021.md) attribution.
 
 ## Examples
 
@@ -133,43 +169,38 @@ calls:
   phase 1: [{to: usdcContract,  data: <transfer 100 USDC to Alice>}]
 ```
 
-The wallet attaches [ERC-8021](./eip-8021.md) attribution scoped to the whole transaction, encoding `metadata` after `calls` is finalized and signing.
+The wallet attaches attribution scoped to the whole transaction, encoding `metadata` after `calls` is finalized and signing.
 
-**Step 1 — 8021 payload (schema 2, forward-parsed for EIP-8130).**
+**Step 1 — attribution payload (CBOR map).**
 
-The [ERC-8021](./eip-8021.md) schema 2 CBOR map `{"a":"baseapp","w":"mywallet"}` is prepended with the schema ID byte. The `cborLength` prefix and `ercMarker` used in legacy calldata are omitted because the `metadata` field is already length-delimited by RLP.
+The attribution payload is the CBOR map `{"a":"baseapp","w":"mywallet"}` directly. There is no schema-id byte, `cborLength` prefix, or `ercMarker`: the record envelope carries the type and the map is self-delimiting.
 
 ```
-02                          schemaId = 2 (ERC-8021 schema 2, CBOR)
 a2                          CBOR map(2)
   61 61                       text "a"  (key)
   67 62 61 73 65 61 70 70     text "baseapp"
   61 77                       text "w"  (key)
   68 6d 79 77 61 6c 6c 65 74  text "mywallet"
 
-= 02a2616167626173656170706177686d7977616c6c6574  (23 bytes)
+= a2616167626173656170706177686d7977616c6c6574  (22 bytes)
 ```
 
-**Step 2 — outer record (type 1, whole-transaction scope).**
+**Step 2 — record (type 1, whole-transaction scope).**
 
-Scope is absent (whole transaction), so the record map has two pairs: `type` and `payload`.
+Scope is absent (whole transaction), so the record map has two pairs: `type` and `payload`. The payload value is the attribution map nested directly.
 
 ```
 a2                          map(2)          ← record
   00  01                      key 0 (type) = 1 (attribution)
-  02  57                      key 2 (payload) = bstr(23)
-  02 a2                         schemaId=2, CBOR map(2)
-    61 61                           "a"
-    67 62 61 73 65 61 70 70         "baseapp"
-    61 77                           "w"
-    68 6d 79 77 61 6c 6c 65 74      "mywallet"
+  02                          key 2 (payload) =
+    a2 ...                       the attribution map (22 bytes)
 ```
 
 Key/value layout at a glance:
 
 ```
-a2 | 00 01 | 02 57 | 02a2616167626173656170706177686d7977616c6c6574
-└┘   └──┘   └──┘   └──────────────── bstr(23) ─────────────────────┘
+a2 | 00 01 | 02 | a2616167626173656170706177686d7977616c6c6574
+└┘   └──┘   └┘   └──────────────── map(2) ─────────────────────┘
  │    type   payload
 map(2)
 ```
@@ -178,11 +209,11 @@ map(2)
 
 ```
 81                          array(1)
-  a2 00 01 02 57            record (28 bytes)
-  02a2616167626173656170706177686d7977616c6c6574
+  a2 00 01 02              record (26 bytes)
+  a2616167626173656170706177686d7977616c6c6574
 
-metadata = 0x81a20001025702a2616167626173656170706177686d7977616c6c6574
-         = 29 bytes total
+metadata = 0x81a2000102a2616167626173656170706177686d7977616c6c6574
+         = 27 bytes total
 ```
 
 **Construction flow (non-normative).** The wallet receives the filled transaction (including the payer's prepended phase 0) from `payer_fillTransaction`, assembles the above `metadata` bytes, and signs `sender_auth` over the complete RLP including `metadata`. The payer co-signs the same bytes via `payer_auth`. Both signatures commit to the attribution.
@@ -192,6 +223,12 @@ metadata = 0x81a20001025702a2616167626173656170706177686d7977616c6c6574
 ### A typed, self-describing container
 
 The [EIP-8130](./eip-8130.md) `metadata` field is one signed byte string shared by every producer. Without structure, builder attribution, an application memo, and an off-chain commitment cannot coexist without a private agreement on framing. A CBOR array of typed records gives each producer an independent slot: records are appended, not merged, and each carries its own `type` and `scope`. CBOR is compact, self-describing, widely implemented, and has a specified deterministic profile, which matters because the bytes are signed.
+
+### Why CBOR, and why no type byte
+
+CBOR was chosen over a bespoke binary format because the structural overhead is small (a few bytes per record) and dominated by the payload itself, while CBOR brings a mature tooling ecosystem, a specified deterministic profile for signed data, and byte-level interoperability with [ERC-8021](./eip-8021.md) schema 2, whose attribution map is reused verbatim as the attribution payload. A custom format could save a handful of bytes per record but would forfeit all three, and on rollups the repeated structural bytes compress to near-nothing across a batch.
+
+No leading magic or version byte is required because the field is never interpreted by the protocol and its length is always known from RLP. That length lets a consumer demand the CBOR decode to consume the field exactly, with no trailing bytes, under canonical-deterministic rules. A field that is not structured per this proposal essentially never satisfies "a canonical array of well-formed record maps that exactly fills the field," so strict decoding identifies the format without spending a byte on every transaction or breaking direct compatibility with a bare schema-2 attribution map. The danger is a *lax* decoder: a large fraction of unrelated byte strings begin with some parseable CBOR item, so accepting a leading item with trailing bytes would cause false positives. The strict full-consume rule, not a tag, is what makes identification safe; a tag is left to a future version for explicit versioning if needed.
 
 ### Encoding the top-level field versus a sink address
 
@@ -215,7 +252,7 @@ Treating `type` as advisory (with a mandatory opaque fallback) means an unrecogn
 
 ## Backwards Compatibility
 
-This proposal applies only to the [EIP-8130](./eip-8130.md) `metadata` field and changes nothing on legacy transaction types. During transition, indexers SHOULD continue to parse trailing-bytes data suffixes on legacy transactions while reading structured `metadata` on [EIP-8130](./eip-8130.md) transactions. A payload previously carried as a trailing suffix (for example an [ERC-8021](./eip-8021.md) attribution suffix) can be carried unchanged as the `payload` of an attribution record.
+This proposal applies only to the [EIP-8130](./eip-8130.md) `metadata` field and changes nothing on legacy transaction types. During transition, indexers SHOULD continue to parse trailing-bytes data suffixes on legacy transactions while reading structured `metadata` on [EIP-8130](./eip-8130.md) transactions. An [ERC-8021](./eip-8021.md) schema-2 attribution previously carried as a trailing calldata suffix maps directly onto an attribution record: the schema-2 CBOR map becomes the record `payload` unchanged, with the legacy `ercMarker`, `schemaId` byte, and length prefix dropped.
 
 ## Security Considerations
 
