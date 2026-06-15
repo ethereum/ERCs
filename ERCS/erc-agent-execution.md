@@ -1,6 +1,6 @@
 ---
 eip: <pending>
-title: AI Agent Workflow Execution
+title: AI Agent Execution
 description: Standard interfaces for dispatching on-chain AI agent tasks with a composable, provable workflow execution model
 author: JimmyShi22 (@JimmyShi22) <jimmyshixiang22@gmail.com>
 discussions-to: https://ethereum-magicians.org/t/draft-erc-ai-agent-execution/28785
