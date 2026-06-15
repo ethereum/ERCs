@@ -12,7 +12,7 @@ requires: 5792, 8021, 8130, 8168
 
 ## Abstract
 
-[EIP-8130](./eip-8130.md) adds an optional, opaque `metadata` field to its transaction type for attribution and annotation data, but leaves the byte layout to a companion specification. This proposal defines that layout: `metadata` is a deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) array of **records**, where each record carries a **type** (how its payload is interpreted), an optional **scope** (the whole transaction, a phase, or a single call), and a **payload**. It defines an initial set of record types, including native **attribution** (whose vocabulary is interoperable with [ERC-8021](./eip-8021.md) schema 2) and **commitments** to off-chain data, and an [ERC-5792](./eip-5792.md) `metadata` capability that lets applications contribute records through `wallet_sendCalls`, superseding the `dataSuffix` capability. The encoding lets multiple independent parties attach metadata to one transaction, scope each annotation to the relevant calls, and commit to off-chain data without revealing it on-chain. Because the protocol never interprets `metadata`, the encoding is self-identifying through strict deterministic decoding rather than any protocol enforcement.
+[EIP-8130](./eip-8130.md) adds an optional, opaque `metadata` field to its transaction type for attribution and annotation data, but leaves the byte layout to a companion specification. This proposal defines that layout: `metadata` is a deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) array of **records**, where each record carries a **type** (how its payload is interpreted), an optional **scope** (the whole transaction, a phase, or a single call), and a **payload**. It defines an initial set of record types, including native **attribution** (whose vocabulary is interoperable with [ERC-8021](./eip-8021.md) schema 2), **commitments** to off-chain data, and arbitrary application **metadata** maps, and an [ERC-5792](./eip-5792.md) `metadata` capability that lets applications contribute records through `wallet_sendCalls`, superseding the `dataSuffix` capability. The encoding lets multiple independent parties attach metadata to one transaction, scope each annotation to the relevant calls, and commit to off-chain data without revealing it on-chain. Because the protocol never interprets `metadata`, the encoding is self-identifying through strict deterministic decoding rather than any protocol enforcement.
 
 ## Motivation
 
@@ -77,6 +77,9 @@ This proposal defines an initial registry of record types. The `type` value is a
 | `0` | Opaque | A CBOR byte string of application-defined bytes. |
 | `1` | Attribution | A CBOR map of attribution codes. See [Attribution records](#attribution-records). |
 | `2` | Commitment | A commitment to off-chain data. See [Commitment records](#commitment-records). |
+| `3` | Metadata | A CBOR map of arbitrary application-defined key-value pairs. See [Metadata records](#metadata-records). |
+
+These types are independent: a single transaction MAY carry an attribution record, a commitment record, and a metadata record (and more), each as its own element of the array with its own `scope`.
 
 Future ERCs MAY define additional `type` values. A defined `type` SHOULD be self-validating (structurally checkable) so a coincidental match on opaque bytes is rejected.
 
@@ -105,6 +108,27 @@ The off-chain document is **self-describing**: the hash algorithm, the document 
 This proposal deliberately does not carry a **locator** for the off-chain document. Following the model of off-chain attestations in systems like the [Ethereum Attestation Service](https://attest.org), the digest is the only on-chain artifact; the document is resolved through an application side channel (a shared URL, a content-addressed store such as IPFS, or peer-to-peer delivery) rather than a pointer embedded in the transaction. Applications that do need an on-chain locator can carry it as their own opaque (`type 0`) record alongside the commitment.
 
 A commitment record's `scope` ties the off-chain data to its subject: absent for a receipt covering the whole transaction, or `[p, c]` for a document describing one call (for example one transfer in a batch).
+
+### Metadata records
+
+A **metadata record** (`type 3`) carries arbitrary application-defined annotation as a CBOR map of key-value pairs that is *not* attribution: a memo, an invoice or order reference, routing or intent tags, analytics parameters, and similar. None of its keys are reserved by this proposal; the producing application defines them.
+
+A metadata record differs from the two adjacent types:
+
+- Unlike an **attribution record** (`type 1`), it carries no attribution codes and reserves no keys, so it is the right home for application data that is not about *who* produced the transaction.
+- Unlike an **opaque record** (`type 0`), its payload is a structured, introspectable CBOR map rather than a raw byte string, so indexers can read its fields directly.
+
+Application metadata that is specifically about an attributed party MAY instead be carried in the `m` key of that party's attribution record; a standalone metadata record is preferred when the annotation is not tied to a particular attributed entity.
+
+For example, a single `metadata` field MAY carry an attribution, a commitment, and a standalone metadata map as three independent records:
+
+```
+metadata = [
+  { 0: 1, 2: { a: "baseapp", w: "mywallet" } },          // attribution (type 1), whole transaction
+  { 0: 3, 2: { memo: "invoice 4471", ref: "PO-22" } },   // arbitrary metadata (type 3), whole transaction
+  { 0: 2, 1: [0, 0], 2: h'…32-byte digest…' }            // commitment (type 2), scoped to call [0,0]
+]
+```
 
 ### Determinism
 
