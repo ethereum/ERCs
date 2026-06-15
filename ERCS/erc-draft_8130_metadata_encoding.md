@@ -167,7 +167,7 @@ If the wallet cannot honor the capability and `optional` is not `true`, it MUST 
 
 ```
 calls:
-  phase 0: [{to: payerContract, data: <pay 10 USDC to payer>}]
+  phase 0: [{to: payerContract, data: <pay 0.01 USDC to payer>}]
   phase 1: [{to: usdcContract,  data: <transfer 100 USDC to Alice>}]
 ```
 
@@ -219,6 +219,56 @@ metadata = 0x81a2000102a2616167626173656170706177686d7977616c6c6574
 ```
 
 **Construction flow (non-normative).** The wallet receives the filled transaction (including the payer's prepended phase 0) from `payer_fillTransaction`, assembles the above `metadata` bytes, and signs `sender_auth` over the complete RLP including `metadata`. The payer co-signs the same bytes via `payer_auth`. Both signatures commit to the attribution.
+
+### Self-paid remittance batch with per-payment commitments
+
+**Scenario.** A self-paid transaction sends five USDC remittances (10,000 / 15,000 / 27,000 / 20,000 / 17,000 USDC) as five calls in a single phase. Each transfer is tagged with a commitment to an off-chain receipt (line items, payer/payee reference, compliance memo) scoped to that specific call, so each payment is provably bound to its own document while the contents stay private.
+
+Because the transaction is self-paid there is no payer phase; the sender signs `metadata` directly.
+
+```
+calls:
+  phase 0:
+    call 0: {to: usdcContract, data: <transfer 10,000 USDC to recipient 1>}
+    call 1: {to: usdcContract, data: <transfer 15,000 USDC to recipient 2>}
+    call 2: {to: usdcContract, data: <transfer 27,000 USDC to recipient 3>}
+    call 3: {to: usdcContract, data: <transfer 20,000 USDC to recipient 4>}
+    call 4: {to: usdcContract, data: <transfer 17,000 USDC to recipient 5>}
+```
+
+**Per-payment record (type 2, call scope).** Each record is a commitment scoped to `[0, c]` (phase 0, call `c`). The payload is the 32-byte digest of that payment's receipt; the document is self-describing about its own hash algorithm (here, an example `sha256`).
+
+```
+a3                          map(3)              ← record for call c
+  00  02                      key 0 (type)    = 2 (commitment)
+  01  82 00 0c                key 1 (scope)   = [0, c]
+  02  58 20 <32-byte digest>  key 2 (payload) = bstr(32)
+```
+
+Each record is 42 bytes. For example, the third payment (27,000 USDC, `c = 2`) has scope `82 00 02` and payload `5820e6cb...4b80`.
+
+**Metadata field (array of five records).**
+
+```
+85                          array(5)
+  a3 0002 01 820000 02 5820 e3a7bf1e2fe58d753137cce3595bd6ab1d97556559ae88b48e47d0628ce1321f
+  a3 0002 01 820001 02 5820 8a77a55b25c4c7b982116fa5c585757c2ca4fcf36266f03e79ac4197610e9e70
+  a3 0002 01 820002 02 5820 e6cb354d860108ebf74e31e1c51c68e8a791907de571e26f1e6cf5431c204b80
+  a3 0002 01 820003 02 5820 defedc040caaa126ef3f71f2f3cc04281088da46f887cba2b6387ad6b2727a25
+  a3 0002 01 820004 02 5820 eac1f983fb2102dc75539d3b40c510d19bd2ff091eff630c083211fbfca82451
+
+metadata = 211 bytes total
+```
+
+| Call | Amount (USDC) | Scope | Receipt digest |
+| --- | --- | --- | --- |
+| 0 | 10,000 | `[0,0]` | `0xe3a7bf1e2fe58d753137cce3595bd6ab1d97556559ae88b48e47d0628ce1321f` |
+| 1 | 15,000 | `[0,1]` | `0x8a77a55b25c4c7b982116fa5c585757c2ca4fcf36266f03e79ac4197610e9e70` |
+| 2 | 27,000 | `[0,2]` | `0xe6cb354d860108ebf74e31e1c51c68e8a791907de571e26f1e6cf5431c204b80` |
+| 3 | 20,000 | `[0,3]` | `0xdefedc040caaa126ef3f71f2f3cc04281088da46f887cba2b6387ad6b2727a25` |
+| 4 | 17,000 | `[0,4]` | `0xeac1f983fb2102dc75539d3b40c510d19bd2ff091eff630c083211fbfca82451` |
+
+A consumer reading this transaction recovers five commitment records, each bound to one transfer: anyone later shown a receipt document can verify it against the on-chain digest for the matching payment, while the transaction alone reveals only that each transfer has an associated receipt.
 
 ## Rationale
 
