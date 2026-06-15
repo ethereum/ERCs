@@ -109,6 +109,8 @@ This proposal deliberately does not carry a **locator** for the off-chain docume
 
 A commitment record's `scope` ties the off-chain data to its subject: absent for a receipt covering the whole transaction, or `[p, c]` for a document describing one call (for example one transfer in a batch).
 
+**Batches (RECOMMENDED).** When a batch commits to one off-chain document per call, a producer SHOULD aggregate the per-call digests into a single Merkle root and carry **one** commitment record scoped to the phase (or the whole transaction), rather than one record per call. Each call's document is a leaf; to prove a single call's data, a verifier is shown that document together with a Merkle proof (the sibling hashes) and recomputes the root for comparison with the on-chain value. This collapses `N` on-chain digests into one 32-byte root while still binding every document, and disclosing one leaf reveals only sibling hashes, not the contents of the other documents. The tree construction (leaf hashing, ordering, domain separation, and proof format) is part of the self-describing off-chain document set, not this proposal; producers SHOULD salt leaves so that undisclosed leaves cannot be guessed (see [Security Considerations](#security-considerations)).
+
 ### Metadata records
 
 A **metadata record** (`type 3`) carries arbitrary application-defined annotation as a CBOR map of key-value pairs that is *not* attribution: a memo, an invoice or order reference, routing or intent tags, analytics parameters, and similar. None of its keys are reserved by this proposal; the producing application defines them.
@@ -293,6 +295,21 @@ metadata = 211 bytes total
 | 4 | 17,000 | `[0,4]` | `0xeac1f983fb2102dc75539d3b40c510d19bd2ff091eff630c083211fbfca82451` |
 
 A consumer reading this transaction recovers five commitment records, each bound to one transfer: anyone later shown a receipt document can verify it against the on-chain digest for the matching payment, while the transaction alone reveals only that each transfer has an associated receipt.
+
+**Variant: one Merkle root for the batch (recommended).** Instead of five per-call records, the wallet builds a Merkle tree over the five receipt digests and carries a single commitment scoped to phase 0. The five leaves are the per-payment digests above; the root is `0x5baa2525c7f452de3a0be045ced4e883886f935d64701d23a486be826e6f3bc0`.
+
+```
+81                          array(1)
+  a3                          map(3)            ← single commitment
+    00 02                       type    = 2
+    01 00                       scope   = 0 (phase 0, all calls)
+    02 5820 5baa2525…6f3bc0     payload = bstr(32) Merkle root
+
+metadata = 0x81a3000201000258205baa2525c7f452de3a0be045ced4e883886f935d64701d23a486be826e6f3bc0
+         = 41 bytes total
+```
+
+This is 41 bytes versus 211 for the five per-call records. Each payment's receipt is still individually provable: a verifier is shown that receipt plus a Merkle proof (the sibling digests) and recomputes the root, and disclosing one receipt reveals only the other leaves' hashes, not their contents.
 
 ## Rationale
 
