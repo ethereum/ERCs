@@ -3,7 +3,7 @@ eip: XXXX
 title: Contract Version Interface
 description: Interface for exposing a contract implementation version string
 author: Ryan Sauge (@rya-sge)
-discussions-to: https://ethereum-magicians.org/
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-contract-version-interface-standardizing-version-across-smart-contracts/28795
 status: Draft
 type: Standards Track
 category: ERC
