@@ -43,11 +43,11 @@ The [EIP-8130](./eip-8130.md) `metadata` field, when non-empty and structured pe
 | Form | CBOR type | Meaning |
 | --- | --- | --- |
 | Text string | major type 3 | A memo. Equivalent to a map `{t: <text>}` at whole-transaction scope. |
-| Byte string of 32 bytes | major type 2, length 32 | A commitment digest. Equivalent to a map `{h: <digest>}` at whole-transaction scope. |
+| Byte string | major type 2 | A commitment digest. Equivalent to a map `{h: <digest>}` at whole-transaction scope. |
 | Map | major type 5 | A single annotation record; see [Keys](#keys). |
-| Array | major type 4 | Multiple independent annotations, each element a text string, 32-byte byte string, or map, interpreted as above. |
+| Array | major type 4 | Multiple independent annotations, each element a text string, byte string, or map, interpreted as above. |
 
-The text-string and byte-string forms are shorthands for the single-key map forms, so a parser MAY normalize them to maps before processing. A byte string whose length is not 32 carries no defined meaning and is treated as opaque. An array MUST NOT contain a nested array.
+The text-string and byte-string forms are shorthands for the single-key map forms, so a parser MAY normalize them to maps before processing. An array MUST NOT contain a nested array.
 
 An empty `metadata` field carries no annotation.
 
@@ -65,7 +65,7 @@ A map uses text-string keys. All keys are OPTIONAL; unrecognized keys MUST be ig
 | `r` | registries | map | Custom registry overrides, keyed by entity type. |
 | `m` | metadata | map | A sub-map of arbitrary application key-value pairs. |
 | `t` | text | text | A memo (human- or application-readable text). |
-| `h` | commitment | byte string (32) | A digest committing to off-chain data. See [Commitments](#commitments). |
+| `h` | commitment | byte string | A digest committing to off-chain data; its length follows from the hash algorithm (typically 32 bytes). See [Commitments](#commitments). |
 | `p` | phase | uint | Phase scope (0-based index into `calls`). See [Scope](#scope). |
 | `c` | call | uint | Call scope (0-based index within phase `p`). See [Scope](#scope). |
 
@@ -91,7 +91,7 @@ Wallets MUST set `p` and `c` only after the `calls` array is finalized. The fina
 
 ### Commitments
 
-A commitment (the `h` key, or a bare 32-byte string) binds the transaction to off-chain data without revealing it. Its value is the 32-byte **digest** of the off-chain document (for example a `keccak256` hash, or a Merkle root for selectively-disclosable documents). Only the digest appears on-chain, so the document's contents (for example receipt line items) stay private until revealed.
+A commitment (the `h` key, or a bare byte string) binds the transaction to off-chain data without revealing it. Its value is the **digest** of the off-chain document (for example a `keccak256` hash, or a Merkle root for selectively-disclosable documents). The digest length follows from the hash algorithm and is typically 32 bytes; the algorithm is part of the self-describing off-chain document, not fixed by this proposal. Only the digest appears on-chain, so the document's contents (for example receipt line items) stay private until revealed.
 
 The off-chain document is **self-describing**: the hash algorithm, the document format, and how the digest was computed are defined by the document and the application that produces it, not by this proposal. A verifier recomputes the digest over a presented document and compares it to the on-chain value.
 
@@ -134,7 +134,7 @@ This proposal does not reserve a CBOR semantic tag or version prefix. A future r
 
 For an [EIP-8130](./eip-8130.md) transaction whose `metadata` satisfies [Identification and strict decoding](#identification-and-strict-decoding), a consumer:
 
-1. Branches on the value form (text, 32-byte bytes, map, or array), normalizing the bare forms to their single-key map equivalents.
+1. Branches on the value form (text, byte string, map, or array), normalizing the bare forms to their single-key map equivalents.
 2. For each map, resolves scope from `p`/`c` against `calls` per [Scope](#scope), ignoring out-of-range scopes, and reads the recognized keys, ignoring unrecognized ones.
 
 A consumer MUST treat metadata as describing only the transaction it appears in, and MUST NOT infer any execution effect from it: it is an inert annotation, never dispatched or executed.
@@ -147,7 +147,7 @@ Applications contribute metadata through a `metadata` capability on [ERC-5792](.
 interface MetadataCapability {
   metadata: {
     // One or more annotations the app wants attached. Each is a memo string,
-    // a 32-byte commitment, or a map of the keys defined by this proposal.
+    // a commitment digest, or a map of the keys defined by this proposal.
     // Any p/c scope refers to the calls in THIS request.
     value: MetadataValue | MetadataValue[];
     optional?: boolean; // if true, wallet MAY proceed without it; if false (default), wallet MUST reject when it cannot
@@ -242,7 +242,7 @@ metadata = { h: h'<32-byte digest>', p: 0, c: 0 }
 
 ### One value, four forms
 
-The most common annotation is a single small one: a memo, an attribution, or a commitment. Encoding these as bare CBOR primitives (a text string or a 32-byte byte string) means the field costs only a couple of bytes more than the raw data, with no envelope overhead. A map carries the same primitives by key when more than one is needed, and an array carries several independently scoped maps when multiple parties or scopes are involved. The bare forms are exact shorthands for single-key maps, so a parser can normalize and then treat everything uniformly. Branching on CBOR major type, rather than a leading type tag, is what makes the cheap cases cheap.
+The most common annotation is a single small one: a memo, an attribution, or a commitment. Encoding these as bare CBOR primitives (a text string or a byte string) means the field costs only a couple of bytes more than the raw data, with no envelope overhead. A map carries the same primitives by key when more than one is needed, and an array carries several independently scoped maps when multiple parties or scopes are involved. The bare forms are exact shorthands for single-key maps, so a parser can normalize and then treat everything uniformly. Branching on CBOR major type, rather than a leading type tag, is what makes the cheap cases cheap.
 
 ### Reusing ERC-8021 keys
 
