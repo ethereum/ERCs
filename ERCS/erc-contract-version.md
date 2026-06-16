@@ -8,12 +8,11 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-02-12
-requires: 165
 ---
 
 ## Abstract
 
-This ERC defines a minimal interface to expose a contract version string through a standardized `version()` view function. The design is based on the version pattern used by [ERC-3643](./erc-3643.md), while remaining token-agnostic and applicable to other smart contract domains, including DeFi applications such as lending protocols.
+This ERC defines a minimal interface to expose a contract version string through a standardized `version()` view function. The design is based on the version pattern used by [ERC-3643](./eip-3643.md), while remaining token-agnostic and applicable to other smart contract domains, including DeFi applications such as lending protocols.
 
 ## Motivation
 
@@ -26,7 +25,7 @@ Integrators frequently need a simple, on-chain way to identify which contract im
 
 It is also useful for end-users, developers, and security auditors to identify which version of a codebase is currently used by a deployed contract.
 
-The same requirement appears in permissioned token systems ([ERC-3643](./erc-3643.md)) and in DeFi systems where contracts evolve over time.
+The same requirement appears in permissioned token systems ([ERC-3643](./eip-3643.md)) and in DeFi systems where contracts evolve over time.
 
 ## Specification
 
@@ -51,7 +50,7 @@ interface IERCVersion {
 
 2. **Version meaning**
    - Returned values SHOULD be stable and machine-comparable by off-chain tooling.
-   - Returned values SHOULD follow a SemVer-like format: `MAJOR.MINOR.PATCH` using decimal integers (for example `1.0.0`, `3.2.1`).
+   - Returned values SHOULD follow a [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)-like format: `MAJOR.MINOR.PATCH` using decimal integers (for example `1.0.0`, `3.2.1`).
    - The canonical recommended pattern is `^[0-9]+\.[0-9]+\.[0-9]+$`.
    - Implementations MAY define their own versioning policy, but SHOULD document it publicly.
 
@@ -59,11 +58,12 @@ interface IERCVersion {
    - This interface is compatible with immutable deployments and proxy-based upgradeable deployments.
    - In upgradeable systems, `version()` SHOULD reflect the active implementation seen by users and integrators.
 
-### [ERC-165](./erc-165.md)
+### [ERC-165](./eip-165.md)
 
-Implementations MUST support [ERC-165](./erc-165.md) interface discovery for this interface.
+Implementations SHOULD support [ERC-165](./eip-165.md) interface discovery for this interface.
 
-- `supportsInterface(type(IERCVersion).interfaceId)` MUST return `true`.
+If an implementation supports [ERC-165](./eip-165.md), `supportsInterface(type(IERCVersion).interfaceId)` MUST return `true`.
+
 - The interface id for `IERCVersion` is `0x54fd4d50`.
 
 ### Compatibility Note for ERC-3643 Integrations
@@ -75,12 +75,50 @@ Integrators MAY treat legacy ERC-3643 token contracts exposing a compatible `ver
 - **Minimal scope**: A single function maximizes adoption and keeps gas/runtime complexity negligible.
 - **ERC-3643 alignment**: Reuses a proven pattern already used in regulated token implementations.
 - **Token-agnostic design**: The interface applies to token contracts and non-token contracts alike.
-- **Required ERC-165**: Standardized interface discovery ensures integrators can detect support consistently and reduce integration ambiguity.
+- **Optional ERC-165**: ERC-165 support is recommended but not required, lowering the adoption barrier for contracts that do not implement interface discovery. When ERC-165 is supported, advertising this interface is mandatory to ensure consistent detection by integrators.
 - **`string` over `bytes32`**: A human-readable string is preferred to a fixed-size bytes32 for legibility in explorers and tooling, at the cost of marginally higher gas for the return value.
 
 ## Backwards Compatibility
 
 This ERC is fully additive. Contracts already exposing `version()` are naturally compatible if they match the interface signature.
+
+## Test Cases
+
+The following test cases apply to any conforming implementation.
+
+1. `version()` MUST NOT revert.
+2. `version()` MUST return a non-empty string.
+3. `version()` MUST return the version string declared by the implementation (e.g. `"1.0.0"`).
+4. If the contract supports [ERC-165](./eip-165.md), `supportsInterface(0x54fd4d50)` MUST return `true`.
+5. If the contract supports [ERC-165](./eip-165.md), `supportsInterface(0xffffffff)` MUST return `false`.
+
+## Reference Implementation
+
+Reference implementations are provided in the assets folder: the [interface](../assets/erc-xxx-contract-version/src/IERCVersion.sol) and a [base implementation](../assets/erc-xxx-contract-version/src/ERCVersion.sol), along with usage examples for [ERC-20](../assets/erc-xxx-contract-version/src/examples/ERC20VersionedExample.sol) and [ERC-721](../assets/erc-xxx-contract-version/src/examples/ERC721VersionedExample.sol) tokens. These examples are provided for educational purposes only and are not audited.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.0;
+
+import "./IERCVersion.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+
+contract ERCVersionExample is IERCVersion, ERC165 {
+    function version() external pure override returns (string memory) {
+        return "1.0.0";
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override
+        returns (bool)
+    {
+        return interfaceId == type(IERCVersion).interfaceId
+            || super.supportsInterface(interfaceId);
+    }
+}
+```
 
 ## Security Considerations
 
