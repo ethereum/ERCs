@@ -28,7 +28,7 @@ Batching also broadens what metadata is useful for beyond a single transaction-l
 - **Multi-application batching**: per-application attribution lets analytics and revenue be split correctly across contributors when several applications share one transaction.
 - **Payments and remittance**: an invoice number, reference, or memo attached to the transaction or to a specific transfer in a batch.
 - **Intents and routing**: a tag marking a group of calls as one intent or solver route for indexers and portfolio tools.
-- **Commitments to off-chain data**: a hash of an off-chain document (for example a receipt with line-item detail), so the transaction is provably tied to that document while the content stays private.
+- **Commitments to off-chain data**: a digest binding the transaction to an off-chain document so the content stays private.
 
 These differ in *scope* (whole transaction vs. a phase vs. a single call) and in *who* produces them. A shared, self-describing encoding lets producers attach independently scoped annotations into the one signed `metadata` field, and lets any indexer recover all of them with a single parser. The most common case, a single small annotation, costs only a few bytes more than the raw data itself.
 
@@ -83,7 +83,7 @@ The `t`, `h`, `p`, and `c` keys extend schema 2: `t` is a plain-text memo, `h` i
 | `p` only | Phase `p` (0-based) of `calls`. |
 | `p` and `c` | Call `c` (0-based) within phase `p`. |
 
-A `c` key without a `p` key is invalid; a consumer MUST treat such a map as whole-transaction scope. A consumer SHOULD ignore the scope (treating the map as whole-transaction) of any map whose `p` or `c` references an index that does not exist in `calls`. Bare text-string and byte-string values are always whole-transaction scope. Multiple maps MAY share the same scope, and a single call MAY be described at call, phase, and transaction scope simultaneously.
+A `c` key without a `p` key is treated as if `p` is `0` (phase 0). A consumer SHOULD ignore the scope (treating the map as whole-transaction) of any map whose `p` or `c` references an index that does not exist in `calls`. Bare text-string and byte-string values are always whole-transaction scope. Multiple maps MAY share the same scope, and a single call MAY be described at call, phase, and transaction scope simultaneously.
 
 Wallets MUST set `p` and `c` only after the `calls` array is finalized. The final phase structure is not known until all parties (sender, payer, and any other contributors) have determined their calls; setting scope before that risks pointing at the wrong phase if a payer prepends a payment phase or if calls are otherwise reordered during construction.
 
@@ -91,17 +91,13 @@ Wallets MUST set `p` and `c` only after the `calls` array is finalized. The fina
 
 ### Commitments
 
-A commitment (the `h` key, or a bare byte string) binds the transaction to off-chain data without revealing it. Its value is the **digest** of the off-chain document (for example a `keccak256` hash, or a Merkle root for selectively-disclosable documents). The digest length follows from the hash algorithm and is typically 32 bytes; the algorithm is part of the self-describing off-chain document, not fixed by this proposal. Only the digest appears on-chain, so the document's contents (for example receipt line items) stay private until revealed.
+A commitment (the `h` key, or a bare byte string) binds the transaction to off-chain data without revealing it. Its value is a digest; the hash algorithm, document format, and digest computation are defined by the off-chain document and its application — not by this proposal. Only the digest appears on-chain. The document is resolved through an application side channel (a URL, content-addressed store, or peer-to-peer delivery); applications that need an on-chain locator MAY carry it in the `m` field alongside `h`.
 
-The off-chain document is **self-describing**: the hash algorithm, the document format, and how the digest was computed are defined by the document and the application that produces it, not by this proposal. A verifier recomputes the digest over a presented document and compares it to the on-chain value.
-
-This proposal deliberately does not carry a **locator** for the off-chain document. Following the model of off-chain attestations in systems like the [Ethereum Attestation Service](https://attest.org), the digest is the only on-chain artifact; the document is resolved through an application side channel (a shared URL, a content-addressed store such as IPFS, or peer-to-peer delivery). Applications that need an on-chain locator MAY carry it in an `m` field alongside the commitment.
-
-A commitment's scope ties the off-chain data to its subject: whole-transaction for a receipt covering the transaction, `p` for one phase, or `p`+`c` for a document describing one call (for example one transfer in a batch).
+A commitment's scope ties the digest to its subject: whole-transaction, `p` for one phase, or `p`+`c` for a single call.
 
 **Batches (RECOMMENDED).** When a batch commits to one off-chain document per call, a producer SHOULD aggregate the per-call digests into a single Merkle root and carry one commitment scoped to the phase (or the whole transaction), rather than one commitment per call. Each call's document is a leaf; to prove a single call's data, a verifier is shown that document together with a Merkle proof (the sibling hashes) and recomputes the root. This collapses `N` on-chain digests into one 32-byte root while still binding every document, and disclosing one leaf reveals only sibling hashes, not the contents of the other documents.
 
-Each leaf is typically a sizable but templated document (for example a JSON receipt), and a Merkle proof discloses the sibling hashes of any revealed leaf. Producers SHOULD therefore give each document a high-entropy salt so that disclosing one leaf does not let an observer confirm guesses about the sibling documents (see [Security Considerations](#security-considerations)).
+Each leaf may itself be a Merkle root — this proposal does not constrain the structure of the off-chain document. A Merkle proof discloses the sibling hashes of any revealed leaf; producers SHOULD give each document a high-entropy salt so that disclosing one leaf does not let an observer confirm guesses about the siblings (see [Security Considerations](#security-considerations)).
 
 **Recommended Merkle tree construction.** Producers SHOULD use the following construction so off-chain tooling can produce interoperable proofs:
 
@@ -144,13 +140,26 @@ A consumer MUST treat metadata as describing only the transaction it appears in,
 Applications contribute metadata through a `metadata` capability on [ERC-5792](./eip-5792.md) `wallet_sendCalls`. This capability supersedes the `dataSuffix` capability: where `dataSuffix` passed opaque bytes for the wallet to append blindly, `metadata` passes a structured value (or values) that the wallet places in the signed [EIP-8130](./eip-8130.md) `metadata` field.
 
 ```typescript
+/** A single annotation value. */
+type MetadataValue =
+  | string      // bare memo (t shorthand)
+  | Uint8Array  // bare commitment digest (h shorthand)
+  | {
+      a?: string;      // application code
+      w?: string;      // wallet code
+      s?: string[];    // service codes
+      r?: object;      // registry overrides (ERC-8021 format)
+      m?: object;      // arbitrary application metadata
+      t?: string;      // text memo
+      h?: Uint8Array;  // commitment digest
+      p?: number;      // phase scope (0-based); refers to calls in THIS request
+      c?: number;      // call scope within phase p (0-based)
+    };
+
 interface MetadataCapability {
   metadata: {
-    // One or more annotations the app wants attached. Each is a memo string,
-    // a commitment digest, or a map of the keys defined by this proposal.
-    // Any p/c scope refers to the calls in THIS request.
     value: MetadataValue | MetadataValue[];
-    optional?: boolean; // if true, wallet MAY proceed without it; if false (default), wallet MUST reject when it cannot
+    optional?: boolean; // default false; if false, wallet MUST reject if it cannot honor
   };
 }
 ```
@@ -282,7 +291,7 @@ Metadata is an attestation by the signer only: it asserts that the signer commit
 
 A commitment proves that *some* off-chain document existed and was bound to the transaction at signing time, and its scope reveals which calls that document concerns. Producers SHOULD treat the presence and scope of a commitment as themselves disclosed, and MUST place only an opaque digest, not any recoverable fragment of the document, in the value. A single hash of a small or low-entropy document is guessable; producers SHOULD give each document a high-entropy salt so the digest does not leak its preimage.
 
-When a batch is committed as a single Merkle root, a proof for one leaf additionally discloses the tree shape, the number of leaves (for example, how many payments a batch contained), and the sibling digests along the proof path. Producers SHOULD treat the leaf count and tree shape as disclosed whenever any proof is shared, and MUST salt each leaf document independently so that revealing one leaf does not let an observer confirm guesses about templated sibling documents. Where even the leaf count is sensitive, producers MAY pad the tree with random decoy leaves.
+When a batch is committed as a single Merkle root, a proof for one leaf additionally discloses the tree shape, the number of leaves (for example, how many payments a batch contained), and the sibling digests along the proof path. Producers SHOULD treat the leaf count and tree shape as disclosed whenever any proof is shared, and MUST salt each leaf document independently so that revealing one leaf does not let an observer confirm guesses about sibling documents. Where even the leaf count is sensitive, producers MAY pad the tree with random decoy leaves.
 
 ### Malformed and adversarial encodings
 
