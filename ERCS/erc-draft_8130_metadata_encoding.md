@@ -42,7 +42,7 @@ The [EIP-8130](./eip-8130.md) `metadata` field, when non-empty and structured pe
 
 | Form | CBOR type | Meaning |
 | --- | --- | --- |
-| Text string | major type 3 | A memo. Equivalent to a map `{m: <text>}` at whole-transaction scope. |
+| Text string | major type 3 | A memo. Equivalent to a map `{t: <text>}` at whole-transaction scope. |
 | Byte string of 32 bytes | major type 2, length 32 | A commitment digest. Equivalent to a map `{h: <digest>}` at whole-transaction scope. |
 | Map | major type 5 | A single annotation record; see [Keys](#keys). |
 | Array | major type 4 | Multiple independent annotations, each element a text string, 32-byte byte string, or map, interpreted as above. |
@@ -63,14 +63,15 @@ A map uses text-string keys. All keys are OPTIONAL; unrecognized keys MUST be ig
 | `w` | wallet | text | Wallet attribution code. |
 | `s` | services | array of text | Service attribution codes (block builders, relayers, solvers). |
 | `r` | registries | map | Custom registry overrides, keyed by entity type. |
-| `m` | memo | text or map | A memo (text) or a sub-map of arbitrary application key-value pairs. |
+| `m` | metadata | map | A sub-map of arbitrary application key-value pairs. |
+| `t` | text | text | A memo (human- or application-readable text). |
 | `h` | commitment | byte string (32) | A digest committing to off-chain data. See [Commitments](#commitments). |
 | `p` | phase | uint | Phase scope (0-based index into `calls`). See [Scope](#scope). |
 | `c` | call | uint | Call scope (0-based index within phase `p`). See [Scope](#scope). |
 
-The `a`, `w`, `s`, and `r` keys are [ERC-8021](./eip-8021.md) schema 2; their values are ERC-8021 codes resolved through the registry mechanism that ERC-8021 defines. This proposal reuses that vocabulary and registry rather than re-specifying it, and references ERC-8021 only for the *meaning* of the codes, not for byte framing. The ERC-8021 calldata `ercMarker`, `schemaId` byte, and `cborLength` prefix are not used: the value is self-delimiting and length-known from the RLP `metadata` field. An ERC-8021 schema 2 map drops in as a `metadata` value without modification.
+The `a`, `w`, `s`, `r`, and `m` keys are [ERC-8021](./eip-8021.md) schema 2; their values are ERC-8021 codes (and, for `m`, an arbitrary metadata sub-map) resolved through the registry mechanism that ERC-8021 defines. This proposal reuses that vocabulary and registry rather than re-specifying it, and references ERC-8021 only for the *meaning* of the codes, not for byte framing. The ERC-8021 calldata `ercMarker`, `schemaId` byte, and `cborLength` prefix are not used: the value is self-delimiting and length-known from the RLP `metadata` field. An ERC-8021 schema 2 map drops in as a `metadata` value without modification.
 
-The `m`, `h`, `p`, and `c` keys extend schema 2. The `m` key MAY be a text string (a memo) in addition to schema 2's sub-map form; a consumer reads a text `m` as a memo and a map `m` as structured metadata.
+The `t`, `h`, `p`, and `c` keys extend schema 2: `t` is a plain-text memo, `h` is an off-chain commitment, and `p`/`c` carry scope.
 
 ### Scope
 
@@ -191,13 +192,13 @@ hex      = 5820 <32 bytes>
 **4. Attribution + memo (37 bytes).** Who sent it and why, in one map.
 
 ```
-metadata = { a: "baseapp", w: "mywallet", m: "invoice 4471" }
+metadata = { a: "baseapp", w: "mywallet", t: "invoice 4471" }
 ```
 
 **5. Attribution + memo + commitment (73 bytes).** Identity, reference, and a receipt hash in one signed map.
 
 ```
-metadata = { a: "baseapp", w: "mywallet", m: "invoice 4471", h: h'<32-byte digest>' }
+metadata = { a: "baseapp", w: "mywallet", t: "invoice 4471", h: h'<32-byte digest>' }
 ```
 
 **6. Sponsored transaction: whole-tx attribution + phase-scoped memo (42 bytes).** The payer prepends phase 0; the app's transfer is phase 1.
@@ -205,7 +206,7 @@ metadata = { a: "baseapp", w: "mywallet", m: "invoice 4471", h: h'<32-byte diges
 ```
 metadata = [
   { a: "baseapp", w: "mywallet" },   // whole transaction
-  { m: "invoice 4471", p: 1 }        // phase 1 only
+  { t: "invoice 4471", p: 1 }        // phase 1 only
 ]
 ```
 
@@ -245,7 +246,7 @@ The most common annotation is a single small one: a memo, an attribution, or a c
 
 ### Reusing ERC-8021 keys
 
-Attribution already has a well-specified, registry-backed vocabulary in [ERC-8021](./eip-8021.md) schema 2 (`a`, `w`, `s`, `r`, `m`). Reusing those keys verbatim means existing code registries, payout resolution, and parsers apply with no translation, and an ERC-8021 schema 2 map is a valid `metadata` value as-is. This proposal adds only what schema 2 lacks for [EIP-8130](./eip-8130.md): a commitment key (`h`) and scope keys (`p`, `c`), and the convenience of a text `m` memo. Keeping one shared key space avoids a parallel attribution vocabulary.
+Attribution already has a well-specified, registry-backed vocabulary in [ERC-8021](./eip-8021.md) schema 2 (`a`, `w`, `s`, `r`, `m`). Reusing those keys verbatim means existing code registries, payout resolution, and parsers apply with no translation, and an ERC-8021 schema 2 map is a valid `metadata` value as-is. This proposal adds only what schema 2 lacks for [EIP-8130](./eip-8130.md): a plain-text memo key (`t`), a commitment key (`h`), and scope keys (`p`, `c`). Keeping one shared key space avoids a parallel attribution vocabulary.
 
 ### CBOR
 
