@@ -1,6 +1,6 @@
 ---
 title: Transaction Metadata Encoding for EIP-8130
-description: A structured encoding for the EIP-8130 metadata field, scoping records to a transaction, phase, or call and supporting commitments to off-chain data
+description: A structured CBOR encoding for the EIP-8130 metadata field covering attribution, memos, and commitments to off-chain data, scoped to a transaction, phase, or call
 author: Chris Hunter (@chunter-cb) <chris.hunter@coinbase.com>
 discussions-to: https://ethereum-magicians.org/t/erc-transaction-metadata-encoding-for-eip-8130
 status: Draft
@@ -14,9 +14,9 @@ requires: 5792, 8130
 
 [EIP-8130](./eip-8130.md) adds an optional, opaque `metadata` field to its transaction type for attribution and annotation data, but leaves the byte layout to a companion specification. This proposal defines that layout.
 
-`metadata` is a deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) array of **records**. Each record carries a **type** (how its payload is interpreted), an optional **scope** (the whole transaction, a phase, or a single call), and a **payload**. Types are assigned in order of expected frequency: `0` arbitrary metadata map, `1` attribution, `2` off-chain commitment, `3` opaque bytes. A record with no `type` key defaults to type `0`. The vocabulary for type `1` attribution is interoperable with [ERC-8021](./eip-8021.md) schema 2, so existing attribution registries and parsers apply unchanged.
+`metadata` is a single deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) value in one of four forms: a **text string** (a memo), a **byte string** (a commitment digest), a **map** of reserved keys (attribution, memo, commitment, and scope), or an **array** of any of these (multiple independent annotations). The map keys are interoperable with [ERC-8021](./eip-8021.md) schema 2, so existing attribution registries and parsers apply unchanged, extended here with keys for off-chain commitments and call scoping.
 
-This proposal also defines an [ERC-5792](./eip-5792.md) `metadata` capability that lets applications contribute records through `wallet_sendCalls`, superseding the `dataSuffix` capability. Because the protocol never interprets `metadata`, the encoding is self-identifying through strict deterministic decoding rather than any protocol enforcement.
+The encoding lets a single signed field carry a bare memo with no overhead, full multi-party attribution, a privacy-preserving commitment to off-chain data, or any combination, each optionally scoped to the whole transaction, a phase, or a single call. This proposal also defines an [ERC-5792](./eip-5792.md) `metadata` capability that lets applications contribute metadata through `wallet_sendCalls`, superseding the `dataSuffix` capability. Because the protocol never interprets `metadata`, the encoding is self-identifying through strict deterministic decoding rather than any protocol enforcement.
 
 ## Motivation
 
@@ -25,360 +25,267 @@ This proposal also defines an [ERC-5792](./eip-5792.md) `metadata` capability th
 Batching also broadens what metadata is useful for beyond a single transaction-level suffix:
 
 - **Builder and application attribution**: identifying the wallet builder or the applications whose calls the transaction contains.
-- **Multi-application batching**: per-application metadata lets analytics and revenue be split correctly across contributors when several applications share one transaction.
-- **Payments and remittance**: an invoice number, reference, or memo attached to a specific transfer in a batch.
+- **Multi-application batching**: per-application attribution lets analytics and revenue be split correctly across contributors when several applications share one transaction.
+- **Payments and remittance**: an invoice number, reference, or memo attached to the transaction or to a specific transfer in a batch.
 - **Intents and routing**: a tag marking a group of calls as one intent or solver route for indexers and portfolio tools.
 - **Commitments to off-chain data**: a hash of an off-chain document (for example a receipt with line-item detail), so the transaction is provably tied to that document while the content stays private.
 
-These differ in *scope* (whole transaction vs. a phase vs. a single call) and in *who* produces them. A shared, self-describing encoding lets each producer append an independently typed and scoped record into the one signed `metadata` field, and lets any indexer recover all of them with a single parser.
+These differ in *scope* (whole transaction vs. a phase vs. a single call) and in *who* produces them. A shared, self-describing encoding lets producers attach independently scoped annotations into the one signed `metadata` field, and lets any indexer recover all of them with a single parser. The most common case, a single small annotation, costs only a few bytes more than the raw data itself.
 
 ## Specification
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-### Container
+### Value forms
 
-The [EIP-8130](./eip-8130.md) `metadata` field, when non-empty and structured per this proposal, MUST decode as a CBOR array. Each element of the array is a **record** (see [Record](#record)). An empty `metadata` field carries no records.
+The [EIP-8130](./eip-8130.md) `metadata` field, when non-empty and structured per this proposal, is a single CBOR value in one of four forms. A consumer branches on the CBOR major type of the first byte:
 
-The entire `metadata` byte string is part of the signed [EIP-8130](./eip-8130.md) transaction (covered by the sender signature, and the payer signature when present) and is charged per byte at the transaction's calldata rate. Because the bytes are signed as a unit, the wallet that assembles the transaction is responsible for producing the final encoding from the records contributed by each party.
+| Form | CBOR type | Meaning |
+| --- | --- | --- |
+| Text string | major type 3 | A memo. Equivalent to a map `{m: <text>}` at whole-transaction scope. |
+| Byte string of 32 bytes | major type 2, length 32 | A commitment digest. Equivalent to a map `{h: <digest>}` at whole-transaction scope. |
+| Map | major type 5 | A single annotation record; see [Keys](#keys). |
+| Array | major type 4 | Multiple independent annotations, each element a text string, 32-byte byte string, or map, interpreted as above. |
 
-### Record
+The text-string and byte-string forms are shorthands for the single-key map forms, so a parser MAY normalize them to maps before processing. A byte string whose length is not 32 carries no defined meaning and is treated as opaque. An array MUST NOT contain a nested array.
 
-A record is a CBOR map with unsigned-integer keys:
+An empty `metadata` field carries no annotation.
 
-| Key | Name | Type | Required | Description |
-| --- | --- | --- | --- | --- |
-| `0` | `type` | uint | No | Record type. Absent or `0` = metadata map. See [Record types](#record-types). |
-| `1` | `scope` | see [Scope](#scope) | No | Which calls the record describes. MUST be treated as whole-transaction when absent. |
-| `2` | `payload` | per `type` | Yes | The record's content. Format is determined by `type`. |
+The entire `metadata` byte string is part of the signed [EIP-8130](./eip-8130.md) transaction (covered by the sender signature, and the payer signature when present) and is charged per byte at the transaction's calldata rate. Because the bytes are signed as a unit, the wallet that assembles the transaction is responsible for producing the final encoding from the contributions of each party.
 
-A record missing `payload` (key `2`) is malformed and MUST be ignored. A record with an unrecognized `type` whose payload does not validate as the named format MUST be treated as opaque (see [Record types](#record-types)).
+### Keys
+
+A map uses text-string keys. All keys are OPTIONAL; unrecognized keys MUST be ignored.
+
+| Key | Name | Value | Description |
+| --- | --- | --- | --- |
+| `a` | application | text | Application attribution code. |
+| `w` | wallet | text | Wallet attribution code. |
+| `s` | services | array of text | Service attribution codes (block builders, relayers, solvers). |
+| `r` | registries | map | Custom registry overrides, keyed by entity type. |
+| `m` | memo | text or map | A memo (text) or a sub-map of arbitrary application key-value pairs. |
+| `h` | commitment | byte string (32) | A digest committing to off-chain data. See [Commitments](#commitments). |
+| `p` | phase | uint | Phase scope (0-based index into `calls`). See [Scope](#scope). |
+| `c` | call | uint | Call scope (0-based index within phase `p`). See [Scope](#scope). |
+
+The `a`, `w`, `s`, and `r` keys are [ERC-8021](./eip-8021.md) schema 2; their values are ERC-8021 codes resolved through the registry mechanism that ERC-8021 defines. This proposal reuses that vocabulary and registry rather than re-specifying it, and references ERC-8021 only for the *meaning* of the codes, not for byte framing. The ERC-8021 calldata `ercMarker`, `schemaId` byte, and `cborLength` prefix are not used: the value is self-delimiting and length-known from the RLP `metadata` field. An ERC-8021 schema 2 map drops in as a `metadata` value without modification.
+
+The `m`, `h`, `p`, and `c` keys extend schema 2. The `m` key MAY be a text string (a memo) in addition to schema 2's sub-map form; a consumer reads a text `m` as a memo and a map `m` as structured metadata.
 
 ### Scope
 
-`scope` associates a record with part of the transaction's [EIP-8130](./eip-8130.md) `calls` (an ordered array of phases, each an ordered array of calls). It is encoded as:
+`scope` associates a map with part of the transaction's [EIP-8130](./eip-8130.md) `calls` (an ordered array of phases, each an ordered array of calls), using the `p` and `c` keys:
 
-| `scope` value | Meaning |
+| Keys present | Meaning |
 | --- | --- |
-| absent | The whole transaction. |
-| unsigned integer `p` | Phase `p` (0-based) of `calls`. |
-| two-element array `[p, c]` | Call `c` (0-based) within phase `p`. |
+| neither `p` nor `c` | The whole transaction. |
+| `p` only | Phase `p` (0-based) of `calls`. |
+| `p` and `c` | Call `c` (0-based) within phase `p`. |
 
-A consumer SHOULD ignore the `scope` (treating the record as whole-transaction) of any record whose `scope` references a phase or call index that does not exist in `calls`. Multiple records MAY share the same scope, and a single call MAY be described by records at call, phase, and transaction scope simultaneously.
+A `c` key without a `p` key is invalid; a consumer MUST treat such a map as whole-transaction scope. A consumer SHOULD ignore the scope (treating the map as whole-transaction) of any map whose `p` or `c` references an index that does not exist in `calls`. Bare text-string and byte-string values are always whole-transaction scope. Multiple maps MAY share the same scope, and a single call MAY be described at call, phase, and transaction scope simultaneously.
 
-Wallets MUST encode `scope` values only after the `calls` array is finalized. The final phase structure is not known until all parties — sender, payer, and any other contributors — have determined their calls. Encoding scope before that point risks pointing at the wrong phase if a payer prepends a payment phase or if calls are otherwise reordered during construction.
+Wallets MUST set `p` and `c` only after the `calls` array is finalized. The final phase structure is not known until all parties (sender, payer, and any other contributors) have determined their calls; setting scope before that risks pointing at the wrong phase if a payer prepends a payment phase or if calls are otherwise reordered during construction.
 
-> **Note (non-normative):** In [ERC-8168](./erc-8168.md) sponsored flows, the typical construction order is: (1) app sends `wallet_sendCalls` with its calls and attribution intent; (2) wallet contacts the payer service, which may prepend a payment phase via `payer_fillTransaction`; (3) wallet resolves each call's final phase index in the assembled `calls`; (4) wallet encodes `metadata` with correct absolute indices and signs. The app's original calls may shift from phase 0 to phase 1 when a payer prepends — the wallet holds both the original intent and the final structure, so it resolves the correct index before encoding.
+> **Note (non-normative):** In [ERC-8168](./erc-8168.md) sponsored flows, the typical construction order is: (1) app sends `wallet_sendCalls` with its calls and metadata intent; (2) wallet contacts the payer service, which may prepend a payment phase; (3) wallet resolves each annotation's final phase index in the assembled `calls`; (4) wallet encodes `metadata` and signs. The app's original calls may shift from phase 0 to phase 1 when a payer prepends, so the wallet maps them to the correct index before encoding.
 
-> **Note (non-normative):** When a wallet assembles calls from multiple independent `wallet_sendCalls` requests (multi-app batching), it SHOULD track which metadata contributions came with which calls, then resolve each contribution's scope to the phase those calls occupy in the final `calls`. Each app's attribution record ends up scoped to its own phase independently.
+### Commitments
 
-### Record types
+A commitment (the `h` key, or a bare 32-byte string) binds the transaction to off-chain data without revealing it. Its value is the 32-byte **digest** of the off-chain document (for example a `keccak256` hash, or a Merkle root for selectively-disclosable documents). Only the digest appears on-chain, so the document's contents (for example receipt line items) stay private until revealed.
 
-This proposal defines an initial registry of record types ordered by expected frequency of use. Types are assigned small integers so the most common records are most compact on the wire. A consumer that does not recognize a `type`, or whose `payload` does not validate against the named format, MUST treat that record's `payload` as opaque rather than rejecting the transaction.
+The off-chain document is **self-describing**: the hash algorithm, the document format, and how the digest was computed are defined by the document and the application that produces it, not by this proposal. A verifier recomputes the digest over a presented document and compares it to the on-chain value.
 
-| `type` | Name | `payload` |
-| --- | --- | --- |
-| `0` | Metadata map | A CBOR map of arbitrary application-defined key-value pairs. See [Metadata map records](#metadata-map-records). |
-| `1` | Attribution | A CBOR map of attribution codes. See [Attribution records](#attribution-records). |
-| `2` | Commitment | A commitment to off-chain data. See [Commitment records](#commitment-records). |
-| `3` | Opaque | A CBOR byte string of application-defined bytes. |
+This proposal deliberately does not carry a **locator** for the off-chain document. Following the model of off-chain attestations in systems like the [Ethereum Attestation Service](https://attest.org), the digest is the only on-chain artifact; the document is resolved through an application side channel (a shared URL, a content-addressed store such as IPFS, or peer-to-peer delivery). Applications that need an on-chain locator MAY carry it in an `m` field alongside the commitment.
 
-These types are independent: a single transaction MAY carry any combination of records, each as its own array element with its own `scope`. Future ERCs MAY define additional `type` values; a defined `type` SHOULD be self-validating (structurally checkable) so a coincidental match on opaque bytes is rejected.
+A commitment's scope ties the off-chain data to its subject: whole-transaction for a receipt covering the transaction, `p` for one phase, or `p`+`c` for a document describing one call (for example one transfer in a batch).
 
-### Metadata map records
+**Batches (RECOMMENDED).** When a batch commits to one off-chain document per call, a producer SHOULD aggregate the per-call digests into a single Merkle root and carry one commitment scoped to the phase (or the whole transaction), rather than one commitment per call. Each call's document is a leaf; to prove a single call's data, a verifier is shown that document together with a Merkle proof (the sibling hashes) and recomputes the root. This collapses `N` on-chain digests into one 32-byte root while still binding every document, and disclosing one leaf reveals only sibling hashes, not the contents of the other documents.
 
-A **metadata map record** (`type 0`, the default) carries arbitrary application-defined annotation as a CBOR map of key-value pairs: a memo, invoice or order reference, routing or intent tags, analytics parameters, or any other structured application data. None of its keys are reserved by this proposal.
+Each leaf is typically a sizable but templated document (for example a JSON receipt), and a Merkle proof discloses the sibling hashes of any revealed leaf. Producers SHOULD therefore give each document a high-entropy salt so that disclosing one leaf does not let an observer confirm guesses about the sibling documents (see [Security Considerations](#security-considerations)).
 
-`type 0` is the default: a record with no `type` key is implicitly a metadata map, so the minimal record `{2: {memo: "invoice 4471"}}` is valid without a `type` field.
-
-A metadata map record differs from the other types:
-
-- Unlike an **attribution record** (`type 1`), it carries no attribution codes and reserves no keys — it is the right home for application data that is not about *who* produced the transaction.
-- Unlike an **opaque record** (`type 3`), its payload is a structured, introspectable CBOR map rather than a raw byte string, so indexers can read its fields directly without application-specific parsers.
-
-Application metadata that is specifically about an attributed party MAY instead be carried in the `m` key of that party's attribution record; a standalone metadata map record is preferred when the annotation is not tied to a particular attributed entity.
-
-A single `metadata` field MAY carry a metadata map, an attribution record, and a commitment as three independent records:
-
-```
-metadata = [
-  { 2: { memo: "invoice 4471", ref: "PO-22" } },          // type 0 (default), whole transaction
-  { 0: 1, 2: { a: "baseapp", w: "mywallet" } },           // type 1 attribution, whole transaction
-  { 0: 2, 1: [0, 0], 2: h'…32-byte digest…' }             // type 2 commitment, scoped to call [0,0]
-]
-```
-
-### Attribution records
-
-An **attribution record** (`type 1`) identifies the parties responsible for a transaction or a part of it. Its `payload` is a CBOR map with the following keys, all OPTIONAL:
-
-| Key | Description |
-| --- | --- |
-| `a` | Application code (string) |
-| `w` | Wallet code (string) |
-| `s` | Service codes (array of strings: block builders, relayers, solvers) |
-| `r` | Custom registries (sub-map keyed by entity type, each with a chain id and registry address override) |
-| `m` | Arbitrary application metadata (sub-map of key-value pairs) |
-
-These keys are intentionally **identical to [ERC-8021](./eip-8021.md) schema 2**, so that ERC-8021 code registries, payout resolution, and existing schema-2 parsers apply to an attribution payload unchanged, and an ERC-8021 schema-2 map drops in as the payload without modification. The `a`, `w`, and `s` values are ERC-8021 codes resolved through the code registry mechanism that ERC-8021 defines; this proposal reuses that vocabulary and registry rather than re-specifying it, and references ERC-8021 only for the *meaning* of the codes, not for byte framing.
-
-The payload is the map itself. The ERC-8021 calldata `ercMarker`, `schemaId` byte, and `cborLength` prefix are not used: the record envelope already provides the type tag, and the CBOR map is self-delimiting and length-known from the RLP `metadata` field.
-
-### Commitment records
-
-A **commitment record** (`type 2`) binds the transaction to off-chain data without revealing it. Its `payload` is a CBOR byte string: the **digest** of the off-chain document (for example a `keccak256` hash, or a Merkle root for selectively-disclosable documents). Only the digest appears on-chain, so the document's contents (for example receipt line items) stay private until revealed.
-
-The off-chain document is **self-describing**: the hash algorithm, the document format or schema, and how the digest was computed are defined by the document and the application that produces it, not by this proposal. A verifier recomputes the digest over a presented document (per that document's own rules) and compares it to the on-chain value.
-
-This proposal deliberately does not carry a **locator** for the off-chain document. Following the model of off-chain attestations in systems like the [Ethereum Attestation Service](https://attest.org), the digest is the only on-chain artifact; the document is resolved through an application side channel (a shared URL, a content-addressed store such as IPFS, or peer-to-peer delivery) rather than a pointer embedded in the transaction. Applications that do need an on-chain locator can carry it as their own opaque (`type 3`) record alongside the commitment.
-
-A commitment record's `scope` ties the off-chain data to its subject: absent for a receipt covering the whole transaction, or `[p, c]` for a document describing one call (for example one transfer in a batch).
-
-**Batches (RECOMMENDED).** When a batch commits to one off-chain document per call, a producer SHOULD aggregate the per-call digests into a single Merkle root and carry **one** commitment record scoped to the phase (or the whole transaction), rather than one record per call. Each call's document is a leaf; to prove a single call's data, a verifier is shown that document together with a Merkle proof (the sibling hashes) and recomputes the root for comparison with the on-chain value. This collapses `N` on-chain digests into one 32-byte root while still binding every document, and disclosing one leaf reveals only sibling hashes, not the contents of the other documents. The tree construction (leaf hashing, ordering, domain separation, and proof format) is part of the self-describing off-chain document set, not this proposal.
-
-Each leaf is typically a sizable document (for example a JSON receipt with line items). Even so, such documents are often templated and therefore guessable, and a Merkle proof discloses the sibling hashes of any revealed leaf. Producers SHOULD therefore give each document a high-entropy salt (for example a random `salt` field in the JSON, or a leaf hash of `H(salt || document)`) so that disclosing one leaf does not let an observer confirm guesses about the sibling documents (see [Security Considerations](#security-considerations)).
-
-**Recommended Merkle tree construction.** Producers SHOULD use the following construction for batch commitments, so that off-chain tooling can produce interoperable proofs:
+**Recommended Merkle tree construction.** Producers SHOULD use the following construction so off-chain tooling can produce interoperable proofs:
 
 - Leaves are ordered by call index (call 0, call 1, ...).
-- Each leaf is hashed with a domain tag and a per-document salt: `leaf[i] = keccak256(0x00 || salt[i] || document[i])` where `salt[i]` is 32 random bytes unique to that document and `0x00` is a 1-byte domain separator distinguishing leaves from internal nodes.
-- Internal nodes are computed as: `node = keccak256(0x01 || left || right)` where `0x01` is the internal-node domain separator. Siblings are sorted lexicographically before hashing (`min(left, right) || max(left, right)`) so that a verifier does not need to track the left/right direction of each sibling — only the sibling hashes are needed to reconstruct the path.
-- If the leaf count is odd, the last leaf is duplicated to form a complete binary tree.
+- Each leaf is `leaf[i] = keccak256(0x00 || salt[i] || document[i])`, where `salt[i]` is 32 random bytes unique to that document and `0x00` is a 1-byte domain separator for leaves.
+- Internal nodes are `node = keccak256(0x01 || min(left, right) || max(left, right))`, where `0x01` is the internal-node domain separator and siblings are sorted so a verifier needs only the sibling hashes, not their left/right position.
+- If the leaf count is odd, the last leaf is duplicated.
 - A proof for leaf `i` is the ordered array of 32-byte sibling hashes from leaf level to the root.
 
-Adherence to this construction is RECOMMENDED, not REQUIRED; the off-chain document remains self-describing about its tree construction.
+Adherence to this construction is RECOMMENDED, not REQUIRED; the off-chain document set remains self-describing about its tree construction.
 
 ### Determinism
 
-Producers MUST encode `metadata` using CBOR core deterministic encoding ([RFC 8949 §4.2](https://www.rfc-editor.org/rfc/rfc8949#section-4.2)): definite-length items only, integers and lengths in their shortest form, and map keys sorted in bytewise lexicographic order of their encodings. Determinism ensures the signed bytes are reproducible by any party validating the transaction and that a digest computed over a record is stable.
+Producers MUST encode `metadata` using CBOR core deterministic encoding ([RFC 8949 §4.2](https://www.rfc-editor.org/rfc/rfc8949#section-4.2)): definite-length items only, integers and lengths in their shortest form, and map keys sorted in bytewise lexicographic order of their encodings. Determinism ensures the signed bytes are reproducible by any party validating the transaction and that a digest computed over the value is stable.
 
 ### Identification and strict decoding
 
-The protocol never parses `metadata`, so this proposal is not identified by any protocol tag or magic prefix; a `metadata` field is recognized as structured per this proposal purely by whether it decodes under the strict rules below. A consumer MUST treat the field as structured **only if all** of the following hold, and MUST otherwise treat the entire field as opaque bytes:
+The protocol never parses `metadata`, so this proposal is not identified by any protocol tag or magic prefix; a `metadata` field is recognized as structured per this proposal purely by whether it decodes under the strict rules below. A consumer MUST treat the field as structured **only if both** of the following hold, and MUST otherwise treat the entire field as opaque bytes:
 
-1. The bytes decode as a single CBOR array that **consumes the entire `metadata` field** with no trailing bytes. The field length is known from RLP, so this check is always available.
+1. The bytes decode as a single CBOR value (text string, byte string, map, or array of those) that **consumes the entire `metadata` field** with no trailing bytes. The field length is known from RLP, so this check is always available.
 2. The encoding is canonically deterministic per [Determinism](#determinism); a non-canonical encoding (indefinite-length items, non-shortest integers, unsorted or duplicate map keys) MUST be rejected as opaque.
-3. Every array element is a CBOR map whose keys are CBOR unsigned integers (CBOR major type 0). The presence of any non-integer key in the outer record map MUST cause that element to be treated as opaque.
 
-These rules make accidental or adversarial collision negligible: an arbitrary byte string essentially never forms a canonical CBOR array of well-formed record maps that exactly fills the field. A consumer MUST NOT use a lax decoder that accepts a complete item followed by trailing bytes, because many unrelated byte strings begin with a parseable CBOR item.
+A consumer MUST NOT use a lax decoder that accepts a complete item followed by trailing bytes, because many unrelated byte strings begin with a parseable CBOR item.
 
 This proposal does not reserve a CBOR semantic tag or version prefix. A future revision MAY introduce one for explicit versioning; consumers that do not recognize a future tag fall back to opaque per the rules above.
 
-**Foreign encodings.** A producer MAY treat `metadata` as wholly opaque to this proposal and use a different encoding. The strict rules above already route any field that is not a canonical array of record maps to opaque, so no action is strictly required. To eliminate even an accidental match and give consumers a fast reject, such a producer SHOULD either make its encoding self-describing, or begin the field with the byte `0xFF`. `0xFF` is the CBOR "break" code and can never begin a well-formed CBOR data item, so a strict decoder rejects it immediately. A structured `metadata` field under this proposal always begins with a CBOR array header (`0x80`–`0x9F`) and never with `0xFF`, so the two coexist without ambiguity.
+**Foreign encodings.** A producer MAY treat `metadata` as wholly opaque to this proposal and use a different encoding. To avoid being read as a memo or commitment, such a producer SHOULD make its encoding self-describing, or begin the field with the byte `0xFF`. `0xFF` is the CBOR "break" code and can never begin a well-formed CBOR data item, so a strict decoder rejects it immediately, and no value form under this proposal begins with `0xFF`.
 
 ### Consumer behavior
 
 For an [EIP-8130](./eip-8130.md) transaction whose `metadata` satisfies [Identification and strict decoding](#identification-and-strict-decoding), a consumer:
 
-1. For each record, reads `type` (absent = `0`, metadata map), `scope` (absent = whole transaction), and `payload`.
-2. Resolves `scope` against `calls` per [Scope](#scope), ignoring out-of-range scopes.
-3. Interprets `payload` per `type`, falling back to opaque for unknown or non-validating types.
+1. Branches on the value form (text, 32-byte bytes, map, or array), normalizing the bare forms to their single-key map equivalents.
+2. For each map, resolves scope from `p`/`c` against `calls` per [Scope](#scope), ignoring out-of-range scopes, and reads the recognized keys, ignoring unrecognized ones.
 
-A consumer MUST treat metadata as describing only the transaction it appears in, and MUST NOT infer any execution effect from it: records are inert annotations, never dispatched or executed.
+A consumer MUST treat metadata as describing only the transaction it appears in, and MUST NOT infer any execution effect from it: it is an inert annotation, never dispatched or executed.
 
 ### Application and wallet integration ([ERC-5792](./eip-5792.md))
 
-Applications contribute metadata through a `metadata` capability on [ERC-5792](./eip-5792.md) `wallet_sendCalls`. This capability supersedes the `dataSuffix` capability: where `dataSuffix` passed opaque bytes for the wallet to append blindly, `metadata` passes typed, scoped records that the wallet places in the signed [EIP-8130](./eip-8130.md) `metadata` field.
+Applications contribute metadata through a `metadata` capability on [ERC-5792](./eip-5792.md) `wallet_sendCalls`. This capability supersedes the `dataSuffix` capability: where `dataSuffix` passed opaque bytes for the wallet to append blindly, `metadata` passes a structured value (or values) that the wallet places in the signed [EIP-8130](./eip-8130.md) `metadata` field.
 
 ```typescript
 interface MetadataCapability {
   metadata: {
-    records: Array<{
-      type: number; // record type (0 metadata map, 1 attribution, 2 commitment, 3 opaque, ...)
-      scope?: number | [number, number]; // index into THIS request's calls; omit for whole transaction
-      payload: unknown; // per type; e.g. an attribution map, a digest, or opaque bytes
-    }>;
-    optional?: boolean; // if true, wallet MAY proceed without honoring; if false (default), wallet MUST reject when it cannot
+    // One or more annotations the app wants attached. Each is a memo string,
+    // a 32-byte commitment, or a map of the keys defined by this proposal.
+    // Any p/c scope refers to the calls in THIS request.
+    value: MetadataValue | MetadataValue[];
+    optional?: boolean; // if true, wallet MAY proceed without it; if false (default), wallet MUST reject when it cannot
   };
 }
 ```
 
-The application provides records describing its own calls; any `scope` index refers to the call array the application submits in this request. The wallet is the final assembler and MUST:
+The application provides values describing its own calls; any `p`/`c` scope refers to the call array the application submits in this request. The wallet is the final assembler and MUST:
 
-1. Map each contributed record's `scope` to the corresponding phase or call index in the finalized `calls` (which MAY differ from the request, for example when a payer prepends a phase under [ERC-8168](./erc-8168.md), or when calls from several requests are batched).
-2. Append its own attribution record (type `1`) carrying its wallet code (`w`) as a separate record. The wallet MUST NOT merge its codes into any app-contributed attribution record; each party's attribution appears as its own independent record.
-3. When multiple `wallet_sendCalls` requests are batched, treat each request's records independently: resolve each to the phase its calls occupy in the final `calls`, then append all records in request order.
-4. Encode all records into the `metadata` field per this proposal, deterministically, and sign.
+1. Map each contributed annotation's scope to the corresponding phase or call index in the finalized `calls` (which MAY differ from the request, for example when a payer prepends a phase under [ERC-8168](./erc-8168.md), or when calls from several requests are batched).
+2. Append its own attribution (its wallet code `w`) as a separate map; it MUST NOT merge its code into an app-contributed attribution map.
+3. When batching multiple `wallet_sendCalls` requests, treat each request's annotations independently and resolve each to the phase its calls occupy in the final `calls`.
+4. Encode the resulting value (a single value when only one annotation results, otherwise an array) into the `metadata` field per this proposal, deterministically, and sign.
 
-If the wallet cannot honor the capability and `optional` is not `true`, it MUST reject the request. A wallet that still receives a legacy `dataSuffix` capability MAY carry those bytes as an opaque (`type 3`) record, or as an attribution (`type 1`) record if it recognizes them as [ERC-8021](./eip-8021.md) attribution.
+If the wallet cannot honor the capability and `optional` is not `true`, it MUST reject the request. A wallet that still receives a legacy `dataSuffix` capability MAY carry an [ERC-8021](./eip-8021.md) attribution suffix as the corresponding attribution map, or other suffix bytes as a foreign encoding (see [Identification and strict decoding](#identification-and-strict-decoding)).
 
 ## Examples
 
-### ERC-8021 attribution on a sponsored USDC transfer
+Byte counts are for the encoded `metadata` field. Lengths assume short ASCII codes.
 
-**Scenario.** An app (code `"baseapp"`) sends a USDC transfer via `wallet_sendCalls`. The wallet (code `"mywallet"`) contacts a payer service via [ERC-8168](./erc-8168.md), which prepends a payment phase. The final `calls` structure is:
-
-```
-calls:
-  phase 0: [{to: payerContract, data: <pay 0.01 USDC to payer>}]
-  phase 1: [{to: usdcContract,  data: <transfer 100 USDC to Alice>}]
-```
-
-The wallet attaches attribution scoped to the whole transaction, encoding `metadata` after `calls` is finalized and signing.
-
-**Step 1 — attribution payload (CBOR map).**
-
-The attribution payload is the CBOR map `{"a":"baseapp","w":"mywallet"}` directly. There is no schema-id byte, `cborLength` prefix, or `ercMarker`: the record envelope carries the type and the map is self-delimiting.
+**1. Bare memo (13 bytes).** A payment reference, no attribution.
 
 ```
-a2                          CBOR map(2)
-  61 61                       text "a"  (key)
-  67 62 61 73 65 61 70 70     text "baseapp"
-  61 77                       text "w"  (key)
-  68 6d 79 77 61 6c 6c 65 74  text "mywallet"
-
-= a2616167626173656170706177686d7977616c6c6574  (22 bytes)
+metadata = "invoice 4471"
+hex      = 6c696e766f6963652034343731
 ```
 
-**Step 2 — record (type 1, whole-transaction scope).**
-
-Scope is absent (whole transaction), so the record map has two pairs: `type` and `payload`. The payload value is the attribution map nested directly.
+**2. Attribution (22 bytes).** Wallet and application identify themselves.
 
 ```
-a2                          map(2)          ← record
-  00  01                      key 0 (type) = 1 (attribution)
-  02                          key 2 (payload) =
-    a2 ...                       the attribution map (22 bytes)
+metadata = { a: "baseapp", w: "mywallet" }
+hex      = a2 6161 6762617365617070 6177 686d7977616c6c6574
 ```
 
-Key/value layout at a glance:
+**3. Bare commitment (34 bytes).** A 32-byte root binding the whole transaction to off-chain data.
 
 ```
-a2 | 00 01 | 02 | a2616167626173656170706177686d7977616c6c6574
-└┘   └──┘   └┘   └──────────────── map(2) ─────────────────────┘
- │    type   payload
-map(2)
+metadata = h'<32-byte digest>'
+hex      = 5820 <32 bytes>
 ```
 
-**Step 3 — metadata field (array of one record).**
+**4. Attribution + memo (37 bytes).** Who sent it and why, in one map.
 
 ```
-81                          array(1)
-  a2 00 01 02              record (26 bytes)
-  a2616167626173656170706177686d7977616c6c6574
-
-metadata = 0x81a2000102a2616167626173656170706177686d7977616c6c6574
-         = 27 bytes total
+metadata = { a: "baseapp", w: "mywallet", m: "invoice 4471" }
 ```
 
-**Construction flow (non-normative).** The wallet receives the filled transaction (including the payer's prepended phase 0) from `payer_fillTransaction`, assembles the above `metadata` bytes, and signs `sender_auth` over the complete RLP including `metadata`. The payer co-signs the same bytes via `payer_auth`. Both signatures commit to the attribution.
-
-### Self-paid remittance batch with per-payment commitments
-
-**Scenario.** A self-paid transaction sends five USDC remittances (10,000 / 15,000 / 27,000 / 20,000 / 17,000 USDC) as five calls in a single phase. Each transfer is tagged with a commitment to an off-chain receipt (line items, payer/payee reference, compliance memo) scoped to that specific call, so each payment is provably bound to its own document while the contents stay private.
-
-Because the transaction is self-paid there is no payer phase; the sender signs `metadata` directly.
+**5. Attribution + memo + commitment (73 bytes).** Identity, reference, and a receipt hash in one signed map.
 
 ```
-calls:
-  phase 0:
-    call 0: {to: usdcContract, data: <transfer 10,000 USDC to recipient 1>}
-    call 1: {to: usdcContract, data: <transfer 15,000 USDC to recipient 2>}
-    call 2: {to: usdcContract, data: <transfer 27,000 USDC to recipient 3>}
-    call 3: {to: usdcContract, data: <transfer 20,000 USDC to recipient 4>}
-    call 4: {to: usdcContract, data: <transfer 17,000 USDC to recipient 5>}
+metadata = { a: "baseapp", w: "mywallet", m: "invoice 4471", h: h'<32-byte digest>' }
 ```
 
-**Per-payment record (type 2, call scope).** Each record is a commitment scoped to `[0, c]` (phase 0, call `c`). The payload is the 32-byte digest of that payment's receipt; the document is self-describing about its own hash algorithm (here, an example `sha256`).
+**6. Sponsored transaction: whole-tx attribution + phase-scoped memo (42 bytes).** The payer prepends phase 0; the app's transfer is phase 1.
 
 ```
-a3                          map(3)              ← record for call c
-  00  02                      key 0 (type)    = 2 (commitment)
-  01  82 00 0c                key 1 (scope)   = [0, c]
-  02  58 20 <32-byte digest>  key 2 (payload) = bstr(32)
+metadata = [
+  { a: "baseapp", w: "mywallet" },   // whole transaction
+  { m: "invoice 4471", p: 1 }        // phase 1 only
+]
 ```
 
-Each record is 42 bytes. For example, the third payment (27,000 USDC, `c = 2`) has scope `82 00 02` and payload `5820e6cb...4b80`.
-
-**Metadata field (array of five records).**
+**7. Remittance batch committed as one Merkle root (40 bytes).** Five transfers in phase 0, one root over five salted receipts.
 
 ```
-85                          array(5)
-  a3 0002 01 820000 02 5820 e3a7bf1e2fe58d753137cce3595bd6ab1d97556559ae88b48e47d0628ce1321f
-  a3 0002 01 820001 02 5820 8a77a55b25c4c7b982116fa5c585757c2ca4fcf36266f03e79ac4197610e9e70
-  a3 0002 01 820002 02 5820 e6cb354d860108ebf74e31e1c51c68e8a791907de571e26f1e6cf5431c204b80
-  a3 0002 01 820003 02 5820 defedc040caaa126ef3f71f2f3cc04281088da46f887cba2b6387ad6b2727a25
-  a3 0002 01 820004 02 5820 eac1f983fb2102dc75539d3b40c510d19bd2ff091eff630c083211fbfca82451
-
-metadata = 211 bytes total
+metadata = { p: 0, h: h'<32-byte Merkle root>' }
 ```
 
-| Call | Amount (USDC) | Scope | Receipt digest |
-| --- | --- | --- | --- |
-| 0 | 10,000 | `[0,0]` | `0xe3a7bf1e2fe58d753137cce3595bd6ab1d97556559ae88b48e47d0628ce1321f` |
-| 1 | 15,000 | `[0,1]` | `0x8a77a55b25c4c7b982116fa5c585757c2ca4fcf36266f03e79ac4197610e9e70` |
-| 2 | 27,000 | `[0,2]` | `0xe6cb354d860108ebf74e31e1c51c68e8a791907de571e26f1e6cf5431c204b80` |
-| 3 | 20,000 | `[0,3]` | `0xdefedc040caaa126ef3f71f2f3cc04281088da46f887cba2b6387ad6b2727a25` |
-| 4 | 17,000 | `[0,4]` | `0xeac1f983fb2102dc75539d3b40c510d19bd2ff091eff630c083211fbfca82451` |
-
-A consumer reading this transaction recovers five commitment records, each bound to one transfer: anyone later shown a receipt document can verify it against the on-chain digest for the matching payment, while the transaction alone reveals only that each transfer has an associated receipt.
-
-**Variant: one Merkle root for the batch (recommended).** Instead of five per-call records, the wallet builds a Merkle tree over the five receipt digests and carries a single commitment scoped to phase 0. The five leaves are the per-payment digests above; the root is `0x5baa2525c7f452de3a0be045ced4e883886f935d64701d23a486be826e6f3bc0`.
+**8. Intent / solver routing tag (46 bytes).**
 
 ```
-81                          array(1)
-  a3                          map(3)            ← single commitment
-    00 02                       type    = 2
-    01 00                       scope   = 0 (phase 0, all calls)
-    02 5820 5baa2525…6f3bc0     payload = bstr(32) Merkle root
-
-metadata = 0x81a3000201000258205baa2525c7f452de3a0be045ced4e883886f935d64701d23a486be826e6f3bc0
-         = 41 bytes total
+metadata = { a: "myapp", m: { intent: "swap-eth-usdc", solver: "1inch" } }
 ```
 
-This is 41 bytes versus 211 for the five per-call records. Each payment's receipt is still individually provable: a verifier is shown that receipt plus a Merkle proof (the sibling digests) and recomputes the root, and disclosing one receipt reveals only the other leaves' hashes, not their contents.
+**9. Multi-application batch with per-phase attribution (42 bytes).** Two apps share a transaction; the wallet's attribution covers the whole transaction.
+
+```
+metadata = [
+  { a: "defi-app", p: 0 },
+  { a: "nft-app",  p: 1 },
+  { w: "mywallet" }          // whole transaction
+]
+```
+
+**10. Compliance commitment scoped to one call (43 bytes).** A document bound to a specific transfer `[0, 0]`.
+
+```
+metadata = { h: h'<32-byte digest>', p: 0, c: 0 }
+```
 
 ## Rationale
 
-### A typed, self-describing container
+### One value, four forms
 
-The [EIP-8130](./eip-8130.md) `metadata` field is one signed byte string shared by every producer. Without structure, builder attribution, an application memo, and an off-chain commitment cannot coexist without a private agreement on framing. A CBOR array of typed records gives each producer an independent slot: records are appended, not merged, and each carries its own `type` and `scope`. CBOR is compact, self-describing, widely implemented, and has a specified deterministic profile, which matters because the bytes are signed.
+The most common annotation is a single small one: a memo, an attribution, or a commitment. Encoding these as bare CBOR primitives (a text string or a 32-byte byte string) means the field costs only a couple of bytes more than the raw data, with no envelope overhead. A map carries the same primitives by key when more than one is needed, and an array carries several independently scoped maps when multiple parties or scopes are involved. The bare forms are exact shorthands for single-key maps, so a parser can normalize and then treat everything uniformly. Branching on CBOR major type, rather than a leading type tag, is what makes the cheap cases cheap.
 
-### Why CBOR, and why no type byte
+### Reusing ERC-8021 keys
 
-CBOR was chosen over a bespoke binary format because the structural overhead is small (a few bytes per record) and dominated by the payload itself, while CBOR brings a mature tooling ecosystem, a specified deterministic profile for signed data, and byte-level interoperability with [ERC-8021](./eip-8021.md) schema 2, whose attribution map is reused verbatim as the attribution payload. A custom format could save a handful of bytes per record but would forfeit all three, and on rollups the repeated structural bytes compress to near-nothing across a batch.
+Attribution already has a well-specified, registry-backed vocabulary in [ERC-8021](./eip-8021.md) schema 2 (`a`, `w`, `s`, `r`, `m`). Reusing those keys verbatim means existing code registries, payout resolution, and parsers apply with no translation, and an ERC-8021 schema 2 map is a valid `metadata` value as-is. This proposal adds only what schema 2 lacks for [EIP-8130](./eip-8130.md): a commitment key (`h`) and scope keys (`p`, `c`), and the convenience of a text `m` memo. Keeping one shared key space avoids a parallel attribution vocabulary.
 
-No leading magic or version byte is required because the field is never interpreted by the protocol and its length is always known from RLP. That length lets a consumer demand the CBOR decode to consume the field exactly, with no trailing bytes, under canonical-deterministic rules. A field that is not structured per this proposal essentially never satisfies "a canonical array of well-formed record maps that exactly fills the field," so strict decoding identifies the format without spending a byte on every transaction or breaking direct compatibility with a bare schema-2 attribution map. The danger is a *lax* decoder: a large fraction of unrelated byte strings begin with some parseable CBOR item, so accepting a leading item with trailing bytes would cause false positives. The strict full-consume rule, not a tag, is what makes identification safe; a tag is left to a future version for explicit versioning if needed.
+### CBOR
+
+CBOR is compact, self-describing, widely implemented, and has a specified deterministic profile, which matters because the bytes are signed. The structural overhead is a few bytes per map and dominated by the payload, and on rollups the repeated keys compress to near-nothing across a batch. A bespoke binary format could save a handful of bytes but would forfeit the tooling, the deterministic profile, and ERC-8021 compatibility.
+
+### No type byte
+
+The field is never interpreted by the protocol and its length is always known from RLP. That length lets a consumer require the CBOR to consume the field exactly, under canonical-deterministic rules, so a structured value is recognized without spending a byte on a tag. A lax decoder that accepted trailing bytes would mis-read unrelated data, so the strict full-consume rule, not a tag, is what makes identification safe; a tag is left to a future version for explicit versioning.
 
 ### Encoding the top-level field versus a sink address
 
-An alternative transport carries metadata as a no-op call to a reserved sink address inside the `calls` array, using the call's position to express scope. This proposal instead encodes the top-level `metadata` field, for three reasons. First, it keeps metadata out of `calls`, so it can never interact with execution, gas estimation, or phase atomicity. Second, scope is explicit data (`scope`) rather than an emergent property of call placement, so producers do not have to add empty phases to scope a record and consumers do not infer scope from layout. Third, a single signed field with one parser is simpler for wallets and indexers than recognizing and filtering a reserved address across phases. The trade-off is that this design depends on [EIP-8130](./eip-8130.md) defining the `metadata` field, whereas a sink address needs no new transaction field.
+An alternative transport carries metadata as a no-op call to a reserved sink address inside the `calls` array, using the call's position to express scope. This proposal instead encodes the top-level `metadata` field: it keeps metadata out of `calls` so it cannot interact with execution, gas estimation, or phase atomicity; scope is explicit data (`p`/`c`) rather than inferred from call placement, so producers need not add empty phases; and a single signed field with one parser is simpler than recognizing and filtering a reserved address across phases. The trade-off is a dependency on [EIP-8130](./eip-8130.md) defining the `metadata` field.
 
 ### Scope mirrors the calls structure
 
-Metadata is useful at different granularities: a builder code describes the whole transaction, while a remittance memo describes one transfer in a batch. Encoding `scope` as a phase index or `[phase, call]` pair reuses [EIP-8130](./eip-8130.md)'s existing two-level `calls` structure rather than inventing a parallel addressing scheme, so a record points directly at the calls it annotates.
-
-### Scope stability under construction reordering
-
-Using absolute phase indices is safe in practice because the wallet — which both receives the app's attribution intent and assembles the final `calls` — is the sole encoder of `metadata`. When a payer prepends a phase, the wallet observes the final structure and maps the app's calls to their correct index before encoding. The requirement that scope be resolved only after `calls` is finalized makes this explicit. An alternative using relative indices (e.g. offset from end) was considered but adds consumer complexity without solving a real problem: the wallet's position as final assembler already ensures correctness with absolute indices.
+A builder code describes the whole transaction, while a remittance memo describes one transfer in a batch. Encoding scope as a phase index or `[phase, call]` pair reuses [EIP-8130](./eip-8130.md)'s existing two-level `calls` structure rather than inventing a parallel addressing scheme. Absolute indices are safe because the wallet, which both receives the app's intent and assembles the final `calls`, is the sole encoder of `metadata` and resolves indices after the structure is final.
 
 ### Commitments for privacy
 
-Publishing a digest instead of the document keeps sensitive detail (receipt contents, invoice line items, KYC references) off-chain while still binding the transaction to it: anyone later shown the document can verify it against the on-chain digest, but nothing is revealed by the transaction alone. The record carries only the digest; the document is self-describing about its own hashing and format, and is resolved out-of-band. This mirrors how off-chain attestation systems keep the on-chain footprint to a commitment (a hash or Merkle root) and leave storage and delivery to the application, which avoids baking a storage locator or format registry into consensus-adjacent signed data.
-
-### Type as a hint, not a gate
-
-Treating `type` as advisory (with a mandatory opaque fallback) means an unrecognized or future record type never causes a consumer to reject an otherwise valid transaction, and a coincidental byte pattern cannot be mistaken for a structured payload as long as defined types are self-validating.
+Publishing a digest instead of the document keeps sensitive detail (receipt contents, invoice line items, compliance references) off-chain while still binding the transaction to it. The value carries only the digest; the document is self-describing about its own hashing and format and is resolved out-of-band. This mirrors how off-chain attestation systems keep the on-chain footprint to a commitment and leave storage and delivery to the application, avoiding a storage locator or format registry in signed data.
 
 ## Backwards Compatibility
 
-This proposal applies only to the [EIP-8130](./eip-8130.md) `metadata` field and changes nothing on legacy transaction types. During transition, indexers SHOULD continue to parse trailing-bytes data suffixes on legacy transactions while reading structured `metadata` on [EIP-8130](./eip-8130.md) transactions. An [ERC-8021](./eip-8021.md) schema-2 attribution previously carried as a trailing calldata suffix maps directly onto a type `1` attribution record: the schema-2 CBOR map becomes the record `payload` unchanged, with the legacy `ercMarker`, `schemaId` byte, and length prefix dropped. Other legacy `dataSuffix` bytes with no recognized structure MAY be carried as a type `3` opaque record.
+This proposal applies only to the [EIP-8130](./eip-8130.md) `metadata` field and changes nothing on legacy transaction types. During transition, indexers SHOULD continue to parse trailing-bytes data suffixes on legacy transactions while reading structured `metadata` on [EIP-8130](./eip-8130.md) transactions. An [ERC-8021](./eip-8021.md) schema 2 attribution previously carried as a trailing calldata suffix maps directly onto the attribution map here: the schema 2 CBOR map becomes the `metadata` value (or an array element) unchanged, with the legacy `ercMarker`, `schemaId` byte, and length prefix dropped.
 
 ## Security Considerations
 
 ### Unverified metadata
 
-Metadata is an attestation by the signer only: it asserts that the signer committed to those bytes, not that the content is true. Consumers MUST NOT grant trust or privileges based on payload content without independent verification, and MUST sanitize untrusted bytes before use.
+Metadata is an attestation by the signer only: it asserts that the signer committed to those bytes, not that the content is true. Consumers MUST NOT grant trust or privileges based on the content without independent verification, and MUST sanitize untrusted bytes before use. A scope value is a producer's claim, not a protocol guarantee: a map whose `p`/`c` references calls the producer did not create carries no authority.
 
 ### Commitments reveal metadata about existence
 
-A commitment record proves that *some* off-chain document existed and was bound to the transaction at signing time, and its scope reveals which calls that document concerns. Producers SHOULD treat the presence and scope of a commitment as themselves disclosed, and MUST place only an opaque digest, not any recoverable fragment of the document, in the payload. A single hash of a small or low-entropy document is guessable; producers SHOULD give each document a high-entropy salt so the digest does not leak its preimage.
+A commitment proves that *some* off-chain document existed and was bound to the transaction at signing time, and its scope reveals which calls that document concerns. Producers SHOULD treat the presence and scope of a commitment as themselves disclosed, and MUST place only an opaque digest, not any recoverable fragment of the document, in the value. A single hash of a small or low-entropy document is guessable; producers SHOULD give each document a high-entropy salt so the digest does not leak its preimage.
 
-When a batch is committed as a single Merkle root, a proof for one leaf additionally discloses the tree shape, the number of leaves (for example, how many payments a batch contained), and the sibling digests along the proof path. Producers SHOULD treat the leaf count and tree shape as disclosed whenever any proof is shared, and MUST salt each leaf document independently (for example a random `salt` field per document, or `H(salt || document)` as the leaf) so that revealing one leaf does not let an observer confirm guesses about templated sibling documents. Where even the leaf count is sensitive, producers MAY pad the tree with random decoy leaves.
+When a batch is committed as a single Merkle root, a proof for one leaf additionally discloses the tree shape, the number of leaves (for example, how many payments a batch contained), and the sibling digests along the proof path. Producers SHOULD treat the leaf count and tree shape as disclosed whenever any proof is shared, and MUST salt each leaf document independently so that revealing one leaf does not let an observer confirm guesses about templated sibling documents. Where even the leaf count is sensitive, producers MAY pad the tree with random decoy leaves.
 
 ### Malformed and adversarial encodings
 
-Because `metadata` is attacker-influenced bytes, consumers MUST bound decoding work (array length, nesting, record count) and MUST NOT fail transaction processing on a malformed or non-deterministic encoding; such input is treated as opaque. A record whose `scope` references calls it did not produce carries no authority: scope is a producer's claim, not a protocol guarantee.
+Because `metadata` is attacker-influenced bytes, consumers MUST bound decoding work (array length, nesting, map size) and MUST NOT fail transaction processing on a malformed or non-deterministic encoding; such input is treated as opaque.
 
 ## Copyright
 
