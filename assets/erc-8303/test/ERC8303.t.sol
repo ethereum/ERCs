@@ -5,23 +5,23 @@ import {Test} from "forge-std/Test.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
-import {IERCVersion} from "../src/IERCVersion.sol";
-import {ERCVersion} from "../src/ERCVersion.sol";
+import {IERC8303} from "../src/IERC8303.sol";
+import {ERC8303} from "../src/ERC8303.sol";
 import {ERC20VersionedExample} from "../src/examples/ERC20VersionedExample.sol";
 import {ERC721VersionedExample} from "../src/examples/ERC721VersionedExample.sol";
 
-contract ERCVersionConcrete is ERCVersion {}
+contract ERC8303Concrete is ERC8303 {}
 
-contract ERCVersionTest is Test {
+contract ERC8303Test is Test {
     bytes4 private constant INVALID_INTERFACE_ID = 0xffffffff;
-    bytes4 private constant ERC_VERSION_INTERFACE_ID = 0x54fd4d50;
+    bytes4 private constant ERC8303_INTERFACE_ID = 0x54fd4d50;
 
-    ERCVersionConcrete private base;
+    ERC8303Concrete private base;
     ERC20VersionedExample private erc20;
     ERC721VersionedExample private erc721;
 
     function setUp() public {
-        base = new ERCVersionConcrete();
+        base = new ERC8303Concrete();
         erc20 = new ERC20VersionedExample(1_000 ether);
         erc721 = new ERC721VersionedExample();
     }
@@ -36,14 +36,14 @@ contract ERCVersionTest is Test {
         assertGt(bytes(declaredVersion).length, 0);
     }
 
-    function test_BaseSupportsERCVersionInterface() public view {
-        assertTrue(base.supportsInterface(ERC_VERSION_INTERFACE_ID));
+    function test_BaseSupportsERC8303Interface() public view {
+        assertTrue(base.supportsInterface(ERC8303_INTERFACE_ID));
         assertTrue(base.supportsInterface(type(IERC165).interfaceId));
         assertFalse(base.supportsInterface(INVALID_INTERFACE_ID));
     }
 
-    function test_IERCVersionInterfaceIdMatchesSpecification() public pure {
-        assertEq(type(IERCVersion).interfaceId, ERC_VERSION_INTERFACE_ID);
+    function test_IERC8303InterfaceIdMatchesSpecification() public pure {
+        assertEq(type(IERC8303).interfaceId, ERC8303_INTERFACE_ID);
     }
 
     function test_ERC20VersionDoesNotRevertAndReturnsDeclaredVersion() public view {
@@ -54,8 +54,8 @@ contract ERCVersionTest is Test {
         assertGt(bytes(declaredVersion).length, 0);
     }
 
-    function test_ERC20SupportsERCVersionInterface() public view {
-        assertTrue(erc20.supportsInterface(ERC_VERSION_INTERFACE_ID));
+    function test_ERC20SupportsERC8303Interface() public view {
+        assertTrue(erc20.supportsInterface(ERC8303_INTERFACE_ID));
         assertTrue(erc20.supportsInterface(type(IERC165).interfaceId));
         assertFalse(erc20.supportsInterface(INVALID_INTERFACE_ID));
     }
@@ -75,8 +75,8 @@ contract ERCVersionTest is Test {
         assertGt(bytes(declaredVersion).length, 0);
     }
 
-    function test_ERC721SupportsERCVersionAndERC721Interfaces() public view {
-        assertTrue(erc721.supportsInterface(ERC_VERSION_INTERFACE_ID));
+    function test_ERC721SupportsERC8303AndERC721Interfaces() public view {
+        assertTrue(erc721.supportsInterface(ERC8303_INTERFACE_ID));
         assertTrue(erc721.supportsInterface(type(IERC165).interfaceId));
         assertTrue(erc721.supportsInterface(type(IERC721).interfaceId));
         assertTrue(erc721.supportsInterface(type(IERC721Metadata).interfaceId));

@@ -17,8 +17,8 @@ The report contains no high-severity findings. Both low-severity findings are co
 
 **Affected files:**
 
-- `src/ERCVersion.sol`
-- `src/IERCVersion.sol`
+- `src/ERC8303.sol`
+- `src/IERC8303.sol`
 - `src/examples/ERC20VersionedExample.sol`
 - `src/examples/ERC721VersionedExample.sol`
 
@@ -44,8 +44,8 @@ pragma solidity 0.8.34;
 
 **Affected files:**
 
-- `src/ERCVersion.sol`
-- `src/IERCVersion.sol`
+- `src/ERC8303.sol`
+- `src/IERC8303.sol`
 - `src/examples/ERC20VersionedExample.sol`
 - `src/examples/ERC721VersionedExample.sol`
 

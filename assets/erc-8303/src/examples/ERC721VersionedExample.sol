@@ -3,9 +3,9 @@ pragma solidity ^0.8.20;
 
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {ERCVersion} from "../ERCVersion.sol";
+import {ERC8303} from "../ERC8303.sol";
 
-contract ERC721VersionedExample is ERC721URIStorage, ERCVersion {
+contract ERC721VersionedExample is ERC721URIStorage, ERC8303 {
     uint256 private _nextTokenId;
 
     constructor() ERC721("Versioned ERC721", "VER721") {}
@@ -20,9 +20,9 @@ contract ERC721VersionedExample is ERC721URIStorage, ERCVersion {
         public
         view
         virtual
-        override(ERC721URIStorage, ERCVersion)
+        override(ERC721URIStorage, ERC8303)
         returns (bool)
     {
-        return ERCVersion.supportsInterface(interfaceId) || ERC721URIStorage.supportsInterface(interfaceId);
+        return ERC8303.supportsInterface(interfaceId) || ERC721URIStorage.supportsInterface(interfaceId);
     }
 }

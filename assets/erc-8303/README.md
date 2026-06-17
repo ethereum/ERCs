@@ -1,16 +1,16 @@
-# ERC Contract Version Reference Implementation
+# ERC-8303 Contract Version Reference Implementation
 
 > [!WARNING]
-> **This project has not been audited.** It is provided solely to illustrate a reference implementation of `erc-contract-version.md`. Do not use in production without an independent security review.
+> **This project has not been audited.** It is provided solely to illustrate a reference implementation of [ERC-8303](./erc-8303.md). Do not use in production without an independent security review.
 
-A minimal reference implementation of the Contract Version Interface draft, built with Foundry, Solidity `^0.8.20` (compiled at `0.8.34`), EVM `prague`, optimizer enabled, and OpenZeppelin Contracts.
+A minimal reference implementation of [ERC-8303](./erc-8303.md), built with Foundry, Solidity `^0.8.20` (compiled at `0.8.34`), EVM `prague`, optimizer enabled, and OpenZeppelin Contracts.
 
 ## Overview
 
-The draft defines a token-agnostic interface for exposing a contract implementation version string on-chain:
+ERC-8303 defines a token-agnostic interface for exposing a contract implementation version string on-chain:
 
 ```solidity
-interface IERCVersion {
+interface IERC8303 {
     /// @notice Returns the implementation version string.
     /// @return The version value, for example "1.0.0".
     function version() external view returns (string memory);
@@ -35,29 +35,29 @@ For example:
 
 | File | Description |
 |------|-------------|
-| `src/IERCVersion.sol` | Minimal `version()` interface from the draft |
-| `src/ERCVersion.sol` | Reusable OpenZeppelin ERC-165 compatible base implementation with a constant version |
+| `src/IERC8303.sol` | Minimal `version()` interface from ERC-8303 |
+| `src/ERC8303.sol` | Reusable OpenZeppelin ERC-165 compatible base implementation with a constant version |
 | `src/examples/ERC20VersionedExample.sol` | OpenZeppelin ERC-20 example with `version()` support |
 | `src/examples/ERC721VersionedExample.sol` | OpenZeppelin ERC-721 example with `version()` support |
 
 ## Interface Discovery
 
-The draft recommends ERC-165 support. This implementation advertises:
+ERC-8303 recommends ERC-165 support. This implementation advertises:
 
 ```solidity
-type(IERCVersion).interfaceId == 0x54fd4d50
+type(IERC8303).interfaceId == 0x54fd4d50
 ```
 
-`ERCVersion.supportsInterface(0x54fd4d50)` returns `true`, and `supportsInterface(0xffffffff)` returns `false`.
+`ERC8303.supportsInterface(0x54fd4d50)` returns `true`, and `supportsInterface(0xffffffff)` returns `false`.
 
 ## Examples
 
 ### ERC-20
 
-`ERC20VersionedExample` combines OpenZeppelin `ERC20` with `ERCVersion`:
+`ERC20VersionedExample` combines OpenZeppelin `ERC20` with `ERC8303`:
 
 ```solidity
-contract ERC20VersionedExample is ERC20, ERCVersion {
+contract ERC20VersionedExample is ERC20, ERC8303 {
     constructor(uint256 initialSupply) ERC20("Versioned ERC20", "VER20") {
         _mint(msg.sender, initialSupply);
     }
@@ -66,10 +66,10 @@ contract ERC20VersionedExample is ERC20, ERCVersion {
 
 ### ERC-721
 
-`ERC721VersionedExample` combines OpenZeppelin `ERC721URIStorage` with `ERCVersion`:
+`ERC721VersionedExample` combines OpenZeppelin `ERC721URIStorage` with `ERC8303`:
 
 ```solidity
-contract ERC721VersionedExample is ERC721URIStorage, ERCVersion {
+contract ERC721VersionedExample is ERC721URIStorage, ERC8303 {
     uint256 private _nextTokenId;
 
     constructor() ERC721("Versioned ERC721", "VER721") {}
@@ -84,10 +84,10 @@ contract ERC721VersionedExample is ERC721URIStorage, ERCVersion {
         public
         view
         virtual
-        override(ERC721URIStorage, ERCVersion)
+        override(ERC721URIStorage, ERC8303)
         returns (bool)
     {
-        return ERCVersion.supportsInterface(interfaceId) || ERC721URIStorage.supportsInterface(interfaceId);
+        return ERC8303.supportsInterface(interfaceId) || ERC721URIStorage.supportsInterface(interfaceId);
     }
 }
 ```
@@ -100,9 +100,9 @@ https://eips.ethereum.org/erc
 
 ## Design Decisions
 
-- **Single-purpose interface** - `IERCVersion` only exposes `version()`, keeping adoption simple for token and non-token contracts.
-- **Constant version value** - `ERCVersion` exposes a non-empty `VERSION = "1.0.0"` constant and `version()` returns that constant.
-- **ERC-165 support** - `ERCVersion` inherits OpenZeppelin `ERC165` and advertises the draft interface ID.
+- **Single-purpose interface** - `IERC8303` only exposes `version()`, keeping adoption simple for token and non-token contracts.
+- **Constant version value** - `ERC8303` exposes a non-empty `VERSION = "1.0.0"` constant and `version()` returns that constant.
+- **ERC-165 support** - `ERC8303` inherits OpenZeppelin `ERC165` and advertises the ERC-8303 interface ID.
 - **No storage mutation** - the version string is compiled into the implementation and has no setter in this reference implementation.
 - **Token examples use OpenZeppelin** - ERC-20 and ERC-721 examples compose the version interface with standard OpenZeppelin token contracts.
 
@@ -140,11 +140,11 @@ forge test
 
 The tests cover:
 
-- `ERCVersion` base contract directly, via a minimal concrete wrapper.
+- `ERC8303` base contract directly, via a minimal concrete wrapper.
 - `version()` returns the declared constant version string.
 - `version()` returns a non-empty string.
-- `type(IERCVersion).interfaceId` matches `0x54fd4d50`.
-- ERC-165 discovery returns `true` for `IERCVersion`.
+- `type(IERC8303).interfaceId` matches `0x54fd4d50`.
+- ERC-165 discovery returns `true` for `IERC8303`.
 - ERC-165 discovery returns `false` for `0xffffffff`.
 - ERC-20 behavior remains intact.
 - ERC-721 behavior remains intact.
