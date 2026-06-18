@@ -1,0 +1,248 @@
+---
+eip: <to be assigned>
+title: Smart Contract Emergency Response
+description: A minimal standard interface for on-chain emergency response, requiring implementing contracts to expose callable emergency functions with a tamper-proof on-chain event trail.
+author: Jeff Fei (@77eff) <j.fei@ant-intl.com>, Kenny Kung (@kennyk10) <kenny.kung@ant-intl.com>, Shulei (@baishuo13) <shulei.shu@ant-intl.com>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-smart-contract-emergency-response/28750
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-06-18
+requires: 165
+---
+
+## Abstract
+
+This ERC defines a minimal standard interface for smart contracts that require on-chain emergency response capabilities. The interface mandates two external functions that implementing contracts must expose, each accepting a numeric parameter that selects which branch of response or recovery logic to execute, and a corresponding event that must be emitted each time those functions are called.
+
+## Motivation
+
+Smart contract exploits, particularly those involving key compromise, unauthorized privilege escalation, and other on-chain attacks, frequently complete within a single transaction or a handful of blocks. The response window is measured in seconds. Yet the current state of practice treats emergency response as an operational concern addressed after deployment: contracts implement emergency capabilities ad-hoc, with inconsistent function names, inconsistent event structures, and no shared interface for external systems to rely on.
+
+This creates compounding failures across the contract lifecycle:
+
+- At design time: Security architects cannot pre-design response procedures for an interface that does not yet exist.
+- At audit time: Auditors cannot verify emergency response behavior against a standard. They must reverse-engineer intent from bespoke implementations.
+- At operation time: Automated monitoring systems cannot trigger or observe pre-authorized responses through a known interface, because no known interface exists.
+- At incident time: Responders improvise under pressure, calling functions they may not have tested, against contracts whose emergency behavior was never formally specified.
+
+The result is that organizations with sophisticated detection capabilities are still slow to respond, because the response path was never standardized.
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+The interface MUST include the following interface:
+
+### Interface
+
+The `IEmergencyResponse` interface defines the standard functions and events for emergency response, ensuring interoperability and consistency across implementations.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+/// @title IEmergencyResponse
+/// @notice Minimal standard interface for on-chain emergency response.
+
+interface IEmergencyResponse {
+
+    /// @notice Emitted when triggerEmergency() is successfully executed.
+    /// @param executor       The address that called triggerEmergency().
+    /// @param emergencyState The emergencyState identifier passed to triggerEmergency().
+    event EmergencyTriggered(address indexed executor, uint8 emergencyState);
+
+    /// @notice Emitted when resolveEmergency() is successfully executed.
+    /// @param executor       The address that called resolveEmergency().
+    /// @param emergencyState The emergencyState identifier passed to resolveEmergency().
+    event EmergencyResolved(address indexed executor, uint8 emergencyState);
+
+    /// @notice Trigger a predefined emergency response.
+    /// @param emergencyState An implementer-defined identifier selecting which response
+    ///                       branch or standard operating procedure to execute.
+    /// @dev    The implementing contract defines what each emergencyState value triggers.
+    ///         MUST emit EmergencyTriggered upon successful execution.
+    ///         The implementing contract MUST restrict access to authorized callers.
+    function triggerEmergency(uint8 emergencyState) external;
+
+    /// @notice Resolve an emergency and return to normal operation.
+    /// @param emergencyState An implementer-defined identifier selecting which recovery
+    ///                       branch or standard operating procedure to execute.
+    /// @dev    The implementing contract defines what each emergencyState value triggers.
+    ///         MUST emit EmergencyResolved upon successful execution.
+    ///         The implementing contract MUST restrict access to authorized callers.
+    function resolveEmergency(uint8 emergencyState) external;
+}
+```
+
+### Behaviour Requirements
+
+#### `triggerEmergency(uint8 emergencyState)`
+
+- Implementing contracts MUST expose a function with the exact signature `triggerEmergency(uint8)` as either `external` or `public`.
+- The function MUST enforce authorization checks ensuring only permitted callers can execute emergency response (e.g. using Role-Based Access Control).
+- The function MUST emit `EmergencyTriggered(msg.sender, emergencyState)` upon successful execution.
+- The `emergencyState` parameter is implementer-defined. The implementing contract defines which branches or procedures each value invokes, and MUST document all supported emergencyState values.
+- The implementing contract defines all other behaviour: what actions are taken, who may call the function, and under what conditions.
+
+#### `resolveEmergency(uint8 emergencyState)`
+- Implementing contracts MUST expose a function with the exact signature `resolveEmergency(uint8)` as either `external` or `public`.
+- The function MUST enforce authorization checks ensuring only permitted callers can execute emergency recovery (e.g. using Role-Based Access Control).
+- The function MUST emit `EmergencyResolved(msg.sender, emergencyState)` upon successful execution.
+- The `emergencyState` parameter is implementer-defined. The implementing contract defines which branches or procedures each value invokes, and MUST document all supported emergencyState values.
+- The implementing contract defines all other behaviour: what recovery actions are taken, who may call the function, and under what conditions.
+
+#### `EmergencyTriggered`
+- The event MUST be emitted once per successful call to `triggerEmergency(uint8)`.
+- The `executor` field MUST be the address of the immediate caller (`msg.sender`).
+- The `emergencyState` field MUST be the value passed to the function call.
+
+#### `EmergencyResolved`
+- The event MUST be emitted once per successful call to `resolveEmergency(uint8)`.
+- The `executor` field MUST be the address of the immediate caller (`msg.sender`).
+- The `emergencyState` field MUST be the value passed to the function call.
+
+## Rationale
+
+### Minimal interface over prescribed implementation
+
+This EIP standardizes an interface rather than an implementation (a base contract with prescribed behavior). The alternative, standardizing a concrete implementation, was considered and rejected. An implementation standard prescribes what emergency actions exist (pause, freeze, transfer) and how they behave. This forces one threat model onto all contract types. An interface standard, by contrast, requires only that a contract exposes a known entry point and a known observable, allowing each contract to define its own emergency behavior while remaining interoperable with monitoring systems, auditors, and responders that share no knowledge of that behavior.
+
+### EmergencyState parameter for branch selection
+
+The `uint8 emergencyState` parameter enables a single standardized entry point to dispatch multiple distinct response or recovery procedures. Without it, contracts with multiple emergency scenarios would either expose multiple non-standard functions (breaking interoperability) or collapse all scenarios into one function with no way for callers to select a procedure. The `uint8` range (0-255) is sufficient for any realistic set of emergency procedures a single contract would define. The parameter semantics are deliberately left to the implementing contract: this EIP does not assign meaning to any specific value. Implementations MUST document all supported emergencyState values.
+
+### Mandatory authorization with implementation-defined mechanism
+
+The interface requires that `triggerEmergency(uint8)` MUST enforce authorization, but deliberately does not prescribe the mechanism. This reflects the same principle as the interface-only design: the outcome (that only permitted callers can trigger emergency response) is standardized, but the means is not. Different deployments have legitimately different authorization requirements: some will use a dedicated role, others a multi-signature wallet, others an on-chain governance process. Mandating a specific mechanism would exclude valid implementations without improving security. What matters is that authorization exists and is enforced. How it is enforced is the responsibility of the implementing contract and its auditors.
+
+## Backwards Compatibility
+
+This EIP introduces a new interface and does not modify any existing opcode, precompile, or ERC. Existing contracts that implement emergency capabilities through non-standard function names are not affected. Adoption is strictly opt-in.
+
+## Reference Implementation
+
+The following is a minimal reference implementation demonstrating the recommended pattern: access-controlling `triggerEmergency(uint8)` to a dedicated `EMERGENCY_TRIGGER_ROLE` and `resolveEmergency(uint8)` to a dedicated `EMERGENCY_RESOLVE_ROLE`, and emitting the mandatory events. The internal actions taken (pause, freeze, asset transfer) are illustrative only and not part of the standard.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+import "../interface/IEmergencyResponse.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
+/// @title EmergencyResponse, Reference Implementation
+/// @notice Demonstrates the RECOMMENDED pattern for IEmergencyResponse.
+///         EMERGENCY_TRIGGER_ROLE is the designated role for calling triggerEmergency()
+///         and EMERGENCY_RESOLVE_ROLE is the designated role for calling resolveEmergency().
+///         The internal implementations are contract-specific and are NOT defined by the standard.
+abstract contract EmergencyResponse is IEmergencyResponse, AccessControl {
+
+    /// @notice Dedicated role for triggering emergency response.
+    /// @dev    RECOMMENDED: held by a multi-signature wallet (threshold >= 2-of-N).
+    ///         This role name and its use are a recommendation, not a requirement of
+    ///         IEmergencyResponse.
+    bytes32 public constant EMERGENCY_TRIGGER_ROLE = keccak256("EMERGENCY_TRIGGER_ROLE");
+
+    /// @notice Dedicated role for resolving emergency response.
+    /// @dev    RECOMMENDED: held by a multi-signature wallet (threshold >= 2-of-N).
+    ///         This role name and its use are a recommendation, not a requirement of
+    ///         IEmergencyResponse.
+    bytes32 public constant EMERGENCY_RESOLVE_ROLE = keccak256("EMERGENCY_RESOLVE_ROLE");
+
+    /// @inheritdoc IEmergencyResponse
+    function triggerEmergency(uint8 emergencyState) external override onlyRole(EMERGENCY_TRIGGER_ROLE) {
+        _executeEmergencyTrigger(emergencyState);
+        emit EmergencyTriggered(msg.sender, emergencyState);
+    }
+
+    /// @inheritdoc IEmergencyResponse
+    function resolveEmergency(uint8 emergencyState) external override onlyRole(EMERGENCY_RESOLVE_ROLE) {
+        _executeEmergencyResolve(emergencyState);
+        emit EmergencyResolved(msg.sender, emergencyState);
+    }
+
+    /// @notice Internal hook: override to define contract-specific emergency actions.
+    /// @param emergencyState The emergencyState identifier forwarded from triggerEmergency().
+    function _executeEmergencyTrigger(uint8 emergencyState) internal virtual;
+
+    /// @notice Internal hook: override to define contract-specific resolve actions.
+    /// @param emergencyState The emergencyState identifier forwarded from resolveEmergency().
+    function _executeEmergencyResolve(uint8 emergencyState) internal virtual;
+}
+```
+
+### Example concrete implementation
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "./EmergencyResponse.sol";
+
+contract TokenWithEmergencyResponse is ERC20, Pausable, EmergencyResponse {
+
+    constructor(address emergencyTriggerer, address emergencyResolver)
+        ERC20("TokenWithEmergencyResponse", "TER")
+    {
+        _grantRole(EMERGENCY_TRIGGER_ROLE, emergencyTriggerer);
+        _grantRole(EMERGENCY_RESOLVE_ROLE, emergencyResolver);
+    }
+
+    function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused returns (bool) {
+        return super.transferFrom(from, to, amount);
+    }
+
+    /// @dev emergencyState 3 (Frozen) = pause transfers; other values revert.
+    function _executeEmergencyTrigger(uint8 emergencyState) internal override {
+        if (emergencyState == 3) {
+            _pause();
+            return;
+        }
+        revert("unsupported emergencyState");
+    }
+
+    /// @dev emergencyState 3 (Frozen) = unpause transfers; other values revert.
+    function _executeEmergencyResolve(uint8 emergencyState) internal override {
+        if (emergencyState == 3) {
+            _unpause();
+            return;
+        }
+        revert("unsupported emergencyState");
+    }
+}
+```
+
+## Security Considerations
+
+### Access control is mandatory
+
+Implementing contracts MUST restrict `triggerEmergency(uint8)` to authorized callers. Because the function selector is publicly known, an unprotected implementation is a direct attack surface. The authorization mechanism is implementation-defined; other access control mechanisms are acceptable.
+
+### Emergency role key compromise
+
+If the authorized caller of `triggerEmergency(uint8)` or `resolveEmergency(uint8)` is a single key, compromise of that key gives an attacker unilateral ability to execute or reverse emergency actions. Implementors are encouraged to consider the following mitigations:
+
+- Using a multi-signature wallet with a threshold of at least 2-of-N signers, where N ≥ 3.
+- Making authorization grants time-bound to prevent stale key exposure from accumulating privilege over time.
+- Separating the authorization for `triggerEmergency(uint8)` and `resolveEmergency(uint8)` into distinct roles. If a shared key is compromised, the attacker may undo the response immediately after via `resolveEmergency(uint8)`. Keeping trigger and resolve authorization separate ensures that even if one is compromised, the other remains under control.
+
+### Denial of service through emergency activation
+
+A privileged caller may abuse `triggerEmergency(uint8)` to cause denial of service, for example, permanently pausing a contract with no recovery path. Implementing contracts should ensure that emergency actions are reversible through `resolveEmergency(uint8)` where possible, and should document clearly which actions are irreversible and under what governance conditions they can be undone.
+
+### Overlapping emergencyState side effects
+
+Whether multiple `triggerEmergency(uint8)` calls with different emergencyState values may be active concurrently is an implementation decision. Implementations that allow concurrency should be aware of the following risks. If two emergencyState values share a side effect (for example, both call `_pause()`), the second call will revert because the contract is already paused. More critically, resolving one emergencyState may undo a shared side effect while another emergencyState is still logically active. For example, `triggerEmergency(1)` pauses the contract, then `triggerEmergency(2)` is called, then `resolveEmergency(1)` unpauses the contract even though emergencyState 2 is still in effect. Implementing contracts that support multiple concurrent active emergencyState values should track which are active in storage and guard shared side effects against the full set of active emergencyState values before executing.
+
+### Emergency response effectiveness depends on response time
+
+Most attacks complete within a single transaction or a small number of blocks, leaving no time for a human responder to invoke `triggerEmergency(uint8)` reactively. To maximize the effectiveness of this interface, implementors are encouraged to pair it with a delay mechanism on high-impact operations, such as a timelock on large withdrawals or privileged state changes. A timelock creates a window between when a malicious action is initiated and when it settles, allowing `triggerEmergency(uint8)` to be invoked and protective actions to take effect before the damage is complete. Without such a delay, emergency response can only limit further harm after the fact rather than prevent it.
+
+## Copyright
+Copyright and related rights waived via [CC0](../LICENSE.md).
