@@ -1,0 +1,422 @@
+---
+eip: <to be assigned>
+title: Role-Based Timelock Operation
+description: Introduces per-role time delays on privileged smart contract operations, providing a mandatory intervention window where defenders can detect anomalous on-chain scheduling alerts and cancel malicious actions before irreversible damage occurs.
+author: Jeff Fei (@77eff) <j.fei@ant-intl.com>, Kenny Kung (@kennyk10) <kenny.kung@ant-intl.com>, Shulei (@baishuo13) <shulei.shu@ant-intl.com>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-role-based-timelock-operation/28742
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-06-18
+requires: 165
+---
+
+## Abstract
+
+This proposal defines a standard interface for enforcing time delays on privileged role operations in smart contracts. When a role-bearing account calls a sensitive function, the call first emits an on-chain event for monitoring and alerting; the operation becomes consumable only after a per-role delay has elapsed. This delay window provides defenders an intervention opportunity when privileged keys are compromised.
+
+## Motivation
+
+Access control is a fundamental and persistent security concern in Ethereum smart contracts. Role-based access control (RBAC) systems grant privileged accounts the ability to perform sensitive operations such as pausing contracts, upgrading implementations, and modifying configurations. When an attacker compromises a privileged role key, they can immediately execute devastating operations with no intervention window. This immediate-execution model leaves protocols with no time to detect the compromise, coordinate a response, or prevent the damage. In each case, a compromised key enables instant, irreversible damage. Traditional institutional security models require time-delayed authorization for high-privilege operations precisely to address this class of risk, yet no standardized on-chain mechanism exists for enforcing such delays at the role level.
+
+This proposal provides a composable interface standard that introduces per-role execution delays into smart contract access control. By requiring that sensitive operations be scheduled before execution, the interface creates an on-chain audit trail and a mandatory delay window. During this window, monitoring systems can detect anomalous scheduling events, defenders can cancel or freeze suspicious operations, and protocols can respond before damage occurs.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+Every contract compliant with this ERC MUST implement the `IRoleBasedTimelock` interface. Contracts SHOULD also implement [ERC-165](./eip-165.md) to support interface detection.
+
+```solidity
+/// @title IRoleBasedTimelock
+/// @notice Core interface for role-based timelock enforcement.
+/// @dev Implementations MUST implement ERC-165 interface detection.
+/// @dev The opHash is computed as keccak256(abi.encode(role, caller, target, selector, paramsHash)).
+interface IRoleBasedTimelock {
+
+    /// @notice Emitted when a role's timelock delay is changed.
+    event RoleTimelockDelayChanged(
+        bytes32 indexed role,
+        uint256 oldDelay,
+        uint256 newDelay
+    );
+
+    /// @notice Emitted when an operation is scheduled.
+    /// @dev Off-chain monitoring systems SHOULD watch this event for anomaly detection.
+    event OperationScheduled(
+        bytes32 indexed role,
+        bytes32 indexed opHash,
+        address initiator,
+        address target,
+        uint256 executionTime
+    );
+
+    /// @notice Emitted when a scheduled operation is cancelled.
+    event OperationCancelled(
+        bytes32 indexed role,
+        bytes32 indexed opHash,
+        address canceller
+    );
+
+    /// @notice Emitted when a scheduled operation is executed/consumed.
+    event OperationExecuted(
+        bytes32 indexed role,
+        bytes32 indexed opHash,
+        address executor
+    );
+
+    /// @notice Sets the timelock delay for a given role.
+    /// @dev MUST emit RoleTimelockDelayChanged event.
+    /// @dev MUST require caller has appropriate authorization (e.g., the admin role of the specified role).
+    /// @param role The role identifier.
+    /// @param delay The new delay in seconds.
+    function setRoleTimelockDelay(bytes32 role, uint256 delay) external;
+
+    /// @notice Returns the timelock delay in seconds for a given role.
+    /// @dev A delay of 0 means operations for this role execute immediately without scheduling.
+    /// @param role The role identifier (bytes32).
+    /// @return delay The timelock delay in seconds.
+    function getRoleTimelockDelay(bytes32 role) external view returns (uint256 delay);
+
+    /// @notice Schedules a timelocked operation for a given role.
+    /// @dev MUST emit OperationScheduled event.
+    /// @dev If the role delay is 0, the operation MAY execute immediately without scheduling.
+    /// @dev Scheduling an operation with the same opHash as a pending (non-executed, non-cancelled)
+    ///      operation MUST overwrite the previous schedule, resetting the executionTime timestamp.
+    /// @dev Scheduling an operation does NOT execute it. Execution occurs when the role-bearing
+    ///      account subsequently calls the target function (Integrated Pattern) or calls
+    ///      executeOperation (Controller Pattern), after the delay has elapsed.
+    /// @param role The role identifier.
+    /// @param selector The function selector (bytes4).
+    /// @param target The target contract address. For Integrated Pattern implementations, this parameter is ignored and address(this) is used.
+    /// @param paramsHash The keccak256 hash of the ABI-encoded function parameters.
+    /// @return opHash The computed operation hash.
+    function scheduleOperation(
+        bytes32 role,
+        bytes4 selector,
+        address target,
+        bytes32 paramsHash
+    ) external returns (bytes32 opHash);
+
+    /// @notice Cancels a scheduled operation.
+    /// @dev MUST emit OperationCancelled event.
+    /// @dev Cancellation is NOT subject to timelock delay (immediate effect).
+    /// @dev Only the original initiator or an authorized canceller (typically the role admin) MAY cancel an operation.
+    /// @param opHash The operation hash to cancel.
+    function cancelOperation(bytes32 opHash) external;
+
+    /// @notice Returns the status of a specific operation identified by its opHash.
+    /// @param opHash The operation hash.
+    /// @return executionTime Timestamp when the operation becomes consumable.
+    /// @return executed True if the operation has been executed.
+    /// @return cancelled True if the operation has been cancelled.
+    function getOperationStatus(bytes32 opHash) external view returns (
+        uint256 executionTime,
+        bool executed,
+        bool cancelled
+    );
+}
+```
+
+### Core Definitions
+
+- Role Timelock Delay: A `uint256` value in seconds representing the mandatory waiting period between when an operation is scheduled and when it may be consumed/executed for a given role. A delay of 0 means operations for that role execute immediately without requiring scheduling.
+
+- paramsHash: A `bytes32` value computed as `keccak256(abi.encode(...parameters...))`, where the parameter encoding follows the function's ABI encoding convention. This is equivalent to `keccak256(calldata[4:])`. The `paramsHash` identifies the specific parameters of a scheduled operation.
+
+- opHash: A `bytes32` value that uniquely identifies a scheduled operation. The `opHash` MUST be computed as: `opHash = keccak256(abi.encode(role, caller, target, selector, paramsHash))`, Where:
+    - `role` is the `bytes32` role identifier
+    - `caller` is the `address` of the account scheduling the operation (`msg.sender` at schedule time)
+    - `target` is the `address` of the contract where the operation will execute
+    - `selector` is the `bytes4` function selector
+    - `paramsHash` is the `bytes32` hash of the ABI-encoded parameters
+
+- Scheduled Operation: An operation that has been queued via `scheduleOperation` with its `executionTime` timestamp set to `block.timestamp + roleTimelockDelay`. A scheduled operation remains pending until it reaches a terminal state: executed (consumed via the target function call or `executeOperation`) or cancelled (via `cancelOperation`). Rescheduling a pending operation overwrites the previous schedule and resets the delay, but does not transition the operation to a terminal state.
+
+- Pending Operation Fields: A pending operation has the following properties:
+    - `role`: `bytes32` role identifier associated with the operation
+    - `initiator`: `address` of the account that scheduled the operation
+    - `executionTime`: `uint256` timestamp when the operation becomes consumable
+    - `executed`: `bool` indicating whether the operation has been consumed
+    - `cancelled`: `bool` indicating whether the operation has been cancelled
+
+### Parallel Scheduling
+
+When multiple operations are scheduled simultaneously, each is identified by its unique `opHash`. Since `opHash` is derived from `(role, caller, target, selector, paramsHash)`, operations with different parameters produce different hashes and are independently scheduleable and consumable.
+
+- Rescheduling: If `scheduleOperation` is called with parameters that produce the same `opHash` as a pending operation, the implementation MUST overwrite the previous schedule. The `executionTime` timestamp is reset to `block.timestamp + delay`, and the `OperationScheduled` event is emitted again. This allows correcting parameters or resetting the delay window.
+
+### Cancellation Model
+
+The cancellation model provides two layers of security:
+
+#### Layer 1 — Initiator Cancellation
+
+- The account that scheduled an operation MAY cancel their own pending operation.
+
+- Cancellation takes immediate effect (no timelock applies).
+
+#### Layer 2 — Role Admin Cancellation (Optional)
+
+- Implementations MAY allow holders of the privileged role (e.g., the role's admin role) to cancel any pending operation for that role.
+
+- Cancellation takes immediate effect (no timelock applies).
+
+- This layer provides a safety valve leveraging the existing access control hierarchy.
+
+## Rationale
+
+### Design Decisions
+
+#### Per-role delays mechanism
+
+Existing timelock mechanisms attach delays to specific contract calls and require a separate timelock contract to hold privileged rights. Per-role delays provide finer-grained security. Each role's delay can be independently configured without affecting other roles.
+
+#### Schedule-for-alerting then consume-on-call
+
+The fundamental security value of a timelock is the delay window between intent and execution. The `OperationScheduled` event serves as an on-chain alarm bell—monitoring systems can detect anomalous scheduling and alert defenders. But the operation must still be explicitly consumed, which allows the implementation to verify at consumption time that:
+1. the operation was not cancelled or frozen.
+2. the delay has elapsed.
+3. the caller is authorized. 
+
+This two-phase design—alert then consume—ensures that the delay window cannot be bypassed and that defenders retain intervention capabilities throughout.
+
+#### Two-layer cancellation using role admin
+
+Layer 1 (initiator) allows users to cancel their own operations if they entered wrong parameters. Layer 2 (role-based) provides a safety valve by leveraging the existing access control system. This approach avoids introducing a dedicated cancellation role and its associated attack surface.
+
+## Backwards Compatibility
+
+This proposal is an opt-in interface. Existing contracts that do not implement this interface are unaffected. Contracts implementing this interface can maintain compatibility with underlying access control systems (e.g., OpenZeppelin AccessControl, ERC-173).
+
+### Migration Path:
+
+1. Integrated Pattern: Extend existing contracts with `IRoleBasedTimelock` and add `onlyTimelockedRole` modifiers to sensitive functions. Existing function signatures are preserved; only a prior `scheduleOperation` call is added to the workflow.
+
+2. Controller Pattern: Deploy a new contract implementing `IRoleBasedTimelockExecute` alongside existing contracts. Existing contracts grant their privileged roles to the controller contract.
+
+### Breaking Changes:
+
+None for non-implementing contracts. Implementing contracts must ensure that existing access control semantics are preserved; this interface adds a delay layer but does not change underlying permission grants.
+
+## Reference Implementation
+
+The Integrated Pattern provides the simplest developer experience for single-contract deployments—the timelock is enforced by a modifier on the actual function, and the function call itself consumes the schedule. This pattern has lower gas overhead and preserves the original function signature as the execution entry point.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.0;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IRoleBasedTimelock} from "./IRoleBasedTimelock.sol";
+
+/// @title RoleBasedTimelock
+/// @notice Reference implementation of IRoleBasedTimelock using Integrated Pattern.
+/// @dev In the Integrated Pattern, timelock checks are embedded directly into the target contract
+///      via the `onlyTimelockedRole` modifier. Operations are scheduled, then the protected
+///      function is called after the delay elapses, consuming the scheduled operation.
+contract RoleBasedTimelock is AccessControl, IRoleBasedTimelock {
+
+    /// @notice Tracks the lifecycle state of a scheduled timelocked operation.
+    /// @param role The role identifier associated with the operation.
+    /// @param initiator The address that scheduled the operation.
+    /// @param executionTime The timestamp after which the operation may be executed.
+    /// @param executed Whether the operation has been executed (consumed).
+    /// @param cancelled Whether the operation has been cancelled.
+    struct OperationStatus {
+        bytes32 role;
+        address initiator;
+        uint256 executionTime;
+        bool executed;
+        bool cancelled;
+    }
+
+    /// @dev Reverts when a timelocked operation is called before its execution time
+    ///      or when no matching scheduled operation exists.
+    error OperationNotReady(bytes32 opHash);
+
+    /// @dev Reverts when a timelocked operation cannot be executed due to a freeze.
+    ///      Available for extensions that implement freeze functionality.
+    error OperationFrozen(bytes32 opHash);
+
+    /// @dev Reverts when a global freeze is active and prevents operation execution.
+    ///      Available for extensions that implement freeze functionality.
+    error GlobalFreezeActive();
+
+    /// @dev Maps role identifiers to their timelock delay in seconds.
+    mapping(bytes32 => uint256) private _roleTimelockDelays;
+
+    /// @dev Maps operation hashes to their lifecycle status.
+    mapping(bytes32 => OperationStatus) private _operations;
+
+    /// @inheritdoc IRoleBasedTimelock
+    function setRoleTimelockDelay(bytes32 role, uint256 delay) public virtual onlyRole(getRoleAdmin(role)) {
+        _setRoleTimelockDelay(role, delay);
+    }
+
+    /// @dev Internal function to set the timelock delay for a role.
+    ///      Can be used in constructors to bypass onlyRole checks during initialization.
+    function _setRoleTimelockDelay(bytes32 role, uint256 delay) internal virtual {
+        uint256 oldDelay = _roleTimelockDelays[role];
+        _roleTimelockDelays[role] = delay;
+        emit RoleTimelockDelayChanged(role, oldDelay, delay);
+    }
+
+    /// @inheritdoc IRoleBasedTimelock
+    function getRoleTimelockDelay(bytes32 role) public view virtual returns (uint256) {
+        return _roleTimelockDelays[role];
+    }
+
+    /// @inheritdoc IRoleBasedTimelock
+    /// @dev The `target` parameter is ignored in the Integrated Pattern because the timelock
+    ///      is embedded within the target contract itself (i.e., `address(this)` is always used).
+    function scheduleOperation(
+        bytes32 role,
+        bytes4 selector,
+        address /* target */,
+        bytes32 paramsHash
+    ) external onlyRole(role) returns (bytes32 opHash) {
+        opHash = keccak256(abi.encode(role, msg.sender, address(this), selector, paramsHash));
+        uint256 delay = _roleTimelockDelays[role];
+        uint256 executionTime = block.timestamp + delay;
+
+        _operations[opHash] = OperationStatus({
+            role: role,
+            initiator: msg.sender,
+            executionTime: executionTime,
+            executed: false,
+            cancelled: false
+        });
+
+        emit OperationScheduled(role, opHash, msg.sender, address(this), executionTime);
+    }
+
+    /// @inheritdoc IRoleBasedTimelock
+    /// @dev Only the original initiator of the operation or an account with the role's admin
+    ///      role can cancel a scheduled operation. Cancellation takes effect immediately.
+    function cancelOperation(bytes32 opHash) external {
+        OperationStatus storage status = _operations[opHash];
+        require(!status.executed, "Already executed");
+        require(!status.cancelled, "Already cancelled");
+        require(
+            msg.sender == status.initiator || hasRole(getRoleAdmin(status.role), msg.sender),
+            "Not authorized to cancel"
+        );
+
+        status.cancelled = true;
+        emit OperationCancelled(status.role, opHash, msg.sender);
+    }
+
+    /// @inheritdoc IRoleBasedTimelock
+    function getOperationStatus(bytes32 opHash) external view returns (
+        uint256 executionTime,
+        bool executed,
+        bool cancelled
+    ) {
+        OperationStatus storage status = _operations[opHash];
+        return (status.executionTime, status.executed, status.cancelled);
+    }
+
+    /// @notice Computes the operation hash for the current call context.
+    /// @dev Derives the opHash from the role, caller, contract address, function selector,
+    ///      and the keccak256 hash of the ABI-encoded parameters.
+    function _getOpHash(bytes32 role) internal view returns (bytes32) {
+        bytes4 selector = msg.sig;
+        bytes32 paramsHash = keccak256(msg.data[4:]);
+        return keccak256(abi.encode(role, msg.sender, address(this), selector, paramsHash));
+    }
+
+    /// @notice Validates that a timelocked operation has been scheduled and its delay has elapsed.
+    /// @dev Reverts with {OperationNotReady} if the role has a non-zero delay and either:
+    ///      - No matching operation has been scheduled (executionTime == 0),
+    ///      - The operation has already been executed or cancelled, or
+    ///      - The current timestamp is before the operation's execution time.
+    ///      When the role's delay is 0, this function is a no-op (no timelock enforcement).
+    function _checkRoleTimelock(bytes32 role) internal view virtual {
+        uint256 delay = _roleTimelockDelays[role];
+        if (delay > 0) {
+            bytes32 opHash = _getOpHash(role);
+            OperationStatus storage op = _operations[opHash];
+            if (op.executionTime == 0 || op.executed || op.cancelled) revert OperationNotReady(opHash);
+            if (block.timestamp < op.executionTime) revert OperationNotReady(opHash);
+        }
+    }
+
+    /// @notice Marks a timelocked operation as executed after its protected function completes.
+    /// @dev Emits an {OperationExecuted} event. Must be called after the protected function body
+    ///      to consume the scheduled operation and prevent re-execution.
+    function _operationExecutedHook(bytes32 role) internal virtual {
+        bytes32 opHash = _getOpHash(role);
+        OperationStatus storage op = _operations[opHash];
+        op.executed = true;
+        emit OperationExecuted(role, opHash, msg.sender);
+    }
+
+    /// @notice Modifier that enforces timelock delay before and marks execution after a function call.
+    /// @dev Checks the timelock before the function body via {_checkRoleTimelock}, then marks
+    ///      the operation as executed via {_operationExecutedHook} after the function body.
+    ///      Use this modifier on functions that should be protected by role-based timelocks.
+    modifier onlyTimelockedRole(bytes32 role) {
+        _checkRoleTimelock(role);
+        _;
+        _operationExecutedHook(role);
+    }
+
+    // Example: protected function with timelock
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    function mint(address to, uint256 amount)
+        external
+        onlyRole(MINTER_ROLE)
+        onlyTimelockedRole(MINTER_ROLE)
+    {
+        // Mint logic here
+    }
+
+    /// @dev Returns true if this contract implements the interface defined by `interfaceId`.
+    ///      Supports {IRoleBasedTimelock} and {AccessControl} interfaces.
+    function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControl) returns (bool) {
+        return
+            interfaceId == this.supportsInterface.selector ||
+            interfaceId == type(IRoleBasedTimelock).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+}
+```
+
+## Security Considerations
+
+### Attack Vectors
+
+1. Compromised Privileged Role Key
+
+If an attacker obtains a privileged role key, they can schedule malicious operations. The delay window provides defenders time to:
+- Detect the compromise via `OperationScheduled` events.
+- Cancel the operation (if holding the privileged role or as the initiator).
+- Freeze operations (if an optional emergency freeze extension is implemented).
+
+The delay window is the core security feature.
+
+2. Queue Flooding
+
+An attacker with a timelocked role could flood the queue with many operations, making it difficult for defenders to identify malicious operations.
+
+3. Front-Running Cancels
+
+A defender sees a malicious `OperationScheduled` event and calls `cancelOperation`. The attacker front-runs the cancel with another `scheduleOperation` of the same operation, resetting the schedule.
+
+Since rescheduling overwrites the previous entry and resets the delay, this attack merely restarts the delay window. The defender can cancel again. Implementations can enforce a cooldown period between rescheduling and cancellation to further mitigate this.
+
+4. Cancellation DoS
+
+Any account with cancellation authority, whether the initiator, a privileged role holder, or another designated canceller, could systematically cancel legitimate operations, effectively denying service to role holders. This is an inherent risk of any centralized cancellation authority.
+
+Mitigations:
+- Accounts granted cancellation authority over other accounts' operations are recommended to use multisig wallets.
+- If the cancellation authority is itself a timelocked role, its own delay should be the longest among all roles it can affect.
+- Optional emergency freeze extensions provide a separate intervention mechanism independent of cancellation authority.
+- Implementations may log cancellation events and enforce cancellation rate limits.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
