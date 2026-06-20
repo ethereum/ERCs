@@ -4,6 +4,7 @@
 # dependencies = [
 #     "vyper==0.4.3",
 #     "eth-abi>=5.0.0",
+#     "eth-hash[pycryptodome]>=0.5.0",
 #     "ipfs-cid>=1.0.0",
 # ]
 # ///
@@ -16,12 +17,14 @@ import vyper
 
 from eth_abi import encode as abi_encode
 
+from eth_hash.auto import keccak
+
 from ipfs_cid import cid_sha256_hash
 
 CONTRACTS_DIR = Path(__file__).parent
 
 DEPLOYMENT_PROXY = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
-SALT = b"\x00" * 32
+SALT = bytes.fromhex("41694b7d9ee12ee32937e32be0f71231655c258fed7493bcc04a854abb253491")
 
 
 def _compile_vyper(contract_path: str) -> bytes:
@@ -50,6 +53,17 @@ def get_init_code() -> bytes:
 
 
 @functools.cache
+def get_deployment_address() -> str:
+    preimage = (
+        b"\xff"
+        + bytes.fromhex(DEPLOYMENT_PROXY[2:])
+        + SALT
+        + keccak(get_init_code())
+    )
+    return "0x" + keccak(preimage)[12:].hex()
+
+
+@functools.cache
 def get_deployment_tx():
     return {
         "to": DEPLOYMENT_PROXY,
@@ -61,6 +75,8 @@ if __name__ == "__main__":
     result = {
         "image_url": get_image_url(),
         "initcode": "0x" + get_init_code().hex(),
+        "salt": "0x" + SALT.hex(),
+        "deployment_address": get_deployment_address(),
         "deployment_tx": get_deployment_tx(),
     }
     print(json.dumps(result, indent=4))
