@@ -1,0 +1,131 @@
+@startuml
+
+title FX Atomic Swap via a Shared ERC-20 Settlement Router\nExample: Party A receives BASE_QTY base tokens and pays QUOTE_QTY quote tokens
+
+autonumber
+hide footbox
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor "Deployer" as Deployer
+actor "Party A\n(inceptor)" as PartyA
+actor "Party B\n(confirmer)" as PartyB
+participant "FxAtomicSwapFactory" as Factory
+participant "ERC20SettlementRouter\n(common spender)" as Router
+participant "FxAtomicSwap\n(single-use swap)" as Swap
+participant "Base ERC-20" as BaseToken
+participant "Quote ERC-20" as QuoteToken
+
+== Factory and settlement router deployment ==
+
+Deployer -> Factory ++ : new FxAtomicSwapFactory()
+create Router
+Factory -> Router ++ : new ERC20SettlementRouter(address(Factory))
+Router -> Router : factory = Factory\n(immutable)
+Router --> Factory -- : router deployed
+Factory -> Factory : settlementRouter = Router\n(immutable)
+Factory --> Deployer -- : factory deployed
+
+== ERC-20 allowances ==
+
+note over PartyA, QuoteToken
+Allowances are given early to the deployed settlementRouter.
+Swaps created though the FxAtomicSwapFactory will settle though the settlementRouter.
+end note
+
+PartyA -> QuoteToken ++ : approve(Router, quoteAllowance)
+QuoteToken -> QuoteToken : allowance[PartyA][Router] = quoteAllowance
+QuoteToken --> PartyA -- : true
+
+PartyB -> BaseToken ++ : approve(Router, baseAllowance)
+BaseToken -> BaseToken : allowance[PartyB][Router] = baseAllowance
+BaseToken --> PartyB -- : true
+
+note over PartyA, QuoteToken
+For this sign configuration, Party A authorizes quote-token spending
+and Party B authorizes base-token spending. The approvals can be reused
+across all swaps registered with the same router.
+end note
+
+== Creation and one-time authorization ==
+
+PartyA -> Factory ++ : createSwap(BaseToken, QuoteToken, PartyA, PartyB)
+Factory -> Factory : require caller is PartyA or PartyB
+create Swap
+Factory -> Swap ++ : new FxAtomicSwap(\n  BaseToken, QuoteToken, PartyA, PartyB, Router\n)
+Swap -> Swap : store immutable tokens, parties, and Router\nphase = Created
+Swap --> Factory -- : swap address
+Factory -> Router ++ : registerSwap(Swap)
+Router -> Router : require msg.sender == Factory\nactiveSwap[Swap] = true
+Router --> Factory -- : registered
+Factory --> PartyA -- : Swap address\nSwapCreated
+
+note over Swap, Router
+The router stores only one active flag per swap.
+The swap is the single source of tokens, parties, and terms.
+end note
+
+== ERC-6123 inception by Party A ==
+
+PartyA -> Swap ++ : inceptTrade(\n  PartyB, tradeData,\n  +BASE_QTY, -QUOTE_QTY, settlementData\n)
+Swap -> Swap : validate fixed parties\nvalidate nonzero, opposite-sign legs
+Swap -> Swap : inceptor = PartyA\nposition = +BASE_QTY\npaymentAmount = -QUOTE_QTY\nstore textual terms\nphase = Incepted
+Swap --> PartyA -- : tradeId = "1"\nTradeIncepted
+
+note right of Swap
+Sign convention from the inceptor's perspective:
+  position > 0       => receive base
+  paymentAmount < 0  => deliver quote
+end note
+
+== ERC-6123 confirmation and atomic settlement ==
+
+PartyB -> Swap ++ : confirmTrade(\n  PartyA, same tradeData,\n  -BASE_QTY, +QUOTE_QTY, same settlementData\n)
+Swap -> Swap : verify counterparty, negated amounts, and terms
+Swap -> Swap : phase = Settled\n(checks-effects-interactions)
+Swap -> Router ++ : settleAtomicSwap(\n  BaseToken, QuoteToken, PartyA, PartyB,\n  +BASE_QTY, -QUOTE_QTY\n)
+
+note over Swap, Router
+Inside the router, msg.sender = Swap.
+The one-time flag authenticates the factory-created caller.
+end note
+
+Router -> Router : require activeSwap[Swap]\nactiveSwap[Swap] = false
+
+note right of Router
+Consuming the flag before token calls prevents the same swap
+from settling twice, including through a callback.
+A global reentrancy lock is unnecessary for independent swaps.
+end note
+
+group Base leg: Party B delivers base to Party A
+    Router -> BaseToken ++ : transferFrom(PartyB, PartyA, BASE_QTY)
+    note over Router, BaseToken
+    Inside BaseToken, msg.sender = Router.
+    Therefore allowance[PartyB][Router] is used.
+    end note
+    BaseToken -> BaseToken : check allowance and balance\nupdate balances and allowance
+    BaseToken --> Router -- : true
+end
+
+group Quote leg: Party A delivers quote to Party B
+    Router -> QuoteToken ++ : transferFrom(PartyA, PartyB, QUOTE_QTY)
+    note over Router, QuoteToken
+    Inside QuoteToken, msg.sender = Router.
+    Therefore allowance[PartyA][Router] is used.
+    end note
+    QuoteToken -> QuoteToken : check allowance and balance\nupdate balances and allowance
+    QuoteToken --> Router -- : true
+end
+
+Router --> Swap -- : settlement completed
+Swap -> Swap : emit TradeConfirmed\nemit TradeTerminated
+Swap --> PartyB -- : confirmation transaction succeeds
+
+note over PartyA, QuoteToken
+All calls occur within Party B's single confirmation transaction.
+If validation or either transferFrom fails, the transaction reverts
+atomically: both token transfers and both state changes are undone.
+end note
+
+@enduml
