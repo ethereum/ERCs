@@ -154,8 +154,15 @@ jobs:
             if [ ${#PATHS[@]} -gt 0 ]; then
               printf -v PATHS_NOTICE ' %q' "${PATHS[@]}"
               echo "::notice::Running HTMLProofer on changed files only:${PATHS_NOTICE}"
-              bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "${PATHS[@]}"
-              exit $?
+              # html-proofer 5.0.7's CLI joins multiple positional args with commas
+              # and feeds the result to `check_file` (singular), which then errors
+              # out because no such concatenated path exists. Invoke once per path
+              # so each file/dir is checked individually, and fail if any do.
+              STATUS=0
+              for p in "${PATHS[@]}"; do
+                bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "$p" || STATUS=$?
+              done
+              exit $STATUS
             fi
             echo "::warning::Changed ERC HTML files not found in build output, falling back to full check"
           fi
