@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "./ISDCTrade.sol";
-import "./ERC20SettlementRouter.sol";
+import "./ERC20AtomicSwapSettlementRouter.sol";
 
 /**
  * @notice Interface for exposing an ERC-8100-style XML state template.

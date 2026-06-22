@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-import "./ERC20SettlementRouter.sol";
+import "./ERC20AtomicSwapSettlementRouter.sol";
 import "./FxAtomicSwap.sol";
 
 /**
@@ -12,7 +12,7 @@ import "./FxAtomicSwap.sol";
 contract FxAtomicSwapFactory {
     error CreatorNotParty();
 
-    ERC20SettlementRouter public immutable settlementRouter;
+    ERC20AtomicSwapSettlementRouter public immutable settlementRouter;
 
     event SwapCreated(
         address indexed swap,
@@ -27,7 +27,7 @@ contract FxAtomicSwapFactory {
      * @notice Deploys the common settlement router controlled by this factory.
      */
     constructor() {
-        settlementRouter = new ERC20SettlementRouter(address(this));
+        settlementRouter = new ERC20AtomicSwapSettlementRouter(address(this));
     }
 
     /**

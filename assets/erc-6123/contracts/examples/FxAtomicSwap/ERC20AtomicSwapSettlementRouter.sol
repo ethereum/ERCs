@@ -23,13 +23,13 @@ interface IAtomicSwapSettlement {
 }
 
 /**
- * @title ERC-20 Settlement Router
+ * @title ERC-20 Atomic Swap Settlement Router
  * @notice Common ERC-20 spender for all swaps created by one factory.
  * @dev Token holders approve this router once. The router stores only whether a
  *      factory-created swap still has an unused settlement authorization. The
  *      immutable swap itself is the source of its tokens, parties, and amounts.
  */
-contract ERC20SettlementRouter is IAtomicSwapSettlement {
+contract ERC20AtomicSwapSettlementRouter is IAtomicSwapSettlement {
     error InvalidFactory();
     error InvalidSwap();
     error NotFactory();
@@ -50,8 +50,7 @@ contract ERC20SettlementRouter is IAtomicSwapSettlement {
 
     /**
      * @notice Gives one factory-created swap a single settlement authorization.
-     * @dev The factory deploys the exact trusted swap implementation and calls
-     *      this method in the same transaction.
+     * @dev The factory deploys the exact trusted swap implementation and calls this method in the same transaction.
      * @param swap Newly deployed swap contract.
      */
     function registerSwap(address swap) external {
@@ -111,15 +110,18 @@ contract ERC20SettlementRouter is IAtomicSwapSettlement {
         int256 signedAmount
     ) private {
         if (signedAmount > 0) {
+            // This branch proves the value is positive and therefore representable as uint256.
+            // forge-lint: disable-next-line(unsafe-typecast)
             _safeTransferFrom(token, otherParty, viewParty, uint256(signedAmount));
         } else {
+            // The trusted swap rejects zero and type(int256).min, so negation is positive and safe.
+            // forge-lint: disable-next-line(unsafe-typecast)
             _safeTransferFrom(token, viewParty, otherParty, uint256(-signedAmount));
         }
     }
 
     /**
-     * @notice Calls `transferFrom` while supporting ERC-20 tokens that return
-     *         either `true` or no data.
+     * @notice Calls `transferFrom` while supporting ERC-20 tokens that do not revert, but return `false` or no data.
      * @param token ERC-20 token to call.
      * @param from Token owner that approved this router.
      * @param to Token recipient.
@@ -135,10 +137,7 @@ contract ERC20SettlementRouter is IAtomicSwapSettlement {
             abi.encodeCall(IERC20RouterToken.transferFrom, (from, to, value))
         );
 
-        if (
-            !success
-                || (data.length != 0
-                    && (data.length < 32 || !abi.decode(data, (bool))))
+        if (!success || (data.length != 0 && (data.length < 32 || !abi.decode(data, (bool))))
         ) {
             revert TransferFromFailed(address(token));
         }
