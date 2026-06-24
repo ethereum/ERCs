@@ -1,0 +1,380 @@
+---
+eip: XXXX
+title: Programmable Settlement Locks
+description: An interface for atomic settlement across transparent and privacy-preserving tokens using programmable locks.
+author: Andrew Richardson (@awrichar) <andrew.richardson@kaleido.io>, Peter Broadhurst (@peterbroadhurst) <peter.broadhurst@kaleido.io>, Jim Zhang (@jimthematrix) <jim.zhang@kaleido.io>, Matthew Whitehead (@matthew1001) <matthew.whitehead@kaleido.io>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-programmable-settlement-locks/28861
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-06-25
+---
+
+## Abstract
+
+A programmable settlement lock is a prepared value-bearing operation controlled by a single current spender, with predefined spend and cancel paths secured by implementation-specific commitments. Only the current spender may spend or cancel the lock, and only according to the paths prepared by the lock owner. This standard defines a minimal interface for creating, delegating, finalizing, and querying such locks.
+
+The interface is intended to be implemented by value-bearing contracts, including privacy-preserving tokens and transparent tokens that conform to existing interfaces such as [ERC-20](./eip-20.md). It defines an atomic settlement boundary that can be added to token systems without requiring them to share the same asset model, validation logic, or transfer semantics.
+
+By exposing a common lock lifecycle, this standard allows external protocols, counterparties, and coordinating contracts to rely on delegated locks as fixed, finalizable settlement objects without understanding the details of the underlying asset, state transition, or validation model. This supports coordination across heterogeneous systems, including conventional token contracts, shielded tokens, zero-knowledge proof systems, and other privacy-preserving or externally validated execution environments.
+
+## Motivation
+
+Smart contracts increasingly store and coordinate value across systems with widely varying visibility and validation models. Conventional contracts generally function by transparently exposing the state needed for coordination: in the case of common standards like [ERC-20](./eip-20.md), this is seen through public balances, allowances, and fully observable transfers. Privacy-preserving value systems, such as shielded tokens, instead expose more opaque evidence of their operations, including commitments, proofs, encrypted values, nullifiers, signatures, or externally validated state transitions.
+
+This creates a challenge for atomic coordination and settlement. Existing patterns, including approvals, escrow contracts, and hash time-locked mechanisms, are generally designed around assumptions of observable state, transferable ownership, and visible transition logic. These patterns are less effective when one leg of a settlement involves shielded balances, private recipients, encrypted amounts, off-chain validity checks, or intentionally hidden state transitions. Tailored coordination mechanisms for specific contract types may be effective in some cases, but a lack of standardization makes it difficult to reason about finalization guarantees or to build generalized solutions across heterogeneous contract types.
+
+Programmable settlement locks address this problem by standardizing a common object for settlement coordination rather than a common asset model. A lock represents a prepared value-bearing operation with committed spend and cancel paths, while the implementing contract defines the underlying operation, argument encoding, commitment construction, and validation logic. By exposing a shared lifecycle for creation, delegation, spending, cancellation, and inspection, this standard allows external protocols, counterparties, and coordinating contracts to rely on locks as finalizable settlement objects across both publicly visible contracts and privacy-preserving value systems.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Overview
+
+This standard defines a lifecycle and authority model for programmable settlement locks identified by a `lockId`. A lock represents a prepared value-bearing operation that may be spent or cancelled by an authorized spender according to implementation-specific commitments.
+
+Each lock has a spend path, represented by `spendCommitment`, and a cancel path, represented by `cancelCommitment`. The construction and validation of these commitments are implementation-specific, but the lock lifecycle and authority model are standardized by this interface.
+
+### Lock State
+
+A lock is either active or inactive. An active lock is in one of two states:
+
+- Undelegated: the lock exists, is controlled by its owner, and may be updated, spent, cancelled, or delegated.
+- Delegated: the lock exists, is controlled by a spender other than the owner, and may be spent, cancelled, or delegated, but its `spendCommitment` and `cancelCommitment` MUST NOT be updated.
+
+A lock is inactive if it does not exist, or has been spent or cancelled. Inactive locks are not usable and MUST NOT be spent, cancelled, updated, or delegated.
+
+- A lock MUST be created in an active state via `createLock`.
+- A lock MUST become inactive upon successful execution of either `spendLock` or `cancelLock`.
+- Once inactive, a lock MUST NOT be reactivated.
+- Implementations MAY delete storage associated with inactive locks.
+
+### Authority Model
+
+Each lock has:
+
+- an owner, which is the creator of the lock; and
+- a spender, which is the address currently authorized to control the lock.
+
+At creation:
+
+```
+owner == spender == msg.sender
+```
+
+At any time while active:
+
+- exactly one current spender MUST exist.
+
+The current spender is the only address authorized to:
+
+- delegate the lock via `delegateLock`;
+- spend the lock via `spendLock`; and
+- cancel the lock via `cancelLock`.
+
+### Mutability Guarantee
+
+The lock's execution parameters are defined by `spendCommitment` and `cancelCommitment`.
+
+While a lock is active, these commitments MAY be updated only if:
+
+```
+spender == owner
+```
+
+These commitments MUST NOT be modified if:
+
+```
+spender != owner
+```
+
+This ensures that once control is delegated to a non-owner spender, the structure of the lock cannot be altered by the owner or by the delegate while the lock remains delegated.
+
+If authority is later returned to the owner, the commitments MAY again be updated.
+
+### Execution Guarantee
+
+If a lock is active and `msg.sender` is the current spender, the implementation MUST NOT prevent `spendLock` or `cancelLock` from succeeding except through validation of the provided arguments against the corresponding commitment.
+
+Implementations MUST NOT introduce additional conditions that prevent the current spender from finalizing the lock. This includes, but is not limited to: expirations, timeouts, owner or administrator overrides, pauses, revocations, upgrades, or changes to validation policy, unless those conditions are uniquely bound by the corresponding `spendCommitment` or `cancelCommitment` and are evaluated only as part of validating the supplied arguments against that commitment.
+
+Execution conditions MUST either be captured by the lock's commitments or enforced externally by the current spender, which MAY itself be a coordinating smart contract to which the lock has been delegated.
+
+### Create and Update Semantics
+
+Calling `createLock`:
+
+- MUST create a new active lock with a unique `lockId`;
+- MUST set `owner` and `spender` to `msg.sender`;
+- MUST initialize `spendCommitment` and `cancelCommitment` to the provided values; and
+- MUST emit a `LockCreated` event.
+
+Locks are identified by a `lockId`, which is generated in an implementation-specific way.
+
+- Implementations SHOULD ensure that each `lockId` uniquely identifies a lock.
+- Implementations SHOULD generate `lockId` deterministically from immutable lock properties where practical.
+
+Calling `updateLock`:
+
+- MUST revert with `LockNotActive` if the lock is not active;
+- MUST revert with `LockUnauthorized` if `msg.sender` is not the current spender;
+- MUST revert with `LockImmutable` unless `spender == owner`;
+- MUST update `spendCommitment` and `cancelCommitment`; and
+- MUST emit a `LockUpdated` event.
+
+### Delegation
+
+The current spender MAY transfer authority to another address via `delegateLock`.
+
+Calling `delegateLock`:
+
+- MUST revert with `LockNotActive` if the lock is not active;
+- MUST revert with `LockUnauthorized` if `msg.sender` is not the current spender;
+- MUST revert with `LockInvalidSpender` if `newSpender == address(0)`;
+- MUST update the current spender to `newSpender`; and
+- MUST emit a `LockDelegated` event.
+
+After delegation:
+
+- the previous spender MUST lose all authority over the lock; and
+- the new spender MUST become the current spender.
+
+Delegation MAY be performed any number of times while the lock is active.
+
+Delegation MAY return authority to the owner.
+
+### Spend and Cancel Semantics
+
+Calling `spendLock`:
+
+- MUST revert with `LockNotActive` if the lock is not active;
+- MUST revert with `LockUnauthorized` if `msg.sender` is not the current spender;
+- MUST succeed if:
+  - the lock is active;
+  - `msg.sender` is the current spender; and
+  - the provided `spendArgs` satisfy the implementation-defined validation against `spendCommitment`;
+- MUST transition the lock to the inactive state; and
+- MUST emit a `LockSpent` event.
+
+Calling `cancelLock`:
+
+- MUST revert with `LockNotActive` if the lock is not active;
+- MUST revert with `LockUnauthorized` if `msg.sender` is not the current spender;
+- MUST succeed if:
+  - the lock is active;
+  - `msg.sender` is the current spender; and
+  - the provided `cancelArgs` satisfy the implementation-defined validation against `cancelCommitment`;
+- MUST transition the lock to the inactive state; and
+- MUST emit a `LockCancelled` event.
+
+### View Functions
+
+Calling `getLock`:
+
+- MUST return the active lock information for `lockId`; and
+- MUST revert with `LockNotActive` if the lock is not active.
+
+Calling `isLockActive`:
+
+- MUST return true if and only if the lock is active.
+
+### Implementation-Specific Details
+
+The following aspects of this standard are implementation-specific and MUST be defined by each implementation:
+
+- **Argument encoding:** The structure and encoding of `createArgs`, `updateArgs`, `delegateArgs`, `spendArgs`, and `cancelArgs` are not prescribed by this standard. Implementations SHOULD define and document a canonical ABI encoding for each.
+- **Commitment construction:** The derivation of `spendCommitment` and `cancelCommitment` is implementation-specific. Commitments SHOULD uniquely bind the intended operation and any required parameters or context.
+- **Validation logic:** Implementations MUST define how execution inputs are validated against the corresponding commitments during `spendLock` and `cancelLock`.
+- **Lock semantics:** The meaning of a lock, including the underlying operation or state transition it represents, is defined by the implementing contract.
+
+Implementations SHOULD ensure that these definitions are documented clearly for integrators and coordinating contracts.
+
+### Interface
+
+The following Solidity interface defines the canonical interface of this standard:
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+interface IERCXXXX {
+    struct LockInfo {
+        address owner;
+        address spender;
+        bytes32 spendCommitment;
+        bytes32 cancelCommitment;
+    }
+
+    event LockCreated(
+        bytes32 indexed lockId,
+        address indexed owner,
+        address indexed spender,
+        bytes32 spendCommitment,
+        bytes32 cancelCommitment,
+        bytes data
+    );
+
+    event LockUpdated(
+        bytes32 indexed lockId,
+        address indexed owner,
+        bytes32 spendCommitment,
+        bytes32 cancelCommitment,
+        bytes data
+    );
+
+    event LockDelegated(
+        bytes32 indexed lockId,
+        address indexed previousSpender,
+        address indexed newSpender,
+        bytes data
+    );
+
+    event LockSpent(
+        bytes32 indexed lockId,
+        address indexed spender,
+        bytes data
+    );
+
+    event LockCancelled(
+        bytes32 indexed lockId,
+        address indexed spender,
+        bytes data
+    );
+
+    error LockNotActive(bytes32 lockId);
+    error LockUnauthorized(bytes32 lockId, address spender, address caller);
+    error LockImmutable(bytes32 lockId);
+    error LockInvalidSpender(bytes32 lockId, address spender);
+
+    function createLock(
+        bytes calldata createArgs,
+        bytes32 spendCommitment,
+        bytes32 cancelCommitment,
+        bytes calldata data
+    ) external returns (bytes32 lockId);
+
+    function updateLock(
+        bytes32 lockId,
+        bytes calldata updateArgs,
+        bytes32 spendCommitment,
+        bytes32 cancelCommitment,
+        bytes calldata data
+    ) external;
+
+    function delegateLock(
+        bytes32 lockId,
+        bytes calldata delegateArgs,
+        address newSpender,
+        bytes calldata data
+    ) external;
+
+    function spendLock(
+        bytes32 lockId,
+        bytes calldata spendArgs,
+        bytes calldata data
+    ) external;
+
+    function cancelLock(
+        bytes32 lockId,
+        bytes calldata cancelArgs,
+        bytes calldata data
+    ) external;
+
+    function getLock(bytes32 lockId) external view returns (LockInfo memory info);
+
+    function isLockActive(bytes32 lockId) external view returns (bool active);
+}
+```
+
+## Rationale
+
+A key observation behind this standard is that atomic settlement across heterogeneous systems does not require every participating contract to expose the same asset model, validation logic, or execution details. Instead, it requires a common object that external protocols can use to reason about prepared operations and lock-level finalization guarantees. A programmable settlement lock provides that object by separating the underlying operation from the authority to finalize it.
+
+### Settlement Object Rather Than Asset Model
+
+The standard does not prescribe token semantics, balance accounting, custody rules, proof systems, or internal state transitions. These remain the responsibility of the implementing contract. Instead, the standard defines a minimal settlement object for prepared operations, leaving each implementation to define what value is represented and how the operation is validated.
+
+This differs from token-specific locking or holding standards, such as [ERC-1996](./eip-1996.md), which define restrictions or holds within a particular asset model rather than a general finalization surface for prepared operations. By defining this common settlement object, publicly visible contracts and privacy-preserving systems can participate in the same coordination patterns without requiring each system to adopt a common token interface or expose the same execution details.
+
+### Common Shape, Not Universal Semantics
+
+This standard provides a common shape for prepared operations: a current spender, committed spend and cancel paths, delegation semantics, finalization methods, and observable lifecycle events. In the same way that standards such as [ERC-20](./eip-20.md) expose a predictable settlement surface for many different assets through standardized transfer and approval semantics, programmable settlement locks expose a predictable finalization surface for heterogeneous systems, including those whose internal state transitions may not be publicly visible or reducible to a common token model.
+
+Rather than requiring every asset or value system to expose identical transfer and approval semantics, each participating system can expose a lock that may be delegated to a coordinator and later spent or cancelled through predefined commitments while preserving its own internal validation model.
+
+This common shape does not make all lock implementations semantically interchangeable. A coordinating protocol may still need to understand the implementing contract, argument encodings, commitment construction, or underlying asset semantics to determine whether spending or cancelling a particular lock will have the intended effect.
+
+### Single Current Spender
+
+Each active lock has exactly one current spender. This avoids ambiguity about who may finalize the lock and allows authority over a prepared operation to be transferred cleanly between parties, solvers, relayers, bridges, or coordinating contracts.
+
+The spender model is especially important for privacy-preserving systems, where a generic escrow or coordinating contract may not be able to own or spend an asset directly. Spending may require proofs, signatures, or other private evidence that cannot be disclosed to or generated by the coordinating contract. A lock allows the owner to prepare the underlying operation while delegating authority to finalize it through the prepared spend or cancel path.
+
+Because the owner is initially the spender, the owner can prepare and revise the lock before delegating control. Once delegated, the new spender becomes the only party authorized to spend, cancel, or further delegate the lock.
+
+### Immutability After Delegation
+
+A delegated lock is useful only if the recipient can rely on the operation it received. For that reason, `spendCommitment` and `cancelCommitment` may be updated only while the lock is owner-controlled.
+
+When control is delegated to a non-owner spender, the commitments become immutable unless and until control returns to the owner. This prevents the owner or implementation from changing the prepared spend or cancel paths after another party has begun relying on the lock.
+
+### Commitment-Based Validation
+
+The standard uses fixed-size `bytes32` commitments rather than prescribing argument structures or validation rules. This keeps the interface small while allowing implementations to bind implementation-specific operation details, proofs, encrypted values, signatures, nullifiers, or other required context into the spend and cancel paths.
+
+The implementing contract remains responsible for defining how commitments are constructed and how supplied arguments are validated against them.
+
+### Spend and Cancel as First-Class Outcomes
+
+The standard treats both spending and cancellation as finalization paths. Spending executes the prepared operation. Cancellation executes the implementation-defined cancellation path. In either case, the lock becomes inactive and cannot be reused.
+
+This reflects settlement flows where a prepared operation must either complete or be resolved through an explicit cancellation path. By standardizing both outcomes, coordinating contracts can reason about locks without depending on asset-specific rollback or escrow behavior.
+
+### External Coordination
+
+The execution guarantee is intentionally strict. If a lock is active and the caller is its current spender, the implementing contract must not add or rely on conditions that are not bound by the lock's `spendCommitment` or `cancelCommitment` to prevent the lock from being spent or cancelled. Coordination rules such as expirations, timeouts, multi-lock coordination, or solver-specific requirements must therefore be enforced by the current spender, which may be a coordinating smart contract, rather than by the implementing contract as independent conditions.
+
+The implementing contract defines how a single lock is validated against its commitments. The current spender decides when that lock should be finalized in the broader coordination flow.
+
+This design avoids treating implementation-level conditions such as timeouts as a substitute for coordination. In cross-system or cross-chain settlement, one operation may be delayed by finality, downtime, congestion, or other disruptions while another operation has already completed. If an active lock can expire or be revoked independently of the coordinating protocol, the result may be partial settlement rather than atomic settlement.
+
+By keeping coordination rules outside the implementing contract, the current spender decides when to spend, cancel, or delegate a lock according to the broader settlement context. This preserves the ability to finalize the lock while allowing coordination logic to remain expressive and protocol-specific.
+
+## Backwards Compatibility
+
+No backward compatibility issues are introduced. This standard defines a new optional interface and does not alter the behavior of existing standards or contracts.
+
+## Security Considerations
+
+### Execution Model and Coordination
+
+This standard provides lock-level finalization guarantees, not end-to-end guarantees for any coordinating protocol. Implementations MUST NOT use expirations, timeouts, revocations, upgrades, pauses, administrative controls, or other conditions to prevent valid finalization of an active lock unless those conditions are bound by the relevant `spendCommitment` or `cancelCommitment`. The safety of this model depends on implementations preserving this guarantee and coordinators enforcing any broader settlement rules.
+
+Coordination rules that are not part of the lock commitments SHOULD be enforced by the current spender, which may be a coordinating smart contract. The safety of multi-lock or cross-system settlement depends on the correctness of that coordinating contract and on whether each lock correctly represents the intended operation.
+
+### Commitments and Metadata Leakage
+
+Implementations MUST validate `spendArgs` and `cancelArgs` against the corresponding `spendCommitment` or `cancelCommitment`.
+
+Commitments SHOULD uniquely bind the intended operation and any context not otherwise bound by the lock record or implementation, such as the implementing contract, chain identifier, recipient, amount, proof statement, nullifier, or other data needed to prevent replay, substitution, or reuse across unintended contexts.
+
+Implementations SHOULD consider whether `createArgs`, `updateArgs`, `delegateArgs`, `spendArgs`, `cancelArgs`, or `data` reveal sensitive information. Where applicable, inputs SHOULD be constructed so that observing a transaction does not allow replay, front-running, preemption, or disclosure of private settlement details.
+
+### Delegation
+
+Delegation transfers full control of a lock to the designated spender. Once delegated to a non-owner spender, the owner cannot modify the lock's spend or cancel commitments and cannot prevent valid finalization by the current spender.
+
+Delegating to an incorrect, malicious, or incompatible address may result in irreversible loss of control. If the current spender is a coordinating smart contract, its logic determines when the lock is spent, cancelled, or delegated again.
+
+### Implementation Safety
+
+Implementations SHOULD follow standard smart contract security practices, including:
+
+- **Reentrancy:** Implementations SHOULD apply reentrancy protections when interacting with external contracts, especially in `spendLock` and `cancelLock`. Implementations SHOULD update lock state, including marking the lock inactive, before making external calls that may reenter the implementing contract.
+- **Identifier collisions:** `lockId` values MUST be generated to avoid collisions with existing active locks. Deterministic generation based on immutable lock inputs is RECOMMENDED where practical, with sufficient domain separation to prevent unintended reuse across contracts, chains, or deployments.
+- **Upgradeability and administrative controls:** Upgradeable or administratively controlled implementations MUST NOT use upgrades, pauses, revocations, or other privileged actions to prevent valid finalization of active locks unless those conditions are uniquely bound by the relevant commitment. Integrators should consider whether an implementation's upgrade or administration model is compatible with the finalization guarantees required by their coordination protocol.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
