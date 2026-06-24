@@ -1,0 +1,262 @@
+---
+eip: xxxx
+title: Contract Role Semantics Standard
+description: A hierarchical namespace pattern for naming privileged roles in smart contracts, enabling cross-protocol consistency.
+author: Shepherd Shu (@baishuo13) <shulei.shu@ant-intl.com>, Jeff Fei (@77eff) <j.fei@ant-intl.com>, Kenny Kung (@kennyk10) <kenny.kung@ant-intl.com>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-contract-role-naming-standard/28756
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-06-10
+requires: 7820
+---
+
+
+## Abstract
+This proposal defines a hierarchical namespace pattern for naming privileged roles in smart contracts, enabling cross-protocol role naming consistency with progressive adoption. The `role.{category}.{action}` pattern, combined with `keccak256` hash derivation, provides a semantically clear and hash-discoverable standardized naming scheme. A core role set applies conditionally based on contract functionality, and an on-chain query interface provides role name resolution and core role verification. This standard addresses the fragmentation problem where equivalent privileged contract roles use inconsistent naming conventions across protocols.
+
+## Motivation
+Privileged role naming in smart contracts is highly inconsistent across the Ethereum ecosystem. Different protocols use different naming patterns — some use ALL_CAPS constants (e.g., `DEFAULT_ADMIN_ROLE`), some use camelCase (e.g., `pauseGuardian`), some use function-level permissions with no unified naming, and others use role hashes rather than human-readable names.
+
+This creates three critical problems:
+
+1. **Cross-protocol auditing is infeasible**: Auditors cannot mechanically verify whether "upgrade roles" are correctly protected across multiple protocols, because each protocol names them differently. Manual cross-referencing across audit reports introduces human error.
+2. **Role confusion**: `ADMIN` roles across different protocols may grant drastically different permission scopes — one protocol's `ADMIN` grants unlimited permissions, while another's `ADMIN` is merely a secondary operator. Audit tools cannot distinguish role permissions by name alone.
+3. **Semantic drift**: Custom role names may not match actual operations (e.g., a `BURNER` role that actually mints tokens), exploiting auditors' assumptions about role names to create a false sense of security.
+
+Existing RBAC standards define access control interfaces, but none prescribe what naming format role identifiers should follow.
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Role Naming Syntax
+Role names **MUST** follow this BNF grammar:
+
+```plain
+<role-name> ::= "role" "." <ident> "." <ident>
+<ident>     ::= [a-z][a-z0-9]*
+```
+
+The corresponding regular expression is:
+
+```plain
+^role\.[a-z][a-z0-9]*\.[a-z][a-z0-9]*$
+```
+
+#### Role Hash Derivation
+`bytes32` role hashes **MUST** be calculated as follows:
+
+```solidity
+bytes32 roleHash = keccak256(roleNameString);
+```
+
+This pattern is consistent with hash derivation in existing RBAC standards.
+
+#### Role Constant Definition Example
+Contracts conforming to this standard **MUST** define role constants using the naming syntax. The following example demonstrates correct role constant definitions:
+
+```solidity
+// Role constant definitions
+bytes32 public constant ROLE_ADMIN_ROOT = keccak256("role.admin.root");
+bytes32 public constant ROLE_TOKEN_MINT = keccak256("role.token.mint");
+bytes32 public constant ROLE_SYSTEM_PAUSE = keccak256("role.system.pause");
+```
+
+### Role Naming Format
+#### Two-Part Canonical Configuration
+The canonical configuration uses the format `role.{category}.{action}`. This form **SHOULD** be used for all role naming as the recommended naming form for role names. The role name (e.g., `role.admin.root`) is a string identifier, and the corresponding `bytes32` hash value (e.g., `keccak256("role.admin.root")`) is the on-chain identifier. Names conforming to the BNF grammar **MUST** be two-part format; SHOULD indicates that all contracts are encouraged to adopt this naming form, but contracts may choose to use non-standard naming (in which case they are not bound by this standard).
+
+**Category Definition Principles**: Category represents a functional domain — a logical grouping of related operations. Valid categories **SHOULD** satisfy the following principles:
+
+1. **Domain-oriented**: category describes "which operational domain", action describes "what operation". Category is a nominal functional domain, action is typically a verbal operation. Verbs (e.g., pause, upgrade, freeze) **SHOULD NOT** be used as categories, but should be assigned as actions under the corresponding functional domain. For non-operational roles (e.g., root admin representing the highest authority within a domain, proxy representing proxy pattern management), action **MAY** be a noun, as its semantics are "role positioning" rather than a specific operation.
+2. **Cohesion**: Actions under the same category should belong to the same functional domain, sharing authorization management semantics (the same grantor role manages all atomic roles within the domain).
+3. **Extensibility**: A category should accommodate multiple related actions. A category containing only a single action should consider being subsumed under a broader functional domain.
+
+The above principles are validated at compile time and audit time. Contracts **SHOULD** use linter rules to check that categories are nominal functional domains, and audit tools **SHOULD** verify naming compliance with principles during conformance checks.
+
+### Core Role Set (Conditional SHOULD)
+Core roles are privileged roles that appear frequently across protocols and whose misuse can directly lead to fund loss or governance takeover. All core roles listed below satisfy the following admission criteria: (1) they exist in the role systems of multiple different protocols, and (2) incorrect authorization or missing configuration of the role can lead to irreversible fund loss or governance hijacking.
+
+The core role set is fixed by this EIP. New core roles **MAY** be proposed through independent EIPs, with motivation demonstrating that they satisfy both admission criteria.
+
+#### Universal Roles (MUST)
+| **Role Name** | **Description** |
+| --- | --- |
+| `role.admin.root` | The highest privilege role that can grant and revoke all other roles |
+
+
+#### Functionality-Conditional Roles (SHOULD when applicable)
+| **Role Name** | **Condition** |
+| --- | --- |
+| `role.system.pause` | Contract implements pausable functionality |
+| `role.system.upgrade` | Contract is upgradeable |
+| `role.token.mint` | Contract implements token minting |
+| `role.token.burn` | Contract implements token burning |
+| `role.token.freeze` | Contract implements token freezing |
+| `role.bridge.relay` | Contract implements cross-chain relay |
+| `role.reserve.audit` | Contract implements reserve management |
+| `role.treasury.withdraw` | Contract implements treasury withdrawal |
+
+
+**Audit Verification Rule**: Audit tools **SHOULD** check the correspondence between contract functionality and role definitions. For example, if a contract implements an upgradeable pattern (e.g., UUPS or Transparent Proxy), the audit verification **SHOULD** confirm that the contract defines the `role.system.upgrade` role constant and that the role is correctly configured in the permission management interface.
+
+### On-Chain Query Interface
+Protocols **MAY** optionally implement on-chain role name query and core role verification interfaces, enabling external audit tools, block explorers, and security scanners to query contract role definition information through standardized interfaces.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IERCRoleNaming {
+    /// @notice Hash-to-name reverse mapping
+    /// @dev Returns empty string for unregistered hashes; callers should check for non-empty return
+    function roleHashToName(bytes32 roleHash) external view returns (string memory);
+
+    /// @notice Whether the role belongs to the canonical core role set
+    ///         (this EIP's universal roles and functionality-conditional roles)
+    function isCanonicalRole(bytes32 roleHash) external view returns (bool);
+}
+```
+
+`roleHashToName()` **MUST** return an empty string (`""`) for unregistered hashes. Callers **SHOULD** verify hash validity through `isCanonicalRole()` or by checking that the return value is non-empty.
+
+`isCanonicalRole()` only verifies whether a role belongs to the core role set defined by this EIP.
+
+Implementations **SHOULD** declare the `IERCRoleNaming` interface through [EIP-165](./eip-165.md)'s `supportsInterface()`.
+
+## Rationale
+### Hierarchical Naming Pattern
+The `role.{category}.{action}` pattern was chosen over flat naming (e.g., `ADMIN_ROLE`) for three reasons:
+
+1. Semantic clarity: `role.token.mint` simultaneously conveys the domain (token operations) and the permission (minting).
+2. In-domain extension: New actions can be extended under existing categories (e.g., `role.token.newaction`), and new categories can be added by functional domain without modifying existing names.
+3. Three-Tier Limitation：Standardized naming causes the same-named roles across all protocols to produce identical keccak256 hashes. The `role.admin.root` role in an unopen-sourced contract can be identified by block explorers and security scanners through a known hash table. Four-part naming such as `role.aave.token.mint` produces a different hash from `role.token.mint`, and third parties cannot infer from the hash that this is a token minting role — the core benefit of standardized naming is negated by the protocol namespace.
+
+Protocol differentiation does not require namespace prefixes: roles across different protocols are naturally isolated by different contract addresses, and cross-protocol comparison is achieved through the contract address + role name combination.
+
+### Progressive Adoption
+Adoption levels are designed to be incremental — contracts can choose any level based on their needs without implementing all requirements at once:
+
++ **Naming convention** (REQUIRED): Only requires using role constant names conforming to the BNF grammar in contract code. Zero deployment cost — role hashes are compile-time constants with no on-chain storage overhead. All contracts **MUST** reach this level.
++ **On-chain query** (RECOMMENDED): Additionally deploy a contract or library implementing `IERCRoleNaming`, enabling external tools to query role names through on-chain calls. Cost is a single interface contract deployment.
+
+This contrasts with existing RBAC standards that require pre-emptive full implementation of all interfaces — this standard allows contracts to benefit from adopting only the naming convention and gradually upgrade on-chain capabilities as needed.
+
+## Backwards Compatibility
+### EIP-7820 Compatibility
+This standard is orthogonal to [EIP-7820](./eip-7820.md). [EIP-7820](./eip-7820.md) manages cross-contract roles through a centralized registry; this standard ensures these roles have consistent naming.
+
+### EIP-173 Compatibility
+The `role.admin.root` role encompasses the `owner()` concept of [EIP-173](./eip-173.md). Contracts **MAY** implement both interfaces simultaneously. When the permission subjects of `role.admin.root` and `owner()` are inconsistent, the authorization operations (grant/revoke) of `role.admin.root` **SHALL** be treated as the final authority.
+
+### Existing RBAC System Compatibility
+Role hashes in this standard may be incompatible with role identifiers in existing RBAC implementations. For example, some implementations use `bytes32(0)` as the admin role identifier, while this standard uses `keccak256(roleName)` as the identifier — the two produce different bytes32 values. Contracts adopting this standard that also use other RBAC systems **MUST** ensure permission state consistency between the two sets of identifiers and handle the mapping between identifiers themselves.
+
+## Security Considerations
++ **Naming is not security**: Defining a `role.admin.root` constant does not guarantee that the role is correctly protected. The naming standard provides identifier consistency, not permission enforcement. Audit tools **SHOULD** verify that role constant definitions are consistent with their actual usage in access control logic.
++ **Core role set rigidity**: The core role set is fixed by this EIP and cannot be expanded before the standard is updated. Roles needed by a protocol may not be in the core set (e.g., `role.treasury.withdraw`); such roles follow this standard's naming format but do not enjoy core role audit verification coverage.
++ **Proxy and factory pattern role ownership**: Proxy contracts (Transparent Proxy / UUPS) and implementation contracts have independently isolated role namespaces by their respective addresses, but the standard does not prescribe which roles should belong to the proxy contract versus the implementation contract. Role definition conflicts across multiple facets in the Diamond pattern (EIP-2535) require implementers to coordinate themselves. Child contracts created by contract factories independently own their own role namespaces and do not automatically inherit factory roles.
++ **Namespace squatting**: The `role.*` namespace can be self-registered without central governance. Malicious actors could register `role.protocol.xxx`-style roles before legitimate protocols. However, role names are identifiers, not assets, with no economic incentive for squatting. Legitimate protocols have stronger claims through actual implementation and community recognition.
++ **Existing RBAC system mapping risk**: Role hashes in this standard use different bytes32 values from role identifiers in existing RBAC implementations. Improper mapping during migration may lead to permission state inconsistency — for example, legacy `bytes32(0)` admin role authorizations not being synced to the new `keccak256` identifiers. Adopters **MUST** ensure permission state consistency between both sets of identifiers.
++ **Hash collision (theoretical)**: Different role names could theoretically produce the same `keccak256` hash, but the probability is 1/2^256, which is negligible.
+
+## Reference Implementation
+The following implementation is for demonstration purposes only, under the MIT license. Production deployments should undergo a complete security audit.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IERC165 {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+interface IERCRoleNaming {
+    /// @notice Hash-to-name reverse mapping
+    /// @dev Returns empty string for unregistered hashes; callers should check for non-empty return
+    function roleHashToName(bytes32 roleHash) external view returns (string memory);
+
+    /// @notice Whether the role belongs to the canonical core role set
+    ///         (this EIP's universal roles and functionality-conditional roles)
+    function isCanonicalRole(bytes32 roleHash) external view returns (bool);
+}
+
+/**
+ * @title RoleNamingStandard
+ * @dev EIP-XXXX Contract Role Naming Standard reference implementation
+ *      Demonstrates role naming constant definitions, hash derivation,
+ *      and the IERCRoleNaming interface
+ */
+contract RoleNamingStandard is IERC165, IERCRoleNaming {
+
+    // ─── Role Constant Definitions ────────────────────────────
+
+    bytes32 public constant ROLE_ADMIN_ROOT = keccak256("role.admin.root");
+    bytes32 public constant ROLE_TOKEN_MINT = keccak256("role.token.mint");
+    bytes32 public constant ROLE_TOKEN_BURN = keccak256("role.token.burn");
+    bytes32 public constant ROLE_TOKEN_FREEZE = keccak256("role.token.freeze");
+    bytes32 public constant ROLE_SYSTEM_PAUSE = keccak256("role.system.pause");
+    bytes32 public constant ROLE_SYSTEM_UPGRADE = keccak256("role.system.upgrade");
+    bytes32 public constant ROLE_SYSTEM_PROXY = keccak256("role.system.proxy");
+    bytes32 public constant ROLE_BRIDGE_RELAY = keccak256("role.bridge.relay");
+    bytes32 public constant ROLE_RESERVE_AUDIT = keccak256("role.reserve.audit");
+    bytes32 public constant ROLE_TREASURY_WITHDRAW = keccak256("role.treasury.withdraw");
+
+    // ─── EIP-165 Interface Declaration ──────────────────────────────
+
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return interfaceId == type(IERC165).interfaceId
+            || interfaceId == type(IERCRoleNaming).interfaceId;
+    }
+
+    // ─── Name Registry ───────────────────────────────
+
+    mapping(bytes32 => string) private _nameRegistry;
+    mapping(bytes32 => bool) private _registered;
+
+    constructor() {
+        _register(ROLE_ADMIN_ROOT, "role.admin.root");
+        _register(ROLE_TOKEN_MINT, "role.token.mint");
+        _register(ROLE_TOKEN_BURN, "role.token.burn");
+        _register(ROLE_TOKEN_FREEZE, "role.token.freeze");
+        _register(ROLE_SYSTEM_PAUSE, "role.system.pause");
+        _register(ROLE_SYSTEM_UPGRADE, "role.system.upgrade");
+        _register(ROLE_SYSTEM_PROXY, "role.system.proxy");
+        _register(ROLE_BRIDGE_RELAY, "role.bridge.relay");
+        _register(ROLE_RESERVE_AUDIT, "role.reserve.audit");
+        _register(ROLE_TREASURY_WITHDRAW, "role.treasury.withdraw");
+    }
+
+    function _register(bytes32 roleHash, string memory name) internal {
+        _nameRegistry[roleHash] = name;
+        _registered[roleHash] = true;
+    }
+
+    // ─── IERCRoleNaming Interface Implementation ─────────────────────────
+
+    function roleHashToName(bytes32 roleHash)
+        external view override returns (string memory)
+    {
+        if (!_registered[roleHash]) return "";
+        return _nameRegistry[roleHash];
+    }
+
+    function isCanonicalRole(bytes32 roleHash)
+        external pure override returns (bool)
+    {
+        return roleHash == keccak256("role.admin.root")
+            || roleHash == keccak256("role.system.pause")
+            || roleHash == keccak256("role.system.upgrade")
+            || roleHash == keccak256("role.system.proxy")
+            || roleHash == keccak256("role.token.mint")
+            || roleHash == keccak256("role.token.burn")
+            || roleHash == keccak256("role.token.freeze")
+            || roleHash == keccak256("role.bridge.relay")
+            || roleHash == keccak256("role.reserve.audit")
+            || roleHash == keccak256("role.treasury.withdraw");
+    }
+}
+```
+
+## Copyright
+Copyright and related rights waived via [CC0](../LICENSE.md).
