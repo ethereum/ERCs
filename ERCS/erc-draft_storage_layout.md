@@ -1,0 +1,148 @@
+---
+title: Contract Storage Layout Descriptor Format
+description: A language-neutral extensible format for describing storage layouts of EVM contracts
+author: Alex Forshtat (@forshtat)
+discussions-to: <URL>
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-06-25
+requires: 7201, 7730, 8042
+---
+
+## Abstract
+
+Definition of a JSON format for describing the "storage layout" of an EVM contract.
+
+The storage layout represents the mapping from the smart contracts' state variables as defined in the source code to their EVM-level storage locations.
+
+The format is extensible and is therefore not tied to any single source language or compiler. It can accommodate layouts produced by any EVM-targeting compiler, as well as more advanced and manually controlled use-cases like ([ERC-7201: Namespaced Storage Layout](./eip-7201.md)), ([ERC-8042: Diamond Storage](./eip-8042.md)), and a hand-written EVM assembly storage.
+
+Consumers of these descriptors — block explorers, debuggers, source-verification services, security tooling, and wallets performing clear signing, transaction simulations, and transaction assertions — can use a single, predictable schema regardless of how a contract was written.
+
+## Motivation
+
+Tools that need to make sense of raw storage slots, such as block explorers, debuggers, wallets that show users the outcome of a transaction before they sign, and other similar projects, currently have no common and trusted layout description format and have to rely on their own custom storage layout interpretation.
+
+Solidity's `storageLayout` JSON output often serves as a de facto standard, but it has some structural problems making it unfit to be used in scenarios where a finalized ERC-level standard would be required:
+
+1. **It is Solidity specific.** For example, type identifiers such as `t_uint256` are Solidity-internal naming. As of this writing, no other EVM language emits the storage layout descriptors in a compatible format. 
+2. **It is not stable.** The format documentation states the storage layout is experimental and the format is subject to change in non-breaking releases.
+3. **It does not support any common alternative layouts.** For example, namespaced storage ([ERC-7201](./eip-7201.md)) and diamond storage ([ERC-8042](./eip-8042.md)) place structs at a `keccak256`-derived slot reached through an inline-assembly pointer. Solidity compiler is not aware of these standards and is unable to generate their layout's descriptor.
+
+The proposed storage layout format is intended for cross-chain, cross-tool, and cross-language wallets that need to translate raw `(contract, slot, old_value, new_value)` tuples from transaction simulation or [EIP-7906](./eip-7906.md) transaction assertions into a meaningful description of *which variable* change as the result of this transaction.
+
+Therefore, this format must satisfy the following requirements:
+
+* Use a type and encoding vocabulary that is not coupled to any specific compiler's internal naming.
+* Verifiably describe the slot derivation algorithms rather than providing opaque trusted constants for complex types.
+* Allow storage regions to declare how their base slots were derived. This includes but is not limited to namespaced and diamond schemes.
+* Allow entries explicitly marked as either compiler-derived or hand-authored, since for a significant share of production contracts, such as upgradeable proxies, diamonds, EIP-7702 delegates, etc., there is no compiler output to derive them from.
+
+## Specification
+
+### File structure
+
+A storage layout file is a JSON object with the following top-level members. See [`storage-layout.schema.json`](../assets/erc-draft_storage_layout/storage-layout.schema.json) for the full JSON Schema, [`example-erc20.json`](../assets/erc-draft_storage_layout/example-erc20.json) for an ordinary sequential layout, and [`example-eip7702-namespaced.json`](../assets/erc-draft_storage_layout/example-eip7702-namespaced.json) for a layout mixing sequential and ERC-7201 namespaced storage.
+
+| Field      | Required | Description                                                                                        |
+|------------|----------|----------------------------------------------------------------------------------------------------|
+| `$schema`  | No       | URI of the JSON Schema this file conforms to.                                                      |
+| `$comment` | No       | Free-text documentation of the file's purpose or provenance.                                       |
+| `compiler` | Yes      | Object identifying the source language and compiler used. See [Compiler object](#compiler-object). |
+| `storage`  | Yes      | Ordered array of top-level [storage entries](#storage-entry).                                      |
+| `types`    | Yes      | Object mapping type identifiers to [type definitions](#type-definition).                           |
+
+#### Compiler object
+
+| Field      | Required | Description                                                                      |
+|------------|----------|----------------------------------------------------------------------------------|
+| `language` | Yes      | Source language. This ERC defines support for `"solidity"`, `"vyper", `"manual"` |
+| `version`  | No       | Compiler version string (e.g. `"0.8.24"`).                                       |
+| `settings` | No       | Arbitrary compiler settings object.                                              |
+
+A single file MAY mix entries whose slots were assigned by the declared compiler with entries that were defined manually.
+
+#### Storage entry
+
+Each element of the top-level `storage` array, and each element of a struct type's `members` array, is a storage entry:
+
+| Field                | Required | Description                                                                                                                                                                                |
+|----------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `label`              | Yes      | Source-level variable name.                                                                                                                                                                |
+| `slot`               | Yes      | Decimal string of the storage slot where this entry resides or starts.                                                                                                                     |
+| `offset`             | Yes      | Byte offset within the slot where this entry begins. `0` for any type occupying a full slot or more.                                                                                       |
+| `type`               | Yes      | Identifier referencing an entry in the file's `types` object.                                                                                                                              |
+| `description`        | No       | Optional human-readable description of the variable and the meaning of its value. Informative value that should not be trusted without additional assurances in its authenticity.          |
+| `baseSlotDerivation` | No       | For entries whose base slot was computed according to a certain alternative approach rather than simple sequential compiler assignment. See [Base Slot Derivation](#base-slot-derivation). |
+
+#### Type definition
+
+Each value in the top-level `types` object describes one type referenced by `type` fields elsewhere in the file:
+
+| Field           | Required                           | Description                                                                                                        |
+|-----------------|------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `encoding`      | Yes                                | One of supported data encodings for the derivation formula.                                                        |
+| `label`         | Yes                                | Human-readable type name as it appears in the source language (e.g. `"uint256"`, `"mapping(address => uint256)"`). |
+| `numberOfBytes` | Yes                                | Decimal string: number of bytes this type occupies. Used with the entry's `offset` to extract a packed value.      |
+| `key`           | `mapping` only                     | Type identifier of the mapping key.                                                                                |
+| `value`         | `mapping` and `dynamic_array` only | Type identifier of the mapping value or array element.                                                             |
+| `base`          | `dynamic_array` only               | Alias of `value`, kept for literal compatibility with Solidity compiler output.                                    |
+| `members`       | `inplace_struct` only              | Ordered array of [storage entries](#storage-entry) describing the struct's members.                                |
+
+### Base Slot Derivation
+
+An entry's `baseSlotDerivation` object names the scheme used to compute its `slot`, so that consumers can independently recompute and verify it:
+
+| Field         | Required                  | Description                                                                                           |
+|---------------|---------------------------|-------------------------------------------------------------------------------------------------------|
+| `scheme`      | Yes                       | One of supported base slot calculation algorithms. Currently `"erc7201"`, `"erc8042"`, or `"custom"`. |
+| `namespaceId` | `erc7201`, `erc8042` only | The namespace id string the scheme hashes.                                                            |
+
+For `scheme: "erc7201"`, consumers MAY verify `slot == keccak256(keccak256(namespaceId) - 1) & ~0xff` per [ERC-7201](./eip-7201.md).
+
+For `scheme: "erc8042"`, consumers MAY verify `slot == keccak256(namespaceId)` per [ERC-8042](./eip-8042.md).
+
+`"custom"` exists for schemes not yet standardized by an ERC; its `slot` is a hand-authored.
+
+`baseSlotDerivation` MUST NOT be used for sequential, compiler-assigned slots, including slots shifted by Solidity's native `layout at` base-slot syntax — in both cases the compiler emits the final, absolute slot directly, and no separate re-derivation is meaningful.
+
+### Slot Derivation Formulas
+
+Complex types are not stored directly at their entry's `slot`; child values are stored at a position computed from the entry's `slot` (acting as a base slot), the type's `encoding`, and the declared `compiler.language`. Wallets and other consumers that need to map a raw modified slot back to a storage entry MUST implement the formulas below for every `compiler.language` value they support:
+
+| Language | `encoding`      | Derivation formula                                                                                                                                                                                                                                              |
+|----------|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Solidity | `mapping`       | `keccak256(abi.encode(key, baseSlot))`                                                                                                                                                                                                                          |
+| Solidity | `dynamic_array` | `keccak256(baseSlot) + index * elementSlots`                                                                                                                                                                                                                    |
+| Solidity | `inplace`       | `baseSlot + member.slot`                                                                                                                                                                                                                                        |
+| Solidity | `bytes`         | Short form (`numberOfBytes(value) <= 31`): inline in `baseSlot`. Long form: data at `keccak256(baseSlot)`, sequential. See [Solidity `bytes` and `string` encoding](https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string). |
+| Vyper    | `mapping`       | `keccak256(abi.encode(key, baseSlot))` (Vyper ≥ 0.3.0) or `keccak256(abi.encode(baseSlot, key))` (Vyper < 0.3.0) — note the reversed key/slot order in legacy Vyper.                                                                                            |
+| Vyper    | `dynamic_array` | `baseSlot + 1 + index * elementSlots`                                                                                                                                                                                                                           |
+| Vyper    | `inplace`       | `baseSlot + member.slot`                                                                                                                                                                                                                                        |
+| Vyper    | `bytes`         | Stored inline starting at `baseSlot`, spanning `ceil(length / 32)` slots sequentially. Unlike Solidity, Vyper never relocates `bytes`/`string` data behind a `keccak256` indirection.                                                                           |
+
+Where `elementSlots = ceil(elementSize / 32)`, derived from the element type's `numberOfBytes`. For nested types, derivation is applied recursively at each level.
+
+This table is the canonical, normative source of derivation formulas defined by this ERC. Support for additional values of `compiler.language` MUST be added via an update to this ERC.
+
+## Rationale
+
+### Transient storage is out of scope
+
+While any change persisted in the contract's storage may be extremely consequential for the user, the transient storage is cleared afther the transaction completes and bears no effect on the transaction outcome.
+
+There is no use-case that would require knowledge transient storage variable layout in the same way as the persistent one.
+
+## Backwards Compatibility
+
+This ERC defines a new file format and introduces no backwards compatibility concerns.
+
+## Security Considerations
+
+A storage layout file that misrepresents a slot's `type` or `path` could cause a consumer to display a misleading variable name or formatted value for a real storage change.
+This ERC does not define a trust or distribution mechanism for storage layout files. Standards that reference files conforming to this ERC, such as ERC-7730, are responsible for defining how a layout file's authenticity is established before it is relied upon for any security-relevant display.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
