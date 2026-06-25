@@ -30,7 +30,7 @@ Solidity's `storageLayout` JSON output often serves as a de facto standard, but 
 2. **It is not stable.** The format documentation states the storage layout is experimental and the format is subject to change in non-breaking releases.
 3. **It does not support any common alternative layouts.** For example, namespaced storage ([ERC-7201](./eip-7201.md)) and diamond storage ([ERC-8042](./eip-8042.md)) place structs at a `keccak256`-derived slot reached through an inline-assembly pointer. Solidity compiler is not aware of these standards and is unable to generate their layout's descriptor.
 
-The proposed storage layout format is intended for cross-chain, cross-tool, and cross-language wallets that need to translate raw `(contract, slot, old_value, new_value)` tuples from transaction simulation or [EIP-7906](./eip-7906.md) transaction assertions into a meaningful description of *which variable* change as the result of this transaction.
+The proposed storage layout format is intended for cross-chain, cross-tool, and cross-language wallets that need to translate raw `(contract, slot, old_value, new_value)` tuples from transaction simulation or [EIP-7906](./eip-7906.md) transaction assertions into a meaningful description of *which variable* changed as the result of this transaction.
 
 Therefore, this format must satisfy the following requirements:
 
@@ -38,6 +38,7 @@ Therefore, this format must satisfy the following requirements:
 * Verifiably describe the slot derivation algorithms rather than providing opaque trusted constants for complex types.
 * Allow storage regions to declare how their base slots were derived. This includes but is not limited to namespaced and diamond schemes.
 * Allow entries explicitly marked as either compiler-derived or hand-authored, since for a significant share of production contracts, such as upgradeable proxies, diamonds, EIP-7702 delegates, etc., there is no compiler output to derive them from.
+* Carry optional display annotations that wallets may use to present storage changes in human-readable form, following the [ERC-7730](./eip-7730.md) display vocabulary.
 
 ## Specification
 
@@ -55,13 +56,15 @@ A storage layout file is a JSON object with the following top-level members. See
 
 #### Compiler object
 
-| Field      | Required | Description                                                                      |
-|------------|----------|----------------------------------------------------------------------------------|
-| `language` | Yes      | Source language. This ERC defines support for `"solidity"`, `"vyper", `"manual"` |
-| `version`  | No       | Compiler version string (e.g. `"0.8.24"`).                                       |
-| `settings` | No       | Arbitrary compiler settings object.                                              |
+| Field      | Required | Description                                                                                    |
+|------------|----------|------------------------------------------------------------------------------------------------|
+| `language` | Yes      | Source language. This ERC defines support for `"Solidity"`, `"Vyper"`, and `"manual"`.        |
+| `version`  | No       | Compiler version string (e.g. `"0.8.24"`).                                                    |
+| `settings` | No       | Arbitrary compiler settings object.                                                            |
 
 A single file MAY mix entries whose slots were assigned by the declared compiler with entries that were defined manually.
+
+`"manual"` MUST be used as `language` when no compiler produced any part of the layout (e.g. Huff, raw Yul, hand-written assembly).
 
 #### Storage entry
 
@@ -73,66 +76,223 @@ Each element of the top-level `storage` array, and each element of a struct type
 | `slot`               | Yes      | Decimal string of the storage slot where this entry resides or starts.                                                                                                                     |
 | `offset`             | Yes      | Byte offset within the slot where this entry begins. `0` for any type occupying a full slot or more.                                                                                       |
 | `type`               | Yes      | Identifier referencing an entry in the file's `types` object.                                                                                                                              |
-| `description`        | No       | Optional human-readable description of the variable and the meaning of its value. Informative value that should not be trusted without additional assurances in its authenticity.          |
-| `baseSlotDerivation` | No       | For entries whose base slot was computed according to a certain alternative approach rather than simple sequential compiler assignment. See [Base Slot Derivation](#base-slot-derivation). |
+| `path`               | No       | Stable dot-separated identifier for this entry (e.g. `"vaults.lockedAmount"`). If absent, consumers MUST compute it by joining `label` values from the top-level entry down through struct members. |
+| `source`             | No       | `"compiler"` (default) or `"manual"`. `"compiler"` means the slot and offset were emitted by the declared compiler from verifiable source. `"manual"` means the author declared them directly. |
+| `baseSlotDerivation` | No       | For entries whose base slot was computed via an alternative scheme rather than simple sequential compiler assignment. See [Base Slot Derivation](#base-slot-derivation).                   |
+| `display`            | No       | Optional display annotations for wallets. See [Display Annotations](#display-annotations).                                                                                                 |
 
 #### Type definition
 
 Each value in the top-level `types` object describes one type referenced by `type` fields elsewhere in the file:
 
-| Field           | Required                           | Description                                                                                                        |
-|-----------------|------------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| `encoding`      | Yes                                | One of supported data encodings for the derivation formula.                                                        |
-| `label`         | Yes                                | Human-readable type name as it appears in the source language (e.g. `"uint256"`, `"mapping(address => uint256)"`). |
-| `numberOfBytes` | Yes                                | Decimal string: number of bytes this type occupies. Used with the entry's `offset` to extract a packed value.      |
-| `key`           | `mapping` only                     | Type identifier of the mapping key.                                                                                |
-| `value`         | `mapping` and `dynamic_array` only | Type identifier of the mapping value or array element.                                                             |
-| `base`          | `dynamic_array` only               | Alias of `value`, kept for literal compatibility with Solidity compiler output.                                    |
-| `members`       | `inplace_struct` only              | Ordered array of [storage entries](#storage-entry) describing the struct's members.                                |
+| Field           | Required                             | Description                                                                                                        |
+|-----------------|--------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `encoding`      | Yes                                  | Storage encoding: `inplace`, `inplace_struct`, `mapping`, `dynamic_array`, or `bytes`. See [Slot Derivation Formulas](#slot-derivation-formulas). |
+| `label`         | Yes                                  | Human-readable type name as it appears in the source language (e.g. `"uint256"`, `"mapping(address => uint256)"`). |
+| `numberOfBytes` | Yes                                  | Decimal string: number of bytes this type occupies. Used with the entry's `offset` to extract a packed value.      |
+| `key`           | `mapping` only                       | Type identifier of the mapping key.                                                                                |
+| `value`         | `mapping` and `dynamic_array` only   | Type identifier of the mapping value or array element.                                                             |
+| `base`          | `dynamic_array` only                 | Alias of `value`, kept for literal compatibility with Solidity compiler output.                                    |
+| `members`       | `inplace_struct` only                | Ordered array of [storage entries](#storage-entry) describing the struct's members.                                |
 
 ### Base Slot Derivation
 
 An entry's `baseSlotDerivation` object names the scheme used to compute its `slot`, so that consumers can independently recompute and verify it:
 
-| Field         | Required                  | Description                                                                                           |
-|---------------|---------------------------|-------------------------------------------------------------------------------------------------------|
-| `scheme`      | Yes                       | One of supported base slot calculation algorithms. Currently `"erc7201"`, `"erc8042"`, or `"custom"`. |
-| `namespaceId` | `erc7201`, `erc8042` only | The namespace id string the scheme hashes.                                                            |
+| Field         | Required                    | Description                                                                                           |
+|---------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
+| `scheme`      | Yes                         | One of supported base slot calculation algorithms. Currently `"erc7201"`, `"erc8042"`, or `"custom"`. |
+| `namespaceId` | `erc7201`, `erc8042` only   | The namespace id string the scheme hashes.                                                            |
+| `formula`     | `custom` only               | Free-text, non-machine-verified description of how `slot` was computed.                               |
 
 For `scheme: "erc7201"`, consumers MAY verify `slot == keccak256(keccak256(namespaceId) - 1) & ~0xff` per [ERC-7201](./eip-7201.md).
 
 For `scheme: "erc8042"`, consumers MAY verify `slot == keccak256(namespaceId)` per [ERC-8042](./eip-8042.md).
 
-`"custom"` exists for schemes not yet standardized by an ERC; its `slot` is a hand-authored.
+`"custom"` exists for schemes not yet standardized by an ERC; its `slot` is hand-authored.
 
 `baseSlotDerivation` MUST NOT be used for sequential, compiler-assigned slots, including slots shifted by Solidity's native `layout at` base-slot syntax — in both cases the compiler emits the final, absolute slot directly, and no separate re-derivation is meaningful.
 
+### Packed Variables
+
+Solidity and Vyper may pack multiple small variables into a single 32-byte slot. When a packed slot is modified, consumers MUST identify which variables changed by inspecting each entry whose `slot` matches, using `offset` and `numberOfBytes` from the entry's type to extract the specific bytes.
+
+To extract the value of a packed variable from a raw 32-byte slot word: read `numberOfBytes` bytes starting at byte `offset` within the slot.
+
+When a packed slot changes, wallets MAY omit variables whose extracted old and new values are identical.
+
 ### Slot Derivation Formulas
+
+`inplace` types (primitives and fixed-size value types such as `uint256`, `address`, `bytes32`) are stored directly at their declared `slot` and `offset`; no further derivation is needed.
 
 Complex types are not stored directly at their entry's `slot`; child values are stored at a position computed from the entry's `slot` (acting as a base slot), the type's `encoding`, and the declared `compiler.language`. Wallets and other consumers that need to map a raw modified slot back to a storage entry MUST implement the formulas below for every `compiler.language` value they support:
 
-| Language | `encoding`      | Derivation formula                                                                                                                                                                                                                                              |
-|----------|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Solidity | `mapping`       | `keccak256(abi.encode(key, baseSlot))`                                                                                                                                                                                                                          |
-| Solidity | `dynamic_array` | `keccak256(baseSlot) + index * elementSlots`                                                                                                                                                                                                                    |
-| Solidity | `inplace`       | `baseSlot + member.slot`                                                                                                                                                                                                                                        |
-| Solidity | `bytes`         | Short form (`numberOfBytes(value) <= 31`): inline in `baseSlot`. Long form: data at `keccak256(baseSlot)`, sequential. See [Solidity `bytes` and `string` encoding](https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string). |
-| Vyper    | `mapping`       | `keccak256(abi.encode(key, baseSlot))` (Vyper ≥ 0.3.0) or `keccak256(abi.encode(baseSlot, key))` (Vyper < 0.3.0) — note the reversed key/slot order in legacy Vyper.                                                                                            |
-| Vyper    | `dynamic_array` | `baseSlot + 1 + index * elementSlots`                                                                                                                                                                                                                           |
-| Vyper    | `inplace`       | `baseSlot + member.slot`                                                                                                                                                                                                                                        |
-| Vyper    | `bytes`         | Stored inline starting at `baseSlot`, spanning `ceil(length / 32)` slots sequentially. Unlike Solidity, Vyper never relocates `bytes`/`string` data behind a `keccak256` indirection.                                                                           |
+| Language | `encoding`        | Derivation formula                                                                                                                                                                                                                                              |
+|----------|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Solidity | `inplace_struct`  | `baseSlot + member.slot`                                                                                                                                                                                                                                        |
+| Solidity | `mapping`         | `keccak256(abi.encode(key, baseSlot))`                                                                                                                                                                                                                          |
+| Solidity | `dynamic_array`   | `keccak256(baseSlot) + index * elementSlots`                                                                                                                                                                                                                    |
+| Solidity | `bytes`           | Short form (`numberOfBytes(value) <= 31`): inline in `baseSlot`. Long form: data at `keccak256(baseSlot)`, sequential. See [Solidity `bytes` and `string` encoding](https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html#bytes-and-string). |
+| Vyper    | `inplace_struct`  | `baseSlot + member.slot`                                                                                                                                                                                                                                        |
+| Vyper    | `mapping`         | `keccak256(abi.encode(key, baseSlot))` (Vyper ≥ 0.3.0) or `keccak256(abi.encode(baseSlot, key))` (Vyper < 0.3.0) — note the reversed key/slot order in legacy Vyper.                                                                                           |
+| Vyper    | `dynamic_array`   | `baseSlot + 1 + index * elementSlots`                                                                                                                                                                                                                           |
+| Vyper    | `bytes`           | Stored inline starting at `baseSlot`, spanning `ceil(length / 32)` slots sequentially. Unlike Solidity, Vyper never relocates `bytes`/`string` data behind a `keccak256` indirection.                                                                          |
 
 Where `elementSlots = ceil(elementSize / 32)`, derived from the element type's `numberOfBytes`. For nested types, derivation is applied recursively at each level.
 
 This table is the canonical, normative source of derivation formulas defined by this ERC. Support for additional values of `compiler.language` MUST be added via an update to this ERC.
 
+### Nested and Complex Types
+
+Storage can involve complex nesting of mappings, arrays, and structs. Consumers resolve nested types recursively:
+
+1. **Mappings:** Each nesting level adds a key. `mapping(address => mapping(uint256 => uint256))` uses `{key[0]}` for the outer key and `{key[1]}` for the inner key.
+2. **Arrays:** Each nesting level adds an index. `uint256[][]` uses `{index[0]}` for the outer dimension and `{index[1]}` for the inner.
+3. **Structs:** Members are defined in the `types` object (with `encoding: "inplace_struct"`), each with their own optional `display` annotation. When a struct member changes, the wallet displays the parent variable's resolved label alongside the member's own label.
+
+### Display Annotations
+
+Each storage entry and each struct member in `types` may carry an optional `display` object. These annotations follow the [ERC-7730](./eip-7730.md) display vocabulary and are consumed by wallets to present storage changes in human-readable form during transaction simulation and clear signing.
+
+| Field        | Required | Description                                                                                                                                                       |
+|--------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `label`      | No       | User-facing name for the variable. Supports `{key[N]}` and `{index[N]}` placeholders. See [Labels and Placeholders](#labels-and-placeholders).                    |
+| `description`| No       | Human-readable explanation of the variable's semantic meaning. Informative only — MUST NOT be relied upon for security decisions without additional authenticity assurances. |
+| `keyFormats` | No       | Array of formatters applied to mapping keys or array indices before they are embedded in `label`. See [Key Formats](#key-formats).                                 |
+| `format`     | No       | The ERC-7730 formatter (`tokenAmount`, `addressName`, `raw`, `date`, etc.) applied to the storage value itself. Same vocabulary as `display.formats[*].fields[*].format` in ERC-7730. |
+| `params`     | No       | Formatter parameters for `format`. Same structure as `display.formats[*].fields[*].params` in ERC-7730.                                                           |
+| `template`   | No       | Natural-language description of the change to this variable. See [Templates and JSON Logic](#templates-and-json-logic).                                            |
+
+#### Labels and Placeholders
+
+The `label` string may embed placeholder tokens that are resolved at display time:
+
+- `{key[N]}` — the Nth mapping key (outermost = `{key[0]}`), formatted by `keyFormats[N]` if provided.
+- `{index[N]}` — the Nth array element index (outermost = `{index[0]}`), formatted by `keyFormats[N]` if provided.
+
+#### Key Formats
+
+`keyFormats` is an ordered array of formatter objects. Each entry has the same `format` and `params` structure as ERC-7730 field formatters and is applied to the corresponding key or index level before it is embedded in `label`.
+
+`keyFormats[0]` applies to `{key[0]}` or `{index[0]}`, `keyFormats[1]` to `{key[1]}` or `{index[1]}`, and so on.
+
+#### Templates and JSON Logic
+
+`template` is either a plain string or an ordered array of conditional entries:
+
+- **Plain string**: used unconditionally.
+- **Array**: each entry has a `value` string and an optional `condition`. The wallet evaluates entries in order and uses the first entry whose condition is satisfied. An entry without `condition` matches unconditionally and SHOULD appear last as the fallback.
+
+Template strings support the following placeholders:
+
+- `{label}` — the resolved `label` of this entry.
+- `{oldValue}` — the storage value before the transaction, after applying `format`/`params`.
+- `{newValue}` — the storage value after the transaction, after applying `format`/`params`.
+
+Conditions are [JSON Logic](https://jsonlogic.com) expressions. The following variables are available via `{"var": "..."}`:
+
+- `oldValue` — formatted storage value before the transaction.
+- `newValue` — formatted storage value after the transaction.
+- `key` — array of raw mapping keys at each nesting level.
+- `index` — array of element indices at each nesting level.
+
+Wallets MUST support the following JSON Logic operators: `==`, `!=`, `>`, `>=`, `<`, `<=`, `!`, `and`, `or`, `var`.
+
+#### Display Examples
+
+*ERC-20 balances mapping:*
+
+```json
+{
+    "label": "_balances",
+    "slot": "1",
+    "type": "t_mapping(t_address,t_uint256)",
+    "display": {
+        "label": "Balance of {key[0]}",
+        "description": "Token balance held by each account.",
+        "keyFormats": [{ "format": "addressName" }],
+        "format": "tokenAmount",
+        "params": { "tokenPath": "@.to" },
+        "template": [
+            {
+                "condition": { ">": [{ "var": "newValue" }, { "var": "oldValue" }] },
+                "value": "Balance of {key[0]} increased from {oldValue} to {newValue}"
+            },
+            {
+                "condition": { "<": [{ "var": "newValue" }, { "var": "oldValue" }] },
+                "value": "Balance of {key[0]} decreased from {oldValue} to {newValue}"
+            },
+            {
+                "value": "Balance of {key[0]} changed from {oldValue} to {newValue}"
+            }
+        ]
+    }
+}
+```
+
+*Mapping to a struct (vault pattern):*
+
+```solidity
+struct VaultInfo {
+    uint256 lockedAmount;
+}
+
+mapping(address => VaultInfo) private vaults;
+```
+
+```json
+{
+    "storage": [{
+        "label": "vaults",
+        "slot": "10",
+        "type": "t_mapping(t_address,t_struct(VaultInfo))",
+        "display": {
+            "label": "Vault belonging to {key[0]}",
+            "keyFormats": [{ "format": "addressName" }]
+        }
+    }],
+    "types": {
+        "t_struct(VaultInfo)": {
+            "encoding": "inplace_struct",
+            "label": "struct VaultInfo",
+            "numberOfBytes": "32",
+            "members": [
+                {
+                    "label": "lockedAmount",
+                    "slot": "0",
+                    "offset": 0,
+                    "type": "t_uint256",
+                    "display": {
+                        "label": "Locked Amount",
+                        "format": "tokenAmount",
+                        "params": { "tokenPath": "@.to" },
+                        "template": [
+                            {
+                                "condition": { ">": [{ "var": "newValue" }, { "var": "oldValue" }] },
+                                "value": "Locked Amount increased from {oldValue} to {newValue}"
+                            },
+                            {
+                                "condition": { "<": [{ "var": "newValue" }, { "var": "oldValue" }] },
+                                "value": "Locked Amount decreased from {oldValue} to {newValue}"
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
+```
+
+When `vaults[0xAlice].lockedAmount` changes, the wallet presents the parent label `"Vault belonging to Alice.eth"` alongside the member label `"Locked Amount"`.
+
 ## Rationale
 
 ### Transient storage is out of scope
 
-While any change persisted in the contract's storage may be extremely consequential for the user, the transient storage is cleared afther the transaction completes and bears no effect on the transaction outcome.
+While any change persisted in the contract's storage may be extremely consequential for the user, the transient storage is cleared after the transaction completes and bears no effect on the transaction outcome.
 
-There is no use-case that would require knowledge transient storage variable layout in the same way as the persistent one.
+There is no use-case that would require knowledge of the transient storage variable layout in the same way as the persistent one.
 
 ## Backwards Compatibility
 
