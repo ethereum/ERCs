@@ -133,7 +133,7 @@ abstract contract SDCSingleTrade is ISDCTrade {
      * emits a TradeIncepted
      * can be called only when TradeState = Incepted
      */
-    function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override onlyCounterparty onlyWhenTradeInactive returns (string memory) {
+    function inceptTrade(address _withParty, string memory _tradeData, int256 _position, int256 _paymentAmount, string memory _initialSettlementData) external override onlyCounterparty onlyWhenTradeInactive returns (string memory) {
         require(msg.sender != _withParty, "Calling party cannot be the same as withParty");
         require(_position == 1 || _position == -1, "Position can only be +1 or -1");
         tradeState = TradeState.Incepted; // Set TradeState to Incepted
@@ -153,7 +153,7 @@ abstract contract SDCSingleTrade is ISDCTrade {
      * emits a TradeConfirmed
      * can be called only when TradeState = Incepted
      */
-    function confirmTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override  onlyCounterparty onlyWhenTradeIncepted {
+    function confirmTrade(address _withParty, string memory _tradeData, int256 _position, int256 _paymentAmount, string memory _initialSettlementData) external override  onlyCounterparty onlyWhenTradeIncepted {
         address inceptingParty = msg.sender == party1 ? party2 : party1;
         uint256 transactionHash = uint256(keccak256(abi.encode(_withParty,msg.sender,_tradeData,-_position, -_paymentAmount,_initialSettlementData)));
         require(pendingRequests[transactionHash] == inceptingParty, "Confirmation fails due to inconsistent trade data or wrong party address");
@@ -171,7 +171,7 @@ abstract contract SDCSingleTrade is ISDCTrade {
       * emits a TradeConfirmed
       * can be called only when TradeState = Incepted
       */
-    function cancelTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external override  onlyCounterparty onlyWhenTradeIncepted {
+    function cancelTrade(address _withParty, string memory _tradeData, int256 _position, int256 _paymentAmount, string memory _initialSettlementData) external override  onlyCounterparty onlyWhenTradeIncepted {
         address inceptingParty = msg.sender;
         uint256 transactionHash = uint256(keccak256(abi.encode(msg.sender,_withParty,_tradeData,_position,_paymentAmount,_initialSettlementData)));
         require(pendingRequests[transactionHash] == inceptingParty, "Cancellation fails due to inconsistent trade data or wrong party address");
