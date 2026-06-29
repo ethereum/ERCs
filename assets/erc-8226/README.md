@@ -1,6 +1,6 @@
 # ERC-8226: Regulated Agent Mandate (RAMS) reference implementation
 
-Reference implementation for [ERC-8226](../../ERCS/erc-8226.md). Under development.
+Reference implementation for ERC-8226. Under development.
 
 ## Layout
 
