@@ -22,12 +22,16 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     bytes32 public constant CONTEXT_TAG_EIP712_DS  = keccak256("erc7730.context.eip712.domainseparator");
 
     bytes32 public constant REGISTRATION_TYPEHASH = keccak256(
-        "DescriptorRegistration(bytes32 descriptorHash,bytes32 contextIdsHash,bytes32 mirrorListId)"
+        "DescriptorRegistration(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId)"
     );
 
     bytes32 public constant REGISTRATION_BATCH_TYPEHASH = keccak256(
         "ClearSigningRegistrationBatch(DescriptorRegistration[] registrations,bytes32 attestationSignaturesHash)"
-        "DescriptorRegistration(bytes32 descriptorHash,bytes32 contextIdsHash,bytes32 mirrorListId)"
+        "DescriptorRegistration(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId)"
+    );
+
+    bytes32 public constant MIRROR_UPDATE_TYPEHASH = keccak256(
+        "MirrorListUpdate(bytes32[] descriptorHashes,bytes32 mirrorListId)"
     );
 
     bytes4 private constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
@@ -122,7 +126,7 @@ contract ClearSigningRegistry is IClearSigningRegistry {
                 bytes32 prev = _attestationId[attester][cid];
                 _attestationId[attester][cid] = uids[i];
                 emit AttestationUpdated(
-                    attester, cid, prev, registrations[i].descriptorHash, uids[i]
+                    attester, cid, uids[i], prev, registrations[i].descriptorHash
                 );
             }
         }
@@ -175,7 +179,7 @@ contract ClearSigningRegistry is IClearSigningRegistry {
 
                 _attestationId[attester][cid] = bytes32(0);
                 ++cleared;
-                emit AttesterEndorsementUpdated(attester, cid, uid, bytes32(0), bytes32(0));
+                emit AttestationUpdated(attester, cid, bytes32(0), uid, bytes32(0));
             }
         }
     }
@@ -222,6 +226,28 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         external view returns (string[] memory)
     {
         return _mirrorLists[mirrorListId];
+    }
+
+    /// @inheritdoc IClearSigningRegistry
+    function updateMirrorList(
+        address attester,
+        bytes32[] calldata descriptorHashes,
+        bytes32 mirrorListId,
+        bytes calldata signature
+    ) external {
+        if (descriptorHashes.length == 0) revert EmptyRegistrations();
+        if (_mirrorLists[mirrorListId].length == 0) revert UnknownMirrorList(mirrorListId);
+
+        if (msg.sender != attester) {
+            _verifyMirrorUpdateSignature(attester, descriptorHashes, mirrorListId, signature);
+        }
+
+        for (uint256 i = 0; i < descriptorHashes.length; i++) {
+            if (_mirrorListId[attester][descriptorHashes[i]] != mirrorListId) {
+                _mirrorListId[attester][descriptorHashes[i]] = mirrorListId;
+                emit MirrorListUpdated(attester, descriptorHashes[i], mirrorListId);
+            }
+        }
     }
 
     // =========================================================================
@@ -311,9 +337,50 @@ contract ClearSigningRegistry is IClearSigningRegistry {
             if (registrationSignature.length != 65) {
               revert InvalidRegistrationSignature();
             }
-            bytes32 r = bytes32(registrationSignature[0:32]);
-            bytes32 s = bytes32(registrationSignature[32:64]);
-            uint8   v = uint8(registrationSignature[64]);
+            bytes32 r;
+            bytes32 s;
+            uint8 v;
+            assembly {
+                r := calldataload(registrationSignature.offset)
+                s := calldataload(add(registrationSignature.offset, 32))
+                v := byte(0, calldataload(add(registrationSignature.offset, 64)))
+            }
+            address recovered = ecrecover(digest, v, r, s);
+            if (recovered == address(0) || recovered != attester) {
+                revert InvalidRegistrationSignature();
+            }
+        }
+    }
+
+    /// @dev Verifies the attester's EIP-712 mirror update signature.
+    function _verifyMirrorUpdateSignature(
+        address              attester,
+        bytes32[]   calldata descriptorHashes,
+        bytes32              mirrorListId,
+        bytes       calldata signature
+    ) private view {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                MIRROR_UPDATE_TYPEHASH,
+                keccak256(abi.encodePacked(descriptorHashes)),
+                mirrorListId
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+
+        if (attester.code.length > 0) {
+            if (IERC1271(attester).isValidSignature(digest, signature) != ERC1271_MAGIC_VALUE)
+                revert InvalidRegistrationSignature();
+        } else {
+            if (signature.length != 65) revert InvalidRegistrationSignature();
+            bytes32 r;
+            bytes32 s;
+            uint8 v;
+            assembly {
+                r := calldataload(signature.offset)
+                s := calldataload(add(signature.offset, 32))
+                v := byte(0, calldataload(add(signature.offset, 64)))
+            }
             address recovered = ecrecover(digest, v, r, s);
             if (recovered == address(0) || recovered != attester) {
                 revert InvalidRegistrationSignature();

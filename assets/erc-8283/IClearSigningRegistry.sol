@@ -196,4 +196,16 @@ interface IClearSigningRegistry {
     /// @return uris  The URI list (empty if the ID is unknown).
     function getMirrorListById(bytes32 mirrorListId)
         external view returns (string[] memory uris);
+
+    /// @notice Update the MirrorList for existing descriptors without EAS re-attestation.
+    /// @param attester The attester whose endorsements are being updated.
+    /// @param descriptorHashes The hashes of the descriptors to update.
+    /// @param mirrorListId The new MirrorList ID.
+    /// @param signature EIP-712 signature authorizing this update (ignored if msg.sender == attester).
+    function updateMirrorList(
+        address attester,
+        bytes32[] calldata descriptorHashes,
+        bytes32 mirrorListId,
+        bytes calldata signature
+    ) external;
 }
