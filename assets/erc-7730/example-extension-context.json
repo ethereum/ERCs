@@ -1,0 +1,46 @@
+{
+    "$schema": "./erc7730-v2.schema.json",
+
+    "$comment": "Hypothetical example of an ERC-7730 file using an extension binding context. The 'requires' field declares the dependency on ERC-4337; 'fallback' points to a core-only spec for wallets that do not support it.",
+
+    "requires": ["erc4337"],
+    "fallback": "./example-main.json",
+
+    "context": {
+        "extension": {
+            "erc4337": {
+                "packedUserOperation": {
+                    "deployments": [
+                        { "chainId": 1, "address": "0x0000000071727De22E5E9d8BAf0edAc6f37da032" }
+                    ]
+                }
+            }
+        }
+    },
+
+    "metadata": {
+        "owner": "Example Bundler",
+        "contractName": "EntryPoint v0.7"
+    },
+
+    "display": {
+        "formats": {
+            "handleOps((address sender,uint256 nonce,bytes initCode,bytes callData,bytes32 accountGasLimits,uint256 preVerificationGas,bytes32 gasFees,bytes paymasterAndData,bytes signature)[] ops,address beneficiary)": {
+                "intent": "Execute User Operations",
+                "fields": [
+                    {
+                        "path": "ops.[].sender",
+                        "label": "Sender",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "ops.[].callData",
+                        "label": "Call",
+                        "format": "calldata",
+                        "params": { "calleePath": "ops.[].sender" }
+                    }
+                ]
+            }
+        }
+    }
+}
