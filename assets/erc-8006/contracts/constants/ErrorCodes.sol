@@ -1,0 +1,26 @@
+//SPDX-License-Identifier: Unlicensed
+pragma solidity ^0.8.30;
+
+string constant PROVIDED_NODE_REFERENCE_IS_NIL_ERR = "A-004";
+string constant NODE_INDEX_NOT_EXISTS_ERR = "A-005";
+string constant AUTH_ADMIN_ERR = "A-006";
+string constant NODE_NOT_EXISTS_ERR = "A-008";
+string constant SUPPLIED_NODE_ID_IS_NIL_ERR = "A-009";
+string constant NODE_ID_IS_ALREADY_EXISTS_ERR = "A-010";
+string constant SUPPLIED_VARIABLES_LIST_LENGTH_NOT_MATCHES_EXPECTED_LENGTH_ERR = "A-013";
+
+string constant DUPLICATED_ROOT_NODE_ERR = "T-001";
+string constant MISSING_ROOT_NODE_ERR = "T-002";
+string constant INIT_NODES_LIST_IS_LARGER_THAN_MAX_LENGTH_ERR = "T-003";
+string constant POLICY_ALREADY_INITIALIZED_ERR = "T-004";
+string constant POLICY_NOT_INITIALIZED_ERR = "T-005";
+string constant POLICY_DOES_NOT_HAVE_ANY_ARTIFACT_ERR = "T-006";
+
+string constant NODE_VARIABLES_LIST_LENGTH_VIOLATES_DESCRIPTOR_ERR = "U-001";
+
+string constant ARTIFACT_INSTANCE_NOT_SUPPORTS_REQUIRED_INTERFACE_ERR = "A-002";
+string constant ARTIFACT_INSTANCE_NOT_IMPLEMENTS_ERC165_INTERFACE_ERR = "A-003";
+
+string constant DAG_HAS_CYLE_ERR = "DWPM-001";
+string constant DAG_IS_INITED_ERR = "DWPM-002";
+string constant DAG_HAS_DICONNECTED_NODES_CLUSTER_ERR = "DWPM-003";
