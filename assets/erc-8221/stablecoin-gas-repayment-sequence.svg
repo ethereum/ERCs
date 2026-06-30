@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Stablecoin Gas Repayment via Signed Execution</title>
+  <desc id="desc">Sequence diagram showing the self-bootstrapping gas repayment flow. Bob signs a batch that installs a gas-repayment hook, approves exact USDC, executes operations, and repays the relayer in USDC via afterExecute. Bob never holds ETH or sends a transaction.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a8a9a"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4c7a62"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .bob { fill: #eef3ff; }
+    .relayer { fill: #fff3db; }
+    .account { fill: #eaf7ef; }
+    .hook { fill: #f8f2ff; }
+    .usdc { fill: #eef3ff; }
+    .step { fill: #fff8e8; stroke: #c9a14d; stroke-width: 2; rx: 16; ry: 16; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .life { stroke: #98a6b3; stroke-width: 2.4; stroke-dasharray: 8 7; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .offchain { stroke: #7a8a9a; stroke-width: 3; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow-gray); }
+    .repay { stroke: #4c7a62; stroke-width: 3.2; fill: none; marker-end: url(#arrow-green); }
+    .atomic { fill: none; stroke: #c9a14d; stroke-width: 2; stroke-dasharray: 10 6; rx: 12; ry: 12; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="1080"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Stablecoin Gas Repayment (Self-Bootstrapping)</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Bob's account holds USDC but no ETH. One signed batch installs a hook, approves exact USDC,</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">executes operations, and repays the relayer — all without Bob ever holding ETH or sending a transaction.</text>
+
+  <!-- Entity boxes -->
+  <rect class="box bob" x="40" y="140" width="210" height="85"/>
+  <text class="title2" x="145" y="178" text-anchor="middle">Bob</text>
+  <text class="body" x="145" y="203" text-anchor="middle">signs offline</text>
+
+  <rect class="box relayer" x="330" y="140" width="210" height="85"/>
+  <text class="title2" x="435" y="178" text-anchor="middle">Relayer</text>
+  <text class="body" x="435" y="203" text-anchor="middle">pays ETH gas</text>
+
+  <rect class="box account" x="620" y="140" width="280" height="85"/>
+  <text class="title2" x="760" y="178" text-anchor="middle">Account (A)</text>
+  <text class="mono" x="760" y="203" text-anchor="middle">holds USDC, no ETH</text>
+
+  <rect class="box hook" x="980" y="140" width="210" height="85"/>
+  <text class="title2" x="1085" y="178" text-anchor="middle">Gas Hook</text>
+  <text class="body" x="1085" y="203" text-anchor="middle">repayment module</text>
+
+  <rect class="box usdc" x="1260" y="140" width="140" height="85"/>
+  <text class="title2" x="1330" y="178" text-anchor="middle">USDC</text>
+  <text class="body" x="1330" y="203" text-anchor="middle">token contract</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="145" y1="225" x2="145" y2="815"/>
+  <line class="life" x1="435" y1="225" x2="435" y2="815"/>
+  <line class="life" x1="760" y1="225" x2="760" y2="815"/>
+  <line class="life" x1="1085" y1="225" x2="1085" y2="815"/>
+  <line class="life" x1="1330" y1="225" x2="1330" y2="815"/>
+
+  <!-- 1. Bob signs -->
+  <rect class="step" x="38" y="265" width="275" height="38"/>
+  <text class="label" x="175" y="290" text-anchor="middle">1. Sign ExecuteBatchRequest</text>
+
+  <!-- 2. Off-chain handoff -->
+  <text class="label" x="290" y="330" text-anchor="middle">2. Off-chain handoff</text>
+  <path class="offchain" d="M 145 348 L 435 348"/>
+
+  <!-- Atomic batch boundary -->
+  <rect class="atomic" x="610" y="380" width="790" height="420"/>
+  <text class="label" x="1005" y="404" text-anchor="middle">Atomic signed batch — all calls or revert</text>
+
+  <!-- 3. Relayer submits -->
+  <text class="label" x="597" y="425" text-anchor="middle">3. executeBatchWithSignature</text>
+  <path class="edge" d="M 435 442 L 760 442"/>
+
+  <!-- 4. installHook -->
+  <text class="label" x="922" y="475" text-anchor="middle">4. installHook(gasHook, scope=2)</text>
+  <path class="edge" d="M 760 492 L 1085 492"/>
+  <text class="body" x="922" y="514" text-anchor="middle">hook now active for remaining calls</text>
+
+  <!-- 5. approve exact USDC -->
+  <text class="label" x="1045" y="545" text-anchor="middle">5. approve(USDC, gasHook, exactAmount)</text>
+  <path class="edge" d="M 760 562 L 1330 562"/>
+
+  <!-- 6. intended operations -->
+  <rect class="step" x="660" y="590" width="380" height="38"/>
+  <text class="label" x="850" y="614" text-anchor="middle">6. Intended operations (approve + swap ...)</text>
+
+  <!-- 7. afterExecute triggers repayment -->
+  <text class="label" x="922" y="660" text-anchor="middle">7. afterExecute on final call</text>
+  <path class="edge" d="M 760 678 L 1085 678"/>
+
+  <!-- transferFrom -->
+  <text class="mono" x="1207" y="712" text-anchor="middle">transferFrom(A, relayer, amt)</text>
+  <path class="repay" d="M 1085 728 L 1330 728"/>
+
+  <!-- 8. Relayer gets USDC -->
+  <text class="label" x="760" y="762" text-anchor="middle">8. Relayer receives USDC</text>
+  <path class="repay" d="M 1085 778 L 435 778"/>
+  <text class="body" x="760" y="800" text-anchor="middle">exact approval consumed; no residual allowance</text>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="870" width="420" height="130"/>
+  <text class="label" x="280" y="908" text-anchor="middle">No ETH Required</text>
+  <text class="body" x="280" y="936" text-anchor="middle">Bob operated the account without ever</text>
+  <text class="body" x="280" y="958" text-anchor="middle">holding ETH or sending a transaction.</text>
+  <text class="body" x="280" y="980" text-anchor="middle">The relayer is repaid in stablecoins.</text>
+
+  <rect class="note" x="530" y="870" width="380" height="130"/>
+  <text class="label" x="720" y="908" text-anchor="middle">Exact Approval, No Residual</text>
+  <text class="body" x="720" y="936" text-anchor="middle">Each batch includes its own exact USDC</text>
+  <text class="body" x="720" y="958" text-anchor="middle">approval for that transaction's gas cost.</text>
+  <text class="body" x="720" y="980" text-anchor="middle">No standing unlimited approval on the hook.</text>
+
+  <rect class="warn" x="950" y="870" width="420" height="130"/>
+  <text class="label" x="1160" y="908" text-anchor="middle">Optional: Uninstall After Use</text>
+  <text class="body" x="1160" y="936" text-anchor="middle">The batch can end with uninstallHook()</text>
+  <text class="body" x="1160" y="958" text-anchor="middle">so the hook exists for exactly one</text>
+  <text class="body" x="1160" y="980" text-anchor="middle">transaction, then is removed.</text>
+</svg>

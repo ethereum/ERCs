@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 780" role="img" aria-labelledby="title desc">
+  <title id="title">AI Agent Account with Hard Spending Cap</title>
+  <desc id="desc">Architecture diagram showing Alice's parent account P funding a child account Agent with a limited budget. A session-key validator authorizes the agent's hot key. The spending cap is the child's EVM balance, not a policy check. The agent has no path back to P.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45d42"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .alice { fill: #eef3ff; }
+    .parent { fill: #eaf7ef; }
+    .agent { fill: #fff3db; }
+    .external { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .budget { fill: #d8eadf; stroke: #4d7a63; stroke-width: 2; rx: 16; ry: 16; }
+    .validator { fill: #f3f7ff; stroke: #8ea8c7; stroke-width: 2; rx: 14; ry: 14; }
+    .blocked { fill: #ffe0d6; stroke: #b45d42; stroke-width: 2; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .edge-block { stroke: #b45d42; stroke-width: 3; fill: none; marker-end: url(#arrow-red); }
+    .dash { stroke-dasharray: 8 7; }
+    .cross { stroke: #b45d42; stroke-width: 4; stroke-linecap: round; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="780"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">AI Agent Account with Hard Spending Cap</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">The spending cap is the child account's EVM balance — enforced by the EVM, not by policy.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">The agent literally cannot spend more than the child holds, regardless of what its code attempts.</text>
+
+  <!-- Alice's EOA -->
+  <rect class="box alice" x="80" y="170" width="280" height="90"/>
+  <text class="title2" x="220" y="208" text-anchor="middle">Alice's EOA</text>
+  <text class="body" x="220" y="233" text-anchor="middle">Root controller — owns T_P</text>
+
+  <!-- Arrow: Alice -> P -->
+  <path class="edge" d="M 220 260 L 220 310"/>
+  <text class="label" x="240" y="292" text-anchor="start">controls</text>
+
+  <!-- Parent account P -->
+  <rect class="box parent" x="80" y="310" width="280" height="170"/>
+  <text class="title2" x="220" y="348" text-anchor="middle">Parent Account (P)</text>
+  <text class="body" x="220" y="378" text-anchor="middle">Holds T_Agent and all</text>
+  <text class="body" x="220" y="398" text-anchor="middle">other assets under Alice.</text>
+  <text class="mono" x="220" y="438" text-anchor="middle">resetDelegations(T_Agent)</text>
+  <text class="body" x="220" y="460" text-anchor="middle">revokes K instantly</text>
+
+  <!-- Arrow: P funds Agent -->
+  <path class="edge" d="M 360 395 L 520 395"/>
+  <text class="label" x="440" y="382" text-anchor="middle">funds 5 ETH</text>
+
+  <!-- Agent child account -->
+  <rect class="box agent" x="520" y="170" width="440" height="410"/>
+  <text class="title2" x="740" y="210" text-anchor="middle">Child Account (Agent)</text>
+  <text class="mono" x="740" y="240" text-anchor="middle">ownerOf(T_Agent) = P</text>
+
+  <!-- Budget box inside Agent -->
+  <rect class="budget" x="560" y="270" width="360" height="50"/>
+  <text class="label" x="740" y="292" text-anchor="middle">Budget = 5 ETH (the EVM balance)</text>
+  <text class="body" x="740" y="310" text-anchor="middle">This IS the spending cap.</text>
+
+  <!-- Validator inside Agent -->
+  <rect class="validator" x="560" y="350" width="360" height="50"/>
+  <text class="label" x="740" y="372" text-anchor="middle">Session-key validator: hot key K</text>
+  <text class="body" x="740" y="392" text-anchor="middle">Authorizes agent for current controlVersion</text>
+
+  <!-- Agent operates via signed execution -->
+  <rect class="note" x="560" y="430" width="360" height="60"/>
+  <text class="body" x="740" y="454" text-anchor="middle">Agent operates via signed execution.</text>
+  <text class="body" x="740" y="476" text-anchor="middle">K signs, relayer or agent submits.</text>
+
+  <!-- Arrow: Agent -> DeFi -->
+  <path class="edge" d="M 960 300 L 1100 300"/>
+  <text class="label" x="1030" y="284" text-anchor="middle">any contract</text>
+
+  <!-- External DeFi -->
+  <rect class="box external" x="1100" y="240" width="260" height="120"/>
+  <text class="title2" x="1230" y="278" text-anchor="middle">DeFi / Any Target</text>
+  <text class="body" x="1230" y="308" text-anchor="middle">The agent can call anything</text>
+  <text class="body" x="1230" y="332" text-anchor="middle">but only with Agent's balance.</text>
+
+  <!-- BLOCKED: Agent cannot reach P — shown as a red blocked box at bottom of Agent -->
+  <rect class="blocked" x="560" y="510" width="360" height="40"/>
+  <text class="label" x="740" y="535" text-anchor="middle" style="fill: #b45d42;">No execution path to (P) or (P)'s assets</text>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="610" width="420" height="130"/>
+  <text class="label" x="280" y="648" text-anchor="middle">Budget = Balance, Not Policy</text>
+  <text class="body" x="280" y="678" text-anchor="middle">The cap is the EVM balance of the child</text>
+  <text class="body" x="280" y="700" text-anchor="middle">account. No policy check, no hook, no</text>
+  <text class="body" x="280" y="722" text-anchor="middle">validator can override what the EVM enforces.</text>
+
+  <rect class="warn" x="530" y="610" width="380" height="130"/>
+  <text class="label" x="720" y="648" text-anchor="middle">Blast Radius Is the Balance</text>
+  <text class="body" x="720" y="678" text-anchor="middle">If K is compromised, loss is bounded</text>
+  <text class="body" x="720" y="700" text-anchor="middle">by Agent's balance. P and everything</text>
+  <text class="body" x="720" y="722" text-anchor="middle">under P is unreachable from Agent.</text>
+
+  <rect class="note" x="950" y="610" width="420" height="130"/>
+  <text class="label" x="1160" y="648" text-anchor="middle">Alice Retains Full Control</text>
+  <text class="body" x="1160" y="678" text-anchor="middle">P can top up by sending funds to Agent.</text>
+  <text class="body" x="1160" y="700" text-anchor="middle">P can stop the agent by calling</text>
+  <text class="body" x="1160" y="722" text-anchor="middle">resetDelegations on T_Agent.</text>
+</svg>
