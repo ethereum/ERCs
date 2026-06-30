@@ -3,6 +3,10 @@
 
     "$comment": "This is a simple example of an ERC-7730 display definition.",
 
+    "$i18n": {
+        "fr": "./example-main.fr.json"
+    },
+
     "context": {
         "$id": "Example ERC-20",
         "contract" : {
