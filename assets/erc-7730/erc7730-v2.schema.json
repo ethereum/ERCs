@@ -564,6 +564,9 @@
                     "not": { "required": [ "path", "value" ] }
                 },
                 {
+                    "not": { "required": [ "$ref" ] } 
+                },
+                {
                     "if": { "properties": { "format": { "const": "addressName" } } },
                     "then": {
                         "properties": {
