@@ -12,11 +12,13 @@
                     {
                         "path": "spender",
                         "label": "Spender",
+                        "description": "The contract address authorized to transfer your tokens on your behalf. Verify this is a protocol you recognize.",
                         "format": "addressName"
                     },
                     {
                         "path": "value",
                         "label": "Amount",
+                        "description": "The maximum total amount of your tokens this address may transfer on your behalf, or 'Unlimited' for approvals with no limit.",
                         "format": "tokenAmount",
                         "params": {
                             "tokenPath": "@.to"
