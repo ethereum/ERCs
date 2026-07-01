@@ -3,7 +3,7 @@ eip: 8300
 title: Invariant-First Reserve Receipt Token (IFR) (pETH)
 description: A standard for reserve-backed ERC-20 tokens that enforce solvency as a transaction-validity condition via an on-chain accounting invariant.
 author: Emiliano Solazzi Griminger
-discussions-to: https://ethereum-magicians.org/t/erc-discussion-invariant-first-reserve-receipt-token-ifr-peth/28753
+discussions-to: https://ethereum-magicians.org/t/erc-8300-invariant-first-reserve-receipt-token-ifr-peth/28753
 status: Draft
 type: Standards Track
 category: ERC
