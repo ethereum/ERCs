@@ -53,25 +53,25 @@ Each key below corresponds to a field in the [ERC-8004](./eip-8004.md) registrat
 | `description` | Natural language description of the agent | MUST |
 | `image` | URI pointing to the agent's image | OPTIONAL |
 | `agent_account` | Primary agent account or wallet address (e.g., CAIP-10). When set, this MUST override any `agentWallet` onchain value. | OPTIONAL |
-| `x402_support` | Whether the agent supports X402 / ERC-8042-style cross-chain/offchain resolution (string value, e.g., `\"true\"` or `\"false\"`) | OPTIONAL |
-| `active` | Whether the agent is currently active (string value, e.g., `\"true\"` or `\"false\"`) | OPTIONAL |
+| `x402_support` | Whether the agent supports X402 / ERC-8042-style cross-chain/offchain resolution (string value, e.g., `"true"` or `"false"`) | OPTIONAL |
+| `active` | Whether the agent is currently active (string value, e.g., `"true"` or `"false"`) | OPTIONAL |
 | `supported_trust` | Comma-separated list of supported trust models, mirroring the `"supportedTrust"` array in the ERC-8004 registration JSON | OPTIONAL |
 
 #### Endpoint Fields
 
-Each endpoint type from the [ERC-8004](./eip-8004.md) registration file `endpoints` array MUST be stored as a separate metadata record. The key follows the pattern `endpoint/<name>`, where `<name>` is the endpoint's `name` field in the registration file. The value is the endpoint's `endpoint` field encoded as UTF-8 bytes.
+Each endpoint type from the [ERC-8004](./eip-8004.md) registration file `endpoints` array MUST be stored as a separate metadata record. The key follows the pattern `endpoint[<name>]`, where `<name>` is the endpoint's `name` field in the registration file. The value is the endpoint's `endpoint` field encoded as UTF-8 bytes.
 
 | Key | Description |
 |-----|-------------|
-| `endpoint/A2A` | A2A agent card endpoint URL |
-| `endpoint/MCP` | MCP server endpoint URL |
-| `endpoint/OASF` | OASF endpoint URI |
-| `endpoint/ENS` | ENS name |
-| `endpoint/DID` | Decentralized Identifier |
+| `endpoint[a2a]` | A2A agent card endpoint URL |
+| `endpoint[mcp]` | MCP server endpoint URL |
+| `endpoint[oasf]` | OASF endpoint URI |
+| `endpoint[ens]` | ENS name |
+| `endpoint[did]` | Decentralized Identifier |
 
-All endpoint keys are OPTIONAL. Additional endpoint types beyond those listed above MAY be defined using the same `endpoint/<name>` key pattern.
+All endpoint keys are OPTIONAL. Additional endpoint types beyond those listed above MAY be defined using the same `endpoint[<name>]` key pattern.
 
-Endpoint versions MAY be stored using the key pattern `endpoint/<name>/version` with the version string encoded as UTF-8 bytes.
+Endpoint versions MAY be stored using the key pattern `endpoint[<name>][version]` with the version string encoded as UTF-8 bytes.
 
 ### Encoding
 
@@ -85,23 +85,23 @@ registry.setMetadata(agentId, "name", bytes("myAgentName"));
 string memory name = string(registry.getMetadata(agentId, "name"));
 
 // Setting an endpoint
-registry.setMetadata(agentId, "endpoint/MCP", bytes("https://mcp.agent.example/"));
+registry.setMetadata(agentId, "endpoint[mcp]", bytes("https://mcp.agent.example/"));
 
 // Reading an endpoint
-string memory mcpEndpoint = string(registry.getMetadata(agentId, "endpoint/MCP"));
+string memory mcpEndpoint = string(registry.getMetadata(agentId, "endpoint[mcp]"));
 ```
 
 An empty `bytes` return value (length 0) indicates the key has not been set.
 
 ### Precedence over Offchain Metadata
 
-When a registry implements this ERC, **onchain metadata MUST take precedence** over any conflicting values in the offchain [ERC-8004](./eip-8004.md) registration file or any `data:` URLs it references. If a given key (for example `name`, `description`, or `endpoint/MCP`) is set onchain (non-empty bytes), clients and integrators MUST use the onchain value and ignore the corresponding offchain value. If the onchain value for a key is absent (empty bytes), clients MAY fall back to the offchain registration file or associated data URL for that field.∂
+When a registry implements this ERC, **onchain metadata MUST take precedence** over any conflicting values in the offchain [ERC-8004](./eip-8004.md) registration file or any `data:` URLs it references. If a given key (for example `name`, `description`, or `endpoint[mcp]`) is set onchain (non-empty bytes), clients and integrators MUST use the onchain value and ignore the corresponding offchain value. If the onchain value for a key is absent (empty bytes), clients MAY fall back to the offchain registration file or associated data URL for that field.
 
 ### Resolution Strategy
 
 Clients SHOULD use the following strategy to read agent metadata:
 
-1. For each standard key defined above (e.g., `name`, `description`, `agent_account`, `x402_support`, `active`, `supported_trust`, `endpoint/ENS`, `endpoint/MCP`), call `getMetadata(agentId, key)`
+1. For each standard key defined above (e.g., `name`, `description`, `agent_account`, `x402_support`, `active`, `supported_trust`, `endpoint[ens]`, `endpoint[mcp]`), call `getMetadata(agentId, key)`
 2. If `getMetadata` returns a non-empty `bytes` value for that key, treat it as the **authoritative onchain value** and ignore the corresponding field in the off-chain registration file (or any `data:` URL)
 3. If `getMetadata` returns an empty `bytes` value for that key, fall back to the off-chain [ERC-8004](./eip-8004.md) registration file (or associated `data:` URL) for that field
 
@@ -114,21 +114,21 @@ The mapping between onchain keys and off-chain [ERC-8004](./eip-8004.md) fields 
 | `image`            | Top-level `"image"` field                                                                            |
 | `x402_support`     | Top-level `"x402Support"` field                                                                      |
 | `active`           | Top-level `"active"` field                                                                           |
-| `supported_trust`  | Top-level `"supportedTrust"` array, encoded as a comma-separated string (e.g., `\"reputation,crypto-economic,tee-attestation\"`) |
+| `supported_trust`  | Top-level `"supportedTrust"` array, encoded as a comma-separated string (e.g., `"reputation,crypto-economic,tee-attestation"`) |
 | `agent_account`    | Effective agent account / wallet identifier (logically overriding the `agentWallet` reserved field and any wallet/account value implied by ERC-8004 logic) |
-| `endpoint/A2A`     | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"A2A\"`           |
-| `endpoint/MCP`     | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"MCP\"`           |
-| `endpoint/OASF`    | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"OASF\"`          |
-| `endpoint/ENS`     | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"ENS\"`           |
-| `endpoint/DID`     | The `"endpoint"` value of the object in the `\"services\"` array with `\"name\": \"DID\"`           |
-| `endpoint/<name>`  | In general, the `"endpoint"` value of the entry in the `\"services\"` array whose `\"name\"` = `<name>` |
+| `endpoint[a2a]`     | The `"endpoint"` value of the object in the `"services"` array with `"name": "a2a"`           |
+| `endpoint[mcp]`     | The `"endpoint"` value of the object in the `"services"` array with `"name": "mcp"`           |
+| `endpoint[oasf]`    | The `"endpoint"` value of the object in the `"services"` array with `"name": "oasf"`          |
+| `endpoint[ens]`     | The `"endpoint"` value of the object in the `"services"` array with `"name": "ens"`           |
+| `endpoint[did]`     | The `"endpoint"` value of the object in the `"services"` array with `"name": "did"`           |
+| `endpoint[<name>]`  | In general, the `"endpoint"` value of the entry in the `"services"` array whose `"name"` = `<name>` |
 
 When both onchain metadata and an off-chain registration file exist for the same agent, the onchain values MUST take precedence for any key that has been set (non-empty `bytes`).
 
 ## Rationale
 
 - **Reuse of [ERC-8004](./eip-8004.md) primitives**: This extension builds on the existing `getMetadata`/`setMetadata` functions rather than introducing new storage mechanisms, keeping the interface minimal.
-- **Per-endpoint keys**: Storing each endpoint type as a separate metadata record (`endpoint/A2A`, `endpoint/MCP`, etc.) enables granular updates. An agent can update its MCP endpoint without affecting its A2A endpoint or wallet address.
+- **Per-endpoint keys**: Storing each endpoint type as a separate metadata record (`endpoint[a2a]`, `endpoint[mcp]`, etc.) enables granular updates. An agent can update its MCP endpoint without affecting its A2A endpoint or wallet address.
 - **UTF-8 encoding**: Raw UTF-8 bytes are the simplest and most gas-efficient encoding for string values. In Solidity, `bytes(str)` and `string(bts)` handle conversion directly without ABI encoding overhead.
 - **Precedence rule**: Onchain metadata takes precedence over off-chain data so that the most authoritative source (blockchain-verified) is used when available. This also allows agents to gradually migrate individual fields onchain while keeping the rest off-chain.
 
