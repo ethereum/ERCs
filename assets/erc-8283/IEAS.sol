@@ -66,4 +66,13 @@ interface IEAS {
     function multiRevokeByDelegation(
         MultiDelegatedRevocationRequest[] calldata multiDelegatedRequests
     ) external payable;
+
+    /// @notice Records the revocation of an off-chain attestation UID by the caller.
+    /// @param data The off-chain attestation UID to revoke.
+    /// @return The revocation timestamp.
+    function revokeOffchain(bytes32 data) external returns (uint64);
+
+    /// @notice Returns the timestamp at which the given revoker revoked the given
+    ///         off-chain attestation UID, or 0 if it has not been revoked.
+    function getRevokeOffchain(address revoker, bytes32 data) external view returns (uint64);
 }
