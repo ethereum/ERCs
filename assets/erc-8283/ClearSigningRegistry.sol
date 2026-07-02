@@ -96,7 +96,8 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         DescriptorRegistration[]           calldata registrations,
         MultiDelegatedAttestationRequest[] calldata attestations,
         MultiDelegatedRevocationRequest[]  calldata revocations,
-        bytes                              calldata registrationSignature
+        bytes                              calldata registrationSignature,
+        bytes32[]                          calldata offchainRevocations
     ) external returns (bytes32[] memory attestationIds) {
         if (registrations.length == 0) {
           revert EmptyRegistrations();
@@ -114,6 +115,23 @@ contract ClearSigningRegistry is IClearSigningRegistry {
           revert ArrayLengthMismatch();
         }
 
+        // Every active attestation being displaced must be explicitly revoked,
+        // whether the displaced slot was previously on-chain or off-chain.
+        _checkRevocations(attestations[0].attester, registrations, revocations, offchainRevocations);
+
+        // Revoke prior attestations (may be empty when no slots are replaced).
+        _processRevocations(revocations, offchainRevocations);
+
+        attestationIds = _registerOnchainBatch(registrations, attestations, registrationSignature);
+    }
+
+    /// @dev The registration phase of 'createDescriptorAttestations', split out
+    ///      from the revocation phase to limit per-frame stack usage.
+    function _registerOnchainBatch(
+        DescriptorRegistration[]           calldata registrations,
+        MultiDelegatedAttestationRequest[] calldata attestations,
+        bytes                              calldata registrationSignature
+    ) private returns (bytes32[] memory attestationIds) {
         address attester = attestations[0].attester;
 
         // Validate each registration against its active attestation, publish its
@@ -126,14 +144,6 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         // Validate the attester's signature over the attestation metadata for relayed registrations.
         if (msg.sender != attester) {
           _verifyRegistrationSignature(attester, itemHashes, attestations[0].signatures, registrationSignature);
-        }
-
-        // Every active attestation being displaced must be explicitly revoked.
-        _checkRevocations(attester, registrations, revocations);
-
-        // Revoke prior attestations (may be empty when no slots are replaced).
-        if (revocations.length > 0) {
-            eas.multiRevokeByDelegation(revocations);
         }
 
         // Create new attestations; the first registrations.length UIDs of the flat
@@ -183,16 +193,10 @@ contract ClearSigningRegistry is IClearSigningRegistry {
 
         // Every active attestation being displaced must be explicitly revoked,
         // whether the displaced slot was previously on-chain or off-chain.
-        _checkOffchainRevocations(attester, registrations, revocations, offchainRevocations);
+        _checkRevocations(attester, registrations, revocations, offchainRevocations);
 
-        // Revoke displaced on-chain attestations via EAS delegated revocation.
-        if (revocations.length > 0) {
-            eas.multiRevokeByDelegation(revocations);
-        }
-        // Record the revocation of displaced off-chain attestations.
-        for (uint256 i; i < offchainRevocations.length; ++i) {
-            eas.revokeOffchain(offchainRevocations[i]);
-        }
+        // Revoke displaced attestations (may be empty when no slots are replaced).
+        _processRevocations(revocations, offchainRevocations);
 
         attestationIds = _registerOffchainBatch(
             attester, registrations, attestations, attestationMirrorListUris, registrationSignature
@@ -602,40 +606,25 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         }
     }
 
-    /// @dev Requires that every active attestation displaced by this batch is present in the supplied revocation batch.
-    function _checkRevocations(
-        address                                     attester,
-        DescriptorRegistration[]           calldata registrations,
-        MultiDelegatedRevocationRequest[]  calldata revocations
-    ) private view {
-        // Build flat set of UIDs included in the revocation batch.
-        bytes32[] memory revokedUids = _flattenRevocationUids(revocations);
-
-        for (uint256 i; i < registrations.length; ++i) {
-            bytes32[] calldata contextIds = registrations[i].contextIds;
-            for (uint256 j; j < contextIds.length; ++j) {
-                bytes32 oldUid = _slots[attester][contextIds[j]];
-                if (oldUid == bytes32(0)) {
-                  continue;
-                }
-                bool found = false;
-                for (uint256 k; k < revokedUids.length; ++k) {
-                    if (revokedUids[k] == oldUid) {
-                      found = true;
-                      break;
-                    }
-                }
-                if (!found) {
-                  revert MissingRevocation(oldUid);
-                }
-            }
+    /// @dev Executes the revocation batches for displaced slots: delegated EAS
+    ///      revocations for on-chain attestations, registry-recorded off-chain
+    ///      revocations for off-chain ones.
+    function _processRevocations(
+        MultiDelegatedRevocationRequest[]  calldata revocations,
+        bytes32[]                          calldata offchainRevocations
+    ) private {
+        if (revocations.length > 0) {
+            eas.multiRevokeByDelegation(revocations);
+        }
+        for (uint256 i; i < offchainRevocations.length; ++i) {
+            eas.revokeOffchain(offchainRevocations[i]);
         }
     }
 
     /// @dev Requires that every active attestation displaced by this batch is present
     ///      in the matching revocation batch: 'revocations' for displaced on-chain
     ///      attestations, 'offchainRevocations' for displaced off-chain ones.
-    function _checkOffchainRevocations(
+    function _checkRevocations(
         address                                     attester,
         DescriptorRegistration[]           calldata registrations,
         MultiDelegatedRevocationRequest[]  calldata revocations,

@@ -159,18 +159,21 @@ interface IClearSigningRegistry {
     /// @param registrations  The descriptors to register.
     /// @param attestations   EAS attestation batch.
     ///                       The 'attestations[0]' holds the active attestations with one data entry per registration.
-    /// @param revocations    EAS delegated revocation batch for prior attestations.
-    ///                       MAY be empty when no active slots are replaced.
-    ///                       When the attester already has an active attestation for
-    ///                       any supplied contextId, the corresponding UID MUST
-    ///                       appear in this batch.
+    /// @param revocations    EAS delegated revocation batch for displaced on-chain attestations.
+    ///                       MAY be empty when no active on-chain slots are replaced.
+    ///                       When a displaced active slot holds an on-chain attestation,
+    ///                       its UID MUST appear in this batch.
     /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when registration transaction is relayed.
+    /// @param offchainRevocations  UIDs of displaced off-chain attestations, revoked via
+    ///                       'eas.revokeOffchain'. When a displaced active slot holds an
+    ///                       off-chain attestation, its UID MUST appear in this array.
     /// @return attestationIds  The EAS UIDs of the active attestations.
     function createDescriptorAttestations(
         DescriptorRegistration[]                calldata registrations,
         MultiDelegatedAttestationRequest[]      calldata attestations,
         MultiDelegatedRevocationRequest[]       calldata revocations,
-        bytes                                   calldata registrationSignature
+        bytes                                   calldata registrationSignature,
+        bytes32[]                               calldata offchainRevocations
     ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Register a batch of descriptors backed by off-chain EAS attestations.
