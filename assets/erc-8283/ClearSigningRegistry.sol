@@ -3,15 +3,12 @@ pragma solidity ^0.8.24;
 
 import "./IEAS.sol";
 import "./IClearSigningRegistry.sol";
-
-/// @dev Minimal ERC-1271 interface for contract-account attesters.
-interface IERC1271 {
-    function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4);
-}
+import "./openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import "./openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /// @title  ClearSigningRegistry — On-Chain Registry for ERC-7730 Clear Signing Descriptors
 /// @notice Reference implementation of IClearSigningRegistry.
-contract ClearSigningRegistry is IClearSigningRegistry {
+contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     bytes32 public constant CONTEXT_TAG_CONTRACT   = keccak256("erc7730.context.contract");
 
@@ -44,26 +41,12 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         "MirrorListUpdate(bytes32[] descriptorHashes,bytes32 mirrorListId)"
     );
 
-    bytes4 private constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
-
-    // solhint-disable-next-line var-name-mixedcase
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     IEAS    public immutable eas;
     bytes32 public immutable easSchemaUID;
 
-    constructor(address _eas, bytes32 _easSchemaUID) {
+    constructor(address _eas, bytes32 _easSchemaUID) EIP712("ClearSigningRegistry", "1") {
         eas          = IEAS(_eas);
         easSchemaUID = _easSchemaUID;
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("ClearSigningRegistry")),
-                keccak256(bytes("1")),
-                block.chainid,
-                address(this)
-            )
-        );
     }
 
     // The EAS UID of the active ERC-8176 attestation for the given attester and context ID.
@@ -133,12 +116,15 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes                              calldata registrationSignature
     ) private returns (bytes32[] memory attestationIds) {
         address attester = attestations[0].attester;
+        uint256 regLength = registrations.length;
 
         // Validate each registration against its active attestation, publish its
         // MirrorList, and collect the EIP-712 hash of each registration item.
-        bytes32[] memory itemHashes = new bytes32[](registrations.length);
-        for (uint256 i; i < registrations.length; ++i) {
-            itemHashes[i] = _processRegistration(attester, registrations[i], attestations[0].data[i]);
+        bytes32[] memory itemHashes = new bytes32[](regLength);
+        AttestationRequestData[] calldata attData = attestations[0].data;
+        for (uint256 i; i < regLength;) {
+            itemHashes[i] = _processRegistration(attester, registrations[i], attData[i]);
+            unchecked { ++i; }
         }
 
         // Validate the attester's signature over the attestation metadata for relayed registrations.
@@ -150,10 +136,11 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         // return correspond to attestations[0].data, one per registration.
         bytes32[] memory uids = eas.multiAttestByDelegation(attestations);
 
-        attestationIds = new bytes32[](registrations.length);
-        for (uint256 i; i < registrations.length; ++i) {
+        attestationIds = new bytes32[](regLength);
+        for (uint256 i; i < regLength;) {
             attestationIds[i] = uids[i];
             _updateSlots(attester, registrations[i], uids[i]);
+            unchecked { ++i; }
         }
     }
 
@@ -164,13 +151,15 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes32                         uid
     ) private {
         bytes32[] calldata contextIds = registration.contextIds;
-        for (uint256 j; j < contextIds.length; ++j) {
+        uint256 ctxLength = contextIds.length;
+        for (uint256 j; j < ctxLength;) {
             bytes32 cid  = contextIds[j];
             bytes32 prev = _slots[attester][cid];
             _slots[attester][cid] = uid;
             emit AttestationUpdated(
                 attester, cid, uid, prev, registration.descriptorHash
             );
+            unchecked { ++j; }
         }
     }
 
@@ -216,14 +205,16 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         // every registration in this call reuses the resulting pointer.
         bytes32 attestationMirrorListId = _publishMirrorList(attestationMirrorListUris);
 
-        bytes32[] memory itemHashes        = new bytes32[](registrations.length);
-        bytes32[] memory attestationHashes = new bytes32[](registrations.length);
-        attestationIds = new bytes32[](registrations.length);
-        for (uint256 i; i < registrations.length; ++i) {
+        uint256 regLength = registrations.length;
+        bytes32[] memory itemHashes        = new bytes32[](regLength);
+        bytes32[] memory attestationHashes = new bytes32[](regLength);
+        attestationIds = new bytes32[](regLength);
+        for (uint256 i; i < regLength;) {
             (itemHashes[i], attestationHashes[i]) = _processOffchainRegistration(
                 attester, registrations[i], attestations[i], attestationMirrorListId
             );
             attestationIds[i] = attestations[i].uid;
+            unchecked { ++i; }
         }
 
         // Validate the attester's signature over the batch for relayed registrations.
@@ -240,9 +231,11 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     function publishMirrorLists(string[][] calldata uriLists)
         external returns (bytes32[] memory mirrorListIds)
     {
-        mirrorListIds = new bytes32[](uriLists.length);
-        for (uint256 i; i < uriLists.length; ++i) {
+        uint256 listsLength = uriLists.length;
+        mirrorListIds = new bytes32[](listsLength);
+        for (uint256 i; i < listsLength;) {
             mirrorListIds[i] = _publishMirrorList(uriLists[i]);
+            unchecked { ++i; }
         }
     }
 
@@ -263,38 +256,42 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         address[]   calldata attesters,
         bytes32[][] calldata contextIds
     ) external returns (uint256 cleared) {
-        if (attesters.length == 0) revert EmptyAttesters();
-        if (attesters.length != contextIds.length) revert ArrayLengthMismatch();
-        for (uint256 a; a < attesters.length; ++a) {
+        uint256 attestersLength = attesters.length;
+        if (attestersLength == 0) revert EmptyAttesters();
+        if (attestersLength != contextIds.length) revert ArrayLengthMismatch();
+        for (uint256 a; a < attestersLength;) {
             address attester = attesters[a];
             bytes32[] calldata ids = contextIds[a];
-            if (ids.length == 0) revert EmptyContextIds();
-            for (uint256 i; i < ids.length; ++i) {
+            uint256 idsLength = ids.length;
+            if (idsLength == 0) revert EmptyContextIds();
+            for (uint256 i; i < idsLength;) {
                 bytes32 cid = ids[i];
                 bytes32 uid = _slots[attester][cid];
                 // Skip empty slots: another sweep or a re-registration won the race.
-                if (uid == bytes32(0)) continue;
-
-                // Skip slots whose backing attestation is still valid.
-                bool revoked;
-                bool expired;
-                OffchainDetails storage details = _offchainDetails[attester][uid];
-                if (details.attestationMirrorListId != bytes32(0)) {
-                    // off-chain attestation
-                    revoked = eas.getRevokeOffchain(attester, uid) != 0;
-                    expired = details.expirationTime != 0 && details.expirationTime < block.timestamp;
-                } else {
-                    // on-chain attestation
-                    IEAS.Attestation memory attestation = eas.getAttestation(uid);
-                    revoked = attestation.revocationTime != 0;
-                    expired = attestation.expirationTime != 0 && attestation.expirationTime < block.timestamp;
+                if (uid != bytes32(0)) {
+                    // Skip slots whose backing attestation is still valid.
+                    bool revoked;
+                    bool expired;
+                    OffchainDetails storage details = _offchainDetails[attester][uid];
+                    if (details.attestationMirrorListId != bytes32(0)) {
+                        // off-chain attestation
+                        revoked = eas.getRevokeOffchain(attester, uid) != 0;
+                        expired = details.expirationTime != 0 && details.expirationTime < block.timestamp;
+                    } else {
+                        // on-chain attestation
+                        IEAS.Attestation memory attestation = eas.getAttestation(uid);
+                        revoked = attestation.revocationTime != 0;
+                        expired = attestation.expirationTime != 0 && attestation.expirationTime < block.timestamp;
+                    }
+                    if (revoked || expired) {
+                        _slots[attester][cid] = bytes32(0);
+                        ++cleared;
+                        emit AttestationUpdated(attester, cid, bytes32(0), uid, bytes32(0));
+                    }
                 }
-                if (!revoked && !expired) continue;
-
-                _slots[attester][cid] = bytes32(0);
-                ++cleared;
-                emit AttestationUpdated(attester, cid, bytes32(0), uid, bytes32(0));
+                unchecked { ++i; }
             }
+            unchecked { ++a; }
         }
     }
 
@@ -304,21 +301,35 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes32[] calldata contextIds,
         string[]  calldata allowedPrefixes
     ) external view returns (ResolvedDescriptor[] memory resolved) {
+        uint256 attestersLength = attesters.length;
+        uint256 contextIdsLength = contextIds.length;
+
         // First pass: count non-empty slots to size the result array.
         uint256 count;
-        for (uint256 a; a < attesters.length; ++a)
-            for (uint256 c; c < contextIds.length; ++c)
-                if (_slots[attesters[a]][contextIds[c]] != bytes32(0))
+        for (uint256 a; a < attestersLength;) {
+            address attester = attesters[a];
+            for (uint256 c; c < contextIdsLength;) {
+                if (_slots[attester][contextIds[c]] != bytes32(0)) {
                     ++count;
+                }
+                unchecked { ++c; }
+            }
+            unchecked { ++a; }
+        }
 
         resolved = new ResolvedDescriptor[](count);
         uint256 k;
-        for (uint256 a; a < attesters.length; ++a) {
-            for (uint256 c; c < contextIds.length; ++c) {
-                bytes32 uid = _slots[attesters[a]][contextIds[c]];
-                if (uid == bytes32(0)) continue;
-                resolved[k++] = _resolveSlot(attesters[a], contextIds[c], uid, allowedPrefixes);
+        for (uint256 a; a < attestersLength;) {
+            address attester = attesters[a];
+            for (uint256 c; c < contextIdsLength;) {
+                bytes32 cid = contextIds[c];
+                bytes32 uid = _slots[attester][cid];
+                if (uid != bytes32(0)) {
+                    resolved[k++] = _resolveSlot(attester, cid, uid, allowedPrefixes);
+                }
+                unchecked { ++c; }
             }
+            unchecked { ++a; }
         }
     }
 
@@ -385,18 +396,21 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes32 mirrorListId,
         bytes calldata signature
     ) external {
-        if (descriptorHashes.length == 0) revert EmptyRegistrations();
+        uint256 hashesLength = descriptorHashes.length;
+        if (hashesLength == 0) revert EmptyRegistrations();
         if (_mirrorLists[mirrorListId].length == 0) revert UnknownMirrorList(mirrorListId);
 
         if (msg.sender != attester) {
             _verifyMirrorUpdateSignature(attester, descriptorHashes, mirrorListId, signature);
         }
 
-        for (uint256 i = 0; i < descriptorHashes.length; i++) {
-            if (_mirrorListId[attester][descriptorHashes[i]] != mirrorListId) {
-                _mirrorListId[attester][descriptorHashes[i]] = mirrorListId;
-                emit MirrorListUpdated(attester, descriptorHashes[i], mirrorListId);
+        for (uint256 i = 0; i < hashesLength;) {
+            bytes32 hash = descriptorHashes[i];
+            if (_mirrorListId[attester][hash] != mirrorListId) {
+                _mirrorListId[attester][hash] = mirrorListId;
+                emit MirrorListUpdated(attester, hash, mirrorListId);
             }
+            unchecked { ++i; }
         }
     }
 
@@ -565,27 +579,9 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         bytes32        structHash,
         bytes calldata signature
     ) private view {
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-
-        if (attester.code.length > 0) {
-            if (IERC1271(attester).isValidSignature(digest, signature) != ERC1271_MAGIC_VALUE)
-                revert InvalidRegistrationSignature();
-        } else {
-            if (signature.length != 65) {
-              revert InvalidRegistrationSignature();
-            }
-            bytes32 r;
-            bytes32 s;
-            uint8 v;
-            assembly {
-                r := calldataload(signature.offset)
-                s := calldataload(add(signature.offset, 32))
-                v := byte(0, calldataload(add(signature.offset, 64)))
-            }
-            address recovered = ecrecover(digest, v, r, s);
-            if (recovered == address(0) || recovered != attester) {
-                revert InvalidRegistrationSignature();
-            }
+        bytes32 digest = _hashTypedDataV4(structHash);
+        if (!SignatureChecker.isValidSignatureNow(attester, digest, signature)) {
+            revert InvalidRegistrationSignature();
         }
     }
 
@@ -593,16 +589,22 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     function _flattenRevocationUids(
         MultiDelegatedRevocationRequest[] calldata revocations
     ) private pure returns (bytes32[] memory revokedUids) {
+        uint256 revsLength = revocations.length;
         uint256 total = 0;
-        for (uint256 i; i < revocations.length; ++i) {
+        for (uint256 i; i < revsLength;) {
             total += revocations[i].data.length;
+            unchecked { ++i; }
         }
         revokedUids = new bytes32[](total);
         uint256 ri = 0;
-        for (uint256 i; i < revocations.length; ++i) {
-            for (uint256 j; j < revocations[i].data.length; ++j) {
-                revokedUids[ri++] = revocations[i].data[j].uid;
+        for (uint256 i; i < revsLength;) {
+            AttestationRequestData[] calldata revData = revocations[i].data;
+            uint256 dataLength = revData.length;
+            for (uint256 j; j < dataLength;) {
+                revokedUids[ri++] = revData[j].uid;
+                unchecked { ++j; }
             }
+            unchecked { ++i; }
         }
     }
 
@@ -616,8 +618,10 @@ contract ClearSigningRegistry is IClearSigningRegistry {
         if (revocations.length > 0) {
             eas.multiRevokeByDelegation(revocations);
         }
-        for (uint256 i; i < offchainRevocations.length; ++i) {
+        uint256 offLength = offchainRevocations.length;
+        for (uint256 i; i < offLength;) {
             eas.revokeOffchain(offchainRevocations[i]);
+            unchecked { ++i; }
         }
     }
 
@@ -632,37 +636,43 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     ) private view {
         // Build flat set of UIDs included in the on-chain revocation batch.
         bytes32[] memory revokedOnchainUids = _flattenRevocationUids(revocations);
+        uint256 regLength = registrations.length;
+        uint256 offLength = offchainRevocations.length;
+        uint256 onLength = revokedOnchainUids.length;
 
-        for (uint256 i; i < registrations.length; ++i) {
+        for (uint256 i; i < regLength;) {
             bytes32[] calldata contextIds = registrations[i].contextIds;
-            for (uint256 j; j < contextIds.length; ++j) {
+            uint256 ctxLength = contextIds.length;
+            for (uint256 j; j < ctxLength;) {
                 bytes32 oldUid = _slots[attester][contextIds[j]];
-                if (oldUid == bytes32(0)) {
-                  continue;
-                }
-
-                // Route the check by what kind of slot is being displaced.
-                bool wasOffchain = _offchainDetails[attester][oldUid].attestationMirrorListId != bytes32(0);
-                bool found = false;
-                if (wasOffchain) {
-                    for (uint256 k; k < offchainRevocations.length; ++k) {
-                        if (offchainRevocations[k] == oldUid) {
-                          found = true;
-                          break;
+                if (oldUid != bytes32(0)) {
+                    // Route the check by what kind of slot is being displaced.
+                    bool wasOffchain = _offchainDetails[attester][oldUid].attestationMirrorListId != bytes32(0);
+                    bool found = false;
+                    if (wasOffchain) {
+                        for (uint256 k; k < offLength;) {
+                            if (offchainRevocations[k] == oldUid) {
+                              found = true;
+                              break;
+                            }
+                            unchecked { ++k; }
+                        }
+                    } else {
+                        for (uint256 k; k < onLength;) {
+                            if (revokedOnchainUids[k] == oldUid) {
+                              found = true;
+                              break;
+                            }
+                            unchecked { ++k; }
                         }
                     }
-                } else {
-                    for (uint256 k; k < revokedOnchainUids.length; ++k) {
-                        if (revokedOnchainUids[k] == oldUid) {
-                          found = true;
-                          break;
-                        }
+                    if (!found) {
+                      revert MissingRevocation(oldUid);
                     }
                 }
-                if (!found) {
-                  revert MissingRevocation(oldUid);
-                }
+                unchecked { ++j; }
             }
+            unchecked { ++i; }
         }
     }
 
@@ -674,23 +684,27 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     function _filterUris(string[] storage uris, string[] calldata allowedPrefixes)
         private view returns (string[] memory filtered)
     {
-        if (allowedPrefixes.length == 0) return uris; // unfiltered: implicit storage-to-memory copy
+        uint256 allowedLength = allowedPrefixes.length;
+        if (allowedLength == 0) return uris; // unfiltered: implicit storage-to-memory copy
 
         uint256 n = uris.length;
         uint256 count;
-        for (uint256 i; i < n; ++i) {
-            if (_matchesAny(uris[i], allowedPrefixes)) ++count;
+        for (uint256 i; i < n;) {
+            if (_matchesAny(uris[i], allowedPrefixes, allowedLength)) ++count;
+            unchecked { ++i; }
         }
         filtered = new string[](count);
         uint256 k;
-        for (uint256 i; i < n; ++i) {
-            if (_matchesAny(uris[i], allowedPrefixes)) filtered[k++] = uris[i];
+        for (uint256 i; i < n;) {
+            if (_matchesAny(uris[i], allowedPrefixes, allowedLength)) filtered[k++] = uris[i];
+            unchecked { ++i; }
         }
     }
 
-    function _matchesAny(string storage uri, string[] calldata allowedPrefixes) private view returns (bool) {
-        for (uint256 i; i < allowedPrefixes.length; ++i) {
+    function _matchesAny(string storage uri, string[] calldata allowedPrefixes, uint256 allowedLength) private view returns (bool) {
+        for (uint256 i; i < allowedLength;) {
             if (_hasPrefix(uri, allowedPrefixes[i])) return true;
+            unchecked { ++i; }
         }
         return false;
     }
@@ -698,13 +712,15 @@ contract ClearSigningRegistry is IClearSigningRegistry {
     function _hasPrefix(string storage str, string calldata prefix) private view returns (bool) {
         bytes storage strBytes = bytes(str);
         bytes calldata prefixBytes = bytes(prefix);
-        if (prefixBytes.length > strBytes.length) return false;
+        uint256 prefixLength = prefixBytes.length;
+        if (prefixLength > strBytes.length) return false;
 
         // Note: In production, optimize this by reading the first 32 bytes from storage
         // in one go (handling both short and long string packing) to avoid O(N) sloads
         // for short prefixes like "ipfs:".
-        for (uint256 i; i < prefixBytes.length; ++i) {
+        for (uint256 i; i < prefixLength;) {
             if (strBytes[i] != prefixBytes[i]) return false;
+            unchecked { ++i; }
         }
         return true;
     }
