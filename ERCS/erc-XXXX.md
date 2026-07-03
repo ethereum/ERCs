@@ -3,7 +3,7 @@ eip: XXXX
 title: Notary-Backed Confidential Token
 description: A confidential token interface using private state commitments, with state transitions pre-validated by a notary or notary group.
 author: Andrew Richardson (@awrichar) <andrew.richardson@kaleido.io>, Peter Broadhurst (@peterbroadhurst) <peter.broadhurst@kaleido.io>, Jim Zhang (@jimthematrix) <jim.zhang@kaleido.io>
-discussions-to: <URL>
+discussions-to: https://ethereum-magicians.org/t/erc-notary-backed-confidential-token/28908
 status: Draft
 type: Standards Track
 category: ERC
