@@ -1,10 +1,10 @@
 {
-    "$schema": "./erc7730-v1.schema.json",
+    "$schema": "./erc7730-v2.schema.json",
 
     "$comment": "This example ERC-7730 showcases usage of visibility rules.",
 
     "context": {
-        "contract" : {
+        "contract": {
             "deployments": [ 
                 {
                     "chainId": 1,
@@ -64,7 +64,7 @@
                         "label": "Legacy Amount",
                         "format": "raw",
                         "visible": {
-                            "mustBe": [0]
+                            "mustMatch": [0]
                         }
                     },
                     {
