@@ -133,7 +133,7 @@ All write paths enforce:
 
 `updateState` reverts (`NotAuthorized`) unless `isUpdater[target][msg.sender]`.
 
-`batchUpdateStateWithSignature` validates each `SignedUpdate` over the EIP-712 digest of `(target, laneIndex, updateTimestamp, slots)` and reverts the whole call on the first failure. The `signer` field is supplied by the relayer and is not part of the signed payload (see Rationale):
+`batchUpdateStateWithSignature` validates each `SignedUpdate` over the [EIP-712](./eip-712.md) digest of `(target, laneIndex, updateTimestamp, slots)` and reverts the whole call on the first failure. The `signer` field is supplied by the relayer and is not part of the signed payload (see Rationale):
 
 - `signer == target`: the signature is verified against `target` via [ERC-1271](./erc-1271.md), accepted only if `isValidSignature` returns `0x1626ba7e`. No prior registration is needed: the target authorises by signing.
 - `signer != target`: accepted only if `ecrecover(digest, signature)` equals `signer` and `isUpdater[target][signer]` is `true`.
