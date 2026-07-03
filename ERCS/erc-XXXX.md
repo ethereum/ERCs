@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8320
 title: Regulated Asset Claim
 description: A registry for signed, versioned, role-gated claims about assets, tokens, and funds
 author: Edwin Mata <edwin@brickken.com>, Ludovico Rossi (@ludovicor-eth) <ludovico@brickken.com>, Dario Lo Buglio (@xaler5) <dario@brickken.com>, Thamer Dridi (@thamerdridi) <thamer@brickken.com>, Nabil El Alami Khalifi (@nabil-brickken) <nabil@brickken.com>
