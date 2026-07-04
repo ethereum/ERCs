@@ -83,9 +83,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function createDescriptorAttestations(
         DescriptorInfo[]                   calldata descriptors,
         MultiDelegatedAttestationRequest[] calldata attestations,
-        MultiDelegatedRevocationRequest[]  calldata revocations,
-        bytes                              calldata registrationSignature,
-        bytes32[]                          calldata offchainRevocations
+        RevocationBatch                    calldata revocations,
+        bytes                              calldata registrationSignature
     ) external returns (bytes32[] memory attestationIds) {
         if (descriptors.length == 0) {
             revert EmptyDescriptors();
@@ -105,10 +104,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
         // Every active attestation being displaced must be explicitly revoked,
         // whether the displaced slot was previously on-chain or off-chain.
-        _checkRevocations(descriptorAttestationBatch.attester, descriptors, revocations, offchainRevocations);
+        _checkRevocations(descriptorAttestationBatch.attester, descriptors, revocations);
 
         // Revoke prior attestations (may be empty when no slots are replaced).
-        _processRevocations(revocations, offchainRevocations);
+        _processRevocations(revocations);
 
         attestationIds = _registerOnchainBatch(descriptors, attestations, registrationSignature);
     }
@@ -219,13 +218,12 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     /// @inheritdoc IClearSigningRegistry
     function createOffchainDescriptorAttestations(
-        address                            attester,
-        DescriptorInfo[]                   calldata descriptors,
-        OffchainAttestation[]              calldata attestations,
-        string[]                           calldata attestationMirrorListUris,
-        bytes                              calldata registrationSignature,
-        MultiDelegatedRevocationRequest[]  calldata revocations,
-        bytes32[]                          calldata offchainRevocations
+        address                attester,
+        DescriptorInfo[]       calldata descriptors,
+        OffchainAttestation[]  calldata attestations,
+        string[]               calldata attestationMirrorListUris,
+        bytes                  calldata registrationSignature,
+        RevocationBatch        calldata revocations
     ) external returns (bytes32[] memory attestationIds) {
         if (descriptors.length == 0) {
             revert EmptyDescriptors();
@@ -236,10 +234,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
         // Every active attestation being displaced must be explicitly revoked,
         // whether the displaced slot was previously on-chain or off-chain.
-        _checkRevocations(attester, descriptors, revocations, offchainRevocations);
+        _checkRevocations(attester, descriptors, revocations);
 
         // Revoke displaced attestations (may be empty when no slots are replaced).
-        _processRevocations(revocations, offchainRevocations);
+        _processRevocations(revocations);
 
         attestationIds = _registerOffchainBatch(
             attester, descriptors, attestations, attestationMirrorListUris, registrationSignature
@@ -805,36 +803,32 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     /// @dev Executes the revocation batches for displaced slots: delegated EAS
     ///      revocations for on-chain attestations, registry-recorded off-chain
     ///      revocations for off-chain ones.
-    function _processRevocations(
-        MultiDelegatedRevocationRequest[]  calldata revocations,
-        bytes32[]                          calldata offchainRevocations
-    ) private {
-        if (revocations.length > 0) {
-            eas.multiRevokeByDelegation(revocations);
+    function _processRevocations(RevocationBatch calldata revocations) private {
+        if (revocations.onchain.length > 0) {
+            eas.multiRevokeByDelegation(revocations.onchain);
         }
-        uint256 offchainRevocationCount = offchainRevocations.length;
+        uint256 offchainRevocationCount = revocations.offchain.length;
         for (uint256 revocationIndex; revocationIndex < offchainRevocationCount;) {
-            eas.revokeOffchain(offchainRevocations[revocationIndex]);
+            eas.revokeOffchain(revocations.offchain[revocationIndex]);
             unchecked { ++revocationIndex; }
         }
     }
 
     /// @dev Requires that every active attestation displaced by this batch is present
-    ///      in the matching revocation batch: 'revocations' for displaced on-chain
-    ///      attestations, 'offchainRevocations' for displaced off-chain ones.
+    ///      in the matching revocation set: 'revocations.onchain' for displaced
+    ///      on-chain attestations, 'revocations.offchain' for displaced off-chain ones.
     function _checkRevocations(
-        address                                     attester,
-        DescriptorInfo[]                   calldata descriptors,
-        MultiDelegatedRevocationRequest[]  calldata revocations,
-        bytes32[]                          calldata offchainRevocations
+        address                   attester,
+        DescriptorInfo[] calldata descriptors,
+        RevocationBatch  calldata revocations
     ) private view {
         // Build flat set of UIDs included in the on-chain revocation batch.
-        bytes32[] memory revokedOnchainUids = _flattenRevocationUids(revocations);
+        bytes32[] memory revokedOnchainUids = _flattenRevocationUids(revocations.onchain);
 
         uint256 descriptorCount = descriptors.length;
         for (uint256 descriptorIndex; descriptorIndex < descriptorCount;) {
             _checkRevocationsForDescriptor(
-                attester, descriptors[descriptorIndex], offchainRevocations, revokedOnchainUids
+                attester, descriptors[descriptorIndex], revocations.offchain, revokedOnchainUids
             );
             unchecked { ++descriptorIndex; }
         }

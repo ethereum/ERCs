@@ -68,6 +68,16 @@ interface IClearSigningRegistry {
         string[] uris;
     }
 
+    /// @notice The displaced attestations a registration call MUST revoke, split by
+    ///         where the displaced attestation lives. An empty 'onchain'/'offchain'
+    ///         is valid when no slot of that kind is being replaced.
+    struct RevocationBatch {
+        /// EAS delegated revocation batch for displaced on-chain attestations.
+        MultiDelegatedRevocationRequest[] onchain;
+        /// UIDs of displaced off-chain attestations, revoked via 'eas.revokeOffchain'.
+        bytes32[] offchain;
+    }
+
     /// @notice Emitted when an attester's active attestation for a context ID changes.
     ///         Emitted once per contextId on each 'createDescriptorAttestations' call.
     ///         When 'clearRevokedAttestations' removes a descriptor, descriptorHash and attestationId are bytes32(0).
@@ -147,9 +157,9 @@ interface IClearSigningRegistry {
     error InvalidRegistrationSignature();
 
     /// @notice Thrown when a descriptor replaces an active slot but the previously
-    ///         active attestation UID is not included in the matching revocation batch:
-    ///         'revocations' for a displaced on-chain attestation, 'offchainRevocations'
-    ///         for a displaced off-chain one.
+    ///         active attestation UID is not included in the matching revocation set:
+    ///         'revocations.onchain' for a displaced on-chain attestation,
+    ///         'revocations.offchain' for a displaced off-chain one.
     error MissingRevocation(bytes32 missingUid);
 
     /// @notice Thrown when attesters is empty on a clearRevokedAttestations call.
@@ -178,21 +188,19 @@ interface IClearSigningRegistry {
     ///                       opaque passthrough forwarded to 'eas.multiAttestByDelegation'
     ///                       unvalidated, letting a caller batch unrelated EAS attestations
     ///                       into the same transaction; the registry never records their UIDs.
-    /// @param revocations    EAS delegated revocation batch for displaced on-chain attestations.
-    ///                       MAY be empty when no active on-chain slots are replaced.
-    ///                       When a displaced active slot holds an on-chain attestation,
-    ///                       its UID MUST appear in this batch.
+    /// @param revocations    The displaced attestations this call revokes. MAY have
+    ///                       an empty 'onchain' and/or 'offchain' when no active slot
+    ///                       of that kind is replaced. When a displaced active slot
+    ///                       holds an on-chain attestation its UID MUST appear in
+    ///                       'revocations.onchain'; when it holds an off-chain
+    ///                       attestation its UID MUST appear in 'revocations.offchain'.
     /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when registration transaction is relayed.
-    /// @param offchainRevocations  UIDs of displaced off-chain attestations, revoked via
-    ///                       'eas.revokeOffchain'. When a displaced active slot holds an
-    ///                       off-chain attestation, its UID MUST appear in this array.
     /// @return attestationIds  The EAS UIDs of the active attestations.
     function createDescriptorAttestations(
-        DescriptorInfo[]                         calldata descriptors,
-        MultiDelegatedAttestationRequest[]      calldata attestations,
-        MultiDelegatedRevocationRequest[]       calldata revocations,
-        bytes                                   calldata registrationSignature,
-        bytes32[]                               calldata offchainRevocations
+        DescriptorInfo[]                    calldata descriptors,
+        MultiDelegatedAttestationRequest[]  calldata attestations,
+        RevocationBatch                     calldata revocations,
+        bytes                               calldata registrationSignature
     ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Register a batch of descriptors backed by off-chain attestations.
@@ -220,21 +228,19 @@ interface IClearSigningRegistry {
     /// @param attestationMirrorListUris  Retrieval URIs for the off-chain attestation
     ///                       blobs, shared by every attestation in this batch.
     /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when the registration transaction is relayed.
-    /// @param revocations    EAS delegated revocation batch for displaced on-chain attestations.
-    ///                       When a displaced active slot holds an on-chain attestation,
-    ///                       its UID MUST appear in this batch.
-    /// @param offchainRevocations  UIDs of displaced off-chain attestations, revoked via
-    ///                       'eas.revokeOffchain'. When a displaced active slot holds an
-    ///                       off-chain attestation, its UID MUST appear in this array.
+    /// @param revocations    The displaced attestations this call revokes. When a
+    ///                       displaced active slot holds an on-chain attestation its
+    ///                       UID MUST appear in 'revocations.onchain'; when it holds
+    ///                       an off-chain attestation its UID MUST appear in
+    ///                       'revocations.offchain'.
     /// @return attestationIds  The off-chain attestation UIDs, one per descriptor.
     function createOffchainDescriptorAttestations(
-        address                            attester,
-        DescriptorInfo[]                  calldata descriptors,
-        OffchainAttestation[]              calldata attestations,
-        string[]                           calldata attestationMirrorListUris,
-        bytes                              calldata registrationSignature,
-        MultiDelegatedRevocationRequest[]  calldata revocations,
-        bytes32[]                          calldata offchainRevocations
+        address               attester,
+        DescriptorInfo[]      calldata descriptors,
+        OffchainAttestation[] calldata attestations,
+        string[]              calldata attestationMirrorListUris,
+        bytes                 calldata registrationSignature,
+        RevocationBatch       calldata revocations
     ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Publish a batch of MirrorLists on-chain and return their content hashes.
