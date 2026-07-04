@@ -94,12 +94,18 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert EmptyAttestations();
         }
 
-        MultiDelegatedAttestationRequest calldata activeAttestationBatch = attestations[0];
-        _validateActiveAttestationBatch(activeAttestationBatch, descriptors.length);
+        // Only attestations[0] is meaningful to the registry: it must carry one
+        // descriptor attestation per entry of 'descriptors', validated below. Any
+        // attestations[1..] are opaque passthrough, forwarded to
+        // 'eas.multiAttestByDelegation' purely so a caller can batch unrelated EAS
+        // attestations into the same transaction; the registry never validates them
+        // and their resulting UIDs are not recorded in any slot.
+        MultiDelegatedAttestationRequest calldata descriptorAttestationBatch = attestations[0];
+        _validateDescriptorAttestationBatch(descriptorAttestationBatch, descriptors.length);
 
         // Every active attestation being displaced must be explicitly revoked,
         // whether the displaced slot was previously on-chain or off-chain.
-        _checkRevocations(activeAttestationBatch.attester, descriptors, revocations, offchainRevocations);
+        _checkRevocations(descriptorAttestationBatch.attester, descriptors, revocations, offchainRevocations);
 
         // Revoke prior attestations (may be empty when no slots are replaced).
         _processRevocations(revocations, offchainRevocations);
@@ -107,18 +113,20 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         attestationIds = _registerOnchainBatch(descriptors, attestations, registrationSignature);
     }
 
-    /// @dev Validates that the active attestation batch uses the registry's ERC-8176
-    ///      schema and carries exactly one data entry and one signature per descriptor.
-    function _validateActiveAttestationBatch(
-        MultiDelegatedAttestationRequest calldata activeAttestationBatch,
+    /// @dev Validates that 'attestations[0]' — the descriptor attestation batch —
+    ///      uses the registry's ERC-8176 schema and carries exactly one data entry
+    ///      and one signature per descriptor. Any further 'attestations[1..]' are
+    ///      passthrough and are never validated against 'descriptors' at all.
+    function _validateDescriptorAttestationBatch(
+        MultiDelegatedAttestationRequest calldata descriptorAttestationBatch,
         uint256                                   descriptorCount
     ) private view {
-        if (activeAttestationBatch.schema != easSchemaUID) {
-            revert WrongEASSchema(easSchemaUID, activeAttestationBatch.schema);
+        if (descriptorAttestationBatch.schema != easSchemaUID) {
+            revert WrongEASSchema(easSchemaUID, descriptorAttestationBatch.schema);
         }
         if (
-            activeAttestationBatch.data.length != descriptorCount ||
-            activeAttestationBatch.signatures.length != descriptorCount
+            descriptorAttestationBatch.data.length != descriptorCount ||
+            descriptorAttestationBatch.signatures.length != descriptorCount
         ) {
             revert ArrayLengthMismatch();
         }
@@ -131,18 +139,21 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         MultiDelegatedAttestationRequest[] calldata attestations,
         bytes                              calldata registrationSignature
     ) private returns (bytes32[] memory attestationIds) {
-        MultiDelegatedAttestationRequest calldata activeAttestationBatch = attestations[0];
-        address attester = activeAttestationBatch.attester;
+        // As in 'createDescriptorAttestations', only attestations[0] is tracked here;
+        // any attestations[1..] ride along to 'eas.multiAttestByDelegation' below
+        // untouched by the registry.
+        MultiDelegatedAttestationRequest calldata descriptorAttestationBatch = attestations[0];
+        address attester = descriptorAttestationBatch.attester;
 
         // Validate each descriptor against its active attestation, publish its
         // MirrorList, and collect the EIP-712 hash of each descriptor.
         bytes32[] memory itemHashes =
-            _processAllDescriptors(attester, descriptors, activeAttestationBatch.data);
+            _processAllDescriptors(attester, descriptors, descriptorAttestationBatch.data);
 
         // Validate the attester's signature over the attestation metadata for relayed registrations.
         if (msg.sender != attester) {
             _verifyRegistrationSignature(
-                attester, itemHashes, activeAttestationBatch.signatures, registrationSignature
+                attester, itemHashes, descriptorAttestationBatch.signatures, registrationSignature
             );
         }
 
@@ -158,13 +169,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _processAllDescriptors(
         address                            attester,
         DescriptorInfo[]          calldata descriptors,
-        AttestationRequestData[]  calldata activeAttestationData
+        AttestationRequestData[]  calldata descriptorAttestationData
     ) private returns (bytes32[] memory itemHashes) {
         uint256 descriptorCount = descriptors.length;
         itemHashes = new bytes32[](descriptorCount);
         for (uint256 descriptorIndex; descriptorIndex < descriptorCount;) {
             itemHashes[descriptorIndex] = _processDescriptor(
-                attester, descriptors[descriptorIndex], activeAttestationData[descriptorIndex]
+                attester, descriptors[descriptorIndex], descriptorAttestationData[descriptorIndex]
             );
             unchecked { ++descriptorIndex; }
         }

@@ -172,8 +172,12 @@ interface IClearSigningRegistry {
     ///
     ///
     /// @param descriptors    The descriptors to register.
-    /// @param attestations   EAS attestation batch.
-    ///                       The 'attestations[0]' holds the active attestations with one data entry per descriptor.
+    /// @param attestations   EAS attestation batch. Only 'attestations[0]' is meaningful
+    ///                       to the registry: it MUST hold the descriptor attestations,
+    ///                       one data entry per descriptor. Any 'attestations[1..]' are
+    ///                       opaque passthrough forwarded to 'eas.multiAttestByDelegation'
+    ///                       unvalidated, letting a caller batch unrelated EAS attestations
+    ///                       into the same transaction; the registry never records their UIDs.
     /// @param revocations    EAS delegated revocation batch for displaced on-chain attestations.
     ///                       MAY be empty when no active on-chain slots are replaced.
     ///                       When a displaced active slot holds an on-chain attestation,
