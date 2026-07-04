@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-import "./IEAS.sol";
-
 /// @title  IClearSigningRegistry — On-Chain Registry for ERC-7730 Clear Signing Descriptors
 /// @notice Defines the interface for an Ethereum registry that maps
 ///         context IDs derived from ERC-7730 binding constraints to
-///         attester-attested descriptors, backed by on-chain or off-chain attestations.
+///         attester-attested descriptors, backed by attester-signed off-chain attestations.
 interface IClearSigningRegistry {
 
     /// @notice A descriptor's identity, context IDs, and MirrorList pointer, submitted
@@ -48,42 +46,25 @@ interface IClearSigningRegistry {
         bytes32 contextId;
         /// The descriptor hash decoded from the attestation data.
         bytes32 descriptorHash;
-        /// The EAS attestation UID.
+        /// The attestation UID.
         bytes32 attestationId;
-        /// The EAS attestation expiration time.
+        /// The attestation expiration time.
         uint64 expirationTime;
-        /// The EAS attestation revocation time.
-        /// Always 0 for off-chain attestations; revocation of an off-chain
-        /// attestation requires a separate 'eas.getRevokeOffchain(attester, attestationId)' call.
-        uint64 revocationTime;
-        /// The MirrorList URIs for retrieving the off-chain attestation blob.
-        /// Empty for on-chain attestations.
+        /// The MirrorList URIs for retrieving the attestation blob.
         string[] attestationMirrorListUris;
-        /// The declared attestation format tag: 'ATTESTATION_FORMAT_EAS_ONCHAIN' for
-        /// on-chain attestations (fixed, reported for symmetry — on-chain attestations
-        /// are always EAS-backed), or the attester-declared 'format' for off-chain ones.
-        /// Opaque to the registry; wallets select their verification procedure by this value.
+        /// The attester-declared attestation format tag. Opaque to the registry;
+        /// wallets select their verification procedure by this value.
         bytes32 format;
         /// The MirrorList contents.
         string[] uris;
     }
 
-    /// @notice The displaced attestations a registration call MUST revoke, split by
-    ///         where the displaced attestation lives. An empty 'onchain'/'offchain'
-    ///         is valid when no slot of that kind is being replaced.
-    struct RevocationBatch {
-        /// EAS delegated revocation batch for displaced on-chain attestations.
-        MultiDelegatedRevocationRequest[] onchain;
-        /// UIDs of displaced off-chain attestations, revoked via 'eas.revokeOffchain'.
-        bytes32[] offchain;
-    }
-
     /// @notice Emitted when an attester's active attestation for a context ID changes.
-    ///         Emitted once per contextId on each 'createDescriptorAttestations' call.
+    ///         Emitted once per contextId on each 'createOffchainDescriptorAttestations' call.
     ///         When 'clearRevokedAttestations' removes a descriptor, descriptorHash and attestationId are bytes32(0).
     /// @param attester               The attester whose active attestation changed.
     /// @param contextId              The context ID affected.
-    /// @param attestationId          The EAS attestation UID for this descriptor.
+    /// @param attestationId          The attestation UID for this descriptor.
     /// @param previousAttestationId  The previously active attestation UID.
     /// @param descriptorHash         The newly attested descriptor hash.
     event AttestationUpdated(
@@ -92,6 +73,18 @@ interface IClearSigningRegistry {
         bytes32 indexed attestationId,
         bytes32         previousAttestationId,
         bytes32         descriptorHash
+    );
+
+    /// @notice Emitted whenever a revocation timestamp is recorded for an attestation UID,
+    ///         whether via 'revokeAttestation' directly or via a registration batch that
+    ///         displaced it.
+    /// @param attester   The attester the UID is revoked under.
+    /// @param uid        The revoked attestation UID.
+    /// @param timestamp  The block timestamp at which the revocation was recorded.
+    event AttestationRevoked(
+        address indexed attester,
+        bytes32 indexed uid,
+        uint64          timestamp
     );
 
     /// @notice Emitted the first time a MirrorList is stored on-chain.
@@ -120,9 +113,6 @@ interface IClearSigningRegistry {
     /// @notice Thrown when a descriptor's contextIds is empty.
     error EmptyContextIds();
 
-    /// @notice Thrown when attestations is empty.
-    error EmptyAttestations();
-
     /// @notice Thrown when an empty URI list is passed to publishMirrorLists.
     error EmptyMirrorList();
 
@@ -135,73 +125,21 @@ interface IClearSigningRegistry {
     ///         the inline flow and must not be declared redundantly.
     error RedundantMirrorListId();
 
-    /// @notice Thrown when attestations[0].schema does not match the registry's
-    ///         configured ERC-8176 schema UID.
-    error WrongEASSchema(bytes32 expected, bytes32 got);
-
-    /// @notice Thrown when the descriptor hash encoded in an active attestation's
-    ///         data does not match the corresponding descriptor's descriptorHash.
-    error EASHashMismatch(bytes32 attestedHash, bytes32 claimedHash);
-
-    /// @notice Thrown when an active attestation's data is not exactly 32 bytes long
-    ///         (ERC-8176 mandates the attested data is the 32-byte descriptorHash).
-    error InvalidAttestationData();
-
-    /// @notice Thrown when an active attestation is not revocable. The active
-    ///         attestation must be revocable so the slot can be replaced later.
-    error NonRevocableAttestation();
-
     /// @notice Thrown when the registration is submitted by an address other than
     ///         the attester and the provided EIP-712 registration signature does
     ///         not verify against the attester.
     error InvalidRegistrationSignature();
 
     /// @notice Thrown when a descriptor replaces an active slot but the previously
-    ///         active attestation UID is not included in the matching revocation set:
-    ///         'revocations.onchain' for a displaced on-chain attestation,
-    ///         'revocations.offchain' for a displaced off-chain one.
+    ///         active attestation UID is not included in the matching revocation set.
     error MissingRevocation(bytes32 missingUid);
 
     /// @notice Thrown when attesters is empty on a clearRevokedAttestations call.
     error EmptyAttesters();
 
     /// @notice Thrown when parallel array arguments differ in length, including when
-    ///         attestations[0].data does not have one entry per descriptor.
+    ///         attestations does not have one entry per descriptor.
     error ArrayLengthMismatch();
-
-    /// @notice Create EAS attestations and register a batch of descriptors.
-    ///
-    ///         Each descriptor references a MirrorList, with two supported flows.
-    ///
-    ///         Reference flow:
-    ///         The list has been published before by any address in any prior
-    ///         transaction.
-    ///
-    ///         Inline flow:
-    ///         The list is published as part of this call and its content hash becomes the effective 'mirrorListId'.
-    ///
-    ///
-    /// @param descriptors    The descriptors to register.
-    /// @param attestations   EAS attestation batch. Only 'attestations[0]' is meaningful
-    ///                       to the registry: it MUST hold the descriptor attestations,
-    ///                       one data entry per descriptor. Any 'attestations[1..]' are
-    ///                       opaque passthrough forwarded to 'eas.multiAttestByDelegation'
-    ///                       unvalidated, letting a caller batch unrelated EAS attestations
-    ///                       into the same transaction; the registry never records their UIDs.
-    /// @param revocations    The displaced attestations this call revokes. MAY have
-    ///                       an empty 'onchain' and/or 'offchain' when no active slot
-    ///                       of that kind is replaced. When a displaced active slot
-    ///                       holds an on-chain attestation its UID MUST appear in
-    ///                       'revocations.onchain'; when it holds an off-chain
-    ///                       attestation its UID MUST appear in 'revocations.offchain'.
-    /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when registration transaction is relayed.
-    /// @return attestationIds  The EAS UIDs of the active attestations.
-    function createDescriptorAttestations(
-        DescriptorInfo[]                    calldata descriptors,
-        MultiDelegatedAttestationRequest[]  calldata attestations,
-        RevocationBatch                     calldata revocations,
-        bytes                               calldata registrationSignature
-    ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Register a batch of descriptors backed by off-chain attestations.
     ///
@@ -209,8 +147,7 @@ interface IClearSigningRegistry {
     ///         a standard EAS off-chain attestation, but any format the attester declares
     ///         via 'OffchainAttestation.format' — and stores it off-chain. The registry
     ///         records each pre-computed attestation UID together with a single attestation
-    ///         MirrorList shared by the whole batch — no EAS write call is made for the
-    ///         attestations.
+    ///         MirrorList shared by the whole batch.
     ///
     ///         The registry does not validate the off-chain attestation's signature or
     ///         content, regardless of its declared format. Wallets MUST fetch the
@@ -218,9 +155,13 @@ interface IClearSigningRegistry {
     ///         procedure appropriate to its declared 'format' (UID recomputation, schema
     ///         and signature checks per ERC-8176 for 'ATTESTATION_FORMAT_EAS_OFFCHAIN').
     ///
-    ///         Descriptor MirrorLists follow the same reference/inline flows as
-    ///         'createDescriptorAttestations'. The attestation MirrorList is published
-    ///         idempotently through the same content-addressed storage.
+    ///         Each descriptor references a MirrorList, with two supported flows:
+    ///
+    ///         Reference flow:
+    ///         The list has been published before by any address in any prior transaction.
+    ///
+    ///         Inline flow:
+    ///         The list is published as part of this call and its content hash becomes the effective 'mirrorListId'.
     ///
     /// @param attester       The attester registering the descriptors.
     /// @param descriptors    The descriptors to register.
@@ -228,11 +169,11 @@ interface IClearSigningRegistry {
     /// @param attestationMirrorListUris  Retrieval URIs for the off-chain attestation
     ///                       blobs, shared by every attestation in this batch.
     /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when the registration transaction is relayed.
-    /// @param revocations    The displaced attestations this call revokes. When a
-    ///                       displaced active slot holds an on-chain attestation its
-    ///                       UID MUST appear in 'revocations.onchain'; when it holds
-    ///                       an off-chain attestation its UID MUST appear in
-    ///                       'revocations.offchain'.
+    /// @param revocations    UIDs of displaced attestations this call revokes, recorded
+    ///                       via 'revokeAttestation' under the attester's address. MAY
+    ///                       be empty when no active slot is replaced. When a displaced
+    ///                       active slot exists for any of the supplied context IDs, its
+    ///                       UID MUST appear here.
     /// @return attestationIds  The off-chain attestation UIDs, one per descriptor.
     function createOffchainDescriptorAttestations(
         address               attester,
@@ -240,7 +181,7 @@ interface IClearSigningRegistry {
         OffchainAttestation[] calldata attestations,
         string[]              calldata attestationMirrorListUris,
         bytes                 calldata registrationSignature,
-        RevocationBatch       calldata revocations
+        bytes32[]             calldata revocations
     ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Publish a batch of MirrorLists on-chain and return their content hashes.
@@ -249,7 +190,19 @@ interface IClearSigningRegistry {
     function publishMirrorLists(string[][] calldata uriLists)
         external returns (bytes32[] memory mirrorListIds);
 
-    /// @notice Clear active attestation records whose backing EAS attestation has been revoked or has expired.
+    /// @notice Records a revocation timestamp for 'uid' under the caller's address.
+    ///         Permissionless self-service revocation, independent of any registration batch.
+    /// @param uid  The attestation UID to revoke.
+    function revokeAttestation(bytes32 uid) external;
+
+    /// @notice The timestamp at which 'attester' revoked 'uid', via 'revokeAttestation'
+    ///         or via a registration batch that displaced it — or 0 if never revoked.
+    /// @param attester  The attester the UID is revoked under.
+    /// @param uid       The queried attestation UID.
+    /// @return timestamp  The revocation timestamp, or 0 if not revoked.
+    function getRevocationTimestamp(address attester, bytes32 uid) external view returns (uint64 timestamp);
+
+    /// @notice Clear active attestation records that have been revoked or have expired.
     ///         Permissionless function allowing anyone to clean up stale attestations.
     ///         Invalid revocations are skipped, so a sweep cannot be blocked by a single failure.
     /// @param attesters   The attesters whose stale attestations are cleared.
@@ -263,7 +216,7 @@ interface IClearSigningRegistry {
 
     /// @notice Resolve all active attestations filtered
     ///         by a list of attesters and a list of potential context IDs in a single call.
-    ///         Returns the descriptor hash, the backing EAS attestations,
+    ///         Returns the descriptor hash, the backing attestations,
     ///         and the attester's MirrorList for the descriptor.
     ///
     /// @param attesters   Queried attester addresses.
@@ -293,13 +246,12 @@ interface IClearSigningRegistry {
         external view returns (string[] memory uris);
 
     /// @notice The next EIP-712 nonce for relayed 'createOffchainDescriptorAttestations'
-    ///         calls by the given attester. The on-chain path needs no registry nonce:
-    ///         EAS consumes the attester's delegated attestation nonces instead.
+    ///         calls by the given attester.
     /// @param attester  The queried attester address.
     /// @return nonce  The next unused registration nonce.
     function getRegistrationNonce(address attester) external view returns (uint256 nonce);
 
-    /// @notice Update the MirrorList for existing descriptors without EAS re-attestation.
+    /// @notice Update the MirrorList for existing descriptors without re-attestation.
     /// @param attester The attester whose MirrorList pointers are being updated.
     /// @param descriptorHashes The hashes of the descriptors to update.
     /// @param mirrorListId The new MirrorList ID.
