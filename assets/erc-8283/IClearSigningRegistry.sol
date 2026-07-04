@@ -23,14 +23,20 @@ interface IClearSigningRegistry {
         string[] mirrorListUris;
     }
 
-    /// @notice A reference to an off-chain EAS attestation for registration operations.
+    /// @notice A reference to an off-chain attestation for registration operations.
     ///         The signed attestation blob itself is stored off-chain and retrieved via
     ///         the attestation MirrorList shared by the registration batch.
     struct OffchainAttestation {
-        /// The pre-computed off-chain EAS attestation UID.
+        /// The pre-computed off-chain attestation UID. For 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
+        /// this is a standard EAS off-chain attestation UID; for other formats it is an
+        /// attester-chosen opaque identifier.
         bytes32 uid;
         /// The expiration time from the attestation message; 0 = no expiration.
         uint64 expirationTime;
+        /// A bytes32 equal to keccak256("erc7730.attestation.<format>"), namespacing the
+        /// shape of the artifact retrieved via the attestation MirrorList. MUST be non-zero.
+        /// Opaque to the registry, which performs no validation of the artifact against it.
+        bytes32 format;
     }
 
     /// @notice A fully resolved active descriptor with attestation.
@@ -52,6 +58,11 @@ interface IClearSigningRegistry {
         /// The MirrorList URIs for retrieving the off-chain attestation blob.
         /// Empty for on-chain attestations.
         string[] attestationMirrorListUris;
+        /// The declared attestation format tag: 'ATTESTATION_FORMAT_EAS_ONCHAIN' for
+        /// on-chain attestations (fixed, reported for symmetry — on-chain attestations
+        /// are always EAS-backed), or the attester-declared 'format' for off-chain ones.
+        /// Opaque to the registry; wallets select their verification procedure by this value.
+        bytes32 format;
         /// The MirrorList contents.
         string[] uris;
     }
@@ -91,6 +102,9 @@ interface IClearSigningRegistry {
 
     /// @notice Thrown when bytes32(0) is passed where a descriptor hash is required.
     error ZeroDescriptorHash();
+
+    /// @notice Thrown when bytes32(0) is passed where an off-chain attestation format tag is required.
+    error ZeroAttestationFormat();
 
     /// @notice Thrown when a registration's contextIds is empty.
     error EmptyContextIds();
@@ -176,16 +190,20 @@ interface IClearSigningRegistry {
         bytes32[]                               calldata offchainRevocations
     ) external returns (bytes32[] memory attestationIds);
 
-    /// @notice Register a batch of descriptors backed by off-chain EAS attestations.
+    /// @notice Register a batch of descriptors backed by off-chain attestations.
     ///
-    ///         The attester produces standard EAS off-chain attestations locally and
-    ///         stores the signed blobs off-chain. The registry records each pre-computed
-    ///         attestation UID together with a single attestation MirrorList shared by
-    ///         the whole batch — no EAS write call is made for the attestations.
+    ///         The attester produces the signed attestation artifact locally — typically
+    ///         a standard EAS off-chain attestation, but any format the attester declares
+    ///         via 'OffchainAttestation.format' — and stores it off-chain. The registry
+    ///         records each pre-computed attestation UID together with a single attestation
+    ///         MirrorList shared by the whole batch — no EAS write call is made for the
+    ///         attestations.
     ///
-    ///         The registry does not validate the off-chain EAS signatures. Wallets
-    ///         MUST fetch the attestation blob via the attestation MirrorList and
-    ///         verify it against the recorded UID and the ERC-8176 schema.
+    ///         The registry does not validate the off-chain attestation's signature or
+    ///         content, regardless of its declared format. Wallets MUST fetch the
+    ///         attestation blob via the attestation MirrorList and verify it per the
+    ///         procedure appropriate to its declared 'format' (UID recomputation, schema
+    ///         and signature checks per ERC-8176 for 'ATTESTATION_FORMAT_EAS_OFFCHAIN').
     ///
     ///         Descriptor MirrorLists follow the same reference/inline flows as
     ///         'createDescriptorAttestations'. The attestation MirrorList is published
@@ -203,7 +221,7 @@ interface IClearSigningRegistry {
     /// @param offchainRevocations  UIDs of displaced off-chain attestations, revoked via
     ///                       'eas.revokeOffchain'. When a displaced active slot holds an
     ///                       off-chain attestation, its UID MUST appear in this array.
-    /// @return attestationIds  The off-chain EAS attestation UIDs, one per registration.
+    /// @return attestationIds  The off-chain attestation UIDs, one per registration.
     function createOffchainDescriptorAttestations(
         address                            attester,
         DescriptorRegistration[]           calldata registrations,
