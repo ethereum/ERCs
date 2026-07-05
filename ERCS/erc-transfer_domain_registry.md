@@ -1,0 +1,679 @@
+---
+eip: XXXX
+title: Directional Transfer Domain Registry
+description: Defines token-agnostic directional transfer-route permissions between opaque domains by asset class
+author: Chris Turner, David Hay (@david-hay), Reagan Simpson (@krumg111), Collins Musyimi (@Musyimi97)
+discussions-to: https://ethereum-magicians.org/t/proposing-a-family-of-candidate-erc-interfaces-for-titled-asset-infrastructure-architecture-review/28913
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-07-05
+requires: 165
+---
+
+## Abstract
+
+This ERC defines a token-agnostic registry interface for querying directional
+transfer-route permission between opaque domains by asset class. For an ordered
+triple of `sourceDomain`, `destinationDomain`, and `assetClass`, the registry
+reports whether that route is currently permitted and exposes the evidence
+commitments and effective timestamp associated with its latest state.
+
+The core interface supports immediate route permission and revocation, state
+retrieval, and batch queries. An optional extension supports delayed revocation
+with explicit initiation, cancellation, lazy effectiveness, and finalization
+semantics.
+
+This ERC does not assign addresses to domains, derive asset classes, validate
+evidence, or enforce token transfers. A token or transfer controller that relies
+on a route decision must resolve the applicable domains and asset class, query
+the registry, and enforce the result within its transfer path.
+
+## Motivation
+
+Transfer restrictions are commonly expressed in token-local or address-level
+logic. That model is appropriate when eligibility depends on a particular
+holder, balance, token, or transaction amount. It does not provide a common
+lookup surface for policies that apply to transfers between logical domains
+across multiple tokens sharing an asset classification.
+
+A domain can represent a jurisdiction, regulated venue, enterprise network,
+game economy, DAO treasury boundary, or another application-defined context.
+Transfer compatibility between such domains is often directional: permission
+from domain A to domain B does not imply permission from B to A. The same route
+can also differ by asset class.
+
+Without a shared interface, each token or controller embeds its own route table
+or integrates with a proprietary registry. This duplicates policy state and
+requires integrations to understand implementation-specific query methods.
+
+This ERC standardizes the narrow external question:
+
+> Is the route from this source domain to this destination domain currently
+> permitted for this asset class?
+
+It deliberately does not answer whether a complete transfer can succeed.
+Balances, holder eligibility, freezes, sanctions, settlement conditions, and
+token-specific rules remain separate checks.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
+[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+### Definitions
+
+A **domain** is an opaque, nonzero `bytes32` identifier for an
+application-defined logical boundary.
+
+An **asset class** is an opaque, nonzero `bytes32` identifier for a category of
+assets to which one route policy applies.
+
+A **route** is the ordered triple `(sourceDomain, destinationDomain,
+assetClass)`.
+
+A **registrar** is an address authorized by the implementation to modify route
+state.
+
+An **evidence hash** is a nonzero `bytes32` commitment to application-defined
+material supporting a route lifecycle action.
+
+A **grace period** is an implementation-defined delay between initiation and
+effectiveness of a graceful revocation.
+
+### Core Interface
+
+A compliant registry MUST implement:
+
+```solidity
+interface ITransferDomainRegistry {
+   struct Route {
+       bool permitted;
+       uint64 effectiveAt;
+       bytes32 permissionEvidenceHash;
+       bytes32 revocationEvidenceHash;
+   }
+
+   event RouteSet(
+       bytes32 indexed sourceDomain,
+       bytes32 indexed destinationDomain,
+       bytes32 indexed assetClass,
+       bytes32 permissionEvidenceHash,
+       uint64 effectiveAt
+   );
+
+   event RouteRevoked(
+       bytes32 indexed sourceDomain,
+       bytes32 indexed destinationDomain,
+       bytes32 indexed assetClass,
+       bytes32 revocationEvidenceHash,
+       uint64 effectiveAt
+   );
+
+   function isRoutePermitted(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass
+   ) external view returns (bool);
+
+   function getRoute(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass
+   ) external view returns (Route memory);
+
+   function setRoute(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass,
+       bytes32 permissionEvidenceHash
+   ) external;
+
+   function revokeRoute(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass,
+       bytes32 revocationEvidenceHash
+   ) external;
+
+   function isRoutePermittedBatch(
+       bytes32[] calldata sourceDomains,
+       bytes32[] calldata destinationDomains,
+       bytes32[] calldata assetClasses
+   ) external view returns (bool[] memory permitted);
+}
+```
+
+### Route Direction and Scope
+
+Routes MUST be directional. A permitted route `(A, B, C)` MUST NOT imply that
+`(B, A, C)` is permitted. Bidirectional permission requires two independently
+permitted routes.
+
+Routes MUST also be asset-class scoped. A permitted route `(A, B, C)` MUST NOT
+imply permission for `(A, B, D)`.
+
+The registry MUST treat each route triple independently.
+
+### Route Queries
+
+`isRoutePermitted` MUST return the current permission state for the exact route
+triple. It MUST return `false` for a route that has never been permitted, has
+been revoked immediately, or has reached the effective time of a graceful
+revocation.
+
+For a given block, the result MUST be deterministic and MUST NOT depend on
+`msg.sender`, `tx.origin`, or caller-specific state.
+
+`getRoute` MUST return the current `Route` representation for the exact triple.
+For an unknown route, it MUST return the default record in which every field is
+zero.
+
+When `permitted` is `true`, `effectiveAt` is the time at which the current
+permission state became effective. When `permitted` is `false` and
+`effectiveAt` is nonzero, it is the time at which the latest revocation became
+effective. An unknown route has `effectiveAt == 0`.
+
+### Setting a Route
+
+`setRoute` MUST be restricted to authorized registrars. It MUST reject a zero
+`sourceDomain`, `destinationDomain`, `assetClass`, or
+`permissionEvidenceHash`.
+
+On success, `setRoute` MUST:
+
+- set `permitted` to `true`;
+- set `effectiveAt` to `uint64(block.timestamp)`;
+- store the supplied `permissionEvidenceHash`;
+- set `revocationEvidenceHash` to `bytes32(0)`; and
+- emit `RouteSet` with the stored values.
+
+Calling `setRoute` for an already permitted or previously revoked route is
+allowed. The new call replaces the route's current state and evidence fields;
+prior lifecycle actions remain discoverable through events.
+
+An implementation MUST reject the call if `block.timestamp` cannot be
+represented as `uint64`.
+
+### Immediate Revocation
+
+`revokeRoute` MUST be restricted to authorized registrars. It MUST reject a
+zero `sourceDomain`, `destinationDomain`, `assetClass`, or
+`revocationEvidenceHash`.
+
+On success, `revokeRoute` MUST:
+
+- set `permitted` to `false`;
+- set `effectiveAt` to `uint64(block.timestamp)`;
+- preserve the current `permissionEvidenceHash`;
+- store the supplied `revocationEvidenceHash`; and
+- emit `RouteRevoked` with the stored values.
+
+For an authorized caller supplying valid nonzero arguments, `revokeRoute` MUST
+NOT revert solely because the route was unknown or already revoked. Revoking an
+unknown route creates a non-permitted route state with zero permission evidence
+and the supplied revocation evidence. Repeated revocation replaces the latest
+revocation timestamp and evidence and emits a new event.
+
+An implementation MUST reject the call if `block.timestamp` cannot be
+represented as `uint64`.
+
+### Evidence Semantics
+
+All evidence hashes accepted by this ERC MUST be nonzero. The registry treats
+them as opaque commitments and does not validate their preimages, hashing
+scheme, authority, correctness, or availability.
+
+`permissionEvidenceHash` represents the evidence supplied for the current
+permission state. `revocationEvidenceHash` represents the evidence supplied for
+the current revocation state and MUST be `bytes32(0)` while the route is
+permitted.
+
+Route state contains only the latest evidence fields. Consumers reconstructing
+the complete lifecycle MUST index the route events.
+
+### Batch Queries
+
+`isRoutePermittedBatch` MUST revert when its three arrays have different
+lengths. Otherwise, it MUST return an array of the same length in which output
+element `i` equals:
+
+```solidity
+isRoutePermitted(
+   sourceDomains[i],
+   destinationDomains[i],
+   assetClasses[i]
+)
+```
+
+Implementations MAY impose a documented maximum batch size. Consumers calling
+the batch function from state-changing execution SHOULD bound the input length.
+
+### Graceful Revocation Extension
+
+Graceful revocation is OPTIONAL. A registry implementing it MUST implement both
+the core interface and the following extension:
+
+```solidity
+interface IGracefulRouteRevocation {
+   struct Revocation {
+       uint64 initiatedAt;
+       uint64 effectiveAt;
+       bytes32 revocationEvidenceHash;
+       bool pending;
+       bool finalized;
+   }
+
+   event RouteRevocationInitiated(
+       bytes32 indexed sourceDomain,
+       bytes32 indexed destinationDomain,
+       bytes32 indexed assetClass,
+       bytes32 revocationEvidenceHash,
+       uint64 initiatedAt,
+       uint64 effectiveAt
+   );
+
+   event RouteRevocationCancelled(
+       bytes32 indexed sourceDomain,
+       bytes32 indexed destinationDomain,
+       bytes32 indexed assetClass,
+       bytes32 cancellationEvidenceHash
+   );
+
+   function getRevocation(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass
+   ) external view returns (Revocation memory);
+
+   function initiateRevocation(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass,
+       bytes32 revocationEvidenceHash
+   ) external;
+
+   function cancelRevocation(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass,
+       bytes32 cancellationEvidenceHash
+   ) external;
+
+   function finalizeRevocation(
+       bytes32 sourceDomain,
+       bytes32 destinationDomain,
+       bytes32 assetClass
+   ) external;
+}
+```
+
+The grace-period duration and its configuration mechanism are implementation
+defined. The implementation MUST document that policy. Only the resulting
+timestamps and state transitions are standardized.
+
+### Graceful Revocation Initiation
+
+`initiateRevocation` MUST be restricted to authorized registrars. It MUST
+reject a zero route identifier or zero `revocationEvidenceHash`.
+
+It MUST revert unless `isRoutePermitted` currently returns `true` for the route
+and no graceful revocation is pending.
+
+On success, it MUST:
+
+- set `initiatedAt` to `uint64(block.timestamp)`;
+- set `effectiveAt` to a representable `uint64` value strictly later than
+ `initiatedAt`;
+- store the supplied `revocationEvidenceHash`;
+- set `pending` to `true`;
+- set `finalized` to `false`; and
+- emit `RouteRevocationInitiated`.
+
+The route MUST remain permitted while `block.timestamp < effectiveAt`.
+
+### Lazy Effectiveness
+
+When `block.timestamp >= effectiveAt` for a pending graceful revocation,
+`isRoutePermitted` MUST return `false` without requiring a finalization
+transaction.
+
+During that interval, `getRoute` MUST return an effective route representation
+with:
+
+- `permitted == false`;
+- `effectiveAt` equal to the graceful revocation's `effectiveAt`;
+- the existing `permissionEvidenceHash`; and
+- `revocationEvidenceHash` equal to the graceful revocation evidence.
+
+The stored revocation remains `pending` until finalized, but the route is
+already non-permitted. Therefore, consumers MUST NOT infer route permission
+from whether `RouteRevoked` has been emitted.
+
+### Graceful Revocation Cancellation
+
+`cancelRevocation` MUST be restricted to authorized registrars. It MUST reject
+a zero route identifier or zero `cancellationEvidenceHash`.
+
+It MUST revert unless a revocation is pending and
+`block.timestamp < effectiveAt`.
+
+On success, it MUST clear the revocation state and emit
+`RouteRevocationCancelled`. The route remains permitted. The cancellation
+evidence is emitted but is not retained in the `Revocation` struct; consumers
+requiring it MUST index the event.
+
+### Graceful Revocation Finalization
+
+`finalizeRevocation` MUST reject a zero route identifier. It MUST revert unless
+a revocation is pending and `block.timestamp >= effectiveAt`.
+
+On success, it MUST:
+
+- set `pending` to `false`;
+- set `finalized` to `true`;
+- persist the route as non-permitted;
+- set the route's `effectiveAt` to the graceful revocation effective time;
+- store the graceful `revocationEvidenceHash` on the route; and
+- emit `RouteRevoked` exactly once for that graceful revocation.
+
+Finalization MAY be permissionless because route effectiveness does not depend
+on it. Repeated or nonexistent finalization MUST NOT emit a duplicate
+`RouteRevoked` event.
+
+The finalized `Revocation` record MUST remain queryable until another route
+lifecycle action clears it.
+
+### Interaction With Core Lifecycle Functions
+
+In a registry implementing the graceful extension, `setRoute` MUST clear any
+pending or finalized graceful-revocation record before installing the new
+permission state.
+
+`revokeRoute` MUST clear any pending or finalized graceful-revocation record
+before installing the immediate revocation state.
+
+These actions do not emit `RouteRevocationCancelled`. Their respective
+`RouteSet` or `RouteRevoked` event records the state transition.
+
+### Domain and Asset-Class Identification
+
+This ERC does not map accounts or tokens to domains and does not define domain
+or asset-class taxonomies. Applications MUST document how they derive each
+identifier supplied to the registry.
+
+Identifiers SHOULD be domain separated by an application or registry
+namespace. The same `bytes32` value in two independent registries MUST NOT be
+assumed to have the same meaning without an explicit coordination agreement.
+
+An asset class MAY represent a regulatory category, asset type, product class,
+or a single asset when per-asset routing is required. The mapping from an
+individual token or asset identifier to `assetClass` is application defined.
+
+### Authorization
+
+Registrar authorization is implementation defined. A registry MAY use
+ownership, role-based access control, governance, signatures, or another
+documented mechanism.
+
+Whatever mechanism is selected, unauthorized callers MUST NOT be able to call
+`setRoute`, `revokeRoute`, `initiateRevocation`, or `cancelRevocation`
+successfully.
+
+### ERC-165 Detection
+
+Compliant registries MUST implement [ERC-165](./erc-165.md) and return `true`
+for `type(ITransferDomainRegistry).interfaceId`.
+
+Registries implementing graceful revocation MUST also return `true` for
+`type(IGracefulRouteRevocation).interfaceId`.
+
+ERC-165 indicates interface support only. It does not prove that route data is
+correct, that the registry is governed appropriately, or that a token or
+controller enforces registry decisions.
+
+### Consumer Enforcement
+
+A consumer enforcing a route decision SHOULD perform the following within the
+same transaction as the governed transfer:
+
+1. Resolve the sender and receiver to the applicable source and destination
+  domains using an authoritative application-defined mechanism.
+2. Resolve the token or asset to the applicable asset class.
+3. Call `isRoutePermitted(sourceDomain, destinationDomain, assetClass)`.
+4. Reject the transfer when the result is `false`.
+5. Apply all independent token, identity, balance, freeze, sanctions, and
+  settlement checks required by the application.
+
+Checking route permission off-chain before submitting a later transfer does not
+provide atomic enforcement because route state can change between the check and
+execution.
+
+## Rationale
+
+### Why Directional Routes?
+
+Compatibility can be asymmetric. A domain may allow outbound transfers to
+another domain without accepting inbound transfers from it. Encoding each
+direction separately avoids an unsafe assumption of reciprocity.
+
+### Why Opaque Domains?
+
+Standardizing one universal domain taxonomy would couple the interface to a
+particular legal, organizational, or application model. Opaque identifiers let
+independent systems use the same route interface while defining their own
+meaning and resolution mechanism.
+
+### Why Scope Routes by Asset Class?
+
+The same pair of domains can permit one category of assets and prohibit
+another. Asset-class scoping allows multiple assets governed by the same route
+policy to share one entry without requiring per-token route storage.
+
+### Why an External Registry?
+
+An external registry allows multiple tokens and controllers to consult one
+route-policy surface. It also separates route administration from token
+implementation and avoids requiring every supported token standard to adopt
+the same storage model.
+
+### Why `isRoutePermitted` Instead of `canTransfer`?
+
+The registry evaluates only the supplied route triple. A name such as
+`canTransfer` would imply checks that the interface does not perform, including
+balances, account eligibility, freezes, sanctions, and token-specific rules.
+
+### Why Require Nonzero Evidence Commitments?
+
+A zero hash is ambiguous between absent evidence and a meaningful commitment.
+Requiring a nonzero value makes absence explicit at the application layer and
+prevents route records from silently appearing documented when no commitment
+was supplied.
+
+### Why Is Immediate Revocation Idempotent Over Route Existence?
+
+An authorized registrar should be able to establish a route as non-permitted
+without first proving that it was previously enabled. This supports defensive
+revocation and repeated emergency actions while retaining each action in the
+event history.
+
+### Why Graceful Revocation as an Extension?
+
+Some systems need immediate emergency closure. Others have in-flight settlement
+or notice obligations that require a future effective time. Keeping delayed
+revocation optional preserves a small core interface while standardizing the
+additional lifecycle only for deployments that need it.
+
+### Why Lazy Effectiveness?
+
+If route closure depended on a later finalization transaction, a missing or
+censored transaction could leave the route permitted indefinitely. Lazy
+effectiveness makes the announced timestamp authoritative. Finalization exists
+to persist state and emit the terminal event, not to activate the revocation.
+
+### Why Keep Grace-Period Configuration Implementation Defined?
+
+Appropriate delay depends on the applicable settlement cycle and policy. The
+interface exposes the resulting `effectiveAt` timestamp, which consumers need
+for interoperability, without prescribing one configuration mechanism or
+duration.
+
+### Prior Art
+
+[ERC-1592](./erc-1592.md) defines reusable address and ERC-20 transfer rules
+based on sender, destination, and amount. This ERC instead standardizes an
+external lookup keyed by an ordered domain pair and asset class.
+
+[ERC-1462](./erc-1462.md) defines transfer-checking and document-reference
+functions for security tokens. This ERC is token agnostic and does not define a
+security-token extension.
+
+[ERC-3643](./erc-3643.md) defines a regulated-token architecture with identity
+registries, compliance modules, and token lifecycle functions. This ERC does
+not define holder eligibility or token behavior; it provides one route-policy
+input that such systems may optionally consume.
+
+[ERC-7943](./erc-7943.md) defines a universal RWA token interface including
+transfer eligibility, freezing, and forced transfer behavior. This ERC is an
+external registry keyed by domains and asset classes rather than a token
+behavior interface.
+
+Certificate revocation and time-to-live systems provide analogous delayed
+transition patterns, but they do not define an EVM transfer-domain registry.
+
+## Backwards Compatibility
+
+This ERC introduces new interfaces and does not modify existing token
+standards. Existing ERC-20, ERC-721, ERC-1155, ERC-3643, ERC-7943, and custom
+tokens remain unaffected unless their transfer path is explicitly integrated
+with a registry.
+
+The registry does not require a token to expose a new interface. A token,
+compliance module, transfer controller, bridge, or settlement contract can call
+the registry as an external dependency.
+
+Implementations that do not need delayed revocation implement only
+`ITransferDomainRegistry`. Implementations that need delayed revocation
+additionally implement `IGracefulRouteRevocation`.
+
+## Test Cases
+
+Implementations should test at least:
+
+- directional independence of `(A, B, C)` and `(B, A, C)`;
+- asset-class independence for the same domain pair;
+- caller-independent route queries;
+- default false and zero state for unknown routes;
+- nonzero validation for route identifiers and every evidence field;
+- setting, repeated setting, immediate revocation, repeated revocation, and
+ re-enablement;
+- immediate revocation of an unknown route;
+- route evidence retrieval and event history;
+- batch output equivalence with individual queries;
+- mismatched batch lengths and implementation batch limits;
+- graceful initiation only for a currently permitted route;
+- permission before, and non-permission at, graceful `effectiveAt`;
+- lazy `getRoute` behavior before finalization;
+- cancellation before expiry and rejection at or after expiry;
+- finalization persistence and duplicate-event prevention;
+- immediate revocation and re-enablement while graceful state exists;
+- positive and negative ERC-165 detection; and
+- unauthorized lifecycle calls.
+
+## Reference Implementation
+
+A Solidity reference implementation includes immediate and graceful registry
+contracts, a canonical route-key library, unit and fuzz tests, Medusa property
+tests, deployment scripts, and an independent audit. These materials are linked
+from the official discussion thread.
+
+The reference implementation uses role-based registrar authorization, a
+deployment-time fixed grace period, a maximum batch size of 256, and:
+
+```solidity
+keccak256(
+   abi.encodePacked(sourceDomain, destinationDomain, assetClass)
+)
+```
+
+as its internal route key. Those storage and administration choices are not
+required for conforming implementations.
+
+## Security Considerations
+
+### No Enforcement Guarantee
+
+The registry is advisory. A token or controller that does not query and enforce
+the result can transfer regardless of route state. ERC-165 support by either
+contract does not prove that enforcement occurs.
+
+### Domain and Asset-Class Resolution
+
+The registry evaluates caller-supplied identifiers. Incorrect, stale, or
+malicious resolution of an address or token to a domain or asset class can
+bypass the intended policy even when the registry itself is correct. Consumers
+must secure and document their resolution mechanism.
+
+### Registry and Registrar Trust
+
+A malicious or compromised registrar can permit prohibited routes, revoke
+valid routes, replace evidence commitments, or repeatedly change state. Users
+must evaluate the registry's authorization, governance, upgrade, and key
+management policies.
+
+### Evidence Limitations
+
+An evidence hash proves only commitment to unknown bytes if the preimage is
+available. It does not establish authenticity, legal effect, correctness,
+authority, or continued availability. Consumers relying on evidence must obtain
+and verify the preimage under an agreed hashing and document scheme.
+
+### Transaction Atomicity and Races
+
+An off-chain route query can become stale before a transfer executes. Enforcing
+consumers should query the registry and complete or reject the transfer within
+the same transaction.
+
+### Graceful Revocation Risk
+
+The route remains permitted before `effectiveAt`, so the grace period creates a
+known window in which transfers can continue. Applications must choose a delay
+appropriate to their threat and settlement models. Emergency closure should
+use immediate revocation.
+
+An authorized registrar can clear graceful state by calling `setRoute` or
+`revokeRoute`. Consumers requiring governance constraints around reinstatement
+must enforce them in the registry's authorization policy.
+
+### Lazy Revocation and Event-Only Indexers
+
+A graceful revocation becomes effective without a transaction at
+`effectiveAt`. An indexer that waits only for `RouteRevoked` can report stale
+permission until finalization. Consumers must evaluate timestamps or call the
+view interface.
+
+### Batch Gas Consumption
+
+Although batch lookup is a view function, another contract can invoke it from a
+state-changing transaction. Unbounded arrays can consume excessive gas or make
+the calling operation unavailable. Implementations and callers should apply
+appropriate limits.
+
+### Identifier Collisions and Cross-Registry Meaning
+
+Opaque identifiers have no global namespace. Two applications or registries
+can assign the same value to different domains or asset classes. Consumers must
+scope interpretation to the selected registry and its documented namespace.
+
+### Timestamp Dependence
+
+Graceful revocation depends on `block.timestamp`. Block producers can influence
+timestamps within protocol bounds. Applications requiring exact wall-clock
+cutoffs must account for this uncertainty.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md). 
