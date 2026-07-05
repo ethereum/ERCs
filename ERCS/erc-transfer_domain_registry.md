@@ -3,7 +3,7 @@ eip: XXXX
 title: Directional Transfer Domain Registry
 description: Defines token-agnostic directional transfer-route permissions between opaque domains by asset class
 author: Chris Turner, David Hay (@david-hay), Reagan Simpson (@krumg111), Collins Musyimi (@Musyimi97)
-discussions-to: https://ethereum-magicians.org/t/proposing-a-family-of-candidate-erc-interfaces-for-titled-asset-infrastructure-architecture-review/28913
+discussions-to: https://ethereum-magicians.org/t/directional-transfer-domain-registry-candidate-erc/28936
 status: Draft
 type: Standards Track
 category: ERC
