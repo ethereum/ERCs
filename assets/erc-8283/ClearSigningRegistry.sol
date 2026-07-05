@@ -24,13 +24,18 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     );
 
     bytes32 public constant OFFCHAIN_ATTESTATION_TYPEHASH = keccak256(
-        "OffchainAttestation(bytes32 uid,uint64 expirationTime,bytes32 format)"
+        "OffchainAttestation(bytes32 attestationId,bytes32 format)"
+    );
+
+    bytes32 public constant REVOCATION_ENTRY_TYPEHASH = keccak256(
+        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
     );
 
     bytes32 public constant OFFCHAIN_REGISTRATION_BATCH_TYPEHASH = keccak256(
-        "ClearSigningOffchainRegistrationBatch(DescriptorInfo[] descriptors,OffchainAttestation[] attestations,bytes32 attestationMirrorListId,uint256 nonce)"
+        "ClearSigningOffchainRegistrationBatch(DescriptorInfo[] descriptors,OffchainAttestation[] attestations,bytes32 attestationMirrorListId,RevocationEntry[] revocations,uint256 nonce)"
         "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId)"
-        "OffchainAttestation(bytes32 uid,uint64 expirationTime,bytes32 format)"
+        "OffchainAttestation(bytes32 attestationId,bytes32 format)"
+        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
     );
 
     bytes32 public constant MIRROR_UPDATE_TYPEHASH = keccak256(
@@ -39,24 +44,23 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     constructor() EIP712("ClearSigningRegistry", "1") {}
 
-    // The UID of the active attestation for the given attester and context ID.
+    // The attestation ID currently active for the given attester and context ID.
     // The attested descriptor hash is stored in '_offchainDetails'.
-    mapping(address attester => mapping(bytes32 contextId => bytes32)) private _attestationUIDs;
+    mapping(address attester => mapping(bytes32 contextId => bytes32)) private _attestationIds;
 
-    // Extra metadata for an attestation, stored exactly once per UID.
+    // Extra metadata for an attestation, stored exactly once per attestation ID.
     struct OffchainDetails {
         bytes32 descriptorHash;
         bytes32 attestationMirrorListId; // points into _mirrorLists, like a descriptor's mirrorListId
-        uint64  expirationTime;
         bytes32 format;                  // the declared attestationFormatTag; opaque to the registry
     }
-    mapping(address attester => mapping(bytes32 uid => OffchainDetails)) private _offchainDetails;
+    mapping(address attester => mapping(bytes32 attestationId => OffchainDetails)) private _offchainDetails;
 
-    // The timestamp at which 'attester' revoked 'uid', or 0 if never revoked. Written
-    // either by 'revokeAttestation' directly (msg.sender == attester) or by this
-    // registry itself when a registration batch displaces a slot on the attester's
-    // behalf, after verifying that batch's own authorization chain.
-    mapping(address attester => mapping(bytes32 uid => uint64)) private _revokedAt;
+    // The timestamp at which 'attester' revoked 'attestationId', or 0 if never revoked.
+    // Written either by 'revokeAttestation' directly (msg.sender == attester) or by
+    // this registry itself when a registration batch displaces a slot on the
+    // attester's behalf, after verifying that batch's own authorization chain.
+    mapping(address attester => mapping(bytes32 attestationId => uint64)) private _revokedAt;
 
     // Global store of MirrorLists, written once per unique URI set.
     mapping(bytes32 mirrorListId => string[]) private _mirrorLists;
@@ -74,7 +78,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         OffchainAttestation[]  calldata attestations,
         string[]               calldata attestationMirrorListUris,
         bytes                  calldata registrationSignature,
-        bytes32[]              calldata revocations
+        RevocationEntry[]      calldata revocations
     ) external returns (bytes32[] memory attestationIds) {
         if (descriptors.length == 0) {
             revert EmptyDescriptors();
@@ -86,11 +90,11 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         // Every active attestation being displaced must be explicitly revoked.
         _checkRevocations(attester, descriptors, revocations);
 
-        // Revoke displaced attestations (may be empty when no slots are replaced).
+        // Revoke and clear displaced attestations (may be empty when no slots are replaced).
         _processRevocations(attester, revocations);
 
         attestationIds = _registerOffchainBatch(
-            attester, descriptors, attestations, attestationMirrorListUris, registrationSignature
+            attester, descriptors, attestations, attestationMirrorListUris, registrationSignature, revocations
         );
     }
 
@@ -101,7 +105,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         DescriptorInfo[]                   calldata descriptors,
         OffchainAttestation[]              calldata attestations,
         string[]                           calldata attestationMirrorListUris,
-        bytes                              calldata registrationSignature
+        bytes                              calldata registrationSignature,
+        RevocationEntry[]                  calldata revocations
     ) private returns (bytes32[] memory attestationIds) {
         // Publish the attestation MirrorList exactly once for the whole batch;
         // every descriptor in this call reuses the resulting pointer.
@@ -117,7 +122,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             uint256 nonce = _registrationNonce[attester];
             _registrationNonce[attester] = nonce + 1;
             _verifyOffchainRegistrationSignature(
-                attester, itemHashes, attestationHashes, attestationMirrorListId, nonce, registrationSignature
+                attester, itemHashes, attestationHashes, attestationMirrorListId,
+                _hashRevocationEntries(revocations), nonce, registrationSignature
             );
         }
     }
@@ -141,14 +147,14 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Collects the pre-computed off-chain attestation UID of each descriptor, in order.
+    /// @dev Collects the pre-computed off-chain attestation ID of each descriptor, in order.
     function _collectOffchainAttestationIds(
         OffchainAttestation[] calldata attestations
     ) private pure returns (bytes32[] memory attestationIds) {
         uint256 attestationCount = attestations.length;
         attestationIds = new bytes32[](attestationCount);
         for (uint256 attestationIndex; attestationIndex < attestationCount;) {
-            attestationIds[attestationIndex] = attestations[attestationIndex].uid;
+            attestationIds[attestationIndex] = attestations[attestationIndex].attestationId;
             unchecked { ++attestationIndex; }
         }
     }
@@ -157,16 +163,16 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _updateSlots(
         address                 attester,
         DescriptorInfo calldata descriptor,
-        bytes32                 uid
+        bytes32                 attestationId
     ) private {
         bytes32[] calldata contextIds = descriptor.contextIds;
         uint256 contextIdCount = contextIds.length;
         for (uint256 contextIndex; contextIndex < contextIdCount;) {
-            bytes32 contextId   = contextIds[contextIndex];
-            bytes32 previousUid = _attestationUIDs[attester][contextId];
-            _attestationUIDs[attester][contextId] = uid;
+            bytes32 contextId            = contextIds[contextIndex];
+            bytes32 previousAttestationId = _attestationIds[attester][contextId];
+            _attestationIds[attester][contextId] = attestationId;
             emit AttestationUpdated(
-                attester, contextId, uid, previousUid, descriptor.descriptorHash
+                attester, contextId, attestationId, previousAttestationId, descriptor.descriptorHash
             );
             unchecked { ++contextIndex; }
         }
@@ -199,84 +205,41 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     }
 
     /// @inheritdoc IClearSigningRegistry
-    function revokeAttestation(bytes32 uid) external {
-        _recordRevocation(msg.sender, uid);
-    }
-
-    /// @inheritdoc IClearSigningRegistry
-    function getRevocationTimestamp(address attester, bytes32 uid) external view returns (uint64) {
-        return _revokedAt[attester][uid];
-    }
-
-    /// @dev Records 'uid' as revoked under 'attester', emitting 'AttestationRevoked'.
-    ///      Shared by the direct self-service path ('revokeAttestation') and the
-    ///      batch-displacement path ('_processRevocations').
-    function _recordRevocation(address attester, bytes32 uid) private {
-        uint64 timestamp = uint64(block.timestamp);
-        _revokedAt[attester][uid] = timestamp;
-        emit AttestationRevoked(attester, uid, timestamp);
-    }
-
-    /// @inheritdoc IClearSigningRegistry
-    function clearRevokedAttestations(
-        address[]   calldata attesters,
-        bytes32[][] calldata contextIds
-    ) external returns (uint256 cleared) {
-        uint256 attesterCount = attesters.length;
-        if (attesterCount == 0) {
-            revert EmptyAttesters();
-        }
-        if (attesterCount != contextIds.length) {
-            revert ArrayLengthMismatch();
-        }
-
-        for (uint256 attesterIndex; attesterIndex < attesterCount;) {
-            cleared += _clearRevokedAttestationsForAttester(attesters[attesterIndex], contextIds[attesterIndex]);
-            unchecked { ++attesterIndex; }
-        }
-    }
-
-    /// @dev Clears every stale context ID slot listed for one attester, returning how many were cleared.
-    function _clearRevokedAttestationsForAttester(
-        address            attester,
-        bytes32[] calldata contextIdsForAttester
-    ) private returns (uint256 cleared) {
-        uint256 contextIdCount = contextIdsForAttester.length;
-        if (contextIdCount == 0) {
+    function revokeAttestation(bytes32 attestationId, bytes32[] calldata contextIds) external {
+        if (contextIds.length == 0) {
             revert EmptyContextIds();
         }
+        _revokeAndClear(msg.sender, attestationId, contextIds);
+    }
 
+    /// @inheritdoc IClearSigningRegistry
+    function getRevocationTimestamp(address attester, bytes32 attestationId) external view returns (uint64) {
+        return _revokedAt[attester][attestationId];
+    }
+
+    /// @dev Records 'attestationId' as revoked under 'attester', emitting 'AttestationRevoked'.
+    function _recordRevocation(address attester, bytes32 attestationId) private {
+        uint64 timestamp = uint64(block.timestamp);
+        _revokedAt[attester][attestationId] = timestamp;
+        emit AttestationRevoked(attester, attestationId, timestamp);
+    }
+
+    /// @dev Records 'attestationId' as revoked under 'attester' and clears 'contextIds'
+    ///      immediately wherever they still point to it. A context ID whose active slot
+    ///      has since moved to a different attestation ID is silently skipped. Shared by
+    ///      the direct self-service path ('revokeAttestation') and the registration-batch
+    ///      displacement path ('_processRevocations').
+    function _revokeAndClear(address attester, bytes32 attestationId, bytes32[] calldata contextIds) private {
+        _recordRevocation(attester, attestationId);
+        uint256 contextIdCount = contextIds.length;
         for (uint256 contextIndex; contextIndex < contextIdCount;) {
-            if (_clearSlotIfRevokedOrExpired(attester, contextIdsForAttester[contextIndex])) {
-                ++cleared;
+            bytes32 contextId = contextIds[contextIndex];
+            if (_attestationIds[attester][contextId] == attestationId) {
+                _attestationIds[attester][contextId] = bytes32(0);
+                emit AttestationUpdated(attester, contextId, bytes32(0), attestationId, bytes32(0));
             }
             unchecked { ++contextIndex; }
         }
-    }
-
-    /// @dev Clears one context ID's active slot if its backing attestation is
-    ///      revoked or expired. Returns whether the slot was cleared.
-    function _clearSlotIfRevokedOrExpired(address attester, bytes32 contextId) private returns (bool) {
-        bytes32 uid = _attestationUIDs[attester][contextId];
-        // Skip empty slots: another sweep or a re-registration won the race.
-        if (uid == bytes32(0)) {
-            return false;
-        }
-        if (!_isAttestationRevokedOrExpired(attester, uid)) {
-            return false;
-        }
-
-        _attestationUIDs[attester][contextId] = bytes32(0);
-        emit AttestationUpdated(attester, contextId, bytes32(0), uid, bytes32(0));
-        return true;
-    }
-
-    /// @dev Checks whether the attestation backing a UID has been revoked or has expired.
-    function _isAttestationRevokedOrExpired(address attester, bytes32 uid) private view returns (bool) {
-        OffchainDetails storage details = _offchainDetails[attester][uid];
-        bool revoked = _revokedAt[attester][uid] != 0;
-        bool expired = details.expirationTime != 0 && details.expirationTime < block.timestamp;
-        return revoked || expired;
     }
 
     /// @inheritdoc IClearSigningRegistry
@@ -301,7 +264,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         for (uint256 attesterIndex; attesterIndex < attesterCount;) {
             address attester = attesters[attesterIndex];
             for (uint256 contextIndex; contextIndex < contextIdCount;) {
-                if (_attestationUIDs[attester][contextIds[contextIndex]] != bytes32(0)) {
+                if (_attestationIds[attester][contextIds[contextIndex]] != bytes32(0)) {
                     ++activeSlotCount;
                 }
                 unchecked { ++contextIndex; }
@@ -324,9 +287,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             address attester = attesters[attesterIndex];
             for (uint256 contextIndex; contextIndex < contextIdCount;) {
                 bytes32 contextId = contextIds[contextIndex];
-                bytes32 uid = _attestationUIDs[attester][contextId];
-                if (uid != bytes32(0)) {
-                    resolved[resolvedIndex++] = _resolveSlot(attester, contextId, uid, allowedPrefixes);
+                bytes32 attestationId = _attestationIds[attester][contextId];
+                if (attestationId != bytes32(0)) {
+                    resolved[resolvedIndex++] = _resolveSlot(attester, contextId, attestationId, allowedPrefixes);
                 }
                 unchecked { ++contextIndex; }
             }
@@ -338,11 +301,11 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _resolveSlot(
         address            attester,
         bytes32            contextId,
-        bytes32            uid,
+        bytes32            attestationId,
         string[]  calldata allowedPrefixes
     ) private view returns (ResolvedDescriptor memory) {
-        OffchainDetails storage details = _offchainDetails[attester][uid];
-        (bytes32 descriptorHash, uint64 expirationTime, bytes32 format, string[] memory attestationMirrorListUris) =
+        OffchainDetails storage details = _offchainDetails[attester][attestationId];
+        (bytes32 descriptorHash, bytes32 format, string[] memory attestationMirrorListUris) =
             _resolveOffchainAttestation(details, allowedPrefixes);
 
         bytes32 mirrorListId = _mirrorListId[attester][descriptorHash];
@@ -351,8 +314,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             attester:                  attester,
             contextId:                 contextId,
             descriptorHash:            descriptorHash,
-            attestationId:             uid,
-            expirationTime:            expirationTime,
+            attestationId:             attestationId,
             attestationMirrorListUris: attestationMirrorListUris,
             format:                    format,
             uris:                      _filterUris(_mirrorLists[mirrorListId], allowedPrefixes)
@@ -365,12 +327,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         string[]       calldata allowedPrefixes
     ) private view returns (
         bytes32  descriptorHash,
-        uint64   expirationTime,
         bytes32  format,
         string[] memory attestationMirrorListUris
     ) {
         descriptorHash = details.descriptorHash;
-        expirationTime = details.expirationTime;
         format         = details.format;
         attestationMirrorListUris = _filterUris(_mirrorLists[details.attestationMirrorListId], allowedPrefixes);
     }
@@ -494,29 +454,29 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
         itemHash = _processDescriptorCore(attester, descriptor);
         attestationHash = keccak256(
-            abi.encode(OFFCHAIN_ATTESTATION_TYPEHASH, attestation.uid, attestation.expirationTime, attestation.format)
+            abi.encode(OFFCHAIN_ATTESTATION_TYPEHASH, attestation.attestationId, attestation.format)
         );
 
-        // Store the off-chain metadata exactly once per UID, not per contextId.
-        _offchainDetails[attester][attestation.uid] = OffchainDetails({
+        // Store the off-chain metadata exactly once per attestation ID, not per contextId.
+        _offchainDetails[attester][attestation.attestationId] = OffchainDetails({
             descriptorHash:          descriptor.descriptorHash,
             attestationMirrorListId: attestationMirrorListId,
-            expirationTime:          attestation.expirationTime,
             format:                  attestation.format
         });
 
-        _updateSlots(attester, descriptor, attestation.uid);
+        _updateSlots(attester, descriptor, attestation.attestationId);
     }
 
     /// @dev Verifies the attester's EIP-712 signature over a registration batch.
-    ///      Binding the attestation MirrorList ID and the full attestation structs
-    ///      prevents a relayer from substituting a different MirrorList or falsified
-    ///      expiration times; the nonce makes the signature single-use.
+    ///      Binding the attestation MirrorList ID prevents a relayer from substituting
+    ///      a different MirrorList; binding 'revocationsHash' prevents a relayer from
+    ///      adding or dropping revocation entries; the nonce makes the signature single-use.
     function _verifyOffchainRegistrationSignature(
         address            attester,
         bytes32[] memory   itemHashes,
         bytes32[] memory   attestationHashes,
         bytes32            attestationMirrorListId,
+        bytes32            revocationsHash,
         uint256            nonce,
         bytes     calldata registrationSignature
     ) private view {
@@ -526,6 +486,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
                 keccak256(abi.encodePacked(itemHashes)),
                 keccak256(abi.encodePacked(attestationHashes)),
                 attestationMirrorListId,
+                revocationsHash,
                 nonce
             )
         );
@@ -562,12 +523,30 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Records each UID in 'revocations' as revoked under 'attester'. Safe to
-    ///      call with an empty array when no slots are being displaced.
-    function _processRevocations(address attester, bytes32[] calldata revocations) private {
+    /// @dev EIP-712 array-hash of 'revocations', following the same pattern as
+    ///      'itemHashes'/'attestationHashes': one 'REVOCATION_ENTRY_TYPEHASH' hash per
+    ///      entry, aggregated via 'keccak256(abi.encodePacked(...))'.
+    function _hashRevocationEntries(RevocationEntry[] calldata revocations) private pure returns (bytes32) {
+        uint256 count = revocations.length;
+        bytes32[] memory entryHashes = new bytes32[](count);
+        for (uint256 i; i < count;) {
+            RevocationEntry calldata entry = revocations[i];
+            entryHashes[i] = keccak256(
+                abi.encode(REVOCATION_ENTRY_TYPEHASH, entry.attestationId, keccak256(abi.encodePacked(entry.contextIds)))
+            );
+            unchecked { ++i; }
+        }
+        return keccak256(abi.encodePacked(entryHashes));
+    }
+
+    /// @dev Records each entry in 'revocations' as revoked under 'attester' and clears
+    ///      its listed context IDs. Safe to call with an empty array when no slots are
+    ///      being displaced.
+    function _processRevocations(address attester, RevocationEntry[] calldata revocations) private {
         uint256 revocationCount = revocations.length;
         for (uint256 revocationIndex; revocationIndex < revocationCount;) {
-            _recordRevocation(attester, revocations[revocationIndex]);
+            RevocationEntry calldata entry = revocations[revocationIndex];
+            _revokeAndClear(attester, entry.attestationId, entry.contextIds);
             unchecked { ++revocationIndex; }
         }
     }
@@ -575,9 +554,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     /// @dev Requires that every active attestation displaced by this batch is
     ///      present in 'revocations'.
     function _checkRevocations(
-        address                   attester,
-        DescriptorInfo[] calldata descriptors,
-        bytes32[]        calldata revocations
+        address                    attester,
+        DescriptorInfo[]  calldata descriptors,
+        RevocationEntry[] calldata revocations
     ) private view {
         uint256 descriptorCount = descriptors.length;
         for (uint256 descriptorIndex; descriptorIndex < descriptorCount;) {
@@ -588,9 +567,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     /// @dev Checks every context ID of one descriptor for a displaced, unrevoked slot.
     function _checkRevocationsForDescriptor(
-        address                  attester,
-        DescriptorInfo  calldata descriptor,
-        bytes32[]       calldata revocations
+        address                   attester,
+        DescriptorInfo   calldata descriptor,
+        RevocationEntry[] calldata revocations
     ) private view {
         bytes32[] calldata contextIds = descriptor.contextIds;
         uint256 contextIdCount = contextIds.length;
@@ -601,30 +580,30 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     }
 
     /// @dev Reverts with 'MissingRevocation' if a context ID's currently active slot
-    ///      is about to be displaced without appearing in 'revocations'.
+    ///      is about to be displaced without its attestation ID appearing in 'revocations'.
     function _checkDisplacedSlotIsRevoked(
-        address            attester,
-        bytes32            contextId,
-        bytes32[] calldata revocations
+        address                    attester,
+        bytes32                    contextId,
+        RevocationEntry[] calldata revocations
     ) private view {
-        bytes32 displacedUid = _attestationUIDs[attester][contextId];
-        if (displacedUid == bytes32(0)) {
+        bytes32 displacedAttestationId = _attestationIds[attester][contextId];
+        if (displacedAttestationId == bytes32(0)) {
             return;
         }
 
-        if (!_containsUid(revocations, displacedUid)) {
-            revert MissingRevocation(displacedUid);
+        if (!_containsAttestationId(revocations, displacedAttestationId)) {
+            revert MissingRevocation(displacedAttestationId);
         }
     }
 
-    /// @dev Linear search for 'target' within 'uids'.
-    function _containsUid(bytes32[] calldata uids, bytes32 target) private pure returns (bool) {
-        uint256 uidCount = uids.length;
-        for (uint256 uidIndex; uidIndex < uidCount;) {
-            if (uids[uidIndex] == target) {
+    /// @dev Linear search for a 'RevocationEntry' whose 'attestationId' equals 'target'.
+    function _containsAttestationId(RevocationEntry[] calldata revocations, bytes32 target) private pure returns (bool) {
+        uint256 count = revocations.length;
+        for (uint256 i; i < count;) {
+            if (revocations[i].attestationId == target) {
                 return true;
             }
-            unchecked { ++uidIndex; }
+            unchecked { ++i; }
         }
         return false;
     }

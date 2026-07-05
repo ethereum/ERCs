@@ -26,16 +26,24 @@ interface IClearSigningRegistry {
     ///         The signed attestation blob itself is stored off-chain and retrieved via
     ///         the attestation MirrorList shared by the registration batch.
     struct OffchainAttestation {
-        /// The pre-computed off-chain attestation UID. For 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
+        /// The pre-computed off-chain attestation identifier. For 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
         /// this is a standard EAS off-chain attestation UID; for other formats it is an
         /// attester-chosen opaque identifier.
-        bytes32 uid;
-        /// The expiration time from the attestation message; 0 = no expiration.
-        uint64 expirationTime;
+        bytes32 attestationId;
         /// A bytes32 equal to keccak256("erc7730.attestation.<format>"), namespacing the
         /// shape of the artifact retrieved via the attestation MirrorList. MUST be non-zero.
         /// Opaque to the registry, which performs no validation of the artifact against it.
         bytes32 format;
+    }
+
+    /// @notice One attestation ID being revoked, together with the context IDs to clear
+    ///         immediately wherever they still point to it. 'contextIds' MAY be
+    ///         empty — the ones covered by the replacement descriptors in the same
+    ///         batch get updated automatically regardless; entries here matter for
+    ///         context IDs the replacement no longer covers.
+    struct RevocationEntry {
+        bytes32 attestationId;
+        bytes32[] contextIds;
     }
 
     /// @notice A fully resolved active descriptor with attestation.
@@ -46,10 +54,8 @@ interface IClearSigningRegistry {
         bytes32 contextId;
         /// The descriptor hash decoded from the attestation data.
         bytes32 descriptorHash;
-        /// The attestation UID.
+        /// The attestation ID.
         bytes32 attestationId;
-        /// The attestation expiration time.
-        uint64 expirationTime;
         /// The MirrorList URIs for retrieving the attestation blob.
         string[] attestationMirrorListUris;
         /// The attester-declared attestation format tag. Opaque to the registry;
@@ -61,11 +67,11 @@ interface IClearSigningRegistry {
 
     /// @notice Emitted when an attester's active attestation for a context ID changes.
     ///         Emitted once per contextId on each 'createOffchainDescriptorAttestations' call.
-    ///         When 'clearRevokedAttestations' removes a descriptor, descriptorHash and attestationId are bytes32(0).
+    ///         When 'revokeAttestation' clears a slot, descriptorHash and attestationId are bytes32(0).
     /// @param attester               The attester whose active attestation changed.
     /// @param contextId              The context ID affected.
-    /// @param attestationId          The attestation UID for this descriptor.
-    /// @param previousAttestationId  The previously active attestation UID.
+    /// @param attestationId          The attestation ID for this descriptor.
+    /// @param previousAttestationId  The previously active attestation ID.
     /// @param descriptorHash         The newly attested descriptor hash.
     event AttestationUpdated(
         address indexed attester,
@@ -75,15 +81,15 @@ interface IClearSigningRegistry {
         bytes32         descriptorHash
     );
 
-    /// @notice Emitted whenever a revocation timestamp is recorded for an attestation UID,
+    /// @notice Emitted whenever a revocation timestamp is recorded for an attestation ID,
     ///         whether via 'revokeAttestation' directly or via a registration batch that
     ///         displaced it.
-    /// @param attester   The attester the UID is revoked under.
-    /// @param uid        The revoked attestation UID.
-    /// @param timestamp  The block timestamp at which the revocation was recorded.
+    /// @param attester       The attester the attestation ID is revoked under.
+    /// @param attestationId  The revoked attestation ID.
+    /// @param timestamp      The block timestamp at which the revocation was recorded.
     event AttestationRevoked(
         address indexed attester,
-        bytes32 indexed uid,
+        bytes32 indexed attestationId,
         uint64          timestamp
     );
 
@@ -110,7 +116,8 @@ interface IClearSigningRegistry {
     /// @notice Thrown when bytes32(0) is passed where an off-chain attestation format tag is required.
     error ZeroAttestationFormat();
 
-    /// @notice Thrown when a descriptor's contextIds is empty.
+    /// @notice Thrown when a descriptor's contextIds is empty, or when 'revokeAttestation'
+    ///         is called with an empty 'contextIds' array.
     error EmptyContextIds();
 
     /// @notice Thrown when an empty URI list is passed to publishMirrorLists.
@@ -131,11 +138,8 @@ interface IClearSigningRegistry {
     error InvalidRegistrationSignature();
 
     /// @notice Thrown when a descriptor replaces an active slot but the previously
-    ///         active attestation UID is not included in the matching revocation set.
-    error MissingRevocation(bytes32 missingUid);
-
-    /// @notice Thrown when attesters is empty on a clearRevokedAttestations call.
-    error EmptyAttesters();
+    ///         active attestation ID is not included in the matching revocation set.
+    error MissingRevocation(bytes32 missingAttestationId);
 
     /// @notice Thrown when parallel array arguments differ in length, including when
     ///         attestations does not have one entry per descriptor.
@@ -146,14 +150,14 @@ interface IClearSigningRegistry {
     ///         The attester produces the signed attestation artifact locally — typically
     ///         a standard EAS off-chain attestation, but any format the attester declares
     ///         via 'OffchainAttestation.format' — and stores it off-chain. The registry
-    ///         records each pre-computed attestation UID together with a single attestation
+    ///         records each pre-computed attestation ID together with a single attestation
     ///         MirrorList shared by the whole batch.
     ///
     ///         The registry does not validate the off-chain attestation's signature or
     ///         content, regardless of its declared format. Wallets MUST fetch the
     ///         attestation blob via the attestation MirrorList and verify it per the
-    ///         procedure appropriate to its declared 'format' (UID recomputation, schema
-    ///         and signature checks per ERC-8176 for 'ATTESTATION_FORMAT_EAS_OFFCHAIN').
+    ///         procedure appropriate to its declared 'format' (attestation ID recomputation,
+    ///         schema and signature checks per ERC-8176 for 'ATTESTATION_FORMAT_EAS_OFFCHAIN').
     ///
     ///         Each descriptor references a MirrorList, with two supported flows:
     ///
@@ -168,20 +172,21 @@ interface IClearSigningRegistry {
     /// @param attestations   One off-chain attestation reference per descriptor.
     /// @param attestationMirrorListUris  Retrieval URIs for the off-chain attestation
     ///                       blobs, shared by every attestation in this batch.
-    /// @param registrationSignature  EIP-712 signature by the attester authorizing this batch when the registration transaction is relayed.
-    /// @param revocations    UIDs of displaced attestations this call revokes, recorded
-    ///                       via 'revokeAttestation' under the attester's address. MAY
+    /// @param registrationSignature  EIP-712 signature by the attester authorizing this
+    ///                       batch when the registration transaction is relayed. Covers
+    ///                       'revocations' too, so a relayer cannot add or drop entries.
+    /// @param revocations    Displaced attestations this call revokes and clears. MAY
     ///                       be empty when no active slot is replaced. When a displaced
     ///                       active slot exists for any of the supplied context IDs, its
-    ///                       UID MUST appear here.
-    /// @return attestationIds  The off-chain attestation UIDs, one per descriptor.
+    ///                       attestation ID MUST appear as a 'RevocationEntry' here.
+    /// @return attestationIds  The off-chain attestation IDs, one per descriptor.
     function createOffchainDescriptorAttestations(
-        address               attester,
-        DescriptorInfo[]      calldata descriptors,
-        OffchainAttestation[] calldata attestations,
-        string[]              calldata attestationMirrorListUris,
-        bytes                 calldata registrationSignature,
-        bytes32[]             calldata revocations
+        address                attester,
+        DescriptorInfo[]       calldata descriptors,
+        OffchainAttestation[]  calldata attestations,
+        string[]               calldata attestationMirrorListUris,
+        bytes                  calldata registrationSignature,
+        RevocationEntry[]      calldata revocations
     ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Publish a batch of MirrorLists on-chain and return their content hashes.
@@ -190,29 +195,23 @@ interface IClearSigningRegistry {
     function publishMirrorLists(string[][] calldata uriLists)
         external returns (bytes32[] memory mirrorListIds);
 
-    /// @notice Records a revocation timestamp for 'uid' under the caller's address.
-    ///         Permissionless self-service revocation, independent of any registration batch.
-    /// @param uid  The attestation UID to revoke.
-    function revokeAttestation(bytes32 uid) external;
+    /// @notice Revokes 'attestationId' under the caller's address, and clears 'contextIds'
+    ///         immediately wherever they still point to it — combining revocation
+    ///         and slot cleanup into a single transaction. A context ID whose active
+    ///         slot has since moved to a different attestation ID is silently skipped
+    ///         rather than reverting the whole call. Permissionless self-service,
+    ///         independent of any registration batch.
+    /// @param attestationId  The attestation ID to revoke.
+    /// @param contextIds     The context IDs to clear if they still point to 'attestationId'. MUST be non-empty.
+    function revokeAttestation(bytes32 attestationId, bytes32[] calldata contextIds) external;
 
-    /// @notice The timestamp at which 'attester' revoked 'uid', via 'revokeAttestation'
-    ///         or via a registration batch that displaced it — or 0 if never revoked.
-    /// @param attester  The attester the UID is revoked under.
-    /// @param uid       The queried attestation UID.
+    /// @notice The timestamp at which 'attester' revoked 'attestationId', via
+    ///         'revokeAttestation' or via a registration batch that displaced it —
+    ///         or 0 if never revoked.
+    /// @param attester       The attester the attestation ID is revoked under.
+    /// @param attestationId  The queried attestation ID.
     /// @return timestamp  The revocation timestamp, or 0 if not revoked.
-    function getRevocationTimestamp(address attester, bytes32 uid) external view returns (uint64 timestamp);
-
-    /// @notice Clear active attestation records that have been revoked or have expired.
-    ///         Permissionless function allowing anyone to clean up stale attestations.
-    ///         Invalid revocations are skipped, so a sweep cannot be blocked by a single failure.
-    /// @param attesters   The attesters whose stale attestations are cleared.
-    /// @param contextIds  Per-attester lists of context IDs to clear.
-    ///                    Must have the same length as attesters.
-    /// @return cleared    The number of slots actually cleared.
-    function clearRevokedAttestations(
-        address[]   calldata attesters,
-        bytes32[][] calldata contextIds
-    ) external returns (uint256 cleared);
+    function getRevocationTimestamp(address attester, bytes32 attestationId) external view returns (uint64 timestamp);
 
     /// @notice Resolve all active attestations filtered
     ///         by a list of attesters and a list of potential context IDs in a single call.
