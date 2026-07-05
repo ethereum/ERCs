@@ -3,7 +3,7 @@ eip: XXXX
 title: Canonical Document Bundle Anchor
 description: A deterministic document-entry bundle hash and subject-scoped anchoring interface with supersession history
 author: Chris Turner, David Hay (@david-hay), Reagan Simpson (@krumg111), Collins Musyimi (@Musyimi97)
-discussions-to: https://ethereum-magicians.org/t/proposing-a-family-of-candidate-erc-interfaces-for-titled-asset-infrastructure-architecture-review/28913
+discussions-to: https://ethereum-magicians.org/t/canonical-document-bundle-anchor-candidate-erc/28935
 status: Draft
 type: Standards Track
 category: ERC
