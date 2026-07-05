@@ -21,7 +21,7 @@ gh pr create --repo ethereum/ERCs \
 ## Discussion
 
 - Meta thread: https://ethereum-magicians.org/t/proposing-a-family-of-candidate-erc-interfaces-for-titled-asset-infrastructure-architecture-review/28913
-- Dedicated Proposal 1 thread: _(paste URL after Magicians post — update `discussions-to` in ERC front matter)_
+- Dedicated Proposal 1 thread: https://ethereum-magicians.org/t/asset-anchor-registry-interface-candidate-erc/28934
 
 ## Reference implementation
 
@@ -42,5 +42,5 @@ None — spec-only PR.
 ## Test plan
 
 - [ ] `eipw` / CI green on `ethereum/ERCs`
-- [ ] `discussions-to` points to dedicated Magicians thread (meta thread interim)
+- [x] `discussions-to` points to dedicated Magicians thread
 - [ ] Spec matches `packages/erc-asset-registry` at `caa9b05`

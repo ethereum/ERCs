@@ -3,7 +3,7 @@ eip: XXXX
 title: Asset Anchor Registry Interface
 description: A registry interface for registry-scoped token-to-anchor bindings for off-chain asset claims
 author: Chris Turner, David Hay (@david-hay), Reagan Simpson (@krumg111), Collins Musyimi (@Musyimi97)
-discussions-to: https://ethereum-magicians.org/t/proposing-a-family-of-candidate-erc-interfaces-for-titled-asset-infrastructure-architecture-review/28913
+discussions-to: https://ethereum-magicians.org/t/asset-anchor-registry-interface-candidate-erc/28934
 status: Draft
 type: Standards Track
 category: ERC
