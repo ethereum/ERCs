@@ -253,12 +253,16 @@ interface IClearSigningRegistry {
     /// @notice Update the MirrorList for existing descriptors without re-attestation.
     /// @param attester The attester whose MirrorList pointers are being updated.
     /// @param descriptorHashes The hashes of the descriptors to update.
-    /// @param mirrorListId The new MirrorList ID.
+    /// @param mirrorListRef The new MirrorList — see 'MirrorListRef'. Supports both the
+    ///                      reference flow (rotate to an already-published list) and the
+    ///                      inline flow (publish a brand-new list and rotate to it
+    ///                      atomically in the same call).
     /// @param signature EIP-712 signature authorizing this update (ignored if msg.sender == attester).
+    ///                  Covers the resolved MirrorList id, regardless of which flow produced it.
     function updateMirrorList(
         address attester,
         bytes32[] calldata descriptorHashes,
-        bytes32 mirrorListId,
+        MirrorListRef calldata mirrorListRef,
         bytes calldata signature
     ) external;
 }

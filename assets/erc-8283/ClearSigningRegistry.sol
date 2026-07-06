@@ -276,16 +276,14 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function updateMirrorList(
         address attester,
         bytes32[] calldata descriptorHashes,
-        bytes32 mirrorListId,
+        MirrorListRef calldata mirrorListRef,
         bytes calldata signature
     ) external {
         uint256 descriptorHashCount = descriptorHashes.length;
         if (descriptorHashCount == 0) {
             revert EmptyDescriptors();
         }
-        if (_mirrorLists[mirrorListId].length == 0) {
-            revert UnknownMirrorList(mirrorListId);
-        }
+        bytes32 mirrorListId = mirrorListRef.resolve(_mirrorLists);
 
         if (msg.sender != attester) {
             _verifyMirrorUpdateSignature(attester, descriptorHashes, mirrorListId, signature);
