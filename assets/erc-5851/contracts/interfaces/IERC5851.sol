@@ -18,7 +18,7 @@ interface IERC5851{
     
     /** Values
     * 
-    * @dev Values here can be read and wrote by smartcontract and front-end, cited from [EIP-3475](./eip-3475.md) 
+    * @dev Values here can be read and wrote by smartcontract and front-end, cited from [EIP-3475](./erc-3475.md) 
     */   
     struct Values { 
         string stringValue;

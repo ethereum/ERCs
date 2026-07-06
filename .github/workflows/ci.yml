@@ -112,6 +112,13 @@ jobs:
           find . -name "erc-*.md" -type f -exec sh -c 'echo mv "$1" "$(echo "$1" | sed s/erc/eip/)"' _ {} \; | sh
           cd $GITHUB_WORKSPACE/assets
           find . -name "erc-*" -type d -exec sh -c 'echo mv "$1" "$(echo "$1" | sed s/erc/eip/)"' _ {} \; | sh
+          # ERC sources link to ./erc-*.md and ../assets/erc-*; rewrite the link
+          # targets to the merged site's eip-* names to match the renames above.
+          cd $GITHUB_WORKSPACE/EIPS
+          find . -name "*.md" -type f -exec sed -i -E \
+            -e 's/\(\.\/erc-([0-9]+)\.md/(.\/eip-\1.md/g' \
+            -e 's/\]:[[:space:]]*\.\/erc-([0-9]+)\.md/]: .\/eip-\1.md/g' \
+            -e 's|assets/erc-([0-9]+)|assets/eip-\1|g' {} +
           cd $GITHUB_WORKSPACE
           rm -rf ERCs
 

@@ -1,4 +1,12 @@
 {% assign eips=include.eips|split:"," %}
 {% for eipnum in eips %}
-  <a href="{{eipnum|strip|prepend:"eip-" }}">EIP-{{eipnum|strip}}</a>{% if forloop.last == false %}, {% endif %}
+  {% assign num=eipnum|strip|plus:0 %}
+  {% assign local=site.pages|where_exp:"item","item.eip == num"|first %}
+  {% if local and local.category == "ERC" %}
+    <a href="./erc-{{ num }}">ERC-{{ num }}</a>
+  {% elsif local %}
+    <a href="./eip-{{ num }}">EIP-{{ num }}</a>
+  {% else %}
+    <a href="https://eips.ethereum.org/EIPS/eip-{{ num }}">EIP-{{ num }}</a>
+  {% endif %}{% if forloop.last == false %}, {% endif %}
 {% endfor %}

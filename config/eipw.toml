@@ -156,6 +156,9 @@ exceptions = [
     '^https://[a-z]*\.spec\.whatwg\.org/commit-snapshots/[0-9a-f]{40}/$',
     '^https://www\.rfc-editor\.org/rfc/.*$',
     '^https://www\.unicode\.org/reports/tr[0-9]+/tr[0-9]+-[0-9]+\.html$',
+    # Proposals that live in ethereum/EIPs have no file in this repository,
+    # so they can only be referenced by their canonical URL.
+    '^https://eips\.ethereum\.org/EIPS/eip-[0-9]+(#.+)?$',
 ]
 
 [lints.preamble-req-category]
