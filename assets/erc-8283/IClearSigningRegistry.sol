@@ -69,7 +69,7 @@ interface IClearSigningRegistry {
 
     /// @notice Emitted when an attester's active attestation for a context ID changes.
     ///         Emitted once per contextId on each 'createAttestations' call.
-    ///         When 'revokeAttestation' clears a slot, descriptorHash and attestationId are bytes32(0).
+    ///         When 'revokeAttestation' clears an active attestation, descriptorHash and attestationId are bytes32(0).
     /// @param attester               The attester whose active attestation changed.
     /// @param contextId              The context ID affected.
     /// @param attestationId          The attestation ID for this descriptor.
@@ -139,7 +139,7 @@ interface IClearSigningRegistry {
     ///         not verify against the attester.
     error InvalidRegistrationSignature();
 
-    /// @notice Thrown when a descriptor replaces an active slot but the previously
+    /// @notice Thrown when a descriptor replaces an active attestation but the previously
     ///         active attestation ID is not included in the matching revocation set.
     error MissingRevocation(bytes32 missingAttestationId);
 
@@ -172,8 +172,8 @@ interface IClearSigningRegistry {
     ///                       reference (`attestationId`/`format`) — a non-zero `format` is
     ///                       required, reverting with `ZeroAttestationFormat` otherwise.
     /// @param revocations    Displaced attestations this call revokes and clears. MAY
-    ///                       be empty when no active slot is replaced. When a displaced
-    ///                       active slot exists for any of the supplied context IDs, its
+    ///                       be empty when no active attestation is replaced. When a displaced
+    ///                       active attestation exists for any of the supplied context IDs, its
     ///                       attestation ID MUST appear as a 'RevocationEntry' here.
     /// @param attestationURIs  The MirrorList for the attestation blobs, shared by
     ///                       every descriptor's attestation in this batch. Reusing an
@@ -198,8 +198,8 @@ interface IClearSigningRegistry {
 
     /// @notice Revokes 'attestationId' under the caller's address, and clears 'contextIds'
     ///         immediately wherever they still point to it — combining revocation
-    ///         and slot cleanup into a single transaction. A context ID whose active
-    ///         slot has since moved to a different attestation ID is silently skipped
+    ///         and cleanup into a single transaction. A context ID whose active
+    ///         attestation has since moved to a different attestation ID is silently skipped
     ///         rather than reverting the whole call. Permissionless self-service,
     ///         independent of any registration batch.
     /// @param attestationId  The attestation ID to revoke.
@@ -224,7 +224,7 @@ interface IClearSigningRegistry {
     /// @param allowedPrefixes  Raw string prefixes filtering the returned URI lists,
     ///                    e.g. ["ipfs:", "https:"]. A URI is returned only if it starts
     ///                    with at least one of the prefixes. An empty array disables
-    ///                    filtering and returns every URI. A slot is included in
+    ///                    filtering and returns every URI. An active attestation is included in
     ///                    'resolved' regardless of whether any of its URIs match.
     /// @return resolved   One 'ResolvedDescriptor' entry per non-empty attestation entry.
     function resolveDescriptors(
