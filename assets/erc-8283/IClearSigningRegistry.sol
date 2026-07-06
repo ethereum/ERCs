@@ -7,6 +7,18 @@ pragma solidity ^0.8.24;
 ///         attester-attested descriptors, backed by attester-signed off-chain attestations.
 interface IClearSigningRegistry {
 
+    /// @notice A MirrorList, given either by reference to an already-published list
+    ///         or inline to be published atomically as part of this call. Exactly one
+    ///         of 'id'/'uris' should be populated; supplying both reverts with
+    ///         'RedundantMirrorListId'.
+    struct MirrorListRef {
+        /// References a previously published list using 'publishMirrorLists' or an
+        /// earlier registration. Set to bytes32(0) if using 'uris' instead.
+        bytes32 id;
+        /// Published atomically as part of this call if non-empty.
+        string[] uris;
+    }
+
     /// @notice A descriptor's identity, context IDs, MirrorList pointer, and the
     ///         attestation backing it, submitted together when registering a descriptor.
     struct DescriptorInfo {
@@ -14,12 +26,8 @@ interface IClearSigningRegistry {
         bytes32 descriptorHash;
         /// Context IDs this descriptor should be discoverable under.
         bytes32[] contextIds;
-        /// Optional MirrorList ID the attester designates for the descriptor.
-        /// References a previously published list using the 'publishMirrorLists' or an earlier registration.
-        /// Set to bytes32(0) if using 'mirrorListUris' instead.
-        bytes32 mirrorListId;
-        /// The MirrorList being published atomically as part of the registration transaction.
-        string[] mirrorListUris;
+        /// The descriptor's MirrorList — see 'MirrorListRef'.
+        MirrorListRef descriptorURIs;
         /// The pre-computed attestation identifier. For 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
         /// this is a standard EAS off-chain attestation UID; for other formats it is an
         /// attester-chosen opaque identifier.
@@ -117,12 +125,12 @@ interface IClearSigningRegistry {
     /// @notice Thrown when an empty URI list is passed to publishMirrorLists.
     error EmptyMirrorList();
 
-    /// @notice Thrown when a descriptor references an unknown mirrorListId and
-    ///         provides no inline URIs to publish it.
+    /// @notice Thrown when a 'MirrorListRef' references an unknown 'id' and
+    ///         provides no inline 'uris' to publish it.
     error UnknownMirrorList(bytes32 mirrorListId);
 
-    /// @notice Thrown when a descriptor provides inline mirrorListUris together
-    ///         with a non-zero mirrorListId. The ID is derived from the URIs in
+    /// @notice Thrown when a 'MirrorListRef' provides inline 'uris' together
+    ///         with a non-zero 'id'. The id is derived from the uris in
     ///         the inline flow and must not be declared redundantly.
     error RedundantMirrorListId();
 
@@ -149,34 +157,38 @@ interface IClearSigningRegistry {
     ///         procedure appropriate to its declared 'format' (attestation ID recomputation,
     ///         schema and signature checks per ERC-8176 for 'ATTESTATION_FORMAT_EAS_OFFCHAIN').
     ///
-    ///         Each descriptor references a MirrorList, with two supported flows:
+    ///         Both a descriptor's own MirrorList ('DescriptorInfo.descriptorURIs') and the
+    ///         batch's shared attestation MirrorList ('attestationURIs') are given
+    ///         as a 'MirrorListRef', supporting the same two flows:
     ///
-    ///         Reference flow:
+    ///         Reference flow ('id' set, 'uris' empty):
     ///         The list has been published before by any address in any prior transaction.
     ///
-    ///         Inline flow:
-    ///         The list is published as part of this call and its content hash becomes the effective 'mirrorListId'.
+    ///         Inline flow ('uris' non-empty, 'id' zero):
+    ///         The list is published as part of this call and its content hash becomes the effective id.
     ///
     /// @param attester       The attester registering the descriptors.
     /// @param descriptors    The descriptors to register, each carrying its own attestation
     ///                       reference (`attestationId`/`format`) — a non-zero `format` is
     ///                       required, reverting with `ZeroAttestationFormat` otherwise.
-    /// @param attestationMirrorListUris  Retrieval URIs for the attestation
-    ///                       blobs, shared by every descriptor's attestation in this batch.
-    /// @param registrationSignature  EIP-712 signature by the attester authorizing this
-    ///                       batch when the registration transaction is relayed. Covers
-    ///                       'revocations' too, so a relayer cannot add or drop entries.
     /// @param revocations    Displaced attestations this call revokes and clears. MAY
     ///                       be empty when no active slot is replaced. When a displaced
     ///                       active slot exists for any of the supplied context IDs, its
     ///                       attestation ID MUST appear as a 'RevocationEntry' here.
+    /// @param attestationURIs  The MirrorList for the attestation blobs, shared by
+    ///                       every descriptor's attestation in this batch. Reusing an
+    ///                       already-published attestation MirrorList across calls needs
+    ///                       only its 'id' — no need to resupply 'uris'.
+    /// @param signature      EIP-712 signature by the attester authorizing this
+    ///                       batch when the registration transaction is relayed. Covers
+    ///                       'revocations' too, so a relayer cannot add or drop entries.
     /// @return attestationIds  The attestation IDs, one per descriptor.
     function createAttestations(
         address           attester,
         DescriptorInfo[]  calldata descriptors,
-        string[]          calldata attestationMirrorListUris,
-        bytes             calldata registrationSignature,
-        RevocationEntry[] calldata revocations
+        RevocationEntry[] calldata revocations,
+        MirrorListRef     calldata attestationURIs,
+        bytes             calldata signature
     ) external returns (bytes32[] memory attestationIds);
 
     /// @notice Publish a batch of MirrorLists on-chain and return their content hashes.

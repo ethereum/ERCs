@@ -70,9 +70,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function createAttestations(
         address           attester,
         DescriptorInfo[]  calldata descriptors,
-        string[]          calldata attestationMirrorListUris,
-        bytes             calldata registrationSignature,
-        RevocationEntry[] calldata revocations
+        RevocationEntry[] calldata revocations,
+        MirrorListRef     calldata attestationURIs,
+        bytes             calldata signature
     ) external returns (bytes32[] memory attestationIds) {
         if (descriptors.length == 0) {
             revert EmptyDescriptors();
@@ -85,7 +85,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         _processRevocations(attester, revocations);
 
         attestationIds = _registerBatch(
-            attester, descriptors, attestationMirrorListUris, registrationSignature, revocations
+            attester, descriptors, revocations, attestationURIs, signature
         );
     }
 
@@ -94,13 +94,14 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _registerBatch(
         address           attester,
         DescriptorInfo[]  calldata descriptors,
-        string[]          calldata attestationMirrorListUris,
-        bytes             calldata registrationSignature,
-        RevocationEntry[] calldata revocations
+        RevocationEntry[] calldata revocations,
+        MirrorListRef     calldata attestationURIs,
+        bytes             calldata signature
     ) private returns (bytes32[] memory attestationIds) {
-        // Publish the attestation MirrorList exactly once for the whole batch;
-        // every descriptor in this call reuses the resulting pointer.
-        bytes32 attestationMirrorListId = _publishMirrorList(attestationMirrorListUris);
+        // Resolve the attestation MirrorList exactly once for the whole batch (by
+        // reference or by publishing it inline); every descriptor in this call
+        // reuses the resulting pointer.
+        bytes32 attestationMirrorListId = _resolveOrPublishMirrorList(attestationURIs);
 
         bytes32[] memory itemHashes = _processAllDescriptors(attester, descriptors, attestationMirrorListId);
 
@@ -112,7 +113,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             _registrationNonce[attester] = nonce + 1;
             _verifyRegistrationSignature(
                 attester, itemHashes, attestationMirrorListId,
-                _hashRevocationEntries(revocations), nonce, registrationSignature
+                _hashRevocationEntries(revocations), nonce, signature
             );
         }
     }
@@ -377,7 +378,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert EmptyContextIds();
         }
 
-        bytes32 mirrorListId = _resolveOrPublishMirrorList(descriptor);
+        bytes32 mirrorListId = _resolveOrPublishMirrorList(descriptor.descriptorURIs);
         _setMirrorListPointerIfChanged(attester, descriptor.descriptorHash, mirrorListId);
 
         return keccak256(
@@ -392,22 +393,23 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         );
     }
 
-    /// @dev Resolves a descriptor's MirrorList pointer: publishes the inline URIs
-    ///      when supplied, or looks up a previously published list by ID otherwise.
+    /// @dev Resolves a MirrorListRef: publishes the inline URIs when supplied, or
+    ///      looks up a previously published list by ID otherwise. Shared by a
+    ///      descriptor's own MirrorList and the batch's attestation MirrorList.
     function _resolveOrPublishMirrorList(
-        DescriptorInfo calldata descriptor
+        MirrorListRef calldata ref
     ) private returns (bytes32 mirrorListId) {
-        bool isInlineFlow = descriptor.mirrorListUris.length > 0;
+        bool isInlineFlow = ref.uris.length > 0;
         if (isInlineFlow) {
             // inline flow - hash the supplied MirrorList to get its ID
-            if (descriptor.mirrorListId != bytes32(0)) {
+            if (ref.id != bytes32(0)) {
                 revert RedundantMirrorListId();
             }
-            return _publishMirrorList(descriptor.mirrorListUris);
+            return _publishMirrorList(ref.uris);
         }
 
         // reference flow - the MirrorList must have been published before
-        mirrorListId = descriptor.mirrorListId;
+        mirrorListId = ref.id;
         if (_mirrorLists[mirrorListId].length == 0) {
             revert UnknownMirrorList(mirrorListId);
         }
@@ -461,7 +463,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         bytes32            attestationMirrorListId,
         bytes32            revocationsHash,
         uint256            nonce,
-        bytes     calldata registrationSignature
+        bytes     calldata signature
     ) private view {
         bytes32 structHash = keccak256(
             abi.encode(
@@ -472,7 +474,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
                 nonce
             )
         );
-        _verifySignature(attester, structHash, registrationSignature);
+        _verifySignature(attester, structHash, signature);
     }
 
     /// @dev Verifies the attester's EIP-712 mirror update signature.
