@@ -19,7 +19,7 @@ library ClearSigningRegistryConstants {
     bytes32 internal constant ATTESTATION_FORMAT_EAS_OFFCHAIN = keccak256("erc7730.attestation.eas.offchain");
 
     bytes32 internal constant DESCRIPTOR_TYPEHASH = keccak256(
-        "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId,bytes32 attestationId,bytes32 format)"
+        "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 descriptorMirrorListId,bytes32 attestationId,bytes32 format)"
     );
 
     bytes32 internal constant REVOCATION_ENTRY_TYPEHASH = keccak256(
@@ -28,11 +28,15 @@ library ClearSigningRegistryConstants {
 
     bytes32 internal constant REGISTRATION_BATCH_TYPEHASH = keccak256(
         "ClearSigningRegistrationBatch(DescriptorInfo[] descriptors,bytes32 attestationMirrorListId,RevocationEntry[] revocations,uint256 nonce)"
-        "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId,bytes32 attestationId,bytes32 format)"
+        "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 descriptorMirrorListId,bytes32 attestationId,bytes32 format)"
         "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
     );
 
-    bytes32 internal constant MIRROR_UPDATE_TYPEHASH = keccak256(
-        "MirrorListUpdate(bytes32[] descriptorHashes,bytes32 mirrorListId)"
+    bytes32 internal constant DESCRIPTOR_MIRROR_UPDATE_TYPEHASH = keccak256(
+        "DescriptorMirrorListUpdate(bytes32[] descriptorHashes,bytes32 descriptorMirrorListId,uint256 nonce)"
+    );
+
+    bytes32 internal constant ATTESTATION_MIRROR_UPDATE_TYPEHASH = keccak256(
+        "AttestationMirrorListUpdate(bytes32[] attestationIds,bytes32 attestationMirrorListId,uint256 nonce)"
     );
 }

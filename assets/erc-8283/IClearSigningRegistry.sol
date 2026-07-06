@@ -16,7 +16,7 @@ interface IClearSigningRegistry {
         /// earlier registration. Set to bytes32(0) if using 'uris' instead.
         bytes32 id;
         /// Published atomically as part of this call if non-empty.
-        string[] uris;
+        string[] descriptorMirrorListUris;
     }
 
     /// @notice A descriptor's identity, context IDs, MirrorList pointer, and the
@@ -27,7 +27,7 @@ interface IClearSigningRegistry {
         /// Context IDs this descriptor should be discoverable under.
         bytes32[] contextIds;
         /// The descriptor's MirrorList — see 'MirrorListRef'.
-        MirrorListRef descriptorURIs;
+        MirrorListRef descriptorMirrorListURIs;
         /// The pre-computed attestation identifier. For 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
         /// this is a standard EAS off-chain attestation UID; for other formats it is an
         /// attester-chosen opaque identifier.
@@ -64,7 +64,7 @@ interface IClearSigningRegistry {
         /// wallets select their verification procedure by this value.
         bytes32 format;
         /// The MirrorList contents.
-        string[] uris;
+        string[] descriptorMirrorListUris;
     }
 
     /// @notice Emitted when an attester's active attestation for a context ID changes.
@@ -103,20 +103,32 @@ interface IClearSigningRegistry {
     /// @param attester        The attester updating their list.
     /// @param descriptorHash  The descriptor hash.
     /// @param mirrorListId    The new MirrorList ID.
-    event MirrorListUpdated(
+    event DescriptorMirrorListUpdated(
         address indexed attester,
         bytes32 indexed descriptorHash,
-        bytes32 indexed mirrorListId
+        bytes32 indexed descriptorMirrorListId
+    );
+
+    event AttestationMirrorListUpdated(
+        address indexed attester,
+        bytes32 indexed attestationId,
+        bytes32 indexed attestationMirrorListId
     );
 
     /// @notice Thrown when descriptors is empty.
     error EmptyDescriptors();
+
+    /// @notice Thrown when an empty key array is passed to an update function.
+    error EmptyKeys();
 
     /// @notice Thrown when bytes32(0) is passed where a descriptor hash is required.
     error ZeroDescriptorHash();
 
     /// @notice Thrown when bytes32(0) is passed where an off-chain attestation format tag is required.
     error ZeroAttestationFormat();
+
+    /// @notice Thrown when bytes32(0) is passed where an attestation ID is required.
+    error ZeroAttestationId();
 
     /// @notice Thrown when a descriptor's contextIds is empty, or when 'revokeAttestation'
     ///         is called with an empty 'contextIds' array.
@@ -186,7 +198,7 @@ interface IClearSigningRegistry {
         address           attester,
         DescriptorInfo[]  calldata descriptors,
         RevocationEntry[] calldata revocations,
-        MirrorListRef     calldata attestationURIs,
+        MirrorListRef     calldata attestationMirrorListURIs,
         bytes             calldata signature
     ) external;
 
@@ -248,7 +260,7 @@ interface IClearSigningRegistry {
     /// @notice The next EIP-712 nonce for relayed 'createAttestations' calls by the given attester.
     /// @param attester  The queried attester address.
     /// @return nonce  The next unused registration nonce.
-    function getRegistrationNonce(address attester) external view returns (uint256 nonce);
+    function getNonce(address attester) external view returns (uint256 nonce);
 
     /// @notice Update the MirrorList for existing descriptors without re-attestation.
     /// @param attester The attester whose MirrorList pointers are being updated.
@@ -259,10 +271,22 @@ interface IClearSigningRegistry {
     ///                      atomically in the same call).
     /// @param signature EIP-712 signature authorizing this update (ignored if msg.sender == attester).
     ///                  Covers the resolved MirrorList id, regardless of which flow produced it.
-    function updateMirrorList(
+    function updateDescriptorMirrorList(
         address attester,
         bytes32[] calldata descriptorHashes,
-        MirrorListRef calldata mirrorListRef,
+        MirrorListRef calldata descriptorMirrorListRef,
+        bytes calldata signature
+    ) external;
+
+    /// @notice Update the MirrorList for existing attestations without re-registration.
+    /// @param attester The attester whose MirrorList pointers are being updated.
+    /// @param attestationIds The IDs of the attestations to update.
+    /// @param attestationMirrorListRef The new MirrorList — see 'MirrorListRef'.
+    /// @param signature EIP-712 signature authorizing this update (ignored if msg.sender == attester).
+    function updateAttestationMirrorList(
+        address attester,
+        bytes32[] calldata attestationIds,
+        MirrorListRef calldata attestationMirrorListRef,
         bytes calldata signature
     ) external;
 }
