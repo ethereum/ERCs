@@ -73,7 +73,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         RevocationEntry[] calldata revocations,
         MirrorListRef     calldata attestationURIs,
         bytes             calldata signature
-    ) external returns (bytes32[] memory attestationIds) {
+    ) external {
         if (descriptors.length == 0) {
             revert EmptyDescriptors();
         }
@@ -84,9 +84,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         // Revoke and clear displaced attestations (may be empty when no slots are replaced).
         _processRevocations(attester, revocations);
 
-        attestationIds = _registerBatch(
-            attester, descriptors, revocations, attestationURIs, signature
-        );
+        _registerBatch(attester, descriptors, revocations, attestationURIs, signature);
     }
 
     /// @dev The registration phase of 'createAttestations', split out from the
@@ -97,15 +95,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         RevocationEntry[] calldata revocations,
         MirrorListRef     calldata attestationURIs,
         bytes             calldata signature
-    ) private returns (bytes32[] memory attestationIds) {
+    ) private {
         // Resolve the attestation MirrorList exactly once for the whole batch (by
         // reference or by publishing it inline); every descriptor in this call
         // reuses the resulting pointer.
         bytes32 attestationMirrorListId = _resolveOrPublishMirrorList(attestationURIs);
 
         bytes32[] memory itemHashes = _processAllDescriptors(attester, descriptors, attestationMirrorListId);
-
-        attestationIds = _collectAttestationIds(descriptors);
 
         // Validate the attester's signature over the batch for relayed registrations.
         if (msg.sender != attester) {
@@ -131,18 +127,6 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             itemHashes[descriptorIndex] = _processDescriptor(
                 attester, descriptors[descriptorIndex], attestationMirrorListId
             );
-            unchecked { ++descriptorIndex; }
-        }
-    }
-
-    /// @dev Collects the pre-computed attestation ID of each descriptor, in order.
-    function _collectAttestationIds(
-        DescriptorInfo[] calldata descriptors
-    ) private pure returns (bytes32[] memory attestationIds) {
-        uint256 descriptorCount = descriptors.length;
-        attestationIds = new bytes32[](descriptorCount);
-        for (uint256 descriptorIndex; descriptorIndex < descriptorCount;) {
-            attestationIds[descriptorIndex] = descriptors[descriptorIndex].attestationId;
             unchecked { ++descriptorIndex; }
         }
     }

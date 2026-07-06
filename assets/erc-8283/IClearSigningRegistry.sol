@@ -182,14 +182,13 @@ interface IClearSigningRegistry {
     /// @param signature      EIP-712 signature by the attester authorizing this
     ///                       batch when the registration transaction is relayed. Covers
     ///                       'revocations' too, so a relayer cannot add or drop entries.
-    /// @return attestationIds  The attestation IDs, one per descriptor.
     function createAttestations(
         address           attester,
         DescriptorInfo[]  calldata descriptors,
         RevocationEntry[] calldata revocations,
         MirrorListRef     calldata attestationURIs,
         bytes             calldata signature
-    ) external returns (bytes32[] memory attestationIds);
+    ) external;
 
     /// @notice Publish a batch of MirrorLists on-chain and return their content hashes.
     /// @param uriLists       The URI lists to publish. No list may be empty.
