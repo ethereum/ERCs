@@ -123,11 +123,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private returns (bytes32[] memory itemHashes) {
         uint256 descriptorCount = descriptors.length;
         itemHashes = new bytes32[](descriptorCount);
-        for (uint256 descriptorIndex; descriptorIndex < descriptorCount;) {
+        for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
             itemHashes[descriptorIndex] = _processDescriptor(
                 attester, descriptors[descriptorIndex], attestationMirrorListId
             );
-            unchecked { ++descriptorIndex; }
         }
     }
 
@@ -139,14 +138,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private {
         bytes32[] calldata contextIds = descriptor.contextIds;
         uint256 contextIdCount = contextIds.length;
-        for (uint256 contextIndex; contextIndex < contextIdCount;) {
+        for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
             bytes32 contextId             = contextIds[contextIndex];
             bytes32 previousAttestationId = _attestationIds[attester][contextId];
             _attestationIds[attester][contextId] = attestationId;
             emit AttestationUpdated(
                 attester, contextId, attestationId, previousAttestationId, descriptor.descriptorHash
             );
-            unchecked { ++contextIndex; }
         }
     }
 
@@ -156,9 +154,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     {
         uint256 listCount = uriLists.length;
         mirrorListIds = new bytes32[](listCount);
-        for (uint256 listIndex; listIndex < listCount;) {
+        for (uint256 listIndex = 0; listIndex < listCount; listIndex++) {
             mirrorListIds[listIndex] = _publishMirrorList(uriLists[listIndex]);
-            unchecked { ++listIndex; }
         }
     }
 
@@ -204,13 +201,12 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _revokeAndClear(address attester, bytes32 attestationId, bytes32[] calldata contextIds) private {
         _recordRevocation(attester, attestationId);
         uint256 contextIdCount = contextIds.length;
-        for (uint256 contextIndex; contextIndex < contextIdCount;) {
+        for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
             bytes32 contextId = contextIds[contextIndex];
             if (_attestationIds[attester][contextId] == attestationId) {
                 _attestationIds[attester][contextId] = bytes32(0);
                 emit AttestationUpdated(attester, contextId, bytes32(0), attestationId, bytes32(0));
             }
-            unchecked { ++contextIndex; }
         }
     }
 
@@ -233,15 +229,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private view returns (uint256 activeSlotCount) {
         uint256 attesterCount = attesters.length;
         uint256 contextIdCount = contextIds.length;
-        for (uint256 attesterIndex; attesterIndex < attesterCount;) {
+        for (uint256 attesterIndex = 0; attesterIndex < attesterCount; attesterIndex++) {
             address attester = attesters[attesterIndex];
-            for (uint256 contextIndex; contextIndex < contextIdCount;) {
+            for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
                 if (_attestationIds[attester][contextIds[contextIndex]] != bytes32(0)) {
                     ++activeSlotCount;
                 }
-                unchecked { ++contextIndex; }
             }
-            unchecked { ++attesterIndex; }
         }
     }
 
@@ -255,17 +249,15 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         uint256 attesterCount = attesters.length;
         uint256 contextIdCount = contextIds.length;
         uint256 resolvedIndex;
-        for (uint256 attesterIndex; attesterIndex < attesterCount;) {
+        for (uint256 attesterIndex = 0; attesterIndex < attesterCount; attesterIndex++) {
             address attester = attesters[attesterIndex];
-            for (uint256 contextIndex; contextIndex < contextIdCount;) {
+            for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
                 bytes32 contextId = contextIds[contextIndex];
                 bytes32 attestationId = _attestationIds[attester][contextId];
                 if (attestationId != bytes32(0)) {
                     resolved[resolvedIndex++] = _resolveSlot(attester, contextId, attestationId, allowedPrefixes);
                 }
-                unchecked { ++contextIndex; }
             }
-            unchecked { ++attesterIndex; }
         }
     }
 
@@ -338,9 +330,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             _verifyMirrorUpdateSignature(attester, descriptorHashes, mirrorListId, signature);
         }
 
-        for (uint256 descriptorHashIndex; descriptorHashIndex < descriptorHashCount;) {
+        for (uint256 descriptorHashIndex = 0; descriptorHashIndex < descriptorHashCount; descriptorHashIndex++) {
             _setMirrorListPointerIfChanged(attester, descriptorHashes[descriptorHashIndex], mirrorListId);
-            unchecked { ++descriptorHashIndex; }
         }
     }
 
@@ -497,12 +488,11 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _hashRevocationEntries(RevocationEntry[] calldata revocations) private pure returns (bytes32) {
         uint256 count = revocations.length;
         bytes32[] memory entryHashes = new bytes32[](count);
-        for (uint256 i; i < count;) {
+        for (uint256 i = 0; i < count; i++) {
             RevocationEntry calldata entry = revocations[i];
             entryHashes[i] = keccak256(
                 abi.encode(REVOCATION_ENTRY_TYPEHASH, entry.attestationId, keccak256(abi.encodePacked(entry.contextIds)))
             );
-            unchecked { ++i; }
         }
         return keccak256(abi.encodePacked(entryHashes));
     }
@@ -512,10 +502,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ///      being displaced.
     function _processRevocations(address attester, RevocationEntry[] calldata revocations) private {
         uint256 revocationCount = revocations.length;
-        for (uint256 revocationIndex; revocationIndex < revocationCount;) {
+        for (uint256 revocationIndex = 0; revocationIndex < revocationCount; revocationIndex++) {
             RevocationEntry calldata entry = revocations[revocationIndex];
             _revokeAndClear(attester, entry.attestationId, entry.contextIds);
-            unchecked { ++revocationIndex; }
         }
     }
 
@@ -527,9 +516,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         RevocationEntry[] calldata revocations
     ) private view {
         uint256 descriptorCount = descriptors.length;
-        for (uint256 descriptorIndex; descriptorIndex < descriptorCount;) {
+        for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
             _checkRevocationsForDescriptor(attester, descriptors[descriptorIndex], revocations);
-            unchecked { ++descriptorIndex; }
         }
     }
 
@@ -541,9 +529,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private view {
         bytes32[] calldata contextIds = descriptor.contextIds;
         uint256 contextIdCount = contextIds.length;
-        for (uint256 contextIndex; contextIndex < contextIdCount;) {
+        for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
             _checkDisplacedSlotIsRevoked(attester, contextIds[contextIndex], revocations);
-            unchecked { ++contextIndex; }
         }
     }
 
@@ -567,11 +554,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     /// @dev Linear search for a 'RevocationEntry' whose 'attestationId' equals 'target'.
     function _containsAttestationId(RevocationEntry[] calldata revocations, bytes32 target) private pure returns (bool) {
         uint256 count = revocations.length;
-        for (uint256 i; i < count;) {
+        for (uint256 i = 0; i < count; i++) {
             if (revocations[i].attestationId == target) {
                 return true;
             }
-            unchecked { ++i; }
         }
         return false;
     }
@@ -599,11 +585,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         string[] calldata allowedPrefixes
     ) private view returns (uint256 matchingUriCount) {
         uint256 uriCount = uris.length;
-        for (uint256 uriIndex; uriIndex < uriCount;) {
+        for (uint256 uriIndex = 0; uriIndex < uriCount; uriIndex++) {
             if (_matchesAnyPrefix(uris[uriIndex], allowedPrefixes)) {
                 ++matchingUriCount;
             }
-            unchecked { ++uriIndex; }
         }
     }
 
@@ -615,22 +600,20 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private view {
         uint256 uriCount = uris.length;
         uint256 filteredIndex;
-        for (uint256 uriIndex; uriIndex < uriCount;) {
+        for (uint256 uriIndex = 0; uriIndex < uriCount; uriIndex++) {
             if (_matchesAnyPrefix(uris[uriIndex], allowedPrefixes)) {
                 filtered[filteredIndex++] = uris[uriIndex];
             }
-            unchecked { ++uriIndex; }
         }
     }
 
     /// @dev Whether 'uri' starts with at least one of 'allowedPrefixes'.
     function _matchesAnyPrefix(string storage uri, string[] calldata allowedPrefixes) private view returns (bool) {
         uint256 prefixCount = allowedPrefixes.length;
-        for (uint256 prefixIndex; prefixIndex < prefixCount;) {
+        for (uint256 prefixIndex = 0; prefixIndex < prefixCount; prefixIndex++) {
             if (_hasPrefix(uri, allowedPrefixes[prefixIndex])) {
                 return true;
             }
-            unchecked { ++prefixIndex; }
         }
         return false;
     }
@@ -647,11 +630,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         // Note: In production, optimize this by reading the first 32 bytes from storage
         // in one go (handling both short and long string packing) to avoid O(N) sloads
         // for short prefixes like "ipfs:".
-        for (uint256 byteIndex; byteIndex < prefixLength;) {
+        for (uint256 byteIndex = 0; byteIndex < prefixLength; byteIndex++) {
             if (uriBytes[byteIndex] != prefixBytes[byteIndex]) {
                 return false;
             }
-            unchecked { ++byteIndex; }
         }
         return true;
     }
