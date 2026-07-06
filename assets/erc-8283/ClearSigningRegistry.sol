@@ -101,32 +101,29 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         // reuses the resulting pointer.
         bytes32 attestationMirrorListId = _resolveOrPublishMirrorList(attestationURIs);
 
-        bytes32[] memory descriptorInfoHashes = _processAllDescriptors(attester, descriptors, attestationMirrorListId);
+        _processAllDescriptors(attester, descriptors, attestationMirrorListId);
 
-        // Validate the attester's signature over the batch for relayed registrations.
+        // Validate the attester's signature over the batch for relayed registrations. The
+        // per-descriptor EIP-712 hashes are only ever needed on this path, so they're
+        // recomputed here from calldata rather than carried out of the processing loop above.
         if (msg.sender != attester) {
             uint256 nonce = _registrationNonce[attester];
             _registrationNonce[attester] = nonce + 1;
             _verifyRegistrationSignature(
-                attester, descriptorInfoHashes, attestationMirrorListId,
-                _hashRevocationEntries(revocations), nonce, signature
+                attester, descriptors, attestationMirrorListId, revocations, nonce, signature
             );
         }
     }
 
-    /// @dev Validates and processes every descriptor in a batch, returning each
-    ///      descriptor's EIP-712 descriptorInfo hash.
+    /// @dev Validates and processes every descriptor in a batch.
     function _processAllDescriptors(
         address                   attester,
         DescriptorInfo[] calldata descriptors,
         bytes32                   attestationMirrorListId
-    ) private returns (bytes32[] memory descriptorInfoHashes) {
+    ) private {
         uint256 descriptorCount = descriptors.length;
-        descriptorInfoHashes = new bytes32[](descriptorCount);
         for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
-            descriptorInfoHashes[descriptorIndex] = _processDescriptor(
-                attester, descriptors[descriptorIndex], attestationMirrorListId
-            );
+            _processDescriptor(attester, descriptors[descriptorIndex], attestationMirrorListId);
         }
     }
 
@@ -339,13 +336,12 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     // Internal helpers
     // =========================================================================
 
-    /// @dev Validates one descriptor, resolves or publishes its MirrorList, updates
-    ///      the attester's MirrorList pointer, and returns its EIP-712 descriptorInfo hash
-    ///      (covering the descriptor identity and the attestation reference together).
+    /// @dev Validates one descriptor, resolves or publishes its MirrorList, and updates
+    ///      the attester's MirrorList pointer for it.
     function _processDescriptorCore(
         address                          attester,
         DescriptorInfo          calldata descriptor
-    ) private returns (bytes32) {
+    ) private {
         if (descriptor.descriptorHash == bytes32(0)) {
             revert ZeroDescriptorHash();
         }
@@ -355,17 +351,45 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
         bytes32 mirrorListId = _resolveOrPublishMirrorList(descriptor.descriptorURIs);
         _updateMirrorListInternal(attester, descriptor.descriptorHash, mirrorListId);
+    }
 
+    /// @dev EIP-712 array-hash of 'descriptors', following the same pattern as
+    ///      '_hashRevocationEntries': one descriptorInfo hash per entry (covering the
+    ///      descriptor identity and the attestation reference together), aggregated via
+    ///      'keccak256(abi.encodePacked(...))'. Recomputed from calldata only when a
+    ///      relayed registration needs it for signature verification — see '_registerBatch'.
+    function _hashDescriptorInfos(DescriptorInfo[] calldata descriptors) private pure returns (bytes32) {
+        uint256 descriptorCount = descriptors.length;
+        bytes32[] memory descriptorInfoHashes = new bytes32[](descriptorCount);
+        for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
+            descriptorInfoHashes[descriptorIndex] = _hashDescriptorInfo(descriptors[descriptorIndex]);
+        }
+        return keccak256(abi.encodePacked(descriptorInfoHashes));
+    }
+
+    /// @dev EIP-712 descriptorInfo hash of a single descriptor. 'mirrorListId' is
+    ///      re-derived from 'descriptorURIs' rather than read back from storage, since
+    ///      storage only keeps the attester's latest pointer per descriptor hash and
+    ///      would collapse two same-'descriptorHash' entries in one batch onto the same value.
+    function _hashDescriptorInfo(DescriptorInfo calldata descriptor) private pure returns (bytes32) {
         return keccak256(
             abi.encode(
                 DESCRIPTOR_TYPEHASH,
                 descriptor.descriptorHash,
                 keccak256(abi.encodePacked(descriptor.contextIds)),
-                mirrorListId,
+                _mirrorListRefId(descriptor.descriptorURIs),
                 descriptor.attestationId,
                 descriptor.format
             )
         );
+    }
+
+    /// @dev Pure counterpart to '_resolveOrPublishMirrorList': derives the same
+    ///      'mirrorListId' a given 'MirrorListRef' resolves to, without touching storage.
+    ///      Safe to call only after '_resolveOrPublishMirrorList' has already validated
+    ///      and published/resolved the same ref once.
+    function _mirrorListRefId(MirrorListRef calldata ref) private pure returns (bytes32) {
+        return ref.uris.length > 0 ? keccak256(abi.encode(ref.uris)) : ref.id;
     }
 
     /// @dev Resolves a MirrorListRef: publishes the inline URIs when supplied, or
@@ -406,17 +430,16 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     /// @dev Processes one descriptor of a registration batch: shared descriptor
     ///      processing, attestation metadata storage and active-attestation updates.
-    /// @return descriptorInfoHash  The descriptor's EIP-712 descriptorInfo hash.
     function _processDescriptor(
         address                 attester,
         DescriptorInfo calldata descriptor,
         bytes32                 attestationMirrorListId
-    ) private returns (bytes32 descriptorInfoHash) {
+    ) private {
         if (descriptor.format == bytes32(0)) {
             revert ZeroAttestationFormat();
         }
 
-        descriptorInfoHash = _processDescriptorCore(attester, descriptor);
+        _processDescriptorCore(attester, descriptor);
 
         // Store the attestation metadata exactly once per attestation ID, not per contextId.
         _attestationDetails[attester][descriptor.attestationId] = AttestationDetails({
@@ -430,22 +453,22 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     /// @dev Verifies the attester's EIP-712 signature over a registration batch.
     ///      Binding the attestation MirrorList ID prevents a relayer from substituting
-    ///      a different MirrorList; binding 'revocationsHash' prevents a relayer from
+    ///      a different MirrorList; binding the revocations hash prevents a relayer from
     ///      adding or dropping revocation entries; the nonce makes the signature single-use.
     function _verifyRegistrationSignature(
-        address            attester,
-        bytes32[] memory   descriptorInfoHashes,
-        bytes32            attestationMirrorListId,
-        bytes32            revocationsHash,
-        uint256            nonce,
-        bytes     calldata signature
+        address                    attester,
+        DescriptorInfo[]  calldata descriptors,
+        bytes32                    attestationMirrorListId,
+        RevocationEntry[] calldata revocations,
+        uint256                    nonce,
+        bytes             calldata signature
     ) private view {
         bytes32 structHash = keccak256(
             abi.encode(
                 REGISTRATION_BATCH_TYPEHASH,
-                keccak256(abi.encodePacked(descriptorInfoHashes)),
+                _hashDescriptorInfos(descriptors),
                 attestationMirrorListId,
-                revocationsHash,
+                _hashRevocationEntries(revocations),
                 nonce
             )
         );
