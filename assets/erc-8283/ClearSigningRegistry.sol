@@ -58,11 +58,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert EmptyDescriptors();
         }
 
-        // Every active attestation being displaced must be explicitly revoked.
-        _checkRevocations(attester, descriptors, revocations);
-
         // Revoke and clear displaced attestations (may be empty when no attestations are replaced).
+        // Runs first so the check below can rely on '_revokedAt' being up to date.
         _processRevocations(attester, revocations);
+
+        // Every active attestation being displaced must already be recorded as revoked —
+        // either by the entries just processed above or by an earlier call.
+        _checkRevocations(attester, descriptors);
 
         _registerBatch(attester, descriptors, revocations, attestationMirrorListURIs, signature);
     }
@@ -457,57 +459,44 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Requires that every active attestation displaced by this batch is
-    ///      present in 'revocations'.
+    /// @dev Requires that every active attestation displaced by this batch has
+    ///      already been recorded as revoked in '_revokedAt'.
     function _checkRevocations(
-        address                    attester,
-        DescriptorInfo[]  calldata descriptors,
-        RevocationEntry[] calldata revocations
+        address                   attester,
+        DescriptorInfo[] calldata descriptors
     ) private view {
         uint256 descriptorCount = descriptors.length;
         for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
-            _checkRevocationsForDescriptor(attester, descriptors[descriptorIndex], revocations);
+            _checkRevocationsForDescriptor(attester, descriptors[descriptorIndex]);
         }
     }
 
     /// @dev Checks every context ID of one descriptor for a displaced, unrevoked attestation.
     function _checkRevocationsForDescriptor(
-        address                   attester,
-        DescriptorInfo   calldata descriptor,
-        RevocationEntry[] calldata revocations
+        address                attester,
+        DescriptorInfo calldata descriptor
     ) private view {
         bytes32[] calldata contextIds = descriptor.contextIds;
         uint256 contextIdCount = contextIds.length;
         for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
-            _checkDisplacedAttestationIsRevoked(attester, contextIds[contextIndex], revocations);
+            _checkDisplacedAttestationIsRevoked(attester, contextIds[contextIndex]);
         }
     }
 
     /// @dev Reverts with 'MissingRevocation' if a context ID's currently active attestation
-    ///      is about to be displaced without its attestation ID appearing in 'revocations'.
+    ///      is about to be displaced without ever having been recorded as revoked — whether
+    ///      by this same batch's 'revocations' or by an earlier call.
     function _checkDisplacedAttestationIsRevoked(
-        address                    attester,
-        bytes32                    contextId,
-        RevocationEntry[] calldata revocations
+        address attester,
+        bytes32 contextId
     ) private view {
         bytes32 displacedAttestationId = _attestationIds[attester][contextId];
         if (displacedAttestationId == bytes32(0)) {
             return;
         }
 
-        if (!_containsAttestationId(revocations, displacedAttestationId)) {
+        if (_revokedAt[attester][displacedAttestationId] == 0) {
             revert MissingRevocation(displacedAttestationId);
         }
-    }
-
-    /// @dev Linear search for a 'RevocationEntry' whose 'attestationId' equals 'target'.
-    function _containsAttestationId(RevocationEntry[] calldata revocations, bytes32 target) private pure returns (bool) {
-        uint256 count = revocations.length;
-        for (uint256 i = 0; i < count; i++) {
-            if (revocations[i].attestationId == target) {
-                return true;
-            }
-        }
-        return false;
     }
 }
