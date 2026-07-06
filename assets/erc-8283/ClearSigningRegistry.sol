@@ -2,40 +2,18 @@
 pragma solidity ^0.8.24;
 
 import "./IClearSigningRegistry.sol";
+import "./ClearSigningRegistryConstants.sol";
+import "./MirrorListRefLib.sol";
+import "./UriFilterLib.sol";
+import "./RegistrationHashLib.sol";
 import "./openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "./openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
 /// @title  ClearSigningRegistry — On-Chain Registry for ERC-7730 Clear Signing Descriptors
 /// @notice Reference implementation of IClearSigningRegistry.
 contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
-
-    bytes32 public constant CONTEXT_TAG_CONTRACT   = keccak256("erc7730.context.contract");
-
-    bytes32 public constant CONTEXT_TAG_FACTORY    = keccak256("erc7730.context.factory");
-
-    bytes32 public constant CONTEXT_TAG_EIP712_DEP = keccak256("erc7730.context.eip712.deployment");
-
-    bytes32 public constant CONTEXT_TAG_EIP712_DS  = keccak256("erc7730.context.eip712.domainseparator");
-
-    bytes32 public constant ATTESTATION_FORMAT_EAS_OFFCHAIN = keccak256("erc7730.attestation.eas.offchain");
-
-    bytes32 public constant DESCRIPTOR_TYPEHASH = keccak256(
-        "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId,bytes32 attestationId,bytes32 format)"
-    );
-
-    bytes32 public constant REVOCATION_ENTRY_TYPEHASH = keccak256(
-        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
-    );
-
-    bytes32 public constant REGISTRATION_BATCH_TYPEHASH = keccak256(
-        "ClearSigningRegistrationBatch(DescriptorInfo[] descriptors,bytes32 attestationMirrorListId,RevocationEntry[] revocations,uint256 nonce)"
-        "DescriptorInfo(bytes32 descriptorHash,bytes32[] contextIds,bytes32 mirrorListId,bytes32 attestationId,bytes32 format)"
-        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
-    );
-
-    bytes32 public constant MIRROR_UPDATE_TYPEHASH = keccak256(
-        "MirrorListUpdate(bytes32[] descriptorHashes,bytes32 mirrorListId)"
-    );
+    using MirrorListRefLib for MirrorListRef;
+    using UriFilterLib for string[];
 
     constructor() EIP712("ClearSigningRegistry", "1") {}
 
@@ -99,7 +77,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         // Resolve the attestation MirrorList exactly once for the whole batch (by
         // reference or by publishing it inline); every descriptor in this call
         // reuses the resulting pointer.
-        bytes32 attestationMirrorListId = _resolveOrPublishMirrorList(attestationURIs);
+        bytes32 attestationMirrorListId = attestationURIs.resolve(_mirrorLists);
 
         _processAllDescriptors(attester, descriptors, attestationMirrorListId);
 
@@ -152,21 +130,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         uint256 listCount = uriLists.length;
         mirrorListIds = new bytes32[](listCount);
         for (uint256 listIndex = 0; listIndex < listCount; listIndex++) {
-            mirrorListIds[listIndex] = _publishMirrorList(uriLists[listIndex]);
-        }
-    }
-
-    /// @dev Stores a MirrorList keyed by its content hash. Idempotent: a list
-    ///      with identical content is stored exactly once and emits no event on
-    ///      repeated publication.
-    function _publishMirrorList(string[] calldata uris) private returns (bytes32 mirrorListId) {
-        if (uris.length == 0) {
-            revert EmptyMirrorList();
-        }
-        mirrorListId = keccak256(abi.encode(uris));
-        if (_mirrorLists[mirrorListId].length == 0) {
-            _mirrorLists[mirrorListId] = uris;
-            emit MirrorListPublished(mirrorListId);
+            mirrorListIds[listIndex] = MirrorListRefLib.publish(uriLists[listIndex], _mirrorLists);
         }
     }
 
@@ -278,7 +242,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             attestationId:             attestationId,
             attestationMirrorListUris: attestationMirrorListUris,
             format:                    format,
-            uris:                      _filterUris(_mirrorLists[mirrorListId], allowedPrefixes)
+            uris:                      _mirrorLists[mirrorListId].filter(allowedPrefixes)
         });
     }
 
@@ -293,14 +257,14 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) {
         descriptorHash = details.descriptorHash;
         format         = details.format;
-        attestationMirrorListUris = _filterUris(_mirrorLists[details.attestationMirrorListId], allowedPrefixes);
+        attestationMirrorListUris = _mirrorLists[details.attestationMirrorListId].filter(allowedPrefixes);
     }
 
     /// @inheritdoc IClearSigningRegistry
     function getMirrorListById(bytes32 mirrorListId, string[] calldata allowedPrefixes)
         external view returns (string[] memory)
     {
-        return _filterUris(_mirrorLists[mirrorListId], allowedPrefixes);
+        return _mirrorLists[mirrorListId].filter(allowedPrefixes);
     }
 
     /// @inheritdoc IClearSigningRegistry
@@ -349,69 +313,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert EmptyContextIds();
         }
 
-        bytes32 mirrorListId = _resolveOrPublishMirrorList(descriptor.descriptorURIs);
+        bytes32 mirrorListId = descriptor.descriptorURIs.resolve(_mirrorLists);
         _updateMirrorListInternal(attester, descriptor.descriptorHash, mirrorListId);
-    }
-
-    /// @dev EIP-712 array-hash of 'descriptors', following the same pattern as
-    ///      '_hashRevocationEntries': one descriptorInfo hash per entry (covering the
-    ///      descriptor identity and the attestation reference together), aggregated via
-    ///      'keccak256(abi.encodePacked(...))'. Recomputed from calldata only when a
-    ///      relayed registration needs it for signature verification — see '_registerBatch'.
-    function _hashDescriptorInfos(DescriptorInfo[] calldata descriptors) private pure returns (bytes32) {
-        uint256 descriptorCount = descriptors.length;
-        bytes32[] memory descriptorInfoHashes = new bytes32[](descriptorCount);
-        for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
-            descriptorInfoHashes[descriptorIndex] = _hashDescriptorInfo(descriptors[descriptorIndex]);
-        }
-        return keccak256(abi.encodePacked(descriptorInfoHashes));
-    }
-
-    /// @dev EIP-712 descriptorInfo hash of a single descriptor. 'mirrorListId' is
-    ///      re-derived from 'descriptorURIs' rather than read back from storage, since
-    ///      storage only keeps the attester's latest pointer per descriptor hash and
-    ///      would collapse two same-'descriptorHash' entries in one batch onto the same value.
-    function _hashDescriptorInfo(DescriptorInfo calldata descriptor) private pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                DESCRIPTOR_TYPEHASH,
-                descriptor.descriptorHash,
-                keccak256(abi.encodePacked(descriptor.contextIds)),
-                _mirrorListRefId(descriptor.descriptorURIs),
-                descriptor.attestationId,
-                descriptor.format
-            )
-        );
-    }
-
-    /// @dev Pure counterpart to '_resolveOrPublishMirrorList': derives the same
-    ///      'mirrorListId' a given 'MirrorListRef' resolves to, without touching storage.
-    ///      Safe to call only after '_resolveOrPublishMirrorList' has already validated
-    ///      and published/resolved the same ref once.
-    function _mirrorListRefId(MirrorListRef calldata ref) private pure returns (bytes32) {
-        return ref.uris.length > 0 ? keccak256(abi.encode(ref.uris)) : ref.id;
-    }
-
-    /// @dev Resolves a MirrorListRef: publishes the inline URIs when supplied, or
-    ///      looks up a previously published list by ID otherwise. Shared by a
-    ///      descriptor's own MirrorList and the batch's attestation MirrorList.
-    function _resolveOrPublishMirrorList(
-        MirrorListRef calldata ref
-    ) private returns (bytes32 mirrorListId) {
-        bool isInlineFlow = ref.uris.length > 0;
-        if (isInlineFlow) {
-            // inline flow - hash the supplied MirrorList to get its ID
-            if (ref.id != bytes32(0)) {
-                revert RedundantMirrorListId();
-            }
-            return _publishMirrorList(ref.uris);
-        }
-
-        // reference flow - the MirrorList must have been published before
-        mirrorListId = ref.id;
-        if (_mirrorLists[mirrorListId].length == 0) {
-            revert UnknownMirrorList(mirrorListId);
-        }
     }
 
     /// @dev Points an attester's active MirrorList for a descriptor at 'mirrorListId',
@@ -465,10 +368,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private view {
         bytes32 structHash = keccak256(
             abi.encode(
-                REGISTRATION_BATCH_TYPEHASH,
-                _hashDescriptorInfos(descriptors),
+                ClearSigningRegistryConstants.REGISTRATION_BATCH_TYPEHASH,
+                RegistrationHashLib.hashDescriptorInfos(descriptors),
                 attestationMirrorListId,
-                _hashRevocationEntries(revocations),
+                RegistrationHashLib.hashRevocationEntries(revocations),
                 nonce
             )
         );
@@ -484,7 +387,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     ) private view {
         bytes32 structHash = keccak256(
             abi.encode(
-                MIRROR_UPDATE_TYPEHASH,
+                ClearSigningRegistryConstants.MIRROR_UPDATE_TYPEHASH,
                 keccak256(abi.encodePacked(descriptorHashes)),
                 mirrorListId
             )
@@ -503,21 +406,6 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         if (!SignatureChecker.isValidSignatureNow(attester, digest, signature)) {
             revert InvalidRegistrationSignature();
         }
-    }
-
-    /// @dev EIP-712 array-hash of 'revocations', following the same pattern as
-    ///      'descriptorInfoHashes': one 'REVOCATION_ENTRY_TYPEHASH' hash per entry, aggregated
-    ///      via 'keccak256(abi.encodePacked(...))'.
-    function _hashRevocationEntries(RevocationEntry[] calldata revocations) private pure returns (bytes32) {
-        uint256 count = revocations.length;
-        bytes32[] memory entryHashes = new bytes32[](count);
-        for (uint256 i = 0; i < count; i++) {
-            RevocationEntry calldata entry = revocations[i];
-            entryHashes[i] = keccak256(
-                abi.encode(REVOCATION_ENTRY_TYPEHASH, entry.attestationId, keccak256(abi.encodePacked(entry.contextIds)))
-            );
-        }
-        return keccak256(abi.encodePacked(entryHashes));
     }
 
     /// @dev Records each entry in 'revocations' as revoked under 'attester' and clears
@@ -583,81 +471,5 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             }
         }
         return false;
-    }
-
-    /// @dev Copies the URIs matching at least one of the allowed prefixes into a
-    ///      memory array. An empty prefix list disables filtering. A rejected URI
-    ///      is never fully loaded from storage and never reaches the return data:
-    ///      the cost of discarding it is bounded by the prefix lengths, not by the
-    ///      URI's own length.
-    function _filterUris(string[] storage uris, string[] calldata allowedPrefixes)
-        private view returns (string[] memory filtered)
-    {
-        if (allowedPrefixes.length == 0) {
-            return uris; // unfiltered: implicit storage-to-memory copy
-        }
-
-        uint256 matchingUriCount = _countMatchingUris(uris, allowedPrefixes);
-        filtered = new string[](matchingUriCount);
-        _collectMatchingUris(uris, allowedPrefixes, filtered);
-    }
-
-    /// @dev Counts how many URIs in storage match at least one allowed prefix.
-    function _countMatchingUris(
-        string[] storage  uris,
-        string[] calldata allowedPrefixes
-    ) private view returns (uint256 matchingUriCount) {
-        uint256 uriCount = uris.length;
-        for (uint256 uriIndex = 0; uriIndex < uriCount; uriIndex++) {
-            if (_matchesAnyPrefix(uris[uriIndex], allowedPrefixes)) {
-                ++matchingUriCount;
-            }
-        }
-    }
-
-    /// @dev Copies every URI in storage that matches at least one allowed prefix into 'filtered'.
-    function _collectMatchingUris(
-        string[] storage  uris,
-        string[] calldata allowedPrefixes,
-        string[]  memory  filtered
-    ) private view {
-        uint256 uriCount = uris.length;
-        uint256 filteredIndex;
-        for (uint256 uriIndex = 0; uriIndex < uriCount; uriIndex++) {
-            if (_matchesAnyPrefix(uris[uriIndex], allowedPrefixes)) {
-                filtered[filteredIndex++] = uris[uriIndex];
-            }
-        }
-    }
-
-    /// @dev Whether 'uri' starts with at least one of 'allowedPrefixes'.
-    function _matchesAnyPrefix(string storage uri, string[] calldata allowedPrefixes) private view returns (bool) {
-        uint256 prefixCount = allowedPrefixes.length;
-        for (uint256 prefixIndex = 0; prefixIndex < prefixCount; prefixIndex++) {
-            if (_hasPrefix(uri, allowedPrefixes[prefixIndex])) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// @dev Whether 'uri' starts with 'prefix', comparing byte by byte.
-    function _hasPrefix(string storage uri, string calldata prefix) private view returns (bool) {
-        bytes storage uriBytes = bytes(uri);
-        bytes calldata prefixBytes = bytes(prefix);
-        uint256 prefixLength = prefixBytes.length;
-        if (prefixLength > uriBytes.length) {
-            return false;
-        }
-
-        // Note: In production, optimize this by reading the first 32 bytes from storage
-        // in one go (handling both short and long string packing) to avoid O(N) sloads
-        // for short prefixes like "ipfs:".
-        for (uint256 byteIndex = 0; byteIndex < prefixLength; byteIndex++) {
-            if (uriBytes[byteIndex] != prefixBytes[byteIndex]) {
-                return false;
-            }
-        }
-        return true;
     }
 }
