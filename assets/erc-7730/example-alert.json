@@ -1,0 +1,18 @@
+{
+    "$schema": "./erc7730-v2.schema.json",
+
+    "$comment": "Example of a tombstone ERC-7730 file for a known-compromised contract. No display formatting is provided; the alert is sufficient.",
+
+    "context": {
+        "contract": {
+            "deployments": [
+                { "chainId": 1, "address": "0x000000000022D473030F116dDEE9F6B43aC78BA3" }
+            ]
+        }
+    },
+
+    "alert": {
+        "severity": "critical",
+        "message": "This contract was compromised on 2025-03-01. Its signing keys are no longer under legitimate control. Do not sign any transactions targeting this address."
+    }
+}
