@@ -32,6 +32,11 @@ library ClearSigningRegistryConstants {
         "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
     );
 
+    bytes32 internal constant REVOCATION_BATCH_TYPEHASH = keccak256(
+        "ClearSigningRevocationBatch(RevocationEntry[] revocations,uint256 nonce)"
+        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
+    );
+
     bytes32 internal constant DESCRIPTOR_MIRROR_UPDATE_TYPEHASH = keccak256(
         "DescriptorMirrorListUpdate(bytes32[] descriptorHashes,bytes32 descriptorMirrorListId,uint256 nonce)"
     );

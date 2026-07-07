@@ -29,9 +29,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     mapping(address attester => mapping(bytes32 attestationId => AttestationDetails)) private _attestationDetails;
 
     // The timestamp at which 'attester' revoked 'attestationId', or 0 if never revoked.
-    // Written either by 'revokeAttestation' directly (msg.sender == attester) or by
-    // this registry itself when a registration batch displaces an attestation on the
-    // attester's behalf, after verifying that batch's own authorization chain.
+    // Written by 'revokeAttestation' directly (msg.sender == attester), by a signed
+    // 'revokeAttestations' batch, or by this registry itself when a registration batch
+    // displaces an attestation on the attester's behalf — in the relayed cases only
+    // after verifying that batch's own authorization chain.
     mapping(address attester => mapping(bytes32 attestationId => uint64)) private _revokedAt;
 
     // Global store of MirrorLists, written once per unique URI set.
@@ -43,7 +44,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     // Per-attester pointer to the MirrorList this attester designates for the given attestation ID.
     mapping(address attester => mapping(bytes32 attestationId => bytes32)) private _attestationMirrorListIds;
 
-    // EIP-712 nonce for relayed registration batches.
+    // EIP-712 nonce shared by all relayed calls: registration batches, revocation
+    // batches and MirrorList updates. Consumable without effect via 'invalidateNonce'.
     mapping(address attester => uint256) private _nonces;
 
     /// @inheritdoc IClearSigningRegistry
@@ -58,43 +60,40 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert EmptyDescriptors();
         }
 
-        // Revoke and clear displaced attestations (may be empty when no attestations are replaced).
-        // Runs first so the check below can rely on '_revokedAt' being up to date.
-        _processRevocations(attester, revocations);
-
-        // Every active attestation being displaced must already be recorded as revoked —
-        // either by the entries just processed above or by an earlier call.
-        _checkRevocations(attester, descriptors);
-
-        _registerBatch(attester, descriptors, revocations, attestationMirrorListURIs, signature);
-    }
-
-    /// @dev The registration phase of 'createAttestations', split out from the
-    ///      revocation phase to limit per-frame stack usage.
-    function _registerBatch(
-        address           attester,
-        DescriptorInfo[]  calldata descriptors,
-        RevocationEntry[] calldata revocations,
-        MirrorListRef     calldata attestationMirrorListURIs,
-        bytes             calldata signature
-    ) private {
         // Resolve the attestation MirrorList exactly once for the whole batch (by
         // reference or by publishing it inline); every descriptor in this call
-        // reuses the resulting pointer.
+        // reuses the resulting pointer. Publication is content-addressed and
+        // permissionless, so it may safely precede the authorization check.
         bytes32 attestationMirrorListId = attestationMirrorListURIs.resolve(_mirrorLists);
 
-        _processAllDescriptors(attester, descriptors, attestationMirrorListId);
+        // Authorize the batch before any attester-scoped state is touched.
+        _authorizeRegistration(attester, descriptors, attestationMirrorListId, revocations, signature);
 
-        // Validate the attester's signature over the batch for relayed registrations. The
-        // per-descriptor EIP-712 hashes are only ever needed on this path, so they're
-        // recomputed here from calldata rather than carried out of the processing loop above.
-        if (msg.sender != attester) {
-            uint256 nonce = _nonces[attester];
-            _nonces[attester] = nonce + 1;
-            _verifyRegistrationSignature(
-                attester, descriptors, attestationMirrorListId, revocations, nonce, signature
-            );
+        // Revoke and clear displaced attestations (may be empty when no attestations are
+        // replaced). Runs before any descriptor is processed so the displaced-attestation
+        // check inside '_updateActiveAttestation' sees '_revokedAt' up to date.
+        _processRevocations(attester, revocations);
+
+        _processAllDescriptors(attester, descriptors, attestationMirrorListId);
+    }
+
+    /// @dev Consumes a nonce and verifies the attester's EIP-712 batch signature for
+    ///      relayed registrations; a no-op when the attester submits the batch directly.
+    function _authorizeRegistration(
+        address           attester,
+        DescriptorInfo[]  calldata descriptors,
+        bytes32           attestationMirrorListId,
+        RevocationEntry[] calldata revocations,
+        bytes             calldata signature
+    ) private {
+        if (msg.sender == attester) {
+            return;
         }
+        uint256 nonce = _nonces[attester];
+        _nonces[attester] = nonce + 1;
+        _verifyRegistrationSignature(
+            attester, descriptors, attestationMirrorListId, revocations, nonce, signature
+        );
     }
 
     /// @dev Validates and processes every descriptor in a batch.
@@ -116,10 +115,18 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         bytes32                 attestationId
     ) private {
         bytes32[] calldata contextIds = descriptor.contextIds;
-        uint256 contextIdCount = contextIds.length;
-        for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
+        for (uint256 contextIndex = 0; contextIndex < contextIds.length; contextIndex++) {
             bytes32 contextId             = contextIds[contextIndex];
             bytes32 previousAttestationId = _attestationIds[attester][contextId];
+
+            // A displaced active attestation must already be recorded as revoked — by this
+            // batch's own 'revocations' (processed before any descriptor) or by an earlier
+            // call. Checking at the moment each pointer is written also covers displacement
+            // by a duplicate context ID within the same batch.
+            if (previousAttestationId != bytes32(0) && _revokedAt[attester][previousAttestationId] == 0) {
+                revert MissingRevocation(previousAttestationId);
+            }
+
             _attestationIds[attester][contextId] = attestationId;
             emit AttestationUpdated(
                 attester, contextId, attestationId, previousAttestationId, descriptor.descriptorHash
@@ -140,10 +147,31 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     /// @inheritdoc IClearSigningRegistry
     function revokeAttestation(bytes32 attestationId, bytes32[] calldata contextIds) external {
-        if (contextIds.length == 0) {
-            revert EmptyContextIds();
-        }
         _revokeAndClear(msg.sender, attestationId, contextIds);
+    }
+
+    /// @inheritdoc IClearSigningRegistry
+    function revokeAttestations(
+        address           attester,
+        RevocationEntry[] calldata revocations,
+        bytes             calldata signature
+    ) external {
+        if (revocations.length == 0) {
+            revert EmptyRevocations();
+        }
+        if (msg.sender != attester) {
+            uint256 nonce = _nonces[attester];
+            _nonces[attester] = nonce + 1;
+            _verifyRevocationSignature(attester, revocations, nonce, signature);
+        }
+        _processRevocations(attester, revocations);
+    }
+
+    /// @inheritdoc IClearSigningRegistry
+    function invalidateNonce() external {
+        uint256 newNonce = _nonces[msg.sender] + 1;
+        _nonces[msg.sender] = newNonce;
+        emit NonceInvalidated(msg.sender, newNonce);
     }
 
     /// @inheritdoc IClearSigningRegistry
@@ -152,7 +180,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     }
 
     /// @dev Records 'attestationId' as revoked under 'attester', emitting 'AttestationRevoked'.
+    ///      Revoking an already-revoked attestation ID keeps the original timestamp: the
+    ///      recorded value is when the attestation *first* became revoked, and must not
+    ///      move on a repeated revocation.
     function _recordRevocation(address attester, bytes32 attestationId) private {
+        if (_revokedAt[attester][attestationId] != 0) {
+            return;
+        }
         uint64 timestamp = uint64(block.timestamp);
         _revokedAt[attester][attestationId] = timestamp;
         emit AttestationRevoked(attester, attestationId, timestamp);
@@ -161,9 +195,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     /// @dev Records 'attestationId' as revoked under 'attester' and clears 'contextIds'
     ///      immediately wherever they still point to it. A context ID whose active attestation
     ///      has since moved to a different attestation ID is silently skipped. Shared by
-    ///      the direct self-service path ('revokeAttestation') and the registration-batch
-    ///      displacement path ('_processRevocations').
+    ///      the direct self-service path ('revokeAttestation') and the batch path
+    ///      ('_processRevocations', reached from both 'createAttestations' and
+    ///      'revokeAttestations').
     function _revokeAndClear(address attester, bytes32 attestationId, bytes32[] calldata contextIds) private {
+        if (attestationId == bytes32(0)) {
+            revert ZeroAttestationId();
+        }
         _recordRevocation(attester, attestationId);
         uint256 contextIdCount = contextIds.length;
         for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
@@ -234,34 +272,19 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         string[]  calldata allowedPrefixes
     ) private view returns (ResolvedDescriptor memory) {
         AttestationDetails storage details = _attestationDetails[attester][attestationId];
-        (bytes32 descriptorHash, bytes32 format, string[] memory attestationMirrorListUris) =
-            _resolveAttestation(address attester, bytes32 attestationId, attester, attestationId, details, allowedPrefixes);
-
-        bytes32 descriptorMirrorListId = _descriptorMirrorListIds[attester][descriptorHash];
+        bytes32 descriptorMirrorListId  = _descriptorMirrorListIds[attester][details.descriptorHash];
+        bytes32 attestationMirrorListId = _attestationMirrorListIds[attester][attestationId];
 
         return ResolvedDescriptor({
             attester:                  attester,
             contextId:                 contextId,
-            descriptorHash:            descriptorHash,
+            descriptorHash:            details.descriptorHash,
             attestationId:             attestationId,
-            attestationMirrorListUris: attestationMirrorListUris,
-            format:                    format,
+            revokedAt:                 _revokedAt[attester][attestationId],
+            attestationMirrorListUris: _mirrorLists[attestationMirrorListId].filter(allowedPrefixes),
+            format:                    details.format,
             descriptorMirrorListUris:  _mirrorLists[descriptorMirrorListId].filter(allowedPrefixes)
         });
-    }
-
-    /// @dev Reads an attestation's metadata from registry storage.
-    function _resolveAttestation(address attester, bytes32 attestationId, 
-        AttestationDetails storage details,
-        string[]           calldata allowedPrefixes
-    ) private view returns (
-        bytes32  descriptorHash,
-        bytes32  format,
-        string[] memory attestationMirrorListUris
-    ) {
-        descriptorHash = details.descriptorHash;
-        format         = details.format;
-        attestationMirrorListUris = _mirrorLists[_attestationMirrorListIds[attester][attestationId]].filter(allowedPrefixes);
     }
 
     /// @inheritdoc IClearSigningRegistry
@@ -283,71 +306,99 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         MirrorListRef calldata descriptorMirrorListRef,
         bytes calldata signature
     ) external {
-        _updateMirrorListsInternal(attester, descriptorHashes, descriptorMirrorListRef, signature, true);
+        if (descriptorHashes.length == 0) {
+            revert EmptyKeys();
+        }
+        bytes32 mirrorListId = descriptorMirrorListRef.resolve(_mirrorLists);
+        _authorizeMirrorListUpdate(
+            attester, descriptorHashes, mirrorListId,
+            ClearSigningRegistryConstants.DESCRIPTOR_MIRROR_UPDATE_TYPEHASH, signature
+        );
+
+        for (uint256 i = 0; i < descriptorHashes.length; i++) {
+            bytes32 descriptorHash = descriptorHashes[i];
+            // Registration always sets a non-zero descriptor MirrorList pointer, so a zero
+            // pointer means the attester never registered this descriptor hash.
+            if (_descriptorMirrorListIds[attester][descriptorHash] == bytes32(0)) {
+                revert UnknownDescriptor(descriptorHash);
+            }
+            _setDescriptorMirrorList(attester, descriptorHash, mirrorListId);
+        }
     }
 
+    /// @inheritdoc IClearSigningRegistry
     function updateAttestationMirrorList(
         address attester,
         bytes32[] calldata attestationIds,
         MirrorListRef calldata attestationMirrorListRef,
         bytes calldata signature
     ) external {
-        _updateMirrorListsInternal(attester, attestationIds, attestationMirrorListRef, signature, false);
-    }
-
-    function _updateMirrorListsInternal(
-        address attester,
-        bytes32[] calldata keys,
-        MirrorListRef calldata mirrorListRef,
-        bytes calldata signature,
-        bool isDescriptor
-    ) private {
-        uint256 keyCount = keys.length;
-        if (keyCount == 0) {
+        if (attestationIds.length == 0) {
             revert EmptyKeys();
         }
-        bytes32 mirrorListId = mirrorListRef.resolve(_mirrorLists);
+        bytes32 mirrorListId = attestationMirrorListRef.resolve(_mirrorLists);
+        _authorizeMirrorListUpdate(
+            attester, attestationIds, mirrorListId,
+            ClearSigningRegistryConstants.ATTESTATION_MIRROR_UPDATE_TYPEHASH, signature
+        );
 
-        if (msg.sender != attester) {
-            uint256 nonce = _nonces[attester];
-            _nonces[attester] = nonce + 1;
-            bytes32 typeHash = isDescriptor
-                ? ClearSigningRegistryConstants.DESCRIPTOR_MIRROR_UPDATE_TYPEHASH
-                : ClearSigningRegistryConstants.ATTESTATION_MIRROR_UPDATE_TYPEHASH;
-            _verifyMirrorUpdateSignature(attester, keys, mirrorListId, nonce, typeHash, signature);
-        }
-
-        for (uint256 i = 0; i < keyCount; i++) {
-            _updateMirrorListPointer(attester, keys[i], mirrorListId, isDescriptor);
+        for (uint256 i = 0; i < attestationIds.length; i++) {
+            bytes32 attestationId = attestationIds[i];
+            if (_attestationDetails[attester][attestationId].descriptorHash == bytes32(0)) {
+                revert UnknownAttestationId(attestationId);
+            }
+            _setAttestationMirrorList(attester, attestationId, mirrorListId);
         }
     }
 
-    function _updateMirrorListPointer(
-        address attester,
-        bytes32 key,
-        bytes32 mirrorListId,
-        bool isDescriptor
+    /// @dev Consumes a nonce and verifies the attester's EIP-712 MirrorList update
+    ///      signature for relayed updates; a no-op when the attester submits directly.
+    function _authorizeMirrorListUpdate(
+        address            attester,
+        bytes32[] calldata keys,
+        bytes32            mirrorListId,
+        bytes32            typeHash,
+        bytes     calldata signature
     ) private {
-        if (isDescriptor) {
-            if (_descriptorMirrorListIds[attester][key] == mirrorListId) return;
-            _descriptorMirrorListIds[attester][key] = mirrorListId;
-            emit DescriptorMirrorListUpdated(attester, key, mirrorListId);
-        } else {
-            if (_attestationMirrorListIds[attester][key] == mirrorListId) return;
-            _attestationMirrorListIds[attester][key] = mirrorListId;
-            emit AttestationMirrorListUpdated(attester, key, mirrorListId);
+        if (msg.sender == attester) {
+            return;
         }
+        uint256 nonce = _nonces[attester];
+        _nonces[attester] = nonce + 1;
+        _verifyMirrorUpdateSignature(attester, keys, mirrorListId, nonce, typeHash, signature);
+    }
+
+    /// @dev Points 'attester''s MirrorList for 'descriptorHash' at 'mirrorListId',
+    ///      emitting an event only when the pointer actually changes.
+    function _setDescriptorMirrorList(address attester, bytes32 descriptorHash, bytes32 mirrorListId) private {
+        if (_descriptorMirrorListIds[attester][descriptorHash] == mirrorListId) {
+            return;
+        }
+        _descriptorMirrorListIds[attester][descriptorHash] = mirrorListId;
+        emit DescriptorMirrorListUpdated(attester, descriptorHash, mirrorListId);
+    }
+
+    /// @dev Points 'attester''s MirrorList for 'attestationId' at 'mirrorListId',
+    ///      emitting an event only when the pointer actually changes.
+    function _setAttestationMirrorList(address attester, bytes32 attestationId, bytes32 mirrorListId) private {
+        if (_attestationMirrorListIds[attester][attestationId] == mirrorListId) {
+            return;
+        }
+        _attestationMirrorListIds[attester][attestationId] = mirrorListId;
+        emit AttestationMirrorListUpdated(attester, attestationId, mirrorListId);
     }
 
     // =========================================================================
     // Internal helpers
     // =========================================================================
 
-    /// @dev Validates one descriptor, resolves or publishes its MirrorList, and updates
-    ///      the attester's MirrorList pointer for it.
-    function _processDescriptorCore(
-        address                          attester,
-        DescriptorInfo          calldata descriptor
+    /// @dev Processes one descriptor of a registration batch: field validation,
+    ///      MirrorList pointer updates, attestation metadata storage and
+    ///      active-attestation updates.
+    function _processDescriptor(
+        address                 attester,
+        DescriptorInfo calldata descriptor,
+        bytes32                 attestationMirrorListId
     ) private {
         if (descriptor.descriptorHash == bytes32(0)) {
             revert ZeroDescriptorHash();
@@ -355,38 +406,31 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         if (descriptor.attestationId == bytes32(0)) {
             revert ZeroAttestationId();
         }
+        if (descriptor.format == bytes32(0)) {
+            revert ZeroAttestationFormat();
+        }
         if (descriptor.contextIds.length == 0) {
             revert EmptyContextIds();
         }
 
-        bytes32 descriptorMirrorListId = descriptor.descriptorMirrorListURIs.resolve(_mirrorLists);
-        _updateMirrorListPointer(attester, descriptor.descriptorHash, descriptorMirrorListId, true);
-    }
-
-    /// @dev Points an attester's active MirrorList for a descriptor at 'mirrorListId',
-    ///      emitting 'MirrorListUpdated' only when the pointer actually changes.
-
-
-    /// @dev Processes one descriptor of a registration batch: shared descriptor
-    ///      processing, attestation metadata storage and active-attestation updates.
-    function _processDescriptor(
-        address                 attester,
-        DescriptorInfo calldata descriptor,
-        bytes32                 attestationMirrorListId
-    ) private {
-        if (descriptor.format == bytes32(0)) {
-            revert ZeroAttestationFormat();
+        // Attestation IDs are single-use: an ID that was ever registered — or ever
+        // revoked, even without a registration — under this attester is consumed forever.
+        // This keeps the attestation metadata and the revocation timestamp write-once.
+        if (_attestationDetails[attester][descriptor.attestationId].descriptorHash != bytes32(0)
+            || _revokedAt[attester][descriptor.attestationId] != 0) {
+            revert AttestationIdAlreadyUsed(descriptor.attestationId);
         }
 
-        _processDescriptorCore(attester, descriptor);
+        bytes32 descriptorMirrorListId = descriptor.descriptorMirrorListURIs.resolve(_mirrorLists);
+        _setDescriptorMirrorList(attester, descriptor.descriptorHash, descriptorMirrorListId);
 
         // Store the attestation metadata exactly once per attestation ID, not per contextId.
         _attestationDetails[attester][descriptor.attestationId] = AttestationDetails({
             descriptorHash:          descriptor.descriptorHash,
             format:                  descriptor.format
         });
-        
-        _updateMirrorListPointer(attester, descriptor.attestationId, attestationMirrorListId, false);
+
+        _setAttestationMirrorList(attester, descriptor.attestationId, attestationMirrorListId);
 
         _updateActiveAttestation(attester, descriptor, descriptor.attestationId);
     }
@@ -408,6 +452,23 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
                 ClearSigningRegistryConstants.REGISTRATION_BATCH_TYPEHASH,
                 RegistrationHashLib.hashDescriptorInfos(descriptors),
                 attestationMirrorListId,
+                RegistrationHashLib.hashRevocationEntries(revocations),
+                nonce
+            )
+        );
+        _verifySignature(attester, structHash, signature);
+    }
+
+    /// @dev Verifies the attester's EIP-712 signature over a standalone revocation batch.
+    function _verifyRevocationSignature(
+        address                    attester,
+        RevocationEntry[] calldata revocations,
+        uint256                    nonce,
+        bytes             calldata signature
+    ) private view {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                ClearSigningRegistryConstants.REVOCATION_BATCH_TYPEHASH,
                 RegistrationHashLib.hashRevocationEntries(revocations),
                 nonce
             )
@@ -459,44 +520,4 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Requires that every active attestation displaced by this batch has
-    ///      already been recorded as revoked in '_revokedAt'.
-    function _checkRevocations(
-        address                   attester,
-        DescriptorInfo[] calldata descriptors
-    ) private view {
-        uint256 descriptorCount = descriptors.length;
-        for (uint256 descriptorIndex = 0; descriptorIndex < descriptorCount; descriptorIndex++) {
-            _checkRevocationsForDescriptor(attester, descriptors[descriptorIndex]);
-        }
-    }
-
-    /// @dev Checks every context ID of one descriptor for a displaced, unrevoked attestation.
-    function _checkRevocationsForDescriptor(
-        address                attester,
-        DescriptorInfo calldata descriptor
-    ) private view {
-        bytes32[] calldata contextIds = descriptor.contextIds;
-        uint256 contextIdCount = contextIds.length;
-        for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
-            _checkDisplacedAttestationIsRevoked(attester, contextIds[contextIndex]);
-        }
-    }
-
-    /// @dev Reverts with 'MissingRevocation' if a context ID's currently active attestation
-    ///      is about to be displaced without ever having been recorded as revoked — whether
-    ///      by this same batch's 'revocations' or by an earlier call.
-    function _checkDisplacedAttestationIsRevoked(
-        address attester,
-        bytes32 contextId
-    ) private view {
-        bytes32 displacedAttestationId = _attestationIds[attester][contextId];
-        if (displacedAttestationId == bytes32(0)) {
-            return;
-        }
-
-        if (_revokedAt[attester][displacedAttestationId] == 0) {
-            revert MissingRevocation(displacedAttestationId);
-        }
-    }
 }

@@ -43,11 +43,15 @@ library MirrorListRefLib {
     }
 
     /// @dev Reference flow: validates that 'ref.id' was already published and returns
-    ///      it. Reverts 'UnknownMirrorList' otherwise.
+    ///      it. Reverts 'EmptyMirrorListRef' when the ref carries neither an id nor
+    ///      inline uris, and 'UnknownMirrorList' when the referenced id is unpublished.
     function referenceExisting(
         IClearSigningRegistry.MirrorListRef calldata ref,
         mapping(bytes32 mirrorListId => string[]) storage mirrorLists
     ) internal view returns (bytes32) {
+        if (ref.id == bytes32(0)) {
+            revert IClearSigningRegistry.EmptyMirrorListRef();
+        }
         if (mirrorLists[ref.id].length == 0) {
             revert IClearSigningRegistry.UnknownMirrorList(ref.id);
         }
@@ -64,8 +68,13 @@ library MirrorListRefLib {
             revert IClearSigningRegistry.EmptyMirrorList();
         }
         mirrorListId = keccak256(abi.encode(uris));
-        if (mirrorLists[mirrorListId].length == 0) {
-            mirrorLists[mirrorListId] = uris;
+        string[] storage storedUris = mirrorLists[mirrorListId];
+        if (storedUris.length == 0) {
+            // Element-by-element copy: a whole-array 'storedUris = uris' assignment of
+            // nested calldata arrays is only supported by the IR pipeline ('via-ir').
+            for (uint256 uriIndex = 0; uriIndex < uris.length; uriIndex++) {
+                storedUris.push(uris[uriIndex]);
+            }
             emit IClearSigningRegistry.MirrorListPublished(mirrorListId);
         }
     }
