@@ -16,7 +16,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     // Used as the URI for all token types by relying on ID substitution, e.g. https://ipfs.io/ipfs/token.data
     string private _uri;
 
-    // Mapping from token ID to account balances
+    // Mapping from account to token IDs it holds
     mapping(address => mapping(uint256 => bool)) private _holdings;
 
     // Mapping from token ID to addresses that have renounced and are permanently barred from re-issuance.
@@ -96,10 +96,6 @@ contract ERC5516 is Context, ERC165, IERC5516 {
             require(
                 !_renounced[tokenId][recipient],
                 "ERC5516: Recipient renounced this token"
-            );
-            require(
-                !_renounced[tokenId][recipient],
-                "EIP5516: Recipient renounced this token"
             );
 
             _holdings[recipient][tokenId] = true;
