@@ -36,14 +36,14 @@ interface IERC5516 {
      * @dev Issues a soulbound token to multiple recipients.
      *
      * Creates or Re-Issues a unique token identifier and distributes it to all addresses in `recipients[]`.
-     * `tokenId` should be detterministically generated via a function of `msg.sender` and `metadataURI` to prevent front-running and ensure uniqueness.
+     * `tokenId` MUST be deterministically generated as a function of `msg.sender` and `metadataURI` to prevent front-running and ensure uniqueness.
      * The token is non-transferable after issuance.
      *
      * Requirements:
      * - `recipients[]` MUST NOT be empty.
      * - All addresses in `recipients[]` MUST be non-zero.
      * - All addresses in `recipients[]` MUST NOT already own a token under the generated `tokenId`.
-     * - No address in `recipients[]` MUST have previously renounced the generated `tokenId`.
+     * - Addresses in `recipients[]` MUST NOT have previously renounced the generated `tokenId`.
      * - When issuing an existing `tokenId` (re-issuing), the caller MUST be the original issuer of that `tokenId`.
      *
      * Emits an {Issued} event.
