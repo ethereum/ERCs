@@ -8,6 +8,9 @@ on:
       - synchronize
       - ready_for_review
       - edited
+  push:
+    branches:
+      - master
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,6 +19,7 @@ concurrency:
 jobs:
   save-pr:
     name: Save PR Number
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -71,6 +75,11 @@ jobs:
         id: changed
         continue-on-error: true
         run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "mode=full" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           ALL_CHANGED=$(gh pr diff ${{ github.event.number }} --name-only --repo ${{ github.repository }})
           # Only pure ERC markdown changes are safe for the incremental path.
           # Asset changes can otherwise leave stale files in `_site/`.
@@ -175,6 +184,7 @@ jobs:
 
   link-check:
     name: Link Check
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -191,6 +201,7 @@ jobs:
 
   codespell:
     name: CodeSpell
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -218,6 +229,7 @@ jobs:
 
   eipw-validator:
     name: EIP Walidator
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -234,6 +246,7 @@ jobs:
 
   markdownlint:
     name: Markdown Linter
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout EIP Repository
