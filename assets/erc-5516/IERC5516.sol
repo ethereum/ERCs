@@ -41,6 +41,7 @@ interface IERC5516 {
      *
      * Requirements:
      * - `recipients[]` MUST NOT be empty.
+     * - `metadataURI` MUST NOT be empty.
      * - All addresses in `recipients[]` MUST be non-zero.
      * - All addresses in `recipients[]` MUST NOT already own a token under the generated `tokenId`.
      * - Addresses in `recipients[]` MUST NOT have previously renounced the generated `tokenId`.
