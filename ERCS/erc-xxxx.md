@@ -1,0 +1,306 @@
+---
+eip: xxxx
+title: Role-Grouped Operation Restriction Policy
+description: A standardized interface for role-group-to-policy association in smart contracts.
+author: Shepherd Shu (@baishuo13) <shulei.shu@ant-intl.com>, Jeff Fei (@77eff) <j.fei@ant-intl.com>, Kenny Kung (@kennyk10) <kenny.kung@ant-intl.com>
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-role-grouped-operation-restriction-policy/28793
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-06-10
+requires: 8305, 8306
+---
+
+## Abstract
+This standard defines a group-based policy framework for operation restrictions in smart contracts. Operators are classified into privilege groups based on their permission level, with each group mapped to a set of security constraints—such as multisig approval, delayed role activation, and timelock—as operation-level constraints. Even after a key compromise, attacker operations remain bounded by on-chain constraints.
+
+## Motivation
+In smart contract security, access control answers "who can operate," and hook mechanisms answer "how to intercept and check." Yet the third dimension—operation-level constraints—still lacks a unified standard: how much a single operation can do, how much value it can move, how frequently it may occur. The industry has no standardized way to define and enforce such constraints, leaving a critical gap in the on-chain defense chain.
+
+This means: once an admin's private key is compromised, an attacker needs no off-chain approval bypass, no transaction splitting, no waiting window—a single transaction can drain all funds. One shared root cause of major security incidents from 2022–2025 (Ronin Bridge, Wormhole, Bybit) is precisely the absence of on-chain operation-level constraints.
+
+This gap manifests as:
+
++ **All-or-nothing permissions**: Existing standards only answer "does the account have permission," not "how much permission." Once authorized, an account's operations are unrestricted—there is no standardized way to define how many assets a single operation may transfer, which functions it may call, or what conditions must be met.
++ **No differentiated constraint levels**: Temporary operators and super-admins face the same all-or-nothing check, with no way to distinguish who should be tightly restricted and who can be relatively relaxed. When high-privilege keys are compromised, all operations are treated identically, without layered protection.
++ **Non-reusable constraint logic**: Every protocol that needs operation restrictions implements the same logic from scratch. Security quality depends on each team's implementation proficiency, and vulnerabilities are repeatedly introduced.
++ **No defense-in-depth on-chain**: Access control is the first line of defense, but once bypassed there is no second line. An attacker need only breach identity verification to transfer all assets in a single transaction.
+
+## Specification
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Core Interface
+This standard defines four core functions—two configuration functions and two query functions.
+
+```solidity
+interface IGroupPolicy {
+    /// @notice Assign a role to a restriction group.
+    /// @param role      The bytes32 identifier of the role (e.g., keccak256("role.token.mint")).
+    /// @param roleGroup The group identifier (bytes32).
+    function setGroupForRole(bytes32 role, bytes32 roleGroup) external;
+
+    /// @notice Query the group a role belongs to.
+    /// @return roleGroup The group identifier. MUST return bytes32(0) for unassigned roles.
+    function getGroupForRole(bytes32 role) external view returns (bytes32);
+
+    /// @notice Associate a policy with a group.
+    /// @param roleGroup The group identifier.
+    /// @param policy    The policy content (bytes). RECOMMENDED to use an ABI-encoded struct.
+    function setPolicyForGroup(bytes32 roleGroup, bytes calldata policy) external;
+
+    /// @notice Query the policy content of a group.
+    /// @return policy The policy content. MUST return empty bytes for groups without a configured policy.
+    function getPolicyForGroup(bytes32 roleGroup) external view returns (bytes memory);
+}
+```
+
+### Policy Encoding Example
+The policy content is `bytes`. **RECOMMENDED** to use an ABI-encoded `SecurityRoleConfig` struct as the encoding format—enabling external tools to decode policy fields using standard ABI decoding rules:
+
+```solidity
+/// @notice Recommended security configuration per group. Protocols MAY extend with custom fields.
+/// @dev Delay duration and timelock duration parameters are managed by their respective
+///      EIP-8305/8306 contracts. This standard only marks enabled/disabled, not the parameter values.
+struct SecurityRoleConfig {
+    bool   delayedExecutionEnabled;  // Whether delayed role activation is required (EIP-8305)
+    bool   timelockEnabled;          // Whether timelock is required (EIP-8306)
+    // Protocols may extend with fields such as:
+    // bool   multisigEnabled;       // Multi-sig approval
+    // bool   valueCapEnabled;       // Per-transaction value cap
+    // bool   whitelistEnabled;      // Function whitelist
+    // bool   rateLimitEnabled;      // Rate limiting
+}
+```
+
+Writing and reading policies with ABI encoding:
+
+```solidity
+// Write: encode SecurityRoleConfig to bytes and store under the target group
+setPolicyForGroup(groupAdmin, abi.encode(SecurityRoleConfig({
+    delayedExecutionEnabled: true,
+    timelockEnabled:         true
+})));
+
+// Read: retrieve bytes from the target group and decode as SecurityRoleConfig
+SecurityRoleConfig memory config = abi.decode(
+    getPolicyForGroup(groupAdmin),
+    (SecurityRoleConfig)
+);
+```
+
+### Dependencies and Constraint Enforcement
+This standard defines only the role→group→policy association. Specific constraint enforcement **SHOULD** use existing standards:
+
++ [EIP-8305](./eip-8305.md): Time-Delayed Access Control—provides delayed role grant and revocation with a mandatory waiting period
++ [EIP-8306](./eip-8306.md): Role-Based Timelock Operation—provides a timelock mechanism for high-privilege operations
+
+An example query chain:
+
+1. Query the caller's roles via the role system (e.g., EIP-8314's `hasRole`)
+2. Query each role's group via `getGroupForRole`
+3. If the caller holds multiple roles, the protocol determines which group's policy applies (typically the most restrictive)
+4. Query that group's policy via `getPolicyForGroup`
+5. Decode the policy content and invoke the judgment functions of constraint standards such as EIP-8305/8306
+
+### Recommended Constraint Types
+Protocols may define the following constraint types in their policies as needed. Each constraint type is enforced by the corresponding standardized interface.
+
+#### Multisig Approval
+Requires multiple authorizers to jointly approve an operation, preventing single-point private key compromise from causing asset loss. Protocols may implement this via multisig wallets such as Safe or on-chain multisig contracts; this standard does not prescribe its on-chain interface.
+
+#### Delayed Role Activation
+Protocols **SHOULD** use [EIP-8305](./eip-8305.md) (Time-Delayed Access Control): a role change (grant or revocation) must undergo a mandatory delay period before taking effect. During the delay, monitoring systems can detect anomalous authorization and trigger cancellation.
+
+#### Timelock
+Protocols **SHOULD** use [EIP-8306](./eip-8306.md) (Role-Based Timelock Operation): high-privilege operations and configuration changes take effect only after a timelock delay.
+
+#### Other Extensible Constraint Examples
++ **Function Whitelist**: Restrict the set of functions the caller may invoke. Protocols **MAY** maintain a `bytes4[]` whitelist in the policy.
++ **Per-Transaction Value Cap**: Limit the asset amount per operation. Protocols **MAY** define cap parameters in the policy.
++ **Rate Limiting**: Limit the number of operations within a time window. Protocols **MAY** define count and window parameters in the policy.
+
+Beyond the constraint types above, protocols **MAY** define additional custom constraints according to their own business logic.
+
+### Recommended Grouping Patterns (Appendix)
+The following are reference examples of group configurations.
+
+| Group | Example Role | Recommended Strategy | Design Intent |
+| --- | --- | --- | --- |
+| `group.admin` | `role.admin.root` | Multisig + Delayed Role Activation + Timelock | Highest admin privilege; governance-group constraints form defense-in-depth |
+| `group.govern` | `role.token.govern` | Multisig + Delayed Role Activation | Governance-group privilege; requires multi-party confirmation with a reaction window before execution takes effect |
+| `group.operator` | `role.token.mint` | Function Whitelist + Per-Tx Value Cap + Rate Limiting | Single-operation privilege; limit per-operation scope and frequency |
+
+
+#### Complete Configuration Examples
+**Group **`group.admin` (Governance-group constraints):
+
+```solidity
+struct SecurityConfig {  // Protocol-custom unified configuration struct
+    bool     delayedExecutionEnabled;
+    bool     timelockEnabled;
+    bool     multisigEnabled;
+    bool     valueCapEnabled;
+}
+
+setPolicyForGroup(groupAdmin, abi.encode(SecurityConfig({
+    delayedExecutionEnabled: true,              // EIP-8305 delayed role activation, e.g.: setRoleDelay(role, 86400, 86400) → grant takes effect after 24h
+    timelockEnabled:         true,              // EIP-8306 operation timelock
+    multisigEnabled:         true,              // multi-sig approval (extension example)
+    valueCapEnabled:         false              // value cap disabled (time constraints already in place)
+})));
+```
+
+For the highest-privilege role, multisig eliminates single-point risk; delayed role activation and timelock ensure abnormal operations can be intercepted before taking effect.
+
+**Group **`group.govern` (Governance-group constraints):
+
+```solidity
+setPolicyForGroup(groupGovern, abi.encode(SecurityConfig({
+    delayedExecutionEnabled: true,              // EIP-8305 delayed role activation
+    timelockEnabled:         false,             // no timelock required
+    multisigEnabled:         true,              // multi-sig approval (extension example)
+    valueCapEnabled:         false              // value cap disabled (delay already in place)
+})));
+```
+
+For governance roles, multisig reduces single-point risk; delayed role activation provides a reaction window.
+
+**Group **`group.operator` (Operation-group constraints):
+
+```solidity
+setPolicyForGroup(groupOperator, abi.encode(SecurityConfig({
+    delayedExecutionEnabled: false,             // no delay required
+    timelockEnabled:         false,             // no timelock required
+    multisigEnabled:         false,             // no multi-sig required
+    valueCapEnabled:         true               // value cap enabled (extension example)
+})));
+```
+
+For day-to-day operation roles, no time constraints or multi-sig; the value cap switch enables protocol-defined amount control.
+
+## Rationale
+### Minimal Interface
+This standard defines four functions: `setGroupForRole` / `getGroupForRole` + `setPolicyForGroup` / `getPolicyForGroup`. Reasons:
+
++ **Constraints already have standards**: Delayed role activation (EIP-8305) and timelock (EIP-8306) already define check and execution interfaces; this standard does not redefine them.
++ **Standardized query for group-to-policy is the only missing piece**: Existing standards can check "whether a role was granted with delay" and "whether an operation satisfies timelock," but lack a standardized way to answer "which role should be subject to which policy."
++ **Read functions are equally important**: `getGroupForRole` and `getPolicyForGroup` enable external tools, audit scripts, and cross-protocol monitoring systems to uniformly query group policies.
+
+### Semantic Neutrality
+`role` (`bytes32`), `roleGroup` (`bytes32`), and `policy` (`bytes`) are all protocol-defined values. This standard does not define:
+
++ How many groups exist
++ What each group is named (e.g., `group.admin`)
++ Which role maps to which group
++ What fields the policy contains or what encoding it uses
+
+Protocols have full autonomy over these mappings; this standard only provides a uniform read/write interface.
+
+### Unified Policy Encoding
+This standard recommends encoding policies for all groups using a unified struct, rather than defining different structs per group. Reasons:
+
++ **Tools can decode generically**: External audit scripts can decode any group's `bytes policy` with the same line of `abi.decode`, without maintaining a group→struct mapping table.
++ **Meaningless field cost is negligible**: Inapplicable fields filled with `false` add only a few bytes, far lower than the complexity of maintaining multiple encode/decode logic paths.
+
+### Decoupled Role, Group, and Policy Layers
+The three layers are independently replaceable:
+
++ **Role system** is replaceable: protocols may use EIP-8314/8315 naming and semantic systems, or custom role systems
++ **Group logic** is replaceable: the caller of `setGroupForRole` decides which group each role belongs to
++ **Policy format** is replaceable: `bytes policy` supports any encoding; protocols may upgrade policy formats across versions
+
+## Backwards Compatibility
+This EIP introduces a new interface with no breaking changes. Protocols **MAY** adopt incrementally.
+
+| Standard | Compatibility |
+| --- | --- |
+| EIP-8305 (Delayed Role Activation) | Referenced in policy as a constraint implementation |
+| EIP-8306 (Role-Based Timelock) | Referenced in policy as a constraint implementation |
+| EIP-8314 (Contract Role Naming) | Role identifiers are directly compatible |
+| EIP-8315 (Contract Role Semantics) | Role types may be used to derive groups (protocol-defined) |
+
+
+## Test Cases
+In the following examples, group identifiers are represented by named constants (e.g., `groupAdmin = keccak256("group.admin")`).
+
+**Group and policy configuration**:
+
+1. Call `setGroupForRole(keccak256("role.admin.root"), groupAdmin)` → role assigned to `group.admin`
+2. Call `setGroupForRole(keccak256("role.token.mint"), groupOperator)` → role assigned to `group.operator`
+3. `getGroupForRole(keccak256("role.admin.root"))` → returns `groupAdmin`
+4. `getGroupForRole(keccak256("role.unknown"))` → returns bytes32(0) (unassigned role)
+5. Call `setPolicyForGroup(groupAdmin, abi.encode(SecurityRoleConfig(true, true)))` → policy set for `group.admin`
+6. `getPolicyForGroup(groupAdmin)` → returns ABI-encoded policy content
+7. `getPolicyForGroup(groupOperator)` → returns empty bytes (no policy configured)
+
+**Constraint enforcement (implemented by the protocol, not part of this interface)**:
+
+8. Caller holding `role.admin.root` → queries `group.admin`'s policy → subject to delayed role activation + timelock
+9. Caller holding `role.token.mint` → queries their group's policy (none configured) → no delay/timelock constraints
+10. Caller holding multiple roles → the protocol determines which group's policy applies (typically the most restrictive) → enforced per that group's policy
+
+## Reference Implementation
+The following implementation is for demonstration only, under CC0 license. Production deployments should undergo a complete security audit.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.20;
+
+// ── Core Interface: IGroupPolicy ─────────────────────────────────────
+interface IGroupPolicy {
+    function setGroupForRole(bytes32 role, bytes32 roleGroup) external;
+    function getGroupForRole(bytes32 role) external view returns (bytes32);
+    function setPolicyForGroup(bytes32 roleGroup, bytes calldata policy) external;
+    function getPolicyForGroup(bytes32 roleGroup) external view returns (bytes memory);
+}
+
+// ── Reference Implementation ─────────────────────────────────────────
+contract GroupPolicy is IGroupPolicy {
+    mapping(bytes32 => bytes32)  private _roleGroups;
+    mapping(bytes32 => bytes)    private _groupPolicies;
+    address private immutable _admin;
+
+    event GroupForRoleSet(bytes32 indexed role, bytes32 roleGroup);
+    event PolicyForGroupSet(bytes32 indexed roleGroup, bytes policy);
+
+    error Unauthorized();
+
+    constructor() {
+        _admin = msg.sender;
+    }
+
+    modifier onlyAdmin() {
+        if (msg.sender != _admin) revert Unauthorized();
+        _;
+    }
+
+    // ── IGroupPolicy ──────────────────────────────────────
+
+    function setGroupForRole(bytes32 role, bytes32 roleGroup) external onlyAdmin {
+        _roleGroups[role] = roleGroup;
+        emit GroupForRoleSet(role, roleGroup);
+    }
+
+    function getGroupForRole(bytes32 role) external view returns (bytes32) {
+        return _roleGroups[role];
+    }
+
+    function setPolicyForGroup(bytes32 roleGroup, bytes calldata policy) external onlyAdmin {
+        _groupPolicies[roleGroup] = policy;
+        emit PolicyForGroupSet(roleGroup, policy);
+    }
+
+    function getPolicyForGroup(bytes32 roleGroup) external view returns (bytes memory) {
+        return _groupPolicies[roleGroup];
+    }
+}
+```
+
+## Security Considerations
++ **Group configuration permissions**: `setGroupForRole` and `setPolicyForGroup` directly affect the scope of operation restrictions. Protocols **MUST** restrict access to these functions (e.g., admin-only or multisig).
++ **Group upgrade risk**: Moving a role from a low-constraint group to a high-constraint group is safe (adding restrictions); the reverse operation (downgrading constraints) requires caution. Protocols **SHOULD** apply a timelock to group downgrade operations.
++ **Policy format compatibility**: Policy content is `bytes`. When upgrading policy formats, protocols **SHOULD** ensure backward compatibility, or isolate old and new formats via separate group identifiers.
++ **Constraints do not replace access control**: The group-policy association defined by this standard does not replace identity-based access control (e.g., `hasRole()`). Protocols **MUST** maintain standard access control alongside constraint-checking logic.
+
+## Copyright
+Copyright and related rights waived via [CC0](../LICENSE.md).
