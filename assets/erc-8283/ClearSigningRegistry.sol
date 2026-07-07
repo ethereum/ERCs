@@ -455,6 +455,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             schemaMajor:             descriptor.schemaMajor,
             format:                  descriptor.format
         });
+        emit AttestationRegistered(
+            attester, descriptor.attestationId, descriptor.descriptorHash, descriptor.schemaMajor, descriptor.format
+        );
 
         _setAttestationMirrorList(attester, descriptor.attestationId, attestationMirrorListId);
 

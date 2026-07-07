@@ -112,9 +112,29 @@ interface IClearSigningRegistry {
         uint64          timestamp
     );
 
-    /// @notice Emitted the first time a MirrorList is stored on-chain.
+    /// @notice Emitted exactly once per attestation ID, when its write-once metadata
+    ///         is stored during registration. Together with the other events, this makes
+    ///         the registry's complete wallet-facing state reconstructible from logs
+    ///         alone (see "Events and state reconstruction" in the ERC).
+    /// @param attester        The attester the attestation is registered under.
+    /// @param attestationId   The registered attestation ID.
+    /// @param descriptorHash  The attested descriptor hash.
+    /// @param schemaMajor     The declared schema MAJOR lane.
+    /// @param format          The declared attestation format tag.
+    event AttestationRegistered(
+        address indexed attester,
+        bytes32 indexed attestationId,
+        bytes32 indexed descriptorHash,
+        uint256         schemaMajor,
+        bytes32         format
+    );
+
+    /// @notice Emitted the first time a MirrorList is stored on-chain, carrying its
+    ///         full URI contents so the global MirrorList store is reconstructible
+    ///         from logs alone. Republishing identical content emits nothing.
     /// @param mirrorListId  The content hash of the published MirrorList.
-    event MirrorListPublished(bytes32 indexed mirrorListId);
+    /// @param uris          The published URI list.
+    event MirrorListPublished(bytes32 indexed mirrorListId, string[] uris);
 
     /// @notice Emitted when an attester invalidates their current EIP-712 nonce
     ///         via 'invalidateNonce', cancelling any outstanding signature over it.
@@ -325,11 +345,10 @@ interface IClearSigningRegistry {
         string[]  calldata allowedPrefixes
     ) external view returns (ResolvedDescriptor[] memory resolved);
 
-    /// @notice Return the URI list for a given MirrorList ID.
-    ///         The MirrorListPublished event carries only the ID, so this getter is
-    ///         the standalone way to read a published list's contents; an attester's
+    /// @notice Return the URI list for a given MirrorList ID — the point-lookup
+    ///         counterpart to following 'MirrorListPublished' events; an attester's
     ///         current MirrorList for a descriptor is part of resolveDescriptors
-    ///         output and of MirrorListUpdated events.
+    ///         output and of the MirrorList update events.
     /// @param mirrorListId  The MirrorList content hash.
     /// @param allowedPrefixes  Raw string prefixes filtering the returned URIs;
     ///                    empty = unfiltered (see 'resolveDescriptors').

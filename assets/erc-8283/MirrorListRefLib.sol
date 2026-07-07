@@ -75,7 +75,7 @@ library MirrorListRefLib {
             for (uint256 uriIndex = 0; uriIndex < uris.length; uriIndex++) {
                 storedUris.push(uris[uriIndex]);
             }
-            emit IClearSigningRegistry.MirrorListPublished(mirrorListId);
+            emit IClearSigningRegistry.MirrorListPublished(mirrorListId, uris);
         }
     }
 }
