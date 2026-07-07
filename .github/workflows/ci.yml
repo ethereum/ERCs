@@ -219,8 +219,11 @@ jobs:
         id: changed
         continue-on-error: true
         run: |
+          set -o pipefail
           echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
-          gh pr diff ${{ github.event.number }} --name-only | sed -e 's|$|,|' | xargs -i echo "{}" >> $GITHUB_ENV
+          # Use the paginated files API: `gh pr diff` fails on very large PRs,
+          # and an empty CHANGED_FILES makes codespell scan the whole repo.
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.number }}/files" --paginate --jq '.[].filename' | sed -e 's|$|,|' >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -232,7 +235,7 @@ jobs:
           check_filenames: true
           ignore_words_file: config/.codespell-whitelist
           path: ${{ env.CHANGED_FILES }}
-          skip: .git,Gemfile.lock,**/*.png,**/*.gif,**/*.jpg,**/*.svg,.codespell-whitelist,vendor,_site,_config.yml,style.css
+          skip: .git,Gemfile.lock,**/*.png,**/*.gif,**/*.jpg,**/*.svg,**/*.pdf,.codespell-whitelist,vendor,_site,_config.yml,style.css
 
   eipw-validator:
     name: EIP Walidator
@@ -247,7 +250,9 @@ jobs:
         id: eipw
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          unchecked: 1
+          # 1123 crashes eipw's markdown-rel-links lint (raw HTML table with
+          # <colgroup>); the proposal is withdrawn and predates the linter.
+          unchecked: 1,1123
           path: ERCS/
           options-file: config/eipw.toml
 
