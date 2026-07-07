@@ -24,6 +24,12 @@ interface IClearSigningRegistry {
     struct DescriptorInfo {
         /// The ERC-8176 descriptorHash of the descriptor file.
         bytes32 descriptorHash;
+        /// The MAJOR version of the ERC-7730 descriptor schema the descriptor is authored
+        /// against, per its '$schema' key. MUST be non-zero, reverting with
+        /// 'ZeroSchemaMajor' otherwise. Opaque to the registry: attester-declared and
+        /// never verified on-chain — wallets MUST check that the fetched descriptor's
+        /// '$schema' MAJOR equals the lane it was found under.
+        uint256 schemaMajor;
         /// Context IDs this descriptor should be discoverable under.
         bytes32[] contextIds;
         /// The descriptor's MirrorList — see 'MirrorListRef'.
@@ -39,7 +45,8 @@ interface IClearSigningRegistry {
     }
 
     /// @notice One attestation ID being revoked, together with the context IDs to clear
-    ///         immediately wherever they still point to it. 'contextIds' MAY be
+    ///         immediately wherever they still point to it within the attestation's own
+    ///         schema MAJOR lane (read from its stored metadata). 'contextIds' MAY be
     ///         empty — the ones covered by the replacement descriptors in the same
     ///         batch get updated automatically regardless; entries here matter for
     ///         context IDs the replacement no longer covers.
@@ -56,6 +63,9 @@ interface IClearSigningRegistry {
         bytes32 contextId;
         /// The descriptor hash decoded from the attestation data.
         bytes32 descriptorHash;
+        /// The schema MAJOR lane the attestation was found under (equal to the
+        /// attester-declared 'DescriptorInfo.schemaMajor' of its registration).
+        uint256 schemaMajor;
         /// The attestation ID.
         bytes32 attestationId;
         /// The timestamp at which the attester revoked this attestation ID, or 0 if never
@@ -71,21 +81,23 @@ interface IClearSigningRegistry {
         string[] descriptorMirrorListUris;
     }
 
-    /// @notice Emitted when an attester's active attestation for a context ID changes —
-    ///         once per affected context ID, whether set by a registration batch or
-    ///         cleared by a revocation. When a revocation clears an active attestation,
-    ///         descriptorHash and attestationId are bytes32(0).
+    /// @notice Emitted when an attester's active attestation for a (context ID,
+    ///         schema MAJOR) slot changes — once per affected slot, whether set by a
+    ///         registration batch or cleared by a revocation. When a revocation clears
+    ///         an active attestation, descriptorHash and attestationId are bytes32(0).
     /// @param attester               The attester whose active attestation changed.
     /// @param contextId              The context ID affected.
     /// @param attestationId          The attestation ID for this descriptor.
     /// @param previousAttestationId  The previously active attestation ID.
     /// @param descriptorHash         The newly attested descriptor hash.
+    /// @param schemaMajor            The schema MAJOR lane of the affected slot.
     event AttestationUpdated(
         address indexed attester,
         bytes32 indexed contextId,
         bytes32 indexed attestationId,
         bytes32         previousAttestationId,
-        bytes32         descriptorHash
+        bytes32         descriptorHash,
+        uint256         schemaMajor
     );
 
     /// @notice Emitted whenever a revocation timestamp is recorded for an attestation ID,
@@ -141,6 +153,9 @@ interface IClearSigningRegistry {
 
     /// @notice Thrown when bytes32(0) is passed where an off-chain attestation format tag is required.
     error ZeroAttestationFormat();
+
+    /// @notice Thrown when a descriptor declares a zero schema MAJOR version.
+    error ZeroSchemaMajor();
 
     /// @notice Thrown when bytes32(0) is passed where an attestation ID is required.
     error ZeroAttestationId();
@@ -217,12 +232,14 @@ interface IClearSigningRegistry {
     ///                       reference (`attestationId`/`format`) — a non-zero `format` is
     ///                       required, reverting with `ZeroAttestationFormat` otherwise.
     ///                       Attestation IDs are single-use: an ID ever registered or revoked
-    ///                       before reverts with 'AttestationIdAlreadyUsed'. A context ID may
-    ///                       be claimed at most once per batch; a duplicate reverts with
-    ///                       'MissingRevocation'.
+    ///                       before reverts with 'AttestationIdAlreadyUsed'. Active attestations
+    ///                       are slotted per (contextId, schemaMajor): descriptors of different
+    ///                       schema MAJORs never displace each other, and a (contextId,
+    ///                       schemaMajor) slot may be claimed at most once per batch — a
+    ///                       duplicate reverts with 'MissingRevocation'.
     /// @param revocations    Displaced attestations this call revokes and clears. MAY
     ///                       be empty when no active attestation is replaced. When a displaced
-    ///                       active attestation exists for any of the supplied context IDs, it
+    ///                       active attestation exists for any of the supplied slots, it
     ///                       MUST already be revoked — via a 'RevocationEntry' here or via an
     ///                       earlier call.
     /// @param attestationMirrorListURIs  The MirrorList for the attestation blobs, shared by
@@ -247,11 +264,12 @@ interface IClearSigningRegistry {
         external returns (bytes32[] memory mirrorListIds);
 
     /// @notice Revokes 'attestationId' under the caller's address, and clears 'contextIds'
-    ///         immediately wherever they still point to it — combining revocation
-    ///         and cleanup into a single transaction. A context ID whose active
-    ///         attestation has since moved to a different attestation ID is silently skipped
-    ///         rather than reverting the whole call. Self-service and independent of any
-    ///         registration batch; see 'revokeAttestations' for the batch and relayed form.
+    ///         immediately wherever they still point to it within the attestation's own
+    ///         schema MAJOR lane — combining revocation and cleanup into a single
+    ///         transaction. A context ID whose active attestation has since moved to a
+    ///         different attestation ID is silently skipped rather than reverting the
+    ///         whole call. Self-service and independent of any registration batch; see
+    ///         'revokeAttestations' for the batch and relayed form.
     /// @param attestationId  The attestation ID to revoke.
     /// @param contextIds     The context IDs to clear if they still point to 'attestationId'.
     ///                       MAY be empty for a revoke-only call that skips clearing.
@@ -282,14 +300,18 @@ interface IClearSigningRegistry {
     /// @return timestamp  The revocation timestamp, or 0 if not revoked.
     function getRevocationTimestamp(address attester, bytes32 attestationId) external view returns (uint64 timestamp);
 
-    /// @notice Resolve all active attestations filtered
-    ///         by a list of attesters and a list of potential context IDs in a single call.
+    /// @notice Resolve all active attestations filtered by a list of attesters, a list
+    ///         of potential context IDs and a list of schema MAJOR lanes in a single call.
     ///         Returns the descriptor hash, the backing attestation with its revocation
     ///         timestamp ('revokedAt', 0 if never revoked), and the attester's MirrorLists
     ///         for the descriptor and the attestation blob.
     ///
     /// @param attesters   Queried attester addresses.
     /// @param contextIds  Candidate context IDs to look up.
+    /// @param schemaMajors  The schema MAJOR lanes to look up — a wallet passes exactly
+    ///                    the MAJOR versions it implements. Results are ordered by
+    ///                    'attesters' first, then 'contextIds', then 'schemaMajors'; an
+    ///                    empty array yields no results.
     /// @param allowedPrefixes  Raw string prefixes filtering the returned URI lists,
     ///                    e.g. ["ipfs:", "https:"]. A URI is returned only if it starts
     ///                    with at least one of the prefixes. An empty array disables
@@ -299,6 +321,7 @@ interface IClearSigningRegistry {
     function resolveDescriptors(
         address[] calldata attesters,
         bytes32[] calldata contextIds,
+        uint256[] calldata schemaMajors,
         string[]  calldata allowedPrefixes
     ) external view returns (ResolvedDescriptor[] memory resolved);
 

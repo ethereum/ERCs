@@ -17,13 +17,17 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     constructor() EIP712("ClearSigningRegistry", "1") {}
 
-    // The attestation ID currently active for the given attester and context ID.
-    // The attested descriptor hash is stored in '_attestationDetails'.
-    mapping(address attester => mapping(bytes32 contextId => bytes32)) private _attestationIds;
+    // The attestation ID currently active for the given attester, context ID and
+    // schema MAJOR lane. Descriptors of different schema MAJORs occupy separate slots
+    // and never displace each other. The attested descriptor hash is stored in
+    // '_attestationDetails'.
+    mapping(address attester => mapping(bytes32 contextId => mapping(uint256 schemaMajor => bytes32)))
+        private _attestationIds;
 
     // Extra metadata for an attestation, stored exactly once per attestation ID.
     struct AttestationDetails {
         bytes32 descriptorHash;
+        uint256 schemaMajor;             // the declared schema MAJOR lane; opaque to the registry
         bytes32 format;                  // the declared attestationFormatTag; opaque to the registry
     }
     mapping(address attester => mapping(bytes32 attestationId => AttestationDetails)) private _attestationDetails;
@@ -108,28 +112,30 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Updates the active attestation for each contextId of a descriptor.
+    /// @dev Updates the active attestation for each (contextId, schemaMajor) slot of a
+    ///      descriptor. Slots of other schema MAJORs are untouched.
     function _updateActiveAttestation(
         address                 attester,
         DescriptorInfo calldata descriptor,
         bytes32                 attestationId
     ) private {
-        bytes32[] calldata contextIds = descriptor.contextIds;
+        bytes32[] calldata contextIds  = descriptor.contextIds;
+        uint256   schemaMajor          = descriptor.schemaMajor;
         for (uint256 contextIndex = 0; contextIndex < contextIds.length; contextIndex++) {
             bytes32 contextId             = contextIds[contextIndex];
-            bytes32 previousAttestationId = _attestationIds[attester][contextId];
+            bytes32 previousAttestationId = _attestationIds[attester][contextId][schemaMajor];
 
             // A displaced active attestation must already be recorded as revoked — by this
             // batch's own 'revocations' (processed before any descriptor) or by an earlier
             // call. Checking at the moment each pointer is written also covers displacement
-            // by a duplicate context ID within the same batch.
+            // by a duplicate (contextId, schemaMajor) slot within the same batch.
             if (previousAttestationId != bytes32(0) && _revokedAt[attester][previousAttestationId] == 0) {
                 revert MissingRevocation(previousAttestationId);
             }
 
-            _attestationIds[attester][contextId] = attestationId;
+            _attestationIds[attester][contextId][schemaMajor] = attestationId;
             emit AttestationUpdated(
-                attester, contextId, attestationId, previousAttestationId, descriptor.descriptorHash
+                attester, contextId, attestationId, previousAttestationId, descriptor.descriptorHash, schemaMajor
             );
         }
     }
@@ -203,12 +209,20 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert ZeroAttestationId();
         }
         _recordRevocation(attester, attestationId);
+
+        // An attestation's schema MAJOR is intrinsic: attestation IDs are single-use and
+        // their metadata is write-once, so the lane its slots live in is read from the
+        // stored details rather than passed in. A never-registered ID reads lane 0, which
+        // no slot can hold (registration forbids a zero schemaMajor), so its clearing
+        // loop is a natural no-op while the revocation itself is still recorded.
+        uint256 schemaMajor = _attestationDetails[attester][attestationId].schemaMajor;
+
         uint256 contextIdCount = contextIds.length;
         for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
             bytes32 contextId = contextIds[contextIndex];
-            if (_attestationIds[attester][contextId] == attestationId) {
-                _attestationIds[attester][contextId] = bytes32(0);
-                emit AttestationUpdated(attester, contextId, bytes32(0), attestationId, bytes32(0));
+            if (_attestationIds[attester][contextId][schemaMajor] == attestationId) {
+                _attestationIds[attester][contextId][schemaMajor] = bytes32(0);
+                emit AttestationUpdated(attester, contextId, bytes32(0), attestationId, bytes32(0), schemaMajor);
             }
         }
     }
@@ -217,48 +231,54 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function resolveDescriptors(
         address[] calldata attesters,
         bytes32[] calldata contextIds,
+        uint256[] calldata schemaMajors,
         string[]  calldata allowedPrefixes
     ) external view returns (ResolvedDescriptor[] memory resolved) {
-        uint256 activeAttestationCount = _countActiveAttestations(attesters, contextIds);
+        uint256 activeAttestationCount = _countActiveAttestations(attesters, contextIds, schemaMajors);
         resolved = new ResolvedDescriptor[](activeAttestationCount);
-        _collectResolvedDescriptors(attesters, contextIds, allowedPrefixes, resolved);
+        _collectResolvedDescriptors(attesters, contextIds, schemaMajors, allowedPrefixes, resolved);
     }
 
-    /// @dev Counts how many (attester, contextId) pairs currently have an active attestation,
-    ///      used to size the 'resolveDescriptors' result array.
+    /// @dev Counts how many (attester, contextId, schemaMajor) slots currently have an
+    ///      active attestation, used to size the 'resolveDescriptors' result array.
     function _countActiveAttestations(
         address[] calldata attesters,
-        bytes32[] calldata contextIds
+        bytes32[] calldata contextIds,
+        uint256[] calldata schemaMajors
     ) private view returns (uint256 activeAttestationCount) {
-        uint256 attesterCount = attesters.length;
-        uint256 contextIdCount = contextIds.length;
-        for (uint256 attesterIndex = 0; attesterIndex < attesterCount; attesterIndex++) {
+        for (uint256 attesterIndex = 0; attesterIndex < attesters.length; attesterIndex++) {
             address attester = attesters[attesterIndex];
-            for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
-                if (_attestationIds[attester][contextIds[contextIndex]] != bytes32(0)) {
-                    ++activeAttestationCount;
+            for (uint256 contextIndex = 0; contextIndex < contextIds.length; contextIndex++) {
+                bytes32 contextId = contextIds[contextIndex];
+                for (uint256 majorIndex = 0; majorIndex < schemaMajors.length; majorIndex++) {
+                    if (_attestationIds[attester][contextId][schemaMajors[majorIndex]] != bytes32(0)) {
+                        ++activeAttestationCount;
+                    }
                 }
             }
         }
     }
 
-    /// @dev Fills 'resolved' with one entry per active (attester, contextId) attestation.
+    /// @dev Fills 'resolved' with one entry per active (attester, contextId, schemaMajor) slot.
     function _collectResolvedDescriptors(
         address[]            calldata attesters,
         bytes32[]            calldata contextIds,
+        uint256[]            calldata schemaMajors,
         string[]              calldata allowedPrefixes,
         ResolvedDescriptor[]   memory  resolved
     ) private view {
-        uint256 attesterCount = attesters.length;
-        uint256 contextIdCount = contextIds.length;
         uint256 resolvedIndex;
-        for (uint256 attesterIndex = 0; attesterIndex < attesterCount; attesterIndex++) {
+        for (uint256 attesterIndex = 0; attesterIndex < attesters.length; attesterIndex++) {
             address attester = attesters[attesterIndex];
-            for (uint256 contextIndex = 0; contextIndex < contextIdCount; contextIndex++) {
+            for (uint256 contextIndex = 0; contextIndex < contextIds.length; contextIndex++) {
                 bytes32 contextId = contextIds[contextIndex];
-                bytes32 attestationId = _attestationIds[attester][contextId];
-                if (attestationId != bytes32(0)) {
-                    resolved[resolvedIndex++] = _resolveActiveAttestation(attester, contextId, attestationId, allowedPrefixes);
+                for (uint256 majorIndex = 0; majorIndex < schemaMajors.length; majorIndex++) {
+                    uint256 schemaMajor   = schemaMajors[majorIndex];
+                    bytes32 attestationId = _attestationIds[attester][contextId][schemaMajor];
+                    if (attestationId != bytes32(0)) {
+                        resolved[resolvedIndex++] =
+                            _resolveActiveAttestation(attester, contextId, schemaMajor, attestationId, allowedPrefixes);
+                    }
                 }
             }
         }
@@ -268,6 +288,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     function _resolveActiveAttestation(
         address            attester,
         bytes32            contextId,
+        uint256            schemaMajor,
         bytes32            attestationId,
         string[]  calldata allowedPrefixes
     ) private view returns (ResolvedDescriptor memory) {
@@ -279,6 +300,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             attester:                  attester,
             contextId:                 contextId,
             descriptorHash:            details.descriptorHash,
+            schemaMajor:               schemaMajor,
             attestationId:             attestationId,
             revokedAt:                 _revokedAt[attester][attestationId],
             attestationMirrorListUris: _mirrorLists[attestationMirrorListId].filter(allowedPrefixes),
@@ -409,6 +431,9 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         if (descriptor.format == bytes32(0)) {
             revert ZeroAttestationFormat();
         }
+        if (descriptor.schemaMajor == 0) {
+            revert ZeroSchemaMajor();
+        }
         if (descriptor.contextIds.length == 0) {
             revert EmptyContextIds();
         }
@@ -427,6 +452,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         // Store the attestation metadata exactly once per attestation ID, not per contextId.
         _attestationDetails[attester][descriptor.attestationId] = AttestationDetails({
             descriptorHash:          descriptor.descriptorHash,
+            schemaMajor:             descriptor.schemaMajor,
             format:                  descriptor.format
         });
 

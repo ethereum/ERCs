@@ -36,6 +36,7 @@ library RegistrationHashLib {
             abi.encode(
                 ClearSigningRegistryConstants.DESCRIPTOR_TYPEHASH,
                 descriptor.descriptorHash,
+                descriptor.schemaMajor,
                 keccak256(abi.encodePacked(descriptor.contextIds)),
                 descriptor.descriptorMirrorListURIs.resolvedId(),
                 descriptor.attestationId,
