@@ -19,8 +19,22 @@ interface IClearSigningRegistry {
         string[] uris;
     }
 
+    /// @notice A reference to an additional, vendor-format attestation registered
+    ///         alongside a descriptor's primary attestation. At most one per format
+    ///         tag per primary attestation.
+    struct AttestationRef {
+        /// The attester-chosen opaque identifier of the additional attestation.
+        bytes32 attestationId;
+        /// A bytes32 equal to keccak256("erc7730.attestation.<format>"), namespacing the
+        /// shape of the artifact retrieved via the attestation MirrorList. MUST be
+        /// non-zero and MUST NOT be 'ATTESTATION_FORMAT_EAS_OFFCHAIN', which is reserved
+        /// for the primary attestation. Opaque to the registry, which performs no
+        /// validation of the artifact against it.
+        bytes32 format;
+    }
+
     /// @notice A descriptor's identity, context IDs, MirrorList pointer, and the
-    ///         attestation backing it, submitted together when registering a descriptor.
+    ///         attestations backing it, submitted together when registering a descriptor.
     struct DescriptorInfo {
         /// The ERC-8176 descriptorHash of the descriptor file.
         bytes32 descriptorHash;
@@ -34,14 +48,13 @@ interface IClearSigningRegistry {
         bytes32[] contextIds;
         /// The descriptor's MirrorList — see 'MirrorListRef'.
         MirrorListRef descriptorMirrorListURIs;
-        /// The pre-computed attestation identifier. For 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
-        /// this is a standard EAS off-chain attestation UID; for other formats it is an
-        /// attester-chosen opaque identifier.
+        /// The UID of the descriptor's primary attestation: a standard ERC-8176 EAS
+        /// off-chain attestation, REQUIRED for every registered descriptor as the
+        /// compatibility baseline every wallet can verify.
         bytes32 attestationId;
-        /// A bytes32 equal to keccak256("erc7730.attestation.<format>"), namespacing the
-        /// shape of the artifact retrieved via the attestation MirrorList. MUST be non-zero.
-        /// Opaque to the registry, which performs no validation of the artifact against it.
-        bytes32 format;
+        /// Additional vendor-format attestations for the same descriptor — see
+        /// 'AttestationRef'. MAY be empty.
+        AttestationRef[] additionalAttestations;
     }
 
     /// @notice One attestation ID being revoked, together with the context IDs to clear
@@ -74,9 +87,6 @@ interface IClearSigningRegistry {
         uint64 revokedAt;
         /// The MirrorList URIs for retrieving the attestation blob.
         string[] attestationMirrorListUris;
-        /// The attester-declared attestation format tag. Opaque to the registry;
-        /// wallets select their verification procedure by this value.
-        bytes32 format;
         /// The MirrorList contents.
         string[] descriptorMirrorListUris;
     }
@@ -112,21 +122,27 @@ interface IClearSigningRegistry {
         uint64          timestamp
     );
 
-    /// @notice Emitted exactly once per attestation ID, when its write-once metadata
-    ///         is stored during registration. Together with the other events, this makes
-    ///         the registry's complete wallet-facing state reconstructible from logs
-    ///         alone (see "Events and state reconstruction" in the ERC).
+    /// @notice Emitted exactly once per attestation ID — primary or additional — when
+    ///         its write-once metadata is stored during registration. Together with the
+    ///         other events, this makes the registry's complete wallet-facing state
+    ///         reconstructible from logs alone (see "Events and state reconstruction"
+    ///         in the ERC).
     /// @param attester        The attester the attestation is registered under.
     /// @param attestationId   The registered attestation ID.
     /// @param descriptorHash  The attested descriptor hash.
     /// @param schemaMajor     The declared schema MAJOR lane.
-    /// @param format          The declared attestation format tag.
+    /// @param format          The attestation format tag: 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
+    ///                        for a primary attestation, the declared vendor tag otherwise.
+    /// @param primaryAttestationId  The primary attestation this additional attestation is
+    ///                        registered under, or bytes32(0) when the registered
+    ///                        attestation is itself the primary.
     event AttestationRegistered(
         address indexed attester,
         bytes32 indexed attestationId,
         bytes32 indexed descriptorHash,
         uint256         schemaMajor,
-        bytes32         format
+        bytes32         format,
+        bytes32         primaryAttestationId
     );
 
     /// @notice Emitted the first time a MirrorList is stored on-chain, carrying its
@@ -181,6 +197,11 @@ interface IClearSigningRegistry {
     /// @notice Thrown when bytes32(0) is passed where an off-chain attestation format tag is required.
     error ZeroAttestationFormat();
 
+    /// @notice Thrown when an additional attestation declares 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
+    ///         (reserved for the primary attestation), or a format tag already registered
+    ///         for the same primary attestation.
+    error DuplicateAttestationFormat(bytes32 format);
+
     /// @notice Thrown when a descriptor declares a zero schema MAJOR version.
     error ZeroSchemaMajor();
 
@@ -232,17 +253,19 @@ interface IClearSigningRegistry {
 
     /// @notice Register a batch of descriptors backed by attestations.
     ///
-    ///         The attester produces the signed attestation artifact locally — typically
-    ///         a standard EAS off-chain attestation, but any format the attester declares
-    ///         via 'DescriptorInfo.format' — and stores it off-chain. The registry
-    ///         records each pre-computed attestation ID together with a single attestation
-    ///         MirrorList shared by the whole batch.
+    ///         The attester produces the signed attestation artifacts locally and stores
+    ///         them off-chain: a standard ERC-8176 EAS off-chain attestation per descriptor
+    ///         (the REQUIRED primary attestation — the compatibility baseline every wallet
+    ///         can verify), optionally accompanied by vendor-format additional attestations
+    ///         ('DescriptorInfo.additionalAttestations'). The registry records each
+    ///         pre-computed attestation ID together with a single attestation MirrorList
+    ///         shared by the whole batch.
     ///
-    ///         The registry does not validate the attestation's signature or
-    ///         content, regardless of its declared format. Wallets MUST fetch the
-    ///         attestation blob via the attestation MirrorList and verify it per the
-    ///         procedure appropriate to its declared 'format' (attestation ID recomputation,
-    ///         schema and signature checks per ERC-8176 for 'ATTESTATION_FORMAT_EAS_OFFCHAIN').
+    ///         The registry does not validate any attestation's signature or content.
+    ///         Wallets MUST fetch the attestation blob via the attestation MirrorList and
+    ///         verify it — per ERC-8176 (attestation UID recomputation, schema and
+    ///         signature checks) for the primary attestation, or per the vendor's own
+    ///         procedure for an additional attestation's declared 'format'.
     ///
     ///         Both a descriptor's own MirrorList ('DescriptorInfo.descriptorMirrorListURIs')
     ///         and the batch's shared attestation MirrorList ('attestationMirrorListURIs') are
@@ -255,15 +278,16 @@ interface IClearSigningRegistry {
     ///         The list is published as part of this call and its content hash becomes the effective id.
     ///
     /// @param attester       The attester registering the descriptors.
-    /// @param descriptors    The descriptors to register, each carrying its own attestation
-    ///                       reference (`attestationId`/`format`) — a non-zero `format` is
-    ///                       required, reverting with `ZeroAttestationFormat` otherwise.
-    ///                       Attestation IDs are single-use: an ID ever registered or revoked
-    ///                       before reverts with 'AttestationIdAlreadyUsed'. Active attestations
-    ///                       are slotted per (contextId, schemaMajor): descriptors of different
-    ///                       schema MAJORs never displace each other, and a (contextId,
-    ///                       schemaMajor) slot may be claimed at most once per batch — a
-    ///                       duplicate reverts with 'MissingRevocation'.
+    /// @param descriptors    The descriptors to register, each carrying its REQUIRED primary
+    ///                       attestation UID ('attestationId') and any additional
+    ///                       vendor-format attestations. Attestation IDs — primary and
+    ///                       additional alike — are single-use: an ID ever registered or
+    ///                       revoked before reverts with 'AttestationIdAlreadyUsed'. Active
+    ///                       attestations are slotted per (contextId, schemaMajor):
+    ///                       descriptors of different schema MAJORs never displace each
+    ///                       other, and a (contextId, schemaMajor) slot may be claimed at
+    ///                       most once per batch — a duplicate reverts with
+    ///                       'MissingRevocation'.
     /// @param revocations    Displaced attestations this call revokes and clears. MAY
     ///                       be empty when no active attestation is replaced. When a displaced
     ///                       active attestation exists for any of the supplied slots, it
@@ -319,6 +343,33 @@ interface IClearSigningRegistry {
         bytes             calldata signature
     ) external;
 
+    /// @notice The additional attestation of the given format registered under a primary
+    ///         attestation, with its revocation timestamp and attestation MirrorList.
+    ///         A vendor resolves a descriptor's primary attestation first (see
+    ///         'resolveDescriptors'), then looks up its own format tag here. Returns
+    ///         zero values if no attestation of that format is registered.
+    ///
+    ///         An additional attestation MUST be treated as revoked when its primary
+    ///         attestation is revoked, regardless of its own 'revokedAt'.
+    /// @param attester              The attester the attestations are registered under.
+    /// @param primaryAttestationId  The primary attestation to look under.
+    /// @param format                The queried attestation format tag.
+    /// @param allowedPrefixes       Raw string prefixes filtering the returned URIs;
+    ///                              empty = unfiltered (see 'resolveDescriptors').
+    /// @return attestationId  The additional attestation's ID, or bytes32(0) if none.
+    /// @return revokedAt      The additional attestation's own revocation timestamp.
+    /// @return attestationMirrorListUris  The MirrorList URIs for retrieving its blob.
+    function getAdditionalAttestation(
+        address           attester,
+        bytes32           primaryAttestationId,
+        bytes32           format,
+        string[] calldata allowedPrefixes
+    ) external view returns (
+        bytes32  attestationId,
+        uint64   revokedAt,
+        string[] memory attestationMirrorListUris
+    );
+
     /// @notice The timestamp at which 'attester' revoked 'attestationId', via
     ///         'revokeAttestation', a 'revokeAttestations' batch, or a registration
     ///         batch that displaced it — or 0 if never revoked.
@@ -329,9 +380,11 @@ interface IClearSigningRegistry {
 
     /// @notice Resolve all active attestations filtered by a list of attesters, a list
     ///         of potential context IDs and a list of schema MAJOR lanes in a single call.
-    ///         Returns the descriptor hash, the backing attestation with its revocation
-    ///         timestamp ('revokedAt', 0 if never revoked), and the attester's MirrorLists
-    ///         for the descriptor and the attestation blob.
+    ///         Returns the descriptor hash, the backing primary attestation (always an
+    ///         ERC-8176 EAS off-chain attestation) with its revocation timestamp
+    ///         ('revokedAt', 0 if never revoked), and the attester's MirrorLists for the
+    ///         descriptor and the attestation blob. Additional vendor-format attestations
+    ///         are looked up separately via 'getAdditionalAttestation'.
     ///
     /// @param attesters   Queried attester addresses.
     /// @param contextIds  Candidate context IDs to look up.

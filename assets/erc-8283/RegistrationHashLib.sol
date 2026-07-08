@@ -40,9 +40,27 @@ library RegistrationHashLib {
                 keccak256(abi.encodePacked(descriptor.contextIds)),
                 descriptor.descriptorMirrorListURIs.resolvedId(),
                 descriptor.attestationId,
-                descriptor.format
+                hashAttestationRefs(descriptor.additionalAttestations)
             )
         );
+    }
+
+    /// @dev EIP-712 array-hash of 'additionalAttestations': one 'ATTESTATION_REF_TYPEHASH'
+    ///      hash per entry, aggregated via 'keccak256(abi.encodePacked(...))'.
+    function hashAttestationRefs(IClearSigningRegistry.AttestationRef[] calldata refs)
+        internal pure returns (bytes32)
+    {
+        bytes32[] memory refHashes = new bytes32[](refs.length);
+        for (uint256 refIndex = 0; refIndex < refs.length; refIndex++) {
+            refHashes[refIndex] = keccak256(
+                abi.encode(
+                    ClearSigningRegistryConstants.ATTESTATION_REF_TYPEHASH,
+                    refs[refIndex].attestationId,
+                    refs[refIndex].format
+                )
+            );
+        }
+        return keccak256(abi.encodePacked(refHashes));
     }
 
     /// @dev EIP-712 array-hash of 'revocations': one 'REVOCATION_ENTRY_TYPEHASH' hash per

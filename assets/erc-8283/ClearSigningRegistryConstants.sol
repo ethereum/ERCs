@@ -4,9 +4,10 @@ pragma solidity ^0.8.24;
 /// @title  ClearSigningRegistryConstants — Namespacing tags and EIP-712 typehashes
 /// @notice Pure constant values with no state or logic, kept in their own file so
 ///         ClearSigningRegistry.sol stays focused on registry behavior. The context
-///         and format tags are reference values for off-chain use (wallets derive
-///         context IDs and declare format tags locally per the formulas here) — the
-///         registry itself never reads them, so they are not re-exposed as getters.
+///         tags are reference values for off-chain use (wallets derive context IDs
+///         locally per the formulas here) and are never read by the registry.
+///         'ATTESTATION_FORMAT_EAS_OFFCHAIN' is read by the registry: it labels every
+///         primary attestation and is rejected as an additional attestation's format.
 library ClearSigningRegistryConstants {
     bytes32 internal constant CONTEXT_TAG_CONTRACT   = keccak256("erc7730.context.contract");
 
@@ -18,8 +19,13 @@ library ClearSigningRegistryConstants {
 
     bytes32 internal constant ATTESTATION_FORMAT_EAS_OFFCHAIN = keccak256("erc7730.attestation.eas.offchain");
 
+    bytes32 internal constant ATTESTATION_REF_TYPEHASH = keccak256(
+        "AttestationRef(bytes32 attestationId,bytes32 format)"
+    );
+
     bytes32 internal constant DESCRIPTOR_TYPEHASH = keccak256(
-        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextIds,bytes32 descriptorMirrorListId,bytes32 attestationId,bytes32 format)"
+        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextIds,bytes32 descriptorMirrorListId,bytes32 attestationId,AttestationRef[] additionalAttestations)"
+        "AttestationRef(bytes32 attestationId,bytes32 format)"
     );
 
     bytes32 internal constant REVOCATION_ENTRY_TYPEHASH = keccak256(
@@ -28,7 +34,8 @@ library ClearSigningRegistryConstants {
 
     bytes32 internal constant REGISTRATION_BATCH_TYPEHASH = keccak256(
         "ClearSigningRegistrationBatch(DescriptorInfo[] descriptors,bytes32 attestationMirrorListId,RevocationEntry[] revocations,uint256 nonce)"
-        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextIds,bytes32 descriptorMirrorListId,bytes32 attestationId,bytes32 format)"
+        "AttestationRef(bytes32 attestationId,bytes32 format)"
+        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextIds,bytes32 descriptorMirrorListId,bytes32 attestationId,AttestationRef[] additionalAttestations)"
         "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
     );
 

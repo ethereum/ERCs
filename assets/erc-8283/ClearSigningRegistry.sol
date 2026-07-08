@@ -48,6 +48,11 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     // Per-attester pointer to the MirrorList this attester designates for the given attestation ID.
     mapping(address attester => mapping(bytes32 attestationId => bytes32)) private _attestationMirrorListIds;
 
+    // Additional vendor-format attestations, keyed by the primary attestation they were
+    // registered with. At most one additional attestation per format tag per primary.
+    mapping(address attester => mapping(bytes32 primaryAttestationId => mapping(bytes32 format => bytes32)))
+        private _additionalAttestations;
+
     // EIP-712 nonce shared by all relayed calls: registration batches, revocation
     // batches, MirrorList updates and profile updates. Consumable without effect
     // via 'invalidateNonce'.
@@ -210,6 +215,23 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     }
 
     /// @inheritdoc IClearSigningRegistry
+    function getAdditionalAttestation(
+        address           attester,
+        bytes32           primaryAttestationId,
+        bytes32           format,
+        string[] calldata allowedPrefixes
+    ) external view returns (
+        bytes32  attestationId,
+        uint64   revokedAt,
+        string[] memory attestationMirrorListUris
+    ) {
+        attestationId             = _additionalAttestations[attester][primaryAttestationId][format];
+        revokedAt                 = _revokedAt[attester][attestationId];
+        attestationMirrorListUris =
+            _mirrorLists[_attestationMirrorListIds[attester][attestationId]].filter(allowedPrefixes);
+    }
+
+    /// @inheritdoc IClearSigningRegistry
     function getRevocationTimestamp(address attester, bytes32 attestationId) external view returns (uint64) {
         return _revokedAt[attester][attestationId];
     }
@@ -333,7 +355,6 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             attestationId:             attestationId,
             revokedAt:                 _revokedAt[attester][attestationId],
             attestationMirrorListUris: _mirrorLists[attestationMirrorListId].filter(allowedPrefixes),
-            format:                    details.format,
             descriptorMirrorListUris:  _mirrorLists[descriptorMirrorListId].filter(allowedPrefixes)
         });
     }
@@ -457,9 +478,6 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         if (descriptor.attestationId == bytes32(0)) {
             revert ZeroAttestationId();
         }
-        if (descriptor.format == bytes32(0)) {
-            revert ZeroAttestationFormat();
-        }
         if (descriptor.schemaMajor == 0) {
             revert ZeroSchemaMajor();
         }
@@ -467,30 +485,84 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             revert EmptyContextIds();
         }
 
-        // Attestation IDs are single-use: an ID that was ever registered — or ever
-        // revoked, even without a registration — under this attester is consumed forever.
-        // This keeps the attestation metadata and the revocation timestamp write-once.
-        if (_attestationDetails[attester][descriptor.attestationId].descriptorHash != bytes32(0)
-            || _revokedAt[attester][descriptor.attestationId] != 0) {
-            revert AttestationIdAlreadyUsed(descriptor.attestationId);
-        }
-
         bytes32 descriptorMirrorListId = descriptor.descriptorMirrorListURIs.resolve(_mirrorLists);
         _setDescriptorMirrorList(attester, descriptor.descriptorHash, descriptorMirrorListId);
 
-        // Store the attestation metadata exactly once per attestation ID, not per contextId.
-        _attestationDetails[attester][descriptor.attestationId] = AttestationDetails({
-            descriptorHash:          descriptor.descriptorHash,
-            schemaMajor:             descriptor.schemaMajor,
-            format:                  descriptor.format
-        });
-        emit AttestationRegistered(
-            attester, descriptor.attestationId, descriptor.descriptorHash, descriptor.schemaMajor, descriptor.format
+        // The primary attestation: a standard ERC-8176 EAS off-chain attestation,
+        // required for every descriptor as the baseline every wallet can verify.
+        _storeAttestation(
+            attester,
+            descriptor.attestationId,
+            descriptor,
+            ClearSigningRegistryConstants.ATTESTATION_FORMAT_EAS_OFFCHAIN,
+            bytes32(0),
+            attestationMirrorListId
         );
 
-        _setAttestationMirrorList(attester, descriptor.attestationId, attestationMirrorListId);
+        _processAdditionalAttestations(attester, descriptor, attestationMirrorListId);
 
         _updateActiveAttestation(attester, descriptor, descriptor.attestationId);
+    }
+
+    /// @dev Registers a descriptor's additional vendor-format attestations under its
+    ///      primary attestation, at most one per format tag.
+    function _processAdditionalAttestations(
+        address                 attester,
+        DescriptorInfo calldata descriptor,
+        bytes32                 attestationMirrorListId
+    ) private {
+        AttestationRef[] calldata refs = descriptor.additionalAttestations;
+        for (uint256 refIndex = 0; refIndex < refs.length; refIndex++) {
+            AttestationRef calldata ref = refs[refIndex];
+            if (ref.attestationId == bytes32(0)) {
+                revert ZeroAttestationId();
+            }
+            if (ref.format == bytes32(0)) {
+                revert ZeroAttestationFormat();
+            }
+            // 'ATTESTATION_FORMAT_EAS_OFFCHAIN' is definitionally the primary attestation's
+            // format, so declaring it here is a duplicate — as is any format already
+            // registered under this primary, including by an earlier entry of this array.
+            if (ref.format == ClearSigningRegistryConstants.ATTESTATION_FORMAT_EAS_OFFCHAIN
+                || _additionalAttestations[attester][descriptor.attestationId][ref.format] != bytes32(0)) {
+                revert DuplicateAttestationFormat(ref.format);
+            }
+
+            _additionalAttestations[attester][descriptor.attestationId][ref.format] = ref.attestationId;
+            _storeAttestation(
+                attester, ref.attestationId, descriptor, ref.format, descriptor.attestationId, attestationMirrorListId
+            );
+        }
+    }
+
+    /// @dev Stores one attestation's write-once metadata — shared by the primary and the
+    ///      additional attestations of a descriptor — after checking its ID has never
+    ///      been used. Attestation IDs are single-use: an ID that was ever registered, or
+    ///      ever revoked even without a registration, under this attester is consumed
+    ///      forever. This keeps the metadata and the revocation timestamp write-once.
+    function _storeAttestation(
+        address                 attester,
+        bytes32                 attestationId,
+        DescriptorInfo calldata descriptor,
+        bytes32                 format,
+        bytes32                 primaryAttestationId,
+        bytes32                 attestationMirrorListId
+    ) private {
+        if (_attestationDetails[attester][attestationId].descriptorHash != bytes32(0)
+            || _revokedAt[attester][attestationId] != 0) {
+            revert AttestationIdAlreadyUsed(attestationId);
+        }
+
+        _attestationDetails[attester][attestationId] = AttestationDetails({
+            descriptorHash:          descriptor.descriptorHash,
+            schemaMajor:             descriptor.schemaMajor,
+            format:                  format
+        });
+        emit AttestationRegistered(
+            attester, attestationId, descriptor.descriptorHash, descriptor.schemaMajor, format, primaryAttestationId
+        );
+
+        _setAttestationMirrorList(attester, attestationId, attestationMirrorListId);
     }
 
     /// @dev Verifies the attester's EIP-712 signature over a registration batch.
