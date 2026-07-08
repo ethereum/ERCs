@@ -162,6 +162,13 @@ interface IClearSigningRegistry {
         bytes32 indexed attestationMirrorListId
     );
 
+    /// @notice Emitted when an attester's profile document URI changes. An empty
+    ///         'profileURI' means the profile was cleared. Setting an identical
+    ///         value emits nothing.
+    /// @param attester    The attester whose profile changed.
+    /// @param profileURI  The new profile document URI.
+    event AttesterProfileUpdated(address indexed attester, string profileURI);
+
     /// @notice Thrown when descriptors is empty.
     error EmptyDescriptors();
 
@@ -398,4 +405,33 @@ interface IClearSigningRegistry {
         MirrorListRef calldata attestationMirrorListRef,
         bytes calldata signature
     ) external;
+
+    /// @notice Set the attester's profile document URI — a self-declared "business
+    ///         card" pointing at a version-1 JSON profile document. REQUIRED members:
+    ///         'version', 'attesters' (addresses the document covers — consumers MUST
+    ///         verify the attester appears there before attributing the profile to it)
+    ///         and 'name'; RECOMMENDED: 'url', 'registryRepository', 'securityContact',
+    ///         'keyRotationPolicy'. See 'setAttesterProfileURI' in the ERC.
+    ///
+    ///         The profile is display-only metadata and MUST NOT be used as trust
+    ///         input: wallets select attesters by address, and consumers SHOULD
+    ///         render profile data only for attesters they already trust or after
+    ///         the bidirectional domain binding check described in the ERC.
+    ///
+    ///         An empty 'profileURI' clears the profile. Setting a value identical
+    ///         to the current one changes nothing and emits nothing.
+    /// @param attester    The attester whose profile is being set.
+    /// @param profileURI  The new profile document URI (empty to clear).
+    /// @param signature   EIP-712 signature by the attester authorizing this update
+    ///                    (ignored when 'msg.sender == attester').
+    function setAttesterProfileURI(
+        address         attester,
+        string calldata profileURI,
+        bytes  calldata signature
+    ) external;
+
+    /// @notice The attester's current profile document URI, or an empty string if unset.
+    /// @param attester  The queried attester address.
+    /// @return profileURI  The profile document URI.
+    function getAttesterProfileURI(address attester) external view returns (string memory profileURI);
 }

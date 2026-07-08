@@ -49,8 +49,13 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     mapping(address attester => mapping(bytes32 attestationId => bytes32)) private _attestationMirrorListIds;
 
     // EIP-712 nonce shared by all relayed calls: registration batches, revocation
-    // batches and MirrorList updates. Consumable without effect via 'invalidateNonce'.
+    // batches, MirrorList updates and profile updates. Consumable without effect
+    // via 'invalidateNonce'.
     mapping(address attester => uint256) private _nonces;
+
+    // Self-declared profile document URI per attester ("business card").
+    // Display-only metadata, never trust input; empty when unset.
+    mapping(address attester => string) private _attesterProfileURIs;
 
     /// @inheritdoc IClearSigningRegistry
     function createAttestations(
@@ -178,6 +183,30 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         uint256 newNonce = _nonces[msg.sender] + 1;
         _nonces[msg.sender] = newNonce;
         emit NonceInvalidated(msg.sender, newNonce);
+    }
+
+    /// @inheritdoc IClearSigningRegistry
+    function setAttesterProfileURI(
+        address         attester,
+        string calldata profileURI,
+        bytes  calldata signature
+    ) external {
+        if (msg.sender != attester) {
+            uint256 nonce = _nonces[attester];
+            _nonces[attester] = nonce + 1;
+            _verifyProfileUpdateSignature(attester, profileURI, nonce, signature);
+        }
+
+        if (keccak256(bytes(_attesterProfileURIs[attester])) == keccak256(bytes(profileURI))) {
+            return;
+        }
+        _attesterProfileURIs[attester] = profileURI;
+        emit AttesterProfileUpdated(attester, profileURI);
+    }
+
+    /// @inheritdoc IClearSigningRegistry
+    function getAttesterProfileURI(address attester) external view returns (string memory) {
+        return _attesterProfileURIs[attester];
     }
 
     /// @inheritdoc IClearSigningRegistry
@@ -499,6 +528,23 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             abi.encode(
                 ClearSigningRegistryConstants.REVOCATION_BATCH_TYPEHASH,
                 RegistrationHashLib.hashRevocationEntries(revocations),
+                nonce
+            )
+        );
+        _verifySignature(attester, structHash, signature);
+    }
+
+    /// @dev Verifies the attester's EIP-712 signature over a profile URI update.
+    function _verifyProfileUpdateSignature(
+        address         attester,
+        string calldata profileURI,
+        uint256         nonce,
+        bytes  calldata signature
+    ) private view {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                ClearSigningRegistryConstants.ATTESTER_PROFILE_UPDATE_TYPEHASH,
+                keccak256(bytes(profileURI)),
                 nonce
             )
         );

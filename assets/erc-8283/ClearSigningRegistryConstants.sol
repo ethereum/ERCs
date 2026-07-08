@@ -44,4 +44,8 @@ library ClearSigningRegistryConstants {
     bytes32 internal constant ATTESTATION_MIRROR_UPDATE_TYPEHASH = keccak256(
         "AttestationMirrorListUpdate(bytes32[] attestationIds,bytes32 attestationMirrorListId,uint256 nonce)"
     );
+
+    bytes32 internal constant ATTESTER_PROFILE_UPDATE_TYPEHASH = keccak256(
+        "AttesterProfileUpdate(string profileURI,uint256 nonce)"
+    );
 }
