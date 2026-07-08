@@ -54,6 +54,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         string calldata metadataURI
     ) external virtual override returns (uint256 tokenId) {
         require(recipients.length > 0, "ERC5516: Empty recipients list");
+        require(bytes(metadataURI).length > 0, "ERC5516: Empty metadataURI");
 
         address minter = _msgSender();
 
