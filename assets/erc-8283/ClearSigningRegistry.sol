@@ -33,10 +33,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     mapping(address attester => mapping(bytes32 attestationId => AttestationDetails)) private _attestationDetails;
 
     // The timestamp at which 'attester' revoked 'attestationId', or 0 if never revoked.
-    // Written by 'revokeAttestation' directly (msg.sender == attester), by a signed
-    // 'revokeAttestations' batch, or by this registry itself when a registration batch
-    // displaces an attestation on the attester's behalf — in the relayed cases only
-    // after verifying that batch's own authorization chain.
+    // Written by a 'revokeAttestations' batch (submitted directly or relayed with a
+    // signature), or by this registry itself when a registration batch displaces an
+    // attestation on the attester's behalf — in the relayed cases only after verifying
+    // that batch's own authorization chain.
     mapping(address attester => mapping(bytes32 attestationId => uint64)) private _revokedAt;
 
     // Global store of MirrorLists, written once per unique URI set.
@@ -162,11 +162,6 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     }
 
     /// @inheritdoc IClearSigningRegistry
-    function revokeAttestation(bytes32 attestationId, bytes32[] calldata contextIds) external {
-        _revokeAndClear(msg.sender, attestationId, contextIds);
-    }
-
-    /// @inheritdoc IClearSigningRegistry
     function revokeAttestations(
         address           attester,
         RevocationEntry[] calldata revocations,
@@ -251,10 +246,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
 
     /// @dev Records 'attestationId' as revoked under 'attester' and clears 'contextIds'
     ///      immediately wherever they still point to it. A context ID whose active attestation
-    ///      has since moved to a different attestation ID is silently skipped. Shared by
-    ///      the direct self-service path ('revokeAttestation') and the batch path
-    ///      ('_processRevocations', reached from both 'createAttestations' and
-    ///      'revokeAttestations').
+    ///      has since moved to a different attestation ID is silently skipped. Reached via
+    ///      '_processRevocations' from both 'createAttestations' and 'revokeAttestations'.
     function _revokeAndClear(address attester, bytes32 attestationId, bytes32[] calldata contextIds) private {
         if (attestationId == bytes32(0)) {
             revert ZeroAttestationId();

@@ -111,7 +111,7 @@ interface IClearSigningRegistry {
     );
 
     /// @notice Emitted whenever a revocation timestamp is recorded for an attestation ID,
-    ///         whether via 'revokeAttestation' directly or via a registration batch that
+    ///         whether via a 'revokeAttestations' batch or via a registration batch that
     ///         displaced it.
     /// @param attester       The attester the attestation ID is revoked under.
     /// @param attestationId  The revoked attestation ID.
@@ -314,24 +314,16 @@ interface IClearSigningRegistry {
     function publishMirrorLists(string[][] calldata uriLists)
         external returns (bytes32[] memory mirrorListIds);
 
-    /// @notice Revokes 'attestationId' under the caller's address, and clears 'contextIds'
-    ///         immediately wherever they still point to it within the attestation's own
-    ///         schema MAJOR lane — combining revocation and cleanup into a single
-    ///         transaction. A context ID whose active attestation has since moved to a
-    ///         different attestation ID is silently skipped rather than reverting the
-    ///         whole call. Self-service and independent of any registration batch; see
-    ///         'revokeAttestations' for the batch and relayed form.
-    /// @param attestationId  The attestation ID to revoke.
-    /// @param contextIds     The context IDs to clear if they still point to 'attestationId'.
-    ///                       MAY be empty for a revoke-only call that skips clearing.
-    function revokeAttestation(bytes32 attestationId, bytes32[] calldata contextIds) external;
-
-    /// @notice The batch and relayed counterpart of 'revokeAttestation': revokes every
-    ///         entry's attestation ID under 'attester' and clears its listed context IDs.
-    ///         Unless 'msg.sender == attester', 'signature' MUST be a valid EIP-712
-    ///         signature by the attester over the batch and the attester's current nonce.
-    ///         Emergency revocation therefore never requires the attester to hold ETH or
-    ///         to attach a descriptor registration.
+    /// @notice Revokes every entry's attestation ID under 'attester' and clears its
+    ///         listed context IDs immediately wherever they still point to it within the
+    ///         attestation's own schema MAJOR lane — combining revocation and cleanup
+    ///         into a single transaction. A context ID whose active attestation has
+    ///         since moved to a different attestation ID is silently skipped rather
+    ///         than reverting the whole call. Self-service and independent of any
+    ///         registration batch. Unless 'msg.sender == attester', 'signature' MUST be
+    ///         a valid EIP-712 signature by the attester over the batch and the
+    ///         attester's current nonce. Emergency revocation therefore never requires
+    ///         the attester to hold ETH or to attach a descriptor registration.
     /// @param attester     The attester whose attestations are being revoked.
     /// @param revocations  The attestations to revoke, each with the context IDs to clear.
     ///                     MUST be non-empty. An entry's 'contextIds' MAY be empty.
@@ -370,9 +362,9 @@ interface IClearSigningRegistry {
         string[] memory attestationMirrorListUris
     );
 
-    /// @notice The timestamp at which 'attester' revoked 'attestationId', via
-    ///         'revokeAttestation', a 'revokeAttestations' batch, or a registration
-    ///         batch that displaced it — or 0 if never revoked.
+    /// @notice The timestamp at which 'attester' revoked 'attestationId', via a
+    ///         'revokeAttestations' batch or a registration batch that displaced it —
+    ///         or 0 if never revoked.
     /// @param attester       The attester the attestation ID is revoked under.
     /// @param attestationId  The queried attestation ID.
     /// @return timestamp  The revocation timestamp, or 0 if not revoked.
