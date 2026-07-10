@@ -49,21 +49,25 @@ contract OffChainEntityRegistry is IOffChainEntityRegistry {
     function claim(
         string calldata namespace,
         string calldata canonicalString,
+        address owner,
         bytes calldata proof
     ) external {
         bytes32 id = toId(namespace, canonicalString);
+        require(owner != address(0), "zero owner");
         require(ownerOf(id) == address(0), "already claimed");
 
         address verifier = verifiers[keccak256(bytes(namespace))];
         require(verifier != address(0), "no verifier");
-        require(IVerifier(verifier).verify(id, msg.sender, proof), "invalid proof");
+        require(IVerifier(verifier).verify(id, owner, proof), "invalid proof");
 
-        if (aliases[id] != bytes32(0)) {
+        bytes32 stalePrimary = aliases[id];
+        if (stalePrimary != bytes32(0)) {
             delete aliases[id];
+            emit Unlinked(id, stalePrimary);
         }
 
-        owners[id] = msg.sender;
-        emit Claimed(id, namespace, canonicalString, msg.sender, verifier);
+        owners[id] = owner;
+        emit Claimed(id, namespace, canonicalString, owner, verifier);
     }
 
     function revoke(

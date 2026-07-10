@@ -15,7 +15,7 @@ interface IOffChainEntityRegistry {
     function ownerOf(bytes32 id) external view returns (address);
     function verifierOf(string calldata namespace) external view returns (address);
 
-    function claim(string calldata namespace, string calldata canonicalString, bytes calldata proof) external;
+    function claim(string calldata namespace, string calldata canonicalString, address owner, bytes calldata proof) external;
     function revoke(string calldata namespace, string calldata canonicalString) external;
 
     function linkIds(bytes32 primaryId, bytes32[] calldata aliasIds) external;

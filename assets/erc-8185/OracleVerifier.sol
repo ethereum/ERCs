@@ -5,8 +5,10 @@ import {IVerifier} from "./IVerifier.sol";
 
 /// @title OracleVerifier — Reference Implementation
 /// @notice Example verifier using EIP-712 typed data signatures.
-///         A trusted backend signs (id, claimant, expiry) after confirming
-///         off-chain ownership (e.g. GitHub OAuth, DNS TXT record).
+///         A trusted backend signs (id, owner, expiry) after confirming
+///         off-chain ownership (e.g. GitHub OAuth, DNS TXT record). The
+///         signature binds the owner address being registered, so the claim
+///         transaction may be submitted (and its gas paid) by anyone.
 contract OracleVerifier is IVerifier {
     address public admin;
     address public trustedSigner;
@@ -17,7 +19,7 @@ contract OracleVerifier is IVerifier {
     bytes32 private constant NAME_HASH = keccak256("OffChainEntityRegistry");
     bytes32 private constant VERSION_HASH = keccak256("1");
     bytes32 public constant PROOF_TYPEHASH =
-        keccak256("OwnershipProof(bytes32 id,address claimant,uint256 expiry)");
+        keccak256("OwnershipProof(bytes32 id,address owner,uint256 expiry)");
 
     event TrustedSignerUpdated(address indexed previous, address indexed next);
 
@@ -27,14 +29,14 @@ contract OracleVerifier is IVerifier {
         admin = admin_;
     }
 
-    function verify(bytes32 id, address claimant, bytes calldata proof) external view returns (bool) {
+    function verify(bytes32 id, address owner, bytes calldata proof) external view returns (bool) {
         (bytes memory signature, uint256 expiry) = abi.decode(proof, (bytes, uint256));
         require(block.timestamp < expiry, "expired");
 
         bytes32 domainSeparator = keccak256(abi.encode(
             DOMAIN_TYPEHASH, NAME_HASH, VERSION_HASH, block.chainid, registry
         ));
-        bytes32 structHash = keccak256(abi.encode(PROOF_TYPEHASH, id, claimant, expiry));
+        bytes32 structHash = keccak256(abi.encode(PROOF_TYPEHASH, id, owner, expiry));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
 
         (bytes32 r, bytes32 s, uint8 v) = _splitSignature(signature);
