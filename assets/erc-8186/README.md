@@ -7,26 +7,17 @@ Minimal, self-contained reference implementation of the Identity Account standar
 | File | Description |
 |------|-------------|
 | `IAccountFactory.sol` | Factory interface |
-| `IIdentityAccount.sol` | Account interface (`execute` only) |
-| `IReclaimableIdentityAccount.sol` | Optional reclaim extension interface |
-| `AccountFactory.sol` | Factory with EIP-1167 clones |
-| `IdentityAccount.sol` | Account with owner `execute` + `IReclaimableIdentityAccount` + `receive` |
+| `IIdentityAccount.sol` | Account interface (`execute` + `id` / `registry` introspection) |
+| `IReclaimableIdentityAccount.sol` | Optional factory-bound reclaim extension interface |
+| `AccountFactory.sol` | Factory with EIP-1167 clones; reclaim policy fixed in the constructor |
+| `IdentityAccount.sol` | Account with owner `execute` + factory-bound reclaim + `receive` + ERC-721/ERC-1155 receiver hooks + ERC-165 |
 
 ## Notes
 
-- This implementation uses EIP-1167 minimal proxies for simplicity. Production deployments may use BeaconProxy for upgradeability (as in the [full implementation](https://github.com/carlbarrdahl/ethereum-entity-registry)).
+- This implementation uses EIP-1167 minimal proxies for simplicity. Production deployments may use BeaconProxy for upgradeability.
 - The `execute` function allows the registered owner to make any call through the account. Token withdrawals, protocol interactions, and any other on-chain action are all performed via `execute`.
 - No external dependencies — all interaction is done via low-level calls.
 - The factory can be embedded into the registry contract or deployed standalone.
-- Anyone can call `deployAccount`, including the owner after claiming their identifier.
-
-## Fund Reclaim (Optional Extension)
-
-The reference implementation includes optional fund reclaim through `IReclaimableIdentityAccount` — not as part of the base `IIdentityAccount` interface. Platforms can configure reclaim via `setReclaim` on the concrete `IdentityAccount` contract:
-
-1. Platform deploys accounts via the factory, then calls `account.setReclaim(reclaimTo, deadline)`.
-2. Anyone funds the accounts with plain ETH/ERC-20 transfers.
-3. If the entity claims ownership in the registry, the owner controls all funds via `execute`. The reclaim path is blocked.
-4. If the identity remains unclaimed after the deadline, `reclaimTo` calls `execute` to recover funds.
-
-Platforms that want atomic deploy + reclaim setup can build a thin wrapper contract around the factory. Ecosystems that want one canonical deposit address per identifier should also coordinate on a canonical factory deployment per chain.
+- Anyone can call `deployAccount`, including the owner after claiming their identifier. `deployAccount` is idempotent: if the account is already deployed, it returns the existing address instead of reverting.
+- Reclaim is factory-bound: the factory constructor fixes `reclaimTo` and `reclaimDelay` for every account it deploys, no matter who calls `deployAccount`. While an identifier is unclaimed and past its deadline, `reclaimTo` may `execute` — e.g. a platform redirecting never-claimed funds to a public goods pool. Pass `reclaimTo = address(0)` to disable reclaim entirely.
+- Per-account reclaim configuration was deliberately rejected: a permissionless setter would let anyone name themselves reclaimer of an unclaimed account. Senders who need to recover their *own* deposit should use a depositor-side escrow that releases each deposit on claim (deferred to a future ERC).

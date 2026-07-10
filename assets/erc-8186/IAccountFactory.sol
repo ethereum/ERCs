@@ -10,6 +10,9 @@ interface IAccountFactory {
     ///         Pure computation — the address must not change on implementation upgrade.
     function predictAddress(bytes32 id) external view returns (address);
 
-    /// @notice Deploys the account proxy for `id`. Reverts if already deployed.
+    /// @notice Deploys the account proxy for `id` if not yet deployed.
+    /// @dev    If the account is already deployed, returns its address without
+    ///         reverting (idempotent). Emits AccountDeployed only when an
+    ///         account is actually deployed.
     function deployAccount(bytes32 id) external returns (address account);
 }

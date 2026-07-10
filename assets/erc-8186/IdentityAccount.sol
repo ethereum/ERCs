@@ -6,10 +6,10 @@ import {IReclaimableIdentityAccount} from "./IReclaimableIdentityAccount.sol";
 
 /// @title IdentityAccount — Reference Implementation
 /// @notice Minimal account: registered owner may `execute` arbitrary calls.
-///         Includes optional reclaim support through IReclaimableIdentityAccount:
-///         while unclaimed (before first claim or after revocation), a
-///         configured `reclaimTo` may `execute` after `reclaimableAfter`.
-///         Deployed as a proxy by the AccountFactory.
+///         Supports factory-bound reclaim: while unclaimed and past
+///         `reclaimableAfter`, the factory-configured `reclaimTo` may
+///         `execute`. Deployed as a proxy by the AccountFactory, which
+///         fixes the reclaim configuration at deployment.
 contract IdentityAccount is IIdentityAccount, IReclaimableIdentityAccount {
     address public registry;
     bytes32 public id;
@@ -17,11 +17,18 @@ contract IdentityAccount is IIdentityAccount, IReclaimableIdentityAccount {
     uint256 public reclaimableAfter;
     bool private _initialized;
 
-    function initialize(address registry_, bytes32 id_) external {
+    function initialize(
+        address registry_,
+        bytes32 id_,
+        address reclaimTo_,
+        uint256 reclaimableAfter_
+    ) external {
         require(!_initialized, "already initialized");
         _initialized = true;
         registry = registry_;
         id = id_;
+        reclaimTo = reclaimTo_;
+        reclaimableAfter = reclaimableAfter_;
     }
 
     function execute(address target, bytes calldata data, uint256 value)
@@ -48,28 +55,16 @@ contract IdentityAccount is IIdentityAccount, IReclaimableIdentityAccount {
         return result;
     }
 
-    /// @notice Set (or update) the reclaim address and deadline.
-    /// @dev    Not part of IIdentityAccount — this is an implementation extension.
-    ///         First caller sets it. After that, only reclaimTo can update.
-    ///         Only callable while the identity is unclaimed.
-    function setReclaim(address reclaimTo_, uint256 reclaimableAfter_) external {
-        require(
-            reclaimTo == address(0) || msg.sender == reclaimTo,
-            "not authorized"
-        );
-
-        (bool ok, bytes memory ownerData) = registry.staticcall(
-            abi.encodeWithSignature("ownerOf(bytes32)", id)
-        );
-        require(ok, "registry call failed");
-        address owner = abi.decode(ownerData, (address));
-        require(owner == address(0), "already claimed");
-        require(reclaimableAfter_ > block.timestamp, "deadline in past");
-
-        reclaimTo = reclaimTo_;
-        reclaimableAfter = reclaimableAfter_;
-
-        emit ReclaimSet(id, reclaimTo_, reclaimableAfter_);
+    /// @notice ERC-165 introspection.
+    /// @dev    Covers IIdentityAccount, the reclaim extension, ERC-165
+    ///         itself, and the ERC-721 / ERC-1155 token receiver interfaces.
+    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+        return
+            interfaceId == type(IIdentityAccount).interfaceId ||
+            interfaceId == type(IReclaimableIdentityAccount).interfaceId ||
+            interfaceId == 0x01ffc9a7 || // ERC-165
+            interfaceId == 0x150b7a02 || // ERC-721 TokenReceiver
+            interfaceId == 0x4e2312e0;   // ERC-1155 TokenReceiver
     }
 
     receive() external payable {}

@@ -6,8 +6,8 @@ pragma solidity ^0.8.20;
 interface IIdentityAccount {
     /// @notice Forward an arbitrary call from this account's address.
     /// @dev    MUST allow if ownerOf(id) == msg.sender.
-    ///         MUST revert otherwise unless a supported optional extension
-    ///         authorizes the caller.
+    ///         MUST revert otherwise, unless the optional reclaim extension
+    ///         authorizes the caller (see IReclaimableIdentityAccount).
     ///         MUST revert if the inner call fails.
     /// @param  target The contract to call.
     /// @param  data   The calldata to send.
@@ -16,4 +16,10 @@ interface IIdentityAccount {
     function execute(address target, bytes calldata data, uint256 value)
         external
         returns (bytes memory);
+
+    /// @notice The identifier this account is bound to.
+    function id() external view returns (bytes32);
+
+    /// @notice The ERC-8185 registry this account resolves ownership against.
+    function registry() external view returns (address);
 }

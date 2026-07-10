@@ -8,12 +8,21 @@ import {IdentityAccount} from "./IdentityAccount.sol";
 /// @notice Deploys one minimal proxy per identifier at a deterministic address.
 ///         Uses a simple CREATE2 clone pattern. Production implementations may
 ///         use BeaconProxy for upgradeability.
+///         The reclaim policy is fixed at factory deployment: every account
+///         this factory deploys is configured with the same `reclaimTo` and
+///         a deadline of deployment time + `reclaimDelay`, regardless of who
+///         calls `deployAccount`. Set `reclaimTo_` to address(0) to disable
+///         reclaim for all accounts.
 contract AccountFactory is IAccountFactory {
     address public immutable registry;
     address public immutable implementation;
+    address public immutable reclaimTo;
+    uint256 public immutable reclaimDelay;
 
-    constructor(address registry_) {
+    constructor(address registry_, address reclaimTo_, uint256 reclaimDelay_) {
         registry = registry_;
+        reclaimTo = reclaimTo_;
+        reclaimDelay = reclaimDelay_;
         implementation = address(new IdentityAccount());
     }
 
@@ -25,14 +34,17 @@ contract AccountFactory is IAccountFactory {
     }
 
     function deployAccount(bytes32 id) public returns (address account) {
-        require(predictAddress(id).code.length == 0, "already deployed");
+        account = predictAddress(id);
+        if (account.code.length > 0) return account; // idempotent
         bytes memory code = _creationCode(id);
         assembly {
             account := create2(0, add(code, 0x20), mload(code), id)
         }
         require(account != address(0), "deploy failed");
 
-        IdentityAccount(payable(account)).initialize(registry, id);
+        uint256 reclaimableAfter =
+            reclaimTo == address(0) ? 0 : block.timestamp + reclaimDelay;
+        IdentityAccount(payable(account)).initialize(registry, id, reclaimTo, reclaimableAfter);
 
         emit AccountDeployed(id, account);
     }
