@@ -7,7 +7,7 @@ pragma solidity ^0.8.24;
 interface IClearSigningRegistry {
 
     /// @notice A MirrorList is given either by reference to an already-published list or inline.
-    ///         Inline list is a string array be published atomically as part of the call using it.
+    ///         Inline list is a string array to be published atomically as part of the call using it.
     ///         Only one of 'id' or 'uris' must be populated while attempts to supply both will revert.
     struct MirrorListRef {
         /// References a previously published list.
@@ -19,7 +19,7 @@ interface IClearSigningRegistry {
     /// @notice An identifier of the Attestation used to discover the full attestation data in the off-chain index.
     ///         Additionally serves as a key to the on-chain attestation revocations mapping.
     struct AttestationIdentifier {
-        /// The attester-chosen identifier of the additional attestation.
+        /// The attester-chosen identifier of the attestation.
         bytes32 attestationId;
         /// A format identifier calculated as keccak256("erc7730.attestation.<format>")
         bytes32 formatId;
@@ -47,14 +47,12 @@ interface IClearSigningRegistry {
     struct ResolvedAttestation {
         /// The attester that issued this particular attestation.
         address attester;
-        /// The attester-chosen identifier of the additional attestation.
+        /// The attester-chosen identifier of the attestation.
         bytes32 attestationId;
         /// A format identifier calculated as keccak256("erc7730.attestation.<format>")
         bytes32 formatId;
         /// The timestamp at which the attester revoked this attestation ID, or 0 if never revoked.
         uint64 revokedAt;
-        /// The MirrorList URIs for retrieving the attestation blob.
-        string[] attestationMirrorListUris;
     }
 
     /// @notice A fully resolved active Descriptor with Attestations.
@@ -63,33 +61,38 @@ interface IClearSigningRegistry {
         bytes32 descriptorHash;
         /// The context ID the descriptor was found under.
         bytes32 contextId;
-        /// The schema MAJOR lane the attestation was found under.
+        /// The schema MAJOR lane the attestation set was found under.
         uint256 schemaMajor;
+        /// The attestation set ID occupying the active slot — the key into the attestation index file.
+        bytes32 attestationSetId;
         /// The full resolved array of URIs provided for this Descriptor in the MirrorList.
         string[] descriptorMirrorListUris;
+        /// The MirrorList URIs of the index file for retrieving this set's attestation blobs.
+        string[] attestationMirrorListUris;
         /// The full resolved array of attestation objects issued for this Descriptor matching the specified filter.
         ResolvedAttestation[] attestations;
     }
 
-    /// @notice Emitted when an attester's active attestation for a context ID changes.
-    /// @param attester               The attester whose active attestation changed.
-    /// @param contextId              The context ID affected.
-    /// @param attestationId          The attestation ID for this descriptor.
-    /// @param previousAttestationId  The previously active attestation ID.
-    /// @param descriptorHash         The newly attested descriptor hash.
-    /// @param schemaMajor            The schema MAJOR lane of the affected slot.
+    /// @notice Emitted when an attester's active attestation set for a context ID changes.
+    /// @param attester                  The attester whose active attestation set changed.
+    /// @param contextId                 The context ID affected.
+    /// @param attestationSetId          The newly active attestation set ID, or bytes32(0) when cleared.
+    /// @param previousAttestationSetId  The previously active attestation set ID.
+    /// @param descriptorHash            The newly attested descriptor hash, or bytes32(0) when cleared.
+    /// @param schemaMajor               The schema MAJOR lane of the affected slot.
     event AttestationUpdated(
         address indexed attester,
         bytes32 indexed contextId,
-        bytes32 indexed attestationId,
-        bytes32         previousAttestationId,
+        bytes32 indexed attestationSetId,
+        bytes32         previousAttestationSetId,
         bytes32         descriptorHash,
         uint256         schemaMajor
     );
 
-    /// @notice Emitted whenever a revocation timestamp is recorded for an attestation ID.
-    /// @param attester       The attester the attestation ID is revoked under.
-    /// @param attestationId  The revoked attestation ID.
+    /// @notice Emitted whenever a revocation timestamp is recorded for an ID —
+    ///         an attestation set ID or an individual attestation ID alike.
+    /// @param attester       The attester the ID is revoked under.
+    /// @param attestationId  The revoked ID.
     /// @param timestamp      The block timestamp at which the revocation was recorded.
     event AttestationRevoked(
         address indexed attester,
@@ -97,19 +100,19 @@ interface IClearSigningRegistry {
         uint64          timestamp
     );
 
-    /// @notice Emitted exactly once per attestation ID when its write-once metadata is stored during registration.
-    /// @param attester        The attester the attestation is registered under.
-    /// @param attestationId   The registered attestation ID.
-    /// @param descriptorHash  The attested descriptor hash.
-    /// @param schemaMajor     The declared schema MAJOR lane.
-    /// @param format          The attestation format tag: 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
-    ///                        for a primary attestation, the declared vendor tag otherwise.
+    /// @notice Emitted exactly once per attestation set when its write-once metadata is stored during registration.
+    ///
+    /// @param attester          The attester the attestation set is registered under.
+    /// @param attestationSetId  The registered attestation set ID.
+    /// @param descriptorHash    The attested descriptor hash.
+    /// @param schemaMajor       The declared schema MAJOR lane.
+    /// @param attestationIds    The full contents of the attestation set.
     event AttestationRegistered(
         address indexed attester,
-        bytes32 indexed attestationId,
+        bytes32 indexed attestationSetId,
         bytes32 indexed descriptorHash,
         uint256         schemaMajor,
-        bytes32         format
+        AttestationIdentifier[] attestationIds
     );
 
     /// @notice Emitted the first time a MirrorList is stored on-chain, carrying its full URI contents.
@@ -133,13 +136,13 @@ interface IClearSigningRegistry {
         bytes32 indexed descriptorMirrorListId
     );
 
-    /// @notice Emitted when an attester's active MirrorList for an attestation changes.
+    /// @notice Emitted when an attester's active MirrorList for an attestation set changes.
     /// @param attester                 The attester updating their list.
-    /// @param attestationId            The attestation ID.
+    /// @param attestationSetId         The attestation set ID.
     /// @param attestationMirrorListId  The new MirrorList ID.
     event AttestationMirrorListUpdated(
         address indexed attester,
-        bytes32 indexed attestationId,
+        bytes32 indexed attestationSetId,
         bytes32 indexed attestationMirrorListId
     );
 
@@ -157,13 +160,11 @@ interface IClearSigningRegistry {
     /// @notice Thrown when bytes32(0) is passed where a descriptor hash is required.
     error ZeroDescriptorHash();
 
-    /// @notice Thrown when bytes32(0) is passed where an off-chain attestation format tag is required.
+    /// @notice Thrown when bytes32(0) is passed where an attestation format ID is required.
     error ZeroAttestationFormat();
 
-    /// @notice Thrown when an additional attestation declares 'ATTESTATION_FORMAT_EAS_OFFCHAIN'
-    ///         (reserved for the primary attestation), or a format tag already registered
-    ///         for the same primary attestation.
-    error DuplicateAttestationFormat(bytes32 format);
+    /// @notice Thrown when two attestations of the same descriptor declare the same format ID.
+    error DuplicateAttestationFormat(bytes32 formatId);
 
     /// @notice Thrown when a descriptor declares a zero schema MAJOR version.
     error ZeroSchemaMajor();
@@ -174,10 +175,13 @@ interface IClearSigningRegistry {
     /// @notice Thrown when a descriptor's contextIds is empty.
     error EmptyContextIds();
 
+    /// @notice Thrown when a descriptor's attestationIds is empty.
+    error EmptyAttestationIds();
+
     /// @notice Thrown when 'revokeAttestations' is called with an empty 'revocations' array.
     error EmptyRevocations();
 
-    /// @notice Thrown when a registration reuses an attestation ID that was already registered.
+    /// @notice Thrown when a registration includes an attestation ID that was already revoked.,
     ///         Attestation IDs are single-use and cannot be re-registered after revocation.
     error AttestationIdAlreadyUsed(bytes32 attestationId);
 
@@ -185,9 +189,9 @@ interface IClearSigningRegistry {
     ///         attester has never registered.
     error UnknownDescriptor(bytes32 descriptorHash);
 
-    /// @notice Thrown when 'updateAttestationMirrorList' names an attestation ID the
+    /// @notice Thrown when 'updateAttestationMirrorList' names an attestation set ID the
     ///         attester has never registered.
-    error UnknownAttestationId(bytes32 attestationId);
+    error UnknownAttestationSet(bytes32 attestationSetId);
 
     /// @notice Thrown when an empty URI list is passed to publishMirrorLists.
     error EmptyMirrorList();
@@ -216,20 +220,22 @@ interface IClearSigningRegistry {
     /// @notice Register a batch of descriptors backed by attestations.
     ///
     ///         The attester produces the signed attestation artifacts locally and stores them off-chain.
-    ///         A standard ERC-8176 EAS off-chain attestation per descriptor is a required primary attestation.
-    ///         It serves as the compatibility baseline every wallet should be able to verify.
-
-    ///         The registry itself is attestation-agnostic and attestations are accompanied by vendor-format id.
-    ///         The registry records each attestation ID with an attestation "mirror list" shared by the whole batch.
+    ///         All attestations of a descriptor form one attestation set whose members are active together.
+    ///         Every set SHOULD contain a standard ERC-8176 EAS off-chain attestation.
+    ///         The registry itself is attestation-agnostic — each attestation carries a vendor format ID.
     ///
     ///         The registry does not validate any attestation's signature or content.
     ///
+    ///         The registry derives an attestation set ID per descriptor.
+    ///         A set with a single attestation uses that attestation's own ID directly.
+    ///         A larger set uses 'keccak256(abi.encode(descriptorHash, schemaMajor, attestationIds))'.
+    ///
     /// @param attester       The address of the attester registering the descriptors.
-    /// @param descriptors    The descriptors to register, each carrying its vendor-format attestations.
-    ///                       Active attestations are stored per '(contextId, schemaMajor)' keys.
+    /// @param descriptors    The descriptors to register, each carrying its attestation set.
+    ///                       Active attestation sets are stored per '(contextId, schemaMajor)' keys.
     ///                       Descriptors of different schema MAJOR values never displace each other.
     ///                       Each '(contextId, schemaMajor)' slot may be written at most once per batch.
-    /// @param revocations    Displaced attestations this call revokes and clears.
+    /// @param revocations    Displaced attestation sets this call revokes and clears.
     ///
     /// @param descriptorMirrorListURIs  The MirrorList link to the index file containing all specified descriptors.
     ///
@@ -248,14 +254,14 @@ interface IClearSigningRegistry {
     ) external;
 
     /// @notice Publish a batch of MirrorLists on-chain.
-    /// @param uriLists       The URI lists to publish. No list may be empty.
-    /// @return mirrorListIds keccak256(abi.encode(uris)) per list.
+    /// @param uriLists  The URI lists to publish. No list may be empty.
     function publishMirrorLists(string[][] calldata uriLists) external;
 
     /// @notice Revokes every specified attestation ID for the specified 'attester' and clears specified context IDs.
+    ///         Entries may name attestation set IDs or individual attestation IDs.
     ///
     /// @param attester     The attester whose attestations are being revoked.
-    /// @param revocations  The attestations to revoke, each with the context IDs to clear.
+    /// @param revocations  The attestation IDs to revoke, each with the context IDs to clear.
     /// @param signature    EIP-712 signature by the attester authorizing this batch.
     ///                     Required when the revocation transaction is relayed.
     function revokeAttestations(
@@ -271,26 +277,31 @@ interface IClearSigningRegistry {
     /// @return timestamp  The revocation timestamp, or 0 if not revoked.
     function getRevocationTimestamp(address attester, bytes32 attestationId) external view returns (uint64 timestamp);
 
-    /// @notice Resolve all active attestations for the specified query with a filter.
+    /// @notice Resolve all active attestation sets for the specified query with a filter.
     ///         The request fields are:
-    ///             1. The list of attesters trusted by the wallet
-    ///             2. The list of potential context IDs matching the relevant signature request
+    ///             1. The list of attesters trusted by the wallet.
+    ///             2. The list of potential context IDs matching the relevant signature request.
     ///             3. The list of schema MAJOR versions supported by the wallet.
+    ///             4. The list of attestation format IDs the wallet can verify.
     ///
-    /// An empty array specified in the request filter indicates no filter applied for the given parameter.
+    /// The 'attesters', 'contextIds' and 'schemaMajors' parameters are lookup keys - an empty array yields no results.
+    /// An empty 'formatIds' or 'allowedPrefixes' array applies no filter for that parameter.
+    ///
+    /// A resolved descriptor is returned even if every one of its attestations is filtered out.
     ///
     /// @param attesters        Queried attester addresses trusted by the wallet.
     /// @param contextIds       Candidate context IDs to look up.
     /// @param schemaMajors     The schema MAJOR versions supported by the wallet.
+    /// @param formatIds        Attestation format IDs to include, or empty array for all formats.
     /// @param allowedPrefixes  Raw string prefixes filtering the returned URI lists.
     ///                         e.g. ["ipfs:", "https:"].
     ///                         A URI is returned only if it starts with at least one of the prefixes.
-    ///                         An active attestation is returned regardless of whether any of its URIs are filtered.
-    /// @return resolved   One 'ResolvedDescriptor' entry per non-empty attestation entry.
+    /// @return resolved   One 'ResolvedDescriptor' entry per active '(attester, contextId, schemaMajor)' record.
     function resolveDescriptors(
         address[] calldata attesters,
         bytes32[] calldata contextIds,
         uint256[] calldata schemaMajors,
+        bytes32[] calldata formatIds,
         string[]  calldata allowedPrefixes
     ) external view returns (ResolvedDescriptor[] memory resolved);
 
@@ -328,16 +339,16 @@ interface IClearSigningRegistry {
         bytes calldata signature
     ) external;
 
-    /// @notice Update the MirrorList for existing attestations without re-registration.
+    /// @notice Update the MirrorList for existing attestation sets without re-registration.
     /// @param attester The attester whose MirrorList pointers are being updated.
-    /// @param attestationIds The IDs of the attestations to update. Every ID MUST have
+    /// @param attestationSetIds The IDs of the attestation sets to update. Every ID MUST have
     ///                      been registered by the attester before, reverting with
-    ///                      'UnknownAttestationId' otherwise.
+    ///                      'UnknownAttestationSet' otherwise.
     /// @param attestationMirrorListRef The new MirrorList — see 'MirrorListRef'.
     /// @param signature EIP-712 signature authorizing this update (ignored if msg.sender == attester).
     function updateAttestationMirrorList(
         address attester,
-        bytes32[] calldata attestationIds,
+        bytes32[] calldata attestationSetIds,
         MirrorListRef calldata attestationMirrorListRef,
         bytes calldata signature
     ) external;
