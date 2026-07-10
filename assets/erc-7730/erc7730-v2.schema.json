@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -348,15 +348,7 @@
                     "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the string returned by EIP 712 encodeType on the primary type.",
                     "type": "object",
                     "propertyNames": {
-                        "anyOf": [
-                            {
-                                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\(\\s*(?:(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:tuple(?:\\s*\\((?:[^()]|\\([^()]*\\))*\\))?|[A-Za-z0-9_]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
-                            },
-                            {
-                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s+[A-Za-z_][A-Za-z0-9_]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
-                            }
-                        ]
-                        
+                        "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(.*\\)$"
                     },
 
                     "additionalProperties": {
@@ -472,16 +464,30 @@
                 "value": {
                     "$ref": "#/$format/value"
                 },
+                "label": {
+                    "description": "This value overrides the label in the referenced definition if set.",
+                    "type": "string"
+                },
                 "$ref": {
-                    "title": "Internal Definition",
                     "description": "An internal definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME.",
                     "type": "string"
                 },
                 "params": {
-                    "title": "Parameters",
                     "description": "Parameters override. These values takes precedence over the ones in the definition itself",
                     "type": "object",
                     "additionalProperties": { "type": "string" }
+                },
+                "separator": {
+                    "description": "Separator override for the referenced definition.",
+                    "type": "string"
+                },
+                "visible": {
+                    "description": "Visibility override for the referenced definition.",
+                    "$ref": "#/$format/rules"
+                },
+                "encryption": {
+                    "description": "Encryption override for the referenced definition.",
+                    "$ref": "#/$format/encryptionParameters"
                 }
             },
             "required": [ "$ref" ],
@@ -644,7 +650,7 @@
                         },
                         "minItems": 1
                     },
-                    "mustBe": {
+                    "mustMatch": {
                         "type": "array",
                         "description": "Always skip display, but value MUST match one of these values.",
                         "items": {
@@ -657,11 +663,11 @@
                 "allOf": [
                     {
                     "not": {
-                        "required": ["notIn", "mustBe"]
+                        "required": ["ifNotIn", "mustMatch"]
                     }
                     }
                 ],
-                "description": "Conditional display rules. Either 'notIn' or 'mustBe' must be defined, but not both."
+                "description": "Conditional display rules. Either 'ifNotIn' or 'mustMatch' must be defined, but not both."
                 }
             ]    
         },
