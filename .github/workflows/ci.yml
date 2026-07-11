@@ -236,12 +236,12 @@ jobs:
       - name: Checkout EIP Repository
         uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
 
-      - uses: ethereum/eipw-action@be3fa642ec311d0b8e1fdb811e5c9b4ada3d3d93
+      - uses: ethereum/eipw-action@b858a0f2687c12af12280aa934c3b842747414fd
         id: eipw
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           unchecked: 1
-          path: ERCS/
+          include: "ERCS/**"
           options-file: config/eipw.toml
 
   markdownlint:
