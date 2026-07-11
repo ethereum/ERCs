@@ -18,16 +18,15 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     constructor() EIP712("ClearSigningRegistry", "1") {}
 
     // The attestation set ID currently active for the given attester, context ID and
-    // schema MAJOR lane. Descriptors of different schema MAJORs occupy separate slots
-    // and never displace each other. The attested descriptor hash is stored in
-    // '_attestationSetDetails'.
+    // schema MAJOR. Records of different schema MAJORs never displace each other.
+    // The attested descriptor hash is stored in '_attestationSetDetails'.
     mapping(address attester => mapping(bytes32 contextId => mapping(uint256 schemaMajor => bytes32)))
         private _activeAttestationSetIds;
 
     // Write-once metadata of an attestation set.
     struct AttestationSetDetails {
         bytes32 descriptorHash;
-        uint256 schemaMajor;             // the declared schema MAJOR lane; opaque to the registry
+        uint256 schemaMajor;             // the declared schema MAJOR; opaque to the registry
     }
     mapping(address attester => mapping(bytes32 attestationSetId => AttestationSetDetails))
         private _attestationSetDetails;
@@ -131,8 +130,8 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Updates the active attestation set for each (contextId, schemaMajor) slot of
-    ///      a descriptor. Slots of other schema MAJORs are untouched.
+    /// @dev Updates the active record for each (contextId, schemaMajor) key of a
+    ///      descriptor. Records of other schema MAJORs are untouched.
     function _updateActiveAttestation(
         address                 attester,
         DescriptorInfo calldata descriptor,
@@ -144,7 +143,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             bytes32 contextId                = contextIds[contextIndex];
             bytes32 previousAttestationSetId = _activeAttestationSetIds[attester][contextId][schemaMajor];
 
-            // A slot already pointing at this set — a re-activation batch listing existing
+            // A record already pointing at this set — a re-activation batch listing existing
             // context IDs alongside new ones — is left untouched rather than displaced.
             if (previousAttestationSetId == attestationSetId) {
                 continue;
@@ -153,7 +152,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             // A displaced active attestation set must already be recorded as revoked — by
             // this batch's own 'revocations' (processed before any descriptor) or by an
             // earlier call. Checking at the moment each pointer is written also covers
-            // displacement by a duplicate (contextId, schemaMajor) slot within the same batch.
+            // displacement by a duplicate (contextId, schemaMajor) key within the same batch.
             if (previousAttestationSetId != bytes32(0) && _revokedAt[attester][previousAttestationSetId] == 0) {
                 revert MissingRevocation(previousAttestationSetId);
             }
@@ -251,10 +250,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         _recordRevocation(attester, attestationId);
 
         // An attestation set's schema MAJOR is intrinsic: set metadata is write-once, so
-        // the lane its slots live in is read from the stored details rather than passed
-        // in. An individual attestation ID or a never-registered ID reads lane 0, which
-        // no slot can hold (registration forbids a zero schemaMajor), so its clearing
-        // loop is a natural no-op while the revocation itself is still recorded.
+        // it is read from the stored details rather than passed in. An individual
+        // attestation ID or a never-registered ID reads a schema MAJOR of 0, which no
+        // active record can hold (registration forbids a zero schemaMajor), so its
+        // clearing loop is a natural no-op while the revocation itself is still recorded.
         uint256 schemaMajor = _attestationSetDetails[attester][attestationId].schemaMajor;
 
         uint256 contextIdCount = contextIds.length;
@@ -275,32 +274,32 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         bytes32[] calldata formatIds,
         string[]  calldata allowedPrefixes
     ) external view returns (ResolvedDescriptor[] memory resolved) {
-        uint256 activeSlotCount = _countActiveSlots(attesters, contextIds, schemaMajors);
-        resolved = new ResolvedDescriptor[](activeSlotCount);
+        uint256 activeRecordCount = _countActiveRecords(attesters, contextIds, schemaMajors);
+        resolved = new ResolvedDescriptor[](activeRecordCount);
         _collectResolvedDescriptors(attesters, contextIds, schemaMajors, formatIds, allowedPrefixes, resolved);
     }
 
-    /// @dev Counts how many (attester, contextId, schemaMajor) slots currently have an
-    ///      active attestation set, used to size the 'resolveDescriptors' result array.
-    function _countActiveSlots(
+    /// @dev Counts the active records among the queried (attester, contextId, schemaMajor)
+    ///      keys, used to size the 'resolveDescriptors' result array.
+    function _countActiveRecords(
         address[] calldata attesters,
         bytes32[] calldata contextIds,
         uint256[] calldata schemaMajors
-    ) private view returns (uint256 activeSlotCount) {
+    ) private view returns (uint256 activeRecordCount) {
         for (uint256 attesterIndex = 0; attesterIndex < attesters.length; attesterIndex++) {
             address attester = attesters[attesterIndex];
             for (uint256 contextIndex = 0; contextIndex < contextIds.length; contextIndex++) {
                 bytes32 contextId = contextIds[contextIndex];
                 for (uint256 majorIndex = 0; majorIndex < schemaMajors.length; majorIndex++) {
                     if (_activeAttestationSetIds[attester][contextId][schemaMajors[majorIndex]] != bytes32(0)) {
-                        ++activeSlotCount;
+                        ++activeRecordCount;
                     }
                 }
             }
         }
     }
 
-    /// @dev Fills 'resolved' with one entry per active (attester, contextId, schemaMajor) slot.
+    /// @dev Fills 'resolved' with one entry per active (attester, contextId, schemaMajor) record.
     function _collectResolvedDescriptors(
         address[]            calldata attesters,
         bytes32[]            calldata contextIds,
@@ -312,7 +311,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         uint256 resolvedIndex;
         for (uint256 attesterIndex = 0; attesterIndex < attesters.length; attesterIndex++) {
             for (uint256 contextIndex = 0; contextIndex < contextIds.length; contextIndex++) {
-                resolvedIndex = _resolveSlotsForContext(
+                resolvedIndex = _resolveRecordsForContext(
                     attesters[attesterIndex], contextIds[contextIndex],
                     schemaMajors, formatIds, allowedPrefixes, resolved, resolvedIndex
                 );
@@ -320,9 +319,10 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
         }
     }
 
-    /// @dev Resolves every active schema MAJOR lane of one (attester, contextId) pair into
-    ///      'resolved' starting at 'resolvedIndex', returning the index after the last write.
-    function _resolveSlotsForContext(
+    /// @dev Resolves every schema MAJOR with an active record for one (attester, contextId)
+    ///      pair into 'resolved' starting at 'resolvedIndex', returning the index after the
+    ///      last write.
+    function _resolveRecordsForContext(
         address              attester,
         bytes32              contextId,
         uint256[]   calldata schemaMajors,
@@ -335,7 +335,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
             uint256 schemaMajor      = schemaMajors[majorIndex];
             bytes32 attestationSetId = _activeAttestationSetIds[attester][contextId][schemaMajor];
             if (attestationSetId != bytes32(0)) {
-                resolved[resolvedIndex++] = _resolveActiveSlot(
+                resolved[resolvedIndex++] = _resolveActiveRecord(
                     attester, contextId, schemaMajor, attestationSetId, formatIds, allowedPrefixes
                 );
             }
@@ -344,7 +344,7 @@ contract ClearSigningRegistry is IClearSigningRegistry, EIP712 {
     }
 
     /// @dev Resolves one active attestation set into a ResolvedDescriptor.
-    function _resolveActiveSlot(
+    function _resolveActiveRecord(
         address            attester,
         bytes32            contextId,
         uint256            schemaMajor,

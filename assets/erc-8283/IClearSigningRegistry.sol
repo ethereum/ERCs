@@ -61,9 +61,9 @@ interface IClearSigningRegistry {
         bytes32 descriptorHash;
         /// The context ID the descriptor was found under.
         bytes32 contextId;
-        /// The schema MAJOR lane the attestation set was found under.
+        /// The schema MAJOR the attestation set was found under.
         uint256 schemaMajor;
-        /// The attestation set ID occupying the active slot — the key into the attestation index file.
+        /// The attestation set ID from the active record — the key into the attestation index file.
         bytes32 attestationSetId;
         /// The full resolved array of URIs provided for this Descriptor in the MirrorList.
         string[] descriptorMirrorListUris;
@@ -79,7 +79,7 @@ interface IClearSigningRegistry {
     /// @param attestationSetId          The newly active attestation set ID, or bytes32(0) when cleared.
     /// @param previousAttestationSetId  The previously active attestation set ID.
     /// @param descriptorHash            The newly attested descriptor hash, or bytes32(0) when cleared.
-    /// @param schemaMajor               The schema MAJOR lane of the affected slot.
+    /// @param schemaMajor               The schema MAJOR of the affected active record.
     event AttestationUpdated(
         address indexed attester,
         bytes32 indexed contextId,
@@ -105,7 +105,7 @@ interface IClearSigningRegistry {
     /// @param attester          The attester the attestation set is registered under.
     /// @param attestationSetId  The registered attestation set ID.
     /// @param descriptorHash    The attested descriptor hash.
-    /// @param schemaMajor       The declared schema MAJOR lane.
+    /// @param schemaMajor       The declared schema MAJOR.
     /// @param attestationIds    The full contents of the attestation set.
     event AttestationRegistered(
         address indexed attester,
@@ -234,7 +234,7 @@ interface IClearSigningRegistry {
     /// @param descriptors    The descriptors to register, each carrying its attestation set.
     ///                       Active attestation sets are stored per '(contextId, schemaMajor)' keys.
     ///                       Descriptors of different schema MAJOR values never displace each other.
-    ///                       Each '(contextId, schemaMajor)' slot may be written at most once per batch.
+    ///                       Each '(contextId, schemaMajor)' active record may be written at most once per batch.
     /// @param revocations    Displaced attestation sets this call revokes and clears.
     ///
     /// @param descriptorMirrorListURIs  The MirrorList link to the index file containing all specified descriptors.
