@@ -1,0 +1,13 @@
+sequenceDiagram
+    box Source chain
+    participant Sender
+    participant SourceGateway
+    end
+    box Destination chain
+    participant DestinationGateway
+    participant Receiver
+    end
+    Sender->>SourceGateway: sendMessage(...)
+    SourceGateway-->>DestinationGateway: [underlying protocol]
+    DestinationGateway->>+Receiver: executeMessage(...)
+    Receiver->>-Receiver: _processMessage(...)

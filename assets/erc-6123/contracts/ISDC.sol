@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.7.0;
+
+import "./ISDCTrade.sol";
+import "./ISDCSettlement.sol";
+import "./IAsyncTransferCallback.sol";
 
 /*------------------------------------------- DESCRIPTION ---------------------------------------------------------------------------------------*/
 
@@ -59,139 +63,26 @@ pragma solidity >=0.7.0 <0.9.0;
  *      </dl>
  *  </li>
  * </ol>
+ *
+ * The ISDC interface is split into three parts: ISDCTrade, ISDCSettlement, IAsyncTransferCallback
+ * <dl>
+ *  <dd>ISDCTrade</dd>
+ *  <dt>Functions related to trade inception, confirmation and termination.</dt>
+ *
+ *  <dd>ISDCSettlement</dd>
+ *  <dt>Functions related to settlement process.</dt>
+ *
+ *  <dd>ISDCTransferCallback</dd>
+ *  <dt>Function representing the callback upon successful (external) transfer (of the settlement amount(s)).</dt>
+ * </dl>
+ *
+ * The IAsyncTransferCallback is associated with the IAsyncTransfer.
+ * <dl>
+ *  <dd>IAsyncTransferCallback</dd>
+ *  <dt>Function representing netted batch transfers (with a callback) tok upon successful (external) transfer (of the settlement amount(s)).</dt>
+ * </dl>
  */
 
-interface ISDC {
-    /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
-    /**
-     * @dev Emitted  when a new trade is incepted from a eligible counterparty
-     * @param initiator is the address from which trade was incepted
-     * @param tradeId is the trade ID (e.g. generated internally)
-     * @param tradeData holding the trade parameters
-     */
-    event TradeIncepted(address initiator, string tradeId, string tradeData);
+interface ISDC is ISDCTrade, ISDCSettlement, IAsyncTransferCallback {
 
-    /**
-     * @dev Emitted when an incepted trade is confirmed by the opposite counterparty
-     * @param confirmer the confirming party
-     * @param tradeId the trade identifier
-     */
-    event TradeConfirmed(address confirmer, string tradeId);
-
-    /**
-     * @dev Emitted when a confirmed trade is set to active - e.g. when termination fee amounts are provided
-     * @param tradeId the trade identifier of the activated trade
-     */
-    event TradeActivated(string tradeId);
-
-    /**
-     * @dev Emitted when an active trade is terminated
-     * @param cause string holding the cause of the termination
-     */
-    event TradeTerminated(string cause);
-
-    /**
-     * @dev Emitted when Settlement phase is initiated
-     */
-    event TradeSettlementPhase();
-
-    /**
-     * @dev Emitted when settlement process has been finished
-     */
-    event TradeSettled();
-
-    /**
-     * @dev Emitted when a settlement gets requested
-     * @param tradeData holding the stored trade data
-     * @param lastSettlementData holding the settlementdata from previous settlement (next settlement will be the increment of next valuation compared to former valuation)
-     */
-    event TradeSettlementRequest(string tradeData, string lastSettlementData);
-
-    /**
-     * @dev Emitted when a counterparty proactively requests an early termination of the underlying trade
-     * @param cpAddress the address of the requesting party
-     * @param tradeId the trade identifier which is supposed to be terminated
-     */
-    event TradeTerminationRequest(address cpAddress, string tradeId);
-
-    /**
-     * @dev Emitted when early termination request is confirmed by the opposite party
-     * @param cpAddress the party which confirms the trade termination
-     * @param tradeId the trade identifier which is supposed to be terminated
-     */
-    event TradeTerminationConfirmed(address cpAddress, string tradeId);
-
-    /**
-     * @dev Emitted when trade processing is halted
-     * @param message of what has happened
-     */
-    event ProcessHalted(string message);
-
-    /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
-
-    /// Trade Inception
-
-    /**
-     * @notice Incepts a trade, stores trade data
-     * @dev emits a {TradeIncepted} event
-     * @param _withParty is the party the inceptor wants to trade with
-     * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param _position is the position the inceptor has in that trade
-     * @param _paymentAmount is the paymentamount which can be positive or negative
-     * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
-     */
-    function inceptTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
-
-    /**
-     * @notice Performs a matching of provided trade data and settlement data of a previous trade inception
-     * @dev emits a {TradeConfirmed} event if trade data match
-     * @param _withParty is the party the confirmer wants to trade with
-     * @param _tradeData a description of the trade specification e.g. in xml format, suggested structure - see assets/eip-6123/doc/sample-tradedata-filestructure.xml
-     * @param _position is the position the inceptor has in that trade
-     * @param _paymentAmount is the paymentamount which can be positive or negative
-     * @param _initialSettlementData the initial settlement data (e.g. initial market data at which trade was incepted)
-     */
-     function confirmTrade(address _withParty, string memory _tradeData, int _position, int256 _paymentAmount, string memory _initialSettlementData) external;
-
-
-    /// Settlement Cycle: Settlement
-
-    /**
-     * @notice Called to trigger a (maybe external) valuation of the underlying contract and afterwards the according settlement process
-     * @dev emits a {TradeSettlementRequest}
-     */
-    function initiateSettlement() external;
-
-    /**
-     * @notice Called to trigger according settlement on chain-balances callback for initiateSettlement() event handler
-     * @dev perform settlement checks, may initiate transfers and emits {TradeSettlementPhase}
-     * @param settlementAmount the settlement amount. If settlementAmount > 0 then receivingParty receives this amount from other party. If settlementAmount < 0 then other party receives -settlementAmount from receivingParty.
-     * @param settlementData. the tripple (product, previousSettlementData, settlementData) determines the settlementAmount.
-     */
-    function performSettlement(int256 settlementAmount, string memory settlementData) external;
-
-
-    /**
-     * @notice May get called from outside to to finish a transfer (callback). The trade decides on how to proceed based on success flag
-     * @param success tells the protocol whether transfer was successful
-     * @dev may emit a {TradeSettled} event  or a {TradeTerminated} event
-     */
-    function afterTransfer(uint256 transactionHash, bool success) external;
-
-
-    /// Trade termination
-
-    /**
-     * @notice Called from a counterparty to request a mutual termination
-     * @dev emits a {TradeTerminationRequest}
-     * @param tradeId the trade identifier which is supposed to be terminated
-     */
-    function requestTradeTermination(string memory tradeId, int256 _terminationPayment) external;
-
-    /**
-     * @notice Called from a party to confirm an incepted termination, which might trigger a final settlement before trade gets closed
-     * @dev emits a {TradeTerminationConfirmed}
-     * @param tradeId the trade identifier of the trade which is supposed to be terminated
-     */
-    function confirmTradeTermination(string memory tradeId, int256 _terminationPayment) external;
 }
