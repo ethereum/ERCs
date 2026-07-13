@@ -65,3 +65,37 @@ interface IAgentSourceBinding is IERC165 {
     ///      no longer exists.
     function isSourceNFTOwnershipValid(uint256 agentId) external view returns (bool);
 }
+
+/// @title IAgentSourceBindingView — query-only subset of IAgentSourceBinding
+/// @notice The read side of source binding: prove where an agent's source lives
+///         and whether it is still owned, WITHOUT source-binding registration.
+///         For agents that can attest source ownership but do not implement
+///         `boundCollection` / `registerWithSource` — the canonical case being a
+///         SELF-SOURCED agent whose source is the agent contract itself
+///         (`getSourceNFT(id) == (address(this), id)`), which has no external
+///         collection to bind to.
+/// @dev ERC-165 interface id: 0x8b3597c9
+///      (getSourceNFT ^ hasSourceNFT ^ isSourceNFTOwnershipValid).
+///      This is an INDEPENDENT id, not derived from `IAgentSourceBinding`
+///      (0x27eba962): the three functions share signatures with the full
+///      interface, but the interfaces are intentionally not linked by
+///      inheritance, so each id stays fixed to the functions it declares.
+///      Function semantics are identical to `IAgentSourceBinding`, including the
+///      live-ownership 3-case rule of `isSourceNFTOwnershipValid`.
+interface IAgentSourceBindingView is IERC165 {
+    /// @notice The immutable source token an agent was derived from.
+    /// @dev MUST revert if `agentId` does not exist or has no source binding.
+    function getSourceNFT(uint256 agentId)
+        external
+        view
+        returns (address sourceContract, uint256 sourceTokenId);
+
+    /// @notice Whether `agentId` has a recorded source binding.
+    function hasSourceNFT(uint256 agentId) external view returns (bool);
+
+    /// @notice Whether the source token is still under the control of `agentId`.
+    /// @dev Same live-ownership semantics as
+    ///      `IAgentSourceBinding.isSourceNFTOwnershipValid` (the 3-case holder /
+    ///      canonical ERC-6551 TBA / binding-contract rule).
+    function isSourceNFTOwnershipValid(uint256 agentId) external view returns (bool);
+}
