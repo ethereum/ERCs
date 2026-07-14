@@ -233,8 +233,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout ERC Repository
+        uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
+
       - name: Checkout EIP Repository
         uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
+        with:
+          repository: ethereum/EIPs
+          path: EIPs-upstream
+
+      - name: Merge Repos
+        run: |
+          # Make every proposal (EIP or ERC) resolvable as ERCS/eip-N.md so the
+          # cross-reference lints (preamble-requires-status, markdown-link-status,
+          # markdown-refs) see the same merged corpus that eips.ethereum.org is
+          # built from. The native ERCS/erc-N.md files are copied (not moved)
+          # because eipw-action locates changed files by their pull request paths.
+          cp -p $GITHUB_WORKSPACE/EIPs-upstream/EIPS/eip-*.md $GITHUB_WORKSPACE/ERCS/
+          cd $GITHUB_WORKSPACE/ERCS
+          # ERC content overwrites the EIPs repository's `Moved` stubs.
+          for f in erc-*.md; do
+            cp -p "$f" "eip-${f#erc-}"
+          done
+          rm -rf $GITHUB_WORKSPACE/EIPs-upstream
 
       - uses: ethereum/eipw-action@be3fa642ec311d0b8e1fdb811e5c9b4ada3d3d93
         id: eipw
