@@ -5,7 +5,10 @@ import {IFrameValidator} from "./IFrameValidator.sol";
 
 contract ECDSAFrameValidator is IFrameValidator {
     uint8 internal constant APPROVE_NONE = 0x0;
-    uint256 internal constant MODULE_TYPE_VALIDATOR = 1;
+    // ERC-8286 frame validator module type id (TBD in the draft). A module MAY additionally
+    // be an ERC-7579 validator (type id 1) and serve both targets; this one serves only the
+    // EIP-8141 frame flow.
+    uint256 internal constant MODULE_TYPE_FRAME_VALIDATOR = 11;
     uint256 internal constant MODE_SENDER = 2;
 
     mapping(address => address) public ownerOf;
@@ -19,7 +22,7 @@ contract ECDSAFrameValidator is IFrameValidator {
     }
 
     function isModuleType(uint256 moduleTypeId) external pure override returns (bool) {
-        return moduleTypeId == MODULE_TYPE_VALIDATOR;
+        return moduleTypeId == MODULE_TYPE_FRAME_VALIDATOR;
     }
 
     function validateFrame(bytes32, uint256, uint8 allowedScope, bytes calldata data)
@@ -37,7 +40,7 @@ contract ECDSAFrameValidator is IFrameValidator {
 
         address signer = ecrecover(_authDigest(), v, r, s);
         if (signer != address(0) && signer == owner) {
-            return allowedScope; // account clamps this to the frame's allowed scope
+            return allowedScope; // account masks this with the frame's allowed scope
         }
         return APPROVE_NONE;
     }
