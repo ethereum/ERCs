@@ -1,7 +1,7 @@
 ---
 eip: TBD
 title: Two-Phase Asset Transfers
-description: Revocable transfers of ETH and tokens that settle only when the named receiver accepts, optionally gated by an off-chain secret key.
+description: Revocable transfers of ETH and tokens that settle only when the named receiver accepts and proves an off-chain secret key.
 author: muhammadaus <aushijree@gmail.com>
 discussions-to: https://ethereum-magicians.org/t/two-phase-asset-transfers/TBD
 status: Draft
@@ -23,13 +23,10 @@ assets exactly as they are deployed today: **native ETH** and **any [ERC-20](./e
 [ERC-721](./erc-721.md), or [ERC-1155](./erc-1155.md)**. No asset contract needs to change;
 the escrow uses only the approval and transfer mechanics every token already has.
 
-Two acceptance modes are specified:
-
-1. **Plain mode**: accepting takes only a transaction signed by the named receiver.
-2. **Committed mode (optional)**: the sender also creates a throwaway secret key and hands it
-   to the receiver off-chain. Accepting then takes the receiver's own key **and** a signature
-   made with the secret key. The secret never appears on-chain, not in successful transactions
-   and not in reverted ones, and neither factor works without the other.
+Acceptance requires two factors. The sender creates a throwaway secret key and hands it to
+the receiver off-chain. Accepting takes the receiver's own key **and** a signature made with
+the secret key. The secret never appears on-chain, not in successful transactions and not in
+reverted ones, and neither factor works without the other.
 
 Plain `transfer()` / `transferFrom()` / `safeTransferFrom()` semantics are **preserved
 unchanged**: to the underlying assets the escrow is an ordinary holder, so existing DeFi and
@@ -60,16 +57,17 @@ into a pending state, and nothing settles until the named receiver signs an acce
 do, the sender can take the funds back. A stranger at a mistyped address never receives
 anything without acting for it.
 
-### Why an optional second factor
+### Why a second factor, always
 
 Requiring the receiver to accept already stops funds from landing on a wrong address by
 accident. But it does not stop one case: the wrong address belongs to someone active, they see
 the pending transfer, and they accept it before the sender notices the mistake.
 
-Committed mode closes this. The sender creates a secret and shares it with the intended
-receiver directly (chat, in person, a claim link), and only after the receiver has confirmed
-"yes, this is my address". Nobody can accept without the secret. An active stranger at a wrong
-address gets nothing.
+The secret closes this. The sender creates it and shares it with the intended receiver
+directly (chat, in person, a claim link), and only after the receiver has confirmed "yes,
+this is my address". Nobody can accept without the secret. An active stranger at a wrong
+address gets nothing. Because this is exactly the hole that makes receiver-acceptance alone
+insufficient, the secret is mandatory, not an opt-in extra (see Rationale).
 
 ## Specification
 
@@ -87,8 +85,8 @@ RFC 2119 and RFC 8174.
 - **Secret**: a throwaway secp256k1 private key, generated fresh per transfer by the sender and
   delivered to the receiver out-of-band. It is used only to sign the accept digest and MUST never
   appear on-chain.
-- **Commit**: the Ethereum address derived from the secret key. A commit of `address(0)` denotes
-  plain mode.
+- **Commit**: the Ethereum address derived from the secret key. Every transfer carries a
+  non-zero commit.
 - **Accept digest**: `keccak256(abi.encode(block.chainid, escrowContract, id, caller))`,
   the message the secret key signs to authorize acceptance by `caller`.
 
@@ -101,9 +99,9 @@ mechanics). Assets are described by an `Asset` struct (`kind`, `token`, `tokenId
 so one contract and one wallet integration cover every asset class. Nothing in this ERC
 requires any change to any asset contract.
 
-### Common lifecycle rules (both modes)
+### Common lifecycle rules
 
-- `initiateTransfer` / `initiateTransferWithCommit` MUST bind the pending asset to exactly one
+- `initiateTransfer` MUST bind the pending asset to exactly one
   receiver `to` (non-zero, not the sender) and one expiry in
   `[block.timestamp + MIN_EXPIRY, block.timestamp + MAX_EXPIRY]`; otherwise MUST revert.
 - While pending, the escrowed asset MUST NOT be movable by any function other than
@@ -122,17 +120,15 @@ The underlying asset contract emits its own standard transfer events as custody 
 out of the escrow, so downstream indexers observe settlement through the events they already
 handle.
 
-### Committed-mode rules
+### Secret rules
 
-- `initiateTransferWithCommit` MUST revert if `commit == address(0)` (`BadCommit`).
-- The single-argument `acceptTransfer(id)` MUST revert with `SecretRequired` if the transfer
-  carries a non-zero commit.
+- `initiateTransfer` MUST revert if `commit == address(0)` (`BadCommit`).
 - `acceptTransfer(id, secretSig)` MUST perform the receiver check (`msg.sender == pending.to`,
   reverting `NotReceiver`) **before** any signature verification, so a non-receiver caller
   learns nothing about signature validity. It MUST then verify that `secretSig` is a valid ECDSA
   signature over the accept digest `keccak256(abi.encode(block.chainid, address(this), id,
   msg.sender))` recovering to `pending.commit`, reverting `BadSecret` otherwise (including on
-  malformed signatures and plain-mode transfers).
+  malformed signatures).
 - The raw secret key MUST NOT be a parameter of any function of this interface. Proof of the
   secret is only ever a signature bound to `msg.sender`, so calldata (including calldata of
   reverted transactions and mempool-visible transactions) never contains transferable secret
@@ -157,7 +153,7 @@ provides.
    calldata would leak it the moment any transaction was broadcast, even one that reverts,
    because calldata is public. If the receiver address turns out to be wrong or unowned, keep
    the key private and just revoke or reclaim.
-2. **Both factors, always.** Settling a committed transfer takes the receiver's own key AND a
+2. **Both factors, always.** Settling a transfer takes the receiver's own key AND a
    signature from the secret key. One without the other moves nothing. Front-running an accept
    transaction is useless twice over: the attacker is not the receiver, and the signature they
    copied does not verify for their account.
@@ -212,7 +208,7 @@ interface ITwoPhaseEscrow {
         Asset   asset;
         uint64  expiry;
         Status  status;
-        address commit;  // address of the secret key; address(0) => plain mode
+        address commit;  // address of the secret key; always non-zero
     }
 
     event TransferInitiated(
@@ -236,20 +232,18 @@ interface ITwoPhaseEscrow {
     error NotPending();
     error NotExpired();
     error BadCommit();
-    error SecretRequired();
     error BadSecret();
     error NativeTransferFailed();
 
-    /// Escrow `asset` from the caller into a pending transfer bound to `to`.
+    /// Escrow `asset` from the caller into a pending transfer bound to `to`,
+    /// committed to a throwaway secret key (commit = its address, non-zero).
     /// Native: send the amount as msg.value. Tokens: approve the escrow first;
     /// msg.value MUST be zero.
-    function initiateTransfer(Asset calldata asset, address to, uint64 expiry)
+    function initiateTransfer(Asset calldata asset, address to, uint64 expiry, address commit)
         external payable returns (uint256 id);
 
-    function initiateTransferWithCommit(Asset calldata asset, address to, uint64 expiry, address commit)
-        external payable returns (uint256 id);
-
-    function acceptTransfer(uint256 id) external;
+    /// Bound receiver accepts by proving the secret key: secretSig is its ECDSA
+    /// signature over keccak256(abi.encode(block.chainid, address(this), id, msg.sender)).
     function acceptTransfer(uint256 id, bytes calldata secretSig) external;
     function revokeTransfer(uint256 id) external;
     function reclaimExpired(uint256 id) external;
@@ -279,8 +273,8 @@ Escrow-specific rules:
 
 ### Compatibility with base asset standards
 
-The two-phase lifecycle is entered only by explicit calls to `initiateTransfer` /
-`initiateTransferWithCommit` (opt-in per call). The escrow by construction changes nothing
+The two-phase lifecycle is entered only by explicit calls to `initiateTransfer` (opt-in per
+call). The escrow by construction changes nothing
 about the underlying assets; it is an ordinary holder from their perspective. Routing all
 plain transfers through two-phase is explicitly NOT specified.
 
@@ -316,12 +310,17 @@ every asset already deployed, needing only the approval and transfer mechanics t
 today. The costs are accepted knowingly: ERC-20/1155 flows need an approval step, and a
 third-party contract holds custody while pending (see Security Considerations).
 
-### Committed mode is optional, not mandatory
+### The secret is mandatory
 
-Requiring the secret on every transfer was rejected. Between people who transact regularly, the
-receiver-accept step alone already prevents accidental mis-delivery, and forcing a secret
-exchange every time just doubles the friction. The sender chooses per transfer: plain mode for
-a known counterparty, committed mode for a new address or a large amount.
+An accept-only variant (no secret) was rejected. It stops passive mis-delivery but leaves open
+the one dangerous case: an active stranger at a wrong address who sees the pending transfer
+and accepts it. Making the secret optional would mean users skip it exactly when they
+misjudge that risk, and a wallet cannot judge it for them. The added friction is small: the
+sender's wallet generates the key automatically and delivery rides the same channel the
+counterparties already use to confirm the address; on-chain the cost is one `ecrecover`. A
+sender who genuinely wants no second factor can hand the secret to the receiver together with
+the transfer id, which degrades exactly to the accept-only variant, without weakening the
+interface for everyone else.
 
 ### Signature proof instead of preimage reveal
 
@@ -379,7 +378,7 @@ Each factor on its own is enough to stop an accidental recipient:
   Settling takes a transaction signed by exactly the named receiver. A stranger at a mistyped
   address gets nothing unless they actively accept, and until anyone accepts, the sender can
   revoke.
-- **Secret key (committed mode).** Even a stranger who races to accept fails without the
+- **Secret key.** Even a stranger who races to accept fails without the
   secret. And the secret can't be picked up from the chain: the mempool only ever shows
   signatures, each one locked to a specific account (Assumption 1). Watch a valid accept: the
   signature only works for the real receiver. Watch a botched accept from a wrong account: the

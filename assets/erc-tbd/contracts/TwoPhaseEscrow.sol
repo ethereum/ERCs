@@ -9,8 +9,8 @@ import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC11
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { ITwoPhaseEscrow } from "./ITwoPhaseEscrow.sol";
 
-/// @title TwoPhaseEscrow — asset-agnostic two-phase transfer escrow.
-/// @notice Retrofits the two-phase (initiate → accept) lifecycle onto assets that
+/// @title TwoPhaseEscrow: asset-agnostic two-phase transfer escrow.
+/// @notice Retrofits the two-phase (initiate -> accept) lifecycle onto assets that
 ///         cannot be modified: native ETH and any already-deployed ERC-20, ERC-721,
 ///         or ERC-1155. Custody model: the escrow holds the asset while pending;
 ///         `acceptTransfer` / `revokeTransfer` / `reclaimExpired` are the only paths
@@ -21,9 +21,9 @@ import { ITwoPhaseEscrow } from "./ITwoPhaseEscrow.sol";
 ///        actively chose to accept cannot be griefed by their own missing
 ///        onERC721Received; ERC-1155 has no unsafe variant, but there the recipient
 ///        initiated the call themselves, and `nonReentrant` guards the callback.
-///      - Same commit model as the token-native extensions: the out-of-band secret
-///        is a throwaway private key, proven by signature over a caller-bound digest,
-///        never revealed on-chain.
+///      - Every transfer commits to an out-of-band secret: a throwaway private key,
+///        proven at accept time by signature over a caller-bound digest, never
+///        revealed on-chain.
 contract TwoPhaseEscrow is ITwoPhaseEscrow, ERC1155Holder, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -51,27 +51,17 @@ contract TwoPhaseEscrow is ITwoPhaseEscrow, ERC1155Holder, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ITwoPhaseEscrow
-    function initiateTransfer(Asset calldata asset, address to, uint64 expiry)
+    function initiateTransfer(Asset calldata asset, address to, uint64 expiry, address commit)
         external
         payable
         nonReentrant
         returns (uint256 id)
     {
-        return _initiate(asset, to, expiry, address(0));
-    }
-
-    /// @inheritdoc ITwoPhaseEscrow
-    function initiateTransferWithCommit(
-        Asset calldata asset,
-        address to,
-        uint64 expiry,
-        address commit
-    ) external payable nonReentrant returns (uint256 id) {
         if (commit == address(0)) revert BadCommit();
         return _initiate(asset, to, expiry, commit);
     }
 
-    /// @dev Shared initiate path: validate, record, then pull custody (CEI — the
+    /// @dev Shared initiate path: validate, record, then pull custody (CEI: the
     ///      pull is the interaction; state is final before any external call).
     function _initiate(Asset calldata asset, address to, uint64 expiry, address commit)
         private
@@ -139,27 +129,15 @@ contract TwoPhaseEscrow is ITwoPhaseEscrow, ERC1155Holder, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ITwoPhaseEscrow
-    function acceptTransfer(uint256 id) external nonReentrant {
-        PendingTransfer storage t = _pending[id];
-        if (t.status != Status.Pending) revert NotPending();
-        if (msg.sender != t.to) revert NotReceiver();
-        if (t.commit != address(0)) revert SecretRequired();
-
-        _settle(id, t, Status.Accepted, t.to);
-        emit TransferAccepted(id);
-    }
-
-    /// @inheritdoc ITwoPhaseEscrow
     /// @dev Receiver check BEFORE signature verification; the digest binds
-    ///      msg.sender, so leaked/observed signatures are worthless to anyone else
-    ///      (same reasoning as the token-native extensions).
+    ///      msg.sender, so leaked/observed signatures are worthless to anyone else.
     function acceptTransfer(uint256 id, bytes calldata secretSig) external nonReentrant {
         PendingTransfer storage t = _pending[id];
         if (t.status != Status.Pending) revert NotPending();
         if (msg.sender != t.to) revert NotReceiver();
 
         (address recovered,,) = ECDSA.tryRecover(_acceptDigest(id, msg.sender), secretSig);
-        if (t.commit == address(0) || recovered != t.commit) revert BadSecret();
+        if (recovered != t.commit) revert BadSecret();
 
         _settle(id, t, Status.Accepted, t.to);
         emit TransferAccepted(id);

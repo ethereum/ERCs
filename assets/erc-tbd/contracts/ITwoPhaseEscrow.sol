@@ -1,28 +1,27 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.24;
 
-/// @title ITwoPhaseEscrow — asset-agnostic two-phase ("2FA") transfer escrow.
-/// @notice The standalone-escrow embodiment of the two-phase transfer ERC: retrofits
-///         the initiate → accept lifecycle onto assets that cannot be modified —
-///         native ETH and ANY already-deployed ERC-20, ERC-721, or ERC-1155. The
-///         escrow takes custody while pending; the bound receiver accepts (optionally
-///         proving an out-of-band secret key by signature); the sender may revoke
-///         anytime while pending and reclaim after expiry.
+/// @title ITwoPhaseEscrow: asset-agnostic two-phase ("2FA") transfer escrow.
+/// @notice Retrofits the initiate -> accept lifecycle onto assets that cannot be
+///         modified: native ETH and ANY already-deployed ERC-20, ERC-721, or
+///         ERC-1155. The escrow takes custody while pending; the bound receiver
+///         accepts by proving an out-of-band secret key by signature; the sender
+///         may revoke anytime while pending and reclaim after expiry.
 ///
-/// @dev Same lifecycle, commit model, and assumptions as the token-native
-///      IERC20TwoPhase / IERC721TwoPhase extensions; only custody differs (escrow
-///      balance instead of internal token state).
+/// @dev Every transfer carries a commit (address of a throwaway secret key).
+///      Settlement always requires both factors: the receiver's account key and
+///      a signature by the secret key. The raw secret key never appears on-chain.
 interface ITwoPhaseEscrow {
     /*//////////////////////////////////////////////////////////////
                                  TYPES
     //////////////////////////////////////////////////////////////*/
 
     enum Status {
-        None, // 0 — slot never used
-        Pending, // 1 — asset escrowed, awaiting accept / revoke / reclaim
-        Accepted, // 2 — receiver accepted; asset delivered
-        Revoked, // 3 — sender revoked while pending
-        Reclaimed // 4 — sender reclaimed after expiry
+        None, // 0 - slot never used
+        Pending, // 1 - asset escrowed, awaiting accept / revoke / reclaim
+        Accepted, // 2 - receiver accepted; asset delivered
+        Revoked, // 3 - sender revoked while pending
+        Reclaimed // 4 - sender reclaimed after expiry
     }
 
     enum AssetType {
@@ -45,7 +44,7 @@ interface ITwoPhaseEscrow {
         Asset asset;
         uint64 expiry; // unix seconds
         Status status;
-        address commit; // address of the secret key; address(0) => plain mode
+        address commit; // address of the secret key; always non-zero
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -53,7 +52,6 @@ interface ITwoPhaseEscrow {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Emitted when a sender escrows an asset into pending state.
-    /// @dev `commit` is address(0) for plain-mode transfers; non-zero for committed ones.
     event TransferInitiated(
         uint256 indexed id,
         address indexed from,
@@ -84,8 +82,7 @@ interface ITwoPhaseEscrow {
     error NotSender(); // revoke / reclaim by non-sender
     error NotPending(); // transfer is not in Pending state
     error NotExpired(); // reclaim before expiry
-    error BadCommit(); // commit == address(0) on initiateTransferWithCommit (client bug)
-    error SecretRequired(); // plain accept on a committed transfer
+    error BadCommit(); // commit == address(0) at initiation (client bug)
     error BadSecret(); // signature doesn't recover to the committed secret address
     error NativeTransferFailed(); // ETH payout call failed
 
@@ -93,34 +90,22 @@ interface ITwoPhaseEscrow {
                                FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Escrow `asset` from the caller into a pending transfer bound to `to`.
+    /// @notice Escrow `asset` from the caller into a pending transfer bound to `to`,
+    ///         committed to a throwaway secret key (commit = its address). Settlement
+    ///         requires the receiver's account key AND a signature by the secret key.
     /// @dev Native: send the amount as msg.value (asset.token/tokenId zero). Tokens:
-    ///      approve the escrow first; msg.value MUST be zero.
+    ///      approve the escrow first; msg.value MUST be zero. The secret key itself
+    ///      NEVER appears on-chain (see the ERC draft's Assumptions). If `to` is
+    ///      unowned or mistyped, revoke or reclaim.
+    /// @param commit Address derived from the secret key; MUST NOT be address(0).
     /// @return id Monotonic identifier for this pending transfer.
-    function initiateTransfer(Asset calldata asset, address to, uint64 expiry)
+    function initiateTransfer(Asset calldata asset, address to, uint64 expiry, address commit)
         external
         payable
         returns (uint256 id);
 
-    /// @notice Like `initiateTransfer`, but additionally commits to a throwaway
-    ///         secret key (commit = its address). Settlement then requires the
-    ///         receiver's account key AND a signature by the secret key.
-    /// @dev The secret key itself NEVER appears on-chain (see the ERC draft's
-    ///      Assumptions). If `to` is unowned or mistyped, revoke or reclaim.
-    /// @param commit Address derived from the secret key; MUST NOT be address(0).
-    function initiateTransferWithCommit(
-        Asset calldata asset,
-        address to,
-        uint64 expiry,
-        address commit
-    ) external payable returns (uint256 id);
-
-    /// @notice Bound receiver accepts a plain (no-commit) transfer. Receiver-only.
-    /// @dev MUST revert with `SecretRequired` if the transfer carries a commit.
-    function acceptTransfer(uint256 id) external;
-
-    /// @notice Bound receiver accepts a committed transfer by proving knowledge of
-    ///         the secret key: `secretSig` is that key's ECDSA signature over
+    /// @notice Bound receiver accepts by proving knowledge of the secret key:
+    ///         `secretSig` is that key's ECDSA signature over
     ///         `keccak256(abi.encode(block.chainid, address(this), id, msg.sender))`.
     /// @dev Receiver check MUST run before the signature check; the digest binds
     ///      msg.sender, so an observed signature is non-replayable by anyone else.
