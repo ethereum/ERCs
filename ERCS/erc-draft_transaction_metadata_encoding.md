@@ -1,6 +1,6 @@
 ---
-title: Transaction Metadata Encoding for EIP-8130
-description: CBOR encoding for the EIP-8130 metadata field, covering attribution, memos, and offchain-data commitments with selective disclosure.
+title: Transaction Metadata Encoding
+description: A CBOR encoding for transaction metadata, targeting the EIP-8130 metadata field, for attribution, memos, and offchain commitments.
 author: Chris Hunter (@chunter-cb) <chris.hunter@coinbase.com>
 discussions-to: https://ethereum-magicians.org/t/erc-transaction-metadata-encoding-for-eip-8130
 status: Draft
@@ -13,6 +13,8 @@ requires: 5792, 8130
 ## Abstract
 
 [EIP-8130](./eip-8130.md) adds an optional, opaque `metadata` field to its transaction type but leaves the byte layout to a companion specification. This proposal defines that layout: `metadata` is a single deterministic [CBOR](https://www.rfc-editor.org/rfc/rfc8949) value: a **text string** (memo), a **byte string** (commitment digest), a **map** of reserved keys (attribution, memo, commitment, scope), or an **array** of any of these. The map keys are interoperable with [ERC-8021](./eip-8021.md) schema 2, extended with keys for offchain commitments and call scoping. Any value MAY be replaced by a salted commitment to it, recursively, so a producer conceals a single field, a record, or the whole map with one primitive and discloses it selectively offchain; this proposal also defines that disclosure and delivery protocol and an [ERC-5792](./eip-5792.md) `metadata` capability superseding `dataSuffix`. Because the protocol never interprets `metadata`, the encoding is self-identifying through strict deterministic decoding rather than any protocol enforcement.
+
+This proposal defines an encoding, not a transport. The [EIP-8130](./eip-8130.md) `metadata` field is the target carrier and the source of the scope model (whole transaction, phase, or call). The same value MAY be carried by another transport, such as a calldata data suffix on other transaction types; where that transport has no phase or call structure, the scope keys do not apply.
 
 ## Motivation
 
