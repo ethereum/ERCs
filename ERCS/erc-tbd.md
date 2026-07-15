@@ -309,15 +309,15 @@ Token), [ERC-2020](./erc-2020.md) (E-Money Standard Token), and [ERC-5528](./erc
 contract and one wallet integration cover ETH and every deployed token today, and (2) a common
 wallet UX. It does not replace normal transfers anywhere.
 
-### Why an escrow and not a token extension
+### Why the escrow comes first
 
-Building the lifecycle into token contracts themselves was rejected. Deployed tokens are
-immutable and can never adopt it, and a new token has no reason to implement an interface no
-wallet supports yet, while wallets have no reason to support an interface no token implements.
-The escrow has no such adoption problem: deployed once, it immediately works with native ETH
-and every existing token, because it needs only the approval and transfer mechanics they
-already expose. The costs are accepted knowingly: ERC-20/1155 flows need an approval step, and
-a third-party contract holds custody while pending (see Security Considerations).
+Newly deployed tokens can build the same lifecycle directly into the token contract, which is
+smoother for their users: no approval step and no external contract. That option is left to a
+separate follow-up ERC. This ERC standardizes the escrow first because it works immediately
+with native ETH and every asset already deployed, needing only the approval and transfer
+mechanics they expose today. The costs are accepted knowingly: ERC-20/1155 flows need an
+approval step, and a third-party contract holds custody while pending (see Security
+Considerations).
 
 ### Committed mode is optional, not mandatory
 
