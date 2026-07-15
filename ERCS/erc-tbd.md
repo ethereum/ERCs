@@ -18,14 +18,10 @@ asset is locked, bound to a named receiver), the receiver *accepts*, and only th
 transfer settle. Until someone accepts, the sender can take the asset back at any time; after a
 deadline passes, the sender can reclaim it.
 
-The lifecycle is specified in two conforming embodiments:
-
-- **Standalone escrow (`ITwoPhaseEscrow`)**: a deployable contract that retrofits two-phase
-  settlement onto assets that cannot be modified: **native ETH** and **any already-deployed
-  [ERC-20](./erc-20.md), [ERC-721](./erc-721.md), or [ERC-1155](./erc-1155.md)**.
-- **Token-native extensions (`IERC20TwoPhase`, `IERC721TwoPhase`)**: opt-in interfaces for
-  newly deployed tokens that build the lifecycle into the token itself, with no external
-  contract or approval step.
+The lifecycle is provided by a standalone escrow contract (`ITwoPhaseEscrow`) that works with
+assets exactly as they are deployed today: **native ETH** and **any [ERC-20](./erc-20.md),
+[ERC-721](./erc-721.md), or [ERC-1155](./erc-1155.md)**. No asset contract needs to change;
+the escrow uses only the approval and transfer mechanics every token already has.
 
 Two acceptance modes are specified:
 
@@ -35,9 +31,10 @@ Two acceptance modes are specified:
    made with the secret key. The secret never appears on-chain, not in successful transactions
    and not in reverted ones, and neither factor works without the other.
 
-Plain `transfer()` / `transferFrom()` / `safeTransferFrom()` semantics are **preserved unchanged**
-so existing DeFi and marketplace integrations are not broken. The token-native interfaces are
-discoverable via [ERC-165](./erc-165.md).
+Plain `transfer()` / `transferFrom()` / `safeTransferFrom()` semantics are **preserved
+unchanged**: to the underlying assets the escrow is an ordinary holder, so existing DeFi and
+marketplace integrations are not affected. The escrow is discoverable via
+[ERC-165](./erc-165.md).
 
 ## Motivation
 
@@ -85,35 +82,26 @@ RFC 2119 and RFC 8174.
 - **Pending transfer**: initiated but not yet accepted, revoked, or reclaimed.
 - **Expiry**: absolute Unix timestamp after which the receiver can no longer accept; the sender
   MAY reclaim at or after expiry via `reclaimExpired`.
-- **Transfer ID**: a `uint256` uniquely identifying a pending transfer within an implementing
-  contract (escrow or token).
+- **Transfer ID**: a `uint256` uniquely identifying a pending transfer within an escrow
+  contract.
 - **Secret**: a throwaway secp256k1 private key, generated fresh per transfer by the sender and
   delivered to the receiver out-of-band. It is used only to sign the accept digest and MUST never
   appear on-chain.
 - **Commit**: the Ethereum address derived from the secret key. A commit of `address(0)` denotes
   plain mode.
-- **Accept digest**: `keccak256(abi.encode(block.chainid, implementingContract, id, caller))`,
+- **Accept digest**: `keccak256(abi.encode(block.chainid, escrowContract, id, caller))`,
   the message the secret key signs to authorize acceptance by `caller`.
 
-### Deployment models
+### Deployment model
 
-The lifecycle MUST be implemented in one of two embodiments; both are conforming:
+The lifecycle is implemented by a standalone escrow contract that takes custody of the asset
+while pending. It works for **native ETH** (sent as `msg.value` at initiation) and **any
+deployed ERC-20, ERC-721, or ERC-1155** (pulled via the asset's own approval + `transferFrom`
+mechanics). Assets are described by an `Asset` struct (`kind`, `token`, `tokenId`, `amount`)
+so one contract and one wallet integration cover every asset class. Nothing in this ERC
+requires any change to any asset contract.
 
-1. **Standalone escrow (`ITwoPhaseEscrow`)**: a separate contract that takes custody of the
-   asset while pending. This is the universal retrofit path: it works for **native ETH** (sent
-   as `msg.value` at initiation) and **any deployed ERC-20, ERC-721, or ERC-1155** (pulled via
-   the asset's own approval + `transferFrom` mechanics). Assets are described by an `Asset`
-   struct (`kind`, `token`, `tokenId`, `amount`) so one contract and one wallet integration
-   cover every asset class.
-2. **Token-native extension (`IERC20TwoPhase` / `IERC721TwoPhase`)**: for newly deployed
-   tokens, the lifecycle lives inside the token: no external contract, no approval step, and
-   pending state is enforced by the token's own accounting (escrow-in-own-balance for ERC-20,
-   transfer lock for ERC-721). Discoverable via ERC-165.
-
-In short: the escrow works with everything but needs an approval step; the native extension is
-smoother but only exists on tokens that adopt it. Wallets SHOULD support both.
-
-### Common lifecycle rules (all embodiments, both modes)
+### Common lifecycle rules (both modes)
 
 - `initiateTransfer` / `initiateTransferWithCommit` MUST bind the pending asset to exactly one
   receiver `to` (non-zero, not the sender) and one expiry in
@@ -128,11 +116,11 @@ smoother but only exists on tokens that adopt it. Wallets SHOULD support both.
   pending (including after expiry).
 - `reclaimExpired` MUST require `msg.sender == pending.from` AND `block.timestamp > expiry`.
   It MUST NOT be callable by third parties (see Rationale).
-- In the token-native embodiment, the standard ERC-20 / ERC-721 `Transfer` event MUST be
-  emitted on acceptance so downstream indexers observe settlement identically to a plain
-  transfer. (In the escrow embodiment the underlying asset contract emits its own transfer
-  events as custody moves.)
 - Transfer ids MUST never be reused.
+
+The underlying asset contract emits its own standard transfer events as custody moves in and
+out of the escrow, so downstream indexers observe settlement through the events they already
+handle.
 
 ### Committed-mode rules
 
@@ -197,11 +185,11 @@ provides.
    locally; never send the secret key to any service. Never log or store it unencrypted. Sign
    for the account the user is actually accepting from. Show senders their pending outbound
    transfers, so an unexpected acceptance race gets noticed and revoked.
-9. **The custodian is the contract.** While pending, the escrow or token contract holds the
-   asset. Users trust that it upholds the accounting invariant below and has no path that moves
+9. **The custodian is the contract.** While pending, the escrow contract holds the asset.
+   Users trust that it upholds the accounting invariant below and has no path that moves
    escrowed assets outside accept / revoke / reclaim.
 
-### ITwoPhaseEscrow (standalone escrow: native ETH and any asset)
+### ITwoPhaseEscrow
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
@@ -283,176 +271,23 @@ Escrow-specific rules:
   a `receive()` / `fallback()` path for the same reason.
 - ERC-721 escrows MUST enforce `amount == 1`. ERC-1155 escrows MUST implement the
   `onERC1155Received` hook to take custody.
-- All state-changing functions SHOULD be reentrancy-guarded: unlike the token-native
-  embodiment, settlement calls out to arbitrary asset contracts and (for native ETH) to the
-  recipient.
+- All state-changing functions SHOULD be reentrancy-guarded: settlement calls out to
+  arbitrary asset contracts and (for native ETH) to the recipient.
 - Fee-on-transfer or rebasing ERC-20s MAY cause the escrowed amount to differ from
   `asset.amount`; handling such tokens is implementation-defined and senders SHOULD NOT use
   the escrow with them.
 
-### IERC20TwoPhase (token-native extension)
-
-```solidity
-// SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.20;
-
-interface IERC20TwoPhase {
-    enum Status { None, Pending, Accepted, Revoked, Reclaimed }
-
-    struct PendingTransfer {
-        address from;
-        address to;
-        uint256 amount;
-        uint64  expiry;  // unix seconds
-        Status  status;
-        address commit;  // address of the secret key; address(0) => plain mode
-    }
-
-    /// commit is address(0) for plain-mode transfers; non-zero for committed ones.
-    event TransferInitiated(
-        uint256 indexed id,
-        address indexed from,
-        address indexed to,
-        uint256 amount,
-        uint64  expiry,
-        address commit
-    );
-    event TransferAccepted(uint256 indexed id);
-    event TransferRevoked(uint256 indexed id);
-    event TransferReclaimed(uint256 indexed id);
-
-    error BadExpiry();
-    error BadAmount();
-    error BadReceiver();
-    error NotReceiver();
-    error NotSender();
-    error NotPending();
-    error NotExpired();
-    error BadCommit();       // commit == address(0) on initiateTransferWithCommit
-    error SecretRequired();  // plain accept on a committed transfer
-    error BadSecret();       // signature doesn't recover to the committed address
-
-    /// Escrow `amount` from the caller into a pending transfer bound to `to`.
-    /// Caller's spendable balance MUST decrease immediately; `to`'s MUST NOT
-    /// increase until acceptance.
-    function initiateTransfer(address to, uint256 amount, uint64 expiry)
-        external returns (uint256 id);
-
-    /// Like initiateTransfer, but additionally commits to a throwaway secret key
-    /// (commit = its address). Settlement then requires the receiver's account key
-    /// AND a signature by the secret key.
-    function initiateTransferWithCommit(address to, uint256 amount, uint64 expiry, address commit)
-        external returns (uint256 id);
-
-    /// Bound receiver accepts a plain transfer. Reverts SecretRequired if committed.
-    function acceptTransfer(uint256 id) external;
-
-    /// Bound receiver accepts a committed transfer by proving knowledge of the
-    /// secret key: secretSig is its ECDSA signature over
-    /// keccak256(abi.encode(block.chainid, address(this), id, msg.sender)).
-    /// Receiver check MUST run before signature verification.
-    function acceptTransfer(uint256 id, bytes calldata secretSig) external;
-
-    /// The digest the secret key must sign for `caller` to accept transfer `id`.
-    function acceptDigest(uint256 id, address caller) external view returns (bytes32);
-
-    /// Sender revokes a still-pending transfer, refunding themselves.
-    function revokeTransfer(uint256 id) external;
-
-    /// Sender reclaims an unaccepted transfer after expiry.
-    function reclaimExpired(uint256 id) external;
-
-    function pendingTransfer(uint256 id) external view returns (PendingTransfer memory);
-
-    /// Bounds enforced on `expiry` relative to block.timestamp at initiation.
-    /// RECOMMENDED: MIN_EXPIRY >= 600 (10 minutes), MAX_EXPIRY <= 604800 (7 days).
-    function MIN_EXPIRY() external view returns (uint64);
-    function MAX_EXPIRY() external view returns (uint64);
-}
-```
-
-### IERC721TwoPhase (token-native extension)
-
-Identical lifecycle keyed by `tokenId` instead of `amount`, with these additional rules:
-
-```solidity
-// SPDX-License-Identifier: CC0-1.0
-pragma solidity ^0.8.20;
-
-interface IERC721TwoPhase {
-    enum Status { None, Pending, Accepted, Revoked, Reclaimed }
-
-    struct PendingTransfer {
-        address from;
-        address to;
-        uint256 tokenId;
-        uint64  expiry;
-        Status  status;
-        address commit;
-    }
-
-    event TransferInitiated(
-        uint256 indexed id,
-        address indexed from,
-        address indexed to,
-        uint256 tokenId,
-        uint64  expiry,
-        address commit
-    );
-    event TransferAccepted(uint256 indexed id);
-    event TransferRevoked(uint256 indexed id);
-    event TransferReclaimed(uint256 indexed id);
-
-    error BadExpiry();
-    error BadReceiver();
-    error NotOwner();
-    error NotReceiver();
-    error NotSender();
-    error NotPending();
-    error NotExpired();
-    error AlreadyPending();
-    error TokenLocked();
-    error BadCommit();
-    error SecretRequired();
-    error BadSecret();
-
-    function initiateTransfer(address to, uint256 tokenId, uint64 expiry)
-        external returns (uint256 id);
-    function initiateTransferWithCommit(address to, uint256 tokenId, uint64 expiry, address commit)
-        external returns (uint256 id);
-    function acceptTransfer(uint256 id) external;
-    function acceptTransfer(uint256 id, bytes calldata secretSig) external;
-    function revokeTransfer(uint256 id) external;
-    function reclaimExpired(uint256 id) external;
-
-    function pendingTransfer(uint256 id) external view returns (PendingTransfer memory);
-    function acceptDigest(uint256 id, address caller) external view returns (bytes32);
-    function isLocked(uint256 tokenId) external view returns (bool);
-    function MIN_EXPIRY() external view returns (uint64);
-    function MAX_EXPIRY() external view returns (uint64);
-}
-```
-
-- While pending, recorded ownership MUST remain with the sender (`ownerOf` unchanged) and the
-  token MUST be locked: `transferFrom`, `safeTransferFrom`, and any other ownership-changing
-  path MUST revert (`TokenLocked`) until settled. `acceptTransfer` performs the actual move.
-- A `tokenId` MUST NOT have more than one simultaneous pending transfer (`AlreadyPending`).
-
 ### Compatibility with base asset standards
 
-Token-native implementations MUST preserve existing `transfer`, `transferFrom`, and
-`safeTransferFrom` semantics for non-pending assets. The two-phase lifecycle is entered only by
-explicit calls to `initiateTransfer` / `initiateTransferWithCommit` (opt-in per call). Routing
-all plain transfers through two-phase is explicitly NOT specified (see Rationale). The escrow
-embodiment by construction changes nothing about the underlying assets; it is an ordinary
-holder from their perspective.
+The two-phase lifecycle is entered only by explicit calls to `initiateTransfer` /
+`initiateTransferWithCommit` (opt-in per call). The escrow by construction changes nothing
+about the underlying assets; it is an ordinary holder from their perspective. Routing all
+plain transfers through two-phase is explicitly NOT specified.
 
 ### ERC-165 detection
 
-Token-native implementations MUST return `true` from `supportsInterface` for
-`type(IERC20TwoPhase).interfaceId` or `type(IERC721TwoPhase).interfaceId` respectively.
-Standalone escrows SHOULD support ERC-165 and return `true` for
-`type(ITwoPhaseEscrow).interfaceId`. Wallets and dapps MUST use these checks (not bytecode
+Escrows MUST support ERC-165 and return `true` from `supportsInterface` for
+`type(ITwoPhaseEscrow).interfaceId`. Wallets and dapps MUST use this check (not bytecode
 inspection or off-chain registries) to decide whether to render two-phase UX.
 
 ## Rationale
@@ -471,19 +306,18 @@ Token), [ERC-2020](./erc-2020.md) (E-Money Standard Token), and [ERC-5528](./erc
 (Refundable Token) never took off.
 
 **Conclusion:** this standard earns its place as (1) a universal retrofit, where one escrow
-contract and one wallet integration cover ETH and every deployed token today, (2) an opt-in feature for
-new tokens built for person-to-person payments, and (3) a common wallet UX. It does not replace
-normal transfers anywhere.
+contract and one wallet integration cover ETH and every deployed token today, and (2) a common
+wallet UX. It does not replace normal transfers anywhere.
 
-### Why two embodiments instead of one
+### Why an escrow and not a token extension
 
-An escrow-only standard would already cover every asset, including future ones, with no token
-cooperation needed. But the escrow flow costs an approval transaction and puts a third-party
-contract between the user and their funds; a token that builds the lifecycle in natively skips
-both. A native-only standard fails harder: it can never cover ETH or the tokens already
-deployed, which is where today's losses actually happen. So both embodiments stay, sharing one
-lifecycle, one commit model, and one set of assumptions; wallets only differ in where they read
-custody from.
+Building the lifecycle into token contracts themselves was rejected. Deployed tokens are
+immutable and can never adopt it, and a new token has no reason to implement an interface no
+wallet supports yet, while wallets have no reason to support an interface no token implements.
+The escrow has no such adoption problem: deployed once, it immediately works with native ETH
+and every existing token, because it needs only the approval and transfer mechanics they
+already expose. The costs are accepted knowingly: ERC-20/1155 flows need an approval step, and
+a third-party contract holds custody while pending (see Security Considerations).
 
 ### Committed mode is optional, not mandatory
 
@@ -523,13 +357,6 @@ Letting anyone push expired transfers back to the sender was rejected. It gives 
 way to interfere with a sender who is still deciding what to do, and it adds nothing, since the
 sender can always reclaim themselves.
 
-### ERC-721 lock model
-
-Moving custody to the contract while pending (making `ownerOf` return the contract) breaks
-marketplace metadata and ownership queries. Instead, ownership stays with the sender and the
-token is locked; implementations SHOULD enforce the lock in the internal transfer hook (e.g.,
-OpenZeppelin v5's `_update`).
-
 ### Expiry bounds
 
 - **Lower bound (RECOMMENDED 10 minutes):** a genuine hand-off (communicating out-of-band,
@@ -540,12 +367,10 @@ OpenZeppelin v5's `_update`).
 
 ## Backwards Compatibility
 
-The escrow embodiment is a new standalone contract and touches no existing standard. The
-token-native embodiment only adds functions, events, and errors on top of ERC-20 / ERC-721; no
-existing signature, return type, or event changes. Contracts, aggregators, DEXs, and
-marketplaces calling only the base interfaces are unaffected. Note that ERC-20 implementations
-using the escrow-in-own-balance pattern will show pending amounts in `balanceOf(token)`, which
-analytics treating the token's own address as anomalous should account for.
+The escrow is a new standalone contract and changes no existing standard. Underlying assets
+see it as an ordinary holder, so contracts, aggregators, DEXs, and marketplaces are
+unaffected. Analytics should note that pending value shows up as the escrow contract's
+balance until settlement.
 
 ## Security Considerations
 
@@ -563,11 +388,10 @@ Each factor on its own is enough to stop an accidental recipient:
   signature only works for the real receiver. Watch a botched accept from a wrong account: the
   signature only works for that wrong account, where the receiver check rejects it. Nothing
   observed on-chain can be reused by anyone.
-- **No bypass path.** The contract holds custody while pending, ids are never reused, and after
-  expiry the only path is back to the sender. Reentrancy can't drain it: the token-native
-  embodiment makes no external calls during settlement at all, and the escrow embodiment (which
-  does call out to asset contracts and ETH recipients) is reentrancy-guarded with state
-  finalized before any external call.
+- **No bypass path.** The escrow holds custody while pending, ids are never reused, and after
+  expiry the only path is back to the sender. Reentrancy can't drain it: settlement does call
+  out to asset contracts and ETH recipients, so it is reentrancy-guarded with state finalized
+  before any external call.
 
 ### Explicit out-of-scope: social engineering
 
@@ -625,21 +449,10 @@ An attacker can initiate many small pending transfers to a victim to create UI n
 state costs the attacker gas and locked capital, self-expires within `MAX_EXPIRY`, and wallets
 SHOULD let users hide sub-threshold pending inbounds.
 
-### Accounting invariants
+### Accounting invariant
 
-Token-native ERC-20 implementations MUST maintain, at all times:
-
-```
-totalSupply() == sum(all balances) + sum(all pending amounts)
-```
-
-Pending amounts MUST be excluded from the sender's spendable `balanceOf` and MUST NOT appear in
-the receiver's until acceptance; otherwise a sender could double-spend escrowed funds. The
-reference implementation satisfies the invariant by construction, escrowing pending amounts in
-the token contract's own balance.
-
-Escrow implementations MUST maintain the analogous invariant per asset: the escrow's holdings
-of each asset equal the sum of that asset's pending amounts (for native ETH,
+Escrow implementations MUST maintain, per asset, at all times: the escrow's holdings of each
+asset equal the sum of that asset's pending amounts (for native ETH,
 `address(escrow).balance == sum(pending native amounts)`, hence the rule that ETH may enter
 only through initiation). Fee-on-transfer and rebasing ERC-20s violate this invariant by
 construction and are out of scope (see escrow-specific rules).
@@ -667,11 +480,9 @@ Validator timestamp drift (~seconds) is negligible against the minute-scale `MIN
 Reference implementations and a full Foundry test suite are provided in
 [`../assets/erc-tbd/`](../assets/erc-tbd/):
 
-- `TwoPhaseEscrow.sol` (with `ITwoPhaseEscrow.sol`): standalone escrow embodiment for native
-  ETH and any ERC-20 / ERC-721 / ERC-1155; reentrancy-guarded, no owner, no upgradability.
-- `ERC20TwoPhase.sol` / `ERC721TwoPhase.sol` (with their interfaces): token-native extensions;
-  escrow-in-own-balance model for ERC-20, `_update`-enforced lock model for ERC-721.
-- Tests. Every suite includes the two key negative tests: a valid signature replayed by a
+- `TwoPhaseEscrow.sol` (with `ITwoPhaseEscrow.sol`): the escrow for native ETH and any
+  ERC-20 / ERC-721 / ERC-1155; reentrancy-guarded, no owner, no upgradability.
+- Tests. The suite includes the two key negative tests: a valid signature replayed by a
   different caller reverts, and a signature mistakenly produced for the wrong account is
   unusable by everyone including the bound receiver. Together they show that no on-chain
   observation ever yields transferable secret material.

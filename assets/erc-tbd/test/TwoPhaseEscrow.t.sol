@@ -4,14 +4,14 @@ pragma solidity 0.8.24;
 import { Test } from "forge-std/Test.sol";
 import { TwoPhaseEscrow } from "../contracts/TwoPhaseEscrow.sol";
 import { ITwoPhaseEscrow } from "../contracts/ITwoPhaseEscrow.sol";
-import { TwoPhaseToken } from "../contracts/TwoPhaseToken.sol";
-import { TwoPhaseNFT } from "../contracts/TwoPhaseNFT.sol";
+import { MockERC20 } from "../contracts/MockERC20.sol";
+import { MockERC721 } from "../contracts/MockERC721.sol";
 import { Mock1155 } from "../contracts/Mock1155.sol";
 
 contract TwoPhaseEscrowTest is Test {
     TwoPhaseEscrow internal escrow;
-    TwoPhaseToken internal erc20;
-    TwoPhaseNFT internal erc721;
+    MockERC20 internal erc20;
+    MockERC721 internal erc721;
     Mock1155 internal erc1155;
 
     address internal alice = makeAddr("alice"); // sender
@@ -23,8 +23,8 @@ contract TwoPhaseEscrowTest is Test {
 
     function setUp() public {
         escrow = new TwoPhaseEscrow();
-        erc20 = new TwoPhaseToken();
-        erc721 = new TwoPhaseNFT();
+        erc20 = new MockERC20();
+        erc721 = new MockERC721();
         erc1155 = new Mock1155();
 
         vm.deal(alice, 100 ether);
