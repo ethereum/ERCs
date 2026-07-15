@@ -2,7 +2,7 @@
 title: Transaction Metadata Encoding
 description: A CBOR encoding for transaction metadata, targeting the EIP-8130 metadata field, for attribution, memos, and offchain commitments.
 author: Chris Hunter (@chunter-cb) <chris.hunter@coinbase.com>
-discussions-to: https://ethereum-magicians.org/t/erc-transaction-metadata-encoding-for-eip-8130
+discussions-to: https://ethereum-magicians.org/t/erc-transaction-metadata-encoding/29022
 status: Draft
 type: Standards Track
 category: ERC
