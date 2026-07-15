@@ -309,15 +309,12 @@ Token), [ERC-2020](./erc-2020.md) (E-Money Standard Token), and [ERC-5528](./erc
 contract and one wallet integration cover ETH and every deployed token today, and (2) a common
 wallet UX. It does not replace normal transfers anywhere.
 
-### Why the escrow comes first
+### Why a standalone escrow
 
-Newly deployed tokens can build the same lifecycle directly into the token contract, which is
-smoother for their users: no approval step and no external contract. That option is left to a
-separate follow-up ERC. This ERC standardizes the escrow first because it works immediately
-with native ETH and every asset already deployed, needing only the approval and transfer
-mechanics they expose today. The costs are accepted knowingly: ERC-20/1155 flows need an
-approval step, and a third-party contract holds custody while pending (see Security
-Considerations).
+This ERC standardizes a standalone escrow because it works immediately with native ETH and
+every asset already deployed, needing only the approval and transfer mechanics they expose
+today. The costs are accepted knowingly: ERC-20/1155 flows need an approval step, and a
+third-party contract holds custody while pending (see Security Considerations).
 
 ### Committed mode is optional, not mandatory
 
