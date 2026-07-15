@@ -1,5 +1,4 @@
 ---
-eip: 1883
 title: Transaction Metadata Encoding for EIP-8130
 description: CBOR encoding for the EIP-8130 metadata field, covering attribution, memos, and offchain-data commitments with selective disclosure.
 author: Chris Hunter (@chunter-cb) <chris.hunter@coinbase.com>
