@@ -34,10 +34,9 @@ mode = "excludes"
 pattern = ":"
 message = "preamble header `description` should not contain `:`"
 
-## Disabled due to EIP/ERC repo split.
-# [lints.preamble-refs-description]
-# kind = "preamble-proposal-ref"
-# name = "description"
+[lints.preamble-refs-description]
+kind = "preamble-proposal-ref"
+name = "description"
 
 [lints.preamble-enum-category]
 kind = "preamble-one-of"
@@ -67,9 +66,8 @@ mode = "excludes"
 pattern = '(?i)erc[\s]*[0-9]+'
 message = "proposals must be referenced with the form `ERC-N` (not `ERCN` or `ERC N`)"
 
-## TODO: Disabled because half the files are in another repository.
-# [lints.markdown-refs]
-# kind = "markdown-proposal-ref"
+[lints.markdown-refs]
+kind = "markdown-proposal-ref"
 
 [lints.preamble-req-withdrawal-reason]
 kind = "preamble-required-if-eq"
@@ -94,25 +92,24 @@ names = [
     "withdrawal-reason",
 ]
 
-## TODO: Disabled because half the files are in another repository.
-# [lints.preamble-requires-status]
-# kind = "preamble-requires-status"
-# requires = "requires"
-# status = "status"
-# flow = [
-#     [
-#         "Draft",
-#         "Stagnant",
-#     ],
-#     ["Review"],
-#     ["Last Call"],
-#     [
-#         "Final",
-#         "Withdrawn",
-#         "Living",
-#         "Moved",
-#     ],
-# ]
+[lints.preamble-requires-status]
+kind = "preamble-requires-status"
+requires = "requires"
+status = "status"
+flow = [
+    [
+        "Draft",
+        "Stagnant",
+    ],
+    ["Review"],
+    ["Last Call"],
+    [
+        "Final",
+        "Withdrawn",
+        "Living",
+        "Moved",
+    ],
+]
 
 [lints.markdown-order-section]
 kind = "markdown-section-order"
@@ -777,25 +774,24 @@ sections = [
     "Copyright",
 ]
 
-## Disabled because of EIP/ERC repository split.
-# [lints.markdown-link-status]
-# pattern = "(?i)(?:eip|erc)-([0-9]+).md$"
-# kind = "markdown-link-status"
-# status = "status"
-# flow = [
-#     [
-#     "Draft",
-#     "Stagnant",
-# ],
-#     ["Review"],
-#     ["Last Call"],
-#     [
-#     "Final",
-#     "Withdrawn",
-#     "Living",
-#     "Moved",
-# ],
-# ]
+[lints.markdown-link-status]
+pattern = "(?i)(?:eip|erc)-([0-9]+).md$"
+kind = "markdown-link-status"
+status = "status"
+flow = [
+    [
+    "Draft",
+    "Stagnant",
+],
+    ["Review"],
+    ["Last Call"],
+    [
+    "Final",
+    "Withdrawn",
+    "Living",
+    "Moved",
+],
+]
 
 [lints.preamble-re-title-colon]
 kind = "preamble-regex"
@@ -949,4 +945,4 @@ pattern = '[\u{201C}\u{201D}]|[\u{2018}\u{2019}]'
 message = "smart quotes are not allowed (use straight quotes instead)"
 
 [fetch]
-proposal-format = "erc-{}"
+proposal-format = "eip-{}"

@@ -163,8 +163,15 @@ jobs:
             if [ ${#PATHS[@]} -gt 0 ]; then
               printf -v PATHS_NOTICE ' %q' "${PATHS[@]}"
               echo "::notice::Running HTMLProofer on changed files only:${PATHS_NOTICE}"
-              bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "${PATHS[@]}"
-              exit $?
+              # html-proofer 5.0.7's CLI joins multiple positional args with commas
+              # and feeds the result to `check_file` (singular), which then errors
+              # out because no such concatenated path exists. Invoke once per path
+              # so each file/dir is checked individually, and fail if any do.
+              STATUS=0
+              for p in "${PATHS[@]}"; do
+                bundle exec htmlproofer --root-dir ./_site --allow-missing-href --disable-external --assume-extension '.html' --log-level=:info --cache='{"timeframe":{"external":"6w"}}' --checks 'Links,Images,Scripts,OpenGraph' --no-check-sri --ignore-empty-alt --no-enforce_https "$p" || STATUS=$?
+              done
+              exit $STATUS
             fi
             echo "::warning::Changed ERC HTML files not found in build output, falling back to full check"
           fi
@@ -233,8 +240,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout ERC Repository
+        uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
+
       - name: Checkout EIP Repository
         uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
+        with:
+          repository: ethereum/EIPs
+          path: EIPs-upstream
+
+      - name: Merge Repos
+        run: |
+          # Make every proposal (EIP or ERC) resolvable as ERCS/eip-N.md so the
+          # cross-reference lints (preamble-requires-status, markdown-link-status,
+          # markdown-refs) see the same merged corpus that eips.ethereum.org is
+          # built from. The native ERCS/erc-N.md files are copied (not moved)
+          # because eipw-action locates changed files by their pull request paths.
+          cp -p $GITHUB_WORKSPACE/EIPs-upstream/EIPS/eip-*.md $GITHUB_WORKSPACE/ERCS/
+          cd $GITHUB_WORKSPACE/ERCS
+          # ERC content overwrites the EIPs repository's `Moved` stubs.
+          for f in erc-*.md; do
+            cp -p "$f" "eip-${f#erc-}"
+          done
+          rm -rf $GITHUB_WORKSPACE/EIPs-upstream
 
       - uses: ethereum/eipw-action@b858a0f2687c12af12280aa934c3b842747414fd
         id: eipw
