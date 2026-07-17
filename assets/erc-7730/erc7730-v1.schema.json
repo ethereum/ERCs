@@ -495,6 +495,11 @@
                 "value": {
                     "$ref": "#/$format/value"
                 },
+                "label": {
+                    "title": "Field Label override",
+                    "description": "This value overrides the label in the referenced definition if set.",
+                    "type": "string"
+                },
                 "$ref": {
                     "title": "Internal Definition",
                     "description": "An internal definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME.",
@@ -867,7 +872,7 @@
             "properties": {
                 "base": {
                     "title": "Unit base symbol",
-                    "type": "integer",
+                    "type": "string",
                     "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps."
                 },
                 "decimals": {
@@ -1000,12 +1005,13 @@
                             "function",
                             "constructor",
                             "receive",
-                            "fallback"
+                            "fallback",
+                            "error",
+                            "event"
                         ]
                     }
                 },
                 "required": [
-                    "inputs",
                     "type"
                 ]
             }
