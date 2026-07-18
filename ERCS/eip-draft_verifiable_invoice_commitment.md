@@ -1,0 +1,255 @@
+---
+title: Verifiable Invoice Commitment (VIC)
+description: Commits structured, EIP-712-signed invoice metadata to on-chain payments via a deterministic singleton registrar.
+author: Javier Mateos (@javierpmateos)
+discussions-to: https://ethereum-magicians.org/t/erc-verifiable-invoice-commitment-vic-fiscal-metadata-anchored-to-on-chain-payments-via-eip-712-singleton-registrar/28547
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-04-26
+requires: 712, 7730
+---
+
+## Abstract
+
+This ERC defines a standard for binding structured accounting metadata — equivalent to a traditional invoice or fiscal receipt — to on-chain payment transactions, without modifying existing token contracts or transfer semantics. It specifies (1) a canonical [EIP-712](./eip-712.md) typed data schema (`Invoice`) covering fiscal identity, tax breakdown, foreign exchange context, line items, and jurisdictional extensions; (2) a singleton registrar contract (`InvoiceCommitmentRegistry`) deterministically deployable across EVM chains via CREATE2; and (3) a companion [ERC-7730](./erc-7730.md) clear-signing descriptor for hardware-wallet verification.
+
+The invoice content lives off-chain by default; only its hash and an optional URI are committed on-chain. An opt-in mode allows the encrypted payload to be carried on-chain when off-chain coordination is impractical. The design preserves commercial confidentiality, keeps gas overhead negligible, and requires no changes to existing [ERC-20](./erc-20.md) tokens.
+
+## Motivation
+
+Stablecoin payments have reached commercial maturity: the US–Mexico corridor alone moved more than $6.5B in stablecoin remittance flows in 2024 (Bitso disclosure), Stripe and Tempo launched the Machine Payments Protocol (MPP) in March 2026 for agentic commerce, and institutional rails such as Chainlink CCIP/ACE have integrated ISO 20022 messaging with major financial institutions throughout 2025. Yet the accounting layer that traditionally accompanies a payment — the invoice — has no canonical representation in EVM ecosystems. Reconciliation between a transaction hash and the invoice it satisfies remains a private off-chain concern, fragmenting audit trails and preventing independent verification by tax authorities, auditors, and counterparties.
+
+Existing standards address adjacent problems. **[ERC-7699](./erc-7699.md)** introduces an opaque `bytes reference` field but deliberately leaves its semantic structure undefined. **ERC-7963** (Ant International, May 2025) specifies oracle-validated, ISO 20022-aligned payment instructions, but the payment instruction JSON lives off-chain and the standard targets inter-institutional settlement, not commercial invoicing — it omits tax breakdown, line items, and FX context. **[ERC-7943](./erc-7943.md) (uRWA)** and **ERC-7972** define compliance hooks for tokenized real-world assets without carrying accounting metadata. The `bytes data` extensions of [ERC-223](./erc-223.md), ERC-677, [ERC-777](./erc-777.md), and [ERC-1363](./erc-1363.md) permit arbitrary payload attachment but do not standardize its semantic structure. **[EIP-681](./erc-681.md)** and **[ERC-7856](./erc-7856.md)** define pre-transaction payment-request URIs whose metadata does not persist on-chain. **LSP4 / LSP2** on LUKSO provide flexible key-value metadata on tokens but define no canonical keys for fiscal identifiers or invoice line items.
+
+Earlier proposals have anticipated parts of this design. **EIP-965** (Šatkevič and Ressin, 2018, Draft) introduced a "cheque" pattern that paired a signed transfer authorization with a merchant invoice reference but used opaque bytes; it never advanced beyond Draft. **ERC-1513** (Tallyx, 2018, Draft) tokenized payment obligations as refungible NFTs for trade finance; it addressed asset representation, not transfer-time metadata commitment.
+
+In parallel, the international standards community has framed the problem at higher levels. **ITU-T Recommendation F.751.4** (March 2022) defines a general framework for DLT-based invoices including the lifecycle from issuance to tax clearance, but does not specify an EVM-native realization. The **W3C Traceability Vocabulary** defines a `CommercialInvoice` Verifiable Credential with linked-data semantics and DID-anchored issuers, but uses JSON-LD rather than EIP-712 and has no on-chain commitment mechanism. Academic work has explored related domains: Fabrizio et al. (Frontiers in Blockchain, 2019) propose a permissioned-blockchain invoice discounting system with attribute-based access control; the present ERC offers a public, cryptographic-economic alternative on EVM.
+
+The Verifiable Invoice Commitment standard fills the remaining gap by defining a canonical, extensible, and privacy-preserving binding between commercial invoices and on-chain payments. It does not replace any existing token standard; it composes on top of them.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### 1. EIP-712 Typed Data Schema
+
+Conforming implementations MUST sign invoices using the following EIP-712 domain and type definitions.
+
+#### 1.1 Domain Separator
+EIP712Domain {
+string  name;             // "VerifiableInvoiceCommitment"
+string  version;          // "1"
+uint256 chainId;
+address verifyingContract; // the InvoiceCommitmentRegistry instance
+}
+
+#### 1.2 Primary Type: `Invoice`
+Invoice {
+string      invoiceId;
+uint256     issueDate;
+uint256     dueDate;
+string      paymentTerms;
+string      purchaseOrderRef;
+address     issuer;
+TaxIdentity issuerTaxId;
+address     recipient;
+TaxIdentity recipientTaxId;
+
+address     paymentToken;
+uint256     paymentAmount;
+string      fiatCurrency;
+uint256     fiatAmountMilliUnits;
+uint256     fxRateScaled;
+address     fxOracle;
+uint256     fxTimestamp;
+
+TaxEntry[]  taxes;
+LineItem[]  lineItems;
+
+string      jurisdiction;
+bytes       regulatoryData;
+
+uint256     nonce;
+}
+
+#### 1.3 Subtypes
+TaxIdentity {
+string scheme;    // e.g. "AR-CUIT", "MX-RFC", "EU-VAT", "US-EIN", "OTHER"
+string id;        // the identifier value in the scheme's format
+}
+TaxEntry {
+string  taxType;      // "VAT" | "IVA" | "SALES" | "WITHHOLDING" | "EXCISE" | "OTHER"
+string  taxScheme;    // jurisdiction + category, e.g. "AR-IVA-21", "MX-IVA-16"
+uint256 rateBps;      // tax rate in basis points (2100 == 21.00%)
+uint256 baseAmountMilliUnits;
+uint256 taxAmountMilliUnits;
+}
+LineItem {
+string  description;
+uint256 quantityScaled;       // quantity × 10^3 to support fractional units
+string  unit;                 // UN/CEFACT code: "EA", "HR", "KG", "L", ...
+uint256 unitPriceMilliUnits;
+uint256 lineTotalMilliUnits;
+uint256 taxRefIndex;          // index into the parent Invoice.taxes array
+}
+
+#### 1.4 Field Semantics
+
+- **`invoiceId`**: MUST be unique within the scope of `issuer`. Format is issuer-defined but SHOULD be stable and human-readable.
+- **`issueDate`**, **`dueDate`**: UNIX timestamps in UTC seconds. `dueDate` MAY be `0` to indicate not applicable.
+- **`paymentTerms`**: Free-form string describing commercial terms ("Net 30", "50% upfront", "EOM +60"). MAY be empty.
+- **`purchaseOrderRef`**: Reference to a buyer-issued purchase order. MAY be empty.
+- **`issuer`**, **`recipient`**: Ethereum addresses. `issuer` MUST match the `ecrecover` result of the EIP-712 signature.
+- **`issuerTaxId`**, **`recipientTaxId`**: Fiscal identity in a declared scheme. For `scheme == "OTHER"`, `id` format is jurisdiction-specific and SHOULD be documented in a companion extension ERC.
+- **`paymentToken`**: Address of the ERC-20 token used for settlement. For native ETH, implementations MAY use the sentinel `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`.
+- **`paymentAmount`**: Token amount in the token's smallest unit.
+- **`fiatCurrency`**: ISO 4217 three-letter code.
+- **`fiatAmountMilliUnits`**: Invoice total in fiat, in milli-units (1 milli-unit = 0.001 fiat units).
+- **`fxRateScaled`**: Exchange rate as `(fiat units per 1 token unit) × 10^8`, matching Chainlink convention. MAY be `0` if the payment token is itself denominated in `fiatCurrency`.
+- **`fxOracle`**: Address of the oracle consulted. MAY be the zero address if not applicable.
+- **`fxTimestamp`**: UNIX timestamp at which the FX rate was observed.
+- **`taxes`**: Array of tax entries. MAY be empty for tax-exempt transactions.
+- **`lineItems`**: Array of line items. MAY be empty. When non-empty, `sum(lineTotalMilliUnits) + sum(taxAmountMilliUnits)` MUST equal `fiatAmountMilliUnits`.
+- **`jurisdiction`**: ISO 3166-1 alpha-2 country code identifying the fiscal jurisdiction of the issuer.
+- **`regulatoryData`**: Opaque bytes whose structure is defined by jurisdiction-specific companion ERCs. MAY be empty.
+- **`nonce`**: Arbitrary uint256, unique per issuer. Prevents replay.
+
+### 2. The Invoice Hash
+invoiceHash = keccak256(
+"\x19\x01" ||
+domainSeparator ||
+keccak256(encodeType(Invoice) || encodeData(invoice))
+)
+
+This value is the canonical commitment identifier of the invoice.
+
+### 3. Registrar Contract Interface
+
+Conforming registrars MUST implement the following interface:
+
+```solidity
+interface IInvoiceCommitmentRegistry {
+    enum PayloadMode {
+        OffChain,
+        EncryptedOnChain
+    }
+
+    event InvoiceCommitted(
+        bytes32 indexed invoiceHash,
+        address indexed issuer,
+        address indexed recipient,
+        bytes32 paymentTxRef,
+        PayloadMode payloadMode,
+        string uri,
+        bytes encryptedPayload,
+        bytes issuerSignature
+    );
+
+    function commitInvoice(
+        Invoice calldata invoice,
+        bytes32 paymentTxRef,
+        PayloadMode payloadMode,
+        string calldata uri,
+        bytes calldata encryptedPayload,
+        bytes calldata issuerSignature
+    ) external returns (bytes32 invoiceHash);
+
+    function isNonceUsed(address issuer, uint256 nonce) external view returns (bool);
+
+    function getCommitment(bytes32 invoiceHash) external view returns (
+        address issuer,
+        address recipient,
+        bytes32 paymentTxRef
+    );
+}
+```
+
+### 4. Binding to the Payment Transaction
+
+The `paymentTxRef` field binds the invoice to its payment. Two binding modes are defined:
+
+**Mode A — Same-transaction binding.** The commitment call is performed in the same transaction as the payment. `paymentTxRef` MAY be `bytes32(0)` and the binding is implicit through transaction inclusion.
+
+**Mode B — Post-payment binding.** The payment is executed first, and the commitment is submitted in a subsequent transaction referencing the payment's transaction hash. `paymentTxRef` MUST be the transaction hash of the payment.
+
+Implementations MUST emit `InvoiceCommitted` regardless of binding mode.
+
+### 5. Verification Procedure
+
+To verify a committed invoice, a verifier MUST:
+
+1. Retrieve the invoice JSON (from URI, out-of-band, or by decrypting `encryptedPayload`).
+2. Compute the invoice hash per Section 2.
+3. Verify that the computed hash matches `invoiceHash` in the event.
+4. Verify the `issuerSignature` recovers to the declared `issuer`.
+5. Verify that `paymentTxRef` (or, in Mode A, the containing transaction) transferred `paymentAmount` of `paymentToken` from `issuer` to `recipient`.
+6. If `taxes` and `lineItems` are non-empty, verify the structural invariant from Section 1.4.
+
+### 6. ERC-7730 Clear Signing
+
+Conforming implementations SHOULD publish a companion ERC-7730 descriptor referencing the EIP-712 `Invoice` type, enabling hardware wallets to render the invoice in human-readable form during signing. A reference descriptor is provided in the assets directory.
+
+## Rationale
+
+**Why a signed off-chain document + on-chain commitment rather than full on-chain metadata?** Commercial invoices contain competitively sensitive information that enterprises will not publish on a public ledger. A commitment-based design preserves privacy by default while retaining cryptographic integrity and auditability. An encrypted on-chain variant is provided for flows where off-chain coordination is infeasible.
+
+**Why EIP-712 rather than a raw JSON signature?** EIP-712 provides canonical encoding, replay protection via domain separators, and compatibility with existing wallet infrastructure including hardware wallets. The ERC-7730 ecosystem already exists to render EIP-712 messages clearly.
+
+**Why a singleton registrar rather than per-token extensions?** Existing stablecoins (USDC, USDT, PYUSD) will not adopt new transfer semantics. A separate registrar works with any existing ERC-20 and composes naturally with intent-based execution ([ERC-7683](./erc-7683.md)) and account abstraction ([ERC-4337](./erc-4337.md)).
+
+**Why opaque `regulatoryData` rather than jurisdiction-specific fields in the core?** Fiscal regulations evolve at legislation pace, not EIP pace. Argentina's CAE, Mexico's UUID/PAC, Italy's Codice Destinatario have little structural overlap. Encoding them all in the core would produce a brittle spec unlikely to achieve consensus. Deferring jurisdictional detail to companion ERCs enables independent iteration.
+
+**Why milli-units for fiat amounts?** Fiat currencies have varying decimal conventions (2 for USD, 0 for JPY, 3 for KWD). Milli-units provide uniform integer precision sufficient for all ISO 4217 currencies without floating-point ambiguity.
+
+**Why `rateBps` for tax rates?** Basis points (1/10,000) match tax regulator conventions globally and avoid precision loss.
+
+**Why is `lineItems` in the core?** Compliance with virtually all fiscal regimes requires line-level itemization for tax discrimination. Permitting empty arrays retains simple-case ergonomics. The gas cost of an empty array is negligible.
+
+**Why "Commitment" rather than "Anchor"?** The term *anchor* is heavily overloaded: Anchor Protocol (Terra/Luna) had a 2022 collapse leaving negative associations; Stellar uses "anchor" for fiat gateways; Anchor is a fintech billing platform name. *Commitment* is precise cryptographically: a binding, hiding scheme that commits to a value while optionally concealing it. The name accurately describes the construction.
+
+## Backwards Compatibility
+
+This ERC does not modify any existing token standard and introduces no changes to ERC-20, [ERC-721](./erc-721.md), [ERC-1155](./erc-1155.md), or any transfer semantic. Existing tokens, wallets, and indexers continue to operate unchanged. Integration is opt-in.
+
+This ERC is composable with:
+
+- **ERC-7699**: the `invoiceHash` MAY be placed in its `reference` field.
+- **[EIP-3009](./erc-3009.md)**: the `invoiceHash` MAY serve as `nonce` in `transferWithAuthorization`.
+- **ERC-4337**: commitment calls MAY be bundled with payment operations via `UserOperation`.
+- **ERC-7943**: commitment MAY be invoked from `canTransfer` hooks for RWA transfers.
+- **ERC-7730**: clear signing of the `Invoice` typed data is the recommended UX path.
+- **MPP (Stripe/Tempo, March 2026)**: the `invoiceHash` MAY be referenced in MPP `Payment-Receipt` headers.
+
+## Reference Implementation
+
+A reference implementation of the registrar, EIP-712 signing utilities, an ERC-7730 descriptor, and a full end-to-end signing and verification example is included alongside this specification.
+
+## Security Considerations
+
+**Signature replay across chains or contracts.** The EIP-712 domain separator binds signatures to a specific `chainId` and `verifyingContract`.
+
+**Replay of the same invoice.** The `nonce` field combined with the `isNonceUsed` check prevents the same signed invoice from being committed twice. Issuers MUST ensure nonce uniqueness within their scope.
+
+**Impersonation.** The registrar validates the EIP-712 signature against the declared `issuer`. Verifiers MUST independently confirm that the `issuer` address is associated with the expected legal entity (via ENS, attestations, [ERC-8004](./erc-8004.md) agent identity, or off-chain KYC).
+
+**Payment-invoice mismatch.** The registrar does not enforce that `paymentTxRef` actually transferred the declared `paymentAmount`. Verifiers MUST perform this check independently per Section 5.
+
+**Encrypted payload confidentiality.** In `EncryptedOnChain` mode, the encryption scheme is implementation-defined. Implementations SHOULD use ECIES with the recipient's secp256k1 public key. Long-term confidentiality of on-chain ciphertext cannot be guaranteed against future cryptanalytic advances.
+
+**Loss of decryption key.** In `EncryptedOnChain` mode, loss of the recipient's private key renders the invoice permanently unrecoverable. Recipients SHOULD maintain out-of-band backups.
+
+**Off-chain availability.** In `OffChain` mode, the invoice JSON lives at the discretion of the issuer. Recipients SHOULD retrieve and store their own copy upon receipt.
+
+**Tax calculation integrity.** The structural invariant is a data-integrity check. It does not validate legal correctness of tax rates or classifications.
+
+
+**On-chain observability.** The commitment event publicly discloses `issuer`, `recipient`, and `paymentTxRef`. Counterparty privacy techniques (stealth addresses per [ERC-5564](./erc-5564.md), privacy pools) operate orthogonally.
+
+**GDPR and right-to-erasure.** In `OffChain` mode, fiscal identifiers do not appear on-chain; the commitment is only a hash. Erasure of the off-chain document renders the hash a dangling commitment without recoverable preimage, which a reasonable interpretation of GDPR Article 17 treats as equivalent to erasure.
+
+**Correlation attacks via nonce monotonicity.** Implementations SHOULD use arbitrary uint256 nonces (not monotonic counters) to avoid revealing issuance volume to chain observers.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
