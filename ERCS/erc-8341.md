@@ -36,14 +36,17 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 Conforming implementations MUST sign invoices using the following EIP-712 domain and type definitions.
 
 #### 1.1 Domain Separator
+```solidity
 EIP712Domain {
 string  name;             // "VerifiableInvoiceCommitment"
 string  version;          // "1"
 uint256 chainId;
 address verifyingContract; // the InvoiceCommitmentRegistry instance
 }
+```
 
 #### 1.2 Primary Type: `Invoice`
+```solidity
 Invoice {
 string      invoiceId;
 uint256     issueDate;
@@ -71,12 +74,16 @@ bytes       regulatoryData;
 
 uint256     nonce;
 }
+```
 
 #### 1.3 Subtypes
+```solidity
 TaxIdentity {
 string scheme;    // e.g. "AR-CUIT", "MX-RFC", "EU-VAT", "US-EIN", "OTHER"
 string id;        // the identifier value in the scheme's format
 }
+```
+```solidity
 TaxEntry {
 string  taxType;      // "VAT" | "IVA" | "SALES" | "WITHHOLDING" | "EXCISE" | "OTHER"
 string  taxScheme;    // jurisdiction + category, e.g. "AR-IVA-21", "MX-IVA-16"
@@ -84,6 +91,8 @@ uint256 rateBps;      // tax rate in basis points (2100 == 21.00%)
 uint256 baseAmountMilliUnits;
 uint256 taxAmountMilliUnits;
 }
+```
+```solidity
 LineItem {
 string  description;
 uint256 quantityScaled;       // quantity × 10^3 to support fractional units
@@ -92,6 +101,7 @@ uint256 unitPriceMilliUnits;
 uint256 lineTotalMilliUnits;
 uint256 taxRefIndex;          // index into the parent Invoice.taxes array
 }
+```
 
 #### 1.4 Field Semantics
 
@@ -115,11 +125,13 @@ uint256 taxRefIndex;          // index into the parent Invoice.taxes array
 - **`nonce`**: Arbitrary uint256, unique per issuer. Prevents replay.
 
 ### 2. The Invoice Hash
+```
 invoiceHash = keccak256(
 "\x19\x01" ||
 domainSeparator ||
 keccak256(encodeType(Invoice) || encodeData(invoice))
 )
+```
 
 This value is the canonical commitment identifier of the invoice.
 
