@@ -35,6 +35,13 @@
 
         "display": {
             "$ref": "#/$display/main"
+        },
+
+        "storageLayout": {
+            "title": "Storage layout file",
+            "type": "string",
+            "format": "uri-reference",
+            "description": "URI reference to a storage layout file for this contract. The file extends the Solidity compiler storageLayout output with ERC-7730 display annotations, enabling wallets to present transaction simulation results in human-readable form."
         }
     },
     "additionalProperties": false,
