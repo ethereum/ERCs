@@ -33,10 +33,33 @@
             "$ref": "#/$metadata/main"
         },
 
+        "requires": {
+            "title": "Required Extensions",
+            "type": "array",
+            "description": "An optional list of extension IDs this file depends on (e.g. 'erc4337'). Every listed extension is required: wallets that do not support one MUST NOT apply this spec, and MUST follow the 'fallback' pointer instead. A spec with no 'requires' uses only core ERC-7730.",
+            "items": {
+                "type": "string",
+                "pattern": "^(erc[0-9]{0,6})$"
+            },
+            "uniqueItems": true
+        },
+
+        "fallback": {
+            "title": "Fallback spec",
+            "type": "string",
+            "format": "uri-reference",
+            "description": "URI reference to a core ERC-7730 file for the same inputs. REQUIRED when 'requires' is non-empty. The target MUST NOT itself require extensions. Wallets that cannot satisfy 'requires' MUST use this file instead."
+        },
+
         "display": {
             "$ref": "#/$display/main"
         }
     },
+    "if": {
+        "properties": { "requires": { "minItems": 1 } },
+        "required": ["requires"]
+    },
+    "then": { "required": ["fallback"] },
     "additionalProperties": false,
 
     "$context" : {
@@ -57,6 +80,9 @@
                 },
                 {
                     "$ref": "#/$context/EIP712"
+                },
+                {
+                    "$ref": "#/$context/extension"
                 }
             ],
             "unevaluatedProperties": false
@@ -174,6 +200,24 @@
                         "type": "string",
                         "format": "eip55"
                     }
+                }
+            }
+        },
+
+        "extension": {
+            "type": "object",
+            "description": "An extension binding context defined by an extension ERC. Must have exactly one key: the compact extension ID in camelCase without hyphens (e.g. 'erc4337'). The extension must be listed in the top-level 'requires' field. The schema and constraint semantics of the extension object are defined by the corresponding extension ERC.",
+            "required": ["extension"],
+            "properties": {
+                "extension": {
+                    "type": "object",
+                    "description": "An object with exactly one key: the compact extension ID (e.g. 'erc4337', 'erc7816').",
+                    "minProperties": 1,
+                    "maxProperties": 1,
+                    "patternProperties": {
+                        "^erc[0-9]{0,6}$": {}
+                    },
+                    "additionalProperties": false
                 }
             }
         }
@@ -752,6 +796,12 @@
                     "title": "integer format",
                     "const": "interoperableAddressName",
                     "description": "The field should be displayed as a trusted name or as an EIP-7930 Interoperable Address human readable format. List of trusted sources can be optionally specified in parameters."
+                },
+                {
+                    "title": "Extension format",
+                    "type": "string",
+                    "pattern": "^erc-[0-9]+/.+",
+                    "description": "A field format type defined by an extension ERC, following the naming convention 'erc-XXXX/name' (e.g. 'erc-7984/encryptedAmount'). The extension must be listed in the top-level 'requires' field."
                 }
             ]
         },
