@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {ERC1404SpenderAware} from "../src/ERC1404SpenderAware.sol";
 import {ERC1404} from "../src/ERC1404.sol";
+import {IERC1404SpenderAware} from "../src/IERC1404SpenderAware.sol";
+import {IERC1404} from "../src/IERC1404.sol";
 
 /**
  * @notice Tests for the spender-aware extension added by {ERC1404SpenderAware}.
@@ -179,6 +181,29 @@ contract ERC1404SpenderAwareTest is Test {
         assertTrue(token.supportsInterface(0x78a8de7d)); // spender-aware extension
         assertTrue(token.supportsInterface(0x01ffc9a7)); // ERC-165
         assertFalse(token.supportsInterface(0xdeadbeef));
+    }
+
+    /**
+     * @notice The advertised extension id is the explicit exclusive-or of all three selectors, and is
+     *         NOT the value Solidity derives from the interface type. `type(I).interfaceId` excludes
+     *         inherited selectors, so it covers only `detectTransferRestrictionFrom`. This test pins the
+     *         id against accidental drift and documents why it is hardcoded rather than derived.
+     */
+    function test_extensionIdIsXorOfThreeSelectors() public view {
+        bytes4 xorOfThree = IERC1404.detectTransferRestriction.selector
+            ^ IERC1404.messageForTransferRestriction.selector
+            ^ IERC1404SpenderAware.detectTransferRestrictionFrom.selector;
+
+        assertTrue(xorOfThree == bytes4(0x78a8de7d), "extension id must equal XOR of all three selectors");
+        assertTrue(token.supportsInterface(xorOfThree));
+
+        // Footgun guard: type(I).interfaceId covers only the directly declared method, so it must not
+        // be used to derive the extension id.
+        assertTrue(
+            type(IERC1404SpenderAware).interfaceId == IERC1404SpenderAware.detectTransferRestrictionFrom.selector,
+            "type().interfaceId should cover only the directly declared method"
+        );
+        assertTrue(type(IERC1404SpenderAware).interfaceId != bytes4(0x78a8de7d));
     }
 
     // -------------------------------------------------------------------------
