@@ -10,8 +10,9 @@ import {IERC1404} from "./IERC1404.sol";
 ///         the spender and therefore cannot express spender-specific restrictions.
 /// @dev The ERC-165 identifier for this extension is `0x78a8de7d`, the exclusive-or of the selectors
 ///      of all three methods (`detectTransferRestriction`, `messageForTransferRestriction`,
-///      `detectTransferRestrictionFrom`). It MUST be hardcoded: `type(IERC1404SpenderAware).interfaceId`
-///      would cover only the single declared method and MUST NOT be used for this purpose.
+///      `detectTransferRestrictionFrom`). It is the explicit exclusive-or of those three selectors and is
+///      hardcoded in the implementation; `type(IERC1404SpenderAware).interfaceId` covers only the directly
+///      declared `detectTransferRestrictionFrom` (Solidity excludes inherited selectors) and does not equal it.
 interface IERC1404SpenderAware is IERC1404 {
     /// @notice Returns a restriction code for a delegated transfer initiated by `spender`, or 0 if unrestricted.
     /// @dev Shares the restriction code space and `messageForTransferRestriction` lookup with the base method.
