@@ -100,7 +100,7 @@ This is a minimal reference implementation. The following are known constraints 
 
 This repository is analyzed with both [Slither](https://github.com/crytic/slither) and [Aderyn](https://github.com/Cyfrin/aderyn). The full reports and per-finding triage live in [`doc/`](doc/).
 
-Analysis (mocks excluded), last run 2026-07-16 over `src/` (7 files, 223 nSLOC — including the `ERC1404SpenderAware` spender-aware extension):
+Analysis (mocks excluded), last run 2026-07-20 over `src/` (7 files, 223 nSLOC — including the `ERC1404SpenderAware` spender-aware extension):
 
 | Tool | Report | Feedback | High / Med / Low / Info |
 |------|--------|----------|-------------------------|
