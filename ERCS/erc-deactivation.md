@@ -1,6 +1,6 @@
 ---
 eip: xxxx
-title: Contract Deactivation Interface
+title: Contract Deactivation
 description: Interface for permanently deactivating a token contract and exposing its deactivation status
 author: Ryan Sauge (@rya-sge)
 discussions-to: https://ethereum-magicians.org/t/contract-deactivation-interface/0
