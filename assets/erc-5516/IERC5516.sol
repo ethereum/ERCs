@@ -4,8 +4,8 @@ pragma solidity ^0.8.4;
 
 /**
     @title Soulbound, Multi-Token standard.
-    @notice Interface of the EIP-5516
-    Note: The ERC-165 identifier for this interface is 0x45b253ba.
+    @notice Interface of the ERC-5516
+    Note: The ERC-165 identifier for this interface is 0xe150bdab.
  */
 
 interface IERC5516 {
@@ -33,22 +33,25 @@ interface IERC5516 {
     event Renounced(uint256 indexed tokenId, address indexed who);
 
     /**
-     * @dev Issues a new soulbound token to multiple recipients.
+     * @dev Issues a soulbound token to multiple recipients.
      *
-     * Creates a unique token identifier and distributes it to all addresses in `recipients[]`.
+     * Creates or Re-Issues a unique token identifier and distributes it to all addresses in `recipients[]`.
+     * `tokenId` MUST be deterministically generated as a function of `msg.sender` and `metadataURI` to prevent front-running and ensure uniqueness.
      * The token is non-transferable after issuance.
      *
      * Requirements:
      * - `recipients[]` MUST NOT be empty.
+     * - `metadataURI` MUST NOT be empty.
      * - All addresses in `recipients[]` MUST be non-zero.
      * - All addresses in `recipients[]` MUST NOT already own a token under the generated `tokenId`.
-     * - Caller MUST be an authorized issuer.
+     * - Addresses in `recipients[]` MUST NOT have previously renounced the generated `tokenId`.
+     * - When issuing an existing `tokenId` (re-issuing), the caller MUST be the original issuer of that `tokenId`.
      *
      * Emits an {Issued} event.
      *
      * @param recipients Array of addresses that will receive the soulbound token.
      * @param metadataURI URI pointing to the token metadata (IPFS, Arweave, HTTP, etc.).
-     * @return tokenId The unique identifier of the newly created token.
+     * @return tokenId The unique identifier of the token.
      */
     function issue(
         address[] memory recipients,
@@ -58,8 +61,10 @@ interface IERC5516 {
     /**
      * @dev Allows the token holder to voluntarily renounce their soulbound token.
      *
-     * Once renounced, the holder no longer owns the token and cannot reclaim it.
-     * This action is irreversible.
+     * Renunciation is final: once renounced, the holder cannot reclaim the
+     * token, and re-issuance to the renouncer's address under the same
+     * `tokenId` MUST revert. To restore a credential to a renouncer, the
+     * issuer MUST mint a new `tokenId` with a different `metadataURI`.
      *
      * Requirements:
      * - Caller MUST own the token under `tokenId`.
@@ -81,10 +86,24 @@ interface IERC5516 {
     function has(address who, uint256 tokenId) external view returns (bool);
 
     /**
+     * @dev Returns the original issuer of a given token ID.
+     *
+     * @param tokenId The unique identifier of the token.
+     * @return The address of the original issuer of the token.
+     */
+    function issuerOf(uint256 tokenId) external view returns (address);
+
+    /**
      * @dev Returns the URI for a given token ID.
      *
      * The URI typically points to a JSON file containing token metadata.
      * This may be an IPFS hash, Arweave transaction ID, or HTTP URL.
+     *
+     * The URI for a given `tokenId` MUST be immutable once set: because the
+     * `tokenId` is deterministically derived from `(issuer, metadataURI)`,
+     * mutating the URI on-chain would break the binding between identifier
+     * and metadata. Issuers wishing to publish updated metadata MUST issue
+     * a new `tokenId` with the new `metadataURI`.
      *
      * Requirements:
      * - `tokenId` MUST exist.
