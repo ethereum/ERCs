@@ -1,5 +1,6 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "3.0.0-next",
   "type": "object",
   "description": "ERC-7730 Translation File Schema. A translation file provides a flat map of English source strings to translated strings for a specific locale. It is referenced from the '$i18n' field of a parent ERC-7730 document.",
   "properties": {

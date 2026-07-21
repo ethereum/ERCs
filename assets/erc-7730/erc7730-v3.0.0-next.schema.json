@@ -36,8 +36,38 @@
 
         "display": {
             "$ref": "#/$display/main"
+        },
+        "$i18n": {
+            "title": "Translation files",
+            "type": "object",
+            "description": "A map from BCP-47 language tags to URI references pointing to translation files for this ERC-7730 document. Each translation file contains a flat map of English source strings to translated strings. Wallets select the closest matching locale using BCP-47 fallback rules and fetch the corresponding file. This field is mandatory to ensure accessibility across different languages.",
+            "propertyNames": {
+                "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+                "description": "BCP-47 language tag (e.g. 'fr', 'zh-Hans', 'pt-BR')"
+            },
+            "additionalProperties": {
+                "type": "string",
+                "format": "uri-reference",
+                "description": "URI reference to the translation file for this locale (relative path, HTTPS URL, or IPFS CID)"
+            },
+            "required": [
+                "ar",
+                "fa",
+                "fr",
+                "de",
+                "hi",
+                "ja",
+                "pt",
+                "ru",
+                "zh-Hans",
+                "es",
+                "tr"
+            ]
         }
     },
+    "required": [
+        "$i18n"
+    ],
     "additionalProperties": false,
 
     "$context" : {

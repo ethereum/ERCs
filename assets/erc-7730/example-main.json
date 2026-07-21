@@ -1,10 +1,20 @@
 {
-    "$schema": "./erc7730-v2.schema.json",
+    "$schema": "./erc7730-v3.0.0-next.schema.json",
 
     "$comment": "This is a simple example of an ERC-7730 display definition.",
 
     "$i18n": {
-        "fr": "./example-main.fr.json"
+        "ar": "./example-main.ar.json",
+        "de": "./example-main.de.json",
+        "es": "./example-main.es.json",
+        "fa": "./example-main.fa.json",
+        "fr": "./example-main.fr.json",
+        "hi": "./example-main.hi.json",
+        "ja": "./example-main.ja.json",
+        "pt": "./example-main.pt.json",
+        "ru": "./example-main.ru.json",
+        "tr": "./example-main.tr.json",
+        "zh-Hans": "./example-main.zh-Hans.json"
     },
 
     "context": {
