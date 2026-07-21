@@ -440,12 +440,6 @@
                     "description": "The group label of the field group, that will be displayed to the user in front of the formatted field values.",
                     "type": "string"
                 },
-                "description": {
-                    "title": "Group Description",
-                    "description": "An optional plain-text contextual explanation of the group's purpose for this operation, similar to a single field description. MUST NOT exceed 280 characters.",
-                    "type": "string",
-                    "maxLength": 280
-                },
                 "iteration": {
                     "title": "Group arrays iteration mode",
                     "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
@@ -474,11 +468,6 @@
                 "label": {
                     "description": "This value overrides the label in the referenced definition if set.",
                     "type": "string"
-                },
-                "description": {
-                    "description": "This value overrides the description in the referenced definition if set.",
-                    "type": "string",
-                    "maxLength": 280
                 },
                 "$ref": {
                     "description": "An internal definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME.",
@@ -546,12 +535,6 @@
                     "title": "Field Label",
                     "description": "The label of the field, that will be displayed to the user in front of the formatted field value.",
                     "type": "string"
-                },
-                "description": {
-                    "title": "Field Description",
-                    "description": "An optional plain-text contextual explanation of the field's meaning for this operation. MUST be plain text only and MUST NOT exceed 280 characters.",
-                    "type": "string",
-                    "maxLength": 280
                 },
                 "format": {
                     "title": "Field Format",
