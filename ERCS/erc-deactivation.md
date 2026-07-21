@@ -95,7 +95,8 @@ Implementations MUST return `false` for `supportsInterface(0xffffffff)`.
      - ERC-20: `transfer`, `transferFrom` 
      - ERC-721
      - ERC-1155
-   - After `deactivated() == true`, all non-privileged, non-view, and non-pure holder operations MUST revert.
+   - After `deactivated() == true`, all non-privileged, non-view, and non-pure holder operations MUST revert, except for the holder exit operations explicitly permitted below.
+   - **Holder exit exception**: Implementations MAY keep holder-initiated exit operations available after deactivation so that users can retrieve their own funds from the protocol, while capital-adding operations MUST revert. For an [ERC-4626](./eip-4626.md) vault, this means `withdraw` and `redeem` MAY remain callable after deactivation, whereas `deposit` and `mint` MUST revert. Any exit operation kept available MUST NOT let a holder withdraw more than their own entitlement and MUST be listed in the implementation documentation as post-deactivation-enabled.
    - After deactivation, supply-changing operations intended for normal lifecycle management (for example standard `mint` and `burn`) MUST revert.
    - If the implementation includes `unpause`, it MUST revert when `deactivated() == true`.
    - Implementations MAY keep only explicitly named privileged emergency/regulatory operations (for example `forcedTransfer`) available after deactivation.
@@ -113,6 +114,7 @@ Implementations MUST return `false` for `supportsInterface(0xffffffff)`.
 - **Minimalism**: Two functions and one event are sufficient for broad interoperability.
 - **Separation of concerns**: This ERC does not mandate any access-control model, pause design, or legal workflow.
 - **RWA and DeFi lifecycle signaling**: The standard addresses regulated token lifecycle events and DeFi lifecycle events (such as lending/AMM retirements) with a shared, auditable "no longer active" signal.
+- **Fund recovery on exit**: For DeFi protocols such as [ERC-4626](./eip-4626.md) vaults, deactivation is often meant to wind a market down rather than trap capital. The holder exit exception lets an implementation keep `withdraw`/`redeem` open so users can recover their own funds, while closing `deposit`/`mint` so no new capital enters a contract that is being retired.
 - **Compatibility with existing pause modules**: The interface composes naturally with existing pause implementations where deactivation acts as a permanent terminal pause.
 - **Deployment-model neutrality**: Both immutable contracts and upgradeable proxies are compatible with this ERC. The interface standardizes signaling, not governance guarantees.
 
