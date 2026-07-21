@@ -3,7 +3,7 @@ eip: xxxx
 title: Contract Deactivation
 description: Interface for permanently deactivating a token contract and exposing its deactivation status
 author: Ryan Sauge (@rya-sge)
-discussions-to: https://ethereum-magicians.org/t/contract-deactivation-interface/0
+discussions-to: https://ethereum-magicians.org/t/contract-deactivation/29049
 status: Draft
 type: Standards Track
 category: ERC
