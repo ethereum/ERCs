@@ -38,6 +38,8 @@ Without a standard signal, integrations cannot distinguish:
 
 This ERC standardizes that signal.
 
+Historically, `SELFDESTRUCT` was the closest thing to a terminal "this contract is gone" signal. Since [EIP-6780](./eip-6780.md) (deployed in the Dencun upgrade), `SELFDESTRUCT` no longer deletes a contract's code or storage unless it is called in the same transaction in which the contract was created; for any already-deployed contract it only transfers the remaining ether. In practice there is therefore no longer any way to destroy a deployed smart contract. A deactivated contract keeps its code and storage and remains callable forever, so the only way to communicate that it is permanently retired is an explicit, application-level status signal such as the one this ERC defines.
+
 This ERC is primarily designed for token contracts, but it is not limited to ERC-20 semantics and can be applied to contracts implementing other asset models.
 
 ## Specification
