@@ -6,13 +6,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IERC20charity.sol";
 
 /**
- *@title ERC720 charity Token
- *@author Aubay
- *@dev Extension of ERC720 Token that can be partially donated to a charity project
+ * @title ERC720 charity Token
+ * @author Aubay
+ * @dev Extension of ERC720 Token that can be partially donated to a charity project
  *
- *This extensions keeps track of donations to charity addresses. The owner can chose the charity adresses listed.
- *Users can active the donation option or not and specify a different pourcentage than the default one donate.
- * A pourcentage af the amount of token transfered will be added and send to a charity address.
+ * This extension keeps track of donations to charity addresses. The owner can choose the charity addresses listed.
+ * Users can activate the donation option or not and specify a different percentage than the default one to donate.
+ * A percentage of the amount of token transferred will be added and sent to a charity address.
  */
 
 abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
@@ -35,22 +35,22 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@dev The default rate of donation can be override
+     * @dev The default rate of donation can be overridden
      */
     function _defaultRate() internal pure virtual returns (uint256) {
         return 10; // 0.1%
     }
 
     /**
-     *@dev The denominator to interpret the rate of donation , defaults to 10000 so rate are expressed in basis points, but may be customized by an override.
-     * base 10000 , so 10000 =100% , 0 = 0% ,   2000 =20%
+     * @dev The denominator to interpret the rate of donation, defaults to 10000 so rates are expressed in basis points, but may be customized by an override.
+     * base 10000, so 10000 = 100%, 0 = 0%, 2000 = 20%
      */
     function _feeDenominator() internal pure virtual returns (uint256) {
         return 10000;
     }
 
     /**
-     *@notice Add address to whitelist and set rate to the default rate.
+     * @notice Add address to whitelist and set rate to the default rate.
      * @dev Requirements:
      *
      * - `toAdd` cannot be the zero address.
@@ -68,7 +68,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Remove the address from the whitelist and set rate to the default rate.
+     * @notice Remove the address from the whitelist and set rate to the default rate.
      * @dev Requirements:
      *
      * - `toRemove` cannot be the zero address.
@@ -104,7 +104,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Set for a user a default charity address that will receive donation.
+     * @notice Set for a user a default charity address that will receive donation.
      * The default rate specified in {whitelistedRate} will be applied.
      * @dev Requirements:
      *
@@ -127,7 +127,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Set for a user a default charity address that will receive donation.
+     * @notice Set for a user a default charity address that will receive donation.
      * The rate is specified by the user.
      * @dev Requirements:
      *
@@ -164,7 +164,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Set personlised rate for charity address in {whitelistedRate}.
+     * @notice Set personalised rate for charity address in {whitelistedRate}.
      * @dev Requirements:
      *
      * - `whitelistedAddr` cannot be the zero address.
@@ -194,7 +194,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Display for a user the default charity address that will receive donation.
+     * @notice Display for a user the default charity address that will receive donation.
      * The default rate specified in {whitelistedRate} will be applied.
      */
     function specificDefaultAddress() external view virtual returns (address) {
@@ -216,7 +216,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Delete The Default Address and so deactivate donnations .
+     * @notice Delete The Default Address and so deactivate donations.
      */
     function deleteDefaultAddress() external virtual {
         _defaultAddress[msg.sender] = address(0);
@@ -224,7 +224,7 @@ abstract contract ERC20Charity is IERC20charity, ERC20, Ownable {
     }
 
     /**
-     *@notice Return the rate to donate.
+     * @notice Return the rate to donate.
      * @dev Requirements:
      *
      * - `from` cannot be the zero address
