@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/skill-token/confidentiality.schema.json",
+  "title": "Confidentiality Descriptor (KERNEL v4.3, normative schema)",
+  "type": "object",
+  "required": ["schemaVersion", "mode", "profile", "objects"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "mode":          { "type": "string", "const": "encrypted" },
+    "profile":       { "type": "string", "minLength": 1,
+                       "description": "opaque scheme identifier; unknown profiles MUST NOT be decrypted by guesswork" },
+    "objects": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["ciphertext", "plaintextHash"],
+        "properties": {
+          "ciphertext":    { "type": "string",
+                             "description": "MUST equal the corresponding CID in the SkillRoot: md.cid when path == md.path, license.cid when path == license.path, files[path] otherwise" },
+          "plaintextHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" }
+        },
+        "additionalProperties": false
+      },
+      "$comment": "keys are package paths per the v4.3 path rules"
+    },
+    "policyHash":    { "type": "string", "$comment": "profile-specific" },
+    "keyManagement": { "type": "object", "$comment": "profile-specific" }
+  },
+  "additionalProperties": true
+}

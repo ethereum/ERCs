@@ -1,0 +1,13 @@
+{
+  "description": "paths that MUST be rejected per KERNEL v4.3 path rules",
+  "reject": [
+    "/abs/path",
+    "a\\b",
+    "a//b",
+    "a/../b",
+    "./x",
+    "",
+    "a/./b",
+    ".."
+  ]
+}
