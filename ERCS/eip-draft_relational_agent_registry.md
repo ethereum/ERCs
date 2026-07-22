@@ -1,9 +1,8 @@
 ---
-eip: 1904
 title: Relational Agent Registry
 description: A registry where an agent is defined as a relationship among two or more humans, anchored to the shared records of that relationship.
 author: Minhyun Kim (@kimminhyun) <kimminhyun@ainetwork.ai>
-discussions-to: https://ethereum-magicians.org/t/erc-1904-relational-agent-registry/1
+discussions-to: https://ethereum-magicians.org/t/erc-relational-agent-registry/1
 status: Draft
 type: Standards Track
 category: ERC
@@ -43,19 +42,29 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Agent identity
 
-An agent ID MUST be computed deterministically from the member set:
+Identity is two-level: a **relationship ID** (eternal, derived purely from the member set) and an **agent ID** (one per agent instance, scoped by a generation counter so a dissolved relationship can re-instantiate a successor agent without colliding with its sealed predecessor).
+
+The relationship ID MUST be computed deterministically from the member set:
 
 ```solidity
 // Undirected (pairs and groups): members sorted ascending, no duplicates
 // members.length >= 2
-agentId = uint256(keccak256(abi.encode(uint8(0), sortedMembers)));
+relationshipId = uint256(keccak256(abi.encode(uint8(0), sortedMembers)));
 
 // Directed (pairs only): (A,B) != (B,A); A is the "from" perspective
-agentId = uint256(keccak256(abi.encode(uint8(1), a, b)));
+relationshipId = uint256(keccak256(abi.encode(uint8(1), a, b)));
 ```
 
+The agent ID MUST be:
+
+```solidity
+agentId = uint256(keccak256(abi.encode(relationshipId, uint256(generation))));
+```
+
+where `generation` starts at 0 for the relationship's first agent and MUST be incremented by the registry each time a new agent is proposed for the same relationship (permitted only while no non-`Dissolved` agent exists for it). The registry MUST record the previous generation's agent ID as the new agent's `predecessorAgentId`.
+
 - All member addresses MUST be distinct and non-zero; the member array for undirected agents MUST be strictly ascending (this canonicalizes the set, so `{A,B,C}` in any input order yields one ID). Violations MUST revert.
-- There MUST be at most one undirected agent per member set, and at most two directed agents per unordered pair.
+- There MUST be at most one undirected relationship per member set, at most two directed relationships per unordered pair, and at most one non-`Dissolved` agent per relationship at any time.
 - Directed agents represent asymmetric relational perspectives (e.g., mentor→mentee vs. mentee→mentor views of the same relationship) and exist only for pairs. Implementations SHOULD default to undirected.
 - A group agent is distinct from every sub-relationship among its members: `{A,B,C}` is a different agent, with a different SRC, from `{A,B}`, `{A,C}`, and `{B,C}`. Membership in a group agent does not create, imply, or require the pairwise agents among its members.
 - Implementations MAY impose a maximum member count (RECOMMENDED ≥ 128) to bound gas; the limit MUST be documented and MUST NOT be below 16.
@@ -68,11 +77,11 @@ An agent progresses through states:
 Proposed → Active → (Paused) → Dissolved
 ```
 
-1. **Propose.** Any member of the proposed set calls `proposeAgent(members, directed, metadataURI, ...)`. The agent enters `Proposed`.
+1. **Propose.** Any member of the proposed set calls `proposeAgent(members, directed, metadataURI, reconsentPeriod)`. The registry derives the relationship ID, opens the next generation (reverting if a non-`Dissolved` agent exists for the relationship), auto-links `predecessorAgentId`, and the agent enters `Proposed`. The proposer counts as having accepted.
 2. **Accept.** Every other member calls `acceptAgent(agentId)`. When the last outstanding member accepts, the agent enters `Active` — activation requires **unanimous** consent of the member set. An agent MUST NOT act, accumulate SRC records marked `coSigned`, or hold delegated authority before `Active`. A `Proposed` agent that is not fully accepted within `acceptWindow` (implementation-defined, RECOMMENDED 30 days) MAY be garbage-collected.
 3. **Pause.** Any member MAY call `pauseAgent(agentId)` unilaterally. A paused agent MUST NOT exercise any delegated authority. Resuming MUST require re-acknowledgment (`resumeAgent`) from every member other than the pauser if the pause exceeded the `reconsentPeriod` set at creation; otherwise any member MAY resume.
-4. **Leave (group agents only).** A member of a group agent MAY call `leaveAgent(agentId)` unilaterally. Because the agent ID is bound to the member set, the agent does not shrink: leaving MUST transition the agent to `Dissolved`. The remaining members MAY create a new agent for the reduced set, referencing the sealed predecessor via `predecessorAgentId`. (For pairs, `leaveAgent` is equivalent to `dissolveAgent`.)
-5. **Dissolve.** Any member MAY dissolve unilaterally. Dissolution is terminal for authority, but the SRC log MUST remain readable (history is not erased; it is sealed). The same member set MAY later create a *new* agent; the new agent MAY reference the sealed SRC of its predecessor via `predecessorAgentId`.
+4. **Leave (group agents only).** A member of a group agent MAY call `leaveAgent(agentId)` unilaterally. Because the agent ID is bound to the member set, the agent does not shrink: leaving MUST transition the agent to `Dissolved`. The remaining members MAY create a new agent for the reduced set (a different relationship, hence a different lineage). (For pairs, `leaveAgent` is equivalent to `dissolveAgent`.)
+5. **Dissolve.** Any member MAY dissolve unilaterally. Dissolution is terminal for authority, but the SRC log MUST remain readable (history is not erased; it is sealed). The same member set MAY later create a *new* agent under the next generation; the registry links the sealed predecessor via `predecessorAgentId` automatically.
 
 ### Interface
 
@@ -111,6 +120,8 @@ interface IRelationalAgentRegistry /* is IERC165 */ {
     }
 
     // --- Lifecycle ---
+    // Opens the next generation for the member set's relationship; reverts if a
+    // non-Dissolved agent exists for it. predecessorAgentId is linked automatically.
     function proposeAgent(address[] calldata members, bool directed, string calldata metadataURI, uint64 reconsentPeriod)
         external returns (uint256 agentId);
     function acceptAgent(uint256 agentId) external;
@@ -133,7 +144,10 @@ interface IRelationalAgentRegistry /* is IERC165 */ {
     function isAuthorized(uint256 agentId, address operator, bytes32 scope) external view returns (bool);
 
     // --- Views ---
-    function agentIdOf(address[] calldata members, bool directed) external pure returns (uint256);
+    function relationshipIdOf(address[] calldata members, bool directed) external pure returns (uint256);
+    function agentIdOf(uint256 relationshipId, uint64 generation) external pure returns (uint256);
+    function currentAgentOf(uint256 relationshipId) external view returns (uint256 agentId);
+    function generationOf(uint256 relationshipId) external view returns (uint64);
     function getAgent(uint256 agentId) external view returns (Agent memory);
     function memberCount(uint256 agentId) external view returns (uint256);
     function isMember(uint256 agentId, address human) external view returns (bool);
@@ -181,6 +195,7 @@ For `n` registered humans, the pairwise space is bounded by `n(n-1)` directed ed
 
 - **Edge, not node.** Deterministic `agentId = H(sorted member set)` makes the relationship itself the primary key. There is no way to mint a second agent for the same member set, which encodes the core claim: one relationship, one agent. The same construction extends unchanged from pairs (edges) to groups (hyperedges).
 - **Unanimous consent by construction.** The propose/accept handshake and all-keys delegation prevent any subset of members from weaponizing "our" agent against another member. Unilateral pause/leave/dissolve/revoke gives each human an unconditional exit — critical for relationships that sour.
+- **Eternal relationship, generational agents.** Deriving the agent ID solely from the member set would make post-dissolution recreation collide with the sealed predecessor. Splitting identity into a pure `relationshipId` and a generation-scoped `agentId` keeps "one relationship, one agent" true at every moment while giving each incarnation its own sealed history and an automatic `predecessorAgentId` lineage.
 - **Groups dissolve rather than shrink.** Because identity is the member set, a departure is a change of identity: the `{A,B,C}` agent with C gone is not "the same agent minus C" — it is a different relationship. Forcing dissolve-and-recreate (with `predecessorAgentId` lineage) keeps every SRC record attributable to the exact member set that consented to it, and prevents a majority from silently ejecting a member while retaining the shared history's authority.
 - **Hash-anchored, content-off-chain SRC.** Relationship records are intimate; only commitments go on-chain. `contentHash` gives integrity and ordering; the `uri` is optional so parties can keep content fully private (E2E-encrypted stores) while still anchoring the agent's memory.
 - **Sealed, not erased, on dissolution.** Append-only history preserves attributability of past agent actions; ceasing authority protects the parties going forward. Erasure of off-chain content remains possible (delete the content; the on-chain hash becomes a dangling commitment), which is the correct split between accountability and privacy.
@@ -194,24 +209,32 @@ No backward compatibility issues found. Relational agents can wrap or be wrapped
 
 Test addresses: `A = 0x00000000000000000000000000000000000000aa`, `B = 0x00000000000000000000000000000000000000bb`, `C = 0x00000000000000000000000000000000000000cc`.
 
+### Relationship ID derivation
+
+| Input | Expected `relationshipId` |
+|---|---|
+| `relationshipIdOf([A, B], false)` | `0x9d086835e9dba64a081aa4c50f23e76a017a27fa4eb3822eaaf4c7a3eddf68fa` |
+| `relationshipIdOf([A, B, C], false)` | `0x03e5f8c327af463723625c22b020d3f8200909584b36516f22e11dfbbb6674bf` |
+| `relationshipIdOf([A, B], true)` | `0x60093d0882bca3aaeddfab88c72617475aee555b86f39cd70b8de2388efc9fae` |
+| `relationshipIdOf([B, A], true)` | `0x538cfc3380d8b6e3602dd2e490fdb3b8fdc03a29b3d688782d11377376700797` |
+
 ### Agent ID derivation
+
+With `R_pair = relationshipIdOf([A, B], false)` and `R_group = relationshipIdOf([A, B, C], false)`:
 
 | Input | Expected `agentId` |
 |---|---|
-| `agentIdOf([A, B], false)` | `0x9d086835e9dba64a081aa4c50f23e76a017a27fa4eb3822eaaf4c7a3eddf68fa` |
-| `agentIdOf([A, B, C], false)` | `0x03e5f8c327af463723625c22b020d3f8200909584b36516f22e11dfbbb6674bf` |
-| `agentIdOf([A, B], true)` | `0x60093d0882bca3aaeddfab88c72617475aee555b86f39cd70b8de2388efc9fae` |
-| `agentIdOf([B, A], true)` | `0x538cfc3380d8b6e3602dd2e490fdb3b8fdc03a29b3d688782d11377376700797` |
-
-(IDs are `keccak256(abi.encode(uint8(0), members))` for undirected and `keccak256(abi.encode(uint8(1), a, b))` for directed, per the Specification.)
+| `agentIdOf(R_pair, 0)` | `0x5b0996fdc03d50be11906b0792833a211aea5ab2f7d2f50307cc409054b55622` |
+| `agentIdOf(R_pair, 1)` | `0x7faf3d8cdb080e768e82ec034b1e1d6cbc303f6c79b815a8f316670191afd247` |
+| `agentIdOf(R_group, 0)` | `0xb30bfcca270c106a5448c86b258f259226e80e0303c9d27dcf78b02ad712b595` |
 
 ### Reverts
 
-- `agentIdOf([A, A], false)` — reverts (duplicate member).
-- `agentIdOf([B, A, C], false)` — reverts (not strictly ascending).
-- `agentIdOf([A], false)` — reverts (fewer than two members).
-- `agentIdOf([A, B, C], true)` — reverts (directed mode is pairs-only).
-- `proposeAgent` for a member set with an existing non-`Dissolved` agent — reverts.
+- `relationshipIdOf([A, A], false)` — reverts (duplicate member).
+- `relationshipIdOf([B, A, C], false)` — reverts (not strictly ascending).
+- `relationshipIdOf([A], false)` — reverts (fewer than two members).
+- `relationshipIdOf([A, B, C], true)` — reverts (directed mode is pairs-only).
+- `proposeAgent` for a member set whose relationship has a non-`Dissolved` agent — reverts.
 - `acceptAgent` from a non-member, or from a member who already accepted — reverts.
 - `appendRecord` before `Active`, after `Dissolved`, or from a non-member without `SRC_APPEND` authorization — reverts.
 - `coSignRecord` by the record's contributor, or twice by the same member — reverts.
@@ -221,26 +244,28 @@ Test addresses: `A = 0x00000000000000000000000000000000000000aa`, `B = 0x0000000
 1. `proposeAgent([A, B, C], false, uri, 30 days)` by A → status `Proposed`; `acceptAgent` by B → still `Proposed`; `acceptAgent` by C → `Active`, `AgentActivated` emitted.
 2. With the agent `Active`: `appendRecord` by A → `Record.coSignCount == 0`; `coSignRecord` by B → `coSignCount == 1`; `coSignRecord` by C → `coSignCount == 2 == memberCount − 1` (fully co-signed).
 3. `delegate(agentId, op, scope, expiry)` called with identical parameters by A, then B → `isAuthorized == false`; then by C → `isAuthorized == true`. `revokeDelegation` by B alone → `isAuthorized == false`.
-4. `leaveAgent` by C → status `Dissolved`, all delegations revoked, `getRecord` still serves all records; `proposeAgent([A, B], ...)` with `predecessorAgentId` set to the dissolved ID succeeds.
+4. `leaveAgent` by C → status `Dissolved`, all delegations revoked, `getRecord` still serves all records; `proposeAgent([A, B, C], ...)` succeeds, opens generation 1, and its `predecessorAgentId` equals the dissolved generation-0 agent ID.
 
 ## Reference Implementation
 
-A minimal implementation of ID derivation and canonicalization checks (lifecycle and SRC storage omitted for brevity; see the Specification):
+A complete reference implementation with a Foundry test suite (including the vectors above and a full lifecycle demo: propose → unanimous accept → append and co-sign records → all-keys delegation with operator writes → leave/dissolve → next-generation recreation) is provided in [`../assets/eip-draft_relational_agent_registry/`](../assets/eip-draft_relational_agent_registry/README.md).
+
+The core identity derivation:
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
 contract RelationalAgentId {
-    function agentIdOf(address[] calldata members, bool directed)
-        external pure returns (uint256)
+    function relationshipIdOf(address[] calldata members, bool directed)
+        public pure returns (uint256)
     {
         uint256 n = members.length;
         require(n >= 2, "min two members");
         if (directed) {
             require(n == 2, "directed is pairs-only");
-            require(members[0] != members[1], "distinct members");
             require(members[0] != address(0) && members[1] != address(0), "zero address");
+            require(members[0] != members[1], "distinct members");
             return uint256(keccak256(abi.encode(uint8(1), members[0], members[1])));
         }
         require(members[0] != address(0), "zero address");
@@ -248,6 +273,12 @@ contract RelationalAgentId {
             require(members[i] > members[i - 1], "not strictly ascending");
         }
         return uint256(keccak256(abi.encode(uint8(0), members)));
+    }
+
+    function agentIdOf(uint256 relationshipId, uint64 generation)
+        public pure returns (uint256)
+    {
+        return uint256(keccak256(abi.encode(relationshipId, uint256(generation))));
     }
 }
 ```
