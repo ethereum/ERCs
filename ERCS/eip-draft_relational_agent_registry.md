@@ -1,0 +1,265 @@
+---
+title: Relational Agent Registry
+description: A registry where an agent is defined as a relationship among two or more humans, anchored to the shared records of that relationship.
+author: Minhyun Kim (@kimminhyun) <kimminhyun@ainetwork.ai>
+discussions-to: https://ethereum-magicians.org/t/erc-relational-agent-registry/1
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-07-22
+requires: 165, 721, 8004
+---
+
+## Abstract
+
+This ERC defines a registry in which an **agent is a relationship, not a node**. Whereas [ERC-8004](./eip-8004.md) registers agents as standalone identities (nodes in a graph), this standard registers agents as **edges and hyperedges**: every relationship among two or more humans may be instantiated on-chain as exactly one agent. The agent's identity, memory, and behavior are grounded in the **shared record corpus** of that relationship — meeting notes, chat history, letters, photos taken together, co-signed transactions — referenced on-chain as content-addressed commitments.
+
+For a population of `n` humans, the pairwise agent space is the set of ordered pairs, `n(n-1)` directed relational agents (or `n(n-1)/2` undirected); including group agents of size `k ≥ 3`, the full addressable space is every subset of two or more humans, `2^n − n − 1` agents, instantiated lazily. An agent exists *among* its members and only with their unanimous consent; it has no meaning, no memory, and no authority outside that relationship.
+
+## Motivation
+
+Existing agent standards (ERC-8004 and similar registries) model agents as autonomous nodes: an agent has its own identity, its own reputation, its own wallet. This mirrors how we model humans and contracts, but it fails to capture the dominant place agents are actually emerging: **inside relationships**. An assistant that mediates between a founder and an investor, a memory-keeper for a married couple, a translator agent between a doctor and a patient — these agents are not meaningful as freestanding entities. Their entire context *is* the relationship.
+
+Modeling the agent as an edge yields properties a node model cannot express:
+
+1. **Consent symmetry.** A relational agent requires acknowledgment from every member. No person or subset can unilaterally create an agent that "speaks for" the relationship.
+2. **Grounded memory.** The agent's substrate is the append-only record of the relationship (Shared Record Corpus). The agent is a *view over the relationship's history*, not an identity with free-floating state.
+3. **Scoped authority.** Anything the agent does is attributable to the member set, and revocable by any single member.
+4. **Graph-native composition.** Because agents are edges and hyperedges, the social graph of humans induces a well-defined agent graph. A trio, a family, or a team is a first-class group agent (a hyperedge), and its relation to the pairwise agents among its members is explicit rather than ad hoc.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions
+
+- **Human**: an externally-owned account or smart account representing a natural person. Humans MAY be registered in an identity registry (e.g., the ERC-8004 identity registry, or any [ERC-165](./eip-165.md)-discoverable identity system); this standard does not mandate one.
+- **Relational Agent**: an on-chain object identified by its **member set** — a pair `(humanA, humanB)` (optionally with a `directed` flag) or a group of `k ≥ 3` humans. It is the unique agent of that relationship.
+- **Pair Agent**: a relational agent with exactly two members (an edge).
+- **Group Agent**: a relational agent with three or more members (a hyperedge). Group agents are undirected; there is no directed mode for `k ≥ 3`.
+- **Shared Record Corpus (SRC)**: an append-only, on-chain log of content commitments (hashes / URIs) to off-chain relationship records — meeting notes, chat transcripts, letters, photos, shared documents. The SRC is the agent's memory substrate.
+- **Record**: a single SRC entry: `(recordType, contentHash, uri, contributor, timestamp, coSigned)`.
+
+### Agent identity
+
+An agent ID MUST be computed deterministically from the member set:
+
+```solidity
+// Undirected (pairs and groups): members sorted ascending, no duplicates
+// members.length >= 2
+agentId = uint256(keccak256(abi.encode(uint8(0), sortedMembers)));
+
+// Directed (pairs only): (A,B) != (B,A); A is the "from" perspective
+agentId = uint256(keccak256(abi.encode(uint8(1), a, b)));
+```
+
+- All member addresses MUST be distinct and non-zero; the member array for undirected agents MUST be strictly ascending (this canonicalizes the set, so `{A,B,C}` in any input order yields one ID). Violations MUST revert.
+- There MUST be at most one undirected agent per member set, and at most two directed agents per unordered pair.
+- Directed agents represent asymmetric relational perspectives (e.g., mentor→mentee vs. mentee→mentor views of the same relationship) and exist only for pairs. Implementations SHOULD default to undirected.
+- A group agent is distinct from every sub-relationship among its members: `{A,B,C}` is a different agent, with a different SRC, from `{A,B}`, `{A,C}`, and `{B,C}`. Membership in a group agent does not create, imply, or require the pairwise agents among its members.
+- Implementations MAY impose a maximum member count (RECOMMENDED ≥ 128) to bound gas; the limit MUST be documented and MUST NOT be below 16.
+
+### Lifecycle
+
+An agent progresses through states:
+
+```
+Proposed → Active → (Paused) → Dissolved
+```
+
+1. **Propose.** Any member of the proposed set calls `proposeAgent(members, directed, metadataURI, ...)`. The agent enters `Proposed`.
+2. **Accept.** Every other member calls `acceptAgent(agentId)`. When the last outstanding member accepts, the agent enters `Active` — activation requires **unanimous** consent of the member set. An agent MUST NOT act, accumulate SRC records marked `coSigned`, or hold delegated authority before `Active`. A `Proposed` agent that is not fully accepted within `acceptWindow` (implementation-defined, RECOMMENDED 30 days) MAY be garbage-collected.
+3. **Pause.** Any member MAY call `pauseAgent(agentId)` unilaterally. A paused agent MUST NOT exercise any delegated authority. Resuming MUST require re-acknowledgment (`resumeAgent`) from every member other than the pauser if the pause exceeded the `reconsentPeriod` set at creation; otherwise any member MAY resume.
+4. **Leave (group agents only).** A member of a group agent MAY call `leaveAgent(agentId)` unilaterally. Because the agent ID is bound to the member set, the agent does not shrink: leaving MUST transition the agent to `Dissolved`. The remaining members MAY create a new agent for the reduced set, referencing the sealed predecessor via `predecessorAgentId`. (For pairs, `leaveAgent` is equivalent to `dissolveAgent`.)
+5. **Dissolve.** Any member MAY dissolve unilaterally. Dissolution is terminal for authority, but the SRC log MUST remain readable (history is not erased; it is sealed). The same member set MAY later create a *new* agent; the new agent MAY reference the sealed SRC of its predecessor via `predecessorAgentId`.
+
+### Interface
+
+```solidity
+interface IRelationalAgentRegistry /* is IERC165 */ {
+    enum Status { None, Proposed, Active, Paused, Dissolved }
+
+    enum RecordType {
+        MeetingNote,     // 0
+        ChatHistory,     // 1
+        Letter,          // 2
+        Photo,           // 3
+        Document,        // 4
+        Transaction,     // 5  on-chain interaction reference
+        Attestation,     // 6  third-party statement about the relationship
+        Other            // 255-compatible catch-all
+    }
+
+    struct Agent {
+        address[] members;        // sorted ascending if undirected; [from, to] if directed
+        bool directed;            // pairs only; MUST be false when members.length > 2
+        Status status;
+        string metadataURI;       // agent card: model, prompt policy, capabilities
+        uint64 createdAt;
+        uint64 reconsentPeriod;   // seconds; see Pause semantics
+        uint256 predecessorAgentId; // 0 if none
+    }
+
+    struct Record {
+        RecordType recordType;
+        bytes32 contentHash;      // keccak256 of the canonical off-chain content
+        string uri;               // ipfs://, ar://, https:// ... MAY be empty (hash-only)
+        address contributor;      // must be a member (or approved recorder)
+        uint64 timestamp;
+        uint16 coSignCount;       // number of non-contributor members who confirmed
+    }
+
+    // --- Lifecycle ---
+    function proposeAgent(address[] calldata members, bool directed, string calldata metadataURI, uint64 reconsentPeriod)
+        external returns (uint256 agentId);
+    function acceptAgent(uint256 agentId) external;
+    function pauseAgent(uint256 agentId) external;
+    function resumeAgent(uint256 agentId) external;
+    function leaveAgent(uint256 agentId) external;   // group: dissolves; pair: alias of dissolve
+    function dissolveAgent(uint256 agentId) external;
+
+    // --- Shared Record Corpus ---
+    function appendRecord(uint256 agentId, RecordType recordType, bytes32 contentHash, string calldata uri)
+        external returns (uint256 recordIndex);
+    function coSignRecord(uint256 agentId, uint256 recordIndex) external;
+    function recordCount(uint256 agentId) external view returns (uint256);
+    function getRecord(uint256 agentId, uint256 recordIndex) external view returns (Record memory);
+    function hasCoSigned(uint256 agentId, uint256 recordIndex, address member) external view returns (bool);
+
+    // --- Delegation (scoped authority) ---
+    function delegate(uint256 agentId, address operator, bytes32 scope, uint64 expiry) external;
+    function revokeDelegation(uint256 agentId, address operator, bytes32 scope) external;
+    function isAuthorized(uint256 agentId, address operator, bytes32 scope) external view returns (bool);
+
+    // --- Views ---
+    function agentIdOf(address[] calldata members, bool directed) external pure returns (uint256);
+    function getAgent(uint256 agentId) external view returns (Agent memory);
+    function memberCount(uint256 agentId) external view returns (uint256);
+    function isMember(uint256 agentId, address human) external view returns (bool);
+    function agentsOf(address human) external view returns (uint256[] memory);
+
+    // --- Events ---
+    event AgentProposed(uint256 indexed agentId, address indexed proposer, address[] members, bool directed);
+    event AgentAccepted(uint256 indexed agentId, address indexed by);
+    event AgentActivated(uint256 indexed agentId);
+    event AgentLeft(uint256 indexed agentId, address indexed by);
+    event AgentPaused(uint256 indexed agentId, address by);
+    event AgentResumed(uint256 indexed agentId);
+    event AgentDissolved(uint256 indexed agentId, address by);
+    event RecordAppended(uint256 indexed agentId, uint256 indexed recordIndex, RecordType recordType, bytes32 contentHash, address contributor);
+    event RecordCoSigned(uint256 indexed agentId, uint256 indexed recordIndex, address by);
+    event DelegationSet(uint256 indexed agentId, address indexed operator, bytes32 scope, uint64 expiry);
+    event DelegationRevoked(uint256 indexed agentId, address indexed operator, bytes32 scope);
+}
+```
+
+#### Rules
+
+- `appendRecord` MUST revert unless `msg.sender` is a member or an operator authorized for scope `keccak256("SRC_APPEND")`. Records MUST be append-only: no update or delete functions.
+- `coSignRecord` MUST revert unless called by a member other than the record's contributor, and MUST revert on double co-signing by the same member (`hasCoSigned` tracks this). A record is **fully co-signed** when `coSignCount == memberCount − 1`; fully co-signed records are the strongest evidence class, partially co-signed records rank by `coSignCount`, and consumers (agent runtimes, reputation systems) SHOULD weight them accordingly. For pairs this degenerates to the single-counterparty co-sign.
+- **Delegation is all-keys for grant, single-key for revoke.** `delegate` MUST require confirmation from every member (identical-parameter calls from each; the final member's call activates) — an agent's authority is a joint act of the whole relationship. `revokeDelegation` MUST succeed on a call from *any single* member — safety is unilateral. Implementations MAY additionally support a lower grant quorum for group agents, but only if that quorum was itself set unanimously at creation and is recorded in the agent's metadata; unanimous grant is the default and the interoperable baseline.
+- On `Dissolved`, all delegations are implicitly revoked, `appendRecord` MUST revert, but all view functions MUST continue to serve the sealed SRC.
+
+### Agent runtime binding (informative)
+
+The on-chain agent is a consent + memory anchor; the running agent (an LLM-based process, per the `metadataURI` agent card) executes off-chain. A conformant runtime:
+
+1. Resolves the agent card from `metadataURI` (model, system-prompt policy, capability list — compatible with ERC-8004 agent-card formats so relational agents can interoperate with node-agent infrastructure).
+2. Hydrates its memory exclusively from SRC records whose `contentHash` it can verify against fetched content, preferring co-signed records.
+3. Signs its outputs with an operator key that `isAuthorized(agentId, operator, scope)` for the relevant action scope, making every agent action attributable to the relationship and revocable by any member.
+
+### Relationship to ERC-8004
+
+ERC-8004 answers "who is this agent?" with a node identity. This standard answers it with an edge or hyperedge: the agent *is* its member set plus their history. The two compose: a relational agent MAY additionally register itself in an ERC-8004 identity registry (so node-oriented infrastructure — reputation, validation — can point at it), with its ERC-8004 agent card declaring `relationalAgentId` and the registry address as its root of trust. Reputation accrued by a relational agent is reputation of the relationship, not of either individual.
+
+### Cardinality (informative)
+
+For `n` registered humans, the pairwise space is bounded by `n(n-1)` directed edges (`n(n-1)/2` undirected), and the full space including group agents is `2^n − n − 1` (every subset of size ≥ 2, plus a second directed variant per pair). This is astronomically large by design and entirely lazy: only relationships whose members unanimously opt in exist on-chain, so the registry stores the realized relational hypergraph, not the complete one. A group agent and the pairwise agents among its members are independent objects; clients MAY surface the containment structure (e.g., `{A,B} ⊂ {A,B,C}`) computed off-chain from member sets.
+
+## Rationale
+
+- **Edge, not node.** Deterministic `agentId = H(sorted member set)` makes the relationship itself the primary key. There is no way to mint a second agent for the same member set, which encodes the core claim: one relationship, one agent. The same construction extends unchanged from pairs (edges) to groups (hyperedges).
+- **Unanimous consent by construction.** The propose/accept handshake and all-keys delegation prevent any subset of members from weaponizing "our" agent against another member. Unilateral pause/leave/dissolve/revoke gives each human an unconditional exit — critical for relationships that sour.
+- **Groups dissolve rather than shrink.** Because identity is the member set, a departure is a change of identity: the `{A,B,C}` agent with C gone is not "the same agent minus C" — it is a different relationship. Forcing dissolve-and-recreate (with `predecessorAgentId` lineage) keeps every SRC record attributable to the exact member set that consented to it, and prevents a majority from silently ejecting a member while retaining the shared history's authority.
+- **Hash-anchored, content-off-chain SRC.** Relationship records are intimate; only commitments go on-chain. `contentHash` gives integrity and ordering; the `uri` is optional so parties can keep content fully private (E2E-encrypted stores) while still anchoring the agent's memory.
+- **Sealed, not erased, on dissolution.** Append-only history preserves attributability of past agent actions; ceasing authority protects the parties going forward. Erasure of off-chain content remains possible (delete the content; the on-chain hash becomes a dangling commitment), which is the correct split between accountability and privacy.
+- **Directed option.** Some relationships are genuinely asymmetric; a directed mode lets each side maintain its own perspective agent without forcing that complexity on the common case.
+
+## Backwards Compatibility
+
+No backward compatibility issues found. Relational agents can wrap or be wrapped by ERC-8004 identities, and implementations may expose each Active agent as a non-transferable [ERC-721](./eip-721.md) token (tokenId = agentId, jointly "owned", transfer functions reverting) for wallet and indexer visibility.
+
+## Test Cases
+
+Test addresses: `A = 0x00000000000000000000000000000000000000aa`, `B = 0x00000000000000000000000000000000000000bb`, `C = 0x00000000000000000000000000000000000000cc`.
+
+### Agent ID derivation
+
+| Input | Expected `agentId` |
+|---|---|
+| `agentIdOf([A, B], false)` | `0x9d086835e9dba64a081aa4c50f23e76a017a27fa4eb3822eaaf4c7a3eddf68fa` |
+| `agentIdOf([A, B, C], false)` | `0x03e5f8c327af463723625c22b020d3f8200909584b36516f22e11dfbbb6674bf` |
+| `agentIdOf([A, B], true)` | `0x60093d0882bca3aaeddfab88c72617475aee555b86f39cd70b8de2388efc9fae` |
+| `agentIdOf([B, A], true)` | `0x538cfc3380d8b6e3602dd2e490fdb3b8fdc03a29b3d688782d11377376700797` |
+
+(IDs are `keccak256(abi.encode(uint8(0), members))` for undirected and `keccak256(abi.encode(uint8(1), a, b))` for directed, per the Specification.)
+
+### Reverts
+
+- `agentIdOf([A, A], false)` — reverts (duplicate member).
+- `agentIdOf([B, A, C], false)` — reverts (not strictly ascending).
+- `agentIdOf([A], false)` — reverts (fewer than two members).
+- `agentIdOf([A, B, C], true)` — reverts (directed mode is pairs-only).
+- `proposeAgent` for a member set with an existing non-`Dissolved` agent — reverts.
+- `acceptAgent` from a non-member, or from a member who already accepted — reverts.
+- `appendRecord` before `Active`, after `Dissolved`, or from a non-member without `SRC_APPEND` authorization — reverts.
+- `coSignRecord` by the record's contributor, or twice by the same member — reverts.
+
+### Lifecycle walkthrough
+
+1. `proposeAgent([A, B, C], false, uri, 30 days)` by A → status `Proposed`; `acceptAgent` by B → still `Proposed`; `acceptAgent` by C → `Active`, `AgentActivated` emitted.
+2. With the agent `Active`: `appendRecord` by A → `Record.coSignCount == 0`; `coSignRecord` by B → `coSignCount == 1`; `coSignRecord` by C → `coSignCount == 2 == memberCount − 1` (fully co-signed).
+3. `delegate(agentId, op, scope, expiry)` called with identical parameters by A, then B → `isAuthorized == false`; then by C → `isAuthorized == true`. `revokeDelegation` by B alone → `isAuthorized == false`.
+4. `leaveAgent` by C → status `Dissolved`, all delegations revoked, `getRecord` still serves all records; `proposeAgent([A, B], ...)` with `predecessorAgentId` set to the dissolved ID succeeds.
+
+## Reference Implementation
+
+A minimal implementation of ID derivation and canonicalization checks (lifecycle and SRC storage omitted for brevity; see the Specification):
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+contract RelationalAgentId {
+    function agentIdOf(address[] calldata members, bool directed)
+        external pure returns (uint256)
+    {
+        uint256 n = members.length;
+        require(n >= 2, "min two members");
+        if (directed) {
+            require(n == 2, "directed is pairs-only");
+            require(members[0] != members[1], "distinct members");
+            require(members[0] != address(0) && members[1] != address(0), "zero address");
+            return uint256(keccak256(abi.encode(uint8(1), members[0], members[1])));
+        }
+        require(members[0] != address(0), "zero address");
+        for (uint256 i = 1; i < n; i++) {
+            require(members[i] > members[i - 1], "not strictly ascending");
+        }
+        return uint256(keccak256(abi.encode(uint8(0), members)));
+    }
+}
+```
+
+## Security Considerations
+
+- **Coercion / duress.** One member (or a majority of a group) may pressure others into accepting an agent or co-signing records. Unilateral pause, leave, and revoke are the mitigations at the protocol layer; clients should make them one-tap operations.
+- **Group-specific dynamics.** Unanimous accept and all-keys delegation let a single holdout block a large group indefinitely — this is intentional (consent over convenience), but proposers should size groups accordingly. Conversely, in large groups a departing member forces dissolution; recreation cost grows with group size, which naturally discourages very large agents. Co-sign counts in groups can be inflated by colluding subsets, so consumers should check *which* members co-signed, not just how many.
+- **Privacy of the SRC.** Even hash-only records leak metadata (who, when, how often, what type). Implementations handling sensitive relationships should support committing batched Merkle roots as single `Other` records and salted content hashes to resist correlation and brute-force preimage attacks on low-entropy content (e.g., short messages).
+- **Impersonation of humans.** The registry trusts that addresses map to natural persons. Sybil pairs can fabricate relationships and co-signed corpora; consumers must not treat SRC volume as proof of a genuine human relationship without an external personhood or identity layer.
+- **Delegated operator compromise.** A compromised operator key can act as the relationship's agent within its scope until revoked. Scopes should be narrow and expiries short; any-member revocation bounds the damage window.
+- **Griefing via pause.** A malicious member can pause-spam. This is by design (safety over liveness); the `reconsentPeriod` re-acknowledgment prevents silent long-dormant reactivation.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
