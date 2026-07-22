@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Hierarchical Execution Path</title>
+  <desc id="desc">Call-graph diagram showing how Alice's EOA calls executeBatch on parent account P, which in turn calls execute on child accounts C1 and C2. At each level, authorization is msg.sender == ownerOf(tokenId). This is the primary operational path for nested accounts: no signatures, no ERC-7739 recursion, just direct msg.sender checks cascading down the tree.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .alice { fill: #eef3ff; }
+    .parent { fill: #eaf7ef; }
+    .child { fill: #fff3db; }
+    .auth-box { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 14; ry: 14; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .token-pill { fill: #fff0cf; stroke: #b77f20; stroke-width: 1.8; rx: 16; ry: 16; }
+    .asset-pill { fill: #d8eadf; stroke: #4d7a63; stroke-width: 1.5; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="900"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Hierarchical Execution Path</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Direct execution cascades down the ownership tree via msg.sender checks.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">No signatures involved. No ERC-7739 recursion. The primary operational path for nested accounts.</text>
+
+  <!-- ═══════ ALICE ═══════ -->
+  <rect class="box alice" x="540" y="150" width="360" height="100"/>
+  <text class="title2" x="720" y="190" text-anchor="middle">Alice's EOA (O)</text>
+  <text class="body" x="720" y="218" text-anchor="middle">Root controller — owns (T_P)</text>
+
+  <!-- Arrow Alice -> P -->
+  <path class="edge" d="M 720 250 L 720 310"/>
+  <text class="label" x="830" y="285" text-anchor="start">1. ordinary tx to P.executeBatch()</text>
+
+  <!-- ═══════ PARENT P ═══════ -->
+  <rect class="box parent" x="360" y="310" width="720" height="190"/>
+  <text class="title2" x="720" y="348" text-anchor="middle">Parent Account (P)</text>
+
+  <!-- Auth check for P -->
+  <rect class="auth-box" x="400" y="370" width="340" height="36"/>
+  <text class="mono" x="570" y="393" text-anchor="middle">msg.sender == ownerOf(T_P) ✓</text>
+
+  <!-- P holds T_C1 and T_C2 -->
+  <rect class="token-pill" x="780" y="370" width="110" height="32"/>
+  <text class="body" x="835" y="391" text-anchor="middle">holds T_C1</text>
+  <rect class="token-pill" x="910" y="370" width="110" height="32"/>
+  <text class="body" x="965" y="391" text-anchor="middle">holds T_C2</text>
+
+  <text class="mono" x="720" y="440" text-anchor="middle">executeBatch dispatches calls to children</text>
+  <text class="body" x="720" y="466" text-anchor="middle">P is msg.sender when calling C1 and C2 — and P is ownerOf(T_C1) and ownerOf(T_C2)</text>
+
+  <!-- Arrow P -> C1 -->
+  <path class="edge" d="M 520 500 L 300 580"/>
+  <text class="label" x="320" y="540" text-anchor="middle">2. C1.execute(...)</text>
+
+  <!-- Arrow P -> C2 -->
+  <path class="edge" d="M 920 500 L 1140 580"/>
+  <text class="label" x="1120" y="540" text-anchor="middle">3. C2.execute(...)</text>
+
+  <!-- ═══════ CHILD C1 ═══════ -->
+  <rect class="box child" x="80" y="580" width="440" height="150"/>
+  <text class="title2" x="300" y="618" text-anchor="middle">Child Account (C1)</text>
+  <rect class="auth-box" x="120" y="638" width="360" height="36"/>
+  <text class="mono" x="300" y="661" text-anchor="middle">msg.sender == ownerOf(T_C1) ✓</text>
+  <rect class="asset-pill" x="160" y="692" width="60" height="26"/>
+  <rect class="asset-pill" x="236" y="692" width="80" height="26"/>
+  <rect class="asset-pill" x="332" y="692" width="90" height="26"/>
+  <text class="body" x="190" y="710" text-anchor="middle">ETH</text>
+  <text class="body" x="276" y="710" text-anchor="middle">ERC-20</text>
+  <text class="body" x="377" y="710" text-anchor="middle">More...</text>
+
+  <!-- ═══════ CHILD C2 ═══════ -->
+  <rect class="box child" x="920" y="580" width="440" height="150"/>
+  <text class="title2" x="1140" y="618" text-anchor="middle">Child Account (C2)</text>
+  <rect class="auth-box" x="960" y="638" width="360" height="36"/>
+  <text class="mono" x="1140" y="661" text-anchor="middle">msg.sender == ownerOf(T_C2) ✓</text>
+  <rect class="asset-pill" x="1000" y="692" width="80" height="26"/>
+  <rect class="asset-pill" x="1096" y="692" width="80" height="26"/>
+  <rect class="asset-pill" x="1192" y="692" width="90" height="26"/>
+  <text class="body" x="1040" y="710" text-anchor="middle">ERC-721</text>
+  <text class="body" x="1136" y="710" text-anchor="middle">ERC-20</text>
+  <text class="body" x="1237" y="710" text-anchor="middle">More...</text>
+
+  <!-- ═══════ BOTTOM PANELS ═══════ -->
+  <rect class="good" x="70" y="780" width="400" height="100"/>
+  <text class="label" x="270" y="812" text-anchor="middle">One Transaction, Full Tree</text>
+  <text class="body" x="270" y="838" text-anchor="middle">Alice sends one ordinary transaction.</text>
+  <text class="body" x="270" y="858" text-anchor="middle">P dispatches to C1 and C2 atomically.</text>
+
+  <rect class="note" x="510" y="780" width="420" height="100"/>
+  <text class="label" x="720" y="812" text-anchor="middle">No Signatures at Child Level</text>
+  <text class="body" x="720" y="838" text-anchor="middle">Each child authorizes because msg.sender is P,</text>
+  <text class="body" x="720" y="858" text-anchor="middle">and P owns the child's controller NFT.</text>
+
+  <rect class="good" x="970" y="780" width="400" height="100"/>
+  <text class="label" x="1170" y="812" text-anchor="middle">Cross-Child Settlement</text>
+  <text class="body" x="1170" y="838" text-anchor="middle">P can net positions, rebalance, or sweep</text>
+  <text class="body" x="1170" y="858" text-anchor="middle">across C1 and C2 in a single atomic batch.</text>
+</svg>
