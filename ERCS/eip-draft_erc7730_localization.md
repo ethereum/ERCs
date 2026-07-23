@@ -1,5 +1,5 @@
 ---
-title: ERC-7730 Localization Files
+title: Translation Files for ERC-7730 Descriptors
 description: Translation file format, key namespace, and integrity mechanism for localizing ERC-7730 clear-signing descriptors.
 author: Alex Forshtat (@forshtat)
 discussions-to: TBD
