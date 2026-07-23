@@ -1,12 +1,12 @@
 {
     "$schema": "./erc7730-v3.0.0-next.schema.json",
 
-    "$comment": "This is a simple example of an ERC-7730 display definition.",
+    "$comment": "This is a simple example of an ERC-7730 display definition, demonstrating the v3.0.0-next translation key additions (labelKey, intentKey, interpolatedIntentKey).",
 
     "context": {
         "$id": "Example ERC-20",
         "contract" : {
-            "deployments": [ 
+            "deployments": [
                 {
                     "chainId": 1,
                     "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"
@@ -21,14 +21,14 @@
                 }
             ]
         }
-    }, 
+    },
 
     "metadata": {
         "owner": "Example",
         "contractName": "MyToken",
         "info": {
             "url": "https://example.io/",
-            "deploymentDate": "2017-11-28T12:41:21Z"  
+            "deploymentDate": "2017-11-28T12:41:21Z"
         }
     },
 
@@ -36,16 +36,20 @@
         "formats": {
             "transfer(address to,uint256 value)": {
                 "intent": "Send",
+                "intentKey": "erc20.transfer.intent",
                 "interpolatedIntent": "Send {value} to {to}",
+                "interpolatedIntentKey": "erc20.transfer.interpolated_intent",
                 "fields": [
                     {
                         "path": "to",
                         "label": "To",
+                        "labelKey": "erc20.transfer.to_label",
                         "format": "addressName"
                     },
                     {
                         "path": "value",
                         "label": "Amount",
+                        "labelKey": "erc20.transfer.amount_label",
                         "format": "tokenAmount",
                         "params": {
                             "tokenPath": "@.to"
