@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "version": "3.0.0-next",
   "type": "object",
-  "description": "ERC-7730 Localization Translation File Schema. A translation file provides a flat map of translation keys to translated strings for a specific locale. It is referenced from the '$i18n' field of a parent ERC-7730 document.",
+  "description": "ERC-7730 Localization Translation File Schema. A translation file provides a flat map of translation keys to translated strings for a specific locale. It is referenced from the '$localization' field of a parent ERC-7730 document.",
   "properties": {
     "$schema": {
       "title": "Schema",
@@ -13,7 +13,7 @@
     "$locale": {
       "title": "Locale",
       "type": "string",
-      "description": "The BCP-47 language tag for this translation (e.g. 'fr', 'zh-Hans', 'pt-BR'). MUST match the key used in the parent document's '$i18n' map."
+      "description": "The BCP-47 language tag for this translation (e.g. 'fr', 'zh-Hans', 'pt-BR'). MUST match the key used in the parent document's '$localization.references' map."
     },
     "translations": {
       "title": "Translations",

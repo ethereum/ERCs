@@ -7,7 +7,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-07-22
-requires: 7730
+requires: 7730, 8176
 ---
 
 ## Abstract
@@ -23,26 +23,6 @@ Separating the two lets descriptors and translations evolve independently: an ex
 ## Specification
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
-
-### Required languages
-
-Documents whose `$localization.references` point at resources conforming to this specification MUST provide translations for at least the following languages:
-
-| Language           | BCP-47 tag |
-|--------------------|------------|
-| Arabic             | `ar`       |
-| Farsi              | `fa`       |
-| French             | `fr`       |
-| German             | `de`       |
-| Hindi              | `hi`       |
-| Japanese           | `ja`       |
-| Portuguese         | `pt`       |
-| Russian            | `ru`       |
-| Simplified Chinese | `zh-Hans`  |
-| Spanish            | `es`       |
-| Turkish            | `tr`       |
-
-These languages were selected to be familiar to the majority of internet users worldwide. Documents that do not include `$localization` are unaffected by this requirement.
 
 ### Translation file format
 
@@ -96,11 +76,43 @@ The canonical shared vocabulary package's content, publication location, and ver
 
 ### Translation resource integrity
 
-Each `uri` value within a document's `$localization.references` array entries MAY include a fragment of the form `#<hash-algorithm>-<base64-digest>`, using the same syntax as [W3C Subresource Integrity](https://www.w3.org/TR/SRI/) (e.g. `#sha256-<base64>`).
+Translation resources MAY be attested using the Ethereum Attestation Service (EAS), mirroring [ERC-8176](./eip-8176.md)'s descriptor attestation mechanism under a dedicated schema scoped to translation resources rather than descriptors, so wallets get identical attestation semantics — attester identity, expiry, revocability, multi-attester support — for both.
 
-When present, wallets MUST compute the digest of the fetched translation resource's bytes using the named algorithm and MUST refuse to use the resource if the digest does not match. This guards against a compromised host or registry silently substituting altered translations without requiring a signature scheme or a single trusted signing authority — appropriate for ERC-7730's permissionless, multi-author registry model, where translations may be authored and hosted independently of the descriptor itself.
+#### Translation hash computation
 
-Wallets SHOULD warn the user, rather than silently falling back to English, when a `$localization.references` entry without an integrity fragment is used, since such a reference cannot be verified.
+To compute the `translationHash` of a translation resource:
+
+1. Let `T` be the parsed JSON translation resource object.
+2. Serialize `T` to a byte string using RFC 8785 (JCS — JSON Canonicalization Scheme).
+3. Compute the Keccak-256 hash of the resulting byte string.
+4. Encode the hash as a `0x`-prefixed lowercase hexadecimal string (66 characters total).
+
+Unlike [ERC-8176](./eip-8176.md)'s `descriptorHash`, no `includes`-resolution step applies here: translation files have no equivalent merge mechanism, so `T` is hashed exactly as fetched.
+
+#### Canonical EAS schema
+
+| Field | Value |
+|---|---|
+| Schema | `bytes32 translationHash` |
+| Schema UID | *To be registered on Ethereum mainnet; TBD pending registration* |
+| Resolver | `0x0000000000000000000000000000000000000000` |
+| Revocable | `true` |
+| EAS Contract | `0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587` |
+| Chain | Ethereum mainnet (`chainId = 1`) |
+
+This mirrors [ERC-8176](./eip-8176.md)'s canonical schema in every respect except the attested field's name and meaning. A distinct, permissionless schema keeps translation-resource attestations distinguishable from descriptor attestations at the protocol layer, while reusing the same EAS contract, attestation formats, and verification rules.
+
+#### Attestation lifecycle
+
+The rest of the mechanism follows [ERC-8176](./eip-8176.md) exactly, substituting `translationHash` for `descriptorHash` and "translation resource" for "descriptor" throughout:
+
+- Attestations MAY be onchain (via `attest()`/`attestByDelegation()` on the EAS contract) or offchain (an [EIP-712](./eip-712.md)-signed JSON blob distributed alongside the translation resource), carrying identical information content.
+- Verification: confirm the schema UID, decode `translationHash` from the attestation's `data`, recompute it from the resource being verified and confirm a match, check `expirationTime`, recover the attester (ECDSA recovery for EOAs, [ERC-1271](./eip-1271.md) `isValidSignature` for contracts), check revocation against the canonical EAS contract, then apply wallet trust policy.
+- Revocation is always an onchain call to the canonical EAS contract (`revokeOffchain`/`revoke`), regardless of whether the attestation itself is onchain or offchain.
+- Attesters SHOULD bound `expirationTime`. Multiple attesters MAY independently attest the same resource; one attestation's failure MUST NOT invalidate another.
+- This specification does not mandate a filename convention, directory layout, registry topology, or discovery mechanism for attestations.
+
+Wallets that require attestation before trusting a translation resource SHOULD warn the user, rather than silently falling back to English, when a `$localization.references` entry has no valid attestation from a trusted attester.
 
 ### Lookup semantics
 
@@ -109,7 +121,7 @@ Wallets MUST apply the following procedure for each user-facing string field tha
 1. Determine the user's preferred locale using BCP-47 matching and custom preferences.\
    The default BCP-47 tag resolution relies on widening the match conditions, e.g.: `zh-Hans-HK` → `zh-Hans` → `zh` → `en`.\
    Users SHOULD be able to define their own preferences in their wallets, e.g.: `sk` → `cs` → `ru` → `en`.
-2. If a matching locale is listed in `$localization.references`, fetch the translation resource at the first `uri` entry the wallet is able to resolve, verifying its integrity fragment if present (see above).
+2. If a matching locale is listed in `$localization.references`, fetch the translation resource at the first `uri` entry the wallet is able to resolve, checking for a valid attestation per [Translation resource integrity](#translation-resource-integrity) if required by wallet policy.
 3. Look up the field's key in the resource's `translations` map, applying the shared-vocabulary precedence above when the key is in the `common.` namespace.
 4. If a translation is found, display it. Otherwise, the wallet SHOULD present a clear warning about missing translations and fall back to the field's literal English value.
 
@@ -135,9 +147,11 @@ Both Trezor firmware (`trezor/trezor-firmware`, `core/translations/en.json`) and
 
 A free-form, author-chosen key (with no required structure) was considered, but it gives up any shared convention for reuse across descriptors, and leaves nothing for the shared-vocabulary namespace to hook into. The chosen shape borrows the flat, snake_case segment style Trezor firmware uses, joined with dots so that a namespace can be reserved (`common.`) without a separate mechanism for distinguishing namespace from name.
 
-### Why not a signed-bundle attestation scheme
+### Why EAS attestations instead of a generic web-integrity standard
 
-Trezor firmware attests its translation bundles with a single Merkle root and signature per released version (`signatures.json`), verified against Trezor's own release key. That model fits a single vendor shipping one firmware release train. ERC-7730's registry is permissionless and multi-author: there is no single party positioned to sign every translation file for every descriptor. A per-reference integrity hash, in the style of Subresource Integrity, instead lets each descriptor author (or registry) commit to the exact bytes of the translation file they intend to be used, without requiring a shared signing authority.
+An earlier draft used a Subresource-Integrity-style hash appended as a URI fragment, reasoned by analogy against Trezor firmware's translation bundles: Trezor signs its bundles with a single Merkle root and release key, which fits a single vendor shipping one firmware release train, but not ERC-7730's permissionless, multi-author registry.
+
+[ERC-7730](./eip-7730.md) descriptors themselves are expected to be attested via [ERC-8176](./eip-8176.md) using the Ethereum Attestation Service. Mirroring that same mechanism for translation resources, rather than introducing a second, unrelated integrity convention, means wallets implement one attestation-verification code path — with the same multi-attester, revocation, and wallet-trust-policy semantics — for both descriptors and their translations. A URI-fragment hash only proves fetched bytes match a hash someone chose when writing the reference; it carries no notion of *who* vouches for the content, no expiry, and no revocation. EAS attestations carry all three.
 
 ### Shared vocabulary namespace
 
@@ -189,11 +203,11 @@ See [`erc7730-localization-v3.0.0-next.schema.json`](../assets/erc-7730-localiza
 
 ## Security Considerations
 
-Translation resources are fetched from the same kind of untrusted or semi-trusted hosts as the descriptors that reference them, and are subject to the same [registry poisoning](./eip-7730.md#registry-poisoning) concerns discussed in ERC-7730. A malicious or compromised translation resource can alter what a user is shown without altering the descriptor itself, so the integrity mechanism in this specification is not optional in practice: wallets that resolve a `$localization.references` entry without a verifiable integrity fragment are trusting the host of that resource outright, and SHOULD surface that trust gap to the user rather than silently proceeding.
+Translation resources are fetched from the same kind of untrusted or semi-trusted hosts as the descriptors that reference them, and are subject to the same [registry poisoning](./eip-7730.md#registry-poisoning) concerns discussed in ERC-7730. A malicious or compromised translation resource can alter what a user is shown without altering the descriptor itself, so the attestation mechanism in this specification is not optional in practice: wallets that resolve a `$localization.references` entry with no valid attestation from a trusted attester are trusting the host of that resource outright, and SHOULD surface that trust gap to the user rather than silently proceeding. The [ERC-8176](./eip-8176.md) threat model and its non-protections (malicious attesters, attester key compromise, semantic attacks on content, attester-side supply-chain compromise) apply identically here.
 
 Missing or malformed translations must never fail open into an incorrect but plausible-looking string; wallets MUST fall back to the literal English value and SHOULD warn the user, rather than displaying a partially-resolved or truncated string. The placeholder-preservation check for interpolated strings is a validator-time, not just a wallet-time, concern: registries curating translation resources SHOULD reject files that drop or reorder-corrupt placeholders before they ever reach a wallet.
 
-The shared vocabulary namespace introduces a second trust boundary: a wallet resolving `common.*` keys against a shared package is trusting that package's publisher for every descriptor that uses it, not just one. Wallets SHOULD apply the same integrity verification to the shared package as to any other translation resource.
+The shared vocabulary namespace introduces a second trust boundary: a wallet resolving `common.*` keys against a shared package is trusting that package's publisher for every descriptor that uses it, not just one. Wallets SHOULD apply the same attestation verification to the shared package as to any other translation resource.
 
 ## Copyright
 
