@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "type": "object",
+  "description": "ERC-7730 Localization Translation File Schema. A translation file provides a flat map of translation keys to translated strings for a specific locale. It is referenced from the '$i18n' field of a parent ERC-7730 document.",
+  "properties": {
+    "$schema": {
+      "title": "Schema",
+      "type": "string",
+      "format": "uri-reference",
+      "description": "The schema this translation file conforms to."
+    },
+    "$locale": {
+      "title": "Locale",
+      "type": "string",
+      "description": "The BCP-47 language tag for this translation (e.g. 'fr', 'zh-Hans', 'pt-BR'). MUST match the key used in the parent document's '$i18n' map."
+    },
+    "translations": {
+      "title": "Translations",
+      "type": "object",
+      "description": "Flat map from translation key to the translated string in the target locale. Keys MUST match the pattern '^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$'. Keys in the 'common.' namespace are reserved for a shared vocabulary package; see the specification for resolution precedence. Placeholders in interpolated strings (e.g. '{value}', '{to}') MUST be preserved verbatim in translations. Keys absent from this map fall back to the corresponding literal field value.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+        "description": "Dot-namespaced, snake_case translation key."
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["$locale", "translations"],
+  "additionalProperties": false
+}

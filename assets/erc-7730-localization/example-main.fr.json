@@ -1,0 +1,11 @@
+{
+    "$schema": "./erc7730-i18n-v1.schema.json",
+    "$locale": "fr",
+    "translations": {
+        "erc20.transfer.intent":               "Envoyer",
+        "erc20.transfer.interpolated_intent":  "Envoyer {value} à {to}",
+        "erc20.transfer.to_label":             "Destinataire",
+        "erc20.transfer.amount_label":         "Montant",
+        "common.send":                         "Envoyer"
+    }
+}
