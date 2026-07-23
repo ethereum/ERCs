@@ -37,32 +37,50 @@
         "display": {
             "$ref": "#/$display/main"
         },
-        "$i18n": {
-            "title": "Translation files",
+        "$localization": {
+            "title": "Localization",
             "type": "object",
-            "description": "An optional map from BCP-47 language tags to URI references pointing to translation resources for this ERC-7730 document. The internal format of the referenced resource, key strategy, and attestation mechanism are defined by a companion localization specification, not by this schema.",
-            "propertyNames": {
-                "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
-                "description": "BCP-47 language tag (e.g. 'fr', 'zh-Hans', 'pt-BR')"
-            },
-            "additionalProperties": {
-                "title": "Candidate references",
-                "type": "array",
-                "minItems": 1,
-                "description": "One or more candidate references to the translation resource for this locale. This specification does not mandate or favour any particular URI scheme or resolution mechanism. A wallet may use any entry it is able to resolve.",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "uri": {
-                            "type": "string",
-                            "format": "uri-reference",
-                            "description": "A URI reference to the translation resource. Its format, and how it resolves against a translation resource, are defined by a companion localization specification."
-                        }
+            "description": "Optional localization metadata for this ERC-7730 document, loosely mirroring ERC-1155's 'localization' extension. The internal format of referenced translation resources, key strategy, and attestation mechanism are defined by a companion localization specification, not by this schema.",
+            "properties": {
+                "locales": {
+                    "title": "Locales",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$"
                     },
-                    "required": ["uri"],
-                    "additionalProperties": false
+                    "description": "Optional explicit list of BCP-47 language tags covered by 'references' below, mirroring ERC-1155's localization.locales field. Informational only: the authoritative set of covered locales is the key set of 'references'."
+                },
+                "references": {
+                    "title": "Translation resource references",
+                    "type": "object",
+                    "description": "A map from BCP-47 language tags to URI references pointing to translation resources for this ERC-7730 document.",
+                    "propertyNames": {
+                        "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+                        "description": "BCP-47 language tag (e.g. 'fr', 'zh-Hans', 'pt-BR')"
+                    },
+                    "additionalProperties": {
+                        "title": "Candidate references",
+                        "type": "array",
+                        "minItems": 1,
+                        "description": "One or more candidate references to the translation resource for this locale. This specification does not mandate or favour any particular URI scheme or resolution mechanism. A wallet may use any entry it is able to resolve.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "uri": {
+                                    "type": "string",
+                                    "format": "uri-reference",
+                                    "description": "A URI reference to the translation resource. Its format, and how it resolves against a translation resource, are defined by a companion localization specification."
+                                }
+                            },
+                            "required": ["uri"],
+                            "additionalProperties": false
+                        }
+                    }
                 }
-            }
+            },
+            "required": ["references"],
+            "additionalProperties": false
         }
     },
     "additionalProperties": false,
