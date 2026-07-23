@@ -1,5 +1,5 @@
 {
-    "$schema": "./erc7730-localization-v3.0.0-next.schema.json",
+    "$schema": "./erc8346-v3.0.0-next.schema.json",
     "$locale": "fr",
     "translations": {
         "erc20.transfer.intent":               "Envoyer",
