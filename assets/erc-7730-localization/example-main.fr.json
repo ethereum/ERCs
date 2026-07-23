@@ -1,5 +1,5 @@
 {
-    "$schema": "./erc7730-i18n-v1.schema.json",
+    "$schema": "./erc7730-i18n-v3.0.0-next.schema.json",
     "$locale": "fr",
     "translations": {
         "erc20.transfer.intent":               "Envoyer",

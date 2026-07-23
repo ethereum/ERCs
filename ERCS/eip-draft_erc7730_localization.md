@@ -56,7 +56,7 @@ A translation file is a JSON document with the following fields:
 
 ```json
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-i18n-v1.schema.json",
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-i18n-v3.0.0-next.schema.json",
     "$locale": "fr",
     "translations": {
         "erc20.transfer.intent":              "Envoyer",
@@ -68,7 +68,7 @@ A translation file is a JSON document with the following fields:
 }
 ```
 
-See [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete example, and [`erc7730-i18n-v1.schema.json`](../assets/erc-7730-localization/erc7730-i18n-v1.schema.json) for the JSON schema of the translation file format. This schema supersedes the draft `erc7730-i18n-v3.0.0-next.schema.json` schema that briefly existed under `assets/erc-7730/` during ERC-7730's v3 development, before translation files were split out into this specification.
+See [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete example, and [`erc7730-i18n-v3.0.0-next.schema.json`](../assets/erc-7730-localization/erc7730-i18n-v3.0.0-next.schema.json) for the JSON schema of the translation file format. Its version tag tracks ERC-7730's own schema version (`3.0.0-next`), since the two evolve together; this file replaces the identically-named draft schema that briefly existed under `assets/erc-7730/` during ERC-7730's v3 development, before translation files were split out into this specification.
 
 ### Key format
 
@@ -145,7 +145,7 @@ Both Trezor firmware and Ledger Live's translation catalogs show that a large fr
 
 ## Backwards Compatibility
 
-This specification is new and additive; the `$i18n` field it governs is optional in ERC-7730. It supersedes the `erc7730-i18n-v3.0.0-next.schema.json` schema and the literal-English-string-as-key mechanism that existed briefly in ERC-7730's v3 draft before translation files were split out into this specification; neither shipped in a finalized ERC-7730 release, so no deployed descriptor or translation file requires migration.
+This specification is new and additive; the `$i18n` field it governs is optional in ERC-7730. It supersedes the identically-named draft `erc7730-i18n-v3.0.0-next.schema.json` that briefly existed under `assets/erc-7730/`, and the literal-English-string-as-key mechanism that existed briefly in ERC-7730's v3 draft before translation files were split out into this specification; neither shipped in a finalized ERC-7730 release, so no deployed descriptor or translation file requires migration.
 
 ## Test Cases
 
@@ -162,7 +162,7 @@ And the following French translation resource, referenced from `$i18n.fr`:
 
 ```json
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-i18n-v1.schema.json",
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-i18n-v3.0.0-next.schema.json",
     "$locale": "fr",
     "translations": {
         "erc20.transfer.label": "Destinataire"
@@ -185,7 +185,7 @@ A translation value of `"Envoyer {value} à {to}"` is valid (both placeholders p
 
 ## Reference Implementation
 
-See [`erc7730-i18n-v1.schema.json`](../assets/erc-7730-localization/erc7730-i18n-v1.schema.json) for the translation file JSON schema, and [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete translation file referenced by the [ERC-7730](./eip-7730.md) example descriptor.
+See [`erc7730-i18n-v3.0.0-next.schema.json`](../assets/erc-7730-localization/erc7730-i18n-v3.0.0-next.schema.json) for the translation file JSON schema, and [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete translation file referenced by the [ERC-7730](./eip-7730.md) example descriptor.
 
 ## Security Considerations
 

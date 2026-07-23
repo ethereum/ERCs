@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "1.0.0",
+  "version": "3.0.0-next",
   "type": "object",
   "description": "ERC-7730 Localization Translation File Schema. A translation file provides a flat map of translation keys to translated strings for a specific locale. It is referenced from the '$i18n' field of a parent ERC-7730 document.",
   "properties": {
