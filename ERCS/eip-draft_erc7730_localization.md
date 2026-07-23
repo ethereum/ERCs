@@ -12,13 +12,13 @@ requires: 7730
 
 ## Abstract
 
-This specification defines the translation file format referenced by the `$i18n` field of an [ERC-7730](./eip-7730.md) document: how translatable strings are keyed, how a reserved namespace for shared vocabulary is resolved, how translation resources are integrity-checked, and how wallets look up localized strings at render time. ERC-7730 itself only defines the `$i18n` link field and the optional `labelKey`/`intentKey`/`interpolatedIntentKey` sibling properties; this specification defines everything on the other side of that link.
+This specification defines the translation file format referenced by the `$localization` field of an [ERC-7730](./eip-7730.md) document: how translatable strings are keyed, how a reserved namespace for shared vocabulary is resolved, how translation resources are integrity-checked, and how wallets look up localized strings at render time. ERC-7730 itself only defines the `$localization` link field and the optional `labelKey`/`intentKey`/`interpolatedIntentKey` sibling properties; this specification defines everything on the other side of that link.
 
 ## Motivation
 
 ERC-7730 needs to support translation of clear-signing descriptors into multiple languages without coupling the core clear-signing format to a specific, still-evolving localization mechanism. Embedding the full translation-file format directly in ERC-7730 would force every consumer of an ERC-7730 document, including the many English-only descriptors already in use, to carry the weight of a mechanism they may never use, and would tie changes to that mechanism to changes in the core format.
 
-Separating the two lets descriptors and translations evolve independently: an existing descriptor gains translations by adding an optional `$i18n` entry and optional `<field>Key` properties, with no other changes, and the translation mechanism itself — key format, shared-vocabulary reuse, integrity — can be refined here without touching every descriptor that has adopted it.
+Separating the two lets descriptors and translations evolve independently: an existing descriptor gains translations by adding an optional `$localization` object and optional `<field>Key` properties, with no other changes, and the translation mechanism itself — key format, shared-vocabulary reuse, integrity — can be refined here without touching every descriptor that has adopted it.
 
 ## Specification
 
@@ -26,7 +26,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Required languages
 
-Documents that provide an `$i18n` field pointing at resources conforming to this specification MUST provide translations for at least the following languages:
+Documents whose `$localization.references` point at resources conforming to this specification MUST provide translations for at least the following languages:
 
 | Language           | BCP-47 tag |
 |--------------------|------------|
@@ -42,7 +42,7 @@ Documents that provide an `$i18n` field pointing at resources conforming to this
 | Spanish            | `es`       |
 | Turkish            | `tr`       |
 
-These languages were selected to be familiar to the majority of internet users worldwide. Documents that do not include `$i18n` are unaffected by this requirement.
+These languages were selected to be familiar to the majority of internet users worldwide. Documents that do not include `$localization` are unaffected by this requirement.
 
 ### Translation file format
 
@@ -56,7 +56,7 @@ A translation file is a JSON document with the following fields:
 
 ```json
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-i18n-v3.0.0-next.schema.json",
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-localization-v3.0.0-next.schema.json",
     "$locale": "fr",
     "translations": {
         "erc20.transfer.intent":              "Envoyer",
@@ -68,7 +68,7 @@ A translation file is a JSON document with the following fields:
 }
 ```
 
-See [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete example, and [`erc7730-i18n-v3.0.0-next.schema.json`](../assets/erc-7730-localization/erc7730-i18n-v3.0.0-next.schema.json) for the JSON schema of the translation file format. Its version tag tracks ERC-7730's own schema version (`3.0.0-next`), since the two evolve together; this file replaces the identically-named draft schema that briefly existed under `assets/erc-7730/` during ERC-7730's v3 development, before translation files were split out into this specification.
+See [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete example, and [`erc7730-localization-v3.0.0-next.schema.json`](../assets/erc-7730-localization/erc7730-localization-v3.0.0-next.schema.json) for the JSON schema of the translation file format. Its version tag tracks ERC-7730's own schema version (`3.0.0-next`), since the two evolve together; this file replaces the `erc7730-i18n-v3.0.0-next.schema.json` draft schema that briefly existed under `assets/erc-7730/` during ERC-7730's v3 development, before translation files were split out into this specification.
 
 ### Key format
 
@@ -96,11 +96,11 @@ The canonical shared vocabulary package's content, publication location, and ver
 
 ### Translation resource integrity
 
-Each `uri` value within a document's `$i18n` array entries MAY include a fragment of the form `#<hash-algorithm>-<base64-digest>`, using the same syntax as [W3C Subresource Integrity](https://www.w3.org/TR/SRI/) (e.g. `#sha256-<base64>`).
+Each `uri` value within a document's `$localization.references` array entries MAY include a fragment of the form `#<hash-algorithm>-<base64-digest>`, using the same syntax as [W3C Subresource Integrity](https://www.w3.org/TR/SRI/) (e.g. `#sha256-<base64>`).
 
 When present, wallets MUST compute the digest of the fetched translation resource's bytes using the named algorithm and MUST refuse to use the resource if the digest does not match. This guards against a compromised host or registry silently substituting altered translations without requiring a signature scheme or a single trusted signing authority — appropriate for ERC-7730's permissionless, multi-author registry model, where translations may be authored and hosted independently of the descriptor itself.
 
-Wallets SHOULD warn the user, rather than silently falling back to English, when an `$i18n` entry without an integrity fragment is used, since such a reference cannot be verified.
+Wallets SHOULD warn the user, rather than silently falling back to English, when a `$localization.references` entry without an integrity fragment is used, since such a reference cannot be verified.
 
 ### Lookup semantics
 
@@ -109,7 +109,7 @@ Wallets MUST apply the following procedure for each user-facing string field tha
 1. Determine the user's preferred locale using BCP-47 matching and custom preferences.\
    The default BCP-47 tag resolution relies on widening the match conditions, e.g.: `zh-Hans-HK` → `zh-Hans` → `zh` → `en`.\
    Users SHOULD be able to define their own preferences in their wallets, e.g.: `sk` → `cs` → `ru` → `en`.
-2. If a matching locale is listed in `$i18n`, fetch the translation resource at the first `uri` entry the wallet is able to resolve, verifying its integrity fragment if present (see above).
+2. If a matching locale is listed in `$localization.references`, fetch the translation resource at the first `uri` entry the wallet is able to resolve, verifying its integrity fragment if present (see above).
 3. Look up the field's key in the resource's `translations` map, applying the shared-vocabulary precedence above when the key is in the `common.` namespace.
 4. If a translation is found, display it. Otherwise, the wallet SHOULD present a clear warning about missing translations and fall back to the field's literal English value.
 
@@ -145,7 +145,7 @@ Both Trezor firmware and Ledger Live's translation catalogs show that a large fr
 
 ## Backwards Compatibility
 
-This specification is new and additive; the `$i18n` field it governs is optional in ERC-7730. It supersedes the identically-named draft `erc7730-i18n-v3.0.0-next.schema.json` that briefly existed under `assets/erc-7730/`, and the literal-English-string-as-key mechanism that existed briefly in ERC-7730's v3 draft before translation files were split out into this specification; neither shipped in a finalized ERC-7730 release, so no deployed descriptor or translation file requires migration.
+This specification is new and additive; the `$localization` field it governs is optional in ERC-7730. It supersedes the identically-named draft `erc7730-localization-v3.0.0-next.schema.json` that briefly existed under `assets/erc-7730/`, and the literal-English-string-as-key mechanism that existed briefly in ERC-7730's v3 draft before translation files were split out into this specification; neither shipped in a finalized ERC-7730 release, so no deployed descriptor or translation file requires migration.
 
 ## Test Cases
 
@@ -158,11 +158,11 @@ Given the following field in an ERC-7730 document:
 }
 ```
 
-And the following French translation resource, referenced from `$i18n.fr`:
+And the following French translation resource, referenced from `$localization.references.fr`:
 
 ```json
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-i18n-v3.0.0-next.schema.json",
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-localization-v3.0.0-next.schema.json",
     "$locale": "fr",
     "translations": {
         "erc20.transfer.label": "Destinataire"
@@ -185,11 +185,11 @@ A translation value of `"Envoyer {value} à {to}"` is valid (both placeholders p
 
 ## Reference Implementation
 
-See [`erc7730-i18n-v3.0.0-next.schema.json`](../assets/erc-7730-localization/erc7730-i18n-v3.0.0-next.schema.json) for the translation file JSON schema, and [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete translation file referenced by the [ERC-7730](./eip-7730.md) example descriptor.
+See [`erc7730-localization-v3.0.0-next.schema.json`](../assets/erc-7730-localization/erc7730-localization-v3.0.0-next.schema.json) for the translation file JSON schema, and [`example-main.fr.json`](../assets/erc-7730-localization/example-main.fr.json) for a complete translation file referenced by the [ERC-7730](./eip-7730.md) example descriptor.
 
 ## Security Considerations
 
-Translation resources are fetched from the same kind of untrusted or semi-trusted hosts as the descriptors that reference them, and are subject to the same [registry poisoning](./eip-7730.md#registry-poisoning) concerns discussed in ERC-7730. A malicious or compromised translation resource can alter what a user is shown without altering the descriptor itself, so the integrity mechanism in this specification is not optional in practice: wallets that resolve an `$i18n` entry without a verifiable integrity fragment are trusting the host of that resource outright, and SHOULD surface that trust gap to the user rather than silently proceeding.
+Translation resources are fetched from the same kind of untrusted or semi-trusted hosts as the descriptors that reference them, and are subject to the same [registry poisoning](./eip-7730.md#registry-poisoning) concerns discussed in ERC-7730. A malicious or compromised translation resource can alter what a user is shown without altering the descriptor itself, so the integrity mechanism in this specification is not optional in practice: wallets that resolve a `$localization.references` entry without a verifiable integrity fragment are trusting the host of that resource outright, and SHOULD surface that trust gap to the user rather than silently proceeding.
 
 Missing or malformed translations must never fail open into an incorrect but plausible-looking string; wallets MUST fall back to the literal English value and SHOULD warn the user, rather than displaying a partially-resolved or truncated string. The placeholder-preservation check for interpolated strings is a validator-time, not just a wallet-time, concern: registries curating translation resources SHOULD reject files that drop or reorder-corrupt placeholders before they ever reach a wallet.
 
