@@ -40,34 +40,31 @@
         "$i18n": {
             "title": "Translation files",
             "type": "object",
-            "description": "A map from BCP-47 language tags to URI references pointing to translation files for this ERC-7730 document. Each translation file contains a flat map of English source strings to translated strings. Wallets select the closest matching locale using BCP-47 fallback rules and fetch the corresponding file. This field is mandatory to ensure accessibility across different languages.",
+            "description": "An optional map from BCP-47 language tags to URI references pointing to translation resources for this ERC-7730 document. The internal format of the referenced resource, key strategy, and attestation mechanism are defined by a companion localization specification, not by this schema.",
             "propertyNames": {
                 "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
                 "description": "BCP-47 language tag (e.g. 'fr', 'zh-Hans', 'pt-BR')"
             },
             "additionalProperties": {
-                "type": "string",
-                "format": "uri-reference",
-                "description": "URI reference to the translation file for this locale (relative path, HTTPS URL, or IPFS CID)"
-            },
-            "required": [
-                "ar",
-                "fa",
-                "fr",
-                "de",
-                "hi",
-                "ja",
-                "pt",
-                "ru",
-                "zh-Hans",
-                "es",
-                "tr"
-            ]
+                "title": "Candidate references",
+                "type": "array",
+                "minItems": 1,
+                "description": "One or more candidate references to the translation resource for this locale, in preference order. This specification does not mandate or favor any particular URI scheme or resolution mechanism: entries may use HTTP(S), IPFS, a relative reference resolved against this document's own location, or any other transport a wallet supports. A wallet MUST use the first entry it is able to resolve.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "uri": {
+                            "type": "string",
+                            "format": "uri-reference",
+                            "description": "A URI reference to the translation resource. Its format, and how it resolves against a translation resource, are defined by a companion localization specification."
+                        }
+                    },
+                    "required": ["uri"],
+                    "additionalProperties": false
+                }
+            }
         }
     },
-    "required": [
-        "$i18n"
-    ],
     "additionalProperties": false,
 
     "$context" : {
@@ -402,8 +399,14 @@
                             "intent": {
                                 "$ref": "#/$display/intent"
                             },
+                            "intentKey": {
+                                "$ref": "#/$display/translationKey"
+                            },
                             "interpolatedIntent": {
                                 "$ref": "#/$display/interpolatedIntent"
+                            },
+                            "interpolatedIntentKey": {
+                                "$ref": "#/$display/translationKey"
                             },
                             "fields": {
                                 "$ref": "#/$display/fields"
@@ -439,6 +442,11 @@
         "interpolatedIntent": {
             "title": "Interpolated intent message",
             "description": "An optional intent string with embedded field values using {path} interpolation syntax. This provides a dynamic, contextual description by embedding actual transaction/message values directly in the intent string. Wallets should prefer displaying interpolatedIntent when available and fall back to intent if interpolation fails. See the specification for detailed formatting behavior and security considerations.",
+            "type": "string"
+        },
+        "translationKey": {
+            "title": "Translation key",
+            "description": "An optional stable key identifying this string for lookup in a translation resource. The literal sibling field remains the authoritative English source text; this key format and its resolution are defined by a companion localization specification.",
             "type": "string"
         },
         "fields": {
@@ -478,6 +486,9 @@
                     "description": "The group label of the field group, that will be displayed to the user in front of the formatted field values.",
                     "type": "string"
                 },
+                "labelKey": {
+                    "$ref": "#/$display/translationKey"
+                },
                 "iteration": {
                     "title": "Group arrays iteration mode",
                     "description": "Specifies how iteration over arrays in the group should be handled. Sequential mode displays elements grouped by array, ie arr_0[0] ... arr_0[N] arr_1[0] ... arr_1[M]. Bundled mode displays elements of the arrays grouped by index, ie arr_0[0] arr_1[0] arr_0[1] arr_1[1] ... arr_0[N] arr_1[N]. In bundled mode, all arrays MUST be of the same length.",
@@ -506,6 +517,9 @@
                 "label": {
                     "description": "This value overrides the label in the referenced definition if set.",
                     "type": "string"
+                },
+                "labelKey": {
+                    "$ref": "#/$display/translationKey"
                 },
                 "$ref": {
                     "description": "An internal definition that should be used as the field formatting definition. The value is the key in the display definitions section, as a path expression $.display.definitions.DEFINITION_NAME.",
@@ -573,6 +587,9 @@
                     "title": "Field Label",
                     "description": "The label of the field, that will be displayed to the user in front of the formatted field value.",
                     "type": "string"
+                },
+                "labelKey": {
+                    "$ref": "#/$display/translationKey"
                 },
                 "format": {
                     "title": "Field Format",

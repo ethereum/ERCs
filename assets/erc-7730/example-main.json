@@ -3,20 +3,6 @@
 
     "$comment": "This is a simple example of an ERC-7730 display definition.",
 
-    "$i18n": {
-        "ar": "./example-main.ar.json",
-        "de": "./example-main.de.json",
-        "es": "./example-main.es.json",
-        "fa": "./example-main.fa.json",
-        "fr": "./example-main.fr.json",
-        "hi": "./example-main.hi.json",
-        "ja": "./example-main.ja.json",
-        "pt": "./example-main.pt.json",
-        "ru": "./example-main.ru.json",
-        "tr": "./example-main.tr.json",
-        "zh-Hans": "./example-main.zh-Hans.json"
-    },
-
     "context": {
         "$id": "Example ERC-20",
         "contract" : {
@@ -50,16 +36,20 @@
         "formats": {
             "transfer(address to,uint256 value)": {
                 "intent": "Send",
+                "intentKey": "erc20.transfer.intent",
                 "interpolatedIntent": "Send {value} to {to}",
+                "interpolatedIntentKey": "erc20.transfer.interpolated_intent",
                 "fields": [
                     {
                         "path": "to",
                         "label": "To",
+                        "labelKey": "erc20.transfer.to_label",
                         "format": "addressName"
                     },
                     {
                         "path": "value",
                         "label": "Amount",
+                        "labelKey": "erc20.transfer.amount_label",
                         "format": "tokenAmount",
                         "params": {
                             "tokenPath": "@.to"
