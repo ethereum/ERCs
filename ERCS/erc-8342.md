@@ -194,7 +194,7 @@ To verify a committed invoice, a verifier MUST:
 2. Compute the invoice hash per Section 2.
 3. Verify that the computed hash matches `invoiceHash` in the event.
 4. Verify the `issuerSignature` recovers to the declared `issuer`.
-5. Verify that `paymentTxRef` (or, in Mode A, the containing transaction) transferred `paymentAmount` of `paymentToken` from `issuer` to `recipient`.
+5. Verify that `paymentTxRef` (or, in Mode A, the containing transaction) transferred `paymentAmount` of `paymentToken` from `recipient` to `issuer`.
 6. If `taxes` and `lineItems` are non-empty, verify the structural invariant from Section 1.4.
 
 ### 6. ERC-7730 Clear Signing
