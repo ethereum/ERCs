@@ -1,0 +1,62 @@
+{
+    "$schema": "./erc7730-v3.0.0-next.schema.json",
+
+    "$comment": "This is a simple example of an ERC-7730 display definition, demonstrating the v3.0.0-next translation key additions (labelKey, intentKey, interpolatedIntentKey).",
+
+    "context": {
+        "$id": "Example ERC-20",
+        "contract" : {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+                },
+                {
+                    "chainId": 137,
+                    "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+                },
+                {
+                    "chainId": 42161,
+                    "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
+                }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Example",
+        "contractName": "MyToken",
+        "info": {
+            "url": "https://example.io/",
+            "deploymentDate": "2017-11-28T12:41:21Z"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "transfer(address to,uint256 value)": {
+                "intent": "Send",
+                "intentKey": "erc20.transfer.intent",
+                "interpolatedIntent": "Send {value} to {to}",
+                "interpolatedIntentKey": "erc20.transfer.interpolated_intent",
+                "fields": [
+                    {
+                        "path": "to",
+                        "label": "To",
+                        "labelKey": "erc20.transfer.to_label",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "value",
+                        "label": "Amount",
+                        "labelKey": "erc20.transfer.amount_label",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "@.to"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
