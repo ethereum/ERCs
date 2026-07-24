@@ -740,7 +740,7 @@
                 {
                     "title": "integer format",
                     "const": "duration",
-                    "description": "The field should be displayed as a duration in HH:MM:ss form. Value is interpreted as a number of seconds."
+                    "description": "The field should be displayed as a time duration. The value is interpreted as a number of seconds and rendered as <days>d<hh>h<mm>m<ss>s, where days is unbounded and hours, minutes and seconds are zero-padded to two digits (e.g. 864000 -> 10d00h00m00s, 8250 -> 0d02h17m30s)."
                 },
                 {
                     "title": "integer format",
