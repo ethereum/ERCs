@@ -40,7 +40,7 @@
         "$localization": {
             "title": "Localization",
             "type": "object",
-            "description": "Optional localization metadata for this ERC-7730 document, loosely mirroring ERC-1155's 'localization' extension. This is a non-authoritative discovery hint: wallets may also obtain translation resources from other sources, and validity of a translation resource does not depend on being listed here. The internal format of referenced translation resources, key strategy, and attestation mechanism are defined by a companion localization specification, not by this schema.",
+            "description": "Optional localization metadata for this ERC-7730 document. This is a non-authoritative discovery hint and wallets may also obtain translation resources from other sources. Validity of a translation resource does not depend on being listed here. The internal format of referenced translation resources, key strategy, and attestation mechanism are defined by a companion localization specification ERC-8346.",
             "properties": {
                 "references": {
                     "title": "Translation resource references",
