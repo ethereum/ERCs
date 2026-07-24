@@ -38,7 +38,7 @@
                 "intent": "Send",
                 "intentKey": "erc20.transfer.intent",
                 "interpolatedIntent": "Send {value} to {to}",
-                "interpolatedIntentKey": "erc20.transfer.interpolated_intent",
+                "interpolatedIntentKey": "mytoken.transfer.interpolated_intent",
                 "fields": [
                     {
                         "path": "to",
