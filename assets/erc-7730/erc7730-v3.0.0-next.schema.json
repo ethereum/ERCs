@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "version": "2.0.0",
+    "version": "3.0.0-next",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -349,7 +349,15 @@
                     "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the string returned by EIP 712 encodeType on the primary type.",
                     "type": "object",
                     "propertyNames": {
-                        "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(.*\\)$"
+                        "anyOf": [
+                            {
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_:]*\\(\\s*(?:(?:(?:(?:tuple)?\\s*\\((?:[^()]|\\([^()]*\\))*\\)|[A-Za-z0-9_:]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:(?:tuple)?\\s*\\((?:[^()]|\\([^()]*\\))*\\)|[A-Za-z0-9_:]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
+                            },
+                            {
+                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
+                            }
+                        ]
+                        
                     },
 
                     "additionalProperties": {
