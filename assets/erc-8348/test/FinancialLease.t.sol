@@ -6,6 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {FinancialLease} from "../src/FinancialLease.sol";
 import {MockUVAOracle} from "../src/MockUVAOracle.sol";
+import {IFinancialLeaseAnchored} from "../src/IFinancialLeaseAnchored.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("Mock USD", "mUSD") {}
@@ -71,7 +72,11 @@ contract FinancialLeaseTest is Test {
             unitAmounts: unitAmounts,
             purchasePriceUnits: 10 * UNIT,
             penaltyBpsPerDay: 10, // 0.10%/día
-            defaultDeclarer: defaultDeclarer
+            defaultDeclarer: defaultDeclarer,
+            anchorChainId: 0,
+            anchorRegistry: address(0),
+            anchorId: bytes32(0),
+            servicer: address(0)
         });
         vm.prank(lessor);
         leaseId = lease.createLease(p);
@@ -283,5 +288,160 @@ contract FinancialLeaseTest is Test {
         uint256 unitsSettled = outstandingBefore - lease.outstandingUnits(id);
 
         assertLe(unitsSettled, expectedUnitsFloor, "settledUnits nunca debe exceder el floor de lo pagado");
+    }
+
+    // ─── T9: assetAnchor (ERC-8325) ─────────────────────────
+
+    function test_T9_assetAnchor() public {
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
+        FinancialLease.CreateLeaseParams memory p = FinancialLease.CreateLeaseParams({
+            lessee: lessee,
+            jurisdiction: bytes2("AR"),
+            governingLaw: "Buenos Aires",
+            agreementHash: keccak256("agreement"),
+            assetRef: "asset://vehicle/1",
+            paymentAsset: address(token),
+            denomSymbol: "UVA",
+            oracle: address(oracle),
+            maxStaleness: 7 days,
+            dueDates: dueDates,
+            unitAmounts: unitAmounts,
+            purchasePriceUnits: 10 * UNIT,
+            penaltyBpsPerDay: 10,
+            defaultDeclarer: defaultDeclarer,
+            anchorChainId: 1,
+            anchorRegistry: address(0xBEEF),
+            anchorId: bytes32(uint256(42)),
+            servicer: address(0)
+        });
+        vm.prank(lessor);
+        uint256 anchoredId = lease.createLease(p);
+
+        (uint256 chainId, address registry, bytes32 anchorId) = lease.assetAnchor(anchoredId);
+        assertEq(chainId, 1, "chainId debe coincidir");
+        assertEq(registry, address(0xBEEF), "registry debe coincidir");
+        assertEq(anchorId, bytes32(uint256(42)), "anchorId debe coincidir");
+
+        uint256 unanchoredId = _defaultLease();
+        (uint256 chainId2, address registry2, bytes32 anchorId2) = lease.assetAnchor(unanchoredId);
+        assertEq(chainId2, 0, "sin anclar: chainId debe ser cero");
+        assertEq(registry2, address(0), "sin anclar: registry debe ser cero");
+        assertEq(anchorId2, bytes32(0), "sin anclar: anchorId debe ser cero");
+
+        assertTrue(
+            lease.supportsInterface(type(IFinancialLeaseAnchored).interfaceId),
+            "debe declarar soporte ERC-165 de IFinancialLeaseAnchored"
+        );
+    }
+
+    // ─── T10: inputFreshness — IndexObservation derivado ────
+
+    function test_T10_inputFreshnessIndexObservation() public {
+        uint256 id = _defaultLease(); // oracle + maxOracleStaleness = 7 days
+        (, uint64 expectedAsOf) = lease.conversionRateAsOf(id);
+
+        (uint64 asOf, uint64 maxStaleness) = lease.inputFreshness(id, FinancialLease.ServicingInput.IndexObservation);
+        assertEq(asOf, expectedAsOf, "asOf debe coincidir con conversionRateAsOf");
+        assertEq(maxStaleness, 7 days, "maxStaleness debe coincidir con maxOracleStaleness");
+
+        // Lease con denominacion fija (sin oraculo)
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
+        uint256 fixedId = _createLease(address(0), 0, dueDates, unitAmounts);
+        (uint64 asOfFixed, uint64 maxStalenessFixed) =
+            lease.inputFreshness(fixedId, FinancialLease.ServicingInput.IndexObservation);
+        assertEq(asOfFixed, uint64(block.timestamp), "denominacion fija: asOf debe ser el tiempo actual");
+        assertEq(maxStalenessFixed, 0, "denominacion fija: sin limite de staleness");
+    }
+
+    // ─── T11: updateServicing + inputFreshness (historico) ──
+
+    function test_T11_updateServicingAndFreshness() public {
+        uint256 id = _defaultLease(); // servicer default = lessor (msg.sender en createLease)
+        uint64 setStaleness = 3 days;
+
+        vm.prank(lessor);
+        lease.updateServicing(id, FinancialLease.ServicingInput.Collections, setStaleness);
+        uint64 callTime = uint64(block.timestamp);
+
+        (uint64 asOf, uint64 maxStaleness) = lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
+        assertEq(asOf, callTime, "asOf debe ser el timestamp de la atestacion");
+        assertEq(maxStaleness, setStaleness, "maxStaleness debe ser el seteado por el servicer");
+
+        vm.warp(block.timestamp + 10 days);
+        (uint64 asOfLater,) = lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
+        assertEq(asOfLater, callTime, "asOf es historico: no debe cambiar con el paso del tiempo");
+    }
+
+    // ─── T12: control de acceso del servicer ────────────────
+
+    function test_T12_updateServicingAccessControl() public {
+        uint256 id = _defaultLease();
+        address rando = makeAddr("rando");
+
+        vm.prank(rando);
+        vm.expectRevert(FinancialLease.NotAuthorized.selector);
+        lease.updateServicing(id, FinancialLease.ServicingInput.ArrearsRecord, 1 days);
+
+        vm.prank(lessor);
+        lease.updateServicing(id, FinancialLease.ServicingInput.ArrearsRecord, 1 days);
+        (uint64 asOf,) = lease.inputFreshness(id, FinancialLease.ServicingInput.ArrearsRecord);
+        assertEq(asOf, uint64(block.timestamp), "el servicer si puede atestar");
+    }
+
+    // ─── T13: IndexObservation no es atestable manualmente ──
+
+    function test_T13_indexObservationNotAttestable() public {
+        uint256 id = _defaultLease();
+        vm.prank(lessor);
+        vm.expectRevert(FinancialLease.DerivedInput.selector);
+        lease.updateServicing(id, FinancialLease.ServicingInput.IndexObservation, 1 days);
+    }
+
+    // ─── T14: servicing es reporte paralelo, no altera pay() ─
+
+    function test_T14_servicingIsolatedFromPayFlow() public {
+        uint256 id = _defaultLease();
+        (, uint64 dueDate1) = lease.nextPayment(id);
+
+        vm.warp(uint256(dueDate1) + 1 days);
+        oracle.set(1e18);
+
+        // Setear las 4 categorias atestables antes de generar la mora
+        vm.startPrank(lessor);
+        lease.updateServicing(id, FinancialLease.ServicingInput.Collections, 1 days);
+        lease.updateServicing(id, FinancialLease.ServicingInput.ArrearsRecord, 1 days);
+        lease.updateServicing(id, FinancialLease.ServicingInput.InsuranceStatus, 1 days);
+        lease.updateServicing(id, FinancialLease.ServicingInput.AssetCondition, 1 days);
+        vm.stopPrank();
+
+        vm.prank(defaultDeclarer);
+        lease.declareDefault(id);
+        assertEq(uint8(lease.status(id)), uint8(FinancialLease.LeaseStatus.InDefault));
+
+        uint256 totalUnits = lease.outstandingUnits(id);
+        uint256 totalAssets = lease.convertToAssets(id, totalUnits) + 10; // margen por punitorios
+
+        // Re-atestar en medio del ciclo, incluso despues de calcular lo adeudado
+        vm.prank(lessor);
+        lease.updateServicing(id, FinancialLease.ServicingInput.Collections, 2 days);
+
+        vm.expectEmit(true, false, false, false);
+        emit FinancialLease.DefaultCured(id);
+        _pay(id, totalAssets);
+
+        // Mismos resultados que T5 (sin servicing): el reporte no altero nada
+        FinancialLease.LeaseStatus finalStatus = lease.status(id);
+        assertTrue(
+            finalStatus == FinancialLease.LeaseStatus.Active || finalStatus == FinancialLease.LeaseStatus.Completed,
+            "debe curar a Active o Completed igual que sin servicing"
+        );
+        assertEq(lease.outstandingUnits(id), 0, "no debe quedar capital pendiente tras el pago total");
+        assertEq(lease.arrears(id), 0, "la mora debe quedar saldada igual que sin servicing");
+
+        // El servicing sigue siendo consultable y no fue tocado por pay()
+        (uint64 asOfCollections, uint64 maxStalenessCollections) =
+            lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
+        assertTrue(asOfCollections > 0, "la atestacion de Collections debe seguir en pie");
+        assertEq(maxStalenessCollections, 2 days, "pay() no debe modificar el estado de servicing");
     }
 }

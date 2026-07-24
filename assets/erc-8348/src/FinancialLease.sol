@@ -7,11 +7,12 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IConversionOracle} from "./IConversionOracle.sol";
+import {IFinancialLeaseAnchored} from "./IFinancialLeaseAnchored.sol";
 
 /// @title FinancialLease — implementación de referencia del ERC de leasing
 /// @dev Posición del lessor = NFT (tokenId == leaseId). Cronograma inmutable
 ///      en unidades de cuenta; conversión a payment asset vía oráculo.
-contract FinancialLease is ERC721, ReentrancyGuard {
+contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLeaseAnchored {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -22,6 +23,22 @@ contract FinancialLease is ERC721, ReentrancyGuard {
         Terminated, // 3
         Completed, // 4
         PurchaseExercised // 5
+    }
+
+    /// @dev Categorías de dato de servicing observables vía inputFreshness.
+    ///      IndexObservation se deriva de conversionRateAsOf y nunca se
+    ///      atesta manualmente (ver DerivedInput en updateServicing).
+    enum ServicingInput {
+        IndexObservation, // 0
+        Collections, // 1
+        ArrearsRecord, // 2
+        InsuranceStatus, // 3
+        AssetCondition // 4
+    }
+
+    struct ServicingAttestation {
+        uint64 asOf;
+        uint64 maxStaleness;
     }
 
     struct Lease {
@@ -54,6 +71,13 @@ contract FinancialLease is ERC721, ReentrancyGuard {
         uint256 purchasePriceUnits;
         // Punitorio: bps diarios sobre el stock vencido
         uint16 penaltyBpsPerDay;
+        // Ancla a activo titulado en un registro ERC-8325 (opcional)
+        uint256 anchorChainId;
+        address anchorRegistry;
+        bytes32 anchorId;
+        // Servicing paralelo: atestaciones de frescura por categoría
+        address servicer;
+        mapping(uint8 => ServicingAttestation) servicingAttestations;
     }
 
     uint256 public nextLeaseId = 1;
@@ -81,11 +105,13 @@ contract FinancialLease is ERC721, ReentrancyGuard {
     event PurchaseOptionExercised(uint256 indexed leaseId, uint256 priceInAssets);
     event LeaseTerminated(uint256 indexed leaseId, LeaseStatus finalStatus);
     event LesseeAssigned(uint256 indexed leaseId, address indexed oldLessee, address indexed newLessee);
+    event ServicingUpdated(uint256 indexed leaseId, ServicingInput indexed input, uint64 asOf);
 
     error StaleOracle();
     error NotAuthorized();
     error WrongStatus();
     error NothingDue();
+    error DerivedInput();
 
     constructor() ERC721("Financial Lease Position", "LEASE") {}
 
@@ -110,6 +136,10 @@ contract FinancialLease is ERC721, ReentrancyGuard {
         uint256 purchasePriceUnits;
         uint16 penaltyBpsPerDay;
         address defaultDeclarer;
+        uint256 anchorChainId;
+        address anchorRegistry;
+        bytes32 anchorId;
+        address servicer;
     }
 
     function createLease(CreateLeaseParams calldata p) external returns (uint256 leaseId) {
@@ -136,6 +166,10 @@ contract FinancialLease is ERC721, ReentrancyGuard {
         l.defaultDeclarer = p.defaultDeclarer == address(0) ? msg.sender : p.defaultDeclarer;
         l.lastAccrual = uint64(block.timestamp);
         l.status = LeaseStatus.Active;
+        l.anchorChainId = p.anchorChainId;
+        l.anchorRegistry = p.anchorRegistry;
+        l.anchorId = p.anchorId;
+        l.servicer = p.servicer == address(0) ? msg.sender : p.servicer;
 
         uint256 total;
         for (uint256 i = 0; i < p.unitAmounts.length; i++) {
@@ -314,6 +348,42 @@ contract FinancialLease is ERC721, ReentrancyGuard {
         emit LesseeAssigned(leaseId, old, newLessee);
     }
 
+    // ─── Anclaje a registro ERC-8325 ───────────────────────────
+
+    function assetAnchor(uint256 leaseId) external view returns (uint256 chainId, address registry, bytes32 anchorId) {
+        Lease storage l = _leases[leaseId];
+        return (l.anchorChainId, l.anchorRegistry, l.anchorId);
+    }
+
+    // ─── Servicing (reporte paralelo, no enforcado) ────────────
+
+    /// @dev IndexObservation se deriva de conversionRateAsOf; las demás
+    ///      categorías son atestaciones que el servicer actualiza. Puro
+    ///      reporte: no participa de pay(), _accrue ni del estado del lease.
+    function inputFreshness(uint256 leaseId, ServicingInput input)
+        external
+        view
+        returns (uint64 asOf, uint64 maxStaleness)
+    {
+        Lease storage l = _leases[leaseId];
+        if (input == ServicingInput.IndexObservation) {
+            (, asOf) = conversionRateAsOf(leaseId);
+            return (asOf, l.maxOracleStaleness);
+        }
+        ServicingAttestation storage a = l.servicingAttestations[uint8(input)];
+        return (a.asOf, a.maxStaleness);
+    }
+
+    function updateServicing(uint256 leaseId, ServicingInput input, uint64 maxStaleness) external {
+        Lease storage l = _leases[leaseId];
+        if (input == ServicingInput.IndexObservation) revert DerivedInput();
+        if (msg.sender != l.servicer) revert NotAuthorized();
+
+        uint64 asOf = uint64(block.timestamp);
+        l.servicingAttestations[uint8(input)] = ServicingAttestation({asOf: asOf, maxStaleness: maxStaleness});
+        emit ServicingUpdated(leaseId, input, asOf);
+    }
+
     // ─── Views del estándar ───────────────────────────────────
 
     function lessor(uint256 id) external view returns (address) {
@@ -389,5 +459,9 @@ contract FinancialLease is ERC721, ReentrancyGuard {
 
     function status(uint256 id) external view returns (LeaseStatus) {
         return _leases[id].status;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
+        return interfaceId == type(IFinancialLeaseAnchored).interfaceId || super.supportsInterface(interfaceId);
     }
 }
