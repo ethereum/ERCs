@@ -34,12 +34,13 @@ mode = "excludes"
 pattern = ":"
 message = "preamble header `description` should not contain `:`"
 
-## Disabled due to EIP/ERC repo split.
-# [lints.preamble-refs-description]
-# kind = "preamble-proposal-ref"
-# name = "description"
-# prefix = "erc-"
-# suffix = ".md"
+# Cross-repo references resolve against the merged corpus created by the
+# `Merge Repos` step in ci.yml, where every proposal exists as `eip-N.md`.
+[lints.preamble-refs-description]
+kind = "preamble-proposal-ref"
+name = "description"
+prefix = "eip-"
+suffix = ".md"
 
 [lints.preamble-enum-category]
 kind = "preamble-one-of"
@@ -69,11 +70,10 @@ mode = "excludes"
 pattern = '(?i)erc[\s]*[0-9]+'
 message = "proposals must be referenced with the form `ERC-N` (not `ERCN` or `ERC N`)"
 
-## TODO: Disabled because half the files are in another repository.
-# [lints.markdown-refs]
-# kind = "markdown-proposal-ref"
-# prefix = "erc-"
-# suffix = ".md"
+[lints.markdown-refs]
+kind = "markdown-proposal-ref"
+prefix = "eip-"
+suffix = ".md"
 
 [lints.preamble-req-withdrawal-reason]
 kind = "preamble-required-if-eq"
@@ -98,27 +98,26 @@ names = [
     "withdrawal-reason",
 ]
 
-## TODO: Disabled because half the files are in another repository.
-# [lints.preamble-requires-status]
-# prefix = "erc-"
-# suffix = ".md"
-# kind = "preamble-requires-status"
-# requires = "requires"
-# status = "status"
-# flow = [
-#     [
-#         "Draft",
-#         "Stagnant",
-#     ],
-#     ["Review"],
-#     ["Last Call"],
-#     [
-#         "Final",
-#         "Withdrawn",
-#         "Living",
-#         "Moved",
-#     ],
-# ]
+[lints.preamble-requires-status]
+prefix = "eip-"
+suffix = ".md"
+kind = "preamble-requires-status"
+requires = "requires"
+status = "status"
+flow = [
+    [
+        "Draft",
+        "Stagnant",
+    ],
+    ["Review"],
+    ["Last Call"],
+    [
+        "Final",
+        "Withdrawn",
+        "Living",
+        "Moved",
+    ],
+]
 
 [lints.markdown-order-section]
 kind = "markdown-section-order"
@@ -783,26 +782,25 @@ sections = [
     "Copyright",
 ]
 
-## Disabled because of EIP/ERC repository split.
-# [lints.markdown-link-status]
-# prefix = "erc-"
-# suffix = ".md"
-# kind = "markdown-link-status"
-# status = "status"
-# flow = [
-#     [
-#     "Draft",
-#     "Stagnant",
-# ],
-#     ["Review"],
-#     ["Last Call"],
-#     [
-#     "Final",
-#     "Withdrawn",
-#     "Living",
-#     "Moved",
-# ],
-# ]
+[lints.markdown-link-status]
+prefix = "eip-"
+suffix = ".md"
+kind = "markdown-link-status"
+status = "status"
+flow = [
+    [
+    "Draft",
+    "Stagnant",
+],
+    ["Review"],
+    ["Last Call"],
+    [
+    "Final",
+    "Withdrawn",
+    "Living",
+    "Moved",
+],
+]
 
 [lints.preamble-re-title-colon]
 kind = "preamble-regex"
@@ -898,12 +896,11 @@ mode = "includes"
 pattern = "^https://ethereum-magicians.org/t/[^/]+/[0-9]+$"
 message = "preamble header `discussions-to` should point to a thread on ethereum-magicians.org"
 
-## Disabled due to EIP/ERC repo split.
-# [lints.preamble-refs-title]
-# kind = "preamble-proposal-ref"
-# name = "title"
-# prefix = "erc-"
-# suffix = ".md"
+[lints.preamble-refs-title]
+kind = "preamble-proposal-ref"
+name = "title"
+prefix = "eip-"
+suffix = ".md"
 
 [lints.preamble-enum-status]
 kind = "preamble-one-of"
