@@ -18,6 +18,15 @@ pragma solidity >=0.8.0 <0.9.0;
  * @notice See documentation for details.
  */
 interface IKeyDecryptionOracleCallback {
+    /**
+     * @dev One generated encrypted/hashed key and its semantic role.
+     */
+    struct EncryptedHashedKey {
+        bytes32 keyId;
+        bytes encryptedKey;
+        bytes hashedKey;
+    }
+
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 
     /**
@@ -54,19 +63,17 @@ interface IKeyDecryptionOracleCallback {
     );
 
     /**
-     * @dev Emitted when an encrypted/hashed key has been obtained.
+     * @dev Emitted when a batch of encrypted/hashed keys has been obtained.
      * @param sender The sender (oracle/proxy).
      * @param id The id that was passed in the request (user data).
-     * @param encryptedKey The encrypted key.
-     * @param hashedKey The hashed key.
+     * @param keys The generated keys, identified by keyId.
      * @param receiverContract The receiving contract.
      * @param transaction The transaction id.
      */
-    event EncryptedHashedKeyGenerated(
+    event EncryptedHashedKeysGenerated(
         address sender,
         uint256 id,
-        bytes encryptedKey,
-        bytes hashedKey,
+        EncryptedHashedKey[] keys,
         address receiverContract,
         bytes transaction
     );
@@ -109,17 +116,16 @@ interface IKeyDecryptionOracleCallback {
 
     /**
      * @notice Called from the decryption oracle proxy contract.
-     * @dev Implementations SHOULD emit {EncryptedHashedKeyGenerated} (if eligible).
+     * @dev Implementations SHOULD validate the complete batch and emit
+     * {EncryptedHashedKeysGenerated} (if eligible).
      * @param id The id that was passed in the request (user data).
-     * @param encryptedKey Encrypted key.
-     * @param hashedKey Hashed key.
+     * @param keys The generated keys, identified by keyId.
      * @param receiverContract The receiving contract.
      * @param transaction The transaction id.
      */
-    function onEncryptedHashedKeyGenerated(
+    function onEncryptedHashedKeysGenerated(
         uint256 id,
-        bytes calldata encryptedKey,
-        bytes calldata hashedKey,
+        EncryptedHashedKey[] calldata keys,
         address receiverContract,
         bytes calldata transaction
     ) external;

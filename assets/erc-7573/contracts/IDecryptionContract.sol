@@ -72,14 +72,16 @@ interface IDecryptionContract {
 
     /**
      * @notice Called from the receiver of the amount to initiate payment transfer.
-     * @dev emits a {TransferIncepted}
-     * @param id the trade identifier of the trade.
+     * @dev emits a {TransferIncepted}. The returned commitment MUST be stored
+     * with the inception and MUST NOT be reused for a later inception.
+     * @param id the unique trade identifier. It MUST NOT have been used for an earlier inception.
      * @param amount the amount to be transferred.
      * @param from The address of the sender of the payment (the receiver ('to') is message.sender).
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
+     * @return commitmentHash The inception-call commitment.
      */
-    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external;
+    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external returns (bytes32 commitmentHash);
 
     /**
      * @notice Called by the sender of the amount to confirm the payment transfer.
@@ -98,18 +100,17 @@ interface IDecryptionContract {
      *   In case of single DvP the previous confirmTransfer may directly call transferAndDecrypt.
      * @dev emits a {TransferKeyRequested} with keys depending on completion success.
      * @param id the trade identifier of the trade.
+     * @param commitmentHash The stored commitment returned by the matching inceptTransfer call.
      */
-    function transferAndDecrypt(uint256 id) external;
+    function transferAndDecrypt(uint256 id, bytes32 commitmentHash) external;
 
     /**
      * @notice Called from the receiver of the amount to cancel payment transfer (cancels the incept transfer).
      * @dev emits a {TransferKeyRequested}
      * @param id the trade identifier of the trade.
-     * @param from The address of the sender of the payment. Note: the receiver of the payment (to) is implicitly the message.sender.
-     * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
-     * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
+     * @param commitmentHash The stored commitment returned by the matching inceptTransfer call.
      */
-    function cancelAndDecrypt(uint256 id, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external;
+    function cancelAndDecrypt(uint256 id, bytes32 commitmentHash) external;
 
     /*+
      * @notice Called from the (possibly external) decryption oracle.

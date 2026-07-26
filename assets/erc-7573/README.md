@@ -19,6 +19,9 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 
 - `contracts/ILockingContract.sol` - Contract locking transfer with given encrypted keys or hashes.
 - `contracts/IDecryptionContract.sol` - Contract performing conditional upon transfer decryption (possibly based on an external oracle).
+- `contracts/IDecryptionContractWithKeyGeneration.sol` - Optional extension for asynchronous generation of the encrypted success and failure keys.
+
+Both inception variants return a commitment. Transfer and cancellation use this commitment to identify the stored inception without repeating its parameters.
 
 #### Decryption Oracle
 
@@ -29,4 +32,3 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 
 - `doc/DvP-Seq-Diag.png` - Sequence diagram of the DvP
 - `doc/multi-party-dvp.svg` - Sequence diagram of a multi-party-dvp.
-
