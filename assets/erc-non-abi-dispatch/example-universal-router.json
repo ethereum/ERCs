@@ -1,0 +1,51 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+
+    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding Uniswap's Universal Router command dispatch. Verified against real Ethereum mainnet tx 0x3805667353244e8fb763d50b7dd3bdb8f176119b44fdbd0a4ad5629d851ebbba - see the ERC's Test Cases section. Only the two command IDs exercised by that transaction (0x00 and 0x04) are listed here; a production descriptor would list every command ID defined in Uniswap/universal-router's Commands.sol.",
+
+    "context": {
+        "$id": "Uniswap Universal Router",
+        "contract": {
+            "deployments": [
+                { "chainId": 1, "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af" }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Uniswap",
+        "contractName": "Universal Router",
+        "info": {
+            "url": "https://docs.uniswap.org/contracts/universal-router/overview"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "execute(bytes commands,bytes[] inputs,uint256 deadline)": {
+                "$id": "Universal Router Execute",
+                "intent": "Execute swap",
+                "fields": [
+                    { "path": "deadline", "label": "Valid until", "format": "date", "params": { "encoding": "timestamp" } },
+                    {
+                        "path": "inputs",
+                        "label": "Commands",
+                        "layout": {
+                            "kind": "sequence",
+                            "count": "tillEnd",
+                            "element": {
+                                "kind": "dispatch",
+                                "tag": { "path": "commands", "kind": "uint", "bytes": 1, "mask": "0x3f" },
+                                "cases": {
+                                    "0x00": { "abiType": "(address recipient,uint256 amountIn,uint256 amountOutMinimum,bytes path,bool payerIsUser)" },
+                                    "0x04": { "abiType": "(address token,address recipient,uint256 amountMinimum)" }
+                                },
+                                "default": "reject"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

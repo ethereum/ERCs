@@ -1,0 +1,56 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+
+    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding Circle CCTP's cross-chain message header. Verified against a real Base-to-Ethereum transfer: burn tx 0x178632412a0eb4e642bfe30b1f80d0a4799ab400d4d1c76702ba01ba1458b57f (Base) and mint tx 0xa5ab46a57e89fe110df3269065c0c07a394f22fe7a769bb916a547c7c1b3e99f (Ethereum) - see the ERC's Test Cases section. The MessageTransmitter address was not independently re-verified during this research pass; confirm the real deployment address for your target chain against https://developers.circle.com/cctp/evm-smart-contracts before use.",
+
+    "context": {
+        "$id": "Circle CCTP MessageTransmitter",
+        "contract": {
+            "deployments": [
+                { "chainId": 1, "address": "0xYourMessageTransmitterAddress" }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Circle",
+        "contractName": "MessageTransmitter",
+        "info": {
+            "url": "https://developers.circle.com/cctp/v1/message-format"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "receiveMessage(bytes message,bytes attestation)": {
+                "$id": "CCTP Receive Message",
+                "intent": "Receive cross-chain message",
+                "fields": [
+                    {
+                        "path": "message",
+                        "label": "Message",
+                        "layout": {
+                            "kind": "struct",
+                            "fields": [
+                                { "name": "version",           "schema": { "kind": "uint", "bytes": 4 } },
+                                { "name": "sourceDomain",      "schema": { "kind": "uint", "bytes": 4 } },
+                                { "name": "destinationDomain", "schema": { "kind": "uint", "bytes": 4 } },
+                                { "name": "nonce",             "schema": { "kind": "uint", "bytes": 8 } },
+                                { "name": "sender",            "schema": { "kind": "bytes", "length": 32 } },
+                                { "name": "recipient",         "schema": { "kind": "bytes", "length": 32 } },
+                                { "name": "destinationCaller", "schema": { "kind": "bytes", "length": 32 } },
+                                { "name": "messageBody", "schema": { "kind": "struct", "fields": [
+                                    { "name": "version",       "schema": { "kind": "uint", "bytes": 4 } },
+                                    { "name": "burnToken",     "schema": { "kind": "bytes", "length": 32 } },
+                                    { "name": "mintRecipient", "schema": { "kind": "bytes", "length": 32 } },
+                                    { "name": "amount",        "schema": { "kind": "uint", "bytes": 32 } },
+                                    { "name": "messageSender", "schema": { "kind": "bytes", "length": 32 } }
+                                ]}}
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
