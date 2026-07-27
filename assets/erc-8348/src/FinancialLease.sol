@@ -7,23 +7,15 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IConversionOracle} from "./IConversionOracle.sol";
+import {IFinancialLease} from "./IFinancialLease.sol";
 import {IFinancialLeaseAnchored} from "./IFinancialLeaseAnchored.sol";
 
 /// @title FinancialLease — implementación de referencia del ERC de leasing
 /// @dev Posición del lessor = NFT (tokenId == leaseId). Cronograma inmutable
 ///      en unidades de cuenta; conversión a payment asset vía oráculo.
-contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLeaseAnchored {
+contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialLeaseAnchored {
     using SafeERC20 for IERC20;
     using Math for uint256;
-
-    enum LeaseStatus {
-        Active, // 0
-        InArrears, // 1
-        InDefault, // 2
-        Terminated, // 3
-        Completed, // 4
-        PurchaseExercised // 5
-    }
 
     /// @dev Categorías de dato de servicing observables vía inputFreshness.
     ///      IndexObservation se deriva de conversionRateAsOf y nunca se
@@ -83,28 +75,7 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLeaseAnchored {
     uint256 public nextLeaseId = 1;
     mapping(uint256 => Lease) internal _leases;
 
-    // ─── Eventos del estándar ─────────────────────────────────
-    event LeaseCreated(
-        uint256 indexed leaseId,
-        address indexed lessor,
-        address indexed lessee,
-        bytes2 jurisdiction,
-        address paymentAsset
-    );
-    event PaymentReceived(
-        uint256 indexed leaseId,
-        address indexed payer,
-        uint256 assets,
-        uint256 unitsSettled,
-        uint256 conversionRate,
-        uint256 newOutstandingUnits
-    );
-    event ArrearsAccrued(uint256 indexed leaseId, uint256 totalArrearsUnits);
-    event DefaultDeclared(uint256 indexed leaseId, address indexed declarer);
-    event DefaultCured(uint256 indexed leaseId);
-    event PurchaseOptionExercised(uint256 indexed leaseId, uint256 priceInAssets);
-    event LeaseTerminated(uint256 indexed leaseId, LeaseStatus finalStatus);
-    event LesseeAssigned(uint256 indexed leaseId, address indexed oldLessee, address indexed newLessee);
+    // ─── Eventos propios (fuera del core IFinancialLease) ──────
     event ServicingUpdated(uint256 indexed leaseId, ServicingInput indexed input, uint64 asOf);
 
     error StaleOracle();
@@ -462,6 +433,7 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLeaseAnchored {
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
-        return interfaceId == type(IFinancialLeaseAnchored).interfaceId || super.supportsInterface(interfaceId);
+        return interfaceId == type(IFinancialLease).interfaceId
+            || interfaceId == type(IFinancialLeaseAnchored).interfaceId || super.supportsInterface(interfaceId);
     }
 }
