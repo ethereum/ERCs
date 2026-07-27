@@ -12,9 +12,9 @@ requires: 7730
 
 ## Abstract
 
-[ERC-7730](./erc-7730.md) describes how to clear-sign structured data by decoding calldata as a Solidity ABI function call, then formatting the resulting named fields. This works as long as every value in the call is itself ABI-encoded. It breaks down for a common and growing class of contracts that accept one ABI-encoded `bytes` (or `bytes[]`) argument and then interpret its raw content using their own private encoding — packed structs, bit-packed words, or a tag byte that selects one of several possible payload shapes. Gnosis Safe's `MultiSend`, Uniswap's Universal Router, and ERC-7579 modular accounts all do this, and none of it can be described in ERC-7730 today; such fields must be left as opaque, unreadable bytes.
+[ERC-7730](./erc-7730.md) describes how to clear-sign structured data by decoding calldata as a Solidity ABI function call, then formatting the resulting named fields. This works as long as every value in the call is itself ABI-encoded. It breaks down for a common and growing class of contracts that accept one ABI-encoded `bytes` (or `bytes[]`) argument and then interpret its raw content using their own private encoding — packed structs, bit-packed flags, or a tag that selects one of several possible payload shapes. Gnosis Safe's `MultiSend`, Uniswap's Universal Router and hook addresses, and ERC-7579 modular accounts all do this, and none of it can be described in ERC-7730 today; such fields must be left as opaque, unreadable bytes. It also breaks down entirely for contract-creation calls, which have no function selector at all — a real, common, security-critical transaction type ERC-7730 has no vocabulary for.
 
-This ERC adds two new keys to an ERC-7730 [field format specification](./erc-7730.md#field-format-specification) — `layout` and `dispatch` — that let an author describe the internal structure of such a field and, where the field's shape depends on a tag value, which structure applies. Everything else about ERC-7730 (context binding, metadata, top-level selector matching, path syntax, `display.formats`) is unchanged; this ERC only extends what a single field's `path` can resolve into.
+This ERC adds two new keys to an ERC-7730 [field format specification](./erc-7730.md#field-format-specification) — `layout` and `dispatch` — that let an author describe the internal structure of such a field and, where the field's shape depends on a tag value, which structure applies. It also adds a reserved `$fallback` key to `display.formats` for contracts that dispatch with no selector at all. Everything else about ERC-7730 (context binding, metadata, top-level selector matching, path syntax) is unchanged; this ERC only extends what a single field's `path` can resolve into, and how a contract's entry point is matched in the first place.
 
 ## Motivation
 
@@ -23,6 +23,8 @@ Look at what a `display.formats` entry can describe today: a Solidity function s
 - **Safe's `MultiSend.multiSend(bytes transactions)`** — `transactions` is not ABI-encoded. It is a tightly packed, back-to-back sequence of `(operation, to, value, dataLength, data)` records, repeated until the buffer runs out. Each record's own `data` is, in turn, a normal call to some other contract.
 - **Uniswap's Universal Router `execute(bytes commands, bytes[] inputs)`** — `commands` is one raw opcode byte per sub-action (with a flag bit for "allowed to revert"); `inputs[i]` is separately ABI-encoded, but *which* ABI type it decodes as depends on the opcode at `commands[i]`.
 - **ERC-7579 modular accounts, `execute(bytes32 mode, bytes executionCalldata)`** — `mode` packs five sub-fields into one word; `executionCalldata`'s shape (a single packed call, or an ABI-encoded array of calls) depends on one byte of `mode`.
+- **Uniswap v4 hook addresses** — up to 14 independent permission flags (`beforeSwap`, `afterSwap`, and others) live in specific low-order bits of the 160-bit hook address itself; the same address value is simultaneously "an address" and "a bitmask," with no byte alignment between the two meanings.
+- **Contract-creation transactions** — a `CREATE`/`CREATE2` deployment, or a generic deterministic-deployment factory taking raw bytecode as an argument, has no function selector at all. There is nothing for ERC-7730's selector-matching to match against, and no vocabulary for describing constructor arguments appended to, or embedded within, compiler-specific creation bytecode.
 
 None of this is exotic or rare. It is how batching, modular accounts, and generic-purpose routers already work across the ecosystem, and account-abstraction adoption is only going to produce more of it. A wallet with no way to describe these fields has no way to clear-sign them beyond showing raw hex — which is exactly the blind, trust-me signing experience ERC-7730 exists to eliminate.
 
@@ -48,6 +50,18 @@ This ERC defines two additional keys usable in an ERC-7730 [field format specifi
 ```
 
 `uint.bytes` is the width in bytes (1, 2, 4, 8, 16, or 32). `endian` is `"be"` or `"le"`, defaulting to `"be"` — every known EVM-side use case packs data big-endian, matching Solidity's own word layout; `"le"` exists only so this vocabulary does not need to change if a future non-EVM companion reuses it. `address` is sugar for a 20-byte `bytes` node. `bytes.length` MAY be a fixed integer, a `lengthFrom` reference to an earlier sibling field's decoded value (see `struct` below), or omitted entirely on the last field of a `struct`, meaning "consume whatever bytes remain in the enclosing buffer."
+
+**`bitfield`** — a fixed-width value (same width rules as `uint`) whose individual bits or bit ranges each carry independent, named meaning:
+
+```json
+{ "kind": "bitfield", "bytes": 20, "endian": "be", "fields": [
+  { "name": "beforeSwap", "bit": 7 },
+  { "name": "afterSwap", "bit": 6 },
+  { "name": "poolId", "bits": [19, 8] }
+]}
+```
+
+Each entry in `fields` is either `{ "name": ..., "bit": N }` (a single boolean flag at bit `N`, 0-indexed from the least significant bit, decoded as `bool`) or `{ "name": ..., "bits": [hi, lo] }` (an inclusive bit range, decoded as an unsigned integer). Bit positions are independent of, and MAY overlap arbitrarily within, the underlying value's byte boundaries — this is precisely what distinguishes `bitfield` from `struct`, whose fields are always byte-aligned and never overlap. Named sub-fields are addressed exactly like `struct` fields (by name); see [Path addressing](#path-addressing). `bitfield` consumes its declared `bytes` width regardless of how many of those bits are named — undeclared bits are simply not exposed as fields.
 
 **`struct`** — an ordered, unpadded concatenation of named fields:
 
@@ -86,11 +100,41 @@ This is how Safe MultiSend's inner calls are described. Note that `call` is decl
 
 `call` need not sit inside a `struct`. A field whose bytes were obtained by ordinary ABI decoding (not by a parent `layout` at all) MAY also declare `layout` directly as a `call` node, meaning "this ABI-decoded `bytes` field is itself calldata to another contract." This is how ERC-7579's batched executions are described: each element of the ABI-decoded `Execution[]` array has an ordinary `bytes callData` member, and a second field entry with `path: "executionCalldata[].callData"` and `layout: {"kind": "call", "to": "executionCalldata[].target"}` recurses into it, addressed at the same array index as its sibling `target` — the same by-index correlation ERC-7730 already uses for [array-valued formatting parameters](./erc-7730.md#field-format-specification).
 
+**`initCode`** — the bytes at this position are a contract-creation payload (raw creation bytecode, optionally followed by, or wrapped around, constructor arguments), matched against a small, explicit set of known, audited templates:
+
+```json
+{ "kind": "initCode",
+  "length": 1497,
+  "templates": [
+    {
+      "id": "example-template",
+      "prefix": { "hash": "0x<keccak256 of the exact N-byte prefix>", "length": 1477 },
+      "args": { "abiType": "(address singleton)" }
+    }
+  ],
+  "default": "reject"
+}
+```
+
+`initCode` is byte-consuming like `bytes` (`length` / `lengthFrom` / implicit remainder). Once its bytes are consumed, a wallet MUST attempt each entry in `templates`, **in declaration order**, and use the first that structurally matches:
+
+1. Compare the first `prefix.length` bytes of the consumed region against `prefix`: either byte-for-byte, if `prefix.literal` (an inline hex string) is given, or by comparing `keccak256` of that exact-length slice against `prefix.hash`. Exactly one of `literal` or `hash`+`length` MUST be present. If the consumed region is shorter than `prefix.length`, or the comparison fails, this template does not match; proceed to the next.
+2. If the template also declares a `suffix` (same `literal` or `hash`+`length` shape), compare it the same way against the *last* `suffix.length` bytes of the consumed region. If it does not match, this template does not match; proceed to the next.
+3. Otherwise, this template matches. Apply `args` — either `{ "abiType": "<tuple>" }` (ordinary ABI decoding) or `{ "layout": <node> }` (this ERC's own layout language) — to the bytes strictly between the end of `prefix` and the start of `suffix` (or, if no `suffix` is declared, to everything after `prefix` through the end of the consumed region).
+
+If no template matches, a wallet MUST apply `default: "reject"` — the same [unknown selector](./erc-7730.md#unknown-selectors) fallback used everywhere else in this ERC: display a safe fallback and MUST NOT guess at a decoding. `"reject"` is the only defined value for `default`.
+
+`prefix`'s two forms exist for different template sizes: `literal` is legible and auditable at a glance for short, fixed templates (a minimal proxy's handful of bytes); `hash` avoids inlining an entire compiled contract's creation bytecode for large templates, at the cost of the match no longer being visually verifiable from the descriptor text alone. Authors are responsible for computing `hash` values from the exact compiler output (version and settings) they intend to match — a single compiler flag change produces different bytecode and a different hash, silently falling through to `reject` rather than misdecoding.
+
+### `$fallback`
+
+Some contracts — notably generic deterministic-deployment proxies (see [Test Cases](#test-cases)) — expose no ABI-selected function at all; every call reaches a single raw fallback. `display.formats` MAY use the reserved key `"$fallback"` for exactly this case: a [structured data format specification](./erc-7730.md#structured-data-format-specification) matched whenever calldata does not correspond to any selector-based entry in the same file, whose `fields`/`layout` describe the entirety of `data` directly, with no selector-stripping step. `$fallback` MUST NOT be combined with selector-keyed entries that could themselves match the same calldata; wallets MUST prefer a matching selector-keyed entry over `$fallback` when both are present and only one is intended to apply. This does not change `display.formats` selector matching for any contract that has a normal ABI — it only gives contracts that genuinely have none a way to be described at all.
+
 **Byte-width invariant.** Every `layout` node either consumes a well-defined, computable number of bytes from the buffer (all of the kinds above), or is explicitly declared non-consuming (only `dispatch`'s path-sourced tag form, below, which reads an already-resolved value instead of parsing bytes). No node kind may be ambiguous about whether, or how much, it advances the cursor.
 
 ### Path addressing
 
-Paths extend into `layout`-decoded fields the same way they already extend into ABI-decoded struct and array fields: by name for `struct` fields, by index for `sequence` elements. For example, given the `struct` above, `#.transactions[0].to` refers to the `to` field of the first record; `#.transactions[1].data.to` refers into a nested `call`'s own resolved fields, addressed using that resolved function's own parameter names, once matched.
+Paths extend into `layout`-decoded fields the same way they already extend into ABI-decoded struct and array fields: by name for `struct` and `bitfield` fields, by index for `sequence` elements. For example, given the `struct` above, `#.transactions[0].to` refers to the `to` field of the first record; `#.transactions[1].data.to` refers into a nested `call`'s own resolved fields, addressed using that resolved function's own parameter names, once matched. Similarly, once an `initCode` node's `templates` entry has matched, its `args` fields are addressed by name (or by tuple position, for an unnamed `abiType`), exactly as they would be for any other matched call.
 
 ### `dispatch`
 
@@ -168,6 +212,12 @@ A wallet MUST resolve the matched target's own `intent`, `interpolatedIntent`, a
 
 **Why the top-level `dispatch`/direct-`call` form exists, and why it's the one exception to this ERC's evidence rule.** Every other construct in this ERC exists because a real, cited transaction needed it. This one does not have that grounding — no verified live transaction was found that reinterprets already-decoded parameters into a different function's argument list the way the [TieredExecutor example](../assets/erc-non-abi-dispatch/example-tiered-executor.json) does. It is included because the shape it targets — a small trusted relayer accepting a tag and a handful of generic-looking arguments, then re-dispatching to one of several unrelated target interfaces with a different argument order per target — is a common, plausible, and easily reachable governance/router pattern, structurally close to a `switch` over an enum parameter. Readers should weigh this construct with that in mind: it is motivated by generality, not by an observed case, unlike everything else here. If a real contract using this exact shape turns up, its transaction should replace the made-up one in the Test Cases section.
 
+**Why `bitfield` is a distinct node kind rather than a parameter on `uint`.** `struct` and `sequence` both assume byte-aligned, non-overlapping fields — that assumption is load-bearing throughout the rest of this ERC (it's what makes the byte-width invariant a simple sum of child widths). `bitfield`'s named sub-fields can overlap arbitrarily within a shared width and carry no byte alignment at all, so keeping it a separate, clearly-labeled kind (rather than, say, a `bits` option quietly attached to `uint`) makes it visually obvious, at the point a field is declared, that its sub-fields don't follow the rest of the language's byte-aligned norm. The motivating real case is Uniswap v4: hook contract addresses encode up to 14 independent permission flags in specific low-order bits of the 160-bit address value itself, verified against `Hooks.sol` and Uniswap's own v4 documentation.
+
+**Why `initCode` is its own node kind rather than a `dispatch` tag-sourcing mode.** An earlier version of this design considered folding creation-bytecode matching into `dispatch` as a fourth tag-sourcing mode (hash of a length-prefix of the buffer). That would have worked for the simplest case, but it doesn't generalize cleanly: some real creation-code templates append constructor arguments after a fixed prefix (a generic factory concatenating a template with a trailing ABI-encoded argument), while others — [EIP-1167](https://eips.ethereum.org/EIPS/eip-1167) minimal proxies, verified against the standard's own bytecode listing — embed their one constructor-equivalent value (the implementation address) *between* a fixed prefix and a fixed suffix, with no ABI encoding at all. Expressing both shapes through a single scalar "tag" and a flat `cases` map would have needed the tag itself to somehow also carry "and here's where the matched region ends", which is exactly the kind of implicit, easy-to-get-wrong behavior the byte-width invariant exists to rule out elsewhere in this ERC. A dedicated node with explicit `prefix`/`suffix`/`args` fields makes the matched region's boundaries an explicit, checkable part of each template entry instead.
+
+**Why `$fallback` is needed at all.** Every other selector-related mechanism in ERC-7730 and this ERC assumes a 4-byte selector exists to be computed and matched. The generic deterministic-deployment proxy that motivates `initCode` — the same, single contract, deployed at the identical address on nearly every EVM chain, that many real, well-known contracts (including Uniswap's own Permit2) are deployed through — has no selector at all; its calldata is `salt ‖ initCode`, dispatched by a raw fallback. Without `$fallback`, `initCode` would have no contract it could actually be demonstrated on, since every other candidate factory this research pass found either has a normal ABI wrapper around its bytecode argument (already describable with plain `abiType`, no new construct needed) or turned out, on inspection, to build its creation code internally rather than receiving it as literal calldata at all.
+
 **Why positional binding, and why `args` may reorder.** ERC-7730 already treats parameter *names* as non-canonical for the purpose of selector matching — only position and type are. A dispatch case that redirects to a different function has no shared parameter names to align by in the first place (the outer call's `account`/`amount` mean nothing to the target function's own signature), so positional binding by the target's declared order is the only definition that is well-defined at all, and it is the same rule ERC-7730 already applies elsewhere, not a new one.
 
 ## Backwards Compatibility
@@ -176,7 +226,7 @@ This ERC only adds new, optional keys to a field format specification. A descrip
 
 ## Test Cases
 
-Six of the seven examples below are real, mined transactions, decoded from raw calldata (not an explorer's rendered summary) and cross-checked against at least one independent source. Each is a full, standalone ERC-7730 descriptor file under [`../assets/erc-non-abi-dispatch/`](../assets/erc-non-abi-dispatch/) rather than a snippet, so it can be read with all the surrounding `context`/`metadata`/`display` structure intact. The seventh, `TieredExecutor`, is explicitly a made-up contract — see its own description below and the caveat in [Rationale](#rationale).
+Six of the eight examples below are real, mined transactions, decoded from raw calldata (not an explorer's rendered summary) and cross-checked against at least one independent source. A seventh demonstrates `initCode`/`$fallback` against real, named, well-known contracts rather than one specific transaction. The eighth, `TieredExecutor`, is explicitly a made-up contract — see its own description below and the caveat in [Rationale](#rationale). Each is a full, standalone ERC-7730 descriptor file under [`../assets/erc-non-abi-dispatch/`](../assets/erc-non-abi-dispatch/) rather than a snippet, so it can be read with all the surrounding `context`/`metadata`/`display` structure intact.
 
 ### Safe `MultiSend`
 
@@ -214,6 +264,14 @@ Base mainnet, tx [`0x73b3ca11e3733c78db8365086f64874879fb3a859b21c960ec072c2a95c
 
 Full descriptor: [`example-erc7683-order.json`](../assets/erc-non-abi-dispatch/example-erc7683-order.json).
 
+### Deterministic deployment proxy (`initCode` / `$fallback`)
+
+The generic deterministic-deployment proxy at `0x4e59b44847b379578588920cA78FbF26c0B4956C` ("Nick's method") is deployed at this identical address on nearly every EVM chain and dispatches via a raw fallback — calldata is exactly `salt (32 bytes) ‖ initCode`, fed directly into `CREATE2`; there is no selector at all, which is what motivates `$fallback`. It is used to deploy many well-known contracts deterministically, including Uniswap's own Permit2 (`0x000000000022D473030F116dDEE9F6B43aC78BA3`, the same address on every chain it's deployed to). The descriptor's second template is [EIP-1167](https://eips.ethereum.org/EIPS/eip-1167)'s minimal-proxy creation code, byte-exact and fully verified against the standard's own bytecode listing: a 20-byte prefix (`0x3d602d80600a3d3981f3363d3d373d3d3d363d73`), a 20-byte embedded implementation address, and a 15-byte suffix (`0x5af43d82803e903d91602b57fd5bf3`) — 55 bytes total, with no ABI encoding involved at all, which is why `initCode` needed a `suffix` concept rather than just "prefix, then trailing ABI args."
+
+Unlike the six examples above, this one demonstrates a mechanism against real, named, well-known contracts rather than one specific mined transaction. The Permit2 template's `prefix.hash`/`prefix.length` are explicitly marked as placeholders in the file — computing them requires Permit2's exact, compiler-version-specific creation bytecode, which was not independently re-derived for this example.
+
+Full descriptor: [`example-deterministic-deployment-proxy.json`](../assets/erc-non-abi-dispatch/example-deterministic-deployment-proxy.json).
+
 ### `TieredExecutor` (made-up example)
 
 A small, illustrative Solidity contract written for this ERC — [`TieredExecutor.sol`](../assets/erc-non-abi-dispatch/TieredExecutor.sol) — is **not deployed anywhere**; unlike every other example above, no real transaction exists for it. It demonstrates the top-level `dispatch`/direct-`call` form: `executeOperation(address target, Operation op, address account, uint256 amount)` takes an enum tag `op` and two generic-looking arguments, and re-dispatches to one of two unrelated target interfaces — `IRewardVault.grantReward(address,uint256)` for `op=1`, `ILegacyToken.creditAccount(uint256,address)` for `op=2` — each with a different parameter order, resolved from the same `account`/`amount` values by positional binding.
@@ -227,6 +285,8 @@ TBD
 ## Security Considerations
 
 A `layout`/`dispatch` interpreter is new parsing surface on a hardware wallet, decoding attacker-influenced (calldata is provided by whoever submits the transaction) bytes. Implementations MUST bound recursion depth (`call` and nested `dispatch` can recurse arbitrarily deep in principle), MUST treat any length (`lengthFrom`, or a `sequence`'s implicit `tillEnd` walk) that would read past the end of the underlying buffer as invalid input, and MUST fail closed — applying the [unknown selector](./erc-7730.md#unknown-selectors) fallback — rather than displaying a partially decoded or best-guess value when a `layout` or `dispatch` does not cleanly match the actual bytes.
+
+`initCode` template matching is exact-bytes (or exact-hash) matching against a fixed template. A wallet MUST NOT treat a partial or fuzzy prefix/suffix match as a match — an attacker who can get even one byte accepted as "close enough" could potentially get unrelated, unaudited bytecode displayed as if it were a known, trusted template. Authors MUST keep `templates` entries pinned to one specific compiler version and settings; the same source recompiled differently produces different bytecode and MUST be treated as an entirely distinct, separately-audited template, never as a "should still basically match" variant of an existing one.
 
 ## Copyright
 
