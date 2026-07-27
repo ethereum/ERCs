@@ -6,6 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {FinancialLease} from "../src/FinancialLease.sol";
 import {MockUVAOracle} from "../src/MockUVAOracle.sol";
+import {IFinancialLease} from "../src/IFinancialLease.sol";
 import {IFinancialLeaseAnchored} from "../src/IFinancialLeaseAnchored.sol";
 
 contract MockERC20 is ERC20 {
@@ -180,26 +181,26 @@ contract FinancialLeaseTest is Test {
 
         // trigger accrual via un pago nulo no es posible (NothingDue si 0);
         // usamos declareDefault que tambien accrua internamente.
-        assertEq(uint8(lease.status(id)), uint8(FinancialLease.LeaseStatus.Active));
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Active));
 
         vm.expectRevert(FinancialLease.NotAuthorized.selector);
         lease.declareDefault(id);
 
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
-        assertEq(uint8(lease.status(id)), uint8(FinancialLease.LeaseStatus.InDefault));
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
 
         // Pago total: cuota vencida + las 2 restantes
         uint256 totalUnits = lease.outstandingUnits(id);
         uint256 totalAssets = lease.convertToAssets(id, totalUnits) + 10; // margen por acumulacion de punitorios
 
         vm.expectEmit(true, false, false, false);
-        emit FinancialLease.DefaultCured(id);
+        emit IFinancialLease.DefaultCured(id);
         _pay(id, totalAssets);
 
-        FinancialLease.LeaseStatus finalStatus = lease.status(id);
+        IFinancialLease.LeaseStatus finalStatus = lease.status(id);
         assertTrue(
-            finalStatus == FinancialLease.LeaseStatus.Active || finalStatus == FinancialLease.LeaseStatus.Completed,
+            finalStatus == IFinancialLease.LeaseStatus.Active || finalStatus == IFinancialLease.LeaseStatus.Completed,
             "debe curar a Active o Completed"
         );
         assertEq(lease.outstandingUnits(id), 0, "no debe quedar capital pendiente tras el pago total");
@@ -416,7 +417,7 @@ contract FinancialLeaseTest is Test {
 
         vm.prank(defaultDeclarer);
         lease.declareDefault(id);
-        assertEq(uint8(lease.status(id)), uint8(FinancialLease.LeaseStatus.InDefault));
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
 
         uint256 totalUnits = lease.outstandingUnits(id);
         uint256 totalAssets = lease.convertToAssets(id, totalUnits) + 10; // margen por punitorios
@@ -426,13 +427,13 @@ contract FinancialLeaseTest is Test {
         lease.updateServicing(id, FinancialLease.ServicingInput.Collections, 2 days);
 
         vm.expectEmit(true, false, false, false);
-        emit FinancialLease.DefaultCured(id);
+        emit IFinancialLease.DefaultCured(id);
         _pay(id, totalAssets);
 
         // Mismos resultados que T5 (sin servicing): el reporte no altero nada
-        FinancialLease.LeaseStatus finalStatus = lease.status(id);
+        IFinancialLease.LeaseStatus finalStatus = lease.status(id);
         assertTrue(
-            finalStatus == FinancialLease.LeaseStatus.Active || finalStatus == FinancialLease.LeaseStatus.Completed,
+            finalStatus == IFinancialLease.LeaseStatus.Active || finalStatus == IFinancialLease.LeaseStatus.Completed,
             "debe curar a Active o Completed igual que sin servicing"
         );
         assertEq(lease.outstandingUnits(id), 0, "no debe quedar capital pendiente tras el pago total");
