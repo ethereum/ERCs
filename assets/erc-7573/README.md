@@ -22,16 +22,16 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 - `contracts/IDecryptionContractWithKeyGeneration.sol` - Optional extension for asynchronous generation of the encrypted success and failure keys.
 - `contracts/IDecryptionContractInceptionCallback.sol` - Optional on-chain notification when asynchronous inception completes.
 
-All inception variants return an `inceptionHash` of the canonical inception call.
+Both decryption-contract inception variants return an `inceptionHash` of the canonical inception call.
 Once the encrypted success and failure keys are immutable, the decryption contract derives a
 `confirmationHash` from the inception hash and both keys. Confirmation supplies this
 second hash without repeating the transfer parameters. Finalization uses the confirmed DvP
 identifier, while cancellation retains the original `inceptionHash` as its exact-inception guard.
 
-The asynchronous extension offers a callback overload for contract-to-contract workflows.
+The asynchronous extension uses one `inceptTransfer` signature with an optional callback parameter.
 After storing the generated keys and `confirmationHash` and emitting `TransferIncepted`,
-the decryption contract passes both hashes to the registered callback. The original
-overload remains available for event-driven off-chain workflows.
+the decryption contract passes both hashes to a nonzero callback. Passing `address(0)`
+selects an event-driven off-chain workflow without callback delivery.
 
 #### Decryption Oracle
 
