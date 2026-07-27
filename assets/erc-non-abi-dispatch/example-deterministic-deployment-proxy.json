@@ -1,0 +1,65 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+
+    "$comment": "Worked example for the non-ABI-dispatch companion ERC, demonstrating `initCode` and `$fallback`. Context: the deterministic deployment proxy at 0x4e59b44847b379578588920cA78FbF26c0B4956C (Arachnid/'Nick's method') is deployed at this identical address on nearly every EVM chain and dispatches via a raw fallback with no ABI selector at all - calldata is exactly `salt (32 bytes) || initCode`, fed directly into CREATE2. It is used to deploy many well-known contracts deterministically, including Uniswap's own Permit2 (0x000000000022D473030F116dDEE9F6B43aC78BA3, the same address on every chain it's deployed to) and EIP-1167 minimal proxy clones. The EIP-1167 template below (prefix/suffix/address-offset) is byte-exact, verified against the standard's own bytecode listing (https://eips.ethereum.org/EIPS/eip-1167). The Permit2 template's `prefix.hash`/`prefix.length` are ILLUSTRATIVE PLACEHOLDERS - a real descriptor must compute them from Permit2's exact, compiler-version-specific creation bytecode, which was not independently re-derived for this example.",
+
+    "context": {
+        "$id": "Deterministic Deployment Proxy",
+        "contract": {
+            "deployments": [
+                { "chainId": 1, "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C" },
+                { "chainId": 8453, "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C" },
+                { "chainId": 42161, "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C" },
+                { "chainId": 10, "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C" }
+            ]
+        },
+        "$comment": "Same address on essentially every EVM chain by construction (see Rationale in the ERC); the chainIds above are a representative sample, not an exhaustive list."
+    },
+
+    "metadata": {
+        "owner": "Arachnid (Nick Johnson)",
+        "contractName": "Deterministic Deployment Proxy",
+        "info": {
+            "url": "https://github.com/Arachnid/deterministic-deployment-proxy"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "$fallback": {
+                "$id": "Deploy via CREATE2",
+                "intent": "Deploy contract",
+                "fields": [
+                    { "path": "salt", "label": "Salt", "format": "bytes32" },
+                    {
+                        "path": "initCode",
+                        "label": "Contract to deploy",
+                        "layout": {
+                            "kind": "initCode",
+                            "templates": [
+                                {
+                                    "id": "permit2",
+                                    "$comment": "NOT A REAL VALUE - placeholder only. A real entry needs `hash` = keccak256 of Permit2's exact, compiler-version-specific creation bytecode (constructor takes no arguments, hence the empty `args` tuple), and `length` = that bytecode's exact byte length. Neither was independently computed for this example; see the file's top-level $comment.",
+                                    "prefix": { "hash": "0x<keccak256 of Permit2's exact creation bytecode>", "length": "<exact byte length of that bytecode>" },
+                                    "args": { "abiType": "()" }
+                                },
+                                {
+                                    "id": "eip1167-minimal-proxy",
+                                    "prefix": { "literal": "0x3d602d80600a3d3981f3363d3d373d3d3d363d73" },
+                                    "suffix": { "literal": "0x5af43d82803e903d91602b57fd5bf3" },
+                                    "args": { "layout": {
+                                        "kind": "struct",
+                                        "fields": [
+                                            { "name": "implementation", "schema": { "kind": "address" } }
+                                        ]
+                                    }}
+                                }
+                            ],
+                            "default": "reject"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
