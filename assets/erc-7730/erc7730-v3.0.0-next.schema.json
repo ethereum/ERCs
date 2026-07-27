@@ -621,6 +621,14 @@
                     }
                 },
                 {
+                    "if": { "properties": { "format": { "const": "duration" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/durationParameters" }
+                        }
+                    }
+                },
+                {
                     "if": { "properties": { "format": { "const": "unit" } } },
                     "then": {
                         "properties": {
@@ -740,7 +748,7 @@
                 {
                     "title": "integer format",
                     "const": "duration",
-                    "description": "The field should be displayed as a time duration. The value is interpreted as a number of seconds and rendered as <days>d<hh>h<mm>m<ss>s, where days is unbounded and hours, minutes and seconds are zero-padded to two digits (e.g. 864000 -> 10d00h00m00s, 8250 -> 0d02h17m30s)."
+                    "description": "The field should be displayed as a time duration. The value is interpreted as a number of seconds and rendered as <days>d<hh>h<mm>m<ss>s, where days is unbounded and hours, minutes and seconds are zero-padded to two digits (e.g. 864000 -> 10d00h00m00s, 8250 -> 0d02h17m30s). A value equal to type(uint256).max (2^256-1) is treated as a sentinel for an unbounded duration and rendered as the unboundedMessage parameter (default \"Forever\"); see durationParameters."
                 },
                 {
                     "title": "integer format",
@@ -1011,6 +1019,19 @@
             "required": [
                 "encoding"
             ],
+            "additionalProperties": false
+        },
+
+        "durationParameters": {
+            "title": "Duration Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "unboundedMessage": {
+                    "title": "Unbounded Message",
+                    "type": "string",
+                    "description": "The message displayed when the value equals type(uint256).max (2^256-1), used as a sentinel for an unbounded duration. Defaults to \"Forever\" if omitted."
+                }
+            },
             "additionalProperties": false
         },
 
