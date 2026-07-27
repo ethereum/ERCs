@@ -30,19 +30,20 @@ interface IKeyDecryptionOracleCallback {
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 
     /**
-     * @dev Emitted when the decrypted key has been obtained.
-     * @param sender The sender (oracle/proxy) that released the key.
-     * @param id The id that was passed in the request (user data).
-     * @param key The decrypted key.
-     */
-    event KeyReleased(address sender, uint256 id, bytes key);
-
-    /**
-     * @dev Emitted when the decryption of a key has been denied.
+     * @dev Emitted when a batch of encrypted/hashed keys has been obtained.
      * @param sender The sender (oracle/proxy).
      * @param id The id that was passed in the request (user data).
+     * @param keys The generated keys, identified by keyId.
+     * @param receiverContract The receiving contract.
+     * @param transaction The transaction id.
      */
-    event DecryptionDenied(address sender, uint256 id);
+    event EncryptedHashedKeysGenerated(
+        address sender,
+        uint256 id,
+        EncryptedHashedKey[] keys,
+        address receiverContract,
+        bytes transaction
+    );
 
     /**
      * @dev Emitted when the verification of an encrypted key has been obtained.
@@ -63,39 +64,37 @@ interface IKeyDecryptionOracleCallback {
     );
 
     /**
-     * @dev Emitted when a batch of encrypted/hashed keys has been obtained.
+     * @dev Emitted when the decrypted key has been obtained.
+     * @param sender The sender (oracle/proxy) that released the key.
+     * @param id The id that was passed in the request (user data).
+     * @param key The decrypted key.
+     */
+    event KeyReleased(address sender, uint256 id, bytes key);
+
+    /**
+     * @dev Emitted when the decryption of a key has been denied.
      * @param sender The sender (oracle/proxy).
+     * @param id The id that was passed in the request (user data).
+     */
+    event DecryptionDenied(address sender, uint256 id);
+
+    /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
+
+    /**
+     * @notice Called from the decryption oracle proxy contract.
+     * @dev Implementations SHOULD validate the complete batch and emit
+     * {EncryptedHashedKeysGenerated} (if eligible).
      * @param id The id that was passed in the request (user data).
      * @param keys The generated keys, identified by keyId.
      * @param receiverContract The receiving contract.
      * @param transaction The transaction id.
      */
-    event EncryptedHashedKeysGenerated(
-        address sender,
+    function onEncryptedHashedKeysGenerated(
         uint256 id,
-        EncryptedHashedKey[] keys,
+        EncryptedHashedKey[] calldata keys,
         address receiverContract,
-        bytes transaction
-    );
-
-    /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
-
-    /**
-     * @notice Called from the (possibly external) decryption oracle proxy.
-     * @dev Implementations SHOULD emit {KeyReleased} (if eligible).
-     * @param id The id that was passed in the request (user data).
-     * @param key Decrypted key.
-     */
-    function onKeyReleased(uint256 id, bytes calldata key) external;
-
-    /**
-     * @notice Called from the (possibly external) decryption oracle proxy.
-     * This method will only be called if a decryption request was illegal and denied.
-     *
-     * @dev Implementations SHOULD emit {DecryptionDenied}.
-     * @param id The id that was passed in the request (user data).
-     */
-    function onKeyDenied(uint256 id) external;
+        bytes calldata transaction
+    ) external;
 
     /**
      * @notice Called from the (possibly external) decryption oracle proxy.
@@ -115,18 +114,19 @@ interface IKeyDecryptionOracleCallback {
     ) external;
 
     /**
-     * @notice Called from the decryption oracle proxy contract.
-     * @dev Implementations SHOULD validate the complete batch and emit
-     * {EncryptedHashedKeysGenerated} (if eligible).
+     * @notice Called from the (possibly external) decryption oracle proxy.
+     * @dev Implementations SHOULD emit {KeyReleased} (if eligible).
      * @param id The id that was passed in the request (user data).
-     * @param keys The generated keys, identified by keyId.
-     * @param receiverContract The receiving contract.
-     * @param transaction The transaction id.
+     * @param key Decrypted key.
      */
-    function onEncryptedHashedKeysGenerated(
-        uint256 id,
-        EncryptedHashedKey[] calldata keys,
-        address receiverContract,
-        bytes calldata transaction
-    ) external;
+    function onKeyReleased(uint256 id, bytes calldata key) external;
+
+    /**
+     * @notice Called from the (possibly external) decryption oracle proxy.
+     * This method will only be called if a decryption request was illegal and denied.
+     *
+     * @dev Implementations SHOULD emit {DecryptionDenied}.
+     * @param id The id that was passed in the request (user data).
+     */
+    function onKeyDenied(uint256 id) external;
 }
