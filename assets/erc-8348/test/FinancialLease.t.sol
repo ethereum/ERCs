@@ -179,9 +179,10 @@ contract FinancialLeaseTest is Test {
         vm.warp(uint256(dueDate1) + 1 days);
         oracle.set(1e18); // refresca staleness
 
-        // trigger accrual via un pago nulo no es posible (NothingDue si 0);
-        // usamos declareDefault que tambien accrua internamente.
-        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Active));
+        // status() proyecta el devengamiento a block.timestamp sin
+        // necesitar una tx previa: ya refleja InArrears aca, antes de
+        // declareDefault.
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InArrears));
 
         vm.expectRevert(FinancialLease.NotAuthorized.selector);
         lease.declareDefault(id);
@@ -444,5 +445,142 @@ contract FinancialLeaseTest is Test {
             lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
         assertTrue(asOfCollections > 0, "la atestacion de Collections debe seguir en pie");
         assertEq(maxStalenessCollections, 2 days, "pay() no debe modificar el estado de servicing");
+    }
+
+    // ─── T35: REGRESION hallazgo — views deben reflejar el devengo
+    //     sin necesitar una tx previa ──────────────────────────────
+
+    function test_T35_viewReflectsArrearsWithoutPriorTx() public {
+        uint256 id = _defaultLease(); // 3 cuotas x100 UNIT, vencimientos a 30/60/90 dias
+        (, uint64 dueDate1) = lease.nextPayment(id);
+
+        // Cruzar los vencimientos de las cuotas 1 y 2 (dias 30 y 60) sin
+        // mandar NINGUNA transaccion al contrato entre medio.
+        vm.warp(uint256(dueDate1) + 31 days);
+
+        assertEq(
+            uint8(lease.status(id)),
+            uint8(IFinancialLease.LeaseStatus.InArrears),
+            "REGRESION: status() debe reflejar la mora sin necesitar una tx previa"
+        );
+        assertGt(lease.arrears(id), 0, "REGRESION: arrears() debe ser > 0 sin necesitar una tx previa");
+    }
+
+    // ─── T36: la view proyectada coincide exactamente con lo persistido ──
+
+    function test_T36_viewMatchesPersistedStateExactly() public {
+        uint256 id = _defaultLease();
+        (, uint64 dueDate1) = lease.nextPayment(id);
+        vm.warp(uint256(dueDate1) + 45 days);
+        oracle.set(1e18); // refresca staleness para el declareDefault/pay que siguen
+
+        IFinancialLease.LeaseStatus statusBefore = lease.status(id);
+        uint256 arrearsBefore = lease.arrears(id);
+        (uint256 nextAssetsBefore, uint64 nextDueBefore) = lease.nextPayment(id);
+        assertEq(uint8(statusBefore), uint8(IFinancialLease.LeaseStatus.InArrears), "precondicion: debe estar en mora");
+
+        // Disparar la persistencia real (declareDefault corre _accrue()
+        // internamente, sin que pase mas tiempo desde la lectura de arriba).
+        vm.prank(defaultDeclarer);
+        lease.declareDefault(id);
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault), "post-declare: InDefault");
+
+        // Cero divergencia: lo que la view proyectaba coincide exacto con
+        // lo que quedo persistido (releido ahora sin nada mas que proyectar).
+        assertEq(lease.arrears(id), arrearsBefore, "arrears() debe coincidir exacto con lo persistido");
+        (uint256 nextAssetsAfter, uint64 nextDueAfter) = lease.nextPayment(id);
+        assertEq(nextAssetsAfter, nextAssetsBefore, "nextPayment().assets debe coincidir exacto con lo persistido");
+        assertEq(nextDueAfter, nextDueBefore, "nextPayment().dueDate debe coincidir exacto con lo persistido");
+    }
+
+    // ─── T37: punitorios proyectados crecen monotonicamente y
+    //     coinciden con lo que efectivamente se salda al pagar ────────
+
+    function test_T37_penaltyProjectionGrowsMonotonicallyAndMatchesPersisted() public {
+        uint256 id = _defaultLease(); // penaltyBpsPerDay = 10 (0.10%/dia)
+        (, uint64 dueDate1) = lease.nextPayment(id);
+
+        // Reconocer la mora con una tx real: el punitorio recien empieza
+        // a devengar sobre el stock vencido a partir de aca (ver T7).
+        vm.warp(uint256(dueDate1) + 5 days);
+        oracle.set(1e18);
+        vm.prank(defaultDeclarer);
+        lease.declareDefault(id);
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
+
+        uint256 arrearsT0 = lease.arrears(id);
+
+        // Avanzar SIN mandar ninguna tx: arrears() debe crecer estricto
+        // con cada dia adicional de mora, vía la proyeccion pura.
+        vm.warp(block.timestamp + 3 days);
+        uint256 arrearsT3 = lease.arrears(id);
+        assertGt(arrearsT3, arrearsT0, "arrears() debe crecer con el tiempo sin tx (dia 3)");
+
+        vm.warp(block.timestamp + 4 days);
+        uint256 arrearsT7 = lease.arrears(id);
+        assertGt(arrearsT7, arrearsT3, "arrears() debe seguir creciendo (dia 7)");
+
+        // El valor proyectado justo antes de pagar debe ser exactamente lo
+        // que hace falta para saldar toda la mora al pagar.
+        uint256 projectedBeforePay = lease.arrears(id);
+        uint256 totalUnitsOwed = lease.outstandingUnits(id);
+        uint256 assetsToPay = lease.convertToAssets(id, totalUnitsOwed) + projectedBeforePay + 100; // margen generoso
+
+        vm.expectEmit(true, false, false, false);
+        emit IFinancialLease.DefaultCured(id);
+        _pay(id, assetsToPay);
+
+        assertEq(lease.arrears(id), 0, "el pago debe saldar exactamente toda la mora proyectada");
+        IFinancialLease.LeaseStatus finalStatus = lease.status(id);
+        assertTrue(
+            finalStatus == IFinancialLease.LeaseStatus.Active || finalStatus == IFinancialLease.LeaseStatus.Completed,
+            "debe curar a Active o Completed"
+        );
+    }
+
+    // ─── T38: estados terminales — el paso del tiempo no los altera ──
+
+    function test_T38_projectedStateFrozenInTerminalStatuses() public {
+        (uint64[] memory dd, uint256[] memory ua) = _schedule(1, 100 * UNIT);
+        uint256 id = _createLease(address(oracle), 7 days, dd, ua);
+
+        vm.warp(uint256(dd[0]));
+        oracle.set(1e18);
+        _pay(id, lease.convertToAssets(id, ua[0]));
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
+
+        // Completed: nada debe moverse con el tiempo, sin tx de por medio.
+        uint256 arrearsCompletedBefore = lease.arrears(id);
+        (uint256 nextAssetsBefore,) = lease.nextPayment(id);
+        vm.warp(block.timestamp + 400 days);
+        assertEq(
+            uint8(lease.status(id)),
+            uint8(IFinancialLease.LeaseStatus.Completed),
+            "Completed no debe cambiar con el tiempo"
+        );
+        assertEq(lease.arrears(id), arrearsCompletedBefore, "arrears() no debe cambiar en Completed");
+        (uint256 nextAssetsAfter,) = lease.nextPayment(id);
+        assertEq(nextAssetsAfter, nextAssetsBefore, "nextPayment() no debe cambiar en Completed");
+
+        // PurchaseExercised: idem.
+        oracle.set(1e18); // refresca staleness (maxOracleStaleness = 7 dias)
+        vm.prank(lessee);
+        lease.exercisePurchaseOption(id);
+        assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.PurchaseExercised));
+
+        vm.warp(block.timestamp + 400 days);
+        assertEq(
+            uint8(lease.status(id)),
+            uint8(IFinancialLease.LeaseStatus.PurchaseExercised),
+            "PurchaseExercised no debe cambiar con el tiempo"
+        );
+
+        // Nota: LeaseStatus.Terminated no es alcanzable por ninguna
+        // funcion publica de esta implementacion de referencia (solo se
+        // usa como parametro generico del evento LeaseTerminated, emitido
+        // hoy unicamente con Completed o PurchaseExercised). El guard de
+        // _projectedState (`uint8(status) > uint8(InDefault)`) lo cubre
+        // estructuralmente igual, por su posicion en el enum entre
+        // InDefault y Completed.
     }
 }

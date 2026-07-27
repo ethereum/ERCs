@@ -183,29 +183,67 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
 
     // ─── Devengamiento (lazy) ─────────────────────────────────
 
-    function _accrue(uint256 leaseId) internal {
+    /// @dev Estado devengado a block.timestamp, proyectado en memoria sin
+    ///      tocar storage. Es la unica fuente de verdad de la logica de
+    ///      devengamiento: _accrue() la usa para persistir, y las views
+    ///      de solo lectura (status, arrears, nextPayment) la usan para
+    ///      leer — así lo escrito y lo leído nunca pueden divergir.
+    struct ProjectedState {
+        uint256 arrearsPrincipalUnits;
+        uint256 arrearsPenaltyUnits;
+        uint256 nextIndex;
+        uint256 unitsPaidCurrent;
+        uint64 lastAccrual;
+        LeaseStatus status;
+    }
+
+    function _projectedState(uint256 leaseId) internal view returns (ProjectedState memory p) {
         Lease storage l = _leases[leaseId];
-        if (uint8(l.status) > uint8(LeaseStatus.InDefault)) return; // estados terminales
+        p.arrearsPrincipalUnits = l.arrearsPrincipalUnits;
+        p.arrearsPenaltyUnits = l.arrearsPenaltyUnits;
+        p.nextIndex = l.nextIndex;
+        p.unitsPaidCurrent = l.unitsPaidCurrent;
+        p.lastAccrual = l.lastAccrual;
+        p.status = l.status;
+
+        if (uint8(l.status) > uint8(LeaseStatus.InDefault)) return p; // estados terminales: nada que proyectar
 
         // Fix (c): avanzar lastAccrual solo días enteros, conservando el resto
-        uint256 daysElapsed = (block.timestamp - l.lastAccrual) / 1 days;
+        uint256 daysElapsed = (block.timestamp - p.lastAccrual) / 1 days;
         if (daysElapsed > 0) {
-            uint256 overdue = l.arrearsPrincipalUnits + l.arrearsPenaltyUnits;
+            uint256 overdue = p.arrearsPrincipalUnits + p.arrearsPenaltyUnits;
             if (overdue > 0 && l.penaltyBpsPerDay > 0) {
-                l.arrearsPenaltyUnits += overdue.mulDiv(uint256(l.penaltyBpsPerDay) * daysElapsed, 10_000);
+                p.arrearsPenaltyUnits += overdue.mulDiv(uint256(l.penaltyBpsPerDay) * daysElapsed, 10_000);
             }
-            l.lastAccrual += uint64(daysElapsed * 1 days);
+            p.lastAccrual += uint64(daysElapsed * 1 days);
         }
 
         // Cuotas vencidas pasan al stock de mora (capital)
-        while (l.nextIndex < l.dueDates.length && block.timestamp > l.dueDates[l.nextIndex]) {
-            l.arrearsPrincipalUnits += l.unitAmounts[l.nextIndex] - l.unitsPaidCurrent;
-            l.unitsPaidCurrent = 0;
-            l.nextIndex++; // puntero de devengamiento, NO implica pago
+        while (p.nextIndex < l.dueDates.length && block.timestamp > l.dueDates[p.nextIndex]) {
+            p.arrearsPrincipalUnits += l.unitAmounts[p.nextIndex] - p.unitsPaidCurrent;
+            p.unitsPaidCurrent = 0;
+            p.nextIndex++; // puntero de devengamiento, NO implica pago
         }
 
-        if (l.arrearsPrincipalUnits + l.arrearsPenaltyUnits > 0 && l.status == LeaseStatus.Active) {
-            l.status = LeaseStatus.InArrears;
+        if (p.arrearsPrincipalUnits + p.arrearsPenaltyUnits > 0 && p.status == LeaseStatus.Active) {
+            p.status = LeaseStatus.InArrears;
+        }
+    }
+
+    function _accrue(uint256 leaseId) internal {
+        Lease storage l = _leases[leaseId];
+        ProjectedState memory p = _projectedState(leaseId);
+
+        bool enteringArrears = l.status == LeaseStatus.Active && p.status == LeaseStatus.InArrears;
+
+        l.arrearsPrincipalUnits = p.arrearsPrincipalUnits;
+        l.arrearsPenaltyUnits = p.arrearsPenaltyUnits;
+        l.nextIndex = p.nextIndex;
+        l.unitsPaidCurrent = p.unitsPaidCurrent;
+        l.lastAccrual = p.lastAccrual;
+        l.status = p.status;
+
+        if (enteringArrears) {
             emit ArrearsAccrued(leaseId, l.arrearsPrincipalUnits + l.arrearsPenaltyUnits);
         }
     }
@@ -396,6 +434,10 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
     /// @dev Fix (a): `paid` se deriva del acumulado saldado, no del
     ///      puntero de devengamiento. Loop aceptable en referencia;
     ///      producción usaría prefix sums.
+    /// @dev No necesita _projectedState: `paid` depende solo de
+    ///      settledUnits (que pay() muta directamente) y del cronograma
+    ///      inmutable — ninguno de los dos lo toca el devengamiento lazy,
+    ///      así que ya es preciso en cualquier momento entre tx.
     function paymentAt(uint256 id, uint256 i) external view returns (uint256 units, uint64 dueDate, bool paid) {
         Lease storage l = _leases[id];
         units = l.unitAmounts[i];
@@ -407,6 +449,10 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         paid = l.settledUnits >= cum;
     }
 
+    /// @dev settledUnits solo lo muta pay() — el mero paso del tiempo
+    ///      (devengamiento lazy) nunca lo toca, así que esta view ya es
+    ///      precisa en cualquier momento entre tx sin necesitar
+    ///      _projectedState.
     function outstandingUnits(uint256 id) public view returns (uint256) {
         Lease storage l = _leases[id];
         return l.scheduleTotalUnits - l.settledUnits;
@@ -417,19 +463,20 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
     }
 
     function arrears(uint256 id) external view returns (uint256) {
-        Lease storage l = _leases[id];
-        return convertToAssets(id, l.arrearsPrincipalUnits + l.arrearsPenaltyUnits);
+        ProjectedState memory p = _projectedState(id);
+        return convertToAssets(id, p.arrearsPrincipalUnits + p.arrearsPenaltyUnits);
     }
 
     function nextPayment(uint256 id) external view returns (uint256 assets, uint64 dueDate) {
         Lease storage l = _leases[id];
-        if (l.nextIndex >= l.dueDates.length) return (0, 0);
-        uint256 due = l.unitAmounts[l.nextIndex] - l.unitsPaidCurrent;
-        return (convertToAssets(id, due), l.dueDates[l.nextIndex]);
+        ProjectedState memory p = _projectedState(id);
+        if (p.nextIndex >= l.dueDates.length) return (0, 0);
+        uint256 due = l.unitAmounts[p.nextIndex] - p.unitsPaidCurrent;
+        return (convertToAssets(id, due), l.dueDates[p.nextIndex]);
     }
 
     function status(uint256 id) external view returns (LeaseStatus) {
-        return _leases[id].status;
+        return _projectedState(id).status;
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
