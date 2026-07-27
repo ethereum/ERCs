@@ -20,13 +20,26 @@ The smart contract implementing `IDecryptionContract`, decrypts one of two keys 
 - `contracts/ILockingContract.sol` - Contract locking transfer with given encrypted keys or hashes.
 - `contracts/IDecryptionContract.sol` - Contract performing conditional upon transfer decryption (possibly based on an external oracle).
 - `contracts/IDecryptionContractWithKeyGeneration.sol` - Optional extension for asynchronous generation of the encrypted success and failure keys.
+- `contracts/IDecryptionContractInceptionCallback.sol` - Optional on-chain notification when asynchronous inception completes.
 
-Both inception variants return a commitment. Transfer and cancellation use this commitment to identify the stored inception without repeating its parameters.
+All inception variants return an `inceptionHash` of the canonical inception call.
+Once the encrypted success and failure keys are immutable, the decryption contract derives a
+`confirmationHash` from the inception hash and both keys. Confirmation supplies this
+second hash without repeating the transfer parameters. Finalization uses the confirmed DvP
+identifier, while cancellation retains the original `inceptionHash` as its exact-inception guard.
+
+The asynchronous extension offers a callback overload for contract-to-contract workflows.
+After storing the generated keys and `confirmationHash` and emitting `TransferIncepted`,
+the decryption contract passes both hashes to the registered callback. The original
+overload remains available for event-driven off-chain workflows.
 
 #### Decryption Oracle
 
 - `contracts/IKeyDecryptionOracle.sol` - Interface implemented by a decryption oracle proxy contract.
 - `contracts/IKeyDecryptionOracleCallback.sol` - Interface to be implemented by a callback receiving the decrypted key.
+
+Oracle request methods return a proxy-scoped `requestId`, and callbacks use that identifier.
+The caller-supplied DvP `id` remains request-event context and is not used to route callbacks.
 
 ### Documentation
 

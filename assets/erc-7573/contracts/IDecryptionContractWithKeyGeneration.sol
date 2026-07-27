@@ -2,6 +2,7 @@
 pragma solidity >=0.7.0;
 
 import "./IDecryptionContract.sol";
+import "./IDecryptionContractInceptionCallback.sol";
 
 /**
  * @title ERC-7573 Decryption Contract with asynchronous key generation.
@@ -14,14 +15,43 @@ interface IDecryptionContractWithKeyGeneration is IDecryptionContract {
      * @notice Called from the receiver of the amount to initiate payment transfer
      * and asynchronous generation of the encrypted success and failure keys.
      * @dev TransferIncepted is emitted only after both generated keys have been
-     * validated and stored. The returned commitment MUST be stored with the
-     * pending inception and MUST NOT be reused for a later inception.
-     * @param id the unique trade identifier. It MUST NOT have been used for an earlier inception.
+     * validated and stored and the confirmation hash defined by
+     * IDecryptionContract has been derived. The returned inception hash MUST be
+     * stored with the pending inception and MUST NOT be reused for a later inception.
+     * @param id the DvP identifier. Multiple legs in one multi-party DvP MAY share it;
+     * each individual inception MUST remain unambiguous in its participant context.
      * @param amount the amount to be transferred.
      * @param from The address of the sender of the payment (the receiver ('to') is message.sender).
      * @param transaction The transaction specification used to generate the keys.
-     * @return commitmentHash The inception-call commitment. It does not contain
+     * @return inceptionHash The hash of the canonical inception call. It does not contain
      * the keys generated after this call.
      */
-    function inceptTransfer(uint256 id, int amount, address from, bytes memory transaction) external returns (bytes32 commitmentHash);
+    function inceptTransfer(uint256 id, int amount, address from, bytes memory transaction) external returns (bytes32 inceptionHash);
+
+    /**
+     * @notice Called from the receiver of the amount to initiate payment transfer,
+     * asynchronous key generation, and an on-chain completion callback.
+     * @dev The callback is part of the canonical inception call and MUST be bound by
+     * inceptionHash. It MUST be nonzero. After the generated keys and
+     * confirmationHash have been stored, the inception has been completed,
+     * and TransferIncepted has been emitted, the implementation MUST call
+     * callback.onInceptionCompleted(id, inceptionHash, confirmationHash).
+     * The callback MUST acknowledge with its function selector. A revert, invalid
+     * return value, or insufficient callback gas MUST revert this completion attempt
+     * and leave the inception pending so that completion can be retried.
+     * @param id the DvP identifier. Multiple legs in one multi-party DvP MAY share it.
+     * @param amount the amount to be transferred.
+     * @param from The address of the sender of the payment (the receiver ('to') is message.sender).
+     * @param transaction The transaction specification used to generate the keys.
+     * @param callback The contract receiving the completed inception hashes.
+     * @return inceptionHash The hash of this canonical inception call,
+     * including callback. It does not contain the keys generated after this call.
+     */
+    function inceptTransfer(
+        uint256 id,
+        int amount,
+        address from,
+        bytes memory transaction,
+        IDecryptionContractInceptionCallback callback
+    ) external returns (bytes32 inceptionHash);
 }

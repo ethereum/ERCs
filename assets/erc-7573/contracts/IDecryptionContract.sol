@@ -72,45 +72,46 @@ interface IDecryptionContract {
 
     /**
      * @notice Called from the receiver of the amount to initiate payment transfer.
-     * @dev emits a {TransferIncepted}. The returned commitment MUST be stored
+     * @dev emits a {TransferIncepted}. The returned inception hash MUST be stored
      * with the inception and MUST NOT be reused for a later inception.
-     * @param id the unique trade identifier. It MUST NOT have been used for an earlier inception.
+     * @param id the DvP identifier. Multiple legs in one multi-party DvP MAY share it;
+     * each individual inception MUST remain unambiguous in its participant context.
      * @param amount the amount to be transferred.
      * @param from The address of the sender of the payment (the receiver ('to') is message.sender).
      * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
      * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
-     * @return commitmentHash The inception-call commitment.
+     * @return inceptionHash The hash of the canonical inception call.
      */
-    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external returns (bytes32 commitmentHash);
+    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external returns (bytes32 inceptionHash);
 
     /**
      * @notice Called by the sender of the amount to confirm the payment transfer.
-     * @dev emits a {TransferConfirmed}
+     * @dev The confirmation hash MUST be calculated as
+     * keccak256(abi.encode(inceptionHash, keyEncryptedSuccess, keyEncryptedFailure))
+     * after both encrypted keys have been validated and made immutable.
+     * Emits a {TransferConfirmed}.
      * @param id the trade identifier of the trade.
-     * @param amount the amount to be transferred.
-     * @param to The address of the receiver of the payment. Note: the sender of the payment (from) is implicitly the message.sender.
-     * @param keyEncryptedSuccess Encryption of the key that is emitted upon success.
-     * @param keyEncryptedFailure Encryption of the key that is emitted upon failure.
+     * @param confirmationHash The stored hash of the completed inception,
+     * including its encrypted success and failure keys.
      */
-    function confirmTransfer(uint256 id, int amount, address to, bytes memory keyEncryptedSuccess, bytes memory keyEncryptedFailure) external;
+    function confirmTransfer(uint256 id, bytes32 confirmationHash) external;
 
     /**
-     * @notice Called by the sender of (first) confirmTransfer initiate completion of the payment transfer(s).
-     *   Note: In case of a multi party DvP there may be multiple incept/confirm pays.
+     * @notice Called by the sender of the first confirmTransfer to initiate completion of the payment transfer(s).
+     *   Note: In case of a multi-party DvP there may be multiple incept/confirm pairs.
      *   In case of single DvP the previous confirmTransfer may directly call transferAndDecrypt.
      * @dev emits a {TransferKeyRequested} with keys depending on completion success.
      * @param id the trade identifier of the trade.
-     * @param commitmentHash The stored commitment returned by the matching inceptTransfer call.
      */
-    function transferAndDecrypt(uint256 id, bytes32 commitmentHash) external;
+    function transferAndDecrypt(uint256 id) external;
 
     /**
      * @notice Called from the receiver of the amount to cancel payment transfer (cancels the incept transfer).
      * @dev emits a {TransferKeyRequested}
      * @param id the trade identifier of the trade.
-     * @param commitmentHash The stored commitment returned by the matching inceptTransfer call.
+     * @param inceptionHash The stored hash returned by the matching inceptTransfer call.
      */
-    function cancelAndDecrypt(uint256 id, bytes32 commitmentHash) external;
+    function cancelAndDecrypt(uint256 id, bytes32 inceptionHash) external;
 
     /*+
      * @notice Called from the (possibly external) decryption oracle.
