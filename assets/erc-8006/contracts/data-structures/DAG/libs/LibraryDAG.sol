@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicensed
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import { CYCLE_DETECTED_WHILE_TOPOLIGICAL_SORT_ERR } from "../constants/ErrorCodes.sol";

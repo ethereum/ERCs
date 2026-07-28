@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicensed
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 import { AUTH_ADMIN_ERR } from "../constants/ErrorCodes.sol";

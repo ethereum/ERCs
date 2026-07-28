@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicensed
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 string constant INCORRECT_EXEC_ARGUMENTS_LIST_LENGTH_ERR = "PD-001";

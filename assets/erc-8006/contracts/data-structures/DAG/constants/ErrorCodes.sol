@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Unlicensed
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 string constant EDDGE_ALREADY_EXISTS_ERR = "DAGV-001";

@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicensed
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
 string constant PROVIDED_NODE_REFERENCE_IS_NIL_ERR = "A-004";
