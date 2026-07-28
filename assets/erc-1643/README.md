@@ -47,8 +47,21 @@ forge test
 
 ## Static Analysis
 
-- This project can be analyzed with **Aderyn** (smart contract static analyzer): [https://github.com/Cyfrin/aderyn](https://github.com/Cyfrin/aderyn)
-- If you generate an Aderyn report for this repository, store or reference it in the `doc/` folder (for example `doc/aderyn-report.md`).
+This project is analyzed with **Aderyn** (smart contract static analyzer): [https://github.com/Cyfrin/aderyn](https://github.com/Cyfrin/aderyn)
+
+| Tool | Version | Date | Commit | High | Medium | Low | Info | To fix? |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Aderyn | 0.6.5 | 2026-07-28 | `e53add5` | 0 | 0 | 3 | 0 | **No** |
+
+```bash
+aderyn -x mocks --output doc/aderyn-report.md
+```
+
+- Report: [`doc/aderyn-report.md`](doc/aderyn-report.md)
+- Per-finding triage: [`doc/aderyn-report-feedback.md`](doc/aderyn-report-feedback.md)
+- Security status and accepted risks: [`doc/AUDIT_OVERVIEW.md`](doc/AUDIT_OVERVIEW.md)
+
+The three Low findings are accepted by design or are deployment-target considerations; none requires a source change. New reports belong in the `doc/` folder.
 
 ## Deployment Security Warning
 

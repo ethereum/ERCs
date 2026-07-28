@@ -158,6 +158,24 @@ contract ERC1643ModuleTest is Test {
         erc20.removeDocument(bytes32("MISSING"));
     }
 
+    /// @dev ERC-1643 requires getDocument to return empty values, not revert, for names that were
+    /// never set. Distinct from the post-removal reads elsewhere in this suite: this covers the
+    /// contract's initial state, including the zero name that setDocument itself rejects.
+    function testERC20_UnknownDocumentReturnsEmpty() public view {
+        bytes32[] memory docs = erc20.getAllDocuments();
+        assertEq(docs.length, 0);
+
+        (string memory uri, bytes32 docHash, uint256 lastMod) = erc20.getDocument(bytes32("NEVER_SET"));
+        assertEq(uri, "");
+        assertEq(docHash, bytes32(0));
+        assertEq(lastMod, 0);
+
+        (string memory zeroUri, bytes32 zeroHash, uint256 zeroLastMod) = erc20.getDocument(bytes32(0));
+        assertEq(zeroUri, "");
+        assertEq(zeroHash, bytes32(0));
+        assertEq(zeroLastMod, 0);
+    }
+
     function testERC20_ZeroNameReverts() public {
         vm.prank(owner);
         vm.expectRevert(IERC1643.ERC1643InvalidName.selector);
