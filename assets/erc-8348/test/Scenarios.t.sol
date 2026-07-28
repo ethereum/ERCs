@@ -123,7 +123,9 @@ contract ScenariosTest is Test {
             anchorChainId: 0,
             anchorRegistry: address(0),
             anchorId: bytes32(0),
-            servicer: address(0)
+            servicer: address(0),
+            servicingInputs: new bytes32[](0),
+            servicingMaxStaleness: new uint64[](0)
         });
         vm.prank(lessorAddr);
         leaseId = lease.createLease(p);

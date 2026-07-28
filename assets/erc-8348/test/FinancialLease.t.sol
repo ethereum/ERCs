@@ -6,7 +6,15 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {FinancialLease} from "../src/FinancialLease.sol";
 import {MockUVAOracle} from "../src/MockUVAOracle.sol";
-import {IFinancialLease} from "../src/IFinancialLease.sol";
+import {
+    IFinancialLease,
+    INPUT_INDEX_OBSERVATION,
+    INPUT_COLLECTIONS,
+    INPUT_ARREARS_RECORD,
+    INPUT_INSURANCE_STATUS,
+    INPUT_ASSET_CONDITION,
+    INPUT_RESIDUAL_APPRAISAL
+} from "../src/IFinancialLease.sol";
 import {IFinancialLeaseAnchored} from "../src/IFinancialLeaseAnchored.sol";
 
 contract MockERC20 is ERC20 {
@@ -59,6 +67,21 @@ contract FinancialLeaseTest is Test {
         internal
         returns (uint256 leaseId)
     {
+        leaseId = _createLeaseWithServicingConfig(
+            oracle_, staleness, dueDates, unitAmounts, new bytes32[](0), new uint64[](0)
+        );
+    }
+
+    /// @dev Change 3: maxStaleness por servicing input se configura AL
+    ///      ORIGINAR (arrays paralelos), no lo setea el servicer despues.
+    function _createLeaseWithServicingConfig(
+        address oracle_,
+        uint64 staleness,
+        uint64[] memory dueDates,
+        uint256[] memory unitAmounts,
+        bytes32[] memory servicingInputs,
+        uint64[] memory servicingMaxStaleness
+    ) internal returns (uint256 leaseId) {
         FinancialLease.CreateLeaseParams memory p = FinancialLease.CreateLeaseParams({
             lessee: lessee,
             jurisdiction: bytes2("AR"),
@@ -77,7 +100,9 @@ contract FinancialLeaseTest is Test {
             anchorChainId: 0,
             anchorRegistry: address(0),
             anchorId: bytes32(0),
-            servicer: address(0)
+            servicer: address(0),
+            servicingInputs: servicingInputs,
+            servicingMaxStaleness: servicingMaxStaleness
         });
         vm.prank(lessor);
         leaseId = lease.createLease(p);
@@ -314,7 +339,9 @@ contract FinancialLeaseTest is Test {
             anchorChainId: 1,
             anchorRegistry: address(0xBEEF),
             anchorId: bytes32(uint256(42)),
-            servicer: address(0)
+            servicer: address(0),
+            servicingInputs: new bytes32[](0),
+            servicingMaxStaleness: new uint64[](0)
         });
         vm.prank(lessor);
         uint256 anchoredId = lease.createLease(p);
@@ -336,42 +363,135 @@ contract FinancialLeaseTest is Test {
         );
     }
 
+    // ─── T39: tupla de anclaje parcial revierte (change 1) ──
+
+    function test_T39_partialAnchorTupleReverts() public {
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
+
+        // anchorId seteado, registry y chainId en cero: parcial -> revierte
+        FinancialLease.CreateLeaseParams memory p1 = FinancialLease.CreateLeaseParams({
+            lessee: lessee,
+            jurisdiction: bytes2("AR"),
+            governingLaw: "Buenos Aires",
+            agreementHash: keccak256("agreement"),
+            assetRef: "asset://vehicle/1",
+            paymentAsset: address(token),
+            denomSymbol: "UVA",
+            oracle: address(oracle),
+            maxStaleness: 7 days,
+            dueDates: dueDates,
+            unitAmounts: unitAmounts,
+            purchasePriceUnits: 10 * UNIT,
+            penaltyBpsPerDay: 10,
+            defaultDeclarer: defaultDeclarer,
+            anchorChainId: 0,
+            anchorRegistry: address(0),
+            anchorId: bytes32(uint256(42)),
+            servicer: address(0),
+            servicingInputs: new bytes32[](0),
+            servicingMaxStaleness: new uint64[](0)
+        });
+        vm.prank(lessor);
+        vm.expectRevert(FinancialLease.InvalidAnchor.selector);
+        lease.createLease(p1);
+
+        // registry seteado, chainId y anchorId en cero: tambien parcial
+        FinancialLease.CreateLeaseParams memory p2 = p1;
+        p2.anchorChainId = 0;
+        p2.anchorRegistry = address(0xBEEF);
+        p2.anchorId = bytes32(0);
+        vm.prank(lessor);
+        vm.expectRevert(FinancialLease.InvalidAnchor.selector);
+        lease.createLease(p2);
+
+        // chainId seteado, el resto en cero: tambien parcial
+        FinancialLease.CreateLeaseParams memory p3 = p1;
+        p3.anchorChainId = 1;
+        p3.anchorRegistry = address(0);
+        p3.anchorId = bytes32(0);
+        vm.prank(lessor);
+        vm.expectRevert(FinancialLease.InvalidAnchor.selector);
+        lease.createLease(p3);
+
+        // tupla completa: pasa
+        FinancialLease.CreateLeaseParams memory p4 = p1;
+        p4.anchorChainId = 1;
+        p4.anchorRegistry = address(0xBEEF);
+        p4.anchorId = bytes32(uint256(42));
+        vm.prank(lessor);
+        uint256 idFull = lease.createLease(p4);
+        (uint256 chainId, address registry, bytes32 anchorId) = lease.assetAnchor(idFull);
+        assertEq(chainId, 1);
+        assertEq(registry, address(0xBEEF));
+        assertEq(anchorId, bytes32(uint256(42)));
+
+        // tupla toda-cero: pasa (lease no anclado)
+        FinancialLease.CreateLeaseParams memory p5 = p1;
+        p5.anchorChainId = 0;
+        p5.anchorRegistry = address(0);
+        p5.anchorId = bytes32(0);
+        vm.prank(lessor);
+        uint256 idNone = lease.createLease(p5);
+        (uint256 chainId2, address registry2, bytes32 anchorId2) = lease.assetAnchor(idNone);
+        assertEq(chainId2, 0);
+        assertEq(registry2, address(0));
+        assertEq(anchorId2, bytes32(0));
+    }
+
     // ─── T10: inputFreshness — IndexObservation derivado ────
 
     function test_T10_inputFreshnessIndexObservation() public {
         uint256 id = _defaultLease(); // oracle + maxOracleStaleness = 7 days
         (, uint64 expectedAsOf) = lease.conversionRateAsOf(id);
 
-        (uint64 asOf, uint64 maxStaleness) = lease.inputFreshness(id, FinancialLease.ServicingInput.IndexObservation);
-        assertEq(asOf, expectedAsOf, "asOf debe coincidir con conversionRateAsOf");
+        (uint64 observedAt, uint64 reportedAt, uint64 maxStaleness) = lease.inputFreshness(id, INPUT_INDEX_OBSERVATION);
+        assertEq(observedAt, expectedAsOf, "observedAt debe coincidir con conversionRateAsOf");
+        assertEq(
+            reportedAt,
+            expectedAsOf,
+            "reportedAt tambien deriva de conversionRateAsOf: el oraculo no distingue ambos momentos"
+        );
         assertEq(maxStaleness, 7 days, "maxStaleness debe coincidir con maxOracleStaleness");
 
         // Lease con denominacion fija (sin oraculo)
         (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
         uint256 fixedId = _createLease(address(0), 0, dueDates, unitAmounts);
-        (uint64 asOfFixed, uint64 maxStalenessFixed) =
-            lease.inputFreshness(fixedId, FinancialLease.ServicingInput.IndexObservation);
-        assertEq(asOfFixed, uint64(block.timestamp), "denominacion fija: asOf debe ser el tiempo actual");
+        (uint64 observedAtFixed, uint64 reportedAtFixed, uint64 maxStalenessFixed) =
+            lease.inputFreshness(fixedId, INPUT_INDEX_OBSERVATION);
+        assertEq(observedAtFixed, uint64(block.timestamp), "denominacion fija: observedAt debe ser el tiempo actual");
+        assertEq(reportedAtFixed, uint64(block.timestamp), "denominacion fija: reportedAt tambien");
         assertEq(maxStalenessFixed, 0, "denominacion fija: sin limite de staleness");
     }
 
     // ─── T11: updateServicing + inputFreshness (historico) ──
 
     function test_T11_updateServicingAndFreshness() public {
-        uint256 id = _defaultLease(); // servicer default = lessor (msg.sender en createLease)
-        uint64 setStaleness = 3 days;
+        vm.warp(block.timestamp + 100 days); // margen para poder "observar en el pasado" mas abajo
 
+        // Change 3: maxStaleness se configura AL ORIGINAR, no lo setea el servicer.
+        bytes32[] memory inputs = new bytes32[](1);
+        inputs[0] = INPUT_COLLECTIONS;
+        uint64[] memory maxStalenesses = new uint64[](1);
+        maxStalenesses[0] = 3 days;
+
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(3, 100 * UNIT);
+        uint256 id =
+            _createLeaseWithServicingConfig(address(oracle), 7 days, dueDates, unitAmounts, inputs, maxStalenesses); // servicer default = lessor (msg.sender en createLease)
+
+        uint64 observedAtReported = uint64(block.timestamp) - 5 days; // observado hace 5 dias
         vm.prank(lessor);
-        lease.updateServicing(id, FinancialLease.ServicingInput.Collections, setStaleness);
+        lease.updateServicing(id, INPUT_COLLECTIONS, observedAtReported);
         uint64 callTime = uint64(block.timestamp);
 
-        (uint64 asOf, uint64 maxStaleness) = lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
-        assertEq(asOf, callTime, "asOf debe ser el timestamp de la atestacion");
-        assertEq(maxStaleness, setStaleness, "maxStaleness debe ser el seteado por el servicer");
+        (uint64 observedAt, uint64 reportedAt, uint64 maxStaleness) = lease.inputFreshness(id, INPUT_COLLECTIONS);
+        assertEq(observedAt, observedAtReported, "observedAt debe ser el que declaro el servicer");
+        assertEq(reportedAt, callTime, "reportedAt debe ser el timestamp de la tx de updateServicing");
+        assertEq(maxStaleness, 3 days, "maxStaleness debe ser el configurado al originar, no por el servicer");
 
         vm.warp(block.timestamp + 10 days);
-        (uint64 asOfLater,) = lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
-        assertEq(asOfLater, callTime, "asOf es historico: no debe cambiar con el paso del tiempo");
+        (uint64 observedAtLater, uint64 reportedAtLater,) = lease.inputFreshness(id, INPUT_COLLECTIONS);
+        assertEq(observedAtLater, observedAtReported, "observedAt es historico: no cambia con el paso del tiempo");
+        assertEq(reportedAtLater, callTime, "reportedAt es historico: no cambia con el paso del tiempo");
     }
 
     // ─── T12: control de acceso del servicer ────────────────
@@ -382,12 +502,12 @@ contract FinancialLeaseTest is Test {
 
         vm.prank(rando);
         vm.expectRevert(FinancialLease.NotAuthorized.selector);
-        lease.updateServicing(id, FinancialLease.ServicingInput.ArrearsRecord, 1 days);
+        lease.updateServicing(id, INPUT_ARREARS_RECORD, uint64(block.timestamp));
 
         vm.prank(lessor);
-        lease.updateServicing(id, FinancialLease.ServicingInput.ArrearsRecord, 1 days);
-        (uint64 asOf,) = lease.inputFreshness(id, FinancialLease.ServicingInput.ArrearsRecord);
-        assertEq(asOf, uint64(block.timestamp), "el servicer si puede atestar");
+        lease.updateServicing(id, INPUT_ARREARS_RECORD, uint64(block.timestamp));
+        (, uint64 reportedAt,) = lease.inputFreshness(id, INPUT_ARREARS_RECORD);
+        assertEq(reportedAt, uint64(block.timestamp), "el servicer si puede atestar");
     }
 
     // ─── T13: IndexObservation no es atestable manualmente ──
@@ -396,24 +516,149 @@ contract FinancialLeaseTest is Test {
         uint256 id = _defaultLease();
         vm.prank(lessor);
         vm.expectRevert(FinancialLease.DerivedInput.selector);
-        lease.updateServicing(id, FinancialLease.ServicingInput.IndexObservation, 1 days);
+        lease.updateServicing(id, INPUT_INDEX_OBSERVATION, uint64(block.timestamp));
+    }
+
+    // ─── T40: observedAt vs reportedAt divergen (change 2) ──
+
+    function test_T40_observedAtAndReportedAtDiverge() public {
+        vm.warp(block.timestamp + 100 days);
+        uint256 id = _defaultLease();
+
+        uint64 observedAt14DaysAgo = uint64(block.timestamp) - 14 days;
+        vm.prank(lessor);
+        lease.updateServicing(id, INPUT_COLLECTIONS, observedAt14DaysAgo);
+
+        (uint64 observedAt, uint64 reportedAt,) = lease.inputFreshness(id, INPUT_COLLECTIONS);
+        assertEq(observedAt, observedAt14DaysAgo, "observedAt debe ser el que declaro el servicer (hace 14 dias)");
+        assertEq(reportedAt, uint64(block.timestamp), "reportedAt debe ser el timestamp de la tx");
+        assertTrue(observedAt != reportedAt, "observedAt y reportedAt deben poder diferir");
+        assertEq(reportedAt - observedAt, 14 days, "la divergencia debe ser exactamente de 14 dias");
+    }
+
+    // ─── T41: observacion futura revierte (change 2) ────────
+
+    function test_T41_futureObservationReverts() public {
+        uint256 id = _defaultLease();
+        vm.prank(lessor);
+        vm.expectRevert(FinancialLease.FutureObservation.selector);
+        lease.updateServicing(id, INPUT_COLLECTIONS, uint64(block.timestamp) + 1);
+
+        // observedAt == block.timestamp (limite exacto): no es futuro, pasa
+        vm.prank(lessor);
+        lease.updateServicing(id, INPUT_COLLECTIONS, uint64(block.timestamp));
+    }
+
+    // ─── T42: maxStaleness no lo puede cambiar el servicer (change 3) ──
+
+    function test_T42_maxStalenessNotSettableByServicer() public {
+        bytes32[] memory inputs = new bytes32[](1);
+        inputs[0] = INPUT_ARREARS_RECORD;
+        uint64[] memory maxStalenesses = new uint64[](1);
+        maxStalenesses[0] = 5 days;
+
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
+        uint256 id =
+            _createLeaseWithServicingConfig(address(oracle), 7 days, dueDates, unitAmounts, inputs, maxStalenesses);
+
+        // updateServicing ya no acepta un parametro de maxStaleness: solo
+        // (leaseId, input, observedAt). Atestar varias veces no cambia la
+        // tolerancia, que sigue siendo la configurada al originar.
+        vm.prank(lessor);
+        lease.updateServicing(id, INPUT_ARREARS_RECORD, uint64(block.timestamp));
+        (,, uint64 maxStaleness1) = lease.inputFreshness(id, INPUT_ARREARS_RECORD);
+        assertEq(maxStaleness1, 5 days, "maxStaleness debe ser el configurado al originar");
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(lessor);
+        lease.updateServicing(id, INPUT_ARREARS_RECORD, uint64(block.timestamp));
+        (,, uint64 maxStaleness2) = lease.inputFreshness(id, INPUT_ARREARS_RECORD);
+        assertEq(maxStaleness2, 5 days, "maxStaleness no debe cambiar entre atestaciones del servicer");
+
+        // un input SIN tolerancia configurada devuelve 0 (default = sin limite)
+        (,, uint64 maxStalenessUnconfigured) = lease.inputFreshness(id, INPUT_INSURANCE_STATUS);
+        assertEq(maxStalenessUnconfigured, 0, "sin config al originar, maxStaleness default = 0");
+    }
+
+    // ─── T43: input custom — extensibilidad sin tocar la interfaz (change 4) ──
+
+    function test_T43_customInputExtensibility() public {
+        uint256 id = _defaultLease();
+        bytes32 customInput = keccak256("test.input.custom");
+
+        (uint64 observedAtBefore, uint64 reportedAtBefore, uint64 maxStalenessBefore) =
+            lease.inputFreshness(id, customInput);
+        assertEq(observedAtBefore, 0, "antes de atestar: observedAt en cero");
+        assertEq(reportedAtBefore, 0, "antes de atestar: reportedAt en cero");
+        assertEq(maxStalenessBefore, 0, "antes de atestar: maxStaleness en cero");
+
+        vm.prank(lessor);
+        lease.updateServicing(id, customInput, uint64(block.timestamp));
+
+        (uint64 observedAt, uint64 reportedAt,) = lease.inputFreshness(id, customInput);
+        assertEq(observedAt, uint64(block.timestamp), "un input custom (fuera del set base) debe funcionar igual");
+        assertEq(reportedAt, uint64(block.timestamp));
+    }
+
+    // ─── T44: input nunca atestado devuelve ceros, sin revertir ──
+
+    function test_T44_neverReportedInputReturnsZeros() public view {
+        uint256 id = 1; // no hay ninguna lease creada todavia en este test
+        (uint64 observedAt, uint64 reportedAt, uint64 maxStaleness) = lease.inputFreshness(id, INPUT_ASSET_CONDITION);
+        assertEq(observedAt, 0);
+        assertEq(reportedAt, 0);
+        assertEq(maxStaleness, 0);
+    }
+
+    // ─── T45: residualAppraisal funciona como cualquier input base ──
+
+    function test_T45_residualAppraisalInput() public {
+        bytes32[] memory inputs = new bytes32[](1);
+        inputs[0] = INPUT_RESIDUAL_APPRAISAL;
+        uint64[] memory maxStalenesses = new uint64[](1);
+        maxStalenesses[0] = 30 days;
+
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(1, 100 * UNIT);
+        uint256 id =
+            _createLeaseWithServicingConfig(address(oracle), 7 days, dueDates, unitAmounts, inputs, maxStalenesses);
+
+        vm.prank(lessor);
+        lease.updateServicing(id, INPUT_RESIDUAL_APPRAISAL, uint64(block.timestamp));
+
+        (uint64 observedAt, uint64 reportedAt, uint64 maxStaleness) = lease.inputFreshness(id, INPUT_RESIDUAL_APPRAISAL);
+        assertEq(observedAt, uint64(block.timestamp));
+        assertEq(reportedAt, uint64(block.timestamp));
+        assertEq(maxStaleness, 30 days, "INPUT_RESIDUAL_APPRAISAL debe funcionar como cualquier input base");
     }
 
     // ─── T14: servicing es reporte paralelo, no altera pay() ─
 
     function test_T14_servicingIsolatedFromPayFlow() public {
-        uint256 id = _defaultLease();
+        bytes32[] memory inputs = new bytes32[](4);
+        inputs[0] = INPUT_COLLECTIONS;
+        inputs[1] = INPUT_ARREARS_RECORD;
+        inputs[2] = INPUT_INSURANCE_STATUS;
+        inputs[3] = INPUT_ASSET_CONDITION;
+        uint64[] memory maxStalenesses = new uint64[](4);
+        maxStalenesses[0] = 1 days;
+        maxStalenesses[1] = 1 days;
+        maxStalenesses[2] = 1 days;
+        maxStalenesses[3] = 1 days;
+
+        (uint64[] memory dueDates, uint256[] memory unitAmounts) = _schedule(3, 100 * UNIT);
+        uint256 id =
+            _createLeaseWithServicingConfig(address(oracle), 7 days, dueDates, unitAmounts, inputs, maxStalenesses);
         (, uint64 dueDate1) = lease.nextPayment(id);
 
         vm.warp(uint256(dueDate1) + 1 days);
         oracle.set(1e18);
 
-        // Setear las 4 categorias atestables antes de generar la mora
+        // Atestar las 4 categorias antes de generar la mora
         vm.startPrank(lessor);
-        lease.updateServicing(id, FinancialLease.ServicingInput.Collections, 1 days);
-        lease.updateServicing(id, FinancialLease.ServicingInput.ArrearsRecord, 1 days);
-        lease.updateServicing(id, FinancialLease.ServicingInput.InsuranceStatus, 1 days);
-        lease.updateServicing(id, FinancialLease.ServicingInput.AssetCondition, 1 days);
+        lease.updateServicing(id, INPUT_COLLECTIONS, uint64(block.timestamp));
+        lease.updateServicing(id, INPUT_ARREARS_RECORD, uint64(block.timestamp));
+        lease.updateServicing(id, INPUT_INSURANCE_STATUS, uint64(block.timestamp));
+        lease.updateServicing(id, INPUT_ASSET_CONDITION, uint64(block.timestamp));
         vm.stopPrank();
 
         vm.prank(defaultDeclarer);
@@ -425,7 +670,7 @@ contract FinancialLeaseTest is Test {
 
         // Re-atestar en medio del ciclo, incluso despues de calcular lo adeudado
         vm.prank(lessor);
-        lease.updateServicing(id, FinancialLease.ServicingInput.Collections, 2 days);
+        lease.updateServicing(id, INPUT_COLLECTIONS, uint64(block.timestamp));
 
         vm.expectEmit(true, false, false, false);
         emit IFinancialLease.DefaultCured(id);
@@ -441,10 +686,9 @@ contract FinancialLeaseTest is Test {
         assertEq(lease.arrears(id), 0, "la mora debe quedar saldada igual que sin servicing");
 
         // El servicing sigue siendo consultable y no fue tocado por pay()
-        (uint64 asOfCollections, uint64 maxStalenessCollections) =
-            lease.inputFreshness(id, FinancialLease.ServicingInput.Collections);
-        assertTrue(asOfCollections > 0, "la atestacion de Collections debe seguir en pie");
-        assertEq(maxStalenessCollections, 2 days, "pay() no debe modificar el estado de servicing");
+        (uint64 observedAtCollections,, uint64 maxStalenessCollections) = lease.inputFreshness(id, INPUT_COLLECTIONS);
+        assertTrue(observedAtCollections > 0, "la atestacion de Collections debe seguir en pie");
+        assertEq(maxStalenessCollections, 1 days, "pay() no debe modificar la config de servicing");
     }
 
     // ─── T35: REGRESION hallazgo — views deben reflejar el devengo

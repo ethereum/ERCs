@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IConversionOracle} from "./IConversionOracle.sol";
-import {IFinancialLease} from "./IFinancialLease.sol";
+import {IFinancialLease, INPUT_INDEX_OBSERVATION} from "./IFinancialLease.sol";
 import {IFinancialLeaseAnchored} from "./IFinancialLeaseAnchored.sol";
 
 /// @title FinancialLease — implementación de referencia del ERC de leasing
@@ -17,20 +17,15 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    /// @dev Categorías de dato de servicing observables vía inputFreshness.
-    ///      IndexObservation se deriva de conversionRateAsOf y nunca se
-    ///      atesta manualmente (ver DerivedInput en updateServicing).
-    enum ServicingInput {
-        IndexObservation, // 0
-        Collections, // 1
-        ArrearsRecord, // 2
-        InsuranceStatus, // 3
-        AssetCondition // 4
-    }
-
+    /// @dev observedAt: cuando el servicer dice que observo el dato
+    ///      off-chain. reportedAt: cuando quedo persistido on-chain
+    ///      (siempre block.timestamp de la tx de updateServicing). Los dos
+    ///      pueden divergir (ver inputFreshness) — maxStaleness NO vive
+    ///      aca: la fija la configuracion del lease (ver
+    ///      Lease.maxStalenessByInput), no el servicer.
     struct ServicingAttestation {
-        uint64 asOf;
-        uint64 maxStaleness;
+        uint64 observedAt;
+        uint64 reportedAt;
     }
 
     struct Lease {
@@ -67,22 +62,25 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         uint256 anchorChainId;
         address anchorRegistry;
         bytes32 anchorId;
-        // Servicing paralelo: atestaciones de frescura por categoría
+        // Servicing paralelo: atestaciones de frescura por input (bytes32)
         address servicer;
-        mapping(uint8 => ServicingAttestation) servicingAttestations;
+        mapping(bytes32 => ServicingAttestation) servicingAttestations;
+        // maxStaleness declarado por input, fijado al originar el lease
+        // (change 3): el servicer ya NO puede autoevaluarse su propia
+        // tolerancia via updateServicing.
+        mapping(bytes32 => uint64) maxStalenessByInput;
     }
 
     uint256 public nextLeaseId = 1;
     mapping(uint256 => Lease) internal _leases;
-
-    // ─── Eventos propios (fuera del core IFinancialLease) ──────
-    event ServicingUpdated(uint256 indexed leaseId, ServicingInput indexed input, uint64 asOf);
 
     error StaleOracle();
     error NotAuthorized();
     error WrongStatus();
     error NothingDue();
     error DerivedInput();
+    error InvalidAnchor();
+    error FutureObservation();
 
     constructor() ERC721("Financial Lease Position", "LEASE") {}
 
@@ -111,6 +109,11 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         address anchorRegistry;
         bytes32 anchorId;
         address servicer;
+        // Tolerancia de staleness por servicing input (change 3): arrays
+        // paralelos porque los structs calldata no admiten mappings.
+        // IndexObservation ignora esta config: usa maxOracleStaleness.
+        bytes32[] servicingInputs;
+        uint64[] servicingMaxStaleness;
     }
 
     function createLease(CreateLeaseParams calldata p) external returns (uint256 leaseId) {
@@ -118,6 +121,13 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         for (uint256 i = 1; i < p.dueDates.length; i++) {
             require(p.dueDates[i] > p.dueDates[i - 1], "unsorted schedule");
         }
+        require(p.servicingInputs.length == p.servicingMaxStaleness.length, "bad servicing config");
+
+        // Change 1: la tupla de anclaje es o toda-cero (no anclado) o
+        // toda-seteada. Tuplas parciales quedan invalidas.
+        bool anyAnchorField = p.anchorChainId != 0 || p.anchorRegistry != address(0) || p.anchorId != bytes32(0);
+        bool allAnchorFields = p.anchorChainId != 0 && p.anchorRegistry != address(0) && p.anchorId != bytes32(0);
+        if (anyAnchorField && !allAnchorFields) revert InvalidAnchor();
 
         leaseId = nextLeaseId++;
         Lease storage l = _leases[leaseId];
@@ -141,6 +151,10 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         l.anchorRegistry = p.anchorRegistry;
         l.anchorId = p.anchorId;
         l.servicer = p.servicer == address(0) ? msg.sender : p.servicer;
+
+        for (uint256 i = 0; i < p.servicingInputs.length; i++) {
+            l.maxStalenessByInput[p.servicingInputs[i]] = p.servicingMaxStaleness[i];
+        }
 
         uint256 total;
         for (uint256 i = 0; i < p.unitAmounts.length; i++) {
@@ -366,31 +380,37 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
 
     // ─── Servicing (reporte paralelo, no enforcado) ────────────
 
-    /// @dev IndexObservation se deriva de conversionRateAsOf; las demás
-    ///      categorías son atestaciones que el servicer actualiza. Puro
-    ///      reporte: no participa de pay(), _accrue ni del estado del lease.
-    function inputFreshness(uint256 leaseId, ServicingInput input)
+    /// @dev IndexObservation se deriva de conversionRateAsOf (observedAt ==
+    ///      reportedAt: el oraculo no distingue los dos momentos) y nunca
+    ///      se atesta manualmente (ver DerivedInput en updateServicing).
+    ///      Las demas categorias son atestaciones que el servicer
+    ///      actualiza. Puro reporte: no participa de pay(), _accrue ni del
+    ///      estado del lease. Un input bytes32 nunca atestado y no
+    ///      derivado devuelve (0,0,0) — informacion valida ("nunca se
+    ///      reporto"), no un caso de error.
+    function inputFreshness(uint256 leaseId, bytes32 input)
         external
         view
-        returns (uint64 asOf, uint64 maxStaleness)
+        returns (uint64 observedAt, uint64 reportedAt, uint64 maxStaleness)
     {
         Lease storage l = _leases[leaseId];
-        if (input == ServicingInput.IndexObservation) {
-            (, asOf) = conversionRateAsOf(leaseId);
-            return (asOf, l.maxOracleStaleness);
+        if (input == INPUT_INDEX_OBSERVATION) {
+            (, uint64 asOf) = conversionRateAsOf(leaseId);
+            return (asOf, asOf, l.maxOracleStaleness);
         }
-        ServicingAttestation storage a = l.servicingAttestations[uint8(input)];
-        return (a.asOf, a.maxStaleness);
+        ServicingAttestation storage a = l.servicingAttestations[input];
+        return (a.observedAt, a.reportedAt, l.maxStalenessByInput[input]);
     }
 
-    function updateServicing(uint256 leaseId, ServicingInput input, uint64 maxStaleness) external {
+    function updateServicing(uint256 leaseId, bytes32 input, uint64 observedAt) external {
         Lease storage l = _leases[leaseId];
-        if (input == ServicingInput.IndexObservation) revert DerivedInput();
+        if (input == INPUT_INDEX_OBSERVATION) revert DerivedInput();
         if (msg.sender != l.servicer) revert NotAuthorized();
+        if (observedAt > block.timestamp) revert FutureObservation();
 
-        uint64 asOf = uint64(block.timestamp);
-        l.servicingAttestations[uint8(input)] = ServicingAttestation({asOf: asOf, maxStaleness: maxStaleness});
-        emit ServicingUpdated(leaseId, input, asOf);
+        uint64 reportedAt = uint64(block.timestamp);
+        l.servicingAttestations[input] = ServicingAttestation({observedAt: observedAt, reportedAt: reportedAt});
+        emit ServicingUpdated(leaseId, input, observedAt, reportedAt);
     }
 
     // ─── Views del estándar ───────────────────────────────────

@@ -2,6 +2,21 @@
 // src/IFinancialLease.sol
 pragma solidity ^0.8.24;
 
+// Identificadores base de servicing input, en un dominio bytes32 separado
+// (keccak256 de un string namespaced) en vez de un enum cerrado. Declarados
+// a nivel de archivo porque las interfaces de Solidity no pueden declarar
+// variables (ni siquiera `constant`): viven junto a IFinancialLease para
+// que el conjunto base sea parte del estándar y no se fragmente entre
+// deployments. Implementaciones pueden definir inputs propios con su
+// propio namespace (ej. keccak256("miorg.input.loQueSea")) sin tocar esta
+// interfaz.
+bytes32 constant INPUT_INDEX_OBSERVATION = keccak256("erc8348.input.indexObservation");
+bytes32 constant INPUT_COLLECTIONS = keccak256("erc8348.input.collections");
+bytes32 constant INPUT_ARREARS_RECORD = keccak256("erc8348.input.arrearsRecord");
+bytes32 constant INPUT_INSURANCE_STATUS = keccak256("erc8348.input.insuranceStatus");
+bytes32 constant INPUT_ASSET_CONDITION = keccak256("erc8348.input.assetCondition");
+bytes32 constant INPUT_RESIDUAL_APPRAISAL = keccak256("erc8348.input.residualAppraisal");
+
 /// @notice Core interface of ERC-8348 (Financial Lease). Implementations
 ///         MUST also implement ERC-165 and ERC-721 with tokenId == leaseId.
 interface IFinancialLease {
@@ -42,6 +57,16 @@ interface IFinancialLease {
     function arrears(uint256 leaseId) external view returns (uint256);
     function status(uint256 leaseId) external view returns (LeaseStatus);
 
+    // ─── Servicing (reporte paralelo, no enforcado) ─────────────
+    // `input` es un identificador bytes32 (ver constantes INPUT_* de este
+    // archivo). El estándar solo EXPONE observedAt/reportedAt/maxStaleness;
+    // el consumidor decide qué hacer con la divergencia entre ambos.
+    function inputFreshness(uint256 leaseId, bytes32 input)
+        external
+        view
+        returns (uint64 observedAt, uint64 reportedAt, uint64 maxStaleness);
+    function updateServicing(uint256 leaseId, bytes32 input, uint64 observedAt) external;
+
     // ─── Actions ────────────────────────────────────────────────
     function pay(uint256 leaseId, uint256 assets) external;
     function purchaseOption(uint256 leaseId) external view returns (uint256 priceInAssets, bool exercisable);
@@ -69,4 +94,5 @@ interface IFinancialLease {
     event PurchaseOptionExercised(uint256 indexed leaseId, uint256 priceInAssets);
     event LeaseTerminated(uint256 indexed leaseId, LeaseStatus finalStatus);
     event LesseeAssigned(uint256 indexed leaseId, address indexed oldLessee, address indexed newLessee);
+    event ServicingUpdated(uint256 indexed leaseId, bytes32 indexed input, uint64 observedAt, uint64 reportedAt);
 }
