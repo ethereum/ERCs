@@ -17,6 +17,17 @@ bytes32 constant INPUT_INSURANCE_STATUS = keccak256("erc8348.input.insuranceStat
 bytes32 constant INPUT_ASSET_CONDITION = keccak256("erc8348.input.assetCondition");
 bytes32 constant INPUT_RESIDUAL_APPRAISAL = keccak256("erc8348.input.residualAppraisal");
 
+// Causales de terminación anticipada (fix S6-01), mismo criterio de
+// dominio bytes32 separado que los INPUT_* de arriba. Solo estas dos
+// viven en el núcleo: son transiciones contractuales bilaterales o
+// gatilladas por incumplimiento, aplicables a cualquier leasing
+// financiero sin importar la jurisdicción o el tipo de activo. Otras
+// causales (ej. pérdida total del bien) son un hecho sobre el activo,
+// no una transición contractual — quedan a extensión con su propio
+// namespace.
+bytes32 constant TERMINATION_MUTUAL_AGREEMENT = keccak256("erc8348.termination.mutualAgreement");
+bytes32 constant TERMINATION_DEFAULT = keccak256("erc8348.termination.default");
+
 /// @notice Core interface of ERC-8348 (Financial Lease). Implementations
 ///         MUST also implement ERC-165 and ERC-721 with tokenId == leaseId.
 interface IFinancialLease {

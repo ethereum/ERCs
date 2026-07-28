@@ -120,6 +120,7 @@ contract ScenariosTest is Test {
             purchasePriceUnits: purchasePriceUnits,
             penaltyBpsPerDay: penaltyBps,
             defaultDeclarer: declarer,
+            terminationDelay: 7 days,
             anchorChainId: 0,
             anchorRegistry: address(0),
             anchorId: bytes32(0),

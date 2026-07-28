@@ -22,6 +22,7 @@ contract AttestedConversionOracle is IConversionOracle, Ownable {
 
     error NotAttester();
     error NotYetAttested();
+    error InvalidRate();
 
     constructor(address owner_, address attester_) Ownable(owner_) {
         attester = attester_;
@@ -34,6 +35,12 @@ contract AttestedConversionOracle is IConversionOracle, Ownable {
 
     function attest(uint256 newRate) external {
         if (msg.sender != attester) revert NotAttester();
+        // S2-03: atestar 0 no revertia (asOf queda != 0, satisface
+        // NotYetAttested) pero dejaba rate = 0 como denominador implicito
+        // -> division por cero en cada pay() futuro -> DoS total hasta la
+        // proxima atestacion valida. Los otros dos adaptadores ya validan
+        // answer > 0; este es el unico que faltaba.
+        if (newRate == 0) revert InvalidRate();
         rate = newRate;
         asOf = uint64(block.timestamp);
         emit RateAttested(newRate, asOf);

@@ -153,6 +153,7 @@ contract OracleAdaptersTest is Test {
             purchasePriceUnits: 10e18,
             penaltyBpsPerDay: 10,
             defaultDeclarer: address(0),
+            terminationDelay: 7 days,
             anchorChainId: 0,
             anchorRegistry: address(0),
             anchorId: bytes32(0),
@@ -189,5 +190,134 @@ contract OracleAdaptersTest is Test {
         vm.prank(lessee);
         vm.expectRevert(FinancialLease.StaleOracle.selector);
         lease.pay(id, 1e6);
+    }
+
+    // ─── T26: fix S1-02 — decimales del feed fuera de rango revierten ──
+
+    function test_T26_decimalsOutOfRangeReverts() public {
+        feedA.setDecimals(31); // MAX_SANE_DECIMALS = 30
+        vm.expectRevert(ChainlinkConversionOracle.DecimalsOutOfRange.selector);
+        new ChainlinkConversionOracle(address(feedA), 18);
+
+        feedA.setDecimals(30); // el limite exacto debe pasar
+        new ChainlinkConversionOracle(address(feedA), 18);
+
+        feedA.setDecimals(31);
+        feedB.setDecimals(8);
+        vm.expectRevert(ComposedConversionOracle.DecimalsOutOfRange.selector);
+        new ComposedConversionOracle(address(feedA), address(feedB), false, 18);
+
+        feedA.setDecimals(8);
+        feedB.setDecimals(31);
+        vm.expectRevert(ComposedConversionOracle.DecimalsOutOfRange.selector);
+        new ComposedConversionOracle(address(feedA), address(feedB), false, 18);
+    }
+
+    // ─── T27: fix S2-01 — asOf futuro revierte en pay(), no underfloweo ──
+
+    function test_T27_futureAsOfReverts() public {
+        FinancialLease lease = new FinancialLease();
+        MockERC20 token = new MockERC20();
+        address lessor27 = makeAddr("lessor27");
+        address lessee27 = makeAddr("lessee27");
+        token.mint(lessee27, 1_000_000e6);
+        vm.prank(lessee27);
+        token.approve(address(lease), type(uint256).max);
+
+        feedA.setAnswer(1e8);
+        feedA.setUpdatedAt(block.timestamp + 1000); // asOf futuro
+        ChainlinkConversionOracle oracle = new ChainlinkConversionOracle(address(feedA), 6);
+
+        uint64[] memory dueDates = new uint64[](1);
+        uint256[] memory unitAmounts = new uint256[](1);
+        dueDates[0] = uint64(block.timestamp) + 30 days;
+        unitAmounts[0] = 100e18;
+
+        FinancialLease.CreateLeaseParams memory p = FinancialLease.CreateLeaseParams({
+            lessee: lessee27,
+            jurisdiction: bytes2("AR"),
+            governingLaw: "Buenos Aires",
+            agreementHash: keccak256("agreement"),
+            assetRef: "asset://x",
+            paymentAsset: address(token),
+            denomSymbol: "UVA",
+            oracle: address(oracle),
+            maxStaleness: 0, // sin limite -- aisla el guard de asOf futuro del chequeo de staleness
+            dueDates: dueDates,
+            unitAmounts: unitAmounts,
+            purchasePriceUnits: 0,
+            penaltyBpsPerDay: 10,
+            defaultDeclarer: address(0),
+            terminationDelay: 7 days,
+            anchorChainId: 0,
+            anchorRegistry: address(0),
+            anchorId: bytes32(0),
+            servicer: address(0),
+            servicingInputs: new bytes32[](0),
+            servicingMaxStaleness: new uint64[](0)
+        });
+        vm.prank(lessor27);
+        uint256 id = lease.createLease(p);
+
+        vm.prank(lessee27);
+        vm.expectRevert(FinancialLease.FutureObservation.selector);
+        lease.pay(id, 1e6);
+    }
+
+    // ─── T28: fix S2-02 — decimales del feed cambiados post-deploy revierten ──
+
+    function test_T28_decimalsChangedAfterConstructionReverts() public {
+        feedA.setAnswer(1e8);
+        feedA.setUpdatedAt(block.timestamp);
+        ChainlinkConversionOracle o = new ChainlinkConversionOracle(address(feedA), 18);
+        o.latestRate(); // funciona normalmente
+
+        feedA.setDecimals(6); // el feed "cambia" de convencion post-deploy
+        vm.expectRevert(ChainlinkConversionOracle.DecimalsChanged.selector);
+        o.latestRate();
+
+        // ComposedConversionOracle: mismo criterio, para cualquiera de los dos feeds
+        feedA.setDecimals(8);
+        feedB.setAnswer(1e8);
+        feedB.setUpdatedAt(block.timestamp);
+        ComposedConversionOracle co = new ComposedConversionOracle(address(feedA), address(feedB), false, 18);
+        co.latestRate();
+
+        feedB.setDecimals(6);
+        vm.expectRevert(ComposedConversionOracle.DecimalsChanged.selector);
+        co.latestRate();
+    }
+
+    // ─── T29: fix S2-03 — atestar rate = 0 revierte ───────────────────
+
+    function test_T29_attestZeroRateReverts() public {
+        AttestedConversionOracle o = new AttestedConversionOracle(owner, attester);
+
+        vm.prank(attester);
+        vm.expectRevert(AttestedConversionOracle.InvalidRate.selector);
+        o.attest(0);
+
+        vm.prank(attester);
+        o.attest(1e18); // una atestacion valida posterior si funciona
+        (uint256 rate,) = o.latestRate();
+        assertEq(rate, 1e18);
+    }
+
+    // ─── T30: fix S2-08 — division por cero explicita en ComposedConversionOracle ──
+
+    function test_T30_composedZeroDenominatorReverts() public {
+        feedA.setAnswer(100e8);
+        feedA.setUpdatedAt(block.timestamp);
+
+        // feedB normaliza a exactamente 0: precio crudo minimo (1) con
+        // el maximo de decimales permitido (30) -> 1 * 1e18 / 1e30 = 0
+        // (floor).
+        feedB.setDecimals(30);
+        feedB.setAnswer(1);
+        feedB.setUpdatedAt(block.timestamp);
+
+        ComposedConversionOracle o = new ComposedConversionOracle(address(feedA), address(feedB), true, 18);
+        vm.expectRevert(ComposedConversionOracle.InvalidAnswer.selector);
+        o.latestRate();
     }
 }

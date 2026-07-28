@@ -14,6 +14,10 @@ import {AggregatorV3Interface} from "./ChainlinkConversionOracle.sol";
 contract ComposedConversionOracle is IConversionOracle {
     using Math for uint256;
 
+    // S1-02: misma cota defensiva que ChainlinkConversionOracle, aplicada
+    // a ambos feeds compuestos.
+    uint8 internal constant MAX_SANE_DECIMALS = 30;
+
     AggregatorV3Interface public immutable feedA;
     AggregatorV3Interface public immutable feedB;
     uint8 public immutable feedADecimals;
@@ -23,12 +27,17 @@ contract ComposedConversionOracle is IConversionOracle {
 
     error InvalidAnswer();
     error IncompleteRound();
+    error DecimalsOutOfRange();
+    error DecimalsChanged();
 
     constructor(address feedA_, address feedB_, bool invertB_, uint8 paymentAssetDecimals_) {
         feedA = AggregatorV3Interface(feedA_);
         feedB = AggregatorV3Interface(feedB_);
-        feedADecimals = feedA.decimals();
-        feedBDecimals = feedB.decimals();
+        uint8 fdA = feedA.decimals();
+        uint8 fdB = feedB.decimals();
+        if (fdA > MAX_SANE_DECIMALS || fdB > MAX_SANE_DECIMALS) revert DecimalsOutOfRange(); // S1-02
+        feedADecimals = fdA;
+        feedBDecimals = fdB;
         invertB = invertB_;
         paymentAssetDecimals = paymentAssetDecimals_;
     }
@@ -36,6 +45,13 @@ contract ComposedConversionOracle is IConversionOracle {
     function latestRate() external view returns (uint256 rate, uint64 asOf) {
         (uint256 normA, uint256 updatedAtA) = _normalized(feedA, feedADecimals);
         (uint256 normB, uint256 updatedAtB) = _normalized(feedB, feedBDecimals);
+
+        // S2-08: guard explicito antes de dividir, en vez de depender del
+        // guard implicito (division por cero) que ya tiene Math.mulDiv
+        // internamente — mismo criterio de error que el resto del
+        // contrato (feed invalido = InvalidAnswer, sin importar en que
+        // paso se detecto).
+        if (invertB && normB == 0) revert InvalidAnswer();
 
         // Ambos normalizados a 1e18 antes de componer; invertB divide en
         // lugar de multiplicar cuando el segundo feed cotiza en sentido
@@ -51,6 +67,12 @@ contract ComposedConversionOracle is IConversionOracle {
         view
         returns (uint256 norm, uint256 updatedAt)
     {
+        // S2-02: mismo criterio que ChainlinkConversionOracle — releer y
+        // comparar decimals() en cada lectura, barato frente al riesgo
+        // de mis-scaling silencioso si el feed envuelto cambia de
+        // convencion post-deploy.
+        if (feed_.decimals() != feedDecimals_) revert DecimalsChanged();
+
         (, int256 answer,, uint256 updatedAt_,) = feed_.latestRoundData();
         if (answer <= 0) revert InvalidAnswer();
         if (updatedAt_ == 0) revert IncompleteRound();
