@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ts:token xmlns:ts="http://tokenscript.org/2024/01/tokenscript"
+    xmlns:xml="http://www.w3.org/XML/1998/namespace"
+    xsi:schemaLocation="http://tokenscript.org/2024/01/tokenscript https://www.tokenscript.org/schemas/2024-01/tokenscript.xsd"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ethereum="urn:ethereum:constantinople"
+    name="nfttest">
+    <ts:label>
+        <ts:plurals xml:lang="en">
+            <ts:string quantity="one">
+                NFT Test Token
+            </ts:string>
+            <ts:string quantity="other">
+                NFT Test Tokens
+            </ts:string>
+        </ts:plurals>
+    </ts:label>
+    <ts:meta>
+        <ts:description xml:lang="en">
+        </ts:description>
+        <ts:aboutUrl xml:lang="en">
+        </ts:aboutUrl>
+        <ts:iconUrl xml:lang="en">
+           https://ipfs.io/ipfs/QmQgPRvpucr7FgCKXHfAUJaV1a3EoKX3guDBiDt1zozFrv
+        </ts:iconUrl>
+    </ts:meta>
+    <ts:contract interface="erc721" name="NFTToken">
+        <ts:address network="ChainId">CONTRACT_ADDRESS</ts:address>
+    </ts:contract>
+    <ts:origins>
+        <!-- Define the contract which holds the token that the user will use -->
+        <ts:ethereum contract="NFTToken" />
+    </ts:origins>
+    <ts:cards>
+        <ts:card type="action" name="mint" buttonClass="primary" origins="NFTToken">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Mint
+                </ts:string>
+            </ts:label>
+            <ts:transaction>
+                <ethereum:transaction function="mint" contract="NFTToken">
+                    <ts:data />
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+                <p id="tokendesc"></p>
+                <script>
+                    const tokenDesc = document.getElementById("tokendesc");
+                    tokenDesc.innerHTML = "Mint your very own " + currentTokenInstance.name + "! Click the Mint button below to receive a token directly to your wallet";
+                </script>
+            </ts:view>
+        </ts:card>
+        <ts:card type="token" name="Info" buttonClass="secondary" origins="NFTToken">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Info
+                </ts:string>
+            </ts:label>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+                <p id="tokendesc"></p>
+                <script>
+                    const tokenDesc = document.getElementById("tokendesc");
+                    tokenDesc.innerHTML = "This is a " + currentTokenInstance.name + " Token.";
+                </script>
+            </ts:view>
+        </ts:card>
+        <ts:card type="onboarding" name="purchase" buttonClass="primary">
+            <ts:label>
+                <ts:string xml:lang="en">
+                    Mint
+                </ts:string>
+            </ts:label>
+
+            <ts:transaction>
+                <ethereum:transaction function="mint" contract="NFTToken">
+                    <ts:data />
+                </ethereum:transaction>
+            </ts:transaction>
+            <ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+                <p id="tokendesc"></p>
+                <script>
+                    const tokenDesc = document.getElementById("tokendesc");
+                    tokenDesc.innerHTML = "This is an onboarding card for " + currentTokenInstance.name + " Token.";
+                </script>
+                <br />
+                <p>Use this to mint your own tokens.</p>
+            </ts:view>
+        </ts:card>
+    </ts:cards>
+</ts:token>

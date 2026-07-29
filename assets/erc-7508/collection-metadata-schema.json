@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Token Attributes Metadata Schema",
+  "description": "Metadata to describe each of the attributes a collection and their tokens support.",
+  "definitions": {
+    "modifier": {
+      "type": "object",
+      "description": "Defines that the current attribute works as a modifier, altering a target attribute",
+      "required": ["new_value", "target_attribute"],
+      "properties": {
+        "new_value": {
+          "type": "object",
+          "description": "Json logic definition to calculate the final value for the target attribute"
+        },
+        "target_attribute": {
+          "type": "string",
+          "description": "Target attribute to modify. If no prefix it applies to self. If prefixed with 'parent.' it applies to parent, if prefixed with 'child.' it applies to child. If parent or child do not have such attribute, modifier is ignored. Use {\"var\":\"value\"} to refer to current value, and {\"var\":\"[parent|child|self].attribute\"} to reference parent, child or self attribute values. Also set on data to apply logic."
+        }
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name used to get and set on the Token Attributes Repository"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the attribute"
+        },
+        "type": {
+          "type": "string",
+          "description": "Identifies the type, the same must be used to get and set on the Token Attributes Repository",
+          "enum": ["address", "boolean", "bytes", "string", "uint", "int"]
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Name to show on UIs, if not set, falls back to name"
+        },
+        "display_type": {
+          "type": "string",
+          "description": "Indicates how to properly display the value. Applies for uints and int only. Defaults to number.",
+          "enum": ["number", "boost_number", "boost_percentage", "date"]
+        },
+        "decimals": {
+          "type": "integer",
+          "description": "Used to simulate storage of float values. The value of the attribute must be divided by 10^decimals. Applies for uints and int only."
+        },
+        "min_value": {
+          "type": "integer",
+          "description": "Minimum value allowed for the attribute. Applies for uints and int only. Affected by decimals."
+        },
+        "max_value": {
+          "type": "integer",
+          "description": "Maximum value allowed for the attribute. Applies for uints and int only. Affected by decimals."
+        },
+        "conditional_value": {
+          "type": "object",
+          "description": "Json logic (see https://www.npmjs.com/package/json-logic-js) definition to calculate the final value for the attribute. Use {\"var\":\"value\"} to refer to current value, and {\"var\":\"[parent|child|self].attribute\"} to reference parent, child or self attribute values. Also set those values on data to apply logic."
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/modifier"
+          }
+        },
+        "multi_storage": {
+          "type": "array",
+          "description": "Definition of multiple attributes that are stored in a single attribute via bit shifting. Only applies to uint, int, bytes and string types. The type of the internal attributes is the same as the main attribute.",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "name"],
+            "properties": {
+              "from": {
+                "type": "integer",
+                "description": "Start bit position, inclusive"
+              },
+              "to": {
+                "type": "integer",
+                "description": "End bit position, inclusive"
+              },
+              "name": {
+                "type": "string",
+                "description": "Name used to get and set on the Token Attributes Repository"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the attribute"
+              },
+              "display_name": {
+                "type": "string",
+                "description": "Name to show on UIs, if not set, falls back to name"
+              },
+              "display_type": {
+                "type": "string",
+                "description": "Indicates how to properly display the value. Applies for uints and int only. Defaults to number."
+              },
+              "decimals": {
+                "type": "integer",
+                "description": "Used to simulate storage of float values. The value of the attribute must be divided by 10^decimals. Applies for uints and int only."
+              },
+              "min_value": {
+                "type": "integer",
+                "description": "Minimum value allowed for the attribute. Applies for uints and int only. Affected by decimals."
+              },
+              "max_value": {
+                "type": "integer",
+                "description": "Maximum value allowed for the attribute. Applies for uints and int only. Affected by decimals."
+              },
+              "conditional_value": {
+                "type": "object",
+                "description": "Json logic (see https://www.npmjs.com/package/json-logic-js) definition to calculate the final value for the attribute. Use {\"var\":\"value\"} to refer to current value, and {\"var\":\"[parent|child|self].attribute\"} to reference parent, child or self attribute values. Also set those values on data to apply logic."
+              },
+              "modifiers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/modifier"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "token_attributes": {
+      "type": "array",
+      "description": "Defines all possible attributes for tokens in the collection",
+      "items": {
+        "$ref": "#/definitions/attribute"
+      }
+    },
+    "collection_attributes": {
+      "type": "array",
+      "description": "Defines all possible collection wide attributes for the collection. These attributes are set and get using MaxUint256 as token Id.",
+      "items": {
+        "$ref": "#/definitions/attribute"
+      }
+    }
+  },
+  "additionalProperties": true
+}

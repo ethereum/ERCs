@@ -1,0 +1,63 @@
+on:
+  pull_request_target:
+  pull_request_review:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull Request Number
+        type: string
+        required: true
+  issue_comment:
+    types:
+      - created
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+name: Auto Review Bot Trigger
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    name: Trigger
+    steps:
+      - name: Stop Bot Recursion
+        run: exit 1
+        if: (endsWith(github.event.sender.login, '-bot') || endsWith(github.event.sender.login, '[bot]')) && github.event.sender.login != 'renovate[bot]'
+          
+      - name: Write PR Number - PR Target
+        run: echo $PR_NUMBER > pr-number.txt
+        if: github.event_name == 'pull_request_target'
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+
+      - name: Write PR Number - PR Review
+        run: echo $PR_NUMBER > pr-number.txt
+        if: github.event_name == 'pull_request_review'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+
+      - name: Write PR Number - Workflow Dispatch
+        run: echo $PR_NUMBER > pr-number.txt
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+
+      - name: Write PR Number - Comment Retrigger
+        run: echo $PR_NUMBER > pr-number.txt
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@eth-bot rerun')
+        env:
+          PR_NUMBER: ${{ github.event.issue.number }}
+      
+      - name: Check File Existence
+        uses: andstor/file-existence-action@20b4d2e596410855db8f9ca21e96fbe18e12930b
+        id: check_pr_number_exists
+        with:
+          files: pr-number.txt
+
+      - name: Save PR Number
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        if: steps.check_pr_number_exists.outputs.files_exists == 'true'
+        with:
+          name: pr-number
+          path: pr-number.txt
