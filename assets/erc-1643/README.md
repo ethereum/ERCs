@@ -47,21 +47,25 @@ forge test
 
 ## Static Analysis
 
-This project is analyzed with **Aderyn** (smart contract static analyzer): [https://github.com/Cyfrin/aderyn](https://github.com/Cyfrin/aderyn)
+This project is analyzed with **Aderyn** ([Cyfrin](https://github.com/Cyfrin/aderyn)) and **Slither** ([Crytic](https://github.com/crytic/slither)).
 
 | Tool | Version | Date | Commit | High | Medium | Low | Info | To fix? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Aderyn | 0.6.5 | 2026-07-28 | `e53add5` | 0 | 0 | 3 | 0 | **No** |
+| Aderyn | 0.6.5 | 2026-07-28 | `bd66a70` | 0 | 0 | 3 | 0 | **No** |
+| Slither | 0.11.5 | 2026-07-28 | `bd66a70` | 0 | 0 | 0 | 0 | **No** |
 
 ```bash
 aderyn -x mocks --output doc/aderyn-report.md
+slither . --checklist --filter-paths "node_modules,submodules,test,forge-std,mocks,lib"
 ```
 
-- Report: [`doc/aderyn-report.md`](doc/aderyn-report.md)
-- Per-finding triage: [`doc/aderyn-report-feedback.md`](doc/aderyn-report-feedback.md)
+- Aderyn report: [`doc/aderyn-report.md`](doc/aderyn-report.md)
+- Aderyn per-finding triage: [`doc/aderyn-report-feedback.md`](doc/aderyn-report-feedback.md)
 - Security status and accepted risks: [`doc/AUDIT_OVERVIEW.md`](doc/AUDIT_OVERVIEW.md)
 
-The three Low findings are accepted by design or are deployment-target considerations; none requires a source change. New reports belong in the `doc/` folder.
+Aderyn's three Low findings are accepted by design or are deployment-target considerations; none requires a source change. Slither reports no findings in scope — `lib` is filtered because every unfiltered result is anchored in OpenZeppelin, which is out of scope.
+
+The Slither output is kept as a local artifact and is intentionally not linked here: it must not be carried into the EIP repository's `assets/eip-1643/` directory, where an extra document breaks the EIP/ERC validation check. Reproduce it with the command above.
 
 ## Deployment Security Warning
 

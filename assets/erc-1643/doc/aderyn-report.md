@@ -6,7 +6,7 @@
 | Command | `aderyn -x mocks --output doc/aderyn-report.md` |
 | Scope | `src/` — 4 `.sol` files, 102 nSLOC |
 | Mocks included | No (repo has no mock contracts; `-x mocks` matched nothing) |
-| Commit | `e53add5` |
+| Commit | `bd66a70` |
 | Date | 2026-07-28 |
 | Result | **0 High · 0 Medium · 3 Low · 0 Info** |
 
@@ -81,13 +81,13 @@ Contracts have owners with privileged rights to perform admin tasks and need to 
 <details><summary>5 Found Instances</summary>
 
 
-- Found in src/ERC20DocumentToken.sol [Line: 14](../src/ERC20DocumentToken.sol#L14)
+- Found in src/ERC20DocumentToken.sol [Line: 27](../src/ERC20DocumentToken.sol#L27)
 
 	```solidity
 	    function mint(address to, uint256 amount) external onlyOwner {
 	```
 
-- Found in src/ERC721DocumentToken.sol [Line: 14](../src/ERC721DocumentToken.sol#L14)
+- Found in src/ERC721DocumentToken.sol [Line: 27](../src/ERC721DocumentToken.sol#L27)
 
 	```solidity
 	    function mint(address to, uint256 tokenId) external onlyOwner {
@@ -99,13 +99,13 @@ Contracts have owners with privileged rights to perform admin tasks and need to 
 	abstract contract ERC1643 is IERC1643, Ownable, ERC165 {
 	```
 
-- Found in src/erc-1643/ERC1643.sol [Line: 34](../src/erc-1643/ERC1643.sol#L34)
+- Found in src/erc-1643/ERC1643.sol [Line: 49](../src/erc-1643/ERC1643.sol#L49)
 
 	```solidity
 	    function setDocument(bytes32 name, string calldata uri, bytes32 documentHash) public virtual onlyOwner {
 	```
 
-- Found in src/erc-1643/ERC1643.sol [Line: 51](../src/erc-1643/ERC1643.sol#L51)
+- Found in src/erc-1643/ERC1643.sol [Line: 72](../src/erc-1643/ERC1643.sol#L72)
 
 	```solidity
 	    function removeDocument(bytes32 name) public virtual onlyOwner {

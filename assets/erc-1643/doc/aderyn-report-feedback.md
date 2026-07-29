@@ -8,7 +8,7 @@ Companion to [`aderyn-report.md`](./aderyn-report.md). Every finding below was o
 | Tool | Aderyn 0.6.5 |
 | Command | `aderyn -x mocks --output doc/aderyn-report.md` |
 | Scope | `src/` — 4 `.sol` files, 102 nSLOC (mocks excluded; repo has none) |
-| Commit | `e53add5` |
+| Commit | `bd66a70` |
 | Date | 2026-07-28 |
 | Result | **0 High · 0 Medium · 3 Low · 0 Info** |
 
@@ -24,8 +24,8 @@ Companion to [`aderyn-report.md`](./aderyn-report.md). Every finding below was o
 
 ### L-1: Centralization Risk — *By design* (5 instances)
 
-Flagged: `ERC1643.sol:10` (`is IERC1643, Ownable, ERC165`), `ERC1643.sol:34` (`setDocument`),
-`ERC1643.sol:51` (`removeDocument`), `ERC20DocumentToken.sol:14` and `ERC721DocumentToken.sol:14`
+Flagged: `ERC1643.sol:10` (`is IERC1643, Ownable, ERC165`), `ERC1643.sol:49` (`setDocument`),
+`ERC1643.sol:72` (`removeDocument`), `ERC20DocumentToken.sol:27` and `ERC721DocumentToken.sol:27`
 (`mint`).
 
 This is the intended architecture, not an oversight. ERC-1643's Security Considerations state that
@@ -69,30 +69,6 @@ chain must lower `evm_version` in `foundry.toml` at deployment time — a per-de
 cannot be resolved in the source, and one the reference implementation should not hard-code.
 
 No source change; the constraint is documented here and in the report header.
-
-## Delta from previous run
-
-The previous report was generated before commit `e53add5` (`style: apply forge fmt and add agent guide`).
-
-| Metric | Previous | Current | Change |
-| --- | --- | --- | --- |
-| High | 0 | 0 | — |
-| Low | 3 | 3 | — |
-| L-1 instances | 5 | 5 | — |
-| L-2 instances | 4 | 4 | — |
-| L-3 instances | 4 | 4 | — |
-| Total nSLOC | 93 | 102 | +9 |
-
-No findings were added, removed, or changed in severity. Two differences are cosmetic and fully
-explained by `forge fmt`:
-
-- **nSLOC 93 → 102.** The reformat wrapped three long signatures (both token constructors and the
-  `IERC1643.getDocument` declaration) across multiple lines, adding 3 counted lines per file. No logic
-  changed.
-- **`mint` line references 11 → 14** in both token files, from the constructor wrapping above them.
-
-Additions since the previous run — the `testERC20_UnknownDocumentReturnsEmpty` test and the
-`CLAUDE.md`/`AGENTS.md` guides — are outside Aderyn's `src/` scope and do not affect these results.
 
 ## Executive triage
 

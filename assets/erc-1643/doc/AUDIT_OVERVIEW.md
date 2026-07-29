@@ -24,20 +24,34 @@ forge-std v1.16.1).
 
 | Analysis | Date | Commit | Report | Triage |
 | --- | --- | --- | --- | --- |
-| Aderyn 0.6.5 | 2026-07-28 | `e53add5` | [`aderyn-report.md`](./aderyn-report.md) | [`aderyn-report-feedback.md`](./aderyn-report-feedback.md) |
-| Slither | — | — | Not yet run | — |
+| Aderyn 0.6.5 | 2026-07-28 | `bd66a70` | [`aderyn-report.md`](./aderyn-report.md) | [`aderyn-report-feedback.md`](./aderyn-report-feedback.md) |
+| Slither 0.11.5 | 2026-07-28 | `bd66a70` | Run locally; report not published (see note) | — |
 | Manual review | — | — | Not performed | — |
 | Third-party audit | — | — | Not performed | — |
+
+> **Note on the Slither report.** Its output is kept as a local artifact only and is not published in
+> this table, because the file must not be carried into the EIP repository's `assets/eip-1643/`
+> directory — an extra document there breaks the EIP/ERC validation check. The result is stated in
+> full below. Reproduce it with the command under "Reproducing".
 
 ## Static-analysis results
 
 | Tool | High | Medium | Low | Info | Anything to fix? |
 | --- | --- | --- | --- | --- | --- |
 | Aderyn 0.6.5 | 0 | 0 | 3 | 0 | **No** — all by design or environment |
+| Slither 0.11.5 | 0 | 0 | 0 | 0 | **No** — no findings in scope |
 
 Aderyn's three Low findings are Centralization Risk (owner-gated writes, mandated by the ERC),
 Unspecific Solidity Pragma (correct for inheritable module code), and PUSH0 Opcode (a deployment-chain
 consideration). Each is verified against the source and dispositioned in the triage file.
+
+Slither reported **no findings** across 101 detectors — no reentrancy, uninitialized state, unchecked
+return value, arbitrary send, shadowing, or incorrect equality. Run unfiltered it produces 46 results,
+every one of them anchored in `lib/openzeppelin-contracts` and therefore out of scope; `lib` is
+excluded via `--filter-paths` for that reason. The project's own files surface in an unfiltered run
+only inside the `solc-version` detector's "different pragma directives are used" finding, which
+enumerates every pragma in the compilation unit — a report on the dependency tree, not a defect in
+these four files.
 
 ## Findings fixed
 
@@ -61,4 +75,5 @@ specification exactly.
 
 ```bash
 aderyn -x mocks --output doc/aderyn-report.md
+slither . --checklist --filter-paths "node_modules,submodules,test,forge-std,mocks,lib"
 ```
