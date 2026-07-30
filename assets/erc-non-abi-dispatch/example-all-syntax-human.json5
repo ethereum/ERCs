@@ -1,0 +1,297 @@
+{
+  //  "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+  "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding Safe's MultiSend packed batching format, Uniswap's Universal Router command dispatch, and ERC-7579's execute mode.",
+  "context": {
+    "$id": "ExamplesForAllCases",
+    "contract": {
+      "deployments": []
+    }
+  },
+  "metadata": {},
+  "display": {
+    "formats": {
+      "multiSend(bytes transactions)": {
+        "$id": "MultiSend Batch",
+        "intent": "Execute batch",
+        "fields": [
+          {
+            "path": "transactions",
+            "label": "Batched calls",
+            "format": "custom",
+            "layout": {
+              "type": "sequence",
+              "element": {
+                "type": "object",
+                "fields": [
+                  {
+                    "name": "operation",
+                    "schema": {
+                      "type": "uint",
+                      "bytes": 1
+                    }
+                  },
+                  {
+                    "name": "to",
+                    "schema": {
+                      "type": "address"
+                    }
+                  },
+                  {
+                    "name": "value",
+                    "schema": {
+                      "type": "uint",
+                      "bytes": 32
+                    }
+                  },
+                  {
+                    "name": "dataLength",
+                    "schema": {
+                      "type": "uint",
+                      "bytes": 32
+                    }
+                  },
+                  {
+                    "name": "data",
+                    "schema": {
+                      "type": "bytes",
+                      "lengthFrom": "dataLength"
+                    }
+                  }
+                ],
+                "interactions": [
+                  {
+                    "operation": {
+                      "type": "switch",
+                      "expression": "$element.operation",
+                      "cases": {
+                        "0x00": "call",
+                        "0x01": "delegatecall",
+                      }
+                    },
+                    "target": "$element.to",
+                    "value": "$element.value",
+                    "calldata": "{$element.methodSelector}{$element.data}"
+                  }
+                ]
+              },
+            }
+          }
+        ]
+      },
+      "execute(bytes commands,bytes[] inputs,uint256 deadline)": {
+        "$id": "Universal Router Execute",
+        "intent": "Execute swap",
+        "fields": [
+          {
+            "path": "deadline",
+            "label": "Valid until",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "inputs",
+            "label": "Commands",
+            "format": "custom",
+            "layout": {
+              "type": "sequence",
+              "element": {
+                "type": "switch",
+                "expression": {
+                  "path": "commands",
+                  "type": "uint",
+                  "bytes": 1,
+                  "mask": "0b111111"
+                },
+                "cases": {
+                  "0x00": {
+                    "(address recipient,uint256 amountIn,uint256 amountOutMinimum,bytes path,bool payerIsUser)": {
+                      "intent": "Execute swap with exact input and minimum output",
+                      "fields": [
+                        {
+                          "path": "recipient",
+                          "label": "Recipient",
+                          "format": "addressName"
+                        },
+                        {
+                          "path": "amountIn",
+                          "label": "Amount in",
+                          "format": "tokenAmount",
+                          "params": {
+                            "tokenPath": "path.[0:20]"
+                          }
+                        },
+                        {
+                          "path": "amountOutMinimum",
+                          "label": "Minimum amount out",
+                          "format": "raw",
+                          "$comment": "Output token lives at the tail of a variable-hop V3 path; no established slice syntax picks out 'last 20 bytes' of a variable-length buffer, so this is left as a raw number rather than resolved to a token amount."
+                        },
+                        {
+                          "path": "path",
+                          "label": "Swap path",
+                          "format": "raw"
+                        },
+                        {
+                          "path": "payerIsUser",
+                          "label": "Pay from wallet",
+                          "format": "raw"
+                        }
+                      ]
+                    }
+                  },
+                  "0x04": {
+                    "(address token,address recipient,uint256 amountMinimum)": {
+                      "intent": "Sweep remaining balance",
+                      "fields": [
+                        {
+                          "path": "token",
+                          "label": "Token",
+                          "format": "addressName"
+                        },
+                        {
+                          "path": "recipient",
+                          "label": "Recipient",
+                          "format": "addressName"
+                        },
+                        {
+                          "path": "amountMinimum",
+                          "label": "Minimum amount",
+                          "format": "tokenAmount",
+                          "params": {
+                            "tokenPath": "token"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "execute(bytes32 mode,bytes executionCalldata)": {
+        "$id": "ERC-7579 Execute Function",
+        "intent": "Execute",
+        "fields": [
+          {
+            "path": "mode",
+            "label": "Mode",
+            "format": "custom",
+            "layout": {
+              "type": "object",
+              "fields": [
+                {
+                  "name": "callType",
+                  "schema": {
+                    "type": "uint",
+                    "bytes": 1
+                  }
+                },
+                {
+                  "name": "execType",
+                  "schema": {
+                    "type": "uint",
+                    "bytes": 1
+                  }
+                },
+                {
+                  "name": "unused",
+                  "schema": {
+                    "type": "bytes",
+                    "length": 4
+                  }
+                },
+                {
+                  "name": "modeSelector",
+                  "schema": {
+                    "type": "bytes",
+                    "length": 4
+                  }
+                },
+                {
+                  "name": "modePayload",
+                  "schema": {
+                    "type": "bytes",
+                    "length": 22
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "path": "executionCalldata",
+            "label": "Execution",
+            "switch": {
+              "expression": {
+                "path": "mode.callType"
+              },
+              "cases": {
+                "0x00": {
+                  "format": "custom",
+                  "layout": {
+                    "type": "object",
+                    "fields": [
+                      {
+                        "name": "target",
+                        "schema": {
+                          "type": "address"
+                        }
+                      },
+                      {
+                        "name": "value",
+                        "schema": {
+                          "type": "uint",
+                          "bytes": 32
+                        }
+                      },
+                      {
+                        "name": "callData",
+                        "schema": {
+                          "type": "bytes"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x01": {
+                  "format": "array",
+                  "element": {
+                    "fields": [
+                      { "name": "target",   "type": "address" },
+                      { "name": "value",    "type": "uint256" },
+                      { "name": "callData", "type": "bytes" }
+                    ]
+                  },
+                }
+              },
+              "default": "reject"
+            }
+          },
+          {
+            "path": "executionCalldata.callData",
+            "label": "Batched call data",
+            "format": "calldata",
+            "params": {
+              "calleePath": "executionCalldata.target",
+              "amountPath": "executionCalldata.value"
+            },
+            "$comment": "Only applicable when mode.callType == 0x00: executionCalldata was parsed via layout above into a single target/value/callData record; this field resolves callData as an embedded call to target, reusing ERC-7730's own calldata format rather than a companion-ERC-specific construct - callData is already the full, contiguous ABI calldata, no packing involved."
+          },
+          {
+            "path": "executionCalldata[].callData",
+            "label": "Batched call data",
+            "format": "calldata",
+            "params": {
+              "calleePath": "executionCalldata[].target",
+              "amountPath": "executionCalldata[].value"
+            },
+            "$comment": "Only applicable when mode.callType == 0x01: each ABI-decoded Execution.callData in the batch is itself calldata to its sibling target, resolved the same way as the single-call case above."
+          }
+        ]
+      }
+    }
+  }
+}
