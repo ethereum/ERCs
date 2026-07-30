@@ -1,0 +1,312 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+
+    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding BatchRelayerLibrary's setRelayerApproval/joinPool/exitPool - reached only via BalancerRelayer.multicall's per-entry DELEGATECALL, see example-balancer-relayer-multicall.json. Two things are verified against a real, mined transaction; the rest is verified only against source (VaultActions.sol, WeightedPoolUserData.sol, StablePoolUserData.sol, BasePoolUserData.sol at balancer/balancer-v2-monorepo) and flagged inline where that's the case, the same way this ERC's own initCode example marks its Permit2 template as an unverified placeholder. Ethereum mainnet tx 0x9ebb8a7d7c085b3dde80c02f5bc44a1d32749104e2b17d17bf72d7f674ef1b34 (2026-05-22, block 25154060): entry 0 is setRelayerApproval (bundling the one-time authorization into the same transaction as the action it authorizes); entries 1 and 2 are both exitPool - exiting a Weighted pool (kind=0x00, ExitKind=0x01) for, among other tokens, the BPT of a Stable pool nested inside it, then exiting that Stable pool (kind=0x03, ExitKind=0x02) using the just-received BPT amount directly as a chained reference, since that amount cannot be known until the first exitPool actually executes on-chain. joinPool is NOT exercised by this transaction; its entry below is included because it was asked for, built symmetrically to exitPool from source, and is marked as such - it has not been independently confirmed against a separate mined transaction.",
+
+    "context": {
+        "$id": "Balancer Batch Relayer Library",
+        "contract": {
+            "deployments": [
+                { "chainId": 1, "address": "0xeA66501dF1A00261E3bB79D1E90444fc6A186B62" }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Balancer",
+        "contractName": "BatchRelayerLibrary",
+        "info": {
+            "url": "https://docs-v2.balancer.fi/concepts/advanced/relayers.html"
+        }
+    },
+
+    "display": {
+        "formats": {
+
+            "setRelayerApproval(address relayer,bool approved,bytes authorization)": {
+                "$id": "Balancer Relayer Approval",
+                "intent": "Allow relayer to act on your behalf",
+                "fields": [
+                    { "path": "relayer", "label": "Relayer", "format": "addressName" },
+                    { "path": "approved", "label": "Approved", "format": "raw" },
+                    {
+                        "path": "authorization",
+                        "label": "Signed authorization",
+                        "format": "custom",
+                        "layout": {
+                            "type": "object",
+                            "fields": [
+                                { "name": "deadline", "schema": { "type": "uint", "bytes": 32 } },
+                                { "name": "v", "schema": { "type": "uint", "bytes": 32 } },
+                                { "name": "r", "schema": { "type": "bytes", "length": 32 } },
+                                { "name": "s", "schema": { "type": "bytes", "length": 32 } }
+                            ]
+                        },
+                        "$comment": "A fixed, non-branching packed record (Vault-specific EIP-712 authorization: deadline, then v/r/s each occupying a full 32-byte word, not tightly packed) - object is enough here, no switch/tag involved. Confirmed against the cited transaction: deadline = type(uint256).max (never expires), v = 28."
+                    },
+                    {
+                        "path": "authorization.deadline",
+                        "label": "Valid until",
+                        "format": "date",
+                        "params": { "encoding": "timestamp" }
+                    }
+                ]
+            },
+
+            "joinPool(bytes32 poolId,uint8 kind,address sender,address recipient,(address[],uint256[],bytes,bool) request,uint256 value,uint256 outputReference)": {
+                "$id": "Balancer Relayer Join Pool",
+                "intent": "Add liquidity",
+                "$comment": "Not independently confirmed against a mined transaction - built symmetrically to the verified exitPool entry below, from VaultActions.sol/WeightedPoolUserData.sol/StablePoolUserData.sol source. Only kind=0x00 (WEIGHTED), JoinKind.EXACT_TOKENS_IN_FOR_BPT_OUT (0x01) is covered, the one join kind the relayer itself performs chained-reference substitution on (VaultActions._doWeightedJoinChainedReferenceReplacements/_doStableJoinChainedReferenceReplacements: 'All other join kinds are given out ... so we don't do replacements for those') - a production descriptor would cover LEGACY_STABLE/COMPOSABLE_STABLE/COMPOSABLE_STABLE_V2 (kind=0x01-0x03) and the other JoinKind values too.",
+                "fields": [
+                    {
+                        "path": "poolId",
+                        "label": "Pool",
+                        "format": "custom",
+                        "layout": {
+                            "type": "object",
+                            "fields": [
+                                { "name": "poolAddress", "schema": { "type": "address" } },
+                                { "name": "specialization", "schema": { "type": "uint", "bytes": 2 } },
+                                { "name": "nonce", "schema": { "type": "uint", "bytes": 10 } }
+                            ]
+                        },
+                        "$comment": "Pure bit-shift extraction (PoolRegistry._getPoolAddress/_getPoolSpecialization), no chain read - the pool's address is embedded in poolId at registration time and is immutable thereafter."
+                    },
+                    { "path": "poolId.poolAddress", "label": "Pool", "format": "addressName" },
+                    { "path": "sender", "label": "From", "format": "addressName" },
+                    { "path": "recipient", "label": "Recipient", "format": "addressName" },
+                    {
+                        "path": "request.maxAmountsIn[]",
+                        "label": "Maximum amount in",
+                        "format": "tokenAmount",
+                        "params": { "tokenPath": "request.assets[]" }
+                    },
+                    {
+                        "path": "request.userData",
+                        "label": "Join details",
+                        "switch": {
+                            "expression": { "path": "kind" },
+                            "cases": {
+                                "0x00": {
+                                    "switch": {
+                                        "expression": { "type": "uint", "bytes": 32 },
+                                        "cases": {
+                                            "0x01": {
+                                                "(uint8 joinKind,uint256[] amountsIn,uint256 minBptAmountOut)": {
+                                                    "intent": "Add liquidity for exact tokens",
+                                                    "fields": [
+                                                        {
+                                                            "path": "amountsIn[]",
+                                                            "label": "Amount in",
+                                                            "format": "tokenAmount",
+                                                            "params": { "tokenPath": "#.request.assets[]" },
+                                                            "$comment": "amountsIn is decoded from inside userData, a switch-matched local tuple - request.assets is a sibling of userData one level up in the outer call, not reachable by a relative path. #. crossing that scope boundary is this ERC's own clarification (see Path addressing/Rationale), not an established base-ERC-7730 behavior; example-universal-router.json leaves its own analogous case as a raw number instead, written before this clarification existed."
+                                                        },
+                                                        {
+                                                            "path": "minBptAmountOut",
+                                                            "label": "Minimum pool tokens out",
+                                                            "layout": {
+                                                                "type": "switch",
+                                                                "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+                                                                "cases": {
+                                                                    "0xba10000000000000000000000000000000000000000000000000000000000000": {
+                                                                        "label": "Dynamic value — set by an earlier step in this transaction, not known yet",
+                                                                        "intent": "warning"
+                                                                    },
+                                                                    "$default": { "format": "tokenAmount", "params": { "tokenPath": "#.poolId.poolAddress" } }
+                                                                }
+                                                            },
+                                                            "$comment": "The pool's own BPT is the token being minted, so the token to pair against is #.poolId.poolAddress - decoded at the very top of this call, three switch/layout scopes above this field."
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "$default": "reject"
+                                        }
+                                    }
+                                },
+                                "$default": "reject"
+                            }
+                        }
+                    },
+                    { "path": "request.fromInternalBalance", "label": "Pay from Vault internal balance", "format": "raw" },
+                    { "path": "value", "label": "ETH sent", "format": "amount" },
+                    {
+                        "path": "outputReference",
+                        "label": "Save result as",
+                        "layout": {
+                            "type": "switch",
+                            "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+                            "cases": {
+                                "0xba10000000000000000000000000000000000000000000000000000000000000": {
+                                    "label": "Stored for use by a later step in this transaction",
+                                    "intent": "info"
+                                },
+                                "$default": { "format": "raw" }
+                            }
+                        },
+                        "$comment": "Unlike exitPool's outputReferences[].key below, there is no on-chain requirement that this be a chained reference - 0 ('do not store') is a common, valid, non-sentinel value, so $default falls through to a plain display rather than reject."
+                    }
+                ]
+            },
+
+            "exitPool(bytes32 poolId,uint8 kind,address sender,address recipient,(address[],uint256[],bytes,bool) request,(uint256,uint256)[] outputReferences)": {
+                "$id": "Balancer Relayer Exit Pool",
+                "intent": "Remove liquidity",
+                "fields": [
+                    {
+                        "path": "poolId",
+                        "label": "Pool",
+                        "format": "custom",
+                        "layout": {
+                            "type": "object",
+                            "fields": [
+                                { "name": "poolAddress", "schema": { "type": "address" } },
+                                { "name": "specialization", "schema": { "type": "uint", "bytes": 2 } },
+                                { "name": "nonce", "schema": { "type": "uint", "bytes": 10 } }
+                            ]
+                        }
+                    },
+                    { "path": "poolId.poolAddress", "label": "Pool", "format": "addressName" },
+                    { "path": "sender", "label": "From", "format": "addressName" },
+                    { "path": "recipient", "label": "Recipient", "format": "addressName" },
+                    {
+                        "path": "request.minAmountsOut[]",
+                        "label": "Minimum amount out",
+                        "format": "tokenAmount",
+                        "params": { "tokenPath": "request.assets[]" }
+                    },
+                    {
+                        "path": "request.userData",
+                        "label": "Exit details",
+                        "switch": {
+                            "expression": { "type": "uint", "bytes": 32 },
+                            "cases": {
+                                "0xff": {
+                                    "(uint8 exitKind,uint256 bptAmountIn)": {
+                                        "intent": "Exit in Recovery Mode",
+                                        "fields": [
+                                            {
+                                                "path": "bptAmountIn",
+                                                "label": "Pool tokens in",
+                                                "layout": {
+                                                    "type": "switch",
+                                                    "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+                                                    "cases": {
+                                                        "0xba10000000000000000000000000000000000000000000000000000000000000": {
+                                                            "label": "Dynamic value — set by an earlier step in this transaction, not known yet",
+                                                            "intent": "warning"
+                                                        },
+                                                        "$default": { "format": "tokenAmount", "params": { "tokenPath": "#.poolId.poolAddress" } }
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "$comment": "255 (0xff) is BasePoolUserData.RECOVERY_MODE_EXIT_KIND, deliberately the maximum uint8 value 'to prevent conflicts with future additions to the ExitKind enums' - common to every pool type, checked before kind is even consulted. Not independently mined; verified against BasePoolUserData.sol source."
+                                },
+                                "$default": {
+                                    "switch": {
+                                        "expression": { "path": "kind" },
+                                        "cases": {
+                                            "0x00": {
+                                                "switch": {
+                                                    "expression": { "type": "uint", "bytes": 32 },
+                                                    "cases": {
+                                                        "0x01": {
+                                                            "(uint8 exitKind,uint256 bptAmountIn)": {
+                                                                "intent": "Remove liquidity proportionally",
+                                                                "fields": [
+                                                                    {
+                                                                        "path": "bptAmountIn",
+                                                                        "label": "Pool tokens in",
+                                                                        "layout": {
+                                                                            "type": "switch",
+                                                                            "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+                                                                            "cases": {
+                                                                                "0xba10000000000000000000000000000000000000000000000000000000000000": {
+                                                                                    "label": "Dynamic value — set by an earlier step in this transaction, not known yet",
+                                                                                    "intent": "warning"
+                                                                                },
+                                                                                "$default": { "format": "tokenAmount", "params": { "tokenPath": "#.poolId.poolAddress" } }
+                                                                            }
+                                                                        },
+                                                                        "$comment": "Confirmed against the cited transaction's entry 1 (exiting the Weighted pool): a literal amount, 16,250.97 pool tokens - the $default branch, not the sentinel."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        "$default": "reject"
+                                                    }
+                                                }
+                                            },
+                                            "0x03": {
+                                                "switch": {
+                                                    "expression": { "type": "uint", "bytes": 32 },
+                                                    "cases": {
+                                                        "0x02": {
+                                                            "(uint8 exitKind,uint256 bptAmountIn)": {
+                                                                "intent": "Remove liquidity proportionally",
+                                                                "fields": [
+                                                                    {
+                                                                        "path": "bptAmountIn",
+                                                                        "label": "Pool tokens in",
+                                                                        "layout": {
+                                                                            "type": "switch",
+                                                                            "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+                                                                            "cases": {
+                                                                                "0xba10000000000000000000000000000000000000000000000000000000000000": {
+                                                                                    "label": "Dynamic value — set by an earlier step in this transaction, not known yet",
+                                                                                    "intent": "warning"
+                                                                                },
+                                                                                "$default": { "format": "tokenAmount", "params": { "tokenPath": "#.poolId.poolAddress" } }
+                                                                            }
+                                                                        },
+                                                                        "$comment": "Confirmed against the cited transaction's entry 2 (exiting the Stable pool): the sentinel branch - the exact chained reference (index 0, key 0xba10...0) that entry 1's outputReferences populated. This is the concrete case the sentinel extension exists for: this number cannot be known until entry 1 has executed on-chain."
+                                                                    }
+                                                                ]
+                                                            }
+                                                        },
+                                                        "$default": "reject"
+                                                    }
+                                                }
+                                            },
+                                            "0x01": "reject",
+                                            "0x02": "reject",
+                                            "$default": "reject"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "$comment": "Recovery mode is checked first, unconditionally of kind, matching VaultActions._doExitPoolChainedReferenceReplacements' real precedence ('Must check for the recovery mode ExitKind first ... common to all pool types'). kind=0x01 (LEGACY_STABLE) and 0x02 (COMPOSABLE_STABLE v1) are left as reject: not exercised by the cited transaction, and VaultActions.sol itself documents that ExitKind numbering differs even within the Stable family across these versions ('BPT_IN_FOR_EXACT_TOKENS_OUT is 2 in legacy Stable Pools, but 1 in Composable Stable Pools') - a production descriptor would need their own separate tables, not a shared one."
+                    },
+                    { "path": "request.toInternalBalance", "label": "Receive to Vault internal balance", "format": "raw" },
+                    {
+                        "path": "outputReferences[].index",
+                        "label": "Token",
+                        "format": "raw",
+                        "$comment": "This indexes into request.assets - but as a value only known once decoded, not a fixed array position, so the established same-index array-pairing rule (params array read at the same index as the element being formatted) doesn't apply here: that rule pairs two arrays at the SAME position, not one array read at a position given by another array's own decoded value. Resolving this to an actual token/symbol is a further gap this worked example does not attempt to close."
+                    },
+                    {
+                        "path": "outputReferences[].key",
+                        "label": "Save result as",
+                        "layout": {
+                            "type": "switch",
+                            "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+                            "cases": {
+                                "0xba10000000000000000000000000000000000000000000000000000000000000": {
+                                    "label": "Stored for use by a later step in this transaction",
+                                    "intent": "info"
+                                },
+                                "$default": "reject"
+                            }
+                        },
+                        "$comment": "Unlike joinPool's outputReference, VaultActions.exitPool requires every entry here to be a chained reference (require(_isChainedReference(outputReferences[i].key), \"invalid chained reference\")) - a non-sentinel value is dead on arrival, so $default is reject rather than a plain display, matching this ERC's fail-closed rule for anything the real contract would itself revert on."
+                    }
+                ]
+            }
+
+        }
+    }
+}
