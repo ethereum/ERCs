@@ -70,7 +70,7 @@
                     },
                     "target": "$element.to",
                     "value": "$element.value",
-                    "calldata": "{$element.methodSelector}{$element.data}"
+                    "calldata": "$element.data"
                   }
                 ]
               },
@@ -83,25 +83,25 @@
         "intent": "Execute swap",
         "fields": [
           {
-            "path": "deadline",
-            "label": "Valid until",
-            "format": "date",
-            "params": {
-              "encoding": "timestamp"
-            }
-          },
-          {
-            "path": "inputs",
+            "path": "commands",
             "label": "Commands",
             "format": "custom",
             "layout": {
               "type": "sequence",
               "element": {
-                "type": "switch",
+                "type": "uint",
+                "bytes": 1
+              }
+            }
+          },
+          {
+            "path": "inputs",
+            "label": "Command Inputs",
+            "format": "array",
+            "element": {
+              "switch": {
                 "expression": {
-                  "path": "commands",
-                  "type": "uint",
-                  "bytes": 1,
+                  "path": "commands[$index]",
                   "mask": "0b111111"
                 },
                 "cases": {
@@ -168,6 +168,14 @@
                   }
                 }
               }
+            }
+          },
+          {
+            "path": "deadline",
+            "label": "Valid until",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
             }
           }
         ]
@@ -260,9 +268,18 @@
                   "format": "array",
                   "element": {
                     "fields": [
-                      { "name": "target",   "type": "address" },
-                      { "name": "value",    "type": "uint256" },
-                      { "name": "callData", "type": "bytes" }
+                      {
+                        "name": "target",
+                        "type": "address"
+                      },
+                      {
+                        "name": "value",
+                        "type": "uint256"
+                      },
+                      {
+                        "name": "callData",
+                        "type": "bytes"
+                      }
                     ]
                   },
                 }
