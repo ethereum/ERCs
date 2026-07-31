@@ -1,17 +1,16 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
-
-    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding Safe's MultiSend packed batching format. Verified against real Ethereum mainnet tx 0x414ae5aaff729927d663ccaa027ea2284e47fa546cb73ce1dee481ee36a7138e - see the ERC's Test Cases section.",
-
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "context": {
         "$id": "Safe MultiSendCallOnly 1.3.0",
         "contract": {
             "deployments": [
-                { "chainId": 1, "address": "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D" }
+                {
+                    "chainId": 1,
+                    "address": "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D"
+                }
             ]
         }
     },
-
     "metadata": {
         "owner": "Safe",
         "contractName": "MultiSendCallOnly",
@@ -19,7 +18,6 @@
             "url": "https://github.com/safe-global/safe-smart-account"
         }
     },
-
     "display": {
         "formats": {
             "multiSend(bytes transactions)": {
@@ -30,17 +28,62 @@
                         "path": "transactions",
                         "label": "Batched calls",
                         "layout": {
-                            "kind": "sequence",
+                            "type": "sequence",
                             "count": "tillEnd",
                             "element": {
-                                "kind": "struct",
+                                "type": "object",
                                 "fields": [
-                                    { "name": "operation",  "schema": { "kind": "uint", "bytes": 1 } },
-                                    { "name": "to",         "schema": { "kind": "address" } },
-                                    { "name": "value",      "schema": { "kind": "uint", "bytes": 32 } },
-                                    { "name": "dataLength", "schema": { "kind": "uint", "bytes": 32 } },
-                                    { "name": "data",       "schema": { "kind": "call", "to": "to", "lengthFrom": "dataLength" } }
+                                    {
+                                        "name": "operation",
+                                        "schema": {
+                                            "type": "uint",
+                                            "bytes": 1
+                                        }
+                                    },
+                                    {
+                                        "name": "to",
+                                        "schema": {
+                                            "type": "address"
+                                        }
+                                    },
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "uint",
+                                            "bytes": 32
+                                        }
+                                    },
+                                    {
+                                        "name": "dataLength",
+                                        "schema": {
+                                            "type": "uint",
+                                            "bytes": 32
+                                        }
+                                    },
+                                    {
+                                        "name": "data",
+                                        "schema": {
+                                            "type": "bytes",
+                                            "lengthFrom": "dataLength"
+                                        }
+                                    }
                                 ]
+                            }
+                        }
+                    },
+                    {
+                        "path": "transactions[].data",
+                        "label": "Batched call data",
+                        "format": "calldata",
+                        "params": {
+                            "calleePath": "transactions[].to",
+                            "amountPath": "transactions[].value",
+                            "operation": {
+                                "expression": "transactions[].operation",
+                                "cases": {
+                                    "0x01": "delegatecall",
+                                    "$default": "call"
+                                }
                             }
                         }
                     }

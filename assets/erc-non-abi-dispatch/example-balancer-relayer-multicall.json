@@ -1,17 +1,16 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
-
-    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding Balancer's BalancerRelayer.multicall(bytes[] data) - the outer entry point a human wallet actually signs against. Each data[i] is itself a complete, selector-prefixed call, but it is delegatecalled into a separate, fixed BatchRelayerLibrary contract (0xeA66501dF1A00261E3bB79D1E90444fc6A186B62), not into this relayer address, and that address never appears anywhere in the calldata - it is baked into the relayer's own immutable bytecode. That is why this is a separate descriptor file from example-balancer-relayer-library.json (which describes the library's own setRelayerApproval/joinPool/exitPool), following the same dispatcher/target split this ERC already uses for TieredExecutor. Verified against Ethereum mainnet tx 0x9ebb8a7d7c085b3dde80c02f5bc44a1d32749104e2b17d17bf72d7f674ef1b34 (2026-05-22, block 25154060) - see the ERC's Test Cases section.",
-
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "context": {
         "$id": "Balancer Relayer Multicall",
         "contract": {
             "deployments": [
-                { "chainId": 1, "address": "0x35Cea9e57A393ac66Aaa7E25C391D52C74B5648f" }
+                {
+                    "chainId": 1,
+                    "address": "0x35Cea9e57A393ac66Aaa7E25C391D52C74B5648f"
+                }
             ]
         }
     },
-
     "metadata": {
         "owner": "Balancer",
         "contractName": "BalancerRelayer",
@@ -19,7 +18,6 @@
             "url": "https://docs-v2.balancer.fi/concepts/advanced/relayers.html"
         }
     },
-
     "display": {
         "formats": {
             "multicall(bytes[] data)": {
@@ -33,8 +31,7 @@
                         "params": {
                             "callee": "0xeA66501dF1A00261E3bB79D1E90444fc6A186B62",
                             "operation": "delegatecall"
-                        },
-                        "$comment": "callee is a literal constant, not a path: the BatchRelayerLibrary address is immutable in the relayer's own bytecode and is never itself present in calldata (base ERC-7730's calleePath/callee already allows either form). operation is this companion ERC's addition - every entry executes as a DELEGATECALL, in the relayer's own storage and identity, not a plain call to the library."
+                        }
                     }
                 ]
             }

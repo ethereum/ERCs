@@ -1,17 +1,16 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
-
-    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding an ERC-7683 cross-chain order via orderDataType dispatch. Verified against a real Base mainnet transaction, tx 0x73b3ca11e3733c78db8365086f64874879fb3a859b21c960ec072c2a95c5da09 - see the ERC's Test Cases section.",
-
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "context": {
         "$id": "Across Origin Settler",
         "contract": {
             "deployments": [
-                { "chainId": 8453, "address": "0x4afb570AC68BfFc26Bb02FdA3D801728B0f93C9E" }
+                {
+                    "chainId": 8453,
+                    "address": "0x4afb570AC68BfFc26Bb02FdA3D801728B0f93C9E"
+                }
             ]
         }
     },
-
     "metadata": {
         "owner": "Across Protocol",
         "contractName": "AcrossOriginSettler",
@@ -19,24 +18,33 @@
             "url": "https://docs.across.to/guides/concepts/erc-7683"
         }
     },
-
     "display": {
         "formats": {
             "open((uint32 fillDeadline,bytes32 orderDataType,bytes orderData) order)": {
                 "$id": "ERC-7683 Open Order",
                 "intent": "Open cross-chain order",
                 "fields": [
-                    { "path": "order.fillDeadline", "label": "Fill deadline", "format": "date", "params": { "encoding": "timestamp" } },
+                    {
+                        "path": "order.fillDeadline",
+                        "label": "Fill deadline",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
                     {
                         "path": "order.orderData",
                         "label": "Order data",
-                        "dispatch": {
-                            "tag": { "path": "order.orderDataType" },
-                            "cases": {
-                                "0x9df4b782e7bbc178b3b93bfe8aafb909e84e39484d7f3c59f400f1b4691f85e2":
-                                    { "abiType": "(address inputToken,uint256 inputAmount,address outputToken,uint256 outputAmount,uint256 destinationChainId,bytes32 recipient,address exclusiveRelayer,uint256 depositNonce,uint32 exclusivityPeriod,bytes message)" }
+                        "switch": {
+                            "expression": {
+                                "path": "order.orderDataType"
                             },
-                            "default": "reject"
+                            "cases": {
+                                "0x9df4b782e7bbc178b3b93bfe8aafb909e84e39484d7f3c59f400f1b4691f85e2": {
+                                    "abiType": "(address inputToken,uint256 inputAmount,address outputToken,uint256 outputAmount,uint256 destinationChainId,bytes32 recipient,address exclusiveRelayer,uint256 depositNonce,uint32 exclusivityPeriod,bytes message)"
+                                },
+                                "$default": "reject"
+                            }
                         }
                     }
                 ]

@@ -1,17 +1,16 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
-
-    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding an EAS attestation via schema-UID dispatch. Verified against a real Optimism mainnet attestation, tx 0x820e5b8404f1ec62b47459e538151e54fb598b729dcb461087456bb856abf595 - see the ERC's Test Cases section. The EAS contract address is a placeholder; confirm the real deployment address for your target chain against https://docs.attest.org before use.",
-
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "context": {
         "$id": "Ethereum Attestation Service",
         "contract": {
             "deployments": [
-                { "chainId": 10, "address": "0xYourEASAddress" }
+                {
+                    "chainId": 10,
+                    "address": "0xYourEASAddress"
+                }
             ]
         }
     },
-
     "metadata": {
         "owner": "Ethereum Attestation Service",
         "contractName": "EAS",
@@ -19,24 +18,30 @@
             "url": "https://docs.attest.org"
         }
     },
-
     "display": {
         "formats": {
             "attest((bytes32 schema,(address recipient,uint64 expirationTime,bool revocable,bytes32 refUID,bytes data,uint256 value) data) request)": {
                 "$id": "EAS Attest",
                 "intent": "Attest",
                 "fields": [
-                    { "path": "request.data.recipient", "label": "Recipient", "format": "addressName" },
+                    {
+                        "path": "request.data.recipient",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
                     {
                         "path": "request.data.data",
                         "label": "Attestation data",
-                        "dispatch": {
-                            "tag": { "path": "request.schema" },
-                            "cases": {
-                                "0xfdcfdad2dbe7489e0ce56b260348b7f14e8365a8a325aef9834818c00d46b31b":
-                                    { "abiType": "(string rpgfRound,address referredBy,string referredMethod)" }
+                        "switch": {
+                            "expression": {
+                                "path": "request.schema"
                             },
-                            "default": "reject"
+                            "cases": {
+                                "0xfdcfdad2dbe7489e0ce56b260348b7f14e8365a8a325aef9834818c00d46b31b": {
+                                    "abiType": "(string rpgfRound,address referredBy,string referredMethod)"
+                                },
+                                "$default": "reject"
+                            }
                         }
                     }
                 ]

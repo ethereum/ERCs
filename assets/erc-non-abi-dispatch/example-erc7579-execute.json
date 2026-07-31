@@ -1,18 +1,20 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
-
-    "$comment": "Worked example for the non-ABI-dispatch companion ERC, decoding ERC-7579's mode-driven execute() dispatch. Verified against two real Base mainnet Biconomy Nexus transactions: single-call 0x057b1df67f033ad77faba10e39f39dde273c225d62c3b36ef8547b3f51fad5c1 and batch-call 0x26d34bf7aa5adb0642218422264a4034ffda5785be3354168eb478051664613c - see the ERC's Test Cases section. Only CallType 0x00 (single) and 0x01 (batch) are covered; a production descriptor would also handle 0xfe (staticcall) and 0xff (delegatecall).",
-
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "context": {
         "$id": "ERC-7579 Account Execute",
         "contract": {
             "deployments": [
-                { "chainId": 8453, "address": "0x510a1274373c8120DE634dB372723edcBE899994" },
-                { "chainId": 8453, "address": "0xE8cCb14989F0dB3f51A71876195D5867F7fa943d" }
+                {
+                    "chainId": 8453,
+                    "address": "0x510a1274373c8120DE634dB372723edcBE899994"
+                },
+                {
+                    "chainId": 8453,
+                    "address": "0xE8cCb14989F0dB3f51A71876195D5867F7fa943d"
+                }
             ]
         }
     },
-
     "metadata": {
         "owner": "ERC-7579",
         "contractName": "Modular Smart Account",
@@ -20,7 +22,6 @@
             "url": "https://eips.ethereum.org/EIPS/eip-7579"
         }
     },
-
     "display": {
         "formats": {
             "execute(bytes32 mode,bytes executionCalldata)": {
@@ -31,40 +32,104 @@
                         "path": "mode",
                         "label": "Mode",
                         "layout": {
-                            "kind": "struct",
+                            "type": "object",
                             "fields": [
-                                { "name": "callType",     "schema": { "kind": "uint", "bytes": 1 } },
-                                { "name": "execType",     "schema": { "kind": "uint", "bytes": 1 } },
-                                { "name": "unused",       "schema": { "kind": "bytes", "length": 4 } },
-                                { "name": "modeSelector", "schema": { "kind": "bytes", "length": 4 } },
-                                { "name": "modePayload",  "schema": { "kind": "bytes", "length": 22 } }
+                                {
+                                    "name": "callType",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 1
+                                    }
+                                },
+                                {
+                                    "name": "execType",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 1
+                                    }
+                                },
+                                {
+                                    "name": "unused",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 4
+                                    }
+                                },
+                                {
+                                    "name": "modeSelector",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 4
+                                    }
+                                },
+                                {
+                                    "name": "modePayload",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 22
+                                    }
+                                }
                             ]
                         }
                     },
                     {
                         "path": "executionCalldata",
                         "label": "Execution",
-                        "dispatch": {
-                            "tag": { "path": "mode.callType" },
-                            "cases": {
-                                "0x00": { "layout": {
-                                    "kind": "struct",
-                                    "fields": [
-                                        { "name": "target",   "schema": { "kind": "address" } },
-                                        { "name": "value",    "schema": { "kind": "uint", "bytes": 32 } },
-                                        { "name": "callData", "schema": { "kind": "call", "to": "target" } }
-                                    ]
-                                }},
-                                "0x01": { "abiType": "(address target,uint256 value,bytes callData)[]" }
+                        "switch": {
+                            "expression": {
+                                "path": "mode.callType"
                             },
-                            "default": "reject"
+                            "cases": {
+                                "0x00": {
+                                    "layout": {
+                                        "type": "object",
+                                        "fields": [
+                                            {
+                                                "name": "target",
+                                                "schema": {
+                                                    "type": "address"
+                                                }
+                                            },
+                                            {
+                                                "name": "value",
+                                                "schema": {
+                                                    "type": "uint",
+                                                    "bytes": 32
+                                                }
+                                            },
+                                            {
+                                                "name": "callData",
+                                                "schema": {
+                                                    "type": "bytes"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0x01": {
+                                    "abiType": "(address target,uint256 value,bytes callData)[]"
+                                },
+                                "$default": "reject"
+                            }
+                        }
+                    },
+                    {
+                        "path": "executionCalldata.callData",
+                        "label": "Batched call data",
+                        "format": "calldata",
+                        "params": {
+                            "calleePath": "executionCalldata.target",
+                            "amountPath": "executionCalldata.value"
                         }
                     },
                     {
                         "path": "executionCalldata[].callData",
                         "label": "Batched call data",
-                        "layout": { "kind": "call", "to": "executionCalldata[].target" },
-                        "$comment": "Only applicable when mode.callType == 0x01: each ABI-decoded Execution.callData in the batch is itself calldata to its sibling target, resolved the same way as the single-call case above."
+                        "format": "calldata",
+                        "params": {
+                            "calleePath": "executionCalldata[].target",
+                            "amountPath": "executionCalldata[].value"
+                        }
                     }
                 ]
             }

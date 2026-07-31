@@ -1,17 +1,16 @@
 {
-    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
-
-    "$comment": "Illustrative example for the non-ABI-dispatch companion ERC. TieredExecutor is a made-up contract written for this ERC (see TieredExecutor.sol in this same folder) and is not deployed anywhere; the address below is a placeholder. It demonstrates the direct/positional form of `call`: `op` is an ordinary already-decoded parameter (not a bytes blob), and the two dispatch cases redirect the whole call to a different target function, each with its own argument order.",
-
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "context": {
         "$id": "TieredExecutor Example",
         "contract": {
             "deployments": [
-                { "chainId": 1, "address": "0xYourTieredExecutorAddress" }
+                {
+                    "chainId": 1,
+                    "address": "0xYourTieredExecutorAddress"
+                }
             ]
         }
     },
-
     "metadata": {
         "owner": "Example",
         "contractName": "TieredExecutor",
@@ -22,32 +21,45 @@
             }
         }
     },
-
     "display": {
         "formats": {
             "executeOperation(address target,uint8 op,address account,uint256 amount)": {
                 "$id": "Execute Operation",
-                "dispatch": {
-                    "tag": { "path": "op" },
-                    "cases": {
-                        "1": { "call": {
-                            "to": "target",
-                            "signature": "grantReward(address,uint256)",
-                            "args": [
-                                { "path": "account" },
-                                { "path": "amount" }
-                            ]
-                        }},
-                        "2": { "call": {
-                            "to": "target",
-                            "signature": "creditAccount(uint256,address)",
-                            "args": [
-                                { "path": "amount" },
-                                { "path": "account" }
-                            ]
-                        }}
+                "switch": {
+                    "expression": {
+                        "path": "op"
                     },
-                    "default": "reject"
+                    "cases": {
+                        "1": {
+                            "interaction": {
+                                "to": "target",
+                                "signature": "grantReward(address,uint256)",
+                                "args": [
+                                    {
+                                        "path": "account"
+                                    },
+                                    {
+                                        "path": "amount"
+                                    }
+                                ]
+                            }
+                        },
+                        "2": {
+                            "interaction": {
+                                "to": "target",
+                                "signature": "creditAccount(uint256,address)",
+                                "args": [
+                                    {
+                                        "path": "amount"
+                                    },
+                                    {
+                                        "path": "account"
+                                    }
+                                ]
+                            }
+                        },
+                        "$default": "reject"
+                    }
                 }
             }
         }
