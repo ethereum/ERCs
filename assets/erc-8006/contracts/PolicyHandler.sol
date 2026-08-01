@@ -1,99 +1,91 @@
 //SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity ^0.8.36;
 
-import { ExecVariables, InitParams as PolicyInitParams } from "./types/MainTypes.sol";
-import { ExecVarsMetadata } from "./types/UtilTypes.sol";
-import "./utils/ValidationUtils.sol" as PolicyHandlerValidator;
-import { OwnerBase } from "./utils/OwnerBase.sol";
-import { MAX_NODES_LENGTH } from "./constants/Constants.sol";
-import { DAGWithPolicyMetadata } from "./inheritance/DAGWithPolicyMetadata.sol";
-import "./utils/MiscUtils.sol" as HelperUtils;
+import { ExecVariables, InitParams as PolicyInitParams } from "./Types.sol";
+import { ExecVarsMetadata } from "./UtilTypes.sol";
+import { OwnerBaseInitializable } from "./OwnerBaseInitializable.sol";
+import { MAX_NODES_LENGTH } from "./Constants.sol";
+import { PolicyMetadata } from "./PolicyMetadata.sol";
+import "./Utilities.sol" as Utils;
 import {
     POLICY_DOES_NOT_HAVE_ANY_ARTIFACT_ERR,
     INIT_NODES_LIST_IS_LARGER_THAN_MAX_LENGTH_ERR,
     POLICY_ALREADY_INITIALIZED_ERR,
     POLICY_NOT_INITIALIZED_ERR
-} from "./constants/ErrorCodes.sol";
-import { IPolicyHandler } from "./interfaces/IPolicyHandler.sol";
+} from "./Errors.sol";
+import { IPolicyHandler } from "./Interfaces.sol";
 
-/// @title Policy Handler
-/// @notice Handles policy initialization, reset, and evaluation with rule-based artifact processing
-/// @dev Main contract for managing and evaluating policy rules using DAG-based artifact relationships:
-///      - Implements IPolicyHandler interface
-///      - Extends OwnerBase for access control
-contract PolicyHandler is IPolicyHandler, OwnerBase {
-    DAGWithPolicyMetadata internal dag;
-    bool private isInitialized = false;
+contract PolicyHandler is IPolicyHandler, OwnerBaseInitializable {
+    PolicyMetadata internal dag;
+    bool private isPolicyInitialized = false;
 
-    /// @notice Initializes the PolicyHandler with an admin user
-    /// @dev Sets up the contract with owner-based access control
-    /// @param _adminUser The address that will have admin privileges
-    constructor(address _adminUser) OwnerBase(_adminUser) {}
+    constructor(address _adminUser) {
+        initializeOwnable(_adminUser);
+    }
 
-    /// @notice Initializes policy handler with rules (list of linked artifacts)
-    /// @param params Policy initialization parameters containing nodes and configuration
-    /// @dev Creates new DAG instance and sets up policy configuration for the first time:
-    ///      - Emits Set event with root node ID and number of nodes
+    // note: initialises policy handler with rules (list of linked artifacts)
     function set(PolicyInitParams memory params) public onlyOwner {
-        PolicyHandlerValidator.boolIsFalsyWithErr(isInitialized, POLICY_ALREADY_INITIALIZED_ERR);
+        require(!isPolicyInitialized, POLICY_ALREADY_INITIALIZED_ERR);
 
         _set(params);
 
         emit Set(dag.rootNodeId(), params.nodes.length);
     }
 
-    /// @notice Re-initializes policy handler with rules (list of linked artifacts)
-    /// @param params Policy initialization parameters containing nodes and configuration
-    /// @dev Abandons previous configuration and creates new policy setup:
-    ///      - Emits Upgraded event with new root node ID and number of nodes
+    // note: re-initialises policy handler with rules (list of linked artifacts);
+    // at the same time previous configuraion is abandoned
     function reset(PolicyInitParams memory params) public onlyOwner {
-        PolicyHandlerValidator.boolIsTruthyWithErr(isInitialized, POLICY_NOT_INITIALIZED_ERR);
+        require(isPolicyInitialized, POLICY_NOT_INITIALIZED_ERR);
 
+        // todo: consider pros/cons of the optimised approach (where the existing graph modified), instead of creating of new instance
         _set(params);
 
         emit Upgraded(dag.rootNodeId(), params.nodes.length);
     }
 
-    /// @notice Evaluates the policy check result by traversing all graph starting from root node
-    /// @param variables Array of execution variables to be passed to policy artifacts
-    /// @return result Boolean result of the policy evaluation
-    /// @dev Artifact input params "variables" are forwarded to respective artifacts during evaluation:
-    ///      - Emits Evaluated event with result and root node ID
+    // note: evaluates the policy check result by traversing all graph starring from root node;
+    // artifcats input params "variables" are forwareded to respective artifcats
     function evaluate(ExecVariables[] memory variables) public onlyOwner returns (bool result) {
+        // todo: validate 'variableValues' contains only known node-ids
+        // todo: validate 'variableValues' does not contain duplicates
+
         bytes memory encodedResult = dag.evaluateRecursively(dag.rootNodeId(), variables);
 
+        // note: decoded ==> result
         result = abi.decode(encodedResult, (bool));
 
         emit Evaluated(result, dag.rootNodeId());
     }
 
-    /// @notice Returns arguments list for runtime-supplied parameters to particular nodes
-    /// @dev Retrieves variable descriptions from all nodes in the DAG structure (relate only to those node that require run-time supplied args)
-    /// @return list Array of execution variable metadata for runtime parameters
-    function getVariablesList() public view returns (ExecVarsMetadata[] memory list) {
-        PolicyHandlerValidator.boolIsTruthyWithErr(isInitialized, POLICY_NOT_INITIALIZED_ERR);
+    // note: this should return arguments list for only these args that have are run-time supplied (to a particular Node)
+    function getVariablesListDecoded() public view returns (ExecVarsMetadata[] memory list) {
+        require(isPolicyInitialized, POLICY_NOT_INITIALIZED_ERR);
 
-        list = HelperUtils.getVarsDesriptionList(dag.getNodes());
+        list = Utils.getVarsDesriptionList(dag.getNodes());
     }
 
-    /// @notice Internal function to set up policy configuration
-    /// @dev Creates new DAG instance with policy metadata and initializes it
-    /// @param params Policy initialization parameters containing nodes and configuration
+    // note: this should return arguments list as bytes list for only these args that have are run-time supplied (to a particular Node)
+    function getVariablesList() public view returns (bytes[] memory list) {
+        ExecVarsMetadata[] memory vars = getVariablesListDecoded();
+
+        list = new bytes[](vars.length);
+        for (uint256 i = 0; i < vars.length; i++) {
+            list[i] = abi.encode(vars[i]);
+        }
+    }
+
     function _set(PolicyInitParams memory params) internal onlyOwner {
-        PolicyHandlerValidator.boolIsTruthyWithErr(
-            params.nodes.length > 0,
-            POLICY_DOES_NOT_HAVE_ANY_ARTIFACT_ERR
-        );
-        // Prevents call stack depth overflow by limiting nodes length
-        // link: https://ethereum.stackexchange.com/questions/142102/solidity-1024-call-stack-depth
-        PolicyHandlerValidator.boolIsTruthyWithErr(
+        require(params.nodes.length > 0, POLICY_DOES_NOT_HAVE_ANY_ARTIFACT_ERR);
+        // todo: work out a robust check to verify the number of nodes is allowed number
+        // note: solves https://ethereum.stackexchange.com/questions/142102/solidity-1024-call-stack-depth as ad-hoc
+        require(
             params.nodes.length <= MAX_NODES_LENGTH,
             INIT_NODES_LIST_IS_LARGER_THAN_MAX_LENGTH_ERR
         );
 
-        dag = new DAGWithPolicyMetadata(address(this));
+        dag = new PolicyMetadata(address(this));
         dag.init(params);
 
-        isInitialized = true;
+        isPolicyInitialized = true;
     }
 }
