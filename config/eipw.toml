@@ -931,9 +931,9 @@ section = "Copyright"
 level = 2
 exactly = "Copyright and related rights waived via [CC0](../LICENSE.md)."
 
-[lints.markdown-spell]
-kind = "markdown-spell"
-personal_dictionary = ""
+# [lints.markdown-spell]
+# kind = "markdown-spell"
+# personal_dictionary = ""
 
 [lints.markdown-heading-first]
 kind = "markdown-heading-first"
