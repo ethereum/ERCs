@@ -494,6 +494,10 @@
                     "description": "Visibility override for the referenced definition.",
                     "$ref": "#/$format/rules"
                 },
+                "boundaries": {
+                    "description": "Boundaries override for the referenced definition.",
+                    "$ref": "#/$format/boundaries"
+                },
                 "encryption": {
                     "description": "Encryption override for the referenced definition.",
                     "$ref": "#/$format/encryptionParameters"
@@ -538,6 +542,9 @@
                 },
                 "visible": {
                     "$ref": "#/$format/rules"
+                },
+                "boundaries": {
+                    "$ref": "#/$format/boundaries"
                 },
                 "label": {
                     "title": "Field Label",
@@ -658,27 +665,54 @@
                             "type": ["string", "number", "boolean", "null"]
                         },
                         "minItems": 1
-                    },
-                    "mustMatch": {
-                        "type": "array",
-                        "description": "Always skip display, but value MUST match one of these values.",
-                        "items": {
-                            "type": ["string", "number", "boolean", "null"]
-                        },
-                        "minItems": 1
                     }
                 },
                 "additionalProperties": false,
-                "allOf": [
-                    {
-                    "not": {
-                        "required": ["ifNotIn", "mustMatch"]
-                    }
-                    }
-                ],
-                "description": "Conditional display rules. Either 'ifNotIn' or 'mustMatch' must be defined, but not both."
+                "description": "Conditional display rule."
                 }
-            ]    
+            ]
+        },
+        "boundaries": {
+            "title": "Value Boundaries",
+            "description": "Constraints on the field's underlying value used to detect implausible or disqualifying values. If violated, wallets SHOULD refuse to sign by default and MAY offer an explicit override.",
+            "type": "object",
+            "properties": {
+                "min": {
+                    "type": "string",
+                    "description": "Inclusive lower bound on the value, as a decimal or 0x-prefixed hexadecimal string."
+                },
+                "max": {
+                    "type": "string",
+                    "description": "Inclusive upper bound on the value, as a decimal or 0x-prefixed hexadecimal string."
+                },
+                "excludes": {
+                    "type": "array",
+                    "description": "Exact values that disqualify the field even if within the min/max range.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1
+                },
+                "mustMatch": {
+                    "type": "array",
+                    "description": "The value MUST match one of these values, regardless of min/max.",
+                    "items": {
+                        "type": ["string", "number", "boolean", "null"]
+                    },
+                    "minItems": 1
+                },
+                "errorMessage": {
+                    "type": "string",
+                    "description": "Message displayed to the user when the value violates the boundaries. Supports the interpolated string syntax. Falls back to a generic message if not provided or if interpolation fails."
+                }
+            },
+            "anyOf": [
+                {"required": ["min"]},
+                {"required": ["max"]},
+                {"required": ["excludes"]},
+                {"required": ["mustMatch"]}
+            ],
+            "additionalProperties": false
         },
         "mapReference": {
             "title": "Map Reference",
