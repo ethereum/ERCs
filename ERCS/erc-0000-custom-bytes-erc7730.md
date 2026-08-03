@@ -288,6 +288,65 @@ Using ERC-0000, this input can be described for Clear Signing – see [ERC-7579 
 
 ### Balancer Relayer `joinPool`/`exitPool`
 
+The `BatchRelayerLibrary` contract reached via `BalancerRelayer.multicall` encodes pool-kind and per-action metadata as sibling ABI parameters, then encodes a *second*, independent tag inside `userData` itself:
+
+```solidity
+enum PoolKind { WEIGHTED, LEGACY_STABLE, COMPOSABLE_STABLE, COMPOSABLE_STABLE_V2 }
+
+function joinPool(bytes32 poolId, PoolKind kind, address sender, address recipient,
+  IVault.JoinPoolRequest memory request, uint256 value, uint256 outputReference) external payable;
+
+function exitPool(bytes32 poolId, PoolKind kind, address sender, address payable recipient,
+  IVault.ExitPoolRequest memory request, OutputReference[] calldata outputReferences) external payable;
+```
+
+#### What makes this encoding unusual
+
+1. `BalancerRelayer.multicall(bytes[] data)` always `DELEGATECALL`s every batched element into one fixed library address – unlike `MultiSend`, there is no per-element operation or target choice, only the embedded call itself needs resolving.
+2. `request.userData`'s meaning is tag-dispatched twice: once by `kind` (a sibling parameter of `joinPool`/`exitPool` itself), then again by a `JoinKind`/`ExitKind` enum read from `userData`'s own first 32 bytes – a `switch` nested inside a `switch`.
+3. The same already-ABI-decoded `uint256` fields (`maxAmountsIn[i]`, `outputReference`, `bptAmountIn`) can be either a literal amount or a "chained reference" – a placeholder for a value only known once an earlier step in the same batched transaction has actually executed on-chain – distinguished purely by masking the value's own high bits, not by a separate tag field.
+
+Using ERC-0000, this input can be described for Clear Signing – see [Balancer Relayer Multicall Example](../assets/erc-non-abi-dispatch/example-balancer-relayer-multicall.json) and [Balancer Relayer Library Example](../assets/erc-non-abi-dispatch/example-balancer-relayer-library.json).
+
+### ERC-7683 `open`
+
+The `AcrossOriginSettler` contract encodes the data in the following format:
+
+```solidity
+struct OnchainCrossChainOrder {
+    uint32 fillDeadline;
+    bytes32 orderDataType;
+    bytes orderData;
+}
+
+function open(OnchainCrossChainOrder calldata order) external;
+```
+
+#### What makes this encoding unusual
+
+1. `orderData`'s ABI type is selected by `orderDataType`, a `bytes32` equal to the `keccak256` hash of the target tuple's own Solidity type string (`keccak256("AcrossOrderData(address inputToken,...)")`) rather than a small, contract-defined enum – an open-ended, hash-keyed dispatch.
+2. Both the tag and the payload are already plain sibling ABI parameters of `open` itself, so no `layout` node is needed – only `switch`.
+
+Using ERC-0000, this input can be described for Clear Signing – see [ERC-7683 Order Example](../assets/erc-non-abi-dispatch/example-erc7683-order.json).
+
+### `TieredExecutor` (artificial illustrative example)
+
+The `TieredExecutor` contract encodes the data in the following format:
+
+```solidity
+enum Operation { None, GrantReward, CreditLegacy }
+
+function executeOperation(address target, Operation op, address account, uint256 amount) external;
+```
+
+#### What makes this encoding unusual
+
+1. `executeOperation` has no fixed meaning of its own at all – the entire call exists only to be redirected, and which target function it becomes requires a top-level `switch` instead of an ordinary `intent`/`fields` pair.
+2. `account`/`amount` are generic-looking arguments with no inherent semantics – depending on `op`, they are bound to two unrelated target interfaces with a **different parameter order** via `interaction` rather than `format: "calldata"`. There is no contiguous calldata blob to slice out, only already-decoded values that need to be reassembled.
+3. This contract is illustrative only, written for this ERC and not deployed anywhere.
+
+Using ERC-0000, this input can be described for Clear Signing – see [TieredExecutor Example](../assets/erc-non-abi-dispatch/example-tiered-executor.json).
+
 ## Rationale
 
 ## Security Considerations
