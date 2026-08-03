@@ -126,6 +126,53 @@ A mechanism for element in a `sequence` to reference their position for indexing
   ]
 }}
 ```
+## Test Cases
+
+### Safe{Wallet} - `MultiSend` Contract
+
+The `MultiSend` contract encodes the data in the following format:
+
+```
+/**
+* @notice Sends multiple transactions and reverts all if one fails.
+* @param transactions Encoded transactions. Each transaction is encoded as a packed bytes of:
+*                     1. _operation_ as a {uint8}, 0 for a `CALL` or 1 for a `DELEGATECALL` (=> 1 byte),
+*                     2. _to_ as an {address} (=> 20 bytes),
+*                     3. _value_ as a {uint256} (=> 32 bytes),
+*                     4. _data_ length as a {uint256} (=> 32 bytes),
+*                     5. _data_ as {bytes}.
+function multiSend(bytes memory transactions) public payable;
+*/
+```
+#### What makes this encoding unusual
+1. The `transactions` count is not provided at all - the code has to iteratively decode the entire data array until it is exhausted.
+2. The `data` field has a dynamic size that is specified as a separate sibling parameter.
+
+Using ERC-0000, this input can easily be described for Clear Singing – see [MultiSend Example](../assets/erc-non-abi-dispatch/example-safe-multisend.json).
+
+### Uniswap v4 - `UniversalRouter` Contract
+
+The `UniversalRouter` contract encodes the data in the following format:
+
+```
+/// @notice Executes encoded commands along with provided inputs. Reverts if deadline has expired.
+/// @param commands A set of concatenated commands, each 1 byte in length
+/// @param inputs An array of byte strings containing abi encoded inputs for each command
+/// @param deadline The deadline by which the transaction must be executed
+function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadline) external payable;
+```
+
+#### What makes this encoding unusual
+
+1. `commands` is not an ABI `bytes[]` or `uint8[]` – it is a `bytes` value packed with one `command id` byte, decoded as a `sequence` until the input is exhausted, exactly like the `runCommands` example above.
+2. Each command byte also carries a flag in its high bit (`0x80`/`0b10000000`, "allow this command to revert") alongside the actual `command id` in its low 6 bits (`0x3f`/`0b00111111`), so the extracted value must be masked before it can be matched against a `cases` table.
+3. `inputs` is a regular ABI `bytes[]`, but the ABI type of `inputs[i]` is only known by decoding `commands[i]` – the format of one array must be resolved by indexing into a **sibling array** at the same position, which is the `$index` mechanism described above.
+
+Using ERC-0000, this input can be described for Clear Signing – see [Universal Router Example](../assets/erc-non-abi-dispatch/example-universal-router.json).
+
+### ERC-7579 `execute`
+
+### Balancer Relayer `joinPool`/`exitPool`
 
 ## Rationale
 
