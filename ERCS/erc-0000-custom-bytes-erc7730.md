@@ -47,6 +47,9 @@ It can also be provided to values of other formats if these represent some neste
 }
 ```
 
+Every `layout` node consumes a well-defined, computable number of bytes from its buffer.
+The `switch`'s path-sourced form is an exception as it reads an already-resolved value instead of parsing bytes.
+
 ### `sequence`
 
 The mechanism for declaring an iterative, array-like data structure not represented by an ABI-encoded `array` data layout.
@@ -155,6 +158,8 @@ When a `switch` case's tuple resolves to an array (`(...)[]`), its own `fields` 
 `mask` is available on any `switch` expression and is applied to the raw value before matching `cases`.
 It lets a dispatch tag share space with unrelated bits, as with `UniversalRouter`'s revert-allowed flag in the Test Case below.
 
+Inside a `layout` tree, `switch`'s inline form may also use `payloadFrom` in place of `$index`, naming a sibling ABI-decoded array to read at the same index as the enclosing `sequence` element.
+
 ### `operation`
 
 An optional parameter for the ERC-7730's `format: "calldata"` record.
@@ -185,6 +190,8 @@ This is an equivalent of `calldata` format from ERC-7730 for contracts that perf
   ]
 }}
 ```
+
+A wallet MUST resolve the matched target's own `intent`/`interpolatedIntent`/`fields` using the bound `args` values in place of that target's own decoded parameters, applying the same unknown-selector fallback if `to`'s descriptor has no entry matching `signature`.
 
 A [structured data format specification](./erc-7730.md) MAY declare a top-level `switch` in place of `intent`/`fields`, redirecting the entire call to a different, unrelated function via `interaction` based on one of its own decoded parameters.
 
