@@ -107,7 +107,7 @@ This ERC extends `format: "calldata"`'s `params` with one new, optional key: `op
 
 Paths extend into `layout`-decoded fields the same way they already extend into ABI-decoded struct and array fields: by name for `object` and `bitfield` fields, by index for `sequence` elements. For example, given the `object` above, `#.transactions[0].to` refers to the `to` field of the first record. This is also what makes nested calldata resolvable without a dedicated layout node: a sibling top-level field entry can address `#.transactions[].data` directly and apply `format: "calldata"` to it, exactly as it would to any ordinary ABI-decoded `bytes` field.
 
-**`#.` crosses `switch`/`layout` scope boundaries.** A `switch` case that decodes its payload into a tuple (`abiType`, or the tuple-plus-`intent`-plus-`fields` shorthand) introduces a new, local field scope for that case's own `fields`: a relative path there resolves against the just-decoded tuple, not the outer call. `#.`, however, MUST still resolve against the absolute root of the entire structured data — the outer call's own top-level decoded parameters — regardless of how many `switch`/`layout` scopes deep the path is written. This is needed whenever a case's decoded value must be paired with a sibling of the field the `switch` is attached to, not a sibling within the tuple itself — for instance, resolving a `switch`-matched `amountsIn[i]` against a token list that lives one level up, alongside `userData` rather than inside it (see the [`joinPool`/`exitPool` Test Case](#test-cases)). Base ERC-7730's own examples of `#.` never exercise this — every one resolves a flat, top-level sibling — so this ERC states the cross-scope behavior explicitly rather than leaving it to be inferred.
+**`#.` crosses `switch`/`layout` scope boundaries.** A `switch` case that decodes its payload into a tuple via the tuple-signature-key shorthand introduces a new, local field scope for that case's own `fields`: a relative path there resolves against the just-decoded tuple, not the outer call. `#.`, however, MUST still resolve against the absolute root of the entire structured data — the outer call's own top-level decoded parameters — regardless of how many `switch`/`layout` scopes deep the path is written. This is needed whenever a case's decoded value must be paired with a sibling of the field the `switch` is attached to, not a sibling within the tuple itself — for instance, resolving a `switch`-matched `amountsIn[i]` against a token list that lives one level up, alongside `userData` rather than inside it (see the [`joinPool`/`exitPool` Test Case](#test-cases)). Base ERC-7730's own examples of `#.` never exercise this — every one resolves a flat, top-level sibling — so this ERC states the cross-scope behavior explicitly rather than leaving it to be inferred.
 
 ### `switch`
 
@@ -121,7 +121,11 @@ Paths extend into `layout`-decoded fields the same way they already extend into 
   "switch": {
     "expression": { "path": "schema" },
     "cases": {
-      "0x1234...": { "abiType": "(address recipient,bool isHuman,uint256 score)" },
+      "0x1234...": { "(address recipient,bool isHuman,uint256 score)": { "fields": [
+        { "path": "recipient", "label": "Recipient", "format": "addressName" },
+        { "path": "isHuman",   "label": "Is human" },
+        { "path": "score",     "label": "Score" }
+      ]}},
       "$default": "reject"
     }
   }
@@ -137,7 +141,13 @@ This is the shape needed by EAS (`schema` selects how to decode `data`), ERC-768
   "expression": { "type": "uint", "bytes": 1, "mask": "0x3f" },
   "payloadFrom": "inputs",
   "cases": {
-    "0x00": { "abiType": "(address recipient,uint256 amountIn,uint256 amountOutMin,bytes path,bool payerIsUser)" },
+    "0x00": { "(address recipient,uint256 amountIn,uint256 amountOutMin,bytes path,bool payerIsUser)": { "fields": [
+      { "path": "recipient",     "label": "Recipient", "format": "addressName" },
+      { "path": "amountIn",      "label": "Amount in" },
+      { "path": "amountOutMin",  "label": "Minimum amount out" },
+      { "path": "path",          "label": "Swap path" },
+      { "path": "payerIsUser",   "label": "Pay from wallet" }
+    ]}},
     "$default": "reject"
   }
 }
@@ -147,10 +157,9 @@ This is the shape needed by EAS (`schema` selects how to decode `data`), ERC-768
 
 In both forms, a case value is one of:
 
-* `{ "abiType": "<solidity type or tuple>" }` — decode the payload using the ordinary Solidity ABI decoder.
 * `{ "layout": <node> }` — recurse into this ERC's own layout language (any node).
 * `{ "switch": {...} }` — nest another switch (for multi-level tag structures).
-* `{ "<solidity type or tuple>": { "intent": ..., "fields": [...] } }` — decode using the tuple signature given as the key, exactly like `abiType`, and immediately apply the given `intent`/`fields` to the result, without a separate top-level `display.formats` entry. This is sugar for `abiType` followed by inline structured display; it exists because a `switch` case very often wants to say both "decode it like this" and "display it like this" together, and forcing every case through a two-step `abiType`-then-somewhere-else-defined-fields indirection added no value in the surveyed cases (Universal Router's command table, most notably).
+* `{ "<solidity type or tuple>": { "intent": ..., "fields": [...] } }` — decode the payload using the ordinary Solidity ABI decoder for the tuple signature given as the key, and immediately apply the given `intent`/`fields` to the result, without a separate top-level `display.formats` entry. This exists because a `switch` case very often wants to say both "decode it like this" and "display it like this" together (Universal Router's command table, most notably).
 * `{ "format": "<base ERC-7730 format>" }` — stop: do not decode further, apply an ordinary base-ERC-7730 [field format](./erc-7730.md#field-format-specification) directly to the already-typed value in scope. This is for a case (very often `$default`) where the matched value needs no structural reinterpretation at all — it is already an ordinary value, just display it normally.
 * `{ "label": "<text>", "intent": "info" | "warning" }` — stop: do not decode further, display `label` verbatim in place of any decoded value, with the given severity. This is for a case whose matched value has no meaningful decoded content to show at all — see the chained-reference example in [Test Cases](#test-cases), where a matched sentinel value stands for "a value only known once an earlier step in the same batch has executed on-chain," which is not a value a wallet can compute or display, only name.
 

@@ -41,7 +41,18 @@
                             },
                             "cases": {
                                 "0x9df4b782e7bbc178b3b93bfe8aafb909e84e39484d7f3c59f400f1b4691f85e2": {
-                                    "abiType": "(address inputToken,uint256 inputAmount,address outputToken,uint256 outputAmount,uint256 destinationChainId,bytes32 recipient,address exclusiveRelayer,uint256 depositNonce,uint32 exclusivityPeriod,bytes message)"
+                                    "(address inputToken,uint256 inputAmount,address outputToken,uint256 outputAmount,uint256 destinationChainId,bytes32 recipient,address exclusiveRelayer,uint256 depositNonce,uint32 exclusivityPeriod,bytes message)": {
+                                        "intent": "Across V3 relay order",
+                                        "fields": [
+                                            { "path": "inputToken", "label": "Input token", "format": "addressName" },
+                                            { "path": "inputAmount", "label": "Input amount", "format": "tokenAmount", "params": { "tokenPath": "inputToken" } },
+                                            { "path": "outputToken", "label": "Output token", "format": "addressName" },
+                                            { "path": "outputAmount", "label": "Output amount", "format": "tokenAmount", "params": { "tokenPath": "outputToken" } },
+                                            { "path": "destinationChainId", "label": "Destination chain", "format": "chainId" },
+                                            { "path": "recipient", "label": "Recipient" },
+                                            { "path": "exclusiveRelayer", "label": "Exclusive relayer", "format": "addressName" }
+                                        ]
+                                    }
                                 },
                                 "$default": "reject"
                             }

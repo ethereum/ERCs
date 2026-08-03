@@ -16,10 +16,10 @@
         }
     },
     "metadata": {
-        "owner": "ERC-7579",
-        "contractName": "Modular Smart Account",
+        "owner": "Biconomy",
+        "contractName": "Nexus",
         "info": {
-            "url": "https://eips.ethereum.org/EIPS/eip-7579"
+            "url": "https://github.com/bcnmy/nexus"
         }
     },
     "display": {
@@ -101,34 +101,60 @@
                                                 "name": "callData",
                                                 "schema": {
                                                     "type": "bytes"
+                                                },
+                                                "label": "Execution",
+                                                "format": "calldata",
+                                                "params": {
+                                                    "calleePath": "target",
+                                                    "amountPath": "value"
                                                 }
                                             }
                                         ]
                                     }
                                 },
                                 "0x01": {
-                                    "abiType": "(address target,uint256 value,bytes callData)[]"
+                                    "(address target,uint256 value,bytes callData)[]": {
+                                        "intent": "Execute batch",
+                                        "fields": [
+                                            {
+                                                "path": ".[].callData",
+                                                "label": "Batched call data",
+                                                "format": "calldata",
+                                                "params": {
+                                                    "calleePath": ".[].target",
+                                                    "amountPath": ".[].value"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0xff": {
+                                    "layout": {
+                                        "type": "object",
+                                        "fields": [
+                                            {
+                                                "name": "target",
+                                                "schema": {
+                                                    "type": "address"
+                                                }
+                                            },
+                                            {
+                                                "name": "callData",
+                                                "schema": {
+                                                    "type": "bytes"
+                                                },
+                                                "label": "Execution",
+                                                "format": "calldata",
+                                                "params": {
+                                                    "calleePath": "target",
+                                                    "operation": "DELEGATECALL"
+                                                }
+                                            }
+                                        ]
+                                    }
                                 },
                                 "$default": "reject"
                             }
-                        }
-                    },
-                    {
-                        "path": "executionCalldata.callData",
-                        "label": "Batched call data",
-                        "format": "calldata",
-                        "params": {
-                            "calleePath": "executionCalldata.target",
-                            "amountPath": "executionCalldata.value"
-                        }
-                    },
-                    {
-                        "path": "executionCalldata[].callData",
-                        "label": "Batched call data",
-                        "format": "calldata",
-                        "params": {
-                            "calleePath": "executionCalldata[].target",
-                            "amountPath": "executionCalldata[].value"
                         }
                     }
                 ]

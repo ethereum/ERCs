@@ -1574,6 +1574,15 @@
                             },
                             "schema": {
                                 "$ref": "#/$layout/node"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "format": {
+                                "$ref": "#/$format/names"
+                            },
+                            "params": {
+                                "type": "object"
                             }
                         },
                         "required": [
@@ -1689,18 +1698,6 @@
                 {
                     "type": "object",
                     "properties": {
-                        "abiType": {
-                            "type": "string"
-                        }
-                    },
-                    "required": [
-                        "abiType"
-                    ],
-                    "additionalProperties": false
-                },
-                {
-                    "type": "object",
-                    "properties": {
                         "layout": {
                             "$ref": "#/$layout/node"
                         }
@@ -1756,7 +1753,7 @@
                     "additionalProperties": false
                 },
                 {
-                    "title": "Tuple-signature-key shorthand: decode as abiType, then apply intent/fields inline",
+                    "title": "Tuple-signature-key shorthand: decode as standard ABI using this Solidity tuple type, then apply intent/fields inline",
                     "type": "object",
                     "minProperties": 1,
                     "maxProperties": 1,
@@ -1890,12 +1887,15 @@
             "additionalProperties": false
         },
         "operationParam": {
-            "title": "operation: call vs delegatecall for format:calldata",
+            "title": "operation: the EVM operation used to execute an embedded call, for format:calldata",
             "oneOf": [
                 {
                     "enum": [
-                        "call",
-                        "delegatecall"
+                        "CALL",
+                        "DELEGATECALL",
+                        "CREATE",
+                        "CREATE2",
+                        "CALLCODE"
                     ]
                 },
                 {
@@ -1924,9 +1924,11 @@
                             "type": "object",
                             "additionalProperties": {
                                 "enum": [
-                                    "call",
-                                    "delegatecall",
-                                    "reject"
+                                    "CALL",
+                                    "DELEGATECALL",
+                                    "CREATE",
+                                    "CREATE2",
+                                    "CALLCODE"
                                 ]
                             }
                         }

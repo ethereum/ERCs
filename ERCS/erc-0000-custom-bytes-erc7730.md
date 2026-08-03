@@ -29,14 +29,22 @@ The main mechanism for declaring any parameter whose contents cannot be expresse
 It can also be provided to values of other formats if these represent some nested data structures.
 
 ```json
-{ "sendPacked(bytes data)": {
-  "fields": [
-    { "path": "data", "layout": { "type": "object", "fields": [
-      { "name": "to",     "schema": { "type": "address" } },
-      { "name": "amount", "schema": { "type": "uint", "bytes": 32 } }
-    ]}}
-  ]
-}}
+{
+  "sendPacked(bytes data)": {
+    "fields": [
+        {
+        "path": "data",
+        "layout": {
+          "type": "object",
+          "fields": [
+              { "name": "to",     "schema": { "type": "address" } },
+              { "name": "amount", "schema": { "type": "uint", "bytes": 32 } }
+            ]
+          }
+        }
+      ]
+    }
+}
 ```
 
 ### `sequence`
@@ -72,23 +80,92 @@ It can also be used as a stand-in for any other complex data structure in the fo
 }}
 ```
 
-### `select`
+An `object`'s field entries may carry `format`,`params`, `label` and `schema` parameters.
+This allows a packed field to declare how it should be displayed using relative paths to that object's own sibling members.
+
+```json
+{ "name": "callData", "schema": { "type": "bytes" }, "label": "Execution", "format": "calldata",
+  "params": { "calleePath": "target", "amountPath": "value" } }
+```
+
+### `bitfield`
+
+A fixed-width value whose individual bits or bit ranges each carry independent, named meaning – unlike `object`, whose fields are always byte-aligned and never overlap.
+
+```json
+{ "type": "bitfield", "bytes": 20, "fields": [
+  { "name": "beforeSwap", "bit": 7 },
+  { "name": "poolId",     "bits": [19, 8] }
+]}
+```
+
+Each entry is either `{name, bit}` (a single flag, decoded as `bool`) or `{name, bits: [hi, lo]}` (an inclusive bit range, decoded as an unsigned integer).
+
+### `switch`
 
 The mechanism that allows the decoding to choose the format based on a certain parameter decoded previously. Represents a common pattern of carrying the decoding format flag separately form the data being decoded.
 
 ```json
 { "execute(uint8 kind,bytes data)": {
   "fields": [
-    { "path": "data", "select": {
+    { "path": "data", "switch": {
       "expression": { "path": "kind" },
       "cases": {
-        "0x00": { "abiType": "(address to,uint256 amount)" },
-        "0x01": { "abiType": "(address from,address to,uint256 amount,uint256 deadline)" }
+        "0x00": { "(address to,uint256 amount)": {
+          "fields": [
+            { "path": "to",     "label": "To" },
+            { "path": "amount", "label": "Amount" }
+          ]
+        }},
+        "0x01": { "(address from,address to,uint256 amount,uint256 deadline)": {
+          "fields": [
+            { "path": "from",     "label": "From" },
+            { "path": "to",       "label": "To" },
+            { "path": "amount",   "label": "Amount" },
+            { "path": "deadline", "label": "Deadline", "format": "date", "params": { "encoding": "timestamp" } }
+          ]
+        }}
       }
     }}
   ]
 }}
 ```
+
+When a `switch` case's tuple resolves to an array (`(...)[]`), its own `fields` can address that array's elements with `.[]` in place of the missing array name, e.g. `.[].callData`.
+`#.` inside a case's own `fields` still resolves against the absolute root of the structured data.
+
+`switch` can also appear as a `layout` node instead of a field-level key:
+
+```json
+{ "exampleCall(uint256 outputReference)": {
+      "fields": [
+        { "path": "outputReference", "label": "Save result as", "layout": {
+          "type": "switch",
+          "expression": { "type": "uint", "bytes": 32, "mask": "0xfff0000000000000000000000000000000000000000000000000000000000000" },
+          "cases": {
+            "0xba10000000000000000000000000000000000000000000000000000000000000": { "label": "Set by an earlier step, not known yet", "intent": "info" },
+            "$default": { "format": "raw" }
+          }
+        }}
+      ]
+  }
+}
+```
+
+`mask` is available on any `switch` expression and is applied to the raw value before matching `cases`.
+It lets a dispatch tag share space with unrelated bits, as with `UniversalRouter`'s revert-allowed flag in the Test Case below.
+
+### `operation`
+
+An optional parameter for the ERC-7730's `format: "calldata"` record.
+Allow specifying the actual EVM operation used when executing the call.
+Supported values are:
+
+1. CALL
+2. DELEGATECALL
+3. CREATE
+4. CREATE2
+5. CALLCODE (legacy opcode)
 
 ### `interaction`
 
@@ -109,6 +186,8 @@ This is an equivalent of `calldata` format from ERC-7730 for contracts that perf
 }}
 ```
 
+A [structured data format specification](./erc-7730.md) MAY declare a top-level `switch` in place of `intent`/`fields`, redirecting the entire call to a different, unrelated function via `interaction` based on one of its own decoded parameters.
+
 ### `$index`
 
 A mechanism for element in a `sequence` to reference their position for indexing into other `sequence` or array-like parameters.
@@ -117,10 +196,14 @@ A mechanism for element in a `sequence` to reference their position for indexing
 { "execute(bytes commands,bytes[] inputs)": {
   "fields": [
     { "path": "commands", "layout": { "type": "sequence", "element": { "type": "uint", "bytes": 1 } } },
-    { "path": "inputs[]", "select": {
+    { "path": "inputs[]", "switch": {
       "expression": { "path": "commands[$index]" },
       "cases": {
-        "0x00": { "abiType": "(address to)" }
+        "0x00": { "(address to)": {
+          "fields": [
+            { "path": "to", "label": "To" }
+          ]
+        }}
       }
     }}
   ]

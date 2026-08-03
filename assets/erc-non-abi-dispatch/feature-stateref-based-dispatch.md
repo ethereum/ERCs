@@ -43,7 +43,7 @@ Also notable: #1738 has its own normative **omission rule** — anything whose i
 }
 ```
 
-Everything downstream of `tag` resolution is unchanged: the same `cases` map, the same case-value polymorphism (`abiType` / `layout` / `call` / nested `dispatch`), the same fail-closed `default: "reject"` for anything not explicitly enumerated.
+Everything downstream of `tag` resolution is unchanged: the same `cases` map, the same case-value polymorphism (tuple-signature-key / `layout` / `call` / nested `dispatch`), the same fail-closed `default: "reject"` for anything not explicitly enumerated.
 
 This composes with #1738 rather than duplicating it: `stateRefs`/`proxy` would remain the *static* precondition layer ("this descriptor doesn't even apply unless..."), and a `stateRef`-tagged `dispatch` would be the *dynamic selection* layer on top ("...and depending on which of several known-audited configurations is live, here's which interpretation to use").
 

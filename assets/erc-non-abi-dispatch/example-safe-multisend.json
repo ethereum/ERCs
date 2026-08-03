@@ -65,25 +65,22 @@
                                         "schema": {
                                             "type": "bytes",
                                             "lengthFrom": "dataLength"
+                                        },
+                                        "label": "Batched call data",
+                                        "format": "calldata",
+                                        "params": {
+                                            "calleePath": "to",
+                                            "amountPath": "value",
+                                            "operation": {
+                                                "expression": "operation",
+                                                "cases": {
+                                                    "0x01": "DELEGATECALL",
+                                                    "$default": "CALL"
+                                                }
+                                            }
                                         }
                                     }
                                 ]
-                            }
-                        }
-                    },
-                    {
-                        "path": "transactions[].data",
-                        "label": "Batched call data",
-                        "format": "calldata",
-                        "params": {
-                            "calleePath": "transactions[].to",
-                            "amountPath": "transactions[].value",
-                            "operation": {
-                                "expression": "transactions[].operation",
-                                "cases": {
-                                    "0x01": "delegatecall",
-                                    "$default": "call"
-                                }
                             }
                         }
                     }
