@@ -29,7 +29,6 @@
                         "label": "Batched calls",
                         "layout": {
                             "type": "sequence",
-                            "count": "tillEnd",
                             "element": {
                                 "type": "object",
                                 "fields": [

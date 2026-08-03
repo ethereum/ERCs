@@ -1609,13 +1609,16 @@
                     "$ref": "#/$layout/node"
                 },
                 "count": {
-                    "const": "tillEnd"
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "countFrom": {
+                    "type": "string"
                 }
             },
             "required": [
                 "type",
-                "element",
-                "count"
+                "element"
             ],
             "additionalProperties": false
         },

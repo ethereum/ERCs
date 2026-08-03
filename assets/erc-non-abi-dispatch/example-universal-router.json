@@ -37,7 +37,6 @@
                         "label": "Commands",
                         "layout": {
                             "type": "sequence",
-                            "count": "tillEnd",
                             "element": {
                                 "type": "uint",
                                 "bytes": 1

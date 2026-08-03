@@ -66,6 +66,16 @@ For example, for a byte array with each byte representing a different element:
 }}
 ```
 
+Alternatively, `count` MAY give a literal element count, or `countFrom` may name a sibling field decoded earlier in the same object, sizing the sequence from a previously-decoded value – as with a Wormhole VAA's guardian-signature array, sized by its own `numSignatures` byte, in the Test Case below.
+
+```json
+{ "name": "signatures", "schema": { "type": "sequence", "countFrom": "numSignatures",
+  "element": { "type": "object", "fields": [
+    { "name": "guardianIndex", "schema": { "type": "uint", "bytes": 1 } },
+    { "name": "signature",     "schema": { "type": "bytes", "length": 65 } }
+  ]}}}
+```
+
 ### `object`
 
 The mechanism for declaring an entry in a `sequence` data structure that is not represented by an ABI-encoded parameter.
@@ -328,6 +338,68 @@ function open(OnchainCrossChainOrder calldata order) external;
 2. Both the tag and the payload are already plain sibling ABI parameters of `open` itself, so no `layout` node is needed – only `switch`.
 
 Using ERC-0000, this input can be described for Clear Signing – see [ERC-7683 Order Example](../assets/erc-non-abi-dispatch/example-erc7683-order.json).
+
+### Uniswap v4 - `PoolManager.initialize` (WIP)
+
+The `PoolManager` contract identifies a pool's hook contract, and which of its callbacks are active, entirely through the low bits of that hook contract's own address:
+
+```solidity
+struct PoolKey {
+    Currency currency0;
+    Currency currency1;
+    uint24 fee;
+    int24 tickSpacing;
+    IHooks hooks;
+}
+
+function initialize(PoolKey memory key, uint160 sqrtPriceX96) external returns (int24 tick);
+```
+
+#### What makes this encoding unusual
+
+1. `key.hooks` is an ordinary ABI `address` parameter, but its lowest 14 bits are individually meaningful flags (`beforeSwap`, `afterSwap`, `beforeAddLiquidity`, ...) chosen by mining a vanity address at hook-deployment time – the address *is* the bitfield, with no separate flags parameter anywhere in the call.
+2. Unlike every other Test Case here, this needs no `sequence` or `switch` at all – just a `bitfield` layout attached directly to an already-ABI-decoded scalar, to tell a signer which of a hook's callbacks it is trusting to run on every swap/mint/burn against this pool.
+
+Using ERC-0000, this input can be described for Clear Signing – see [Uniswap v4 Initialize Example](../assets/erc-non-abi-dispatch/example-uniswap-v4-initialize.json).
+
+### Compound III `Bulker.invoke` (WIP)
+
+The `Bulker` contract batches several Comet actions in one call, but unlike `MultiSend` or `UniversalRouter`, the per-action payload is never itself calldata for a callable function:
+
+```solidity
+bytes32 constant ACTION_SUPPLY_ASSET = "ACTION_SUPPLY_ASSET";
+bytes32 constant ACTION_TRANSFER_ASSET = "ACTION_TRANSFER_ASSET";
+bytes32 constant ACTION_WITHDRAW_ASSET = "ACTION_WITHDRAW_ASSET";
+bytes32 constant ACTION_CLAIM_REWARD = "ACTION_CLAIM_REWARD";
+
+function invoke(bytes32[] calldata actions, bytes[] calldata data) external payable;
+```
+
+#### What makes this encoding unusual (WIP)
+
+1. Each `data[i]` is a bare `abi.encode` of a tuple – no function selector – that `Bulker` itself `abi.decode`s and forwards, under a **different function name and a different argument list**, to `Comet` (e.g. `ACTION_SUPPLY_ASSET`'s `(comet, to, asset, amount)` becomes a call to `comet.supplyFrom(msg.sender, to, asset, amount)`): exactly the scattered-args-reassembled-as-a-different-call shape `interaction` exists for, on a real, heavily used contract rather than an illustrative one.
+2. `msg.sender` – the account that actually calls `Bulker.invoke` – is threaded into that reconstructed call as its first argument despite never appearing anywhere in `data[i]`, which only `interaction`'s `args` referencing the container root (`@.from`) can express.
+3. The target contract itself varies by action and is not always the tuple's first field: `ACTION_CLAIM_REWARD` calls `rewards.claim(comet, src, shouldAccrue)`, so `interaction`'s own `to` is bound to `rewards`, not `comet`.
+
+Using ERC-0000, this input can be described for Clear Signing – see [Compound III Bulker Example](../assets/erc-non-abi-dispatch/example-compound-bulker.json).
+
+### Wormhole Token Bridge `completeTransfer` (WIP)
+
+The `TokenBridge` contract accepts a signed Wormhole message (a "VAA") as a single opaque `bytes` argument, entirely packed rather than ABI-encoded:
+
+```solidity
+function completeTransfer(bytes memory encodedVm) public;
+```
+
+A VAA is `version(1) | guardianSetIndex(4) | numSignatures(1) | signatures[] | timestamp(4) | nonce(4) | emitterChainId(2) | emitterAddress(32) | sequence(8) | consistencyLevel(1) | payload`, where each of the `numSignatures` signature entries is `guardianIndex(1) | r(32) | s(32) | v(1)`, and `payload`'s own first byte selects its shape (`1` = a token transfer: `amount(32) | tokenAddress(32) | tokenChain(2) | to(32) | toChain(2) | fee(32)`).
+
+#### What makes this encoding unusual
+
+1. `signatures`'s element count is neither ABI-length-prefixed nor fixed – it is a plain `numSignatures` byte decoded a few bytes earlier in the very same buffer, needing `sequence`'s `countFrom`.
+2. `payload` is dispatched by its own leading tag byte, nested inside a `switch` in spirit similar to Balancer's `userData` – but here the entire VAA, both dispatch tags and all data, lives in one opaque `bytes` argument with no ABI structure anywhere around it.
+3. `emitterAddress`/`tokenAddress`/`to` are 32-byte, chain-agnostic identifiers, decoded as raw bytes rather than `address` – they are only interpretable as EVM addresses once matched against their accompanying chain-id field.
+
+Using ERC-0000, this input can be described for Clear Signing – see [Wormhole Token Bridge Example](../assets/erc-non-abi-dispatch/example-wormhole-token-bridge.json).
 
 ### `TieredExecutor` (artificial illustrative example)
 
