@@ -170,7 +170,31 @@ function execute(bytes calldata commands, bytes[] calldata inputs, uint256 deadl
 
 Using ERC-0000, this input can be described for Clear Signing – see [Universal Router Example](../assets/erc-non-abi-dispatch/example-universal-router.json).
 
-### ERC-7579 `execute`
+### ERC-7579 `execute` function
+
+The [ERC-7579](./erc-7579.md) `execute` function, which encodes the data in the following format:
+
+
+| CallType | ExecType | Unused  | ModeSelector | ModePayload |
+| -------- | -------- | ------- | ------------ | ----------- |
+| 1 byte   | 1 byte   | 4 bytes | 4 bytes      | 22 bytes    |
+
+```solidity
+function execute(bytes32 mode, bytes calldata executionCalldata) external payable;
+```
+
+The `mode` value determines how `executionCalldata` itself must be decoded:
+- `CALLTYPE = 0x00` (single call): `executionCalldata` is `abi.encodePacked(target, value, callData)`.
+- `CALLTYPE = 0x01` (batch call): `executionCalldata` is a regularly ABI-encoded `Execution(address target, uint256 value, bytes callData)[]`.
+- `CALLTYPE = 0xff` (delegatecall): `executionCalldata` is `abi.encodePacked(target, callData)`, with **no `value` field**.
+
+#### What makes this encoding unusual
+
+1. `mode` is a single `bytes32` packed with five sub-fields of uneven, non-32-byte-aligned widths (1/1/4/4/22 bytes).
+2. The format of the second parameter, `executionCalldata`, is dependent on the first byte of the first parameter, `mode` – similar to the pattern used by `UniversalRouter`, but more complicated since the indication is a single byte inside a fixed-size `bytes32` rather than a whole named parameter.
+3. The three `CALLTYPE`s are not just different tuples of the same shape – `single` and `delegatecall` use packed encoding, with no `value` field for `delegatecall`, while `batch` uses standard padded ABI encoding of a struct array, so `executionCalldata` decoding changes shape entirely between cases.
+
+Using ERC-0000, this input can be described for Clear Signing – see [ERC-7579 Execute Example](../assets/erc-non-abi-dispatch/example-erc7579-execute.json).
 
 ### Balancer Relayer `joinPool`/`exitPool`
 
