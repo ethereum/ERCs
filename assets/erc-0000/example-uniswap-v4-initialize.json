@@ -52,7 +52,7 @@
                     {
                         "path": "key.hooks",
                         "label": "Hook permissions",
-                        "layout": {
+                        "customEncoding": {
                             "type": "bitfield",
                             "bytes": 20,
                             "fields": [
