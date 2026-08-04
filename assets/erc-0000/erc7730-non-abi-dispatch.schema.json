@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "version": "2.0.0",
     "type": "object",
-    "description": "Full schema for ERC-7730 descriptors, including the layout/switch/interaction keys and the operation calldata param defined by the non-ABI-dispatch companion ERC (requires 7730). Based on erc7730-v2.schema.json; see that file for the unmodified base ERC-7730 schema, and the companion ERC's Specification section for the normative prose this schema encodes.",
+    "description": "Full schema for ERC-7730 descriptors, including the customEncoding/switch/interaction keys and the operation calldata param defined by the non-ABI-dispatch companion ERC (requires 7730). Based on erc7730-v2.schema.json; see that file for the unmodified base ERC-7730 schema, and the companion ERC's Specification section for the normative prose this schema encodes.",
     "properties": {
         "$schema": {
             "title": "Schema",
@@ -353,7 +353,7 @@
                                         "$ref": "#/$definitions/id"
                                     },
                                     "switch": {
-                                        "$ref": "#/$layout/topLevelSwitch"
+                                        "$ref": "#/$customEncoding/topLevelSwitch"
                                     }
                                 },
                                 "required": [
@@ -552,14 +552,14 @@
                     "$ref": "#/$format/encryptionParameters",
                     "description": "If present, the field value is encrypted. The format specifies how to display the decrypted value."
                 },
-                "layout": {
-                    "$ref": "#/$layout/node"
+                "customEncoding": {
+                    "$ref": "#/$customEncoding/node"
                 },
                 "switch": {
-                    "$ref": "#/$layout/fieldSwitch"
+                    "$ref": "#/$customEncoding/fieldSwitch"
                 },
                 "interaction": {
-                    "$ref": "#/$layout/interaction"
+                    "$ref": "#/$customEncoding/interaction"
                 }
             },
             "allOf": [
@@ -718,11 +718,11 @@
                 {
                     "not": {
                         "required": [
-                            "layout",
+                            "customEncoding",
                             "format"
                         ]
                     },
-                    "$comment": "layout MUST NOT combine with format (non-abi-dispatch companion ERC, ### layout)."
+                    "$comment": "customEncoding MUST NOT combine with format (non-abi-dispatch companion ERC, ### customEncoding)."
                 },
                 {
                     "not": {
@@ -737,10 +737,10 @@
                     "not": {
                         "required": [
                             "interaction",
-                            "layout"
+                            "customEncoding"
                         ]
                     },
-                    "$comment": "interaction is mutually exclusive with layout (non-abi-dispatch companion ERC, ### interaction)."
+                    "$comment": "interaction is mutually exclusive with customEncoding (non-abi-dispatch companion ERC, ### interaction)."
                 }
             ],
             "unevaluatedProperties": false
@@ -1021,7 +1021,7 @@
                     "description": "The path to the associated spender, if the calldata can be associated with a container value."
                 },
                 "operation": {
-                    "$ref": "#/$layout/operationParam"
+                    "$ref": "#/$customEncoding/operationParam"
                 }
             },
             "anyOf": [
@@ -1386,33 +1386,33 @@
     },
     "$id": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
     "title": "ERC-7730 Non-ABI Dispatch Companion Schema",
-    "$layout": {
+    "$customEncoding": {
         "node": {
-            "title": "A layout node",
+            "title": "A customEncoding node",
             "oneOf": [
                 {
-                    "$ref": "#/$layout/uint"
+                    "$ref": "#/$customEncoding/uint"
                 },
                 {
-                    "$ref": "#/$layout/bytes"
+                    "$ref": "#/$customEncoding/bytes"
                 },
                 {
-                    "$ref": "#/$layout/address"
+                    "$ref": "#/$customEncoding/address"
                 },
                 {
-                    "$ref": "#/$layout/bool"
+                    "$ref": "#/$customEncoding/bool"
                 },
                 {
-                    "$ref": "#/$layout/bitfield"
+                    "$ref": "#/$customEncoding/bitfield"
                 },
                 {
-                    "$ref": "#/$layout/object"
+                    "$ref": "#/$customEncoding/object"
                 },
                 {
-                    "$ref": "#/$layout/sequence"
+                    "$ref": "#/$customEncoding/sequence"
                 },
                 {
-                    "$ref": "#/$layout/switchNode"
+                    "$ref": "#/$customEncoding/switchNode"
                 }
             ]
         },
@@ -1573,7 +1573,7 @@
                                 "type": "string"
                             },
                             "schema": {
-                                "$ref": "#/$layout/node"
+                                "$ref": "#/$customEncoding/node"
                             },
                             "label": {
                                 "type": "string"
@@ -1606,7 +1606,7 @@
                     "const": "sequence"
                 },
                 "element": {
-                    "$ref": "#/$layout/node"
+                    "$ref": "#/$customEncoding/node"
                 },
                 "count": {
                     "type": "integer",
@@ -1623,20 +1623,20 @@
             "additionalProperties": false
         },
         "switchNode": {
-            "title": "switch used as a layout node (inline, reads from the buffer at the cursor)",
+            "title": "switch used as a customEncoding node (inline, reads from the buffer at the cursor)",
             "type": "object",
             "properties": {
                 "type": {
                     "const": "switch"
                 },
                 "expression": {
-                    "$ref": "#/$layout/node"
+                    "$ref": "#/$customEncoding/node"
                 },
                 "payloadFrom": {
                     "type": "string"
                 },
                 "cases": {
-                    "$ref": "#/$layout/switchCases"
+                    "$ref": "#/$customEncoding/switchCases"
                 }
             },
             "required": [
@@ -1672,12 +1672,12 @@
                             "additionalProperties": false
                         },
                         {
-                            "$ref": "#/$layout/node"
+                            "$ref": "#/$customEncoding/node"
                         }
                     ]
                 },
                 "cases": {
-                    "$ref": "#/$layout/switchCases"
+                    "$ref": "#/$customEncoding/switchCases"
                 }
             },
             "required": [
@@ -1690,7 +1690,7 @@
             "title": "A switch cases map, including the reserved $default key",
             "type": "object",
             "additionalProperties": {
-                "$ref": "#/$layout/switchCaseValue"
+                "$ref": "#/$customEncoding/switchCaseValue"
             }
         },
         "switchCaseValue": {
@@ -1701,12 +1701,12 @@
                 {
                     "type": "object",
                     "properties": {
-                        "layout": {
-                            "$ref": "#/$layout/node"
+                        "customEncoding": {
+                            "$ref": "#/$customEncoding/node"
                         }
                     },
                     "required": [
-                        "layout"
+                        "customEncoding"
                     ],
                     "additionalProperties": false
                 },
@@ -1714,7 +1714,7 @@
                     "type": "object",
                     "properties": {
                         "switch": {
-                            "$ref": "#/$layout/fieldSwitch"
+                            "$ref": "#/$customEncoding/fieldSwitch"
                         }
                     },
                     "required": [
@@ -1812,7 +1812,7 @@
                                 "type": "object",
                                 "properties": {
                                     "switch": {
-                                        "$ref": "#/$layout/topLevelSwitch"
+                                        "$ref": "#/$customEncoding/topLevelSwitch"
                                     }
                                 },
                                 "required": [
@@ -1824,7 +1824,7 @@
                                 "type": "object",
                                 "properties": {
                                     "interaction": {
-                                        "$ref": "#/$layout/interaction"
+                                        "$ref": "#/$customEncoding/interaction"
                                     }
                                 },
                                 "required": [
@@ -1945,5 +1945,5 @@
             ]
         }
     },
-    "$comment": "This is a full schema, not a thin extension of erc7730-v2.schema.json: composing new properties onto a schema closed with additionalProperties:false (calldataParameters) or reached only via $ref (field, whose own unevaluatedProperties:false does not see sibling allOf properties across a $ref boundary - verified empirically, not just by reading the spec) does not validate the way a thin allOf+$ref extension would suggest. Everything here is spliced directly into the same base schema objects instead. One side effect worth knowing: because field is modified in place rather than duplicated, layout/switch/interaction are also available inside $display/fieldGroup's and $display/reference's own nested fields, not just top-level display.formats.*.fields[], even though no current example exercises that."
+    "$comment": "This is a full schema, not a thin extension of erc7730-v2.schema.json: composing new properties onto a schema closed with additionalProperties:false (calldataParameters) or reached only via $ref (field, whose own unevaluatedProperties:false does not see sibling allOf properties across a $ref boundary - verified empirically, not just by reading the spec) does not validate the way a thin allOf+$ref extension would suggest. Everything here is spliced directly into the same base schema objects instead. One side effect worth knowing: because field is modified in place rather than duplicated, customEncoding/switch/interaction are also available inside $display/fieldGroup's and $display/reference's own nested fields, not just top-level display.formats.*.fields[], even though no current example exercises that."
 }

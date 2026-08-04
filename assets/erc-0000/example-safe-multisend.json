@@ -27,7 +27,7 @@
                     {
                         "path": "transactions",
                         "label": "Batched calls",
-                        "layout": {
+                        "customEncoding": {
                             "type": "sequence",
                             "element": {
                                 "type": "object",

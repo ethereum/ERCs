@@ -37,7 +37,7 @@
                     {
                         "path": "authorization",
                         "label": "Signed authorization",
-                        "layout": {
+                        "customEncoding": {
                             "type": "object",
                             "fields": [
                                 {
@@ -88,7 +88,7 @@
                     {
                         "path": "poolId",
                         "label": "Pool",
-                        "layout": {
+                        "customEncoding": {
                             "type": "object",
                             "fields": [
                                 {
@@ -167,7 +167,7 @@
                                                         {
                                                             "path": "minBptAmountOut",
                                                             "label": "Minimum pool tokens out",
-                                                            "layout": {
+                                                            "customEncoding": {
                                                                 "type": "switch",
                                                                 "expression": {
                                                                     "type": "uint",
@@ -212,7 +212,7 @@
                     {
                         "path": "outputReference",
                         "label": "Save result as",
-                        "layout": {
+                        "customEncoding": {
                             "type": "switch",
                             "expression": {
                                 "type": "uint",
@@ -239,7 +239,7 @@
                     {
                         "path": "poolId",
                         "label": "Pool",
-                        "layout": {
+                        "customEncoding": {
                             "type": "object",
                             "fields": [
                                 {
@@ -304,7 +304,7 @@
                                             {
                                                 "path": "bptAmountIn",
                                                 "label": "Pool tokens in",
-                                                "layout": {
+                                                "customEncoding": {
                                                     "type": "switch",
                                                     "expression": {
                                                         "type": "uint",
@@ -348,7 +348,7 @@
                                                                     {
                                                                         "path": "bptAmountIn",
                                                                         "label": "Pool tokens in",
-                                                                        "layout": {
+                                                                        "customEncoding": {
                                                                             "type": "switch",
                                                                             "expression": {
                                                                                 "type": "uint",
@@ -390,7 +390,7 @@
                                                                     {
                                                                         "path": "bptAmountIn",
                                                                         "label": "Pool tokens in",
-                                                                        "layout": {
+                                                                        "customEncoding": {
                                                                             "type": "switch",
                                                                             "expression": {
                                                                                 "type": "uint",
@@ -440,7 +440,7 @@
                     {
                         "path": "outputReferences[].key",
                         "label": "Save result as",
-                        "layout": {
+                        "customEncoding": {
                             "type": "switch",
                             "expression": {
                                 "type": "uint",

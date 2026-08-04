@@ -35,7 +35,7 @@
                     {
                         "path": "commands",
                         "label": "Commands",
-                        "layout": {
+                        "customEncoding": {
                             "type": "sequence",
                             "element": {
                                 "type": "uint",

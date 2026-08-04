@@ -31,7 +31,7 @@
                     {
                         "path": "mode",
                         "label": "Mode",
-                        "layout": {
+                        "customEncoding": {
                             "type": "object",
                             "fields": [
                                 {
@@ -81,7 +81,7 @@
                             },
                             "cases": {
                                 "0x00": {
-                                    "layout": {
+                                    "customEncoding": {
                                         "type": "object",
                                         "fields": [
                                             {
@@ -129,7 +129,7 @@
                                     }
                                 },
                                 "0xff": {
-                                    "layout": {
+                                    "customEncoding": {
                                         "type": "object",
                                         "fields": [
                                             {

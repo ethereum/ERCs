@@ -27,7 +27,7 @@
                     {
                         "path": "encodedVm",
                         "label": "Signed message (VAA)",
-                        "layout": {
+                        "customEncoding": {
                             "type": "object",
                             "fields": [
                                 {
@@ -95,7 +95,7 @@
                                         "expression": { "type": "uint", "bytes": 1 },
                                         "cases": {
                                             "0x01": {
-                                                "layout": {
+                                                "customEncoding": {
                                                     "type": "object",
                                                     "fields": [
                                                         {
