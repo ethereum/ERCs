@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980" role="img" aria-labelledby="title desc">
+  <title id="title">Approval-Scoped Risk Isolation</title>
+  <desc id="desc">Diagram showing one owner controlling two separate account contracts. The vault account holds high-value assets, while the higher-risk interaction account grants approvals to a third-party protocol. Those approvals affect only the interaction account and cannot reach assets in the vault account.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .owner { fill: #eef3ff; }
+    .safe { fill: #eaf7ef; }
+    .risk { fill: #fff3db; }
+    .external { fill: #fff0ec; }
+    .zone { stroke-width: 2; rx: 18; ry: 18; }
+    .safe-zone { fill: #f5fbf7; stroke: #7fa18e; }
+    .risk-zone { fill: #fffaf0; stroke: #c5963d; }
+    .warn-zone { fill: #fff7f4; stroke: #cf8168; }
+    .asset { fill: #d8eadf; stroke: #4d7a63; stroke-width: 1.5; rx: 15; ry: 15; }
+    .asset-risk { fill: #fff0cf; stroke: #b77f20; stroke-width: 1.5; rx: 15; ry: 15; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff0ec; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .line { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .line-risk { stroke: #b45d42; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 8 7; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="980"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Approval-Scoped Risk Isolation</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">One controller can operate multiple custody addresses.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">Approvals granted by the risk account stay in that account.</text>
+
+  <rect class="box owner" x="500" y="140" width="440" height="120"/>
+  <text class="title2" x="720" y="180" text-anchor="middle">Owner Account (O)</text>
+  <text class="body" x="720" y="212" text-anchor="middle">One EOA, multisig, or parent account controls both accounts.</text>
+  <text class="mono" x="720" y="240" text-anchor="middle">No extra seed phrase or wallet slot needed</text>
+
+  <rect class="box safe" x="90" y="335" width="520" height="305"/>
+  <text class="title2" x="350" y="375" text-anchor="middle">High-Value Vault Account (A1)</text>
+  <text class="mono" x="350" y="405" text-anchor="middle">Separate address / separate custody</text>
+  <rect class="zone safe-zone" x="125" y="440" width="450" height="110"/>
+  <text class="label" x="350" y="472" text-anchor="middle">Holds core assets</text>
+  <rect class="asset" x="165" y="500" width="80" height="30"/>
+  <rect class="asset" x="260" y="500" width="92" height="30"/>
+  <rect class="asset" x="367" y="500" width="92" height="30"/>
+  <rect class="asset" x="474" y="500" width="72" height="30"/>
+  <text class="body" x="205" y="520" text-anchor="middle">ETH</text>
+  <text class="body" x="306" y="520" text-anchor="middle">Stablecoins</text>
+  <text class="body" x="413" y="520" text-anchor="middle">NFT</text>
+  <text class="body" x="510" y="520" text-anchor="middle">More...</text>
+  <rect class="note" x="145" y="570" width="410" height="48"/>
+  <text class="body" x="350" y="600" text-anchor="middle">A2 approvals cannot reach A1 assets.</text>
+
+  <rect class="box risk" x="830" y="335" width="520" height="305"/>
+  <text class="title2" x="1090" y="375" text-anchor="middle">Higher-Risk Interaction Account (A2)</text>
+  <text class="mono" x="1090" y="405" text-anchor="middle">Separate address / separate custody</text>
+  <rect class="zone risk-zone" x="865" y="440" width="450" height="110"/>
+  <text class="label" x="1090" y="472" text-anchor="middle">Used for higher-risk apps</text>
+  <rect class="asset-risk" x="915" y="500" width="72" height="30"/>
+  <rect class="asset-risk" x="1002" y="500" width="92" height="30"/>
+  <rect class="asset-risk" x="1109" y="500" width="80" height="30"/>
+  <rect class="asset-risk" x="1204" y="500" width="76" height="30"/>
+  <text class="body" x="951" y="520" text-anchor="middle">ETH</text>
+  <text class="body" x="1048" y="520" text-anchor="middle">ERC-20</text>
+  <text class="body" x="1149" y="520" text-anchor="middle">NFTs</text>
+  <text class="body" x="1242" y="520" text-anchor="middle">More...</text>
+  <rect class="warn" x="885" y="570" width="410" height="48"/>
+  <text class="body" x="1090" y="600" text-anchor="middle">Approvals here expose only A2 assets.</text>
+
+  <rect class="box external" x="1090" y="740" width="250" height="96"/>
+  <text class="title2" x="1215" y="775" text-anchor="middle">Third-Party Protocol</text>
+  <text class="body" x="1215" y="802" text-anchor="middle">DEX, market, or</text>
+  <text class="body" x="1215" y="823" text-anchor="middle">malicious app</text>
+
+  <path class="line" d="M 610 260 C 590 290, 470 295, 430 333"/>
+  <text class="label" x="440" y="290" text-anchor="middle">controls A1</text>
+  <path class="line" d="M 830 260 C 850 290, 970 295, 1010 333"/>
+  <text class="label" x="990" y="290" text-anchor="middle">controls A2</text>
+
+  <path class="line-risk" d="M 1090 640 L 1090 700 L 1165 700 L 1165 738"/>
+  <text class="label" x="980" y="694" text-anchor="middle">approve / operator grant</text>
+
+  <path class="line dash" d="M 610 495 C 710 495, 730 495, 830 495"/>
+  <text class="label" x="720" y="468" text-anchor="middle">same root controller</text>
+
+  <rect class="note" x="70" y="845" width="360" height="100"/>
+  <text class="label" x="250" y="878" text-anchor="middle">Isolation Property</text>
+  <text class="body" x="250" y="905" text-anchor="middle">A1 and A2 are different addresses.</text>
+  <text class="body" x="250" y="926" text-anchor="middle">Approvals bind to the approving address.</text>
+
+  <rect class="warn" x="465" y="845" width="250" height="100"/>
+  <text class="label" x="590" y="878" text-anchor="middle">Blast Radius</text>
+  <text class="body" x="590" y="905" text-anchor="middle">If A2 approves a malicious app,</text>
+  <text class="body" x="590" y="926" text-anchor="middle">only A2 is exposed.</text>
+
+  <rect class="note" x="755" y="845" width="300" height="100"/>
+  <text class="label" x="905" y="878" text-anchor="middle">Why This Matters</text>
+  <text class="body" x="905" y="905" text-anchor="middle">Same separation as multiple EOAs,</text>
+  <text class="body" x="905" y="926" text-anchor="middle">without extra keys or wallet slots.</text>
+</svg>
