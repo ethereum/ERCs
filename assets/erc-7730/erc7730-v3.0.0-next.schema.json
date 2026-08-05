@@ -748,7 +748,7 @@
                 {
                     "title": "integer format",
                     "const": "duration",
-                    "description": "The field should be displayed as a time duration. The value is interpreted as a number of seconds and rendered as <days>d<hh>h<mm>m<ss>s, where days is unbounded and hours, minutes and seconds are zero-padded to two digits (e.g. 864000 -> 10d00h00m00s, 8250 -> 0d02h17m30s). A value equal to type(uint256).max (2^256-1) is treated as a sentinel for an unbounded duration and rendered as the unboundedMessage parameter (default \"Forever\"); see durationParameters."
+                    "description": "The field should be displayed as a time duration. The value is interpreted as a number of seconds and rendered as <days>d<hh>h<mm>m<ss>s, where days is unbounded and hours, minutes and seconds are zero-padded to two digits (e.g. 864000 -> 10d00h00m00s, 8250 -> 0d02h17m30s). A value equal to type(uint256).max (2^256-1) is treated as a sentinel for an unbounded duration and rendered as the unboundedMessage parameter (default \"Forever\"). The optional approximation parameter appends an approximate calendar duration in parentheses, e.g. \"1856d00h00m00s (approx. 5 years and 1 month)\"; see durationParameters."
                 },
                 {
                     "title": "integer format",
@@ -1030,6 +1030,12 @@
                     "title": "Unbounded Message",
                     "type": "string",
                     "description": "The message displayed when the value equals type(uint256).max (2^256-1), used as a sentinel for an unbounded duration. Defaults to \"Forever\" if omitted."
+                },
+                "approximation": {
+                    "title": "Approximation Suffix",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true, an approximate calendar duration is appended in parentheses after the exact duration, e.g. \"1856d00h00m00s (approx. 5 years and 1 month)\". The value is rounded to the nearest month (one month is 30.4375 days, so twelve months are exactly one Julian year of 365.25 days) and zero year or month components are omitted. Only relevant for values of at least one month (2629800 seconds): below that, no suffix is appended. The unbounded sentinel takes precedence, so unboundedMessage is rendered alone without a suffix. Defaults to false."
                 }
             },
             "additionalProperties": false
