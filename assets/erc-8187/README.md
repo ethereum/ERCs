@@ -34,7 +34,7 @@ Abstract base contract implementing:
 - `transferPullAllowance` with special infinite-allowance transfer and renunciation (`toSpender == address(0)`)
 - `permitPull` via EIP-712 (`ECDSA.recoverCalldata` for EOA signatures)
     - **TODO**: Support for ERC-6492 (universal signature validation) and ERC-1271 (smart contract wallets)
-- `pullFromWithPermit` with front-run DOS protection (silent permit failure fallback)
+- `pullFromWithPermit` with front-run DoS protection (silent permit failure fallback)
 - Abstract `_sourceTokens(address token, address owner, address to, uint256 amount)` and `maxPullable`
 
 Uses OpenZeppelin's `EIP712` for domain separators, `ECDSA` for signature recovery, and `SafeERC20` for token transfers.

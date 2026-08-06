@@ -17,7 +17,7 @@ pragma solidity ^0.8.20;
  * - Renunciation of allowances
  * - Atomic permit + pull operations
  *
- * @custom:specification https://github.com/gnarvaja/ERCs/blob/master/ERCS/erc-8187.md
+ * @custom:specification https://eips.ethereum.org/ERCS/erc-8187
  */
 interface IPuller {
     // =============================================================

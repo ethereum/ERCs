@@ -27,7 +27,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
  * keccak256("PullPermit(address token,address owner,address spender,uint256 limit,uint256 nonce,uint256 deadline)")
  * ```
  *
- * @custom:specification https://github.com/gnarvaja/ERCs/blob/master/ERCS/erc-8187.md
+ * @custom:specification https://eips.ethereum.org/ERCS/erc-8187
  */
 abstract contract BasePuller is IPuller, EIP712 {
     using SafeERC20 for IERC20;
@@ -108,10 +108,7 @@ abstract contract BasePuller is IPuller, EIP712 {
             }
 
             if (toSpender != address(0)) {
-                uint256 toAllowance = _pullAllowances[token][owner][toSpender];
-                if (toAllowance != type(uint256).max) {
-                    _pullAllowances[token][owner][toSpender] = toAllowance + amount;
-                }
+                _pullAllowances[token][owner][toSpender] += amount;
             }
         }
 
