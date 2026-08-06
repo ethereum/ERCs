@@ -1,5 +1,5 @@
 ---
-eip: 8367
+eip: 8370
 title: Inheritable Agent Mandates
 description: Spending and lifecycle limits welded to an agent's on-chain identity that every spawned child inherits and can only tighten.
 author: Helmi Mekaoui (@adn-ia)
