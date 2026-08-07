@@ -28,9 +28,9 @@ detector ──observe──▶ signal vector ──submitReport──▶ regist
                                                         │
                                           activeScore   │
                                                         ▼
-claimant ──openClaim──▶ remediation ──freeze / openRefund──▶ escrow
+claimant ──openClaim──▶ remediation ──freeze / open──▶ escrow
                               │                                 │
-                        adjudicate                        claimRefund
+                        adjudicate                        claim
                                                                 ▼
                                                              buyers
 ```
@@ -45,8 +45,8 @@ claimant ──openClaim──▶ remediation ──freeze / openRefund──▶
 | `LaunchDetector.sol` | Assembles a signal vector; canonical evidence leaf and root |
 | `LaunchDirectory.sol` | Per-chain resolution from a token or deployer to its launches |
 | `LaunchAbuseRegistry.sol` | Bonded report publication, submitter-key rotation, `activeScore` |
-| `LaunchEscrow.sol` | Vesting release, lapsing freeze, pro-rata refund by pull |
-| `LaunchRemediation.sol` | Bonds, claims, contest, settle, adjudication, refund execution |
+| `LaunchEscrow.sol` | Vesting release, lapsing freeze, pro-rata  by pull |
+| `LaunchRemediation.sol` | Bonds, claims, contest, settle, adjudication,  execution |
 | `LaunchGuard.sol` | Advisory pre-purchase check, called by `STATICCALL` |
 | `CommitteeAdjudicator.sol` | n-of-m adjudication with published reasoning, in place of a single key |
 | `Containment.sol` | The containment ladder as a pure function |
@@ -135,14 +135,14 @@ presented as a leaf. An odd leaf is promoted rather than duplicated.
 
 ## Gas
 
-Opening a refund pool is constant in the number of buyers, which is what makes
+Opening a  pool is constant in the number of buyers, which is what makes
 the pull model necessary rather than merely tidy. Measured with 2,000 recorded
 buyers on a single launch:
 
 | Operation | Gas |
 | --- | --- |
-| `openRefund` with 2,000 buyers | ~70,800 |
-| `claimRefund`, per buyer | 45,000 to 96,000 |
+| `open` with 2,000 buyers | ~70,800 |
+| `claim`, per buyer | 45,000 to 96,000 |
 
 A push distribution over the same 2,000 buyers would exceed the block gas limit
 by a wide margin, and would fail entirely if any single recipient reverted.
@@ -155,7 +155,7 @@ by a wide margin, and would fail entirely if any single recipient reverted.
 | The escrow stays solvent across all launches | invariant, 128k calls |
 | Accounted tokens never exceed the balance held | invariant, 128k calls |
 | Released proceeds never exceed proceeds paid in | invariant, 128k calls |
-| Refund is unreachable without an upheld claim | `Remediation.t.sol` |
+|  is unreachable without an upheld claim | `Remediation.t.sol` |
 | The reentrancy lock blocks a re-entering payee | `GuardAndProbe.t.sol` |
 | The pro-rata denominator is frozen once the pool opens | `SecurityRegression.t.sol` |
 | A launch identifier cannot be squatted | `DirectorySquat.t.sol` |
@@ -169,7 +169,7 @@ by a wide margin, and would fail entirely if any single recipient reverted.
 
 All source files return zero findings from Slither-based verification.
 `timestamp` and `low-level-calls` are suppressed with the reason inline. The
-contracts are time-based by nature: vesting, freeze deadlines and refund windows
+contracts are time-based by nature: vesting, freeze deadlines and  windows
 are measured in days, against a validator skew bounded at seconds.
 
 `call` is required twice over. `transfer` forwards only 2300 gas, which stopped
