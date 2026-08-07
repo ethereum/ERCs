@@ -1,6 +1,6 @@
 # Reference implementation
 
-Accompanies the ERC "Token Launch Abuse Detection and Refund".
+Accompanies the ERC "Token Launch Abuse Detection and Remediation".
 
 Self-contained: no external dependencies, no submodules.
 
