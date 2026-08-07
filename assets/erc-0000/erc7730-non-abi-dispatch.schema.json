@@ -318,7 +318,14 @@
                     "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the string returned by EIP 712 encodeType on the primary type.",
                     "type": "object",
                     "propertyNames": {
-                        "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(.*\\)$"
+                        "anyOf": [
+                            {
+                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(.*\\)$"
+                            },
+                            {
+                                "const": "$fallback"
+                            }
+                        ]
                     },
                     "additionalProperties": {
                         "oneOf": [
@@ -1798,6 +1805,9 @@
                                 "path"
                             ],
                             "additionalProperties": false
+                        },
+                        {
+                            "$ref": "#/$customEncoding/node"
                         }
                     ]
                 },
@@ -1829,6 +1839,25 @@
                                 },
                                 "required": [
                                     "interaction"
+                                ],
+                                "additionalProperties": false
+                            },
+                            {
+                                "title": "A case that directly decodes and displays its own data, same shape as an ordinary format entry",
+                                "type": "object",
+                                "properties": {
+                                    "intent": {
+                                        "$ref": "#/$display/intent"
+                                    },
+                                    "interpolatedIntent": {
+                                        "$ref": "#/$display/interpolatedIntent"
+                                    },
+                                    "fields": {
+                                        "$ref": "#/$display/fields"
+                                    }
+                                },
+                                "required": [
+                                    "fields"
                                 ],
                                 "additionalProperties": false
                             }
