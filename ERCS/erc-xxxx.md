@@ -1,8 +1,8 @@
 ---
-title: Token Launch Abuse Detection and Refund
+title: Token Launch Abuse Detection and Remediation
 description: Attested detection of rug pulls and other deployer abuse, with escrowed proceeds enabling pro-rata refunds and bonded restitution.
 author: Leigh Cronian (@cybercentry)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-token-launch-abuse-detection-and-refund/29359
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-token-launch-abuse-detection-and-remediation/29359
 status: Draft
 type: Standards Track
 category: ERC
