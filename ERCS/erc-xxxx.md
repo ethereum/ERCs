@@ -1,0 +1,822 @@
+---
+title: Token Launch Abuse Detection and Remediation
+description: Attested detection of rug pulls and other deployer abuse, with escrowed proceeds enabling pro-rata refunds and bonded restitution.
+author: Leigh Cronian (@cybercentry)
+discussions-to: https://ethereum-magicians.org/t/erc-xxxx-token-launch-abuse-detection-and-remediation/29359
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-08-07
+requires: 20, 165, 214
+---
+
+## Abstract
+
+This ERC defines a standard for detecting abuse by token deployers and refunding their buyers while the money is still reachable.
+
+It specifies three parts. **Detection**: a taxonomy of ten deployer abuse patterns, each with a reference profile, scored from a fixed twelve-signal vector into an `abuseScore` of 0-100 and published as a bonded report committing to chain-verifiable evidence. Every signal describes an action the deployer took; price decline is excluded by rule. **Escrow**: the venue holds sale proceeds and releases them on a schedule, so they remain reachable while abuse typically occurs. **Remediation**: a bonded claim and adjudication process that, on an upheld claim, refunds buyers pro rata by pull and draws any shortfall from a bond posted before launch.
+
+Because the venue records every purchase, refunds require no individual transfer to identify and no claimant to enumerate victims. The specification is explicit that it protects buyers only at venues that adopt it: a deployer who launches outside such a venue is outside its reach.
+
+## Motivation
+
+Most token buyers are not harmed by an anonymous trading cohort. They are harmed by the person who created the token.
+
+The pattern is well worn. A deployer mints a supply, keeps most of it at zero cost, seeds a liquidity pool, promotes the launch, and sells into the resulting bids or withdraws the liquidity outright. Variants differ only in mechanics: the honeypot that accepts buys and blocks sells, the retained mint function used to dilute after the raise, the allocation quietly distributed to wallets the deployer funded, the coordinated exit timed to a vesting unlock. The common structure is that one identifiable party controls the asset, the float, and the timing, and extracts value from people who cannot see any of it.
+
+Three gaps keep this unaddressed:
+
+**Deployer conduct is invisible at the moment it matters.** Whether liquidity is locked, how much supply the deployer retains, which privileged functions survive deployment, and how much of the raise is already withdrawn are all knowable from chain state, but are published in no comparable form. A buyer deciding in the first minutes has no way to consult them, and a venue has nothing to gate on. Where analysis exists it sits in proprietary dashboards, with no way to compare two analysts or hold either accountable.
+
+**Proceeds settle instantly.** A venue that forwards a buyer's payment in the same transaction makes the outcome final before abuse could be detected. Nothing forces a delay, and nothing lets a venue hold proceeds briefly without becoming an unaccountable custodian.
+
+**Recourse does not exist.** Buyers have no remedy beyond social pressure against a pseudonymous deployer. Nothing obliges someone raising money from strangers to have collateral at stake, and nothing routes it to the people who funded them.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+### Overview
+
+Roles:
+
+- **Deployer**: the party launching the token. The subject of detection, the poster of the bond, and the respondent in any claim.
+- **Venue**: the launchpad, bonding curve, or sale contract through which buyers purchase. Holds proceeds in escrow and records every purchase.
+- **Detector**: an entity that analyzes launches and publishes reports. Permissionless to become; accountable through bond.
+- **Buyer**: a purchaser at the venue. Receives refunds by pull without filing anything, and MAY open a bonded claim. A detector or the venue MAY also open one.
+- **Adjudicator**: the entity resolving contested claims for a deployment.
+
+Interfaces:
+
+- `ILaunchDetector`: assembly of a signal vector from chain state and off-chain findings.
+- `ILaunchDirectory`: per-chain resolution from a token or deployer to its launches.
+- `ILaunchAbuseRegistry`: publication and query of detection reports.
+- `ILaunchEscrow`: purchase recording, scheduled release of proceeds, and freezing.
+- `ILaunchRemediation`: bonds, claims, adjudication, and pro-rata refund.
+
+Two conformance levels are defined. Naming them matters: the escrow is the expensive part to adopt, and a venue that cannot take it on should still be able to publish and consult detection rather than reading the proposal as all or nothing.
+
+**Detection conformance** requires `ILaunchDirectory`, `ILaunchAbuseRegistry` and `ILaunchGuard`. A venue at this level lists its launches, detectors publish bonded reports against them, and buyers can consult a score before purchasing. There is no escrow and therefore no remedy: a detection-conformant deployment MUST NOT describe itself as offering refunds, and MUST make clear that a low score carries no restitution behind it.
+
+**Full conformance** adds `ILaunchEscrow` and `ILaunchRemediation`, and is the only level at which a buyer can be refunded.
+
+Any implementation of `ILaunchEscrow` MUST list its launches in a directory: an unlistable launch is unreachable by consumers and unreportable by detectors. An implementation claiming full conformance MUST implement all five interfaces and MUST return `true` from `supportsInterface` for each corresponding interface ID as defined in [ERC-165](./erc-165.md).
+
+### Part 1: Detection
+
+#### Conduct, not outcome
+
+Most launches fail honestly. Scoring price decline would flag every failed project as a rug, destroying legitimate launches and making the score worthless.
+
+Implementations MUST NOT include price decline, drawdown, market capitalization, holder losses, or any other measure of buyer outcome as a scored signal. Every signal below describes an action the deployer took or a power they hold. A buyer's loss establishes standing to claim; it never establishes that abuse occurred. Detectors MAY report outcome measures as context in `evidenceURI` but MUST NOT weight them.
+
+#### Pattern taxonomy
+
+Patterns are identified by a `bytes32` derived from a namespaced string, so the taxonomy extends without a central registry. Implementations MUST use the following identifiers for the patterns they describe:
+
+| Constant | Derivation | Description |
+| --- | --- | --- |
+| `PATTERN_HARD_RUG` | `keccak256("erc.launch.hard-rug")` | Withdrawal of pool liquidity after buyers have funded it. |
+| `PATTERN_SOFT_RUG` | `keccak256("erc.launch.soft-rug")` | Distribution of the deployer's retained allocation into buyer bids, without removing liquidity. |
+| `PATTERN_INSIDER_ALLOCATION` | `keccak256("erc.launch.insider-allocation")` | Undisclosed pre-allocation of supply to wallets the deployer funded or controls. |
+| `PATTERN_SNIPER_COORDINATION` | `keccak256("erc.launch.sniper-coordination")` | Acquisition of float in the opening blocks by addresses linked to the deployer. |
+| `PATTERN_HONEYPOT` | `keccak256("erc.launch.honeypot")` | Token logic that accepts purchases but prevents or penalizes selling. |
+| `PATTERN_MINT_DILUTION` | `keccak256("erc.launch.mint-dilution")` | Post-launch supply expansion diluting buyers. |
+| `PATTERN_RETAINED_CONTROL` | `keccak256("erc.launch.retained-control")` | Retention of privileged powers contrary to what was disclosed at launch. |
+| `PATTERN_WASH_LAUNCH` | `keccak256("erc.launch.wash-launch")` | Fabricated launch volume to obtain venue ranking or visibility. |
+| `PATTERN_UNLOCK_EXIT` | `keccak256("erc.launch.unlock-exit")` | Coordinated exit timed to a liquidity or vesting unlock. |
+| `PATTERN_SERIAL_DEPLOYER` | `keccak256("erc.launch.serial-deployer")` | Deployer linked to prior launches with upheld claims. |
+
+Implementations MAY define additional patterns under the `erc.launch.` prefix. Consumers MUST treat unrecognized identifiers as informational and MUST NOT apply automated containment on their basis.
+
+#### Signal vector
+
+Scores are comparable only if inputs are. A conformant detector MUST compute the following twelve signals and MUST publish them alongside any score. Values are in basis points (0-10000) unless stated. A detector that cannot compute a signal MUST report `type(uint16).max` (or `type(uint32).max` for `lpLockRemaining`) as an explicit unavailability sentinel rather than zero.
+
+| Field | Type | Units | Definition | Polarity |
+| --- | --- | --- | --- | --- |
+| `deployerSupplyShare` | `uint16` | bps | Share of total supply held by the deployer and addresses it funded, at window end. | Adverse |
+| `insiderAllocationShare` | `uint16` | bps | Share of supply transferred to deployer-funded addresses before public trading opened. | Adverse |
+| `sniperConcentration` | `uint16` | bps | Share of float acquired within the first `openingBlocks()` by addresses sharing a funding ancestor with the deployer. | Adverse |
+| `lpLockedShare` | `uint16` | bps | Share of liquidity provider tokens held in a lock or burn address. | Protective |
+| `lpLockRemaining` | `uint32` | seconds | Time remaining on the liquidity lock at window end. | Protective |
+| `liquidityRemoved` | `uint16` | bps | Share of peak pool liquidity withdrawn during the window. | Adverse |
+| `deployerSellRatio` | `uint16` | bps | Share of the deployer's allocation sold or transferred out during the window. | Adverse |
+| `proceedsWithdrawnShare` | `uint16` | bps | Share of the raise withdrawn by the deployer during the window. | Adverse |
+| `privilegedPowers` | `uint16` | bitmask | Privileged functions callable by the deployer at window end. | Adverse |
+| `priorUpheldClaims` | `uint16` | count | Upheld claims against launches by addresses linked to this deployer. | Adverse |
+| `supplyInflation` | `uint16` | bps | Increase in total supply between window start and window end. | Adverse |
+| `washTradeRatio` | `uint16` | bps | Share of window volume returning to the cohort that originated it. | Adverse |
+
+`privilegedPowers` bits are assigned as follows, and unassigned bits MUST be zero:
+
+| Bit | Power |
+| --- | --- |
+| `0x0001` | Mint |
+| `0x0002` | Pause or freeze transfers |
+| `0x0004` | Blacklist addresses |
+| `0x0008` | Set transfer fee or tax |
+| `0x0010` | Upgrade implementation |
+| `0x0020` | Seize or transfer balances arbitrarily |
+| `0x0040` | Set transaction or wallet limits |
+| `0x0080` | Exempt addresses from restrictions |
+
+The **observation window** runs from launch to `windowEnd`. Detectors MUST publish `launchedAt` and `windowEnd` so a third party can reproduce the computation.
+
+#### Score computation
+
+`abuseScore` is a `uint8` in the range 0-100, where 0 means no evidence of abuse and 100 means conclusive evidence. It MUST be computed as a weighted mean of per-signal normalized contributions:
+
+```
+abuseScore = round( 100 * sum(w[i] * s[i]) / sum(w[i]) )
+```
+
+where `w[i]` is the pattern's weight for signal `i` and `s[i]`, in the range 0 to 1, is signal `i` normalized against its activation threshold. For signals marked **Adverse**, `s[i]` rises as the value rises. For signals marked **Protective**, `s[i]` MUST be inverted, so that absent protection contributes to the score and present protection reduces it. Signals reported as unavailable MUST be excluded from both sums rather than treated as zero.
+
+Every pattern has a reference weight profile. A pattern that can be reported but not scored is an identifier, not a detection. Weights sum to 100 in each. Deployments MAY tune them but MUST publish the profile used. A signal absent from a profile carries no weight for that pattern and is excluded from its mean.
+
+Activation thresholds are shared across profiles: `deployerSupplyShare` 3000 bps, `insiderAllocationShare` 1000 bps, `sniperConcentration` 2000 bps, `lpLockedShare` 8000 bps, `lpLockRemaining` 30 days, `liquidityRemoved` 2000 bps, `deployerSellRatio` 3000 bps, `proceedsWithdrawnShare` 5000 bps, `supplyInflation` 1000 bps, `washTradeRatio` 3000 bps, `priorUpheldClaims` 1.
+
+`privilegedPowers` is categorical rather than proportional: its activation value is a bitmask, and the signal contributes fully when any named power is present and nothing otherwise.
+
+| Pattern | Weights |
+| --- | --- |
+| `PATTERN_HARD_RUG` | liquidityRemoved 30, lpLockedShare 20, proceedsWithdrawnShare 15, lpLockRemaining 10, deployerSellRatio 10, privilegedPowers 10, priorUpheldClaims 5 |
+| `PATTERN_SOFT_RUG` | deployerSellRatio 35, deployerSupplyShare 20, proceedsWithdrawnShare 20, lpLockedShare 10, privilegedPowers 10, priorUpheldClaims 5 |
+| `PATTERN_INSIDER_ALLOCATION` | insiderAllocationShare 45, deployerSupplyShare 20, sniperConcentration 20, priorUpheldClaims 15 |
+| `PATTERN_SNIPER_COORDINATION` | sniperConcentration 50, insiderAllocationShare 25, deployerSupplyShare 15, priorUpheldClaims 10 |
+| `PATTERN_HONEYPOT` | privilegedPowers 70, deployerSupplyShare 15, priorUpheldClaims 15 |
+| `PATTERN_MINT_DILUTION` | supplyInflation 50, privilegedPowers 30, deployerSupplyShare 10, priorUpheldClaims 10 |
+| `PATTERN_RETAINED_CONTROL` | privilegedPowers 70, lpLockedShare 15, priorUpheldClaims 15 |
+| `PATTERN_WASH_LAUNCH` | washTradeRatio 50, sniperConcentration 25, insiderAllocationShare 15, priorUpheldClaims 10 |
+| `PATTERN_UNLOCK_EXIT` | lpLockRemaining 30, deployerSellRatio 30, liquidityRemoved 25, priorUpheldClaims 15 |
+| `PATTERN_SERIAL_DEPLOYER` | priorUpheldClaims 60, deployerSupplyShare 15, privilegedPowers 15, insiderAllocationShare 10 |
+
+Exceptions: `PATTERN_HARD_RUG` masks DANGEROUS; `PATTERN_SOFT_RUG` masks DANGEROUS; `PATTERN_HONEYPOT` masks PAUSE, BLACKLIST, FEE, LIMITS, EXEMPT; `PATTERN_MINT_DILUTION` masks MINT; `PATTERN_RETAINED_CONTROL` masks MINT, PAUSE, BLACKLIST, FEE, UPGRADE, SEIZE, LIMITS, EXEMPT; `PATTERN_SERIAL_DEPLOYER` masks DANGEROUS; `PATTERN_SERIAL_DEPLOYER` activates `priorUpheldClaims` at 3. `DANGEROUS` denotes mint, upgrade and seize.
+
+`confidence` is a separate `uint8` in 0-100 expressing statistical certainty and MUST be reported independently. A high score at low confidence MUST NOT trigger automated containment.
+
+Deployments SHOULD interpret `abuseScore` in the following bands:
+
+| Band | Range | Suggested response |
+| --- | --- | --- |
+| None | 0-20 | No action. |
+| Weak | 21-40 | Record only. |
+| Elevated | 41-60 | Flag; extend the release schedule. |
+| Strong | 61-80 | Suspend release of proceeds. |
+| Conclusive | 81-100 | Freeze proceeds and admit claims. |
+
+#### Report structure and registry
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+struct SignalVector {
+    uint16 deployerSupplyShare;
+    uint16 insiderAllocationShare;
+    uint16 sniperConcentration;
+    uint16 lpLockedShare;
+    uint32 lpLockRemaining;
+    uint16 liquidityRemoved;
+    uint16 deployerSellRatio;
+    uint16 proceedsWithdrawnShare;
+    uint16 privilegedPowers;
+    uint16 priorUpheldClaims;
+    uint16 supplyInflation;
+    uint16 washTradeRatio;
+}
+
+struct AbuseReport {
+    bytes32      patternId;
+    bytes32      launchId;      // ILaunchEscrow launch identifier
+    address      token;
+    address      deployer;
+    address[]    linkedAddresses;
+    uint8        abuseScore;
+    uint8        confidence;
+    uint64       launchedAt;
+    uint64       windowEnd;
+    SignalVector signals;
+    bytes32      evidenceRoot;
+    string       evidenceURI;
+}
+
+interface ILaunchAbuseRegistry {
+    event AbuseReported(
+        bytes32 indexed reportId,
+        bytes32 indexed launchId,
+        bytes32 indexed patternId,
+        address detector,
+        uint8   abuseScore,
+        uint8   confidence
+    );
+
+    event ReportRetracted(bytes32 indexed reportId, string reason);
+    event DetectorBonded(address indexed detector, uint256 amount);
+    event SubmitterSet(address indexed detector, address indexed submitter);
+    event DetectorSlashed(address indexed detector, uint256 amount, bytes32 claimId);
+
+    /// @notice Publish a report. MUST revert unless the caller holds a bond
+    ///         of at least `minDetectorBond()`.
+    /// @dev reportId MUST equal keccak256(abi.encode(report, msg.sender)).
+    function submitReport(AbuseReport calldata report)
+        external
+        returns (bytes32 reportId);
+
+    /// @dev MUST revert if any claim referencing the report has been adjudicated.
+    /// @notice Authorize a hot key to submit on the caller's behalf, or revoke
+    ///         with the zero address. Rotation retires a compromised key without
+    ///         moving the bond or discarding the detector's record.
+    function setSubmitter(address submitter) external;
+
+    /// @notice The detector a caller submits as: itself, or whoever authorized it.
+    function principalOf(address caller) external view returns (address);
+
+    /// @notice Submit on behalf of `detector`, for the atomic submit-and-claim
+    ///         path where the remediation contract is the immediate caller.
+    /// @dev Caller MUST be the remediation contract, and the bond checked and
+    ///      recorded MUST be the named detector's. Attributing an atomically
+    ///      submitted report to its transport would put the wrong bond at risk,
+    ///      slash the wrong party, and make every atomic claim corroborate as
+    ///      the same single detector.
+    function submitReportFor(AbuseReport calldata report, address detector)
+        external
+        returns (bytes32 reportId);
+
+    function retractReport(bytes32 reportId, string calldata reason) external;
+
+    function getReport(bytes32 reportId)
+        external
+        view
+        returns (AbuseReport memory report, address detector, uint64 submittedAt);
+
+    /// @notice Highest-scoring live report for a launch.
+    /// @dev MUST ignore retracted reports and reports older than `maxReportAge()`.
+    function activeScore(bytes32 launchId)
+        external
+        view
+        returns (uint8 abuseScore, uint8 confidence, bytes32 reportId);
+
+    function minDetectorBond() external view returns (uint256);
+    function maxReportAge()    external view returns (uint64);
+    function openingBlocks()   external view returns (uint32);
+}
+```
+
+Detectors MUST post a bond of at least `minDetectorBond()` before submitting, and that bond MUST be slashable on a proven false report. Reports are claims by an accountable party, never facts.
+
+#### Evidence
+
+`evidenceRoot` MUST be a Merkle root over leaves that are each independently verifiable against chain state. Every leaf MUST take the form:
+
+```
+keccak256(abi.encode(0x00, chainId, blockNumber, txHash, logIndex, fieldId, value))
+```
+
+A commitment to data that cannot be re-derived from chain state proves only that the detector was self-consistent, not that it was truthful. Requiring chain-anchored leaves means any third party can recompute the signal vector from public data and demonstrate a false report, which is what makes the detector bond enforceable. Where a signal is derived rather than read directly, such as funding-ancestry clustering, the leaves MUST include the transactions from which the derivation was made.
+
+#### The detector
+
+A detector turns chain history into a `SignalVector`. Four of the twelve signals need a funding graph or cross-chain claim history and cannot be computed by a contract. The rest can, and the more of the vector anyone can recompute, the more of a false report is provable and the more the bond actually secures. Detectors MUST derive on-chain whatever can be derived on-chain, and MUST NOT substitute an asserted value for a readable one.
+
+| Signal | Source | Verifiable by anyone |
+| --- | --- | --- |
+| `privilegedPowers` | token bytecode, following proxies | yes |
+| `lpLockedShare`, `lpLockRemaining` | balances at lock or burn addresses | yes |
+| `liquidityRemoved` | pool reserves across the window | yes |
+| `deployerSupplyShare`, `deployerSellRatio` | deployer balances against allocation | yes |
+| `proceedsWithdrawnShare` | the escrow named by the directory | yes |
+| `insiderAllocationShare`, `sniperConcentration` | funding-ancestry clustering | no |
+| `priorUpheldClaims` | claim history, per chain | partially |
+| `supplyInflation` | total supply across the window | yes |
+| `washTradeRatio` | round-trip volume within a cohort | no |
+
+`proceedsWithdrawnShare` MUST be read from the escrow the directory names, never from the deployer or venue: the party under examination must not be the source of evidence against it.
+
+Signals a detector could not establish MUST be reported as the unavailability sentinel. Zero asserts an innocence never checked, and the evaluator would score that assertion as verified.
+
+Detectors MAY publish a zero-knowledge proof that the score follows from committed inputs where the off-chain heuristics are proprietary. `evidenceURI` MUST then name the proving system and verification key. A proof supplements the chain-anchored leaves; it does not replace them.
+
+Any on-chain component a detector deploys SHOULD satisfy the OWASP Smart Contract Security Verification Standard and SHOULD be tested against the OWASP Smart Contract Security Testing Guide.
+
+Those cover contracts, and most of a detector is not a contract. They say nothing about the indexing pipeline a detector reads chain history through, the endpoint it publishes from, the key that carries its authority, or whether its heuristics are accurate at all. Requirements for each follow.
+
+#### Detector obligations
+
+A security review of a detector's contracts says nothing about the parts most likely to produce a wrong answer. The following are normative.
+
+**Data integrity.** A detector MUST NOT include a block in a window before it is final. `windowEnd` MUST correspond to a finalized block, and a report MUST NOT depend on a log from a block later reorganized out. Where a reorg invalidates committed evidence the detector MUST retract the report: a vector computed over an orphaned block is on-chain indistinguishable from a correct one.
+
+**Publication.** Anything a detector serves over HTTP is advisory; only an on-chain submission from the bonded identity counts. Seizing the endpoint alone MUST NOT be sufficient to place a report in the registry.
+
+**Key management.** Whoever holds the submitting key publishes under a bond they did not build. A detector SHOULD separate that key from the one holding the bond, and implementations MUST allow the submitting key to be rotated without moving the bond or discarding the detector's history. A detector that suspects compromise SHOULD revoke the submitting key before retracting any reports made under it, so the attacker cannot republish while the cleanup is in progress.
+
+**Detection quality is not a security property.** No security guide establishes whether a heuristic is accurate, and false positives are the primary risk here. A detector SHOULD validate against labeled launches and publish the resulting precision and recall with its profile. `confidence` MUST reflect measured uncertainty rather than a constant. Deployments MUST NOT enable automated containment above `Flag` on a detector whose accuracy they have not measured, and MUST NOT treat conformance with any security guide as evidence that its findings are correct.
+
+#### Detector interface
+
+```solidity
+interface ILaunchDetector {
+    /// @param lpToken the liquidity token whose lock is measured
+    /// @param lockSinks addresses treated as locks or burns
+    /// @param deployerWallets wallets attributed to the deployer
+    /// @param deployerAllocation supply originally allocated to the deployer
+    /// @param initialSupply total supply at window start, for dilution
+    /// @param peakLiquidity highest pool liquidity observed in the window
+    /// @param currentLiquidity pool liquidity at window end
+    struct ChainInputs {
+        address   lpToken;
+        address[] lockSinks;
+        address[] deployerWallets;
+        uint256   deployerAllocation;
+        uint256   peakLiquidity;
+        uint256   currentLiquidity;
+        uint256   initialSupply;
+        uint32    lpLockRemaining;
+    }
+
+    /// @dev Each MUST be the unavailability sentinel where the service could not
+    ///      establish it. Reporting zero asserts an innocence never checked.
+    struct OffChainInputs {
+        uint16 insiderAllocationShare;
+        uint16 sniperConcentration;
+        uint16 priorUpheldClaims;
+        uint16 washTradeRatio;
+    }
+
+    /// @notice Assemble the full vector for a launch.
+    function observe(
+        bytes32 launchId,
+        address token,
+        ChainInputs calldata chainInputs,
+        OffChainInputs calldata offChainInputs
+    ) external view returns (SignalVector memory);
+
+    /// @notice The canonical evidence leaf.
+    function evidenceLeaf(
+        uint256 blockNumber,
+        bytes32 txHash,
+        uint256 logIndex,
+        bytes32 fieldId,
+        bytes32 value
+    ) external view returns (bytes32);
+
+    /// @notice Fold ordered leaves into the root a report commits to.
+    function evidenceRoot(bytes32[] calldata leaves) external pure returns (bytes32);
+}
+```
+
+A detector implementation MUST derive on-chain every signal marked recomputable above, and MUST read `proceedsWithdrawnShare` from the escrow the directory attributes the launch to. It MUST NOT accept those values as inputs: a figure supplied by the party under examination is not evidence.
+
+#### Evidence commitment
+
+Evidence leaves and the internal nodes of the tree above them MUST be domain separated, by prefixing leaf preimages with `0x00` and node preimages with `0x01`. Both are otherwise bare 32-byte hashes, and an internal node could be presented as a leaf: a detector could then prove membership of evidence that was never in the set. Where the leaf count is odd, the unpaired leaf MUST be promoted to the next level rather than duplicated, since duplication admits a distinct forgery of the same root.
+
+Implementations MUST bound the number of leaves folded in a single call.
+
+#### Disclosure timing
+
+A report is public once mined and visible in the mempool before that. A deployer watching the registry can withdraw proceeds or pull liquidity between a report's submission and any action on it.
+
+Implementations MUST therefore provide `submitAndClaim`, registering the report and freezing the launch in a single transaction. That path MUST attribute the report to the detector rather than to the contract relaying it, so that the bond at risk, the party a slash reaches, and the identity corroboration counts are all the detector. Detectors MUST NOT submit a report through `submitReport` ahead of a claim they intend to bring against a launch whose proceeds are still escrowed. Deployments MUST NOT rely on off-chain confidentiality of pending reports.
+
+### Part 2: Launch escrow
+
+Refunds are possible only while the venue still holds the money. This part defines the escrow a venue operates, and the identity scheme that makes a launch addressable.
+
+#### Launch identity and discovery
+
+Every interface in this proposal is keyed on `launchId`. An identifier that cannot be independently derived, or resolved from a token address, makes the standard unusable in practice: a wallet holding only a token address could not consult a guard before purchase, and a detector could not name its subject in a way another venue would recognize.
+
+`launchId` MUST be derived as:
+
+```
+launchId = keccak256(abi.encode(block.chainid, escrow, token, deployer, nonce))
+```
+
+where `escrow` is the address of the `ILaunchEscrow` holding the launch, and `nonce` counts prior launches of the same `token` by the same `deployer` at that escrow. Including `block.chainid` binds the identifier to one chain, so that an identifier minted on one network cannot collide with, or be replayed against, a launch on another. Implementations MUST NOT use a derivation that omits any of these fields.
+
+Resolution is provided by a directory, one per chain:
+
+```solidity
+interface ILaunchDirectory {
+    event LaunchListed(
+        bytes32 indexed launchId,
+        address indexed token,
+        address indexed deployer,
+        address escrow,
+        address venue
+    );
+
+    /// @notice List a launch. Caller MUST be the escrow named in the identifier.
+    /// @param nonce the escrow's launch counter, so the identifier can be
+    ///        recomputed and checked against the caller. Without that check the
+    ///        identifier is predictable from public inputs and can be squatted
+    ///        before the launch it belongs to is registered.
+    function list(
+        bytes32 launchId,
+        address token,
+        address deployer,
+        address venue,
+        uint256 nonce
+    ) external;
+
+    /// @notice Every launch recorded for a token, oldest first.
+    /// @dev A token MAY appear more than once: relaunches and multi-venue
+    ///      listings are both legitimate and both are of interest to a detector.
+    function launchesOf(address token) external view returns (bytes32[] memory);
+
+    /// @notice Every launch by a deployer, oldest first.
+    /// @dev Supports the `priorUpheldClaims` signal and `PATTERN_SERIAL_DEPLOYER`
+    ///      without requiring off-chain linkage of a deployer to its history.
+    function launchesBy(address deployer) external view returns (bytes32[] memory);
+
+    function escrowOf(bytes32 launchId)   external view returns (address);
+    function venueOf(bytes32 launchId)    external view returns (address);
+    function deployerOf(bytes32 launchId) external view returns (address);
+    function tokenOf(bytes32 launchId)    external view returns (address);
+}
+```
+
+Escrows MUST list a launch on registration. Consumers MUST treat an unlisted token as having no launch record, and MUST NOT present that absence as evidence of safety: it means the token is outside the standard's coverage, which is the condition under which buyers are least protected, not most.
+
+A directory MUST NOT gatekeep listing beyond requiring that the caller is the escrow named in the identifier. A directory that can refuse to list is a censorship point, and a launch that cannot be listed also cannot be reported against.
+
+#### Directory deployment
+
+The directory MUST be permissionless, immutable, and have no owner. An administrator who can unlist a launch can make it indistinguishable from one that was never covered.
+
+Naming a directory per chain is not enough on its own: a consumer holding a token address must locate it without being told where by the venue under examination. The directory MUST therefore be deployed with `CREATE2` through the deterministic proxy at `0x4e59b44847b379578588920cA78FbF26c0B4956C` using salt `0x00`, so it occupies the same address on every chain. Consumers MUST use that address and MUST NOT accept one supplied by a venue, escrow or deployer. Deployment is permissionless: where no directory exists, anyone MAY deploy one through the same proxy.
+
+Each directory records only its own chain's launches, which is why `block.chainid` is bound into `launchId`. This proposal defines no cross-chain aggregation: a detector examining a deployer active on several chains MUST query each directory and combine off-chain, and MUST NOT assume an address is the same principal across chains.
+
+```solidity
+enum LaunchState { None, Active, Releasing, Frozen, Settled, Refunding }
+
+interface ILaunchEscrow {
+    event LaunchRegistered(
+        bytes32 indexed launchId,
+        address indexed token,
+        address indexed deployer,
+        uint256 bond,
+        uint64  releaseStart,
+        uint64  releaseEnd
+    );
+
+    event PurchaseRecorded(
+        bytes32 indexed launchId,
+        address indexed buyer,
+        uint256 paid,
+        uint256 tokens
+    );
+
+    event SaleRecorded(bytes32 indexed launchId, address indexed buyer, uint256 realised);
+
+    event ProceedsReleased(bytes32 indexed launchId, uint256 amount);
+    event LaunchFrozen(bytes32 indexed launchId, bytes32 reportId, uint64 frozenUntil);
+    event LaunchSettled(bytes32 indexed launchId);
+    event RefundOpened(bytes32 indexed launchId, uint256 pool, uint256 totalNetPaid);
+    event RefundClaimed(bytes32 indexed launchId, address indexed buyer, uint256 amount);
+    event LinkedAddressExcluded(bytes32 indexed launchId, address indexed account, uint256 removed);
+    event RefundSwept(bytes32 indexed launchId, address indexed to, uint256 amount);
+
+    /// @notice Register a launch. The deployer MUST have posted `requiredBond`.
+    /// @param asset settlement asset for both proceeds and bond, or address(0)
+    ///        for native value. Venues that price in a project token cannot use
+    ///        native settlement, so this MUST be supported.
+    function registerLaunch(
+        address token,
+        address deployer,
+        address asset,
+        uint256 bondAmount,
+        uint64  releaseStart,
+        uint64  releaseEnd
+    ) external payable returns (bytes32 launchId);
+
+    /// @notice Exclude a deployer-linked buyer from the refund pool.
+    /// @dev Caller MUST be authorized by the remediation contract. The excluded
+    ///      address leaves the denominator as well as the numerator, so the
+    ///      remaining buyers are made whole rather than merely undiluted.
+    function markLinked(bytes32 launchId, address account) external;
+
+    /// @notice Convenience form for native settlement, passing `msg.value` as
+    ///         the bond.
+    function registerLaunchNative(
+        address token,
+        address deployer,
+        uint64  releaseStart,
+        uint64  releaseEnd
+    ) external payable returns (bytes32 launchId);
+
+    /// @notice Record a purchase and deposit its proceeds. Caller MUST be the venue.
+    /// @dev `msg.value` MUST equal `paid`. Recording an amount the escrow does
+    ///      not hold would leave refunds unpayable.
+    function recordPurchase(
+        bytes32 launchId,
+        address buyer,
+        uint256 paid,
+        uint256 tokens
+    ) external payable;
+
+    /// @notice Record value a buyer realised by selling purchased tokens.
+    /// @dev Caller MUST be the venue. Required so that `netContributionOf` can
+    ///      discount buyers who have already exited.
+    function recordSale(bytes32 launchId, address buyer, uint256 realised) external;
+
+    /// @notice Buyer's net contribution: paid, less value already realised
+    ///         by selling the purchased tokens.
+    function netContributionOf(bytes32 launchId, address buyer)
+        external
+        view
+        returns (uint256);
+
+    /// @notice Release the vested portion of proceeds to the deployer.
+    /// @dev MUST revert while Frozen. MUST release no more than the schedule allows.
+    function releaseProceeds(bytes32 launchId) external returns (uint256 amount);
+
+    /// @notice Halt release pending adjudication. Caller MUST be authorized by
+    ///         the remediation contract.
+    function freezeLaunch(bytes32 launchId, bytes32 reportId) external;
+
+    /// @notice Buyer pulls their pro-rata share of an opened refund pool.
+    function claimRefund(bytes32 launchId) external returns (uint256 amount);
+
+    function stateOf(bytes32 launchId) external view returns (LaunchState);
+    function escrowedProceeds(bytes32 launchId) external view returns (uint256);
+    function maxFreezeDuration() external view returns (uint64);
+}
+```
+
+Implementations MUST enforce the following invariants:
+
+1. `Settled` is terminal. Once proceeds are fully released and the release period has ended, a launch MUST NOT re-enter `Frozen` or `Refunding`.
+2. `releaseProceeds` MUST NOT release more than the linear schedule between `releaseStart` and `releaseEnd` permits, and MUST revert while `Frozen`.
+3. `freezeLaunch` MUST be callable only by the remediation contract or an address it authorizes, and only while `Active` or `Releasing`.
+4. A frozen launch MUST return to `Releasing` if no claim is adjudicated within `maxFreezeDuration()`. Indefinite freezing is a censorship vector and MUST NOT be permitted.
+5. The release period MUST NOT exceed 90 days. Beyond that the venue is not settling a sale, it is holding a deployer's funds indefinitely.
+6. `recordPurchase` MUST be callable only by the venue, and MUST be called for every purchase. A launch whose purchases are not fully recorded cannot be refunded correctly.
+
+Deployments SHOULD set the release schedule so that a meaningful share of proceeds remains escrowed through the period in which abuse typically occurs. A `releaseStart` at launch with `releaseEnd` at 30 days is RECOMMENDED.
+
+#### Refund computation
+
+On an upheld claim, the implementation MUST open a refund pool consisting of all escrowed proceeds plus any amount drawn from the deployer's bond. Each buyer's entitlement is:
+
+```
+entitlement(buyer) = pool * netContributionOf(buyer) / totalNetPaid
+```
+
+Refunds MUST be distributed by pull, never by iteration over buyers. A launch may have thousands of buyers, and a push distribution is unbounded in gas and fails as a result.
+
+`netContributionOf` MUST subtract value the buyer already realised by selling. A buyer who sold at a profit before the rug has not been harmed, and refunding them out of a pool shared with buyers still holding would transfer value from the harmed to the unharmed.
+
+Unclaimed refunds MUST remain claimable for at least 180 days. After that, implementations MAY sweep the remainder, and MUST disclose where it goes.
+
+### Part 3: Remediation
+
+```solidity
+enum ClaimStatus { None, Open, Contested, Settled, Upheld, Rejected, Executed, Expired }
+
+enum ContainmentAction { None, Flag, ExtendSchedule, SuspendRelease, Freeze, Refund }
+
+interface ILaunchRemediation {
+    event BondPosted(bytes32 indexed launchId, uint256 amount);
+    event BondReleased(bytes32 indexed launchId, uint256 amount);
+    event BondSlashed(bytes32 indexed launchId, uint256 amount, bytes32 claimId);
+    event ClaimOpened(bytes32 indexed claimId, bytes32 indexed launchId, address claimant, uint256 bond);
+    event ClaimContested(bytes32 indexed claimId, address respondent, string evidenceURI);
+    event ClaimSettled(bytes32 indexed claimId, uint256 amount);
+    event ClaimAdjudicated(bytes32 indexed claimId, ClaimStatus outcome, uint256 award);
+    event RemedyExecuted(bytes32 indexed claimId, uint256 fromEscrow, uint256 fromBond);
+    event ContainmentApplied(bytes32 indexed launchId, ContainmentAction action, uint64 until);
+
+    /// @notice Add collateral to a launch that is already registered.
+    /// @dev The bond is opened by `ILaunchEscrow.registerLaunch`, whose
+    ///      `bondAmount` becomes the initial balance; this tops it up. Both
+    ///      accumulate into one balance held by the escrow, which is the only
+    ///      contract that moves it. `requiredBond` states what a venue demands
+    ///      before opening a launch; it does not itself hold or transfer value.
+    ///      The balance MUST remain locked until the release period ends plus
+    ///      `bondCooldown()`.
+    function postBond(bytes32 launchId) external payable;
+
+    /// @notice Minimum bond for a stated target raise.
+    function requiredBond(uint256 targetRaise) external view returns (uint256);
+
+    /// @notice Open a bonded claim against a launch.
+    function openClaim(bytes32 launchId, bytes32 reportId, string calldata evidenceURI)
+        external
+        payable
+        returns (bytes32 claimId);
+
+    /// @notice Atomically register a report and open a claim, so the deployer
+    ///         cannot act in the gap between submission and freeze.
+    function submitAndClaim(
+        AbuseReport calldata report,
+        string calldata evidenceURI
+    ) external payable returns (bytes32 reportId, bytes32 claimId);
+
+    /// @notice Contest a claim. MUST be callable only within `contestWindow()`.
+    function contest(bytes32 claimId, string calldata evidenceURI) external;
+
+    /// @notice Close a claim by agreement, without adjudication. Callable by the
+    ///         deployer while status is Open or Contested.
+    function settle(bytes32 claimId, uint256 amount) external payable;
+
+    /// @notice Resolve a claim. Caller MUST be the adjudicator.
+    function adjudicate(bytes32 claimId, ClaimStatus outcome, uint256 award) external;
+
+    /// @notice Open the refund pool from escrowed proceeds, drawing any
+    ///         shortfall up to `award` from the deployer's bond.
+    function executeRemedy(bytes32 claimId)
+        external
+        returns (uint256 fromEscrow, uint256 fromBond);
+
+    function getClaim(bytes32 claimId)
+        external
+        view
+        returns (bytes32 launchId, address claimant, ClaimStatus status, uint256 award);
+
+    function bondOf(bytes32 launchId) external view returns (uint256);
+    function contestWindow()          external view returns (uint64);
+    function bondCooldown()           external view returns (uint64);
+    function feeBps()                 external view returns (uint16);
+}
+```
+
+#### Containment ladder
+
+Automated response MUST be proportionate to score and confidence jointly:
+
+| Score band | Confidence >= 80 | Confidence 50-79 | Confidence < 50 |
+| --- | --- | --- | --- |
+| 81-100 | `Freeze` | `SuspendRelease` | `Flag` |
+| 61-80 | `SuspendRelease` | `ExtendSchedule` | `Flag` |
+| 41-60 | `ExtendSchedule` | `Flag` | `None` |
+| 0-40 | `Flag` | `None` | `None` |
+
+`Refund` MUST NOT be reachable automatically. It MUST require an upheld claim. Detection alone MUST NOT be sufficient to take a deployer's proceeds; that step MUST pass through adjudication with a right to contest.
+
+#### Claim lifecycle
+
+1. A claimant opens a claim referencing a live report with `abuseScore >= 61`, posting a bond.
+2. The implementation freezes the launch, halting further release of proceeds.
+3. The deployer MAY contest within `contestWindow()`, RECOMMENDED to be 72 hours.
+4. At any point before adjudication the deployer MAY `settle`, closing the claim by agreement. Implementations MUST offer this path. Most disputes are cheaper to resolve bilaterally, and routing every claim through an adjudicator makes that body both a bottleneck and more powerful than it needs to be.
+5. If uncontested, the claim MAY be upheld by default after the window. If contested, the adjudicator MUST resolve it.
+6. On `Upheld`, `executeRemedy` opens the refund pool from escrowed proceeds and draws any shortfall up to `award` from the bond. The claimant's bond is returned. Buyers then pull their entitlements.
+7. On `Rejected`, the launch MUST return to `Releasing` and the claimant's bond MUST be forfeited, in part to the deployer and in part to the detector pool.
+8. If no adjudication occurs within `maxFreezeDuration()`, the claim MUST become `Expired` and the launch MUST return to `Releasing`.
+
+#### Funding
+
+Adjudication costs money, and a dispute system with no revenue depends on volunteers, which does not scale with volume. Implementations MUST expose `feeBps` and SHOULD fund adjudication from a fee on successful restitution rather than from protocol subsidy or detector bonds, so the cost falls on the process that consumes it.
+
+#### Error codes
+
+```solidity
+error UnknownReport(bytes32 reportId);
+error ReportRetracted(bytes32 reportId);
+error ReportStale(uint64 windowEnd, uint64 maxAge);
+error InsufficientScore(uint8 score, uint8 required);
+error InsufficientConfidence(uint8 confidence, uint8 required);
+error OutcomeSignalNotPermitted();
+error InvalidSignalVector();
+error InvalidPattern(bytes32 patternId);
+error DetectorNotBonded(address detector, uint256 held, uint256 required);
+error UnknownLaunch(bytes32 launchId);
+error LaunchNotFreezable(bytes32 launchId, LaunchState state);
+error LaunchSettledAlready(bytes32 launchId);
+error FreezeExpired(bytes32 launchId, uint64 frozenUntil);
+error ReleaseScheduleExceeded(uint256 requested, uint256 available);
+error NotVenue(address caller);
+error PurchaseAlreadyRecorded(bytes32 launchId, address buyer);
+error NothingToRefund(bytes32 launchId, address buyer);
+error RefundWindowClosed(bytes32 launchId, uint64 closedAt);
+error ClaimNotOpen(bytes32 claimId, ClaimStatus status);
+error ContestWindowClosed(bytes32 claimId, uint64 closedAt);
+error NotAdjudicator(address caller);
+error InsufficientBond(uint256 held, uint256 required);
+error BondLocked(bytes32 launchId, uint64 unlockAt);
+error ContainmentNotPermitted(ContainmentAction requested, ContainmentAction maximum);
+```
+
+### Integration hook
+
+Wallets, aggregators, and venues that wish to consult detection without operating escrow MAY implement or call a guard:
+
+```solidity
+interface ILaunchGuard {
+    /// @notice Non-reverting advisory check on a launch.
+    function checkLaunch(bytes32 launchId)
+        external
+        view
+        returns (ContainmentAction action, uint8 abuseScore, bytes32 reportId);
+}
+```
+
+`checkLaunch` is declared `view` and MUST NOT modify state. Consumers MUST invoke it with `STATICCALL` as defined in [EIP-214](./eip-214.md), so the read-only guarantee is enforced by the EVM rather than by implementer discipline. Because the `STATIC` flag propagates to sub-calls, a guard cannot mutate state through delegated or proxied logic either.
+
+Consumers MUST treat a guard that reverts, runs out of gas, or returns malformed data as `ContainmentAction.None` and MUST NOT propagate the failure. A guard invoked inside a purchase path that can revert is a censorship primitive: any party able to make it fail could block every purchase that consults it. Consumers SHOULD forward a bounded gas stipend.
+
+## Rationale
+
+**Why the deployer is the subject.** Buyers at a launch are harmed by the party that created the asset, not by an anonymous cohort. That gives one identifiable respondent instead of a statistical cluster, one who can be required to post collateral, reachable through a venue that is a natural enforcement point.
+
+**Why price decline is excluded by rule.** This is the load-bearing constraint. Scoring outcome would flag every honest failure as fraud, and would be gameable in reverse, since a deployer who rugs a rising token would score well. Restricting the vector to deployer actions makes the score answer "what did this person do", which is the only question a remedy can rest on.
+
+**Why the venue holds proceeds.** A deployer will not voluntarily adopt reversibility, so an opt-in reversible token protects nobody from the party it targets. The venue already sits between buyer and deployer and wants launches that do not destroy its users. Adoption becomes a decision by the party with the incentive to adopt.
+
+**Why refunds are pull-based and net of realized gains.** A launch may have thousands of buyers, so push distribution is unbounded in gas. Netting off realized gains stops a buyer who exited profitably from drawing on a pool shared with buyers still holding.
+
+**Why refunds need no per-victim claim.** The venue recorded every purchase, so entitlements come from data it already holds. This is why the design works at a launch and would not for open-market manipulation, where attacker and victims never transact with each other and there is no bilateral transfer to reverse.
+
+**Why release is scheduled.** Immediate release makes the outcome final before detection is possible; indefinite withholding makes the venue a custodian. A linear schedule capped at 90 days keeps a balance reachable while abuse occurs and still guarantees the deployer a defined path to their money.
+
+**Why evidence leaves are chain-anchored.** A root over arbitrary detector-supplied data proves self-consistency, not truth. Requiring `(chainId, blockNumber, txHash, logIndex)` lets anyone recompute the vector and prove a report false, which is the precondition for slashing a bond. Without it the detector is an unaccountable oracle.
+
+**Why no account recovery is attempted.** Reversibility designs often bundle recovery of lost accounts, which founders on verifying that a claimant owns an account they say they lost. Here ownership is never in question: entitlements derive from the venue's purchase records, not from a claimant's assertion.
+
+**Why a fee is charged.** Chargebacks work in card networks because those networks levy fees that fund the dispute machinery. A dispute process with no revenue depends on unpaid adjudicators and does not survive volume.
+
+**Why settlement by agreement is mandatory.** Requiring `settle` keeps the adjudicator from being both a bottleneck and the only route to resolution, which would concentrate power in the role this proposal already identifies as its weakest point.
+
+**Alternatives considered.** A reversible token standard was rejected because the deployer chooses the token and would not adopt it. A detection registry with no remedy reproduces the current situation, where rug pulls are legible after the fact and unactionable. Requiring venues to hold proceeds indefinitely is indistinguishable from custody.
+
+## Backwards Compatibility
+
+This ERC introduces new interfaces and modifies none. It requires no changes to [ERC-20](./erc-20.md) tokens; the launched token need not know the standard exists, which matters because the deployer controls that contract and cannot be relied on to cooperate.
+
+Venues adopting escrow change one externally visible behavior: proceeds reach the deployer on a schedule rather than immediately. Deployers integrating with such a venue MUST NOT assume funds are available at launch.
+
+Buyers hold ordinary tokens with no transfer restrictions. A refund entitlement is a claim against the escrow, not an encumbrance on the token, so secondary trading is unaffected. `netContributionOf` accounts for buyers who sold.
+
+A venue MAY set `releaseEnd` equal to `releaseStart`, in which case proceeds release immediately and the escrow behaves as a pass-through. This provides a migration path and lets a venue adopt detection before adopting escrow.
+
+## Test Cases
+
+Conformance tests MUST cover at minimum:
+
+1. **Score reproducibility.** A fixed `SignalVector` under the reference hard-rug profile yields a deterministic score. `liquidityRemoved = 6000`, `lpLockedShare = 0`, `proceedsWithdrawnShare = 9000`, `lpLockRemaining = 0`, `deployerSellRatio = 7000`, `privilegedPowers = 0x0011`, `priorUpheldClaims = 2` scores in the Conclusive band.
+2. **Protective polarity.** The same vector with `lpLockedShare = 10000` and `lpLockRemaining = 365 days` scores materially lower. A protective signal at full strength MUST reduce the score, never raise it.
+3. **Unavailable signals excluded.** Setting `priorUpheldClaims = type(uint16).max` yields the weighted mean over the remaining signals, not a score diluted by a zero contribution.
+4. **Outcome signals rejected.** A report whose evidence set includes a price or market-cap field as a scored input MUST be rejected with `OutcomeSignalNotPermitted`.
+5. **Honest failure scores low.** A launch with locked liquidity, no deployer sales, no retained powers, and a 95 percent price decline MUST score in the None or Weak band. This is the test that decides whether the standard is deployable.
+6. **Release schedule respected.** `releaseProceeds` at the midpoint releases at most half; calling repeatedly within one block releases nothing further.
+7. **Freeze halts release, and cannot be indefinite.** `releaseProceeds` reverts while `Frozen`; a launch frozen with no adjudication within `maxFreezeDuration()` returns to `Releasing`.
+8. **No automatic refund.** No sequence of `submitReport` calls at any score or confidence opens a refund pool without an upheld claim.
+9. **Pro-rata correctness.** With three buyers at 1, 2 and 7 ether and a pool of 5 ether, entitlements are 0.5, 1 and 3.5 ether, and the pool is fully drained with no residue.
+10. **Net contribution.** A buyer who sold their entire allocation for more than they paid has an entitlement of zero and MUST NOT reduce other buyers' shares.
+11. **Pull, not push.** A launch with 10,000 recorded buyers can open a refund pool in constant gas.
+12. **Rejected claim forfeits bond.** After `adjudicate(claimId, Rejected, 0)` the launch resumes releasing and the claimant's bond is not returned.
+13. **Guard never reverts.** `checkLaunch` returns successfully for unknown launches, retracted reports, and settled launches.
+14. **Resolution from a token address.** `launchesOf(token)` returns the launch, and `escrowOf`, `venueOf`, `deployerOf` and `tokenOf` round-trip correctly. A consumer holding only a token address can reach the guard.
+15. **Identifier is derivable.** Recomputing `keccak256(abi.encode(chainid, escrow, token, deployer, nonce))` independently yields the same `launchId` the escrow assigned.
+16. **Relaunch does not collide.** The same token relaunched by the same deployer receives a distinct `launchId`, and both appear in `launchesOf`.
+17. **Deployer history is on-chain.** `launchesBy(deployer)` returns every launch by that address, so serial-deployer analysis needs no off-chain linkage.
+18. **Identifier is chain-bound.** Deriving the same launch under a different `block.chainid` yields a different `launchId`, so an identifier cannot be replayed across networks.
+
+## Reference Implementation
+
+A self-contained reference implementation accompanies this proposal in `../assets/eip-xxxx/`, with no external dependencies. Assets are stored under `assets/erc-xxxx/` and linked as `../assets/eip-xxxx/`, which is the convention every ERC in the repository follows and the form the published site serves. It implements every interface here, together with a fixed-point score evaluator carrying all ten profiles, a signal probe deriving the chain-readable values, and the containment ladder as a pure function. A minimal sale venue is included to exercise the escrow; it demonstrates integration and is not part of this proposal.
+
+The suite covers every test case above across 178 tests, and adds four fuzzed invariants: a launch never pays out more than it took in, the escrow stays solvent across launches, accounted tokens never exceed the balance held, and released proceeds never exceed proceeds paid in.
+
+## Security Considerations
+
+**Distinguishing failure from fraud is the central difficulty.** Most launches decline because nobody wanted the token. The conduct-only rule is the primary defense, but it is not complete: a deployer can sell an allocation for legitimate reasons, and an unlocked pool is careless rather than dishonest. Deployments MUST NOT treat any single adverse signal as dispositive, and SHOULD require corroborating signals before admitting claims. A standard that mislabels honest failure as fraud will be abandoned by the deployers it needs to adopt it.
+
+**Publication races the remedy.** A report names its subject publicly, and a deployer watching the registry learns it has been detected before anything freezes. In the worst case the detector's transaction is visible in the mempool and the deployer withdraws with higher priority in the same block. `submitAndClaim` exists to close this window and detectors MUST use it. Deployments SHOULD evaluate whether their sequencing exposes even the atomic call.
+
+**The venue is trusted and conflicted.** It records purchases, holds proceeds, and may operate or select the adjudicator, while also earning fees on launches. A venue can under-record purchases, mis-set the schedule, or decline to freeze a launch it profits from. This standard does not remove that trust; it makes the venue's behavior observable through events so that misconduct is at least detectable. Buyers MUST understand that adopting this standard does not make a venue trustworthy.
+
+**Adjudicator capture.** The adjudicator can uphold a fabricated claim and redirect proceeds, or reject a valid one. It is the most concentrated trust in this proposal and the requirements below are the minimum that make it accountable.
+
+The adjudicator address MUST be readable on-chain and MUST NOT be changeable after initialization: a role that can be repointed can be captured without anyone observing the moment. Every adjudication MUST reference published reasoning through the claim's evidence URI, so a decision can be argued with rather than merely obeyed. An adjudicator that is also the venue, a detector, a claimant, or otherwise interested in the launch MUST be disclosed before it acts.
+
+Deployments SHOULD NOT use a single externally owned account. Two designs are recommended: an n-of-m committee whose membership and replacement procedure are published, or an optimistic scheme in which a proposed outcome executes only after a challenge window during which any bonded party can escalate. The reference implementation includes a committee of the first kind, in which approval is bound to the exact outcome and award so a vote for one decision cannot be counted toward another. Either bounds the damage a single compromised key can do, which a single address does not. Deployments SHOULD provide an appeal path, and where none exists MUST say so, since buyers and deployers price that absence differently.
+
+**Claim spam and griefing.** Freezing halts a deployer's funds, so opening claims is an attack if it is cheap. Claimant bonds, `maxFreezeDuration()`, and mandatory resumption on expiry bound the damage, but a well-capitalized adversary can still impose cost on a competitor's launch. Deployments SHOULD scale claimant bonds with the amount frozen and SHOULD rate-limit claims per claimant per launch.
+
+**Detector collusion.** A detector colluding with a claimant can manufacture the score needed to open a claim. Chain-anchored evidence makes fabrication provable after the fact, and bonding prices it, but deployments SHOULD require corroboration from independent detectors before admitting high-value claims.
+
+**Bond sizing determines whether the remedy is real.** Once proceeds are released, the bond is the only source of restitution, so a bond smaller than the raise leaves buyers uncompensated in exactly the cases that matter most.
+
+`requiredBond` MUST scale with the target raise rather than sitting at a nominal floor, and SHOULD NOT be less than 25 percent of it. A venue MUST publish the bond it requires before a launch opens and MUST keep the posted amount readable on-chain throughout, so a buyer can price the uncovered remainder rather than discovering it after a claim. Venues competing on volume will be tempted to set this low; one that does is transferring risk to its buyers and SHOULD say so plainly.
+
+**Sybil deployers defeat reputation.** `priorUpheldClaims` is trivially reset by launching from a fresh address. It is weighted lowest in the reference profile for that reason, and deployments MUST NOT treat its absence as evidence of good faith. Linking deployers across addresses is a heuristic, and false linkage is the most damaging error this proposal can make: it brands a deployer a repeat offender on evidence they cannot rebut, and `PATTERN_SERIAL_DEPLOYER` exists to act on exactly that. Implementations SHOULD carry linkage uncertainty in `confidence` rather than in `abuseScore`, so that a weak identification limits the response rather than strengthening the accusation.
+
+**Reputation signals start empty.** `priorUpheldClaims` is the only signal whose value depends on this proposal already having been adopted and exercised. Before any claim has been upheld anywhere, every deployer scores zero on it, honest and abusive alike, while still consuming weight in the profile. A detector MUST report `priorUpheldClaims` as unavailable, rather than as zero, until the chain it is reporting on has a claim history large enough for the absence of claims to carry information. Reporting zero from an empty registry excludes nothing and silently lowers every score by the weight of a signal that was never evaluated. Cross-chain history compounds this: a directory covers one chain, so a deployer's record elsewhere is invisible without off-chain aggregation this proposal does not define.
+
+**Evasion.** Publishing the signals tells deployers exactly what is measured. A deployer can lock liquidity for the minimum period and exit at unlock, distribute an allocation across many addresses before launch to suppress `deployerSupplyShare`, or renounce privileged powers after positioning. `PATTERN_UNLOCK_EXIT` and `insiderAllocationShare` exist to catch two of these, but the general point stands: this raises the cost of abuse and does not eliminate it. Deployments SHOULD vary thresholds and MUST NOT treat a low score as evidence of legitimacy.
+
+**Refund pools attract their own attacks.** A deployer who anticipates a claim can buy their own launch through fresh addresses to dilute other buyers' pro-rata shares. `markLinked` exists for this: an excluded address is removed from `totalNetPaid` as well as from the payout, so honest buyers are restored to the share they would have had rather than merely stopped from losing more. Adjudicators SHOULD treat late self-purchase as an aggravating signal. The mechanism depends on identifying the linkage, which is a heuristic, and a wrong exclusion takes a legitimate buyer's refund: implementations SHOULD require the same evidentiary standard for exclusion as for the claim itself.
+
+**Scope.** This standard protects buyers only at venues that adopt it in full. A deployer who launches directly to an AMM is entirely outside its reach, and detection reports about such a launch carry no remedy at all. Implementations MUST NOT present a low score for an unescrowed launch as any form of protection.
+
+**Privacy.** Reports name deployers and publish behavioral analysis permanently. A retracted report remains in event history, and an accusation is visible whether or not it is upheld. Detectors SHOULD publish the minimum necessary on-chain and disclose detailed analysis only in adjudication.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
