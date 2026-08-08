@@ -1,9 +1,8 @@
 //SPDX-License-Identifier: CC0-1.0
 
 /**
- * @notice Reference implementation of the eip-5516 interface.
+ * @notice Reference implementation of the erc-5516 interface.
  * @author Lucas Martín Grasso Ramos <lucasgrassoramos@gmail.com>, Matias Arazi <matiasarazi@gmail.com>
- * See https://github.com/ethereum/EIPs/pull/5516
  */
 
 pragma solidity ^0.8.4;
@@ -14,10 +13,10 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "./IERC5516.sol";
 
 contract ERC5516 is Context, ERC165, IERC5516 {
-    // Used as the URI for all token types by relying on ID substitution, e.g. https://ipfs.io/ipfs/token.data
+    // Used as the URI for all token types, e.g. https://ipfs.io/ipfs/token.data
     string private _uri;
 
-    // Mapping from token ID to account balances
+    // Mapping from account to token IDs it holds
     mapping(address => mapping(uint256 => bool)) private _holdings;
 
     // Mapping from token ID to addresses that have renounced and are permanently barred from re-issuance.
@@ -51,10 +50,11 @@ contract ERC5516 is Context, ERC165, IERC5516 {
      * @dev See {IERC5516-issue}.
      */
     function issue(
-        address[] memory recipients,
+        address[] calldata recipients,
         string calldata metadataURI
     ) external virtual override returns (uint256 tokenId) {
-        require(recipients.length > 0, "EIP5516: Empty recipients list");
+        require(recipients.length > 0, "ERC5516: Empty recipients list");
+        require(bytes(metadataURI).length > 0, "ERC5516: Empty metadataURI");
 
         address minter = _msgSender();
 
@@ -66,7 +66,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         } else {
             // Re-issuance path: the same `tokenId` already exists.
             //
-            // This equality check is defense-in-depth. Because `_deriveTokenId`
+            // This equality check is defense-in-depth. Because `deriveTokenId`
             // mixes `msg.sender` into the hash, no other address can produce
             // this `tokenId` via `issue()` in the first place, so the check is
             // structurally redundant for this implementation. It is kept for
@@ -79,7 +79,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
             //      credential.
             require(
                 _minters[tokenId] == minter,
-                "EIP5516: Not original issuer"
+                "ERC5516: Not original issuer"
             );
         }
 
@@ -88,15 +88,15 @@ contract ERC5516 is Context, ERC165, IERC5516 {
 
             require(
                 recipient != address(0),
-                "EIP5516: Transfer to address zero"
+                "ERC5516: Transfer to address zero"
             );
             require(
                 !_holdings[recipient][tokenId],
-                "EIP5516: Token already owned"
+                "ERC5516: Token already owned"
             );
             require(
                 !_renounced[tokenId][recipient],
-                "EIP5516: Recipient renounced this token"
+                "ERC5516: Recipient renounced this token"
             );
 
             _holdings[recipient][tokenId] = true;
@@ -117,7 +117,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         address sender = _msgSender();
         require(
             _holdings[sender][tokenId],
-            "EIP5516: Sender does not own a token under `tokenId`"
+            "ERC5516: Sender does not own a token under `tokenId`"
         );
 
         delete _holdings[sender][tokenId];
@@ -137,6 +137,16 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     }
 
     /**
+     * @dev See {IERC5516-hasRenounced}.
+     */
+    function hasRenounced(
+        address who,
+        uint256 tokenId
+    ) external view virtual override returns (bool) {
+        return _renounced[tokenId][who];
+    }
+
+    /**
      * @dev See {IERC5516-issuerOf}.
      */
     function issuerOf(
@@ -153,23 +163,31 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     ) external view virtual override returns (string memory) {
         require(
             bytes(_tokenURIs[tokenId]).length > 0,
-            "EIP5516: Token does not exist"
+            "ERC5516: Token does not exist"
         );
         return string(abi.encodePacked(_uri, _tokenURIs[tokenId]));
     }
 
     /**
-     * @dev Deterministically derives a token ID from the issuer's address and the metadata URI.
-     * @dev See {IERC5516-issue}.
-     *
-     * @param issuer The address of the token issuer.
-     * @param metadataURI The metadata URI associated with the token.
-     * @return tokenId The unique identifier of the token derived from the issuer and metadata URI.
+     * @dev See {IERC5516-deriveTokenId}.
+     */
+    function deriveTokenId(
+        address issuer,
+        string calldata metadataURI
+    ) external view override returns (uint256) {
+        return _deriveTokenId(issuer, metadataURI);
+    }
+
+    /**
+     * @dev See {IERC5516-deriveTokenId}.
      */
     function _deriveTokenId(
         address issuer,
         string calldata metadataURI
     ) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(issuer, metadataURI)));
+        uint256 tokenId = uint256(
+            keccak256(abi.encodePacked(issuer, metadataURI))
+        );
+        return tokenId;
     }
 }
