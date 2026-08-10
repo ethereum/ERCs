@@ -2,6 +2,9 @@
 cache/
 out/
 
+# Dependencies — installed locally with `forge install --no-git`, never committed
+lib/
+
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/

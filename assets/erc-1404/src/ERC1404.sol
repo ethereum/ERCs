@@ -110,21 +110,25 @@ contract ERC1404 is ERC20, ERC165, Ownable, IERC1404 {
 
     /**
      * @notice Mint `amount` tokens to a whitelisted `to` address.
+     * @dev Enforced through `detectTransferRestriction` using the ERC-1404 mint encoding
+     *      (`from == address(0)`), so the reported code and the enforced one cannot drift.
      * @param to Recipient of the newly minted tokens; must be whitelisted.
      * @param amount Amount of tokens to mint.
      */
-    function mint(address to, uint256 amount) external onlyOwner {
-        if (!whitelist[to]) revert TransferRestricted(RECIPIENT_NOT_WHITELISTED, MESSAGE_RECIPIENT_NOT_WHITELISTED);
+    function mint(address to, uint256 amount) external virtual onlyOwner {
+        _checkRestriction(address(0), to, amount);
         _mint(to, amount);
     }
 
     /**
      * @notice Burn `amount` tokens from a whitelisted `from` address.
+     * @dev Enforced through `detectTransferRestriction` using the ERC-1404 burn encoding
+     *      (`to == address(0)`).
      * @param from Holder whose tokens are burned; must be whitelisted.
      * @param amount Amount of tokens to burn.
      */
-    function burn(address from, uint256 amount) external onlyOwner {
-        if (!whitelist[from]) revert TransferRestricted(SENDER_NOT_WHITELISTED, MESSAGE_SENDER_NOT_WHITELISTED);
+    function burn(address from, uint256 amount) external virtual onlyOwner {
+        _checkRestriction(from, address(0), amount);
         _burn(from, amount);
     }
 
@@ -155,8 +159,19 @@ contract ERC1404 is ERC20, ERC165, Ownable, IERC1404 {
     /**
      * @notice Returns a restriction code for the proposed transfer, or 0 if unrestricted.
      * @dev `value` is unused in this implementation; override to add amount-based restrictions.
-     * @param from Sender address.
-     * @param to Recipient address.
+     *
+     *      Supply-changing operations are expressed with the ERC-1404 encoding: `from == address(0)`
+     *      is a mint and `to == address(0)` is a burn. The policy branches on that encoding rather
+     *      than looking `address(0)` up in the whitelist. Whitelisting the zero address to make mints
+     *      pass would also make it an acceptable *recipient*, silently opening a burn path through
+     *      `transfer` — so the mint leg skips the sender check instead, and the burn leg skips the
+     *      recipient check.
+     *
+     *      A `transfer` to `address(0)` therefore returns `TRANSFER_OK` here. That is not an
+     *      enforcement inconsistency: ERC-20 itself rejects the zero recipient (`ERC20InvalidReceiver`),
+     *      which is not a rejection for restriction reasons.
+     * @param from Sender address, or the zero address for a mint.
+     * @param to Recipient address, or the zero address for a burn.
      * @return Restriction code; 0 means the transfer is allowed.
      */
     function detectTransferRestriction(
@@ -170,8 +185,10 @@ contract ERC1404 is ERC20, ERC165, Ownable, IERC1404 {
         override
         returns (uint8)
     {
-        if (!whitelist[from]) return SENDER_NOT_WHITELISTED;
-        if (!whitelist[to]) return RECIPIENT_NOT_WHITELISTED;
+        // Mint: no sender to check.
+        if (from != address(0) && !whitelist[from]) return SENDER_NOT_WHITELISTED;
+        // Burn: no recipient to check.
+        if (to != address(0) && !whitelist[to]) return RECIPIENT_NOT_WHITELISTED;
         return TRANSFER_OK;
     }
 

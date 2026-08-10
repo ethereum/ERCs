@@ -300,6 +300,17 @@ contract WhitelistRuleEngineTest is Test {
         assertEq(engine.messageForTransferRestriction(99), engine.MESSAGE_UNKNOWN_RESTRICTION());
     }
 
+    /**
+     * @notice The unknown-code message is the exact string of the optional ERC-1404 convention.
+     * @dev Pinned as a literal rather than against the contract's own constant: a caller that
+     *      recognises the condition compares byte-for-byte, so changing the string is a breaking
+     *      change and a self-referential assertion would not catch it.
+     */
+    function test_unknownCodeMessageMatchesConventionLiteral() public view {
+        assertEq(engine.messageForTransferRestriction(99), "Unknown restriction code");
+        assertEq(engine.MESSAGE_UNKNOWN_RESTRICTION(), "Unknown restriction code");
+    }
+
     // -------------------------------------------------------------------------
     // ERC-165
     // -------------------------------------------------------------------------
@@ -323,5 +334,126 @@ contract WhitelistRuleEngineTest is Test {
      */
     function test_doesNotSupportRandomInterface() public view {
         assertFalse(engine.supportsInterface(0xdeadbeef));
+    }
+
+    // -------------------------------------------------------------------------
+    // Aggregation — the token reports its whole transfer path, not just the engine
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice The token reports its own pause restriction, which the engine cannot see.
+     * @dev A passthrough predictor would forward the engine's TRANSFER_OK here and misreport a
+     *      transfer that the token's own transfer path rejects.
+     */
+    function test_tokenReportsItsOwnPauseRestriction() public {
+        engine.setWhitelisted(alice, true);
+        assertEq(token.detectTransferRestriction(owner, alice, 1e18), token.TRANSFER_OK());
+
+        token.setPaused(true);
+
+        assertEq(engine.detectTransferRestriction(owner, alice, 1e18), engine.TRANSFER_OK());
+        assertEq(token.detectTransferRestriction(owner, alice, 1e18), token.TRANSFERS_PAUSED());
+    }
+
+    /**
+     * @notice Enforcement agrees with the token's aggregate report while paused.
+     */
+    function test_pausedTransferRevertsWithTheReportedCode() public {
+        engine.setWhitelisted(alice, true);
+        token.setPaused(true);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RestrictedToken.TransferRestricted.selector,
+                token.TRANSFERS_PAUSED(),
+                token.MESSAGE_TRANSFERS_PAUSED()
+            )
+        );
+        // forge-lint: disable-next-line(erc20-unchecked-transfer) — call is expected to revert
+        token.transfer(alice, 1e18);
+    }
+
+    /**
+     * @notice The token still surfaces the engine's codes when its own policy permits the transfer.
+     */
+    function test_tokenSurfacesEngineCodeWhenNotPaused() public view {
+        assertEq(token.detectTransferRestriction(owner, alice, 1e18), engine.RECIPIENT_NOT_WHITELISTED());
+    }
+
+    /**
+     * @notice The token resolves its own code and delegates the rest to the engine.
+     */
+    function test_tokenAnswersForEveryCodeItCanReturn() public view {
+        assertEq(token.messageForTransferRestriction(token.TRANSFERS_PAUSED()), token.MESSAGE_TRANSFERS_PAUSED());
+        assertEq(token.messageForTransferRestriction(0), engine.MESSAGE_TRANSFER_OK());
+        assertEq(token.messageForTransferRestriction(1), engine.MESSAGE_SENDER_NOT_WHITELISTED());
+        assertEq(token.messageForTransferRestriction(2), engine.MESSAGE_RECIPIENT_NOT_WHITELISTED());
+        assertEq(token.messageForTransferRestriction(99), engine.MESSAGE_UNKNOWN_RESTRICTION());
+    }
+
+    /**
+     * @notice The token's own code does not collide with any code the engine can return.
+     */
+    function test_tokenCodeDoesNotCollideWithEngineCodes() public view {
+        assertNotEq(token.TRANSFERS_PAUSED(), engine.TRANSFER_OK());
+        assertNotEq(token.TRANSFERS_PAUSED(), engine.SENDER_NOT_WHITELISTED());
+        assertNotEq(token.TRANSFERS_PAUSED(), engine.RECIPIENT_NOT_WHITELISTED());
+    }
+
+    /**
+     * @notice The token's predictor mirrors the scope of its enforcement for mint and burn.
+     * @dev `_update` skips the mint and burn legs, so the predictor reports TRANSFER_OK for them
+     *      even though the engine would flag address(0) as an unlisted counterparty.
+     */
+    function test_predictorMirrorsUngatedMintAndBurnLegs() public view {
+        assertEq(engine.detectTransferRestriction(address(0), alice, 1e18), engine.SENDER_NOT_WHITELISTED());
+        assertEq(token.detectTransferRestriction(address(0), alice, 1e18), token.TRANSFER_OK());
+
+        assertEq(engine.detectTransferRestriction(alice, address(0), 1e18), engine.SENDER_NOT_WHITELISTED());
+        assertEq(token.detectTransferRestriction(alice, address(0), 1e18), token.TRANSFER_OK());
+    }
+
+    /**
+     * @notice Mint and burn stay ungated by the token's aggregate policy, including while paused.
+     */
+    function test_mintAndBurnRemainUngatedWhilePaused() public {
+        token.setPaused(true);
+        token.mint(alice, 100e18);
+        assertEq(token.balanceOf(alice), 100e18);
+        token.burn(alice, 40e18);
+        assertEq(token.balanceOf(alice), 60e18);
+    }
+
+    /**
+     * @notice Across the whole state space, the token's report holds if and only if the transfer is rejected.
+     */
+    function testFuzz_tokenReportMatchesEnforcement(bool listSender, bool listRecipient, bool pause) public {
+        address sender = makeAddr("sender");
+        address recipient = makeAddr("recipient");
+        deal(address(token), sender, 10e18);
+
+        if (listSender) engine.setWhitelisted(sender, true);
+        if (listRecipient) engine.setWhitelisted(recipient, true);
+        if (pause) token.setPaused(true);
+
+        uint8 code = token.detectTransferRestriction(sender, recipient, 1e18);
+        uint8 ok = token.TRANSFER_OK();
+        // Resolved before the prank: any call to the token would consume it.
+        bytes memory expectedError =
+            abi.encodeWithSelector(
+                RestrictedToken.TransferRestricted.selector, code, token.messageForTransferRestriction(code)
+            );
+
+        if (code == ok) {
+            vm.prank(sender);
+            // forge-lint: disable-next-line(erc20-unchecked-transfer) — success asserted below
+            token.transfer(recipient, 1e18);
+            assertEq(token.balanceOf(recipient), 1e18);
+        } else {
+            vm.prank(sender);
+            vm.expectRevert(expectedError);
+            // forge-lint: disable-next-line(erc20-unchecked-transfer) — call is expected to revert
+            token.transfer(recipient, 1e18);
+        }
     }
 }

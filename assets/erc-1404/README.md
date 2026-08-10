@@ -57,9 +57,11 @@ In Example 2 the restriction logic lives in a separate contract that the token c
 
 ## Install dependencies
 
+Dependencies are not vendored or tracked as submodules — install them into a local `lib/` at the versions this implementation is tested against:
+
 ```bash
-forge install OpenZeppelin/openzeppelin-contracts
-forge install foundry-rs/forge-std
+forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1
+forge install --no-git foundry-rs/forge-std@v1.15.0
 ```
 
 ## Build
@@ -95,31 +97,6 @@ This is a minimal reference implementation. The following are known constraints 
 - **Ownership transfer is immediate.** `transferOwnership` takes effect in a single transaction. Transferring to a wrong address is not recoverable. Consider `Ownable2Step` for production use.
 - **`value` is not used in restriction logic.** `detectTransferRestriction` ignores the token amount. Amount-based restrictions (transfer limits, lock-up thresholds) require subclassing and overriding that function.
 - **No upgrade path.** The whitelist policy is hardcoded. Changing restriction logic requires deploying a new contract and migrating token holders.
-
-## Static Analysis
-
-This repository is analyzed with both [Slither](https://github.com/crytic/slither) and [Aderyn](https://github.com/Cyfrin/aderyn). Reports and per-finding triage live in the `doc/` directory.
-
-Analysis (mocks excluded), last run 2026-07-20 over `src/` (7 files, 223 nSLOC — including the `ERC1404SpenderAware` spender-aware extension):
-
-| Tool | Report | Feedback | High / Med / Low / Info |
-|------|--------|----------|-------------------------|
-| Slither `0.11.5` | omitted (see note) | [`slither-feedback.md`](doc/slither-feedback.md) | 0 / 0 / 0 / 5 |
-| Aderyn `0.6.5` | [`aderyn-report.md`](doc/aderyn-report.md) | [`aderyn-feedback.md`](doc/aderyn-feedback.md) | 1 / 0 / 4 / 0 |
-
-> **Note** — Slither's raw report is omitted from the published assets because it embeds `lib/` submodule paths that do not resolve outside the development repository. Its findings are triaged in `slither-feedback.md`. Aderyn's report only references `src/` files, so it is published in full.
-
-Counts are per detector/issue category. Adding the spender-aware extension raised only instance counts of existing findings (Aderyn H-1 and L-2 each gained the new `ERC1404SpenderAware.transferFrom` delegation site; L-3/L-4 each gained the two new files' pragma), introducing no new category.
-
-**Result: nothing to fix** — every finding is a false positive, dependency-driven informational, or an intentional by-design property of a permissioned ERC-1404 token.
-
-Reproduce:
-
-```bash
-slither . --checklist --filter-paths "node_modules,submodules,test,forge-std,mocks" \
-  > doc/slither-report.md
-aderyn -x mocks --output doc/aderyn-report.md
-```
 
 ## License
 

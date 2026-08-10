@@ -169,6 +169,14 @@ contract ERC1404SpenderAwareTest is Test {
         assertEq(token.messageForTransferRestriction(99), token.MESSAGE_UNKNOWN_RESTRICTION());
     }
 
+    /**
+     * @notice The extension token also returns the convention literal for an unrecognised code.
+     * @dev It overrides `messageForTransferRestriction`, so the inherited guarantee is re-pinned here.
+     */
+    function test_unknownCodeMessageMatchesConventionLiteral() public view {
+        assertEq(token.messageForTransferRestriction(99), "Unknown restriction code");
+    }
+
     // -------------------------------------------------------------------------
     // ERC-165
     // -------------------------------------------------------------------------
@@ -238,5 +246,81 @@ contract ERC1404SpenderAwareTest is Test {
             // forge-lint: disable-next-line(erc20-unchecked-transfer) — call is expected to revert
             token.transferFrom(alice, bob, 1e18);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Supply-changing operations — governed by the spender-aware predictor
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice A mint on this token is predicted with the operator and the mint encoding.
+     */
+    function test_mintPredictorCarriesTheOperator() public {
+        token.setWhitelisted(alice, true);
+        assertEq(token.detectTransferRestrictionFrom(owner, address(0), alice, 1e18), token.TRANSFER_OK());
+
+        token.mint(alice, 1e18);
+        assertEq(token.balanceOf(alice), 1e18);
+    }
+
+    /**
+     * @notice A mint is rejected when the operator initiating it is not whitelisted.
+     * @dev This is the restriction the base predictor cannot express: it has no operator parameter.
+     */
+    function test_mintRevertsWhenOperatorNotWhitelisted() public {
+        token.setWhitelisted(alice, true);
+        token.transferOwnership(carol); // carol owns the token but is not whitelisted
+
+        assertEq(token.detectTransferRestrictionFrom(carol, address(0), alice, 1e18), token.SPENDER_NOT_WHITELISTED());
+        // The base predictor sees no operator and reports the mint as unrestricted.
+        assertEq(token.detectTransferRestriction(address(0), alice, 1e18), token.TRANSFER_OK());
+
+        // Resolved before the prank: any call to the token would consume it.
+        bytes memory expectedError = abi.encodeWithSelector(
+            ERC1404.TransferRestricted.selector,
+            token.SPENDER_NOT_WHITELISTED(),
+            token.MESSAGE_SPENDER_NOT_WHITELISTED()
+        );
+
+        vm.prank(carol);
+        vm.expectRevert(expectedError);
+        token.mint(alice, 1e18);
+    }
+
+    /**
+     * @notice A burn is rejected when the operator initiating it is not whitelisted.
+     */
+    function test_burnRevertsWhenOperatorNotWhitelisted() public {
+        token.setWhitelisted(alice, true);
+        token.mint(alice, 10e18);
+        token.transferOwnership(carol);
+
+        assertEq(token.detectTransferRestrictionFrom(carol, alice, address(0), 1e18), token.SPENDER_NOT_WHITELISTED());
+
+        // Resolved before the prank: any call to the token would consume it.
+        bytes memory expectedError = abi.encodeWithSelector(
+            ERC1404.TransferRestricted.selector,
+            token.SPENDER_NOT_WHITELISTED(),
+            token.MESSAGE_SPENDER_NOT_WHITELISTED()
+        );
+
+        vm.prank(carol);
+        vm.expectRevert(expectedError);
+        token.burn(alice, 1e18);
+    }
+
+    /**
+     * @notice Mint enforcement agrees with the predictor this token designates for it.
+     */
+    function testFuzz_mintReportMatchesEnforcement(bool listRecipient, bool listOperator) public {
+        if (listRecipient) token.setWhitelisted(alice, true);
+        if (listOperator) token.setWhitelisted(carol, true);
+        token.transferOwnership(carol); // whitelist first: setWhitelisted is owner-only
+
+        uint8 code = token.detectTransferRestrictionFrom(carol, address(0), alice, 1e18);
+
+        vm.prank(carol);
+        if (code != 0) vm.expectRevert();
+        token.mint(alice, 1e18);
     }
 }

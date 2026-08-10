@@ -336,6 +336,17 @@ contract ERC1404Test is Test {
     }
 
     /**
+     * @notice The unknown-code message is the exact string of the optional ERC-1404 convention.
+     * @dev Pinned as a literal rather than against the contract's own constant: a caller that
+     *      recognises the condition compares byte-for-byte, so changing the string is a breaking
+     *      change and a self-referential assertion would not catch it.
+     */
+    function test_unknownCodeMessageMatchesConventionLiteral() public view {
+        assertEq(token.messageForTransferRestriction(99), "Unknown restriction code");
+        assertEq(token.MESSAGE_UNKNOWN_RESTRICTION(), "Unknown restriction code");
+    }
+
+    /**
      * @notice supportsInterface reports support for the ERC-1404 interface id.
      */
     function test_supportsERC1404Interface() public view {
@@ -354,5 +365,159 @@ contract ERC1404Test is Test {
      */
     function test_doesNotSupportRandomInterface() public view {
         assertFalse(token.supportsInterface(0xdeadbeef));
+    }
+
+    // -------------------------------------------------------------------------
+    // Supply-changing operations — the address(0) encoding
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice A mint is predicted as detectTransferRestriction(address(0), to, value).
+     */
+    function test_mintPredictorUsesZeroAddressEncoding() public {
+        assertEq(token.detectTransferRestriction(address(0), alice, 500e18), token.RECIPIENT_NOT_WHITELISTED());
+        token.setWhitelisted(alice, true);
+        assertEq(token.detectTransferRestriction(address(0), alice, 500e18), token.TRANSFER_OK());
+    }
+
+    /**
+     * @notice A burn is predicted as detectTransferRestriction(from, address(0), value).
+     */
+    function test_burnPredictorUsesZeroAddressEncoding() public {
+        assertEq(token.detectTransferRestriction(alice, address(0), 10e18), token.SENDER_NOT_WHITELISTED());
+        token.setWhitelisted(alice, true);
+        assertEq(token.detectTransferRestriction(alice, address(0), 10e18), token.TRANSFER_OK());
+    }
+
+    /**
+     * @notice Minting does not require the zero address to be whitelisted.
+     * @dev The policy branches on the mint encoding instead of looking address(0) up in the
+     *      whitelist, so issuance never depends on making address(0) an acceptable counterparty.
+     */
+    function test_mintDoesNotRequireWhitelistingZeroAddress() public {
+        token.setWhitelisted(alice, true);
+        assertFalse(token.whitelist(address(0)));
+
+        token.mint(alice, 500e18);
+
+        assertEq(token.balanceOf(alice), 500e18);
+        assertFalse(token.whitelist(address(0)));
+    }
+
+    /**
+     * @notice The mint query carries no sender, so a sender-side condition is not applied to it.
+     * @dev alice may receive but is not otherwise able to send; the mint must still succeed.
+     */
+    function test_mintIgnoresSenderSideConditionForZeroAddress() public {
+        token.setWhitelisted(alice, true);
+        assertEq(token.detectTransferRestriction(address(0), alice, 1e18), token.TRANSFER_OK());
+        token.mint(alice, 1e18);
+        assertEq(token.balanceOf(alice), 1e18);
+    }
+
+    /**
+     * @notice Mint enforcement agrees with the mint predictor, whitelisted or not.
+     */
+    function testFuzz_mintReportMatchesEnforcement(bool recipientListed) public {
+        if (recipientListed) token.setWhitelisted(alice, true);
+
+        uint8 code = token.detectTransferRestriction(address(0), alice, 1e18);
+        if (code != token.TRANSFER_OK()) vm.expectRevert();
+        token.mint(alice, 1e18);
+    }
+
+    /**
+     * @notice Burn enforcement agrees with the burn predictor, whitelisted or not.
+     */
+    function testFuzz_burnReportMatchesEnforcement(bool holderListed) public {
+        deal(address(token), alice, 10e18);
+        if (holderListed) token.setWhitelisted(alice, true);
+
+        uint8 code = token.detectTransferRestriction(alice, address(0), 1e18);
+        if (code != token.TRANSFER_OK()) vm.expectRevert();
+        token.burn(alice, 1e18);
+    }
+
+    // -------------------------------------------------------------------------
+    // Edge cases the specification calls out
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice A zero-value transfer is reported and enforced consistently.
+     */
+    function test_zeroValueTransferIsConsistent() public {
+        token.setWhitelisted(alice, true);
+        assertEq(token.detectTransferRestriction(owner, alice, 0), token.TRANSFER_OK());
+        assertTrue(token.transfer(alice, 0));
+
+        // Same transfer, recipient no longer permitted: reported and enforced alike.
+        token.setWhitelisted(alice, false);
+        assertEq(token.detectTransferRestriction(owner, alice, 0), token.RECIPIENT_NOT_WHITELISTED());
+        vm.expectRevert();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer) — call is expected to revert
+        token.transfer(alice, 0);
+    }
+
+    /**
+     * @notice A self-transfer is reported and enforced consistently.
+     */
+    function test_selfTransferIsConsistent() public {
+        assertEq(token.detectTransferRestriction(owner, owner, 1e18), token.TRANSFER_OK());
+        assertTrue(token.transfer(owner, 1e18));
+        assertEq(token.balanceOf(owner), SUPPLY);
+
+        token.setWhitelisted(owner, false);
+        assertEq(token.detectTransferRestriction(owner, owner, 1e18), token.SENDER_NOT_WHITELISTED());
+        vm.expectRevert();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer) — call is expected to revert
+        token.transfer(owner, 1e18);
+    }
+
+    /**
+     * @notice A transfer to address(0) is rejected by ERC-20, not by the restriction policy.
+     * @dev The predictor reports TRANSFER_OK because the burn encoding carries no recipient to
+     *      check. That is not an enforcement inconsistency: the rejection is not for restriction
+     *      reasons, so it is not required to carry a restriction code.
+     */
+    function test_transferToZeroAddressIsNotARestrictionRejection() public {
+        assertEq(token.detectTransferRestriction(owner, address(0), 1e18), token.TRANSFER_OK());
+
+        vm.expectRevert();
+        // forge-lint: disable-next-line(erc20-unchecked-transfer) — call is expected to revert
+        token.transfer(address(0), 1e18);
+    }
+
+    // -------------------------------------------------------------------------
+    // messageForTransferRestriction — unknown codes and coverage
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice Every code this implementation can return resolves to a non-empty message.
+     */
+    function test_everyReturnableCodeHasAMessage() public view {
+        uint8[3] memory codes =
+            [token.TRANSFER_OK(), token.SENDER_NOT_WHITELISTED(), token.RECIPIENT_NOT_WHITELISTED()];
+        for (uint256 i = 0; i < codes.length; i++) {
+            assertGt(bytes(token.messageForTransferRestriction(codes[i])).length, 0);
+        }
+    }
+
+    /**
+     * @notice An unrecognised code yields a deterministic, non-empty string rather than a revert,
+     *         and that string does not denote the absence of a restriction.
+     */
+    function testFuzz_unknownCodeMessageIsSafe(uint8 code) public view {
+        vm.assume(code != token.TRANSFER_OK());
+        vm.assume(code != token.SENDER_NOT_WHITELISTED());
+        vm.assume(code != token.RECIPIENT_NOT_WHITELISTED());
+
+        string memory message = token.messageForTransferRestriction(code);
+
+        assertGt(bytes(message).length, 0);
+        assertEq(message, token.MESSAGE_UNKNOWN_RESTRICTION());
+        // An unknown non-zero code still denotes a restriction; it must not read as "no restriction".
+        assertNotEq(message, token.MESSAGE_TRANSFER_OK());
+        // Deterministic: the same code yields the same string.
+        assertEq(message, token.messageForTransferRestriction(code));
     }
 }

@@ -68,11 +68,52 @@ contract ERC1404SpenderAware is ERC1404, IERC1404SpenderAware {
         override(ERC1404, IERC20)
         returns (bool)
     {
-        uint8 code = detectTransferRestrictionFrom(msg.sender, from, to, value);
+        _checkRestrictionFrom(msg.sender, from, to, value);
+        return ERC20.transferFrom(from, to, value);
+    }
+
+    /**
+     * @notice Reverts with `TransferRestricted` if the spender-aware policy rejects the operation.
+     * @param spender Address initiating the operation.
+     * @param from Address the tokens are debited from, or the zero address for a mint.
+     * @param to Recipient address, or the zero address for a burn.
+     * @param value Token amount.
+     */
+    function _checkRestrictionFrom(address spender, address from, address to, uint256 value) internal view {
+        uint8 code = detectTransferRestrictionFrom(spender, from, to, value);
         if (code != TRANSFER_OK) {
             revert TransferRestricted(code, messageForTransferRestriction(code));
         }
-        return ERC20.transferFrom(from, to, value);
+    }
+
+    // -------------------------------------------------------------------------
+    // Mint / burn — governed by the spender-aware predictor
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice Mint `amount` tokens to a whitelisted `to` address.
+     * @dev This entry point carries an operator, so it is governed by
+     *      `detectTransferRestrictionFrom(operator, address(0), to, amount)` — not by the base
+     *      predictor, which cannot see the operator. Integrators predicting a mint on this token
+     *      MUST use the spender-aware predictor with the same operator they intend to call from.
+     * @param to Recipient of the newly minted tokens; must be whitelisted.
+     * @param amount Amount of tokens to mint.
+     */
+    function mint(address to, uint256 amount) external override onlyOwner {
+        _checkRestrictionFrom(msg.sender, address(0), to, amount);
+        _mint(to, amount);
+    }
+
+    /**
+     * @notice Burn `amount` tokens from a whitelisted `from` address.
+     * @dev Governed by `detectTransferRestrictionFrom(operator, from, address(0), amount)`, for the
+     *      same reason as {mint}.
+     * @param from Holder whose tokens are burned; must be whitelisted.
+     * @param amount Amount of tokens to burn.
+     */
+    function burn(address from, uint256 amount) external override onlyOwner {
+        _checkRestrictionFrom(msg.sender, from, address(0), amount);
+        _burn(from, amount);
     }
 
     // -------------------------------------------------------------------------
