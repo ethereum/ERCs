@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-/// @title IERC1404 — Simple Restricted Token Standard (EIP-1404)
+/// @title IERC1404 — Restricted Token with Restriction Codes (EIP-1404)
 interface IERC1404 is IERC20 {
     /// @notice Returns a restriction code for a proposed transfer, or 0 if unrestricted.
     /// @param from  Sender address.

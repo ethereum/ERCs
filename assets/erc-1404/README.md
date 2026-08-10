@@ -3,7 +3,7 @@
 > [!WARNING]
 > **This project has not been audited.** It is provided solely to illustrate an example implementation of ERC-1404. Do not use in production without a thorough independent security review.
 
-A minimal, auditable reference implementation of [EIP-1404](https://eips.ethereum.org/EIPS/eip-1404) — Simple Restricted Token Standard — built with Foundry and OpenZeppelin Contracts v5.6.1.
+A minimal, auditable reference implementation of [EIP-1404](https://eips.ethereum.org/EIPS/eip-1404) — Restricted Token with Restriction Codes — built with Foundry and OpenZeppelin Contracts v5.6.1.
 
 ## Overview
 
