@@ -93,7 +93,7 @@ contract ERC1404SpenderAware is ERC1404, IERC1404SpenderAware {
     /**
      * @notice Mint `amount` tokens to a whitelisted `to` address.
      * @dev This entry point carries an operator, so it is governed by
-     *      `detectTransferRestrictionFrom(operator, address(0), to, amount)` — not by the base
+     *      `detectTransferRestrictionFrom(operator, address(0), to, amount)`, not by the base
      *      predictor, which cannot see the operator. Integrators predicting a mint on this token
      *      MUST use the spender-aware predictor with the same operator they intend to call from.
      * @param to Recipient of the newly minted tokens; must be whitelisted.

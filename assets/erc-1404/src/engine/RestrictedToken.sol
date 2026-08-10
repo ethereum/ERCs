@@ -21,8 +21,8 @@ import {IERC1404Restriction} from "./IERC1404Restriction.sol";
 /// and the contract that performs the transfer. Two consequences are visible below:
 ///
 ///  1. `detectTransferRestriction` reports the *aggregate* outcome of every source
-///     this token's transfer path consults — the pause flag held here and the
-///     address policy held in the engine — rather than forwarding the engine's code
+///     this token's transfer path consults (the pause flag held here and the
+///     address policy held in the engine), rather than forwarding the engine's code
 ///     unchanged. A naive `return rules.detectTransferRestriction(...)` passthrough
 ///     would report `0` while a paused transfer reverts.
 ///  2. It also mirrors the *scope* of enforcement. `_update` skips the mint and burn
@@ -108,7 +108,7 @@ contract RestrictedToken is ERC20, Ownable, IERC1404Restriction {
 
     /**
      * @notice Mint `amount` new tokens to `to`.
-     * @dev Not gated by the engine — see `_update`.
+     * @dev Not gated by the engine; see `_update`.
      * @param to Recipient of the newly minted tokens.
      * @param amount Amount of tokens to mint.
      */
@@ -118,7 +118,7 @@ contract RestrictedToken is ERC20, Ownable, IERC1404Restriction {
 
     /**
      * @notice Burn `amount` tokens held by `from`.
-     * @dev Not gated by the engine — see `_update`.
+     * @dev Not gated by the engine; see `_update`.
      * @param from Holder whose tokens are burned.
      * @param amount Amount of tokens to burn.
      */

@@ -164,7 +164,7 @@ contract ERC1404 is ERC20, ERC165, Ownable, IERC1404 {
      *      is a mint and `to == address(0)` is a burn. The policy branches on that encoding rather
      *      than looking `address(0)` up in the whitelist. Whitelisting the zero address to make mints
      *      pass would also make it an acceptable *recipient*, silently opening a burn path through
-     *      `transfer` — so the mint leg skips the sender check instead, and the burn leg skips the
+     *      `transfer`, so the mint leg skips the sender check instead, and the burn leg skips the
      *      recipient check.
      *
      *      A `transfer` to `address(0)` therefore returns `TRANSFER_OK` here. That is not an

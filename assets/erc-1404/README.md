@@ -3,7 +3,7 @@
 > [!WARNING]
 > **This project has not been audited.** It is provided solely to illustrate an example implementation of ERC-1404. Do not use in production without a thorough independent security review.
 
-A minimal, auditable reference implementation of [EIP-1404](https://eips.ethereum.org/EIPS/eip-1404) — Restricted Token with Restriction Codes — built with Foundry and OpenZeppelin Contracts v5.6.1.
+A minimal, auditable reference implementation of [EIP-1404](https://eips.ethereum.org/EIPS/eip-1404) (Restricted Token with Restriction Codes) built with Foundry and OpenZeppelin Contracts v5.6.1.
 
 ## Overview
 
@@ -22,22 +22,22 @@ A return value of `0` from `detectTransferRestriction` means the transfer is unr
 
 This repository ships **two** worked examples of the standard:
 
-**Example 1 — ERC-1404 baked into the token** (the classic ERC-20 extension):
+**Example 1: ERC-1404 baked into the token** (the classic ERC-20 extension):
 
 | File | Description |
 |------|-------------|
-| `src/IERC1404.sol` | Interface — extends `IERC20` with the two ERC-1404 functions |
-| `src/ERC1404.sol` | Concrete implementation — whitelist-based, with ERC-165 support |
+| `src/IERC1404.sol` | Interface: extends `IERC20` with the two ERC-1404 functions |
+| `src/ERC1404.sol` | Concrete implementation: whitelist-based, with ERC-165 support |
 
-**Example 2 — ERC-1404 as a standalone rule engine bound to an ERC-20:**
+**Example 2: ERC-1404 as a standalone rule engine bound to an ERC-20**
 
 | File | Description |
 |------|-------------|
-| `src/engine/IERC1404Restriction.sol` | Token-agnostic interface — the two ERC-1404 functions only, no `IERC20` |
-| `src/engine/WhitelistRuleEngine.sol` | Standalone compliance engine — implements the restriction logic, holds no balances |
+| `src/engine/IERC1404Restriction.sol` | Token-agnostic interface: the two ERC-1404 functions only, no `IERC20` |
+| `src/engine/WhitelistRuleEngine.sol` | Standalone compliance engine: implements the restriction logic, holds no balances |
 | `src/engine/RestrictedToken.sol` | Thin ERC-20 that consults the engine in its `_update` hook |
 
-In Example 2 the restriction logic lives in a separate contract that the token consults before moving funds. This lets one rule set be reused across several tokens and lets compliance rules be swapped without redeploying the token. The engine never moves or holds tokens — it only answers "is this transfer allowed?".
+In Example 2 the restriction logic lives in a separate contract that the token consults before moving funds. This lets one rule set be reused across several tokens and lets compliance rules be swapped without redeploying the token. The engine never moves or holds tokens; it only answers "is this transfer allowed?".
 
 ### Restriction codes
 
@@ -49,15 +49,15 @@ In Example 2 the restriction logic lives in a separate contract that the token c
 
 ### Design decisions
 
-- **Whitelist policy** — both sender and recipient must be explicitly whitelisted. The deployer is added to the whitelist at construction.
-- **Revert on restriction** — `transfer` and `transferFrom` revert with a typed `TransferRestricted(uint8 code, string message)` error rather than returning `false`, as recommended by the spec.
-- **Sender checked before recipient** — `detectTransferRestriction` evaluates the sender first, so callers can distinguish the two failure cases with a single view call before submitting a transaction.
-- **ERC-165** — `supportsInterface(0xab84a5c8)` returns `true`, enabling on-chain interface discovery.
-- **Minimal ownership** — a single `owner` address controls the whitelist. Ownership is transferable. No role hierarchy is imposed, keeping the implementation easy to audit and extend.
+- **Whitelist policy**: both sender and recipient must be explicitly whitelisted. The deployer is added to the whitelist at construction.
+- **Revert on restriction**: `transfer` and `transferFrom` revert with a typed `TransferRestricted(uint8 code, string message)` error rather than returning `false`, as recommended by the spec.
+- **Sender checked before recipient**: `detectTransferRestriction` evaluates the sender first, so callers can distinguish the two failure cases with a single view call before submitting a transaction.
+- **ERC-165**: `supportsInterface(0xab84a5c8)` returns `true`, enabling on-chain interface discovery.
+- **Minimal ownership**: a single `owner` address controls the whitelist. Ownership is transferable. No role hierarchy is imposed, keeping the implementation easy to audit and extend.
 
 ## Install dependencies
 
-Dependencies are not vendored or tracked as submodules — install them into a local `lib/` at the versions this implementation is tested against:
+Dependencies are not vendored or tracked as submodules. Install them into a local `lib/` at the versions this implementation is tested against:
 
 ```bash
 forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1

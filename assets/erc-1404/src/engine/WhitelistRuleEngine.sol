@@ -138,7 +138,7 @@ contract WhitelistRuleEngine is ERC165, Ownable, IERC1404Restriction {
     /**
      * @notice Returns true if the contract implements `interfaceId`, including the ERC-1404 id.
      * @dev Advertising the ERC-1404 interface id lets tokens discover the engine on-chain.
-     *      Interface support alone is not evidence the contract is a token — by design it is not.
+     *      Interface support alone is not evidence the contract is a token; by design it is not.
      * @param interfaceId Interface identifier, as defined in ERC-165.
      * @return True if the interface is supported.
      */
