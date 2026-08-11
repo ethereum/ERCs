@@ -36,6 +36,28 @@ function deriveContextKeyId(chainId: bigint, contractAddress: string): string {
   );
 }
 
+function deriveFactoryContextKeyId(chainId: bigint, factoryAddress: string, deployEventSignature: string): string {
+  const CONTEXT_TAG_FACTORY = ethers.keccak256("erc7730.context.factory")
+  const deployEventTopic = ethers.keccak256(deployEventSignature) // topic0 = hash of the event signature string
+  return ethers.keccak256(
+    abiCoder.encode(["bytes32", "uint256", "address", "bytes32"], [CONTEXT_TAG_FACTORY, chainId, factoryAddress, deployEventTopic]),
+  );
+}
+
+function deriveEip712DeploymentContextKeyId(chainId: bigint, verifyingContract: string): string {
+  const CONTEXT_TAG_EIP712_DEP = ethers.keccak256("erc7730.context.eip712.deployment")
+  return ethers.keccak256(
+    abiCoder.encode(["bytes32", "uint256", "address"], [CONTEXT_TAG_EIP712_DEP, chainId, verifyingContract]),
+  );
+}
+
+function deriveDomainSeparatorContextKeyId(domainSeparator: string): string {
+  const CONTEXT_TAG_EIP712_DS = ethers.keccak256("erc7730.context.eip712.domainseparator")
+  return ethers.keccak256(
+    abiCoder.encode(["bytes32", "bytes32"], [CONTEXT_TAG_EIP712_DS, domainSeparator]),
+  );
+}
+
 ```
 
 ## 1. `publishMirrorLists` — **IPFS Mirror Operator** publishes retrieval URIs
@@ -83,7 +105,7 @@ const vaultDescriptor: DescriptorInfo = {
   descriptorHash,
   schemaMajor,
   contextKeyIds: [
-    deriveContextKeyId(chainId, vaultContractAddress),          // mainnet deployment
+    deriveContextKeyId(mainnetChainId, vaultMainnetAddress),    // mainnet deployment
     deriveContextKeyId(optimismChainId, vaultOptimismAddress),  // an L2 deployment
   ],
   attestationIds: [{ attestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
@@ -93,7 +115,7 @@ const vaultDescriptor: DescriptorInfo = {
 const stakingDescriptor: DescriptorInfo = {
   descriptorHash: stakingDescriptorHash,
   schemaMajor,
-  contextKeyIds: [deriveContextKeyId(chainId, stakingContractAddress)],
+  contextKeyIds: [deriveContextKeyId(mainnetChainId, stakingContractAddress)],
   attestationIds: [
     // There is no canonical attestation ID or file format;
     // An attester can issue different attestations for the same contract:
@@ -141,7 +163,7 @@ const resolved = await registry.resolveDescriptors(
   /* this wallet's full list of trusted attesters */
   [trustedAttesterOne, trustedAttesterTwo],
   /* contracts the wallet is interacting with, as their contextKeyIds */
-  [deriveContextKeyId(chainId, vaultContractAddress), deriveContextKeyId(optimismChainId, vaultOptimismAddress)],
+  [deriveContextKeyId(mainnetChainId, vaultMainnetAddress), deriveContextKeyId(optimismChainId, vaultOptimismAddress)],
   /* this wallet's firmware understands these schema major versions */
   [1, 2, 3],
   /* this wallet only verifies the EAS attestations */
@@ -212,7 +234,7 @@ const nonce = await registry.getNonce(attesterSigner.address);
 
 const newDescriptorHash = "0x99aa88b...44556677";
 const newAttestationId = "0x55ee44...bccddee";
-const mainnetContextKeyId = deriveContextKeyId(chainId, vaultContractAddress);
+const mainnetContextKeyId = deriveContextKeyId(mainnetChainId, vaultMainnetAddress);
 const optimismContextKeyId = deriveContextKeyId(optimismChainId, vaultOptimismAddress);
 
 const newDescriptor: DescriptorInfo = {
@@ -256,7 +278,7 @@ await registry.connect(relayerWallet).createAttestations(
 await registry.connect(attesterSigner).revokeAttestations(
   attesterSigner.address,
   [
-    { attestationId: stakingSetId, contextKeyIds: [deriveContextKeyId(chainId, stakingContractAddress)] },
+    { attestationId: stakingSetId, contextKeyIds: [deriveContextKeyId(mainnetChainId, stakingContractAddress)] },
     { attestationId: stakingDeviceAttestationId, contextKeyIds: [] },
   ],
   "0x",
@@ -321,6 +343,50 @@ if (!profile.attesters.some((a) => a.toLowerCase() === attesterSigner.address.to
   throw new Error("profile does not name the trusted attester — do not render it");
 }
 renderAttesterCard(profile.name);
+```
+
+## 9. Non-deployment context types — factory, EIP-712 deployments, and domain separators
+
+`contextKeyIds` is a flat `bytes32[]` — nothing about an entry reveals which ERC-7730 binding type produced it. A single descriptor can mix every derivation rule freely:
+
+```ts
+const vaultFactoryAddress = "0xAcmeVaultFactory000000000000000000000000";
+const deployEventSignature = "VaultCreated(address,address)"; // matches the descriptor's `context.contract.factory.deployEvent`
+const permitRouterAddress = "0xAcmePermitRouter00000000000000000000000";
+const legacyDomainSeparator = "0xdeadbeef00000000000000000000000000000000000000000000000000cafebabe"; // precomputed off-chain per EIP-712
+
+const factoryDescriptorHash = "0xaa11bb22...ee33ff44";
+const factoryAttestationId = "0xbb22cc33...ff445566";
+
+const factoryDescriptor: DescriptorInfo = {
+  descriptorHash: factoryDescriptorHash,
+  schemaMajor,
+  contextKeyIds: [
+    deriveFactoryContextKeyId(mainnetChainId, vaultFactoryAddress, deployEventSignature),   // any contract this factory deploys
+    deriveEip712DeploymentContextKeyId(mainnetChainId, permitRouterAddress),                // an EIP-712 verifyingContract
+    deriveDomainSeparatorContextKeyId(legacyDomainSeparator),                                // a precomputed domain separator
+  ],
+  attestationIds: [{ attestationId: factoryAttestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
+};
+
+// Reuses the release index already published in §1 — no new MirrorList needed.
+await registry.connect(attesterSigner).createAttestations(
+  attesterSigner.address,
+  [factoryDescriptor],
+  [], // no revocations — these are brand new context key IDs
+  { id: mirrorListId, uris: [] },
+  { id: ethers.keccak256(abiCoder.encode(["string[]"], [attestationMirror.uris])), uris: [] },
+  "0x",
+);
+
+const resolved = await registry.resolveDescriptors(
+  [attesterSigner.address],
+  factoryDescriptor.contextKeyIds,
+  [schemaMajor],
+  [ATTESTATION_FORMAT_EAS_OFFCHAIN],
+  ["ipfs:", "https:"],
+);
+// shape identical to §3's output — one entry per contextKeyId, same fields
 ```
 
 ## Errors at a glance
