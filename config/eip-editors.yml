@@ -3,25 +3,32 @@ governance:
   - SamWilsn
   - xinbenlv
   - g11tech
+  - jochem-brouwer
 core:
   - lightclient
   - SamWilsn
   - g11tech
+  - jochem-brouwer
 erc:
   - SamWilsn
   - xinbenlv
   - g11tech
+  - jochem-brouwer
 networking:
   - lightclient
   - SamWilsn
+  - jochem-brouwer
 interface:
   - lightclient
   - SamWilsn
+  - jochem-brouwer
 meta:
   - lightclient
   - SamWilsn
   - xinbenlv
+  - jochem-brouwer
 informational:
   - lightclient
   - SamWilsn
   - xinbenlv
+  - jochem-brouwer
