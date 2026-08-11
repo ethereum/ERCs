@@ -5,7 +5,7 @@ import { LibCento as lc } from "../libraries/LibCento.sol";
 import { bitmap256 } from "../libraries/LibBitmap.sol";
 import { CentoStorage as CS } from "../structs/CentoStorage.sol";
 import { Facet } from "../structs/Facet.sol";
-import { IERC165 } from "../interfaces/IERC165.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { IObservability } from "../interfaces/IObservability.sol";
 
 /// @title Observability
