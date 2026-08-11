@@ -62,28 +62,27 @@ function deriveDomainSeparatorContextKeyId(domainSeparator: string): string {
 
 ## 1. `publishMirrorLists` — **IPFS Mirror Operator** publishes retrieval URIs
 
-Descriptor JSON and signed attestation blobs are published the same way — the registry never distinguishes the two, only the caller's later references do. A single list itself may carry several URIs — redundant mirrors of the exact same content:
+Descriptor JSON and signed attestation blobs are published the same way — the registry never distinguishes the two, only the caller's later references do. A single list itself may carry several URIs — redundant mirrors of the exact same content. `createAttestations` below only ever takes an *already-published* MirrorList id — it has no way to publish one itself — so both lists it will need are published here first, in one batch:
 
 ```TypeScript
 const releaseDescriptorIndexUris = [
   "ipfs://bafybeigd.../vault-and-staking-descriptors-index.json",
   "ar://vault-and-staking-descriptors-index-mirror",
 ];
+const releaseAttestationIndexUris = ["ipfs://bafybeigd.../release-attestations-index.json"];
 
-const receipt = await registry.connect(ipfsPinner).publishMirrorLists([releaseDescriptorIndexUris]);
-const [{ mirrorListId }] = receipt.logs["MirrorListPublished"];
+const receipt = await registry.connect(ipfsPinner).publishMirrorLists(/* uriLists */ [releaseDescriptorIndexUris, releaseAttestationIndexUris]);
+const [
+  { mirrorListId: descriptorMirrorListId },
+  { mirrorListId: attestationMirrorListId },
+] = receipt.logs["MirrorListPublished"];
 
-console.log(mirrorListId); // keccak256(abi.encode(releaseDescriptorIndexUris)) — callers can precompute this offline
+console.log(descriptorMirrorListId); // keccak256(abi.encode(releaseDescriptorIndexUris)) — callers can precompute this offline
 ```
 
 ## 2. `createAttestations` — the first batched registration
 
-This artificial example specifically demonstrates two supported ways of providing a `MirrorListRef` in one call:
-* The descriptor content is provided by a **reference** to an already published mirrror list, see above
-* The attestation blob is provided **inline** - published atomically as part of this same transaction.
-* Every field that accepts multiple elements as inputs is supplied with two elements
-
-Let's say there are two contracts in the project: `Vault` and `Staking`. The `Vault` is deployed on Mainnet and Optimism.
+Every field that accepts multiple elements as inputs is supplied with two elements. Let's say there are two contracts in the project: `Vault` and `Staking`. The `Vault` is deployed on Mainnet and Optimism.
 
 ```TypeScript
 const vaultMainnetAddress = "0xAcmeVaultMainnet00000000000000000000000000";
@@ -98,56 +97,47 @@ const stakingEasAttestationId = "0x2233445566...889900aabb";
 const stakingDeviceAttestationId = "0x334455667...9900aabbcc";
 const VENDOR_FORMAT_CUSTOM = ethers.keccak256("erc7730.attestation.vendor.custom");
 
-const schemaMajor = 3; // MAJOR version of the descriptor's schema
+const descriptorSchemaMajor = 3; // MAJOR version of the descriptor's schema
 
 // Contract #1 - Vault
 const vaultDescriptor: DescriptorInfo = {
   descriptorHash,
-  schemaMajor,
+  descriptorSchemaMajor,
   contextKeyIds: [
     deriveContextKeyId(mainnetChainId, vaultMainnetAddress),    // mainnet deployment
     deriveContextKeyId(optimismChainId, vaultOptimismAddress),  // an L2 deployment
   ],
-  attestationIds: [{ attestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
+  attestationIds: [{ attestationId, attestationFormatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
 };
 
 // Contract #2 - Staking
 const stakingDescriptor: DescriptorInfo = {
   descriptorHash: stakingDescriptorHash,
-  schemaMajor,
+  descriptorSchemaMajor,
   contextKeyIds: [deriveContextKeyId(mainnetChainId, stakingContractAddress)],
   attestationIds: [
     // There is no canonical attestation ID or file format;
     // An attester can issue different attestations for the same contract:
-    { attestationId: stakingEasAttestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN },
-    { attestationId: stakingDeviceAttestationId, formatId: VENDOR_FORMAT_CUSTOM },
+    { attestationId: stakingEasAttestationId, attestationFormatId: ATTESTATION_FORMAT_EAS_OFFCHAIN },
+    { attestationId: stakingDeviceAttestationId, attestationFormatId: VENDOR_FORMAT_CUSTOM },
   ],
 };
 
-// Mirrors point to collections of attestations and descriptors in decentralized storage
-// 'descriptorMirror'  - resolves to an index.json file keyed by 'descriptorHash'
-// 'attestationMirror' - resolves to an index.json file keyed by 'attestationSetId'
-
-// two-transactions flow - publish then provide known ID
-const descriptorMirror: MirrorListRef = { id: mirrorListId, uris: [] }
-
-// inline flow - publish URL as part of the registration transaction
-const attestationMirror: MirrorListRef = { id: ethers.ZeroHash,
-  uris: ["ipfs://bafybeigd.../release-attestations-index.json"] }; 
-
-const revocations = []
+// Both MirrorLists (published together in step 1) resolve to an index.json file —
+// 'descriptorMirrorListId' keyed by 'descriptorHash', 'attestationMirrorListId' by 'attestationSetId'.
 
 // The attester submits directly without a relay
 const receipt = await registry.connect(attesterSigner).createAttestations(
-  attesterSigner.address,
+  /* attester */ attesterSigner.address,
   [vaultDescriptor, stakingDescriptor], // batched — one transaction, two descriptors, four contexts
-  revocations,
-  descriptorMirror,
-  attestationMirror,
-  "0x",
+  descriptorMirrorListId,
+  attestationMirrorListId,
+  /* signature */ "0x",
 );
 
 const [vaultRegistered, stakingRegistered] = receipt.logs["AttestationRegistered"];
+const vaultAttestationSetId = vaultRegistered.attestationSetId; // === attestationId (single-member set)
+const stakingSetId = stakingRegistered.attestationSetId; // content-derived (two members)
 ```
 
 ## 3. `resolveDescriptors` and `getRevocationTimestamp` — the wallet fetches registry data before rendering
@@ -173,30 +163,30 @@ const resolved = await registry.resolveDescriptors(
 );
 ```
 
-Returned JSON — one entry per active `(attester, contextKeyId, schemaMajor)` record, ordered `attesters` first, then `contextKeyIds`, then `schemaMajors`. Both of the vault's deployments resolve here, sharing the same descriptor and mirrors but under different context key IDs:
+Returned JSON — one entry per active `(attester, contextKeyId, descriptorSchemaMajor)` record, ordered `attesters` first, then `contextKeyIds`, then `descriptorSchemaMajors`. Both of the vault's deployments resolve here, sharing the same descriptor and mirrors but under different context key IDs:
 
 ```json
 [
   {
     "descriptorHash": "0x7c3a...d6e7f",
     "contextKeyId": "0x8b41...c209",
-    "schemaMajor": "1",
+    "descriptorSchemaMajor": "1",
     "attestationSetId": "0x4f0e...d6e7f",
     "descriptorMirrorListUris": ["ipfs://bafybeigd.../vault-and-staking-descriptors-index.json", "ar://vault-and-staking-descriptors-index-mirror"],
     "attestationMirrorListUris": ["ipfs://bafybeigd.../release-attestations-index.json"],
     "attestations": [
-      { "attester": "0xAttester0000000000000000000000000000000", "attestationId": "0x4f0e...d6e7f", "formatId": "0x9b2c...eas0f", "revokedAt": "0" }
+      { "attester": "0xAttester0000000000000000000000000000000", "attestationId": "0x4f0e...d6e7f", "attestationFormatId": "0x9b2c...eas0f", "revokedAt": "0" }
     ]
   },
   {
     "descriptorHash": "0x7c3a...d6e7f",
     "contextKeyId": "0x2f19...ab77",
-    "schemaMajor": "1",
+    "descriptorSchemaMajor": "1",
     "attestationSetId": "0x4f0e...d6e7f",
     "descriptorMirrorListUris": ["ipfs://bafybeigd.../vault-and-staking-descriptors-index.json", "ar://vault-and-staking-descriptors-index-mirror"],
     "attestationMirrorListUris": ["ipfs://bafybeigd.../release-attestations-index.json"],
     "attestations": [
-      { "attester": "0xAttester0000000000000000000000000000000", "attestationId": "0x4f0e...d6e7f", "formatId": "0x9b2c...eas0f", "revokedAt": "0" }
+      { "attester": "0xAttester0000000000000000000000000000000", "attestationId": "0x4f0e...d6e7f", "attestationFormatId": "0x9b2c...eas0f", "revokedAt": "0" }
     ]
   }
 ]
@@ -207,13 +197,13 @@ The wallet validates every candidate entry, checking for availability, validity,
 ```ts
 for (const entry of resolved) {
   // A stale active record can still point at an already-revoked set
-  const setRevokedAt = await registry.getRevocationTimestamp(attesterSigner.address, entry.attestationSetId);
+  const setRevokedAt = await registry.getRevocationTimestamp(/* attester */ attesterSigner.address, /* attestationId */ entry.attestationSetId);
   if (setRevokedAt !== 0n) continue;
 
   const descriptorBytes = await fetch(entry.descriptorMirrorListUris[0]).then((r) => r.arrayBuffer());
   if (!isValidDescriptor(descriptorBytes)) continue;
 
-  const easAttestationEntry = entry.attestations.find((a) => a.formatId === ATTESTATION_FORMAT_EAS_OFFCHAIN);
+  const easAttestationEntry = entry.attestations.find((a) => a.attestationFormatId === ATTESTATION_FORMAT_EAS_OFFCHAIN);
   if (!isValidEasAttesation(easAttestationEntry)) continue;
 
   renderClearSigningPrompt(JSON.parse(new TextDecoder().decode(descriptorBytes)));
@@ -222,12 +212,31 @@ for (const entry of resolved) {
 throw new Error("Valid entry not found")
 ```
 
-## 4. Using `createAttestations` for updates & relayed transactions
+## 4. `revokeAttestations` — batching a whole set with an individual member
+
+`createAttestations` never revokes anything itself, so retiring the Vault's v1 attestation set — ahead of registering v2 in the next section — has to happen here, as its own call. The same call also batches in an unrelated cleanup: dropping just the Staking descriptor's vendor rendition. Two different `RevocationEntry` shapes side by side:
+* a set id withdraws the whole release
+* a single attestation id flags only that one rendition while the rest of the set stays active
+
+```ts
+await registry.connect(attesterSigner).revokeAttestations(
+  /* attester */ attesterSigner.address,
+  [
+    { attestationId: vaultAttestationSetId, contextKeyIds: [deriveContextKeyId(mainnetChainId, vaultMainnetAddress), deriveContextKeyId(optimismChainId, vaultOptimismAddress)] },
+    { attestationId: stakingDeviceAttestationId, contextKeyIds: [] },
+  ],
+  /* signature */ "0x",
+);
+```
+
+The `revokeAttestations` function can also be invoked with an EIP-712 signature similar to `createAttestations`.
+
+## 5. Using `createAttestations` for updates & relayed transactions
 
 In this example we are issuing an update to the previously registered `Vault` contract.
 This is a legitimate and common operation - the contract may be upgradeable and changed its behaviour.
-We need to revoke our old attestations, and may advertise URLs for the new one, if necessary.
-We will also use a relayer address instead making the registry call directly from the attester's EOA address.
+The old attestation set (`vaultAttestationSetId`) was already revoked in the previous section — `createAttestations` requires that precondition to already hold and never revokes anything itself.
+We will also use a relayer address instead of making the registry call directly from the attester's EOA address.
 
 ```ts
 const nonce = await registry.getNonce(attesterSigner.address);
@@ -239,54 +248,31 @@ const optimismContextKeyId = deriveContextKeyId(optimismChainId, vaultOptimismAd
 
 const newDescriptor: DescriptorInfo = {
   descriptorHash: newDescriptorHash,
-  schemaMajor,
+  descriptorSchemaMajor,
   contextKeyIds: [mainnetContextKeyId, optimismContextKeyId], // assuming both deployments updated together
-  attestationIds: [{ attestationId: newAttestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
+  attestationIds: [{ attestationId: newAttestationId, attestationFormatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
 };
 const newAttestationSetId = newAttestationId; // a small quirk: single-member set can reuse its sole member's own id
 
-// The record being displaced MUST be recorded as revoked under every context id it was registered for.
-// This can be done in a separate transaction, or atomically with the new registration - as we will do here.
-const revocations: RevocationEntry[] = [{ attestationId: vaultAttestationSetId, contextKeyIds: [mainnetContextKeyId, optimismContextKeyId] }]
-
-const newAttestationMirror: MirrorListRef = { id: ethers.ZeroHash, uris: ["ipfs://bafybeigd.../vault-attestation-v2.json"] };
+// The new attestation blob lives at a new location, so its MirrorList has to be
+// published (again, as its own prior step) before it can be referenced below.
+const republishedV2 = await registry.connect(ipfsPinner).publishMirrorLists(/* uriLists */ [["ipfs://bafybeigd.../vault-attestation-v2.json"]]);
+const [{ mirrorListId: newAttestationMirrorListId }] = republishedV2.logs["MirrorListPublished"];
 
 const registrationTypes = { /* ... normal EIP-712 boilerplate types declaration */};
 
 const signature = await attesterSigner.signTypedData(eip712domain, registrationTypes, {
   descriptors: [newDescriptor],
-  descriptorMirrorListId: mirrorListId, // URLs can remain unchanged
-  attestationMirrorListId: ethers.keccak256(abiCoder.encode(["string[]"], [newAttestationMirror.uris])),
-  revocations,
+  descriptorMirrorListId, // URLs can remain unchanged
+  attestationMirrorListId: newAttestationMirrorListId,
   nonce,
 });
 
-// a relayer is the address making the actual transaction 
+// a relayer is the address making the actual transaction
 await registry.connect(relayerWallet).createAttestations(
-  attesterSigner.address, [newDescriptor], revocations,
-  { id: mirrorListId, uris: [] }, newAttestationMirror, signature,
+  /* attester */ attesterSigner.address, [newDescriptor], descriptorMirrorListId, newAttestationMirrorListId, signature,
 );
 ```
-
-## 5. `revokeAttestations` — batching a whole set with an individual member
-
-```ts
-// One call can batch unrelated revocations together.
-// Shows both shapes a RevocationEntry can take:
-//  * a set id withdraws the whole release
-//  * a single id flags only that one attestation while the rest of entries in a set remains active
-await registry.connect(attesterSigner).revokeAttestations(
-  attesterSigner.address,
-  [
-    { attestationId: stakingSetId, contextKeyIds: [deriveContextKeyId(mainnetChainId, stakingContractAddress)] },
-    { attestationId: stakingDeviceAttestationId, contextKeyIds: [] },
-  ],
-  "0x",
-);
-```
-
-The `revokeAttestations` function can also be invoked with an EIP-712 signature similar to `createAttestations`.
-
 
 ## 6. `updateDescriptorMirrorList` — rotating descriptor storage for several descriptors at once
 
@@ -295,13 +281,13 @@ Index files store mappings from ID to actual data.
 
 
 ```ts
-const republished = await registry.connect(ipfsPinner).publishMirrorLists([
+const republished = await registry.connect(ipfsPinner).publishMirrorLists(/* uriLists */ [
   ["ipfs://bafybeiNEW.../release-descriptors-index-v2.json"],
   ["ipfs://bafybeiNEW.../release-attestations-index-v2.json", "ar://release-attestations-index-v2-mirror"],
 ]);
 const [
   { mirrorListId: newDescriptorMirrorListId },
-  { mirrorListId: newAttestationMirrorListId },
+  { mirrorListId: rotatedAttestationMirrorListId },
 ] = republished.logs["MirrorListPublished"];
 
 // Rotate both the current vault descriptor and the staking descriptor together:
@@ -309,12 +295,21 @@ const descriptorHashes = [newDescriptorHash, stakingDescriptorHash];
 
 // self-submitted transaction
 await registry.connect(attesterSigner).updateDescriptorMirrorList(
-  attesterSigner.address, descriptorHashes, { id: newDescriptorMirrorListId, uris: [] }, "0x",
+  /* attester */ attesterSigner.address, descriptorHashes, newDescriptorMirrorListId, /* signature */ "0x",
 )
 ```
 
 ## 7. `updateAttestationMirrorList` — rotating attestation blob storage for several sets at once
 
+Reuses the attestation index published in the previous section, rotating both attestation sets registered so far to point at it in one call:
+
+```ts
+const attestationSetIds = [newAttestationSetId, stakingSetId];
+
+await registry.connect(attesterSigner).updateAttestationMirrorList(
+  /* attester */ attesterSigner.address, attestationSetIds, rotatedAttestationMirrorListId, /* signature */ "0x",
+);
+```
 
 ## 8. `setAttesterProfileURI` and `getAttesterProfileURI`
 
@@ -328,7 +323,7 @@ await registry.connect(attesterSigner).updateDescriptorMirrorList(
 //   }
 
 await registry.connect(attesterSigner).setAttesterProfileURI(
-  attesterSigner.address, "ipfs://bafybeigd.../attester-profile.json", "0x",
+  /* attester */ attesterSigner.address, /* profileURI */ "ipfs://bafybeigd.../attester-profile.json", /* signature */ "0x",
 );
 
 const profileURI = await registry.getAttesterProfileURI(attesterSigner.address);
@@ -360,31 +355,30 @@ const factoryAttestationId = "0xbb22cc33...ff445566";
 
 const factoryDescriptor: DescriptorInfo = {
   descriptorHash: factoryDescriptorHash,
-  schemaMajor,
+  descriptorSchemaMajor,
   contextKeyIds: [
     deriveFactoryContextKeyId(mainnetChainId, vaultFactoryAddress, deployEventSignature),   // any contract this factory deploys
     deriveEip712DeploymentContextKeyId(mainnetChainId, permitRouterAddress),                // an EIP-712 verifyingContract
     deriveDomainSeparatorContextKeyId(legacyDomainSeparator),                                // a precomputed domain separator
   ],
-  attestationIds: [{ attestationId: factoryAttestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
+  attestationIds: [{ attestationId: factoryAttestationId, attestationFormatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
 };
 
-// Reuses the release index already published in §1 — no new MirrorList needed.
+// Reuses the release indexes already published in step 1 — no new MirrorList needed.
 await registry.connect(attesterSigner).createAttestations(
-  attesterSigner.address,
+  /* attester */ attesterSigner.address,
   [factoryDescriptor],
-  [], // no revocations — these are brand new context key IDs
-  { id: mirrorListId, uris: [] },
-  { id: ethers.keccak256(abiCoder.encode(["string[]"], [attestationMirror.uris])), uris: [] },
-  "0x",
+  descriptorMirrorListId,
+  attestationMirrorListId,
+  /* signature */ "0x",
 );
 
 const resolved = await registry.resolveDescriptors(
-  [attesterSigner.address],
-  factoryDescriptor.contextKeyIds,
-  [schemaMajor],
-  [ATTESTATION_FORMAT_EAS_OFFCHAIN],
-  ["ipfs:", "https:"],
+  /* attesters */ [attesterSigner.address],
+  /* contextKeyIds */ factoryDescriptor.contextKeyIds,
+  /* descriptorSchemaMajors */ [descriptorSchemaMajor],
+  /* attestationFormatIds */ [ATTESTATION_FORMAT_EAS_OFFCHAIN],
+  /* allowedPrefixes */ ["ipfs:", "https:"],
 );
 // shape identical to §3's output — one entry per contextKeyId, same fields
 ```
@@ -395,20 +389,18 @@ const resolved = await registry.resolveDescriptors(
 |---|---|---|
 | `EmptyDescriptors` | `descriptors` is empty in `createAttestations` | §2 |
 | `ZeroDescriptorHash` | a descriptor's `descriptorHash` is `bytes32(0)` | §2 |
-| `ZeroSchemaMajor` | a descriptor's `schemaMajor` is `0` | §2 |
+| `ZeroDescriptorSchemaMajor` | a descriptor's `descriptorSchemaMajor` is `0` | §2 |
 | `EmptyContextKeyIds` | a descriptor's `contextKeyIds` is empty | §2 |
 | `EmptyAttestationIds` | a descriptor's `attestationIds` is empty | §2 |
-| `ZeroAttestationId` | an `attestationIds`/`RevocationEntry` entry's `attestationId` is `bytes32(0)` | §2, §6 |
-| `ZeroAttestationFormat` | an `attestationIds` entry's `formatId` is `bytes32(0)` | §2 |
-| `DuplicateAttestationFormat` | two entries in the same descriptor share a `formatId` | §3 |
-| `AttestationIdAlreadyUsed` | an attestation or set id was already revoked, or a reused set id doesn't match the stored record | §2, §3 |
+| `ZeroAttestationId` | an `attestationIds`/`RevocationEntry` entry's `attestationId` is `bytes32(0)` | §2, §4 |
+| `ZeroAttestationFormat` | an `attestationIds` entry's `attestationFormatId` is `bytes32(0)` | §2 |
+| `DuplicateAttestationFormat` | two entries in the same descriptor share an `attestationFormatId` | §2 |
+| `AttestationIdAlreadyUsed` | an attestation or set id was already revoked, or a reused set id doesn't match the stored record | §2 |
 | `EmptyMirrorList` | `publishMirrorLists` is given an empty URI list | §1 |
-| `EmptyMirrorListRef` | a `MirrorListRef` carries neither an `id` nor `uris` | §3 |
-| `RedundantMirrorListId` | a `MirrorListRef` carries both an `id` and inline `uris` | §3 |
-| `UnknownMirrorList` | a referenced `MirrorListRef.id` was never published | §3 |
-| `UnknownDescriptor` | `updateDescriptorMirrorList` names a descriptor hash the attester never registered | §8 |
-| `UnknownAttestationSet` | `updateAttestationMirrorList` names a set id the attester never registered | §9 |
-| `EmptyRevocations` | `revokeAttestations` is called with an empty `revocations` array | §6 |
-| `EmptyKeys` | `updateDescriptorMirrorList`/`updateAttestationMirrorList` is given an empty key array | §8 |
-| `MissingRevocation` | a displaced active record's set id isn't recorded as revoked yet | §5 |
-| `InvalidRegistrationSignature` | any relayed `signature` fails to verify for the named attester | §5, §7 |
+| `UnknownMirrorList` | a `descriptorMirrorListId`/`attestationMirrorListId` was never published via `publishMirrorLists` | §2 |
+| `UnknownDescriptor` | `updateDescriptorMirrorList` names a descriptor hash the attester never registered | §6 |
+| `UnknownAttestationSet` | `updateAttestationMirrorList` names a set id the attester never registered | §7 |
+| `EmptyRevocations` | `revokeAttestations` is called with an empty `revocations` array | §4 |
+| `EmptyKeys` | `updateDescriptorMirrorList`/`updateAttestationMirrorList` is given an empty key array | §6 |
+| `MissingRevocation` | a descriptor in `createAttestations` displaces an active record whose set id isn't recorded as revoked yet — see §4/§5 for the required revoke-then-register order | §5 |
+| `InvalidRegistrationSignature` | any relayed `signature` fails to verify for the named attester | §5 |
