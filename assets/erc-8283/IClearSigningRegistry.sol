@@ -32,7 +32,7 @@ interface IClearSigningRegistry {
         /// The MAJOR version of the ERC-7730 descriptor schema per its '$schema' key.
         uint256 schemaMajor;
         /// Context IDs this descriptor will be discoverable for.
-        bytes32[] contextIds;
+        bytes32[] contextKeyIds;
         /// Identifiers and formats of all attestations relating to this Descriptor.
         AttestationIdentifier[] attestationIds;
     }
@@ -40,7 +40,7 @@ interface IClearSigningRegistry {
     /// @notice One attestation ID being revoked, together with the context IDs to clear immediately.
     struct RevocationEntry {
         bytes32 attestationId;
-        bytes32[] contextIds;
+        bytes32[] contextKeyIds;
     }
 
     /// @notice A fully resolved active Attestation structure for ResolvedDescriptor.
@@ -60,7 +60,7 @@ interface IClearSigningRegistry {
         /// The descriptor hash of this Descriptor.
         bytes32 descriptorHash;
         /// The context ID the descriptor was found under.
-        bytes32 contextId;
+        bytes32 contextKeyId;
         /// The schema MAJOR the attestation set was found under.
         uint256 schemaMajor;
         /// The attestation set ID from the active record — the key into the attestation index file.
@@ -75,14 +75,14 @@ interface IClearSigningRegistry {
 
     /// @notice Emitted when an attester's active attestation set for a context ID changes.
     /// @param attester                  The attester whose active attestation set changed.
-    /// @param contextId                 The context ID affected.
+    /// @param contextKeyId                 The context ID affected.
     /// @param attestationSetId          The newly active attestation set ID, or bytes32(0) when cleared.
     /// @param previousAttestationSetId  The previously active attestation set ID.
     /// @param descriptorHash            The newly attested descriptor hash, or bytes32(0) when cleared.
     /// @param schemaMajor               The schema MAJOR of the affected active record.
     event AttestationUpdated(
         address indexed attester,
-        bytes32 indexed contextId,
+        bytes32 indexed contextKeyId,
         bytes32 indexed attestationSetId,
         bytes32         previousAttestationSetId,
         bytes32         descriptorHash,
@@ -172,8 +172,8 @@ interface IClearSigningRegistry {
     /// @notice Thrown when bytes32(0) is passed where an attestation ID is required.
     error ZeroAttestationId();
 
-    /// @notice Thrown when a descriptor's contextIds is empty.
-    error EmptyContextIds();
+    /// @notice Thrown when a descriptor's contextKeyIds is empty.
+    error EmptyContextKeyIds();
 
     /// @notice Thrown when a descriptor's attestationIds is empty.
     error EmptyAttestationIds();
@@ -232,9 +232,9 @@ interface IClearSigningRegistry {
     ///
     /// @param attester       The address of the attester registering the descriptors.
     /// @param descriptors    The descriptors to register, each carrying its attestation set.
-    ///                       Active attestation sets are stored per '(contextId, schemaMajor)' keys.
+    ///                       Active attestation sets are stored per '(contextKeyId, schemaMajor)' keys.
     ///                       Descriptors of different schema MAJOR values never displace each other.
-    ///                       Each '(contextId, schemaMajor)' active record may be written at most once per batch.
+    ///                       Each '(contextKeyId, schemaMajor)' active record may be written at most once per batch.
     /// @param revocations    Displaced attestation sets this call revokes and clears.
     ///
     /// @param descriptorMirrorListURIs  The MirrorList link to the index file containing all specified descriptors.
@@ -284,22 +284,22 @@ interface IClearSigningRegistry {
     ///             3. The list of schema MAJOR versions supported by the wallet.
     ///             4. The list of attestation format IDs the wallet can verify.
     ///
-    /// The 'attesters', 'contextIds' and 'schemaMajors' parameters are lookup keys - an empty array yields no results.
+    /// The 'attesters', 'contextKeyIds' and 'schemaMajors' parameters are lookup keys - an empty array yields no results.
     /// An empty 'formatIds' or 'allowedPrefixes' array applies no filter for that parameter.
     ///
     /// A resolved descriptor is returned even if every one of its attestations is filtered out.
     ///
     /// @param attesters        Queried attester addresses trusted by the wallet.
-    /// @param contextIds       Candidate context IDs to look up.
+    /// @param contextKeyIds       Candidate context IDs to look up.
     /// @param schemaMajors     The schema MAJOR versions supported by the wallet.
     /// @param formatIds        Attestation format IDs to include, or empty array for all formats.
     /// @param allowedPrefixes  Raw string prefixes filtering the returned URI lists.
     ///                         e.g. ["ipfs:", "https:"].
     ///                         A URI is returned only if it starts with at least one of the prefixes.
-    /// @return resolved   One 'ResolvedDescriptor' entry per active '(attester, contextId, schemaMajor)' record.
+    /// @return resolved   One 'ResolvedDescriptor' entry per active '(attester, contextKeyId, schemaMajor)' record.
     function resolveDescriptors(
         address[] calldata attesters,
-        bytes32[] calldata contextIds,
+        bytes32[] calldata contextKeyIds,
         uint256[] calldata schemaMajors,
         bytes32[] calldata formatIds,
         string[]  calldata allowedPrefixes

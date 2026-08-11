@@ -31,7 +31,7 @@ library RegistrationHashLib {
                 ClearSigningRegistryConstants.DESCRIPTOR_TYPEHASH,
                 descriptor.descriptorHash,
                 descriptor.schemaMajor,
-                keccak256(abi.encodePacked(descriptor.contextIds)),
+                keccak256(abi.encodePacked(descriptor.contextKeyIds)),
                 hashAttestationIdentifiers(descriptor.attestationIds)
             )
         );
@@ -68,7 +68,7 @@ library RegistrationHashLib {
                 abi.encode(
                     ClearSigningRegistryConstants.REVOCATION_ENTRY_TYPEHASH,
                     entry.attestationId,
-                    keccak256(abi.encodePacked(entry.contextIds))
+                    keccak256(abi.encodePacked(entry.contextKeyIds))
                 )
             );
         }

@@ -29,7 +29,7 @@ const eip712domain = { name: "ClearSigningRegistry", version: "1", chainId: 1n, 
 
 
 ```TypeScript
-function deriveContextId(chainId: bigint, contractAddress: string): string {
+function deriveContextKeyId(chainId: bigint, contractAddress: string): string {
   const CONTEXT_TAG_CONTRACT = ethers.keccak256("erc7730.context.contract")
   return ethers.keccak256(
     abiCoder.encode(["bytes32", "uint256", "address"], [CONTEXT_TAG_CONTRACT, chainId, contractAddress]),
@@ -82,9 +82,9 @@ const schemaMajor = 3; // MAJOR version of the descriptor's schema
 const vaultDescriptor: DescriptorInfo = {
   descriptorHash,
   schemaMajor,
-  contextIds: [
-    deriveContextId(chainId, vaultContractAddress),          // mainnet deployment
-    deriveContextId(optimismChainId, vaultOptimismAddress),  // an L2 deployment
+  contextKeyIds: [
+    deriveContextKeyId(chainId, vaultContractAddress),          // mainnet deployment
+    deriveContextKeyId(optimismChainId, vaultOptimismAddress),  // an L2 deployment
   ],
   attestationIds: [{ attestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
 };
@@ -93,7 +93,7 @@ const vaultDescriptor: DescriptorInfo = {
 const stakingDescriptor: DescriptorInfo = {
   descriptorHash: stakingDescriptorHash,
   schemaMajor,
-  contextIds: [deriveContextId(chainId, stakingContractAddress)],
+  contextKeyIds: [deriveContextKeyId(chainId, stakingContractAddress)],
   attestationIds: [
     // There is no canonical attestation ID or file format;
     // An attester can issue different attestations for the same contract:
@@ -140,8 +140,8 @@ const trustedAttesterTwo = "0xTrustedAttester2000000000000000000000000";
 const resolved = await registry.resolveDescriptors(
   /* this wallet's full list of trusted attesters */
   [trustedAttesterOne, trustedAttesterTwo],
-  /* contracts the wallet is interacting with, as their contextIds */
-  [deriveContextId(chainId, vaultContractAddress), deriveContextId(optimismChainId, vaultOptimismAddress)],
+  /* contracts the wallet is interacting with, as their contextKeyIds */
+  [deriveContextKeyId(chainId, vaultContractAddress), deriveContextKeyId(optimismChainId, vaultOptimismAddress)],
   /* this wallet's firmware understands these schema major versions */
   [1, 2, 3],
   /* this wallet only verifies the EAS attestations */
@@ -151,13 +151,13 @@ const resolved = await registry.resolveDescriptors(
 );
 ```
 
-Returned JSON — one entry per active `(attester, contextId, schemaMajor)` record, ordered `attesters` first, then `contextIds`, then `schemaMajors`. Both of the vault's deployments resolve here, sharing the same descriptor and mirrors but under different context IDs:
+Returned JSON — one entry per active `(attester, contextKeyId, schemaMajor)` record, ordered `attesters` first, then `contextKeyIds`, then `schemaMajors`. Both of the vault's deployments resolve here, sharing the same descriptor and mirrors but under different context key IDs:
 
 ```json
 [
   {
     "descriptorHash": "0x7c3a...d6e7f",
-    "contextId": "0x8b41...c209",
+    "contextKeyId": "0x8b41...c209",
     "schemaMajor": "1",
     "attestationSetId": "0x4f0e...d6e7f",
     "descriptorMirrorListUris": ["ipfs://bafybeigd.../vault-and-staking-descriptors-index.json", "ar://vault-and-staking-descriptors-index-mirror"],
@@ -168,7 +168,7 @@ Returned JSON — one entry per active `(attester, contextId, schemaMajor)` reco
   },
   {
     "descriptorHash": "0x7c3a...d6e7f",
-    "contextId": "0x2f19...ab77",
+    "contextKeyId": "0x2f19...ab77",
     "schemaMajor": "1",
     "attestationSetId": "0x4f0e...d6e7f",
     "descriptorMirrorListUris": ["ipfs://bafybeigd.../vault-and-staking-descriptors-index.json", "ar://vault-and-staking-descriptors-index-mirror"],
@@ -212,20 +212,20 @@ const nonce = await registry.getNonce(attesterSigner.address);
 
 const newDescriptorHash = "0x99aa88b...44556677";
 const newAttestationId = "0x55ee44...bccddee";
-const mainnetContextId = deriveContextId(chainId, vaultContractAddress);
-const optimismContextId = deriveContextId(optimismChainId, vaultOptimismAddress);
+const mainnetContextKeyId = deriveContextKeyId(chainId, vaultContractAddress);
+const optimismContextKeyId = deriveContextKeyId(optimismChainId, vaultOptimismAddress);
 
 const newDescriptor: DescriptorInfo = {
   descriptorHash: newDescriptorHash,
   schemaMajor,
-  contextIds: [mainnetContextId, optimismContextId], // assuming both deployments updated together
+  contextKeyIds: [mainnetContextKeyId, optimismContextKeyId], // assuming both deployments updated together
   attestationIds: [{ attestationId: newAttestationId, formatId: ATTESTATION_FORMAT_EAS_OFFCHAIN }],
 };
 const newAttestationSetId = newAttestationId; // a small quirk: single-member set can reuse its sole member's own id
 
 // The record being displaced MUST be recorded as revoked under every context id it was registered for.
 // This can be done in a separate transaction, or atomically with the new registration - as we will do here.
-const revocations: RevocationEntry[] = [{ attestationId: vaultAttestationSetId, contextIds: [mainnetContextId, optimismContextId] }]
+const revocations: RevocationEntry[] = [{ attestationId: vaultAttestationSetId, contextKeyIds: [mainnetContextKeyId, optimismContextKeyId] }]
 
 const newAttestationMirror: MirrorListRef = { id: ethers.ZeroHash, uris: ["ipfs://bafybeigd.../vault-attestation-v2.json"] };
 
@@ -256,8 +256,8 @@ await registry.connect(relayerWallet).createAttestations(
 await registry.connect(attesterSigner).revokeAttestations(
   attesterSigner.address,
   [
-    { attestationId: stakingSetId, contextIds: [deriveContextId(chainId, stakingContractAddress)] },
-    { attestationId: stakingDeviceAttestationId, contextIds: [] },
+    { attestationId: stakingSetId, contextKeyIds: [deriveContextKeyId(chainId, stakingContractAddress)] },
+    { attestationId: stakingDeviceAttestationId, contextKeyIds: [] },
   ],
   "0x",
 );
@@ -330,7 +330,7 @@ renderAttesterCard(profile.name);
 | `EmptyDescriptors` | `descriptors` is empty in `createAttestations` | §2 |
 | `ZeroDescriptorHash` | a descriptor's `descriptorHash` is `bytes32(0)` | §2 |
 | `ZeroSchemaMajor` | a descriptor's `schemaMajor` is `0` | §2 |
-| `EmptyContextIds` | a descriptor's `contextIds` is empty | §2 |
+| `EmptyContextKeyIds` | a descriptor's `contextKeyIds` is empty | §2 |
 | `EmptyAttestationIds` | a descriptor's `attestationIds` is empty | §2 |
 | `ZeroAttestationId` | an `attestationIds`/`RevocationEntry` entry's `attestationId` is `bytes32(0)` | §2, §6 |
 | `ZeroAttestationFormat` | an `attestationIds` entry's `formatId` is `bytes32(0)` | §2 |

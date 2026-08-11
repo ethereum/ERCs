@@ -23,24 +23,24 @@ library ClearSigningRegistryConstants {
     );
 
     bytes32 internal constant DESCRIPTOR_TYPEHASH = keccak256(
-        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextIds,AttestationIdentifier[] attestationIds)"
+        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextKeyIds,AttestationIdentifier[] attestationIds)"
         "AttestationIdentifier(bytes32 attestationId,bytes32 formatId)"
     );
 
     bytes32 internal constant REVOCATION_ENTRY_TYPEHASH = keccak256(
-        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
+        "RevocationEntry(bytes32 attestationId,bytes32[] contextKeyIds)"
     );
 
     bytes32 internal constant REGISTRATION_BATCH_TYPEHASH = keccak256(
         "ClearSigningRegistrationBatch(DescriptorInfo[] descriptors,bytes32 descriptorMirrorListId,bytes32 attestationMirrorListId,RevocationEntry[] revocations,uint256 nonce)"
         "AttestationIdentifier(bytes32 attestationId,bytes32 formatId)"
-        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextIds,AttestationIdentifier[] attestationIds)"
-        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
+        "DescriptorInfo(bytes32 descriptorHash,uint256 schemaMajor,bytes32[] contextKeyIds,AttestationIdentifier[] attestationIds)"
+        "RevocationEntry(bytes32 attestationId,bytes32[] contextKeyIds)"
     );
 
     bytes32 internal constant REVOCATION_BATCH_TYPEHASH = keccak256(
         "ClearSigningRevocationBatch(RevocationEntry[] revocations,uint256 nonce)"
-        "RevocationEntry(bytes32 attestationId,bytes32[] contextIds)"
+        "RevocationEntry(bytes32 attestationId,bytes32[] contextKeyIds)"
     );
 
     bytes32 internal constant DESCRIPTOR_MIRROR_UPDATE_TYPEHASH = keccak256(
