@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 620" width="100%" height="100%" style="background-color: #ffffff;">
+  <defs>
+    <style>
+      /* Node Styles */
+      .node-rect-normal { fill: #f2f7fc; stroke: #333333; stroke-width: 1px; rx: 3px; }
+      .node-rect-enforced { fill: #fde6e6; stroke: #a30000; stroke-width: 1.5px; rx: 3px; }
+      .node-rect-warning { fill: #fffbe6; stroke: #cc8800; stroke-width: 1.5px; rx: 3px; }
+      
+      /* Typography */
+      .txt { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 11px; fill: #000000; }
+      .txt-bold { font-weight: bold; }
+      
+      /* Edges and Grids */
+      .edge { fill: none; stroke: #a30000; stroke-width: 1.5px; stroke-dasharray: 4,4; marker-end: url(#arrow); }
+      .edge-lbl { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10px; fill: #a30000; text-anchor: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
+      .grid { fill: none; stroke: #cccccc; stroke-width: 1.5px; stroke-dasharray: 2,4; }
+      .grid-lbl { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 12px; font-weight: bold; fill: #555555; text-anchor: middle; font-style: italic; }
+      .title { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 14px; fill: #000000; text-anchor: middle; }
+    </style>
+    
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#a30000" />
+    </marker>
+  </defs>
+
+  <!-- Depth Headers -->
+  <text x="115" y="40" class="grid-lbl">Depth = 0</text>
+  <text x="345" y="40" class="grid-lbl">Depth = 1</text>
+  <text x="575" y="40" class="grid-lbl">Depth = 2</text>
+  <text x="805" y="40" class="grid-lbl">Depth = 3</text>
+  <text x="1035" y="40" class="grid-lbl">Depth = 4</text>
+
+  <!-- Depth Grid Separators -->
+  <path d="M 230 50 L 230 560" class="grid"/>
+  <path d="M 460 50 L 460 560" class="grid"/>
+  <path d="M 690 50 L 690 560" class="grid"/>
+  <path d="M 920 50 L 920 560" class="grid"/>
+
+  <!-- ================= Edges ================= -->
+  <g class="edge">
+    <!-- Depth 0 -> Depth 1 -->
+    <path d="M 180 120 C 230 120, 230 250, 280 250" />
+    <path d="M 180 120 C 230 120, 230 510, 280 510" />
+    
+    <!-- Depth 1 -> Depth 2 -->
+    <path d="M 410 250 C 460 250, 460 250, 510 250" />
+    <path d="M 410 250 C 460 250, 460 380, 510 380" />
+    <path d="M 410 510 C 460 510, 460 510, 510 510" />
+    
+    <!-- Depth 2 -> Depth 3 -->
+    <path d="M 640 250 C 690 250, 690 120, 740 120" />
+    <path d="M 640 380 C 690 380, 690 380, 740 380" />
+    
+    <!-- Depth 3 -> Depth 4 -->
+    <path d="M 870 120 C 920 120, 920 120, 970 120" />
+    
+  </g>
+
+  <!-- ================= Edge Labels ================= -->
+  <text x="230" y="175" class="edge-lbl">spend 50</text>
+  <text x="230" y="360" class="edge-lbl">spend 50</text>
+  <text x="460" y="243" class="edge-lbl">spend 25</text>
+  <text x="460" y="325" class="edge-lbl">spend 25</text>
+  <text x="460" y="503" class="edge-lbl">spend 25</text>
+  <text x="690" y="175" class="edge-lbl">spend 25</text>
+  <text x="690" y="373" class="edge-lbl">spend 10</text>
+  <text x="920" y="113" class="edge-lbl">spend 25</text>
+
+  <!-- ================= Nodes ================= -->
+  
+  <!-- L0: Alice (Valid) -->
+  <g transform="translate(50, 70)">
+    <rect class="node-rect-normal" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0</tspan> (Root)</text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0</text>
+    <text class="txt" x="8" y="60">Value 100 → <tspan class="txt-bold">0</tspan></text>
+    <text class="txt" x="8" y="74">Depth 0</text>
+    <text class="txt" x="8" y="88">Owner Alice</text>
+  </g>
+
+  <!-- L1: Bob (Valid) -->
+  <g transform="translate(280, 200)">
+    <rect class="node-rect-normal" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x1A...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x0...</text>
+    <text class="txt" x="8" y="60">Value 50 → <tspan class="txt-bold">0</tspan></text>
+    <text class="txt" x="8" y="74">Depth 1</text>
+    <text class="txt" x="8" y="88">Owner Bob</text>
+  </g>
+
+  <!-- L1: Dave (Valid) -->
+  <g transform="translate(280, 460)">
+    <rect class="node-rect-normal" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x1B...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x0...</text>
+    <text class="txt" x="8" y="60">Value 50 → <tspan class="txt-bold">25</tspan></text>
+    <text class="txt" x="8" y="74">Depth 1</text>
+    <text class="txt" x="8" y="88">Owner Dave</text>
+  </g>
+
+  <!-- L2: Dave (Valid) -->
+  <g transform="translate(510, 200)">
+    <rect class="node-rect-normal" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2A...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x1A...</text>
+    <text class="txt" x="8" y="60">Value 25 → <tspan class="txt-bold">0</tspan></text>
+    <text class="txt" x="8" y="74">Depth 2</text>
+    <text class="txt" x="8" y="88">Owner Dave</text>
+  </g>
+
+  <!-- L2: Charlie (Valid) -->
+  <g transform="translate(510, 330)">
+    <rect class="node-rect-normal" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2B...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x1A...</text>
+    <text class="txt" x="8" y="60">Value 25 → <tspan class="txt-bold">15</tspan></text>
+    <text class="txt" x="8" y="74">Depth 2</text>
+    <text class="txt" x="8" y="88">Owner Charlie</text>
+  </g>
+
+  <!-- L2: Bob (Valid) -->
+  <g transform="translate(510, 460)">
+    <rect class="node-rect-normal" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2C...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x1B...</text>
+    <text class="txt" x="8" y="60">Value 25</text>
+    <text class="txt" x="8" y="74">Depth 2</text>
+    <text class="txt" x="8" y="88">Owner Bob</text>
+  </g>
+
+  <!-- L3: Frank (ENFORCED) -->
+  <g transform="translate(740, 70)">
+    <rect class="node-rect-enforced" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x3A...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x2A...</text>
+    <text class="txt" x="8" y="60">Value 25 → <tspan class="txt-bold">0</tspan></text>
+    <text class="txt" x="8" y="74">Depth 3</text>
+    <text class="txt" x="8" y="88">Owner Frank</text>
+  </g>
+
+  <!-- L3: Eve (ENFORCED) -->
+  <g transform="translate(740, 330)">
+    <rect class="node-rect-enforced" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x3B...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x2B...</text>
+    <text class="txt" x="8" y="60">Value 10</text>
+    <text class="txt" x="8" y="74">Depth 3</text>
+    <text class="txt" x="8" y="88">Owner Eve</text>
+  </g>
+
+  <!-- L4: Alice (ENFORCED) -->
+  <g transform="translate(970, 70)">
+    <rect class="node-rect-enforced" width="130" height="100" />
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x4A...</tspan></text>
+    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="46">Parent 0x3A...</text>
+    <text class="txt" x="8" y="60">Value <tspan class="txt-bold">25</tspan></text>
+    <text class="txt" x="8" y="74">Depth 4</text>
+    <text class="txt" x="8" y="88">Owner Alice</text>
+  </g>
+
+  <!-- Figure Caption -->
+  <text x="575" y="600" class="title">Figure 2: Enforcement after depth 2 - Downstream states are invalidated or mutated.</text>
+</svg>
