@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 220" width="100%" height="100%"
+    style="background-color: #ffffff;">
+    <defs>
+        <style>
+      .node-rect { fill: #f2f7fc; stroke: #333333; stroke-width: 1px; rx: 3px; }
+      .txt { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 11px; fill: #000000; }
+      .txt-bold { font-weight: bold; }
+      .edge { fill: none; stroke: #a30000; stroke-width: 1.5px; stroke-dasharray: 4,4; marker-end: url(#arrow); }
+      .edge-lbl { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 10px; fill: #a30000; text-anchor: middle; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; }
+      .grid { fill: none; stroke: #cccccc; stroke-width: 1.5px; stroke-dasharray: 2,4; }
+      .grid-lbl { font-family: "Latin Modern Sans", "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 12px; font-weight: bold; fill: #555555; text-anchor: middle; font-style: italic; }
+    </style>
+
+        <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6"
+            orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#a30000" />
+        </marker>
+    </defs>
+
+    <!-- Depth Headers -->
+    <text x="115" y="40" class="grid-lbl">Depth = n</text>
+    <text x="345" y="40" class="grid-lbl">Burn</text>
+
+    <!-- Depth Grid Separators -->
+    <path d="M 230 50 L 230 200" class="grid" />
+
+    <!-- ================= Edges ================= -->
+    <g class="edge">
+        <!-- Depth 0 -> Depth 1 -->
+        <path d="M 180 120 L 272 120" />
+    </g>
+
+    <!-- ================= Edge Labels ================= -->
+    <text x="230" y="112" class="edge-lbl">burn 100</text>
+
+    <!-- ================= Nodes ================= -->
+
+    <!-- L0: Alice -->
+    <g transform="translate(50, 70)">
+        <rect class="node-rect" width="130" height="100" />
+        <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2A...</tspan> (Root)</text>
+        <text class="txt" x="8" y="32">Root 0xFF...</text>
+        <text class="txt" x="8" y="46">Parent 0xDE..</text>
+        <text class="txt" x="8" y="60">Value 100 → <tspan class="txt-bold">0</tspan></text>
+        <text class="txt" x="8" y="74">Depth n</text>
+        <text class="txt" x="8" y="88">Owner Alice</text>
+    </g>
+
+    <!-- L1: Bob -->
+    <g transform="translate(280, 70)">
+        <rect class="node-rect" width="130" height="100" />
+        <text class="txt" x="8" y="18">
+            <tspan class="txt-bold">ID 0x2A....</tspan>
+        </text>
+        <text class="txt" x="8" y="32">Root 0xFF...</text>
+        <text class="txt" x="8" y="46">Parent 0xDE...</text>
+        <text class="txt" x="8" y="60">Value <tspan class="txt-bold">100</tspan></text>
+        <text class="txt" x="8" y="74">Depth n</text>
+        <text class="txt" x="8" y="88">Owner ZeroAddress</text>
+    </g>
+
+</svg>
