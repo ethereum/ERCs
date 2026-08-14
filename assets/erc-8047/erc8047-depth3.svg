@@ -71,9 +71,9 @@
   <!-- L0: Alice (ENFORCED) -->
   <g transform="translate(50, 70)">
     <rect class="node-rect-enforced" width="130" height="100" />
-    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0</tspan> (Root)</text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
-    <text class="txt" x="8" y="46">Parent 0</text>
+    <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x0A...</tspan> (Root)</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
+    <text class="txt" x="8" y="46">Parent 0x00...</text>
     <text class="txt" x="8" y="60">Value 100 → <tspan class="txt-bold">0</tspan></text>
     <text class="txt" x="8" y="74">Depth 0</text>
     <text class="txt" x="8" y="88">Owner Alice</text>
@@ -83,7 +83,7 @@
   <g transform="translate(280, 200)">
     <rect class="node-rect-enforced" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x1A...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x0...</text>
     <text class="txt" x="8" y="60">Value 50 → <tspan class="txt-bold">0</tspan></text>
     <text class="txt" x="8" y="74">Depth 1</text>
@@ -94,7 +94,7 @@
   <g transform="translate(280, 460)">
     <rect class="node-rect-enforced" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x1B...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x0...</text>
     <text class="txt" x="8" y="60">Value 50 → <tspan class="txt-bold">25</tspan></text>
     <text class="txt" x="8" y="74">Depth 1</text>
@@ -105,7 +105,7 @@
   <g transform="translate(510, 200)">
     <rect class="node-rect-enforced" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2A...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x1A...</text>
     <text class="txt" x="8" y="60">Value 25 → <tspan class="txt-bold">0</tspan></text>
     <text class="txt" x="8" y="74">Depth 2</text>
@@ -116,7 +116,7 @@
   <g transform="translate(510, 330)">
     <rect class="node-rect-enforced" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2B...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x1A...</text>
     <text class="txt" x="8" y="60">Value 25 → <tspan class="txt-bold">15</tspan></text>
     <text class="txt" x="8" y="74">Depth 2</text>
@@ -127,7 +127,7 @@
   <g transform="translate(510, 460)">
     <rect class="node-rect-enforced" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x2C...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x1B...</text>
     <text class="txt" x="8" y="60">Value 25</text>
     <text class="txt" x="8" y="74">Depth 2</text>
@@ -138,7 +138,7 @@
   <g transform="translate(740, 70)">
     <rect class="node-rect-normal" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x3A...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x2A...</text>
     <text class="txt" x="8" y="60">Value 25 → <tspan class="txt-bold">0</tspan></text>
     <text class="txt" x="8" y="74">Depth 3</text>
@@ -149,7 +149,7 @@
   <g transform="translate(740, 330)">
     <rect class="node-rect-normal" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x3B...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x2B...</text>
     <text class="txt" x="8" y="60">Value 10</text>
     <text class="txt" x="8" y="74">Depth 3</text>
@@ -160,7 +160,7 @@
   <g transform="translate(970, 70)">
     <rect class="node-rect-normal" width="130" height="100" />
     <text class="txt" x="8" y="18"><tspan class="txt-bold">ID 0x4A...</tspan></text>
-    <text class="txt" x="8" y="32">Root 0x0...</text>
+    <text class="txt" x="8" y="32">Root 0x0A...</text>
     <text class="txt" x="8" y="46">Parent 0x3A...</text>
     <text class="txt" x="8" y="60">Value <tspan class="txt-bold">25</tspan></text>
     <text class="txt" x="8" y="74">Depth 4</text>
