@@ -5,7 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ConfidentialPolicyVerdict} from "../src/ConfidentialPolicyVerdict.sol";
 import {PolicyDomainRegistry} from "../src/PolicyDomainRegistry.sol";
-import {IConfidentialPolicyVerdict, Verdict} from "../src/IConfidentialPolicyVerdict.sol";
+import {IConfidentialPolicyVerdict, Verdict, PolicyKind} from "../src/IConfidentialPolicyVerdict.sol";
 import {MockVerifier} from "../src/mocks/MockVerifier.sol";
 import {GuardedExecutor} from "../src/GuardedExecutor.sol";
 import {PolicyAttestation, VerdictAttestation} from "../src/IPolicyAttestation.sol";
@@ -49,7 +49,8 @@ contract CAPVTest is Test {
             executor: EXECUTOR,
             expiry: uint64(block.timestamp + 1 hours),
             nullifier: keccak256("nf-1"),
-            decision: 1
+            decision: 1,
+            policyKind: PolicyKind.ALLOWED
         });
     }
 
@@ -94,8 +95,35 @@ contract CAPVTest is Test {
     function test_DenyNotConsumable() public {
         Verdict memory v = _verdict();
         v.decision = 0;
+        v.policyKind = PolicyKind.DENIED; // a well-formed refusal, not a malformed envelope
         vm.prank(EXECUTOR);
         vm.expectRevert(IConfidentialPolicyVerdict.VerdictDenied.selector);
+        guard.consume(v, "proof");
+    }
+
+    // 5b. A verdict whose decision and kind disagree is refused before anything else is read.
+    // Flipping `decision` alone used to produce a consumable-looking envelope; the kind is what
+    // stops a refusal from being re-labelled, so the two MUST agree.
+    function test_DecisionKindMismatchRefused() public {
+        Verdict memory v = _verdict(); // decision 1, kind ALLOWED
+        v.decision = 0; // claims a refusal while still carrying the ALLOWED kind
+        vm.prank(EXECUTOR);
+        vm.expectRevert(
+            abi.encodeWithSelector(IConfidentialPolicyVerdict.VerdictKindMismatch.selector, uint8(0), PolicyKind.ALLOWED)
+        );
+        guard.consume(v, "proof");
+    }
+
+    // 5c. The mirror: an ALLOW that carries a refusal kind is equally malformed.
+    function test_AllowCarryingRefusalKindRefused() public {
+        Verdict memory v = _verdict();
+        v.policyKind = PolicyKind.NOT_PERMITTED;
+        vm.prank(EXECUTOR);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IConfidentialPolicyVerdict.VerdictKindMismatch.selector, uint8(1), PolicyKind.NOT_PERMITTED
+            )
+        );
         guard.consume(v, "proof");
     }
 

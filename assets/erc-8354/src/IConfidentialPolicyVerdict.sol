@@ -13,12 +13,33 @@ struct Verdict {
     uint64  expiry;           // unix seconds, exclusive
     bytes32 nullifier;        // single-use, domain-scoped
     uint8   decision;         // 0 = DENY, 1 = ALLOW
+    uint8   policyKind;       // which of the four states this verdict carries (see PolicyKind)
+}
+
+/// @notice The four states a verdict can carry. `decision` alone collapses the three refusal
+/// kinds into one bit; `policyKind` is what keeps them distinguishable at the surface a relying
+/// party actually reads. Every kind is a committed public input of its proving program, so a
+/// verdict cannot claim a kind its proof did not establish.
+library PolicyKind {
+    /// @dev decision == 1. The policy authorized the action.
+    uint8 internal constant ALLOWED = 0;
+    /// @dev decision == 0. A rule fired against the action (denylist membership).
+    uint8 internal constant DENIED = 1;
+    /// @dev decision == 0. Nothing authorized the action (allowlist non-membership).
+    uint8 internal constant NOT_PERMITTED = 2;
+    /// @dev decision == 0. The policy could not be evaluated at all.
+    uint8 internal constant COULD_NOT_EVALUATE = 3;
+
+    /// @dev A verdict is well-formed only when its decision and kind agree.
+    function agreesWithDecision(uint8 kind, uint8 decision) internal pure returns (bool) {
+        return decision == 1 ? kind == ALLOWED : (kind == DENIED || kind == NOT_PERMITTED || kind == COULD_NOT_EVALUATE);
+    }
 }
 
 /// @notice Consume a confidential policy verdict: a ZK proof that an action was
 /// evaluated against a committed (secret) policy and permitted.
 /// @dev ERC-165 interfaceId = XOR of this interface's own 5 function selectors (inherited
-/// IERC165.supportsInterface is excluded per the language rule). Value: 0x6c832e88.
+/// IERC165.supportsInterface is excluded per the language rule). Value: 0xd6da8150.
 interface IConfidentialPolicyVerdict is IERC165 {
     event VerdictConsumed(
         bytes32 indexed nullifier,
@@ -35,6 +56,8 @@ interface IConfidentialPolicyVerdict is IERC165 {
     error PolicyRootRejected(bytes32 root);
     error DomainInactive(bytes32 domainId);
     error VerdictDenied();
+    /// @dev `decision` and `policyKind` disagree, so the verdict is not well-formed.
+    error VerdictKindMismatch(uint8 decision, uint8 policyKind);
     error InvalidProof();
 
     /// @notice Verify without state change. MUST NOT revert on a well-formed-but-invalid

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-import {IConfidentialPolicyVerdict, Verdict} from "./IConfidentialPolicyVerdict.sol";
+import {IConfidentialPolicyVerdict, Verdict, PolicyKind} from "./IConfidentialPolicyVerdict.sol";
 import {IPolicyDomainRegistry} from "./IPolicyDomainRegistry.sol";
 import {IVerifier} from "./IVerifier.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
@@ -15,7 +15,7 @@ contract ConfidentialPolicyVerdict is IConfidentialPolicyVerdict, EIP712, ERC165
     IPolicyDomainRegistry public immutable registry;
 
     bytes32 private constant VERDICT_TYPEHASH = keccak256(
-        "Verdict(uint256 agentId,bytes32 domainId,bytes32 policyRoot,bytes32 actionCommitment,address executor,uint64 expiry,bytes32 nullifier,uint8 decision)"
+        "Verdict(uint256 agentId,bytes32 domainId,bytes32 policyRoot,bytes32 actionCommitment,address executor,uint64 expiry,bytes32 nullifier,uint8 decision,uint8 policyKind)"
     );
 
     // domainId => nullifier => consumed
@@ -46,7 +46,8 @@ contract ConfidentialPolicyVerdict is IConfidentialPolicyVerdict, EIP712, ERC165
                     v.executor,
                     v.expiry,
                     v.nullifier,
-                    v.decision
+                    v.decision,
+                    v.policyKind
                 )
             )
         );
@@ -55,6 +56,7 @@ contract ConfidentialPolicyVerdict is IConfidentialPolicyVerdict, EIP712, ERC165
     function verify(Verdict calldata v, bytes calldata proof) external view returns (bool) {
         IPolicyDomainRegistry.Domain memory d = registry.domain(v.domainId);
         if (!d.active) return false;
+        if (!PolicyKind.agreesWithDecision(v.policyKind, v.decision)) return false;
         if (v.decision != 1) return false;
         if (block.timestamp >= v.expiry) return false;
         if (_consumed[v.domainId][v.nullifier]) return false;
@@ -82,6 +84,9 @@ contract ConfidentialPolicyVerdict is IConfidentialPolicyVerdict, EIP712, ERC165
     function _consume(Verdict calldata v, bytes calldata proof, bytes memory executorAuth) internal {
         IPolicyDomainRegistry.Domain memory d = registry.domain(v.domainId);
         if (!d.active) revert DomainInactive(v.domainId);                                    // 1
+        if (!PolicyKind.agreesWithDecision(v.policyKind, v.decision)) {
+            revert VerdictKindMismatch(v.decision, v.policyKind);                            // 2a
+        }
         if (v.decision != 1) revert VerdictDenied();                                         // 2
         _requireExecutorAuthorized(v, executorAuth);                                         // 3
         if (block.timestamp >= v.expiry) revert VerdictExpired(v.expiry);                    // 4

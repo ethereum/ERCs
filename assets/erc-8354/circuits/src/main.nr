@@ -26,6 +26,7 @@
 use keccak256::keccak256;
 
 global TREE_DEPTH: u32 = 8; // allowlist up to 2^8 entries; raise as needed
+global KIND_ALLOWED: u8 = 0; // the policy authorized the action
 
 fn main(
     // ---- public inputs: mirror the on-chain Verdict ----
@@ -35,6 +36,7 @@ fn main(
     action_commitment: pub [u8; 32], // = keccak(PolicyAction), full 256 bits
     nullifier: pub Field,
     decision: pub u8, // 1 = ALLOW
+    policy_kind: pub u8, // 0 = ALLOWED
     executor: pub Field, // address permitted to consume; committed so the proof binds to it
     // ---- private witness ----
     chain_id: Field,
@@ -47,6 +49,8 @@ fn main(
 ) {
     // 1. ALLOW only
     assert(decision == 1);
+    // The kind is committed, so a relying party cannot be handed a taxonomy the proof never established.
+    assert(policy_kind == KIND_ALLOWED);
 
     // 5. Executor binding: executor is a committed public input (bound to the proof). It must be a
     // real address; the verifier will only accept the proof against this exact executor value.
@@ -152,7 +156,7 @@ fn test_allow_verdict() {
     let executor: Field = 0xE0; // matches ConsumeReal.t.sol executor address(0xE0)
 
     main(
-        agent_id, domain_id, policy_root, commit, nullifier, 1, executor, chain_id, target, value,
+        agent_id, domain_id, policy_root, commit, nullifier, 1, KIND_ALLOWED, executor, chain_id, target, value,
         call_data_hash, action_nonce, index, path,
     );
 }
