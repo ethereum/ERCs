@@ -1,17 +1,18 @@
 // @ts-check
 /**
  * Moves ERCs that have gone six months without an edit to Stagnant, opening one
- * pull request per ERC and squash merging it two weeks later.
+ * pull request per ERC and squash merging it once its required checks pass.
  *
  * This is a port of ethereum/EIP-Bot, which drives the identical process in
  * ethereum/EIPs. That repository was archived in January 2023 and looks for
  * proposals in a hardcoded `EIPS/` directory, so it cannot be fixed upstream and
  * has never done anything here beyond failing silently.
  *
- * Behaviour is intentionally identical to the EIPs bot: same six month cutoff,
- * same stagnatable statuses, same branch names, pull request titles, bodies and
- * labels, and the same two week merge delay. Deviations are marked "DEVIATION"
- * and explained.
+ * Behaviour follows the EIPs bot closely: same six month cutoff, same stagnatable
+ * statuses, same branch names, pull request titles, bodies and labels, and the
+ * same cleanup routines. Deviations are marked "DEVIATION" and explained; the
+ * significant one is that pull requests are merged in the run that opens them
+ * rather than two weeks later.
  */
 
 const { execFileSync } = require("child_process");
@@ -21,8 +22,23 @@ const path = require("path");
 const PROPOSALS_DIR = "ERCS";
 const PROPOSAL_PREFIX = "erc";
 const STAGNATION_CUTOFF_MONTHS = 6;
-const MERGEABLE_CUTOFF_WEEKS = 2;
-const MERGEABLE_CUTOFF_DESCRIPTION = "2 weeks";
+
+/**
+ * DEVIATION: the EIPs bot leaves its pull requests open for two weeks and merges
+ * them during a later run's cleanup. Here they are merged in the same run, as
+ * soon as the required status checks pass.
+ *
+ * The cleanup merge is kept as a safety net with a cutoff of zero, so anything
+ * that could not be merged in its own run — checks still running when the
+ * timeout expired, a transient failure — is merged by the next run instead of
+ * being stranded.
+ */
+const MERGEABLE_CUTOFF_WEEKS = 0;
+const MERGEABLE_CUTOFF_DESCRIPTION = "a previous run";
+
+/** How long to wait for a new pull request's required checks before giving up. */
+const CHECKS_TIMEOUT_MS = 30 * 60 * 1000;
+const CHECKS_POLL_MS = 15 * 1000;
 const STAGNATABLE_STATUSES = ["draft", "review"];
 const STAGNANT = "Stagnant";
 
@@ -273,7 +289,60 @@ const closeRepeatPRs = async (github, context, core, botPRs) => {
   }
 };
 
-/** Squash merges bot pull requests that have been open longer than the cutoff. */
+const squashMerge = async (github, context, core, prNum, filePath, message) => {
+  try {
+    await github.rest.pulls.merge({
+      ...context.repo,
+      pull_number: prNum,
+      merge_method: "squash",
+      commit_title: `(bot ${BOT_ID}) moving ${filePath} to stagnant (#${prNum})`,
+      commit_message: message
+    });
+    core.info("succesfully merged");
+    return true;
+  } catch (error) {
+    core.warning(`failed to merge ${prNum}: ${error.message}`);
+    return false;
+  }
+};
+
+/**
+ * Blocks until a pull request's required status checks have settled.
+ *
+ * `mergeable_state` is `blocked` while required checks are pending or failing,
+ * `clean` once they pass, and `unstable` when only non-required checks are
+ * failing, which protection still allows to merge. Returns false on timeout or
+ * conflict, leaving the pull request open for the next run's cleanup to merge.
+ */
+const waitForMergeable = async (github, context, core, prNum) => {
+  const deadline = Date.now() + CHECKS_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const { data: pr } = await github.rest.pulls.get({
+      ...context.repo,
+      pull_number: prNum
+    });
+
+    if (pr.merged) return false;
+    if (pr.mergeable_state === "clean" || pr.mergeable_state === "unstable") return true;
+    if (pr.mergeable_state === "dirty") {
+      core.warning(`PR ${prNum} has conflicts and will be left for manual review`);
+      return false;
+    }
+    await new Promise((resolve) => setTimeout(resolve, CHECKS_POLL_MS));
+  }
+
+  core.warning(
+    `PR ${prNum} checks did not settle within ${CHECKS_TIMEOUT_MS / 60000} minutes; ` +
+      `leaving it open for the next run to merge`
+  );
+  return false;
+};
+
+/**
+ * Safety net: squash merges bot pull requests left over from earlier runs, so a
+ * pull request whose checks were still running at timeout is not stranded.
+ */
 const mergeOldPRs = async (github, context, core, botPRs) => {
   const cutoff = weeksAgo(MERGEABLE_CUTOFF_WEEKS);
   const mergeable = botPRs.filter((pr) => pr.createdAt < cutoff);
@@ -283,21 +352,11 @@ const mergeOldPRs = async (github, context, core, botPRs) => {
       `PR ${pr.num} with changes to ${pr.paths[0]} was created on`,
       `\n\t${formatDate(pr.createdAt)}`,
       `which is before the cutoff date of \n\t${formatDate(cutoff)}`,
-      `i.e. ${MERGEABLE_CUTOFF_DESCRIPTION} ago`
+      `i.e. ${MERGEABLE_CUTOFF_DESCRIPTION}`
     ].join(" ");
     core.info(message);
-    try {
-      await github.rest.pulls.merge({
-        ...context.repo,
-        pull_number: pr.num,
-        merge_method: "squash",
-        commit_title: `(bot ${BOT_ID}) moving ${pr.paths[0]} to stagnant (#${pr.num})`,
-        commit_message: message
-      });
-      core.info("succesfully merged");
-    } catch (error) {
-      core.warning(`failed to merge ${pr.num}: ${error.message}`);
-    }
+    if (await waitForMergeable(github, context, core, pr.num))
+      await squashMerge(github, context, core, pr.num, pr.paths[0], message);
     await wait(WAIT_SECONDS, core);
   }
 };
@@ -454,7 +513,7 @@ module.exports = async ({ github, context, core, dryRun }) => {
     .addRaw(
       dryRun
         ? "Dry run: no branches, pull requests or merges were created.\n\n"
-        : `Opening ${candidates.length} pull requests.\n\n`
+        : `Opening and merging ${candidates.length} pull requests.\n\n`
     )
     .addTable([
       [
@@ -486,7 +545,16 @@ module.exports = async ({ github, context, core, dryRun }) => {
     branch: DEFAULT_BRANCH
   });
 
+  // ---- phase one: open every pull request ----
+  //
+  // Opening and merging are separated deliberately. Merging each pull request
+  // straight after opening it would idle the job for the several minutes its
+  // required checks take, and 200+ proposals of that would exceed the six hour
+  // job limit. Opening them all first means the checks for the earliest ones
+  // have long since finished by the time the merge pass reaches them.
+  //
   // Runs serially to avoid race conditions and rate limiters.
+  const opened = [];
   for (const candidate of candidates) {
     try {
       const { data: blob } = await github.rest.repos.getContent({
@@ -494,7 +562,7 @@ module.exports = async ({ github, context, core, dryRun }) => {
         path: candidate.file,
         ref: base.commit.sha
       });
-      await applyStagnantProtocol(
+      const num = await applyStagnantProtocol(
         github,
         context,
         core,
@@ -502,9 +570,31 @@ module.exports = async ({ github, context, core, dryRun }) => {
         base.commit.sha,
         emailCache
       );
+      opened.push({ num, file: candidate.file, erc: candidate.erc });
     } catch (error) {
       // One bad proposal must not stop the rest of the run.
       core.error(`failed to stagnate ERC-${candidate.erc}: ${error.message}`);
     }
   }
+
+  // ---- phase two: merge them as their checks pass ----
+  core.info(`\n\t====== MERGING ${opened.length} PULL REQUESTS =====\n`);
+  let merged = 0;
+  for (const pr of opened) {
+    core.info(`\n================ ERC ${pr.erc} (#${pr.num})`);
+    if (!(await waitForMergeable(github, context, core, pr.num))) continue;
+
+    const message = [
+      `Moving ${pr.file} to ${STAGNANT.toLowerCase()}, as it had not been edited`,
+      `in over ${STAGNATION_CUTOFF_MONTHS} months.`
+    ].join(" ");
+    if (await squashMerge(github, context, core, pr.num, pr.file, message)) merged++;
+    await wait(WAIT_SECONDS, core);
+  }
+
+  core.info(`merged ${merged} of ${opened.length} pull requests`);
+  if (merged < opened.length)
+    core.info(
+      `${opened.length - merged} remain open and will be merged by the next run's cleanup`
+    );
 };
