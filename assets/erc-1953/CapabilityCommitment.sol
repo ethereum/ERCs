@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 
 /// @title CapabilityCommitment — Canonical Domain-Separated Hashing
 /// @notice Computes nullifier and capability commitment exactly as specified
-///         in ERC-XXXX §3.3. These functions MUST be used by both the circuit
+///         in ERC-1953 §3.3. These functions MUST be used by both the circuit
 ///         and any Solidity-side parity checks.
 library CapabilityCommitment {
-    bytes32 internal constant NULLIFIER_TAG = keccak256("ERC-XXXX/nullifier/v1");
-    bytes32 internal constant CAPABILITY_TAG = keccak256("ERC-XXXX/capability/v1");
+    bytes32 internal constant NULLIFIER_TAG = keccak256("ERC-1953/nullifier/v1");
+    bytes32 internal constant CAPABILITY_TAG = keccak256("ERC-1953/capability/v1");
 
     /// @notice Compute nullifier = H(NULLIFIER_TAG, salt)
     function computeNullifier(bytes32 salt) internal pure returns (bytes32) {

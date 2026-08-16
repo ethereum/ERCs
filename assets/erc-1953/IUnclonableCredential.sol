@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 /// @title IUnclonableCredential
-/// @notice Normative interface for ERC-XXXX. Issuance is mandatory and consumption is coupled to
+/// @notice Normative interface for ERC-1953. Issuance is mandatory and consumption is coupled to
 ///         execution, so the burn can never be separated from performing the issued action. See
 ///         ethereum-magicians.org/t/29274 posts 11 to 15 for why the separable `consume` primitive
 ///         was rejected.
