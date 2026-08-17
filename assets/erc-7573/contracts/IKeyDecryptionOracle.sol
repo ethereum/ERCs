@@ -15,6 +15,14 @@ import "./IKeyDecryptionOracleCallback.sol";
  * Implementations MAY attempt the callback in a best-effort fashion and MUST NOT assume that
  * callback execution success is equivalent to tx success (`receipt.status == 1`).
  * Implementations SHOULD provide an explicit on-chain signal of callback outcome (e.g. CallbackSucceeded/CallbackFailed events).
+ *
+ * Request correlation:
+ * Each request method MUST allocate and return a requestId that is unique within the oracle proxy.
+ * The proxy MUST pass that requestId to the callback. The caller-supplied id is consumer context
+ * retained in the request event; it is not the callback correlation identifier.
+ * Request methods MUST return before attempting the corresponding callback.
+ * Before invoking a callback, the proxy MUST make that request unavailable to another fulfillment.
+ * A best-effort implementation MAY restore it to pending after a failed callback so it can be retried.
  */
 interface IKeyDecryptionOracle {
     /*------------------------------------------- EVENTS -------------------------------------------------------------*/
@@ -22,7 +30,7 @@ interface IKeyDecryptionOracle {
     /**
      * @dev Emitted when a decryption is requested (issued by requestDecrypt).
      * @param sender The requester (msg.sender) that issued the request.
-     * @param id General id (will be passed back to callback) - can be used by the requester as correlation id.
+     * @param id Consumer-defined context emitted with the request.
      * @param encryptedKey Encryption of a key for which decryption is requested.
      * @param callback Callback contract to be invoked on fulfillment.
      * @param transaction Transaction specification to be verified against the key.
@@ -40,7 +48,7 @@ interface IKeyDecryptionOracle {
     /**
      * @dev Emitted when a verification is requested (issued by requestVerifyEncryptedKey).
      * @param sender The requester (msg.sender) that issued the request.
-     * @param id General id (will be passed back to callback) - can be used by the requester as correlation id.
+     * @param id Consumer-defined context emitted with the request.
      * @param encryptedKey Encryption of a key for which verification is requested.
      * @param callback Receiver of the verification.
      * @param requestId Correlation id for the fulfillment.
@@ -54,20 +62,22 @@ interface IKeyDecryptionOracle {
     );
 
     /**
-     * @dev Emitted when an encrypted key generation is requested (issued by requestGenerateEncryptedHashedKey).
+     * @dev Emitted when encrypted key generation is requested (issued by requestGenerateEncryptedHashedKeys).
      * @param sender The requester (msg.sender) that issued the request.
-     * @param id General id (will be passed back to callback) - can be used by the requester as correlation id.
+     * @param id Consumer-defined context emitted with the request.
      * @param callback Callback contract to be invoked on fulfillment.
      * @param receiverContract Contract that is eligible to request decryption.
      * @param transaction Transaction specification to be verified against the key.
+     * @param keyIds Unique semantic identifiers for the keys to generate.
      * @param requestId Correlation id for the fulfillment.
      */
-    event EncryptedHashedKeyGenerationRequested(
+    event EncryptedHashedKeysGenerationRequested(
         address indexed sender,
         uint256 id,
         IKeyDecryptionOracleCallback indexed callback,
         address receiverContract,
         bytes transaction,
+        bytes32[] keyIds,
         uint256 indexed requestId
     );
 
@@ -106,17 +116,18 @@ interface IKeyDecryptionOracle {
      * inside the decrypted key (see the specification of the key format).
      *
      * @dev Emits a {DecryptionRequested} event.
-     * @param id An id passed back to the callback function (consumerId).
+     * @param id Consumer-defined context emitted with the request.
      * @param encryptedKey Encryption of a key.
      * @param callback The callback contract.
      * @param transaction General purpose transaction identifier.
+     * @return requestId Oracle-assigned correlation identifier passed to the callback.
      */
     function requestDecrypt(
         uint256 id,
         bytes calldata encryptedKey,
         IKeyDecryptionOracleCallback callback,
         bytes calldata transaction
-    ) external payable;
+    ) external payable returns (uint256 requestId);
 
     /**
      * @notice Performs a verification of the given encryptedKey:
@@ -125,33 +136,37 @@ interface IKeyDecryptionOracle {
      * without exposing the decrypted key.
      *
      * @dev Emits a {VerificationRequested} event.
-     * @param id An id passed back to the callback function (consumerId).
+     * @param id Consumer-defined context emitted with the request.
      * @param encryptedKey Encryption of a key.
      * @param callback The callback contract.
+     * @return requestId Oracle-assigned correlation identifier passed to the callback.
      */
     function requestVerifyEncryptedKey(
         uint256 id,
         bytes calldata encryptedKey,
         IKeyDecryptionOracleCallback callback
-    ) external payable;
+    ) external payable returns (uint256 requestId);
 
     /**
-     * @notice Performs a generation of an encryptedKey and a hash internally associated with the given
-     * contract (receiverContract) and the transaction. The generated encryptedKey and hashedKey are passed
-     * to the callback contract.
+     * @notice Generates a batch of encrypted keys and hashes internally associated with the given
+     * contract (receiverContract) and transaction. The generated keys are passed to the callback contract.
      *
-     * @dev Emits a {EncryptedHashedKeyGenerationRequested} event.
-     * @param id An id passed back to the callback function (consumerId).
+     * @dev Emits an {EncryptedHashedKeysGenerationRequested} event.
+     * Implementations MUST reject an empty `keyIds` array and duplicate identifiers.
+     * @param id Consumer-defined context emitted with the request.
      * @param callback The callback contract.
      * @param receiverContract Contract that is eligible to receive the decryption.
      * @param transaction General purpose transaction identifier.
+     * @param keyIds Unique semantic identifiers for the keys to generate. A single-element batch is valid.
+     * @return requestId Oracle-assigned correlation identifier passed to the callback.
      */
-    function requestGenerateEncryptedHashedKey(
+    function requestGenerateEncryptedHashedKeys(
         uint256 id,
         IKeyDecryptionOracleCallback callback,
         address receiverContract,
-        bytes calldata transaction
-    ) external payable;
+        bytes calldata transaction,
+        bytes32[] calldata keyIds
+    ) external payable returns (uint256 requestId);
 
     /*------------------------------------------- FUNCTIONALITY: FULFILLMENT (should be guarded by onlyOracle) -------*/
 
@@ -189,19 +204,20 @@ interface IKeyDecryptionOracle {
     ) external;
 
     /**
-     * @dev Fulfillment of a key generation request (issued by requestGenerateEncryptedHashedKey).
-     * Best-effort + calldata fallback: see fulfillDecryption.
+     * @dev Fulfillment of a key generation request (issued by requestGenerateEncryptedHashedKeys).
+     * Implementations MUST reject a receiver or transaction that differs from the request,
+     * and MUST reject duplicate, missing, or unrequested keyIds. Array order has no semantic
+     * meaning. A successful fulfillment MUST deliver the complete batch in one callback;
+     * partial callbacks are forbidden. Best-effort + calldata fallback: see fulfillDecryption.
      *
      * @param requestId Correlation id from the request event.
-     * @param encryptedKey Encrypted key.
-     * @param hashedKey Hash of the key.
+     * @param keys Generated keys, identified by keyId.
      * @param receiverContract Contract that is eligible to receive the decryption.
      * @param transaction Transaction that is eligible to request decryption.
      */
-    function fulfillEncryptedHashedKeyGeneration(
+    function fulfillEncryptedHashedKeysGeneration(
         uint256 requestId,
-        bytes calldata encryptedKey,
-        bytes calldata hashedKey,
+        IKeyDecryptionOracleCallback.EncryptedHashedKey[] calldata keys,
         address receiverContract,
         bytes calldata transaction
     ) external;
