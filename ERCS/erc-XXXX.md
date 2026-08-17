@@ -1,5 +1,5 @@
 ---
-eip: XXXX
+eip: 8382
 title: Private Referable NFTs
 description: An ERC-721 extension for proof-verified hidden NFT references with optional selective disclosure.
 author: Ruiqiang Li (@richard-620) <richard.620.research@gmail.com>, Qin Wang <qin.wang@data61.csiro.au>, Shiping Chen <shiping.chen@data61.csiro.au>, Saber Yu (@OniReimu), Brian Yecies <byecies@uow.edu.au>, John Le <johnle@uow.edu.au>
