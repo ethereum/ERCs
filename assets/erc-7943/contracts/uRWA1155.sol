@@ -18,20 +18,29 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant FREEZING_ROLE = keccak256("FREEZING_ROLE");
     bytes32 public constant WHITELIST_ROLE = keccak256("WHITELIST_ROLE");
-    bytes32 public constant FORCE_TRANSFER_ROLE = keccak256("FORCE_TRANSFER_ROLE");  
+    bytes32 public constant FORCE_TRANSFER_ROLE = keccak256("FORCE_TRANSFER_ROLE");
 
-    /// @notice Mapping storing the whitelist status for each account address.
-    /// @dev True indicates the account is whitelisted and allowed to interact, false otherwise.
-    mapping(address account => bool whitelisted) internal _whitelist;
+    /// @notice Mapping storing the send whitelist status for each account address.
+    /// @dev True indicates the account is allowed to send tokens, false otherwise.
+    mapping(address account => bool allowed) internal _sendWhitelist;
+
+    /// @notice Mapping storing the receive whitelist status for each account address.
+    /// @dev True indicates the account is allowed to receive tokens, false otherwise.
+    mapping(address account => bool allowed) internal _receiveWhitelist;
 
     /// @notice Mapping storing the freezing status of assets for each account address.
     /// @dev It gives the amount of tokens corresponding to a `tokenId` that are frozen in `account` wallet.
     mapping(address account => mapping(uint256 tokenId => uint256 amount)) internal _frozenTokens;
 
-    /// @notice Emitted when an account's whitelist status is changed.
+    /// @notice Emitted when an account's send whitelist status is changed.
     /// @param account The address whose status was changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    event Whitelisted(address indexed account, bool status);
+    event SendWhitelisted(address indexed account, bool status);
+
+    /// @notice Emitted when an account's receive whitelist status is changed.
+    /// @param account The address whose status was changed.
+    /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
+    event ReceiveWhitelisted(address indexed account, bool status);
 
     /// @notice Contract constructor.
     /// @dev Initializes the ERC-1155 token with a URI and grants all roles
@@ -49,16 +58,24 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
 
     /// @inheritdoc IERC7943MultiToken
     function canTransfer(address from, address to, uint256 tokenId, uint256 amount) public view virtual override returns (bool allowed) {
-        uint256 fromBalance = balanceOf(from, tokenId);
-        if (fromBalance < getFrozenTokens(from, tokenId)) return allowed;
-        if (amount > fromBalance - getFrozenTokens(from, tokenId)) return allowed;
-        if (!canTransact(from) || !canTransact(to)) return allowed;
+        uint256 frozen = getFrozenTokens(from, tokenId);
+        if (frozen > 0) {
+            uint256 fromBalance = balanceOf(from, tokenId);
+            uint256 unfrozen = fromBalance > frozen ? fromBalance - frozen : 0;
+            if (amount > unfrozen) return allowed;
+        }
+        if (!canSend(from) || !canReceive(to)) return allowed;
         allowed = true;
     }
 
     /// @inheritdoc IERC7943MultiToken
-    function canTransact(address account) public view virtual override returns (bool allowed) {
-        allowed = _whitelist[account] ? true : false;
+    function canSend(address account) public view virtual override returns (bool allowed) {
+        allowed = _sendWhitelist[account];
+    }
+
+    /// @inheritdoc IERC7943MultiToken
+    function canReceive(address account) public view virtual override returns (bool allowed) {
+        allowed = _receiveWhitelist[account];
     }
 
     /// @inheritdoc IERC7943MultiToken
@@ -66,19 +83,29 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         amount = _frozenTokens[account][tokenId];
     }
 
-    /// @notice Updates the whitelist status for a given account.
+    /// @notice Updates the send whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
-    /// Emits a {Whitelisted} event upon successful update.
+    /// Emits a {SendWhitelisted} event upon successful update.
     /// @param account The address whose whitelist status is to be changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
-        _whitelist[account] = status;
-        emit Whitelisted(account, status);
+    function changeSendWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
+        _sendWhitelist[account] = status;
+        emit SendWhitelisted(account, status);
+    }
+
+    /// @notice Updates the receive whitelist status for a given account.
+    /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
+    /// Emits a {ReceiveWhitelisted} event upon successful update.
+    /// @param account The address whose whitelist status is to be changed.
+    /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
+    function changeReceiveWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
+        _receiveWhitelist[account] = status;
+        emit ReceiveWhitelisted(account, status);
     }
 
     /// @notice Safely creates `amount` new tokens of `id` and assigns them to `to`.
     /// @dev Can only be called by accounts holding the `MINTER_ROLE`.
-    /// Requires `to` to be allowed according to {canTransact}.
+    /// Requires `to` to be allowed according to {canReceive}.
     /// Emits a {TransferSingle} event with `operator` set to the caller.
     /// @param to The address that will receive the minted tokens.
     /// @param id The ID of the token to mint.
@@ -89,7 +116,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
 
     /// @notice Safely creates `amounts` of new tokens for each `ids` and assigns them to `to`.
     /// @dev Can only be called by accounts holding the `MINTER_ROLE`.
-    /// Requires `to` to be allowed according to {canTransact}.
+    /// Requires `to` to be allowed according to {canReceive}.
     /// Emits a {TransferBatch} event with `operator` set to the caller.
     /// @param to The address that will receive the minted tokens.
     /// @param ids The array of IDs of the tokens to mint.
@@ -118,8 +145,8 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
 
     /// @inheritdoc IERC7943MultiToken
     /// @dev Can only be called by accounts holding the `FREEZING_ROLE`
-    function setFrozenTokens(address account, uint256 tokenId, uint256 amount) public virtual override onlyRole(FREEZING_ROLE) returns(bool result) {        
-        _frozenTokens[account][tokenId] = amount;        
+    function setFrozenTokens(address account, uint256 tokenId, uint256 amount) public virtual override onlyRole(FREEZING_ROLE) returns(bool result) {
+        _frozenTokens[account][tokenId] = amount;
         emit Frozen(account, tokenId, amount);
         result = true;
     }
@@ -129,7 +156,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     function forcedTransfer(address from, address to, uint256 tokenId, uint256 amount) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
         require(to != address(0), ERC1155InvalidReceiver(address(0)));
         require(from != address(0), ERC1155InvalidSender(address(0)));
-        require(canTransact(to), ERC7943CannotTransact(to));
+        require(canReceive(to), ERC7943CannotReceive(to));
         _excessFrozenUpdate(from, tokenId, amount);
 
         uint256[] memory ids = new uint256[](1);
@@ -138,7 +165,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         values[0] = amount;
 
         super._update(from, to, ids, values);
-        
+
         if (to != address(0)) {
             address operator = _msgSender();
             if (ids.length == 1) {
@@ -148,7 +175,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
             } else {
                 ERC1155Utils.checkOnERC1155BatchReceived(operator, from, to, ids, values, "");
             }
-        } 
+        }
 
         emit ForcedTransfer(from, to, tokenId, amount);
         result = true;
@@ -162,7 +189,7 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     /// @param amount The amount being forcibly transferred or burned.
     function _excessFrozenUpdate(address account, uint256 tokenId, uint256 amount) internal {
         uint256 unfrozenBalance = _unfrozenBalance(account, tokenId);
-        if(amount > unfrozenBalance && amount <= balanceOf(account, tokenId)) { 
+        if(amount > unfrozenBalance && amount <= balanceOf(account, tokenId)) {
             _frozenTokens[account][tokenId] -= amount - unfrozenBalance;
             emit Frozen(account, tokenId, getFrozenTokens(account, tokenId));
         }
@@ -180,9 +207,9 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
     }
 
     /// @notice Hook that is called during any token transfer, including minting and burning.
-    /// @dev Overrides the ERC-1155 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logic.
-    /// Reverts with {ERC7943CannotTransact} | {ERC7943InsufficientUnfrozenBalance} | {ERC1155InsufficientBalance} 
-    /// if any `canTransfer`/`canTransact` or other check fails.
+    /// @dev Overrides the ERC-1155 `_update` hook. Enforces transfer restrictions based on {canTransfer}, {canSend} and {canReceive} logic.
+    /// Reverts with {ERC7943CannotSend} | {ERC7943CannotReceive} | {ERC7943InsufficientUnfrozenBalance} | {ERC1155InsufficientBalance}
+    /// if any check fails.
     /// @param from The address sending tokens (zero address for minting).
     /// @param to The address receiving tokens (zero address for burning).
     /// @param ids The array of ids.
@@ -193,6 +220,8 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         }
 
         if (from != address(0) && to != address(0)) { // Transfer
+            require(canSend(from), ERC7943CannotSend(from));
+            require(canReceive(to), ERC7943CannotReceive(to));
             for (uint256 i = 0; i < ids.length; ++i) {
                 uint256 id = ids[i];
                 uint256 value = values[i];
@@ -200,12 +229,11 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
 
                 require(value <= balanceOf(from, id), ERC1155InsufficientBalance(from, balanceOf(from, id), value, id));
                 require(value <= unfrozenBalance, ERC7943InsufficientUnfrozenBalance(from, id, value, unfrozenBalance));
-                require(canTransact(from), ERC7943CannotTransact(from));
-                require(canTransact(to), ERC7943CannotTransact(to));
             }
         } else if (from == address(0) && to != address(0)) { // Mint
-            require(canTransact(to), ERC7943CannotTransact(to));
+            require(canReceive(to), ERC7943CannotReceive(to));
         } else if (to == address(0)) { // Burn
+            require(canSend(from), ERC7943CannotSend(from));
             for (uint256 j = 0; j < ids.length; ++j) {
                 _excessFrozenUpdate(from, ids[j], values[j]);
             }
