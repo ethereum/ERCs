@@ -155,19 +155,16 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
 
     /// @inheritdoc IAgentMandate
     function recordExecution(address agent, address principal, bytes32 action, uint256 amount) external {
-        Mandate storage m = _mandates[agent][principal];
-        if (msg.sender != m.asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
+        Mandate storage mandate = _mandates[agent][principal];
+        if (msg.sender != mandate.asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
             revert UnauthorizedRecorder();
         }
-        if (!_mandateAllows(m, agent, principal, action)) revert NotExecutable();
-        if (m.maxTransactionValue != type(uint256).max && amount > m.maxTransactionValue) {
-            revert ExceedsTransactionCap();
-        }
-        uint256 used = m.cumulativeUsed + amount;
-        if (m.maxCumulativeValue != type(uint256).max && used > m.maxCumulativeValue) {
-            revert ExceedsCumulativeCap();
-        }
-        m.cumulativeUsed = used;
+        MandateReason reason = _evaluate(mandate, agent, principal, mandate.asset, action, amount);
+        if (reason == MandateReason.OVER_TX_CAP) revert ExceedsTransactionCap();
+        if (reason == MandateReason.OVER_CUMULATIVE_CAP) revert ExceedsCumulativeCap();
+        if (reason != MandateReason.OK) revert NotExecutable();
+        uint256 used = mandate.cumulativeUsed + amount;
+        mandate.cumulativeUsed = used;
         emit ExecutionRecorded(agent, principal, action, amount, used);
     }
 
@@ -175,17 +172,10 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     function canExecute(address agent, address principal, address asset, bytes32 action, uint256 amount)
         external
         view
-        returns (bool)
+        returns (bool ok, MandateReason reason)
     {
-        Mandate storage m = _mandates[agent][principal];
-
-        if (asset != m.asset) return false;
-        if (!_mandateAllows(m, agent, principal, action)) return false;
-        if (m.maxTransactionValue != type(uint256).max && amount > m.maxTransactionValue) return false;
-        if (m.maxCumulativeValue != type(uint256).max && m.cumulativeUsed + amount > m.maxCumulativeValue) {
-            return false;
-        }
-        return true;
+        reason = _evaluate(_mandates[agent][principal], agent, principal, asset, action, amount);
+        ok = reason == MandateReason.OK;
     }
 
     /// @inheritdoc IAgentMandate
@@ -275,19 +265,34 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         );
     }
 
-    /// @dev Shared gate for canExecute and recordExecution (existence, validity window, revoked, action,
-    ///      freeze) so the read check and the state mutation cannot drift. Caps are checked by the callers.
-    function _mandateAllows(Mandate storage m, address agent, address principal, bytes32 action)
-        private
-        view
-        returns (bool)
-    {
-        if (m.principal == address(0)) return false;
-        if (block.timestamp < m.validFrom || block.timestamp > m.validUntil) return false;
-        if (m.revoked) return false;
-        if (!_actionEnabled[agent][principal][action]) return false;
-        if (_frozen[agent]) return false;
-        return true;
+    /// @dev Single source of truth for canExecute and recordExecution (existence, asset, validity window,
+    ///      revocation, action, freeze, and caps) so the read check and the state mutation cannot drift.
+    ///      Returns MandateReason.OK when the action may execute, otherwise the first failing check.
+    function _evaluate(
+        Mandate storage mandate,
+        address agent,
+        address principal,
+        address asset,
+        bytes32 action,
+        uint256 amount
+    ) private view returns (MandateReason) {
+        if (mandate.principal == address(0)) return MandateReason.NONEXISTENT;
+        if (asset != mandate.asset) return MandateReason.WRONG_ASSET;
+        if (block.timestamp < mandate.validFrom) return MandateReason.NOT_YET_VALID;
+        if (block.timestamp > mandate.validUntil) return MandateReason.EXPIRED;
+        if (mandate.revoked) return MandateReason.REVOKED;
+        if (!_actionEnabled[agent][principal][action]) return MandateReason.ACTION_NOT_ENABLED;
+        if (_frozen[agent]) return MandateReason.FROZEN;
+        if (mandate.maxTransactionValue != type(uint256).max && amount > mandate.maxTransactionValue) {
+            return MandateReason.OVER_TX_CAP;
+        }
+        if (
+            mandate.maxCumulativeValue != type(uint256).max
+                && mandate.cumulativeUsed + amount > mandate.maxCumulativeValue
+        ) {
+            return MandateReason.OVER_CUMULATIVE_CAP;
+        }
+        return MandateReason.OK;
     }
 
     function _clearActions(address agent, address principal) private {

@@ -26,7 +26,9 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
 
     error UnsupportedAction(bytes4 selector);
     error InvalidData();
-    error CannotExecute(address agent, address target, bytes4 selector, uint256 amount);
+    error CannotExecute(
+        address agent, address target, bytes4 selector, uint256 amount, IAgentMandate.MandateReason reason
+    );
     error CallFailed(bytes returnData);
 
     constructor(IAgentMandate _rams, address _principal, address owner_) Ownable(owner_) {
@@ -52,15 +54,17 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
         uint256 amount = spec.hasAmount ? _amountArg(data, spec.amountIndex) : 0;
         bytes32 action = bytes32(selector);
 
-        if (!rams.canExecute(agent, principal, target, action, amount)) {
-            revert CannotExecute(agent, target, selector, amount);
+        (bool ok, IAgentMandate.MandateReason reason) = rams.canExecute(agent, principal, target, action, amount);
+        if (!ok) {
+            revert CannotExecute(agent, target, selector, amount, reason);
         }
 
         rams.recordExecution(agent, principal, action, amount);
 
-        (bool ok, bytes memory ret) = target.call(data);
-        if (!ok) revert CallFailed(ret);
-        return ret;
+        bytes memory returnData;
+        (ok, returnData) = target.call(data);
+        if (!ok) revert CallFailed(returnData);
+        return returnData;
     }
 
     /// @dev A uint256 argument sits at 4 + 32*index in calldata, so this reads the amount by index.

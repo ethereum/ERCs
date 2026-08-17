@@ -4,6 +4,23 @@ pragma solidity ^0.8.29;
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 interface IAgentMandate is IERC165 {
+    /// @notice Reason a canExecute check passed or failed. OK means the action may execute.
+    /// @dev The listed reasons are the normative check set. OTHER is only for implementation-specific
+    ///      checks not covered here, and MUST NOT stand in for one of the listed reasons.
+    enum MandateReason {
+        OK,
+        NONEXISTENT,
+        WRONG_ASSET,
+        NOT_YET_VALID,
+        EXPIRED,
+        REVOKED,
+        ACTION_NOT_ENABLED,
+        FROZEN,
+        OVER_TX_CAP,
+        OVER_CUMULATIVE_CAP,
+        OTHER
+    }
+
     struct Mandate {
         address agent;
         uint48 validFrom;
@@ -136,18 +153,20 @@ interface IAgentMandate is IERC165 {
     /// @param amount The amount in the asset's base unit.
     function recordExecution(address agent, address principal, bytes32 action, uint256 amount) external;
 
-    /// @notice Returns true if the agent can execute the action on the asset for the principal at the given amount.
+    /// @notice Returns whether the agent can execute the action on the asset for the principal at the given
+    ///         amount, and the reason.
     /// @dev Bundles asset, existence, validity, freeze, action, and cap checks into one call.
     /// @param agent The agent address.
     /// @param principal The principal address.
     /// @param asset The asset the action targets; MUST equal the mandate's `asset`.
     /// @param action The action label being checked.
     /// @param amount The amount to check, in the asset's base unit.
-    /// @return True if the agent can execute the action at this amount.
+    /// @return ok True if the agent can execute the action at this amount.
+    /// @return reason MandateReason.OK when ok is true, otherwise the first failing check.
     function canExecute(address agent, address principal, address asset, bytes32 action, uint256 amount)
         external
         view
-        returns (bool);
+        returns (bool ok, MandateReason reason);
 
     /// @notice Returns true if the action is enabled on the mandate.
     /// @param agent The agent address.

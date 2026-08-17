@@ -132,7 +132,12 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(1000)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(1000),
+                IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1000)));
@@ -142,7 +147,12 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(1500)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(1500),
+                IAgentMandate.MandateReason.OVER_TX_CAP
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1500)));
@@ -165,7 +175,12 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(500)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(500),
+                IAgentMandate.MandateReason.FROZEN
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));
@@ -177,7 +192,12 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(500)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(500),
+                IAgentMandate.MandateReason.REVOKED
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));
