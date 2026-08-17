@@ -31,6 +31,9 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
     );
     error CallFailed(bytes returnData);
 
+    /// @notice Emitted when an action's execution spec is set, so the trusted amount-position registry is auditable.
+    event ActionConfigured(bytes4 indexed selector, bool supported, bool hasAmount, uint8 amountIndex);
+
     constructor(IAgentMandate _rams, address _principal, address owner_) Ownable(owner_) {
         rams = _rams;
         principal = _principal;
@@ -40,6 +43,7 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
     ///         like the enforcer role.
     function setAction(bytes4 selector, bool supported, bool hasAmount, uint8 amountIndex) external onlyOwner {
         actions[selector] = ActionSpec({supported: supported, hasAmount: hasAmount, amountIndex: amountIndex});
+        emit ActionConfigured(selector, supported, hasAmount, amountIndex);
     }
 
     /// @inheritdoc IAgentExecutor

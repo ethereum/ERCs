@@ -34,6 +34,8 @@ contract AgentExecutorTest is Test {
     bytes4 constant APPROVE = IERC20.approve.selector;
     bytes4 constant SWAP = uRWA20.swap.selector;
 
+    event ActionConfigured(bytes4 indexed selector, bool supported, bool hasAmount, uint8 amountIndex);
+
     function setUp() public {
         compliance = new ComplianceProvider(complianceOwner);
         mandate = new AgentMandate(admin);
@@ -213,6 +215,13 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(abi.encodeWithSelector(AgentExecutor.UnsupportedAction.selector, TRANSFER_FROM));
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(100)));
+    }
+
+    function test_SetActionEmitsEvent() public {
+        vm.expectEmit(true, false, false, true, address(executor));
+        emit ActionConfigured(APPROVE, true, true, 1);
+        vm.prank(executorOwner);
+        executor.setAction(APPROVE, true, true, 1);
     }
 
     function test_SetActionOnlyOwner() public {
