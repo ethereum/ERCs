@@ -107,14 +107,14 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
 
     /// @inheritdoc IAgentMandate
     function revokeMandate(address agent, address principal, uint256 deadline, bytes calldata signature) external {
-        Mandate storage m = _mandates[agent][principal];
-        if (m.principal == address(0) || m.revoked) revert NoActiveMandate();
+        Mandate storage mandate = _mandates[agent][principal];
+        if (mandate.principal == address(0) || mandate.revoked) revert NoActiveMandate();
 
         bytes32 structHash =
             keccak256(abi.encode(REVOKE_MANDATE_TYPEHASH, agent, principal, nonces[principal], deadline));
         _authOperator(principal, structHash, deadline, signature);
 
-        m.revoked = true;
+        mandate.revoked = true;
         emit MandateRevoked(agent, principal, msg.sender);
     }
 
