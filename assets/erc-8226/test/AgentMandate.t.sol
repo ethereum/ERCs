@@ -275,6 +275,16 @@ contract AgentMandateTest is Test {
         mandate.extendMandate(agent, principal, uint48(block.timestamp + 5 days), 0, "");
     }
 
+    function test_ExtendRevertsWhenPrincipalIneligible() public {
+        _grant();
+        vm.prank(complianceOwner);
+        compliance.revokePrincipal(principal, IComplianceProvider.ReasonCode.AML_FLAG);
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.PrincipalNotEligible.selector);
+        mandate.extendMandate(agent, principal, uint48(block.timestamp + 10 days), 0, "");
+    }
+
     function test_ExtendRevertsInvalidExpiry() public {
         _grant();
         uint48 current = mandate.getMandate(agent, principal).validUntil;

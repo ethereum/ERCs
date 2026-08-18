@@ -129,6 +129,15 @@ contract AgentExecutorTest is Test {
         assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 0); // but the cap was untouched
     }
 
+    function test_RevertsAmountIndexOutOfRange() public {
+        vm.prank(executorOwner);
+        executor.setAction(APPROVE, true, true, 5);
+
+        vm.prank(agent);
+        vm.expectRevert(AgentExecutor.InvalidData.selector);
+        executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(1)));
+    }
+
     function test_RevertsOverCumulativeCap() public {
         _transfer(recipient, 1000); // cumulative 1000
         vm.prank(agent);
@@ -158,6 +167,12 @@ contract AgentExecutorTest is Test {
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1500)));
+    }
+
+    function test_RevertsShortCalldata() public {
+        vm.prank(agent);
+        vm.expectRevert(AgentExecutor.InvalidData.selector);
+        executor.execute(address(token), hex"001122");
     }
 
     function test_RevertsUnsupportedSelector() public {
