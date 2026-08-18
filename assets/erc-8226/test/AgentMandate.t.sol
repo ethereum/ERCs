@@ -265,6 +265,16 @@ contract AgentMandateTest is Test {
         assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 500);
     }
 
+    function test_ExtendRevertsAfterComplianceExpiry() public {
+        vm.prank(complianceOwner);
+        compliance.grantPrincipal(principal, IDREF, uint48(block.timestamp + 2 days));
+        _grant();
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.InvalidExpiry.selector);
+        mandate.extendMandate(agent, principal, uint48(block.timestamp + 5 days), 0, "");
+    }
+
     function test_ExtendRevertsInvalidExpiry() public {
         _grant();
         uint48 current = mandate.getMandate(agent, principal).validUntil;
@@ -383,6 +393,15 @@ contract AgentMandateTest is Test {
         vm.prank(principal);
         vm.expectRevert(AgentMandate.InvalidExpiry.selector);
         mandate.grantMandate(p, "");
+    }
+
+    function test_GrantRevertsAfterComplianceExpiry() public {
+        vm.prank(complianceOwner);
+        compliance.grantPrincipal(principal, IDREF, uint48(block.timestamp + 1 hours));
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.InvalidExpiry.selector);
+        mandate.grantMandate(_params(), "");
     }
 
     function test_GrantRevertsNotEligible() public {

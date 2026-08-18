@@ -55,43 +55,53 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
-    function grantMandate(GrantMandateParams calldata p, bytes calldata signature) external {
-        if (p.complianceProvider == address(0)) revert ZeroComplianceProvider();
-        if (p.validUntil <= block.timestamp || p.validUntil <= p.validFrom) revert InvalidExpiry();
+    function grantMandate(GrantMandateParams calldata params, bytes calldata signature) external {
+        if (params.complianceProvider == address(0)) revert ZeroComplianceProvider();
+        if (params.validUntil <= block.timestamp || params.validUntil <= params.validFrom) revert InvalidExpiry();
 
-        Mandate storage existing = _mandates[p.agent][p.principal];
+        Mandate storage existing = _mandates[params.agent][params.principal];
         if (existing.principal != address(0) && !existing.revoked && block.timestamp <= existing.validUntil) {
             revert MandateAlreadyActive();
         }
 
-        _authPrincipal(p.principal, _grantStructHash(p), p.deadline, signature);
+        _authPrincipal(params.principal, _grantStructHash(params), params.deadline, signature);
 
-        (bool eligible,,) = IComplianceProvider(p.complianceProvider).checkPrincipal(p.principal, p.identityRef);
+        (bool eligible,, uint48 expiresAt) =
+            IComplianceProvider(params.complianceProvider).checkPrincipal(params.principal, params.identityRef);
         if (!eligible) revert PrincipalNotEligible();
+        if (expiresAt != 0 && params.validUntil > expiresAt) revert InvalidExpiry();
 
-        _clearActions(p.agent, p.principal);
+        _clearActions(params.agent, params.principal);
 
-        _mandates[p.agent][p.principal] = Mandate({
-            agent: p.agent,
-            validFrom: p.validFrom,
-            validUntil: p.validUntil,
-            principal: p.principal,
+        _mandates[params.agent][params.principal] = Mandate({
+            agent: params.agent,
+            validFrom: params.validFrom,
+            validUntil: params.validUntil,
+            principal: params.principal,
             revoked: false,
-            complianceProvider: p.complianceProvider,
-            identityRef: p.identityRef,
-            asset: p.asset,
-            maxTransactionValue: p.maxTransactionValue,
-            maxCumulativeValue: p.maxCumulativeValue,
+            complianceProvider: params.complianceProvider,
+            identityRef: params.identityRef,
+            asset: params.asset,
+            maxTransactionValue: params.maxTransactionValue,
+            maxCumulativeValue: params.maxCumulativeValue,
             cumulativeUsed: 0,
-            metadata: p.metadata
+            metadata: params.metadata
         });
 
-        emit MandateGranted(p.agent, p.principal, p.complianceProvider, p.asset, p.validFrom, p.validUntil, p.metadata);
+        emit MandateGranted(
+            params.agent,
+            params.principal,
+            params.complianceProvider,
+            params.asset,
+            params.validFrom,
+            params.validUntil,
+            params.metadata
+        );
 
-        for (uint256 i = 0; i < p.actions.length; i++) {
-            _actionEnabled[p.agent][p.principal][p.actions[i]] = true;
-            _enabledList[p.agent][p.principal].push(p.actions[i]);
-            emit ActionEnabled(p.agent, p.principal, p.actions[i]);
+        for (uint256 i = 0; i < params.actions.length; i++) {
+            _actionEnabled[params.agent][params.principal][params.actions[i]] = true;
+            _enabledList[params.agent][params.principal].push(params.actions[i]);
+            emit ActionEnabled(params.agent, params.principal, params.actions[i]);
         }
     }
 
@@ -116,16 +126,23 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         uint256 deadline,
         bytes calldata signature
     ) external {
-        Mandate storage m = _mandates[agent][principal];
-        if (m.principal == address(0) || m.revoked || block.timestamp > m.validUntil) revert NoActiveMandate();
-        if (newValidUntil <= m.validUntil) revert InvalidExpiry();
+        Mandate storage mandate = _mandates[agent][principal];
+        if (mandate.principal == address(0) || mandate.revoked || block.timestamp > mandate.validUntil) {
+            revert NoActiveMandate();
+        }
+        if (newValidUntil <= mandate.validUntil) revert InvalidExpiry();
 
         bytes32 structHash = keccak256(
             abi.encode(EXTEND_MANDATE_TYPEHASH, agent, principal, newValidUntil, nonces[principal], deadline)
         );
         _authOperator(principal, structHash, deadline, signature);
 
-        m.validUntil = newValidUntil;
+        (bool eligible,, uint48 expiresAt) =
+            IComplianceProvider(mandate.complianceProvider).checkPrincipal(mandate.principal, mandate.identityRef);
+        if (!eligible) revert PrincipalNotEligible();
+        if (expiresAt != 0 && newValidUntil > expiresAt) revert InvalidExpiry();
+
+        mandate.validUntil = newValidUntil;
         emit MandateExtended(agent, principal, newValidUntil);
     }
 
@@ -244,23 +261,23 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @dev Isolated so the 14-field encode has its own stack frame (avoids stack-too-deep without via-IR).
-    function _grantStructHash(GrantMandateParams calldata p) private view returns (bytes32) {
+    function _grantStructHash(GrantMandateParams calldata params) private view returns (bytes32) {
         return keccak256(
             abi.encode(
                 GRANT_MANDATE_TYPEHASH,
-                p.agent,
-                p.validFrom,
-                p.validUntil,
-                p.principal,
-                p.complianceProvider,
-                p.identityRef,
-                p.asset,
-                p.maxTransactionValue,
-                p.maxCumulativeValue,
-                p.metadata,
-                keccak256(abi.encodePacked(p.actions)),
-                nonces[p.principal],
-                p.deadline
+                params.agent,
+                params.validFrom,
+                params.validUntil,
+                params.principal,
+                params.complianceProvider,
+                params.identityRef,
+                params.asset,
+                params.maxTransactionValue,
+                params.maxCumulativeValue,
+                params.metadata,
+                keccak256(abi.encodePacked(params.actions)),
+                nonces[params.principal],
+                params.deadline
             )
         );
     }
