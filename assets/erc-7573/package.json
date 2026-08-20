@@ -1,6 +1,6 @@
 {
   "name": "@finmath.net/dvp",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Solidity Conditional-upon-Transfer-Decryption for DvP and nDvP",
   "author": "Christian Fries, Peter Kohl-Landgraf",
   "license": "ISC",
@@ -29,6 +29,8 @@
   },
   "keywords": [
     "Delivery versus Payment",
+    "Cross-Chain DvP",
+    "Multi-Party DvP",
     "HTLC",
     "EIP-7573",
     "Decryption Oracle"

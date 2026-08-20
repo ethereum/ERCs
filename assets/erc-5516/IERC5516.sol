@@ -4,8 +4,8 @@ pragma solidity ^0.8.4;
 
 /**
     @title Soulbound, Multi-Token standard.
-    @notice Interface of the EIP-5516
-    Note: The ERC-165 identifier for this interface is 0xe150bdab.
+    @notice Interface of the ERC-5516
+    Note: The ERC-165 identifier for this interface is 0x85a5f87c.
  */
 
 interface IERC5516 {
@@ -36,14 +36,15 @@ interface IERC5516 {
      * @dev Issues a soulbound token to multiple recipients.
      *
      * Creates or Re-Issues a unique token identifier and distributes it to all addresses in `recipients[]`.
-     * `tokenId` should be detterministically generated via a function of `msg.sender` and `metadataURI` to prevent front-running and ensure uniqueness.
+     * `tokenId` MUST be deterministically generated as a function of `msg.sender` and `metadataURI` to prevent front-running and ensure uniqueness.
      * The token is non-transferable after issuance.
      *
      * Requirements:
      * - `recipients[]` MUST NOT be empty.
+     * - `metadataURI` MUST NOT be empty.
      * - All addresses in `recipients[]` MUST be non-zero.
      * - All addresses in `recipients[]` MUST NOT already own a token under the generated `tokenId`.
-     * - No address in `recipients[]` MUST have previously renounced the generated `tokenId`.
+     * - Addresses in `recipients[]` MUST NOT have previously renounced the generated `tokenId`.
      * - When issuing an existing `tokenId` (re-issuing), the caller MUST be the original issuer of that `tokenId`.
      *
      * Emits an {Issued} event.
@@ -53,7 +54,7 @@ interface IERC5516 {
      * @return tokenId The unique identifier of the token.
      */
     function issue(
-        address[] memory recipients,
+        address[] calldata recipients,
         string calldata metadataURI
     ) external returns (uint256 tokenId);
 
@@ -85,6 +86,18 @@ interface IERC5516 {
     function has(address who, uint256 tokenId) external view returns (bool);
 
     /**
+     * @dev Checks if a given address has renounced a specific soulbound token.
+     *
+     * @param who The address to check renunciation for.
+     * @param tokenId The unique identifier of the token.
+     * @return True if `who` has renounced the token under `tokenId`, false otherwise.
+     */
+    function hasRenounced(
+        address who,
+        uint256 tokenId
+    ) external view returns (bool);
+
+    /**
      * @dev Returns the original issuer of a given token ID.
      *
      * @param tokenId The unique identifier of the token.
@@ -111,4 +124,19 @@ interface IERC5516 {
      * @return The complete URI string for the token metadata.
      */
     function uri(uint256 tokenId) external view returns (string memory);
+
+    /**
+     * @dev Deterministically derives a token ID from the issuer's address and the metadata URI.
+     *
+     * This function ensures that each `(issuer, metadataURI)` pair maps to a unique `tokenId`, so it must be collision-resistant.
+     * It is used internally during issuance to prevent front-running and ensure uniqueness.
+     *
+     * @param issuer The address of the token issuer.
+     * @param metadataURI The metadata URI associated with the token.
+     * @return tokenId The derived identifier.
+     */
+    function deriveTokenId(
+        address issuer,
+        string calldata metadataURI
+    ) external view returns (uint256);
 }
