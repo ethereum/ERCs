@@ -12,7 +12,7 @@
     {
       "name": "before binding existed → ungoverned",
       "artifact": { "anchor_time": 1785000000, "anchored": true, "pq_companion": null },
-      "expected": { "resolved": null, "resolution_reason": "no_in_force_binding", "rule": "no_in_force_binding", "decision": "REJECT" }
+      "expected": { "resolved": "kya-example", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
     },
     {
       "name": "after binding, BEFORE revocation → governed (stays valid)",
