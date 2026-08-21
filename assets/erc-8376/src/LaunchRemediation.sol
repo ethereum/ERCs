@@ -297,10 +297,15 @@ contract LaunchRemediation is ReentrancyGuard {
         c.bond = 0;
         _send(c.claimant, bond); // successful claimant gets their bond back
 
+        // The whole unreleased escrow becomes the refund pool: the award
+        // decides how much of the bond is drawn on top of it, not how much of
+        // the escrow is used. Reporting the award here would understate what
+        // actually left the escrow, by the whole raise where the award is small.
         uint256 escrowed = escrow.escrowedProceeds(c.launchId);
-        fromEscrow = escrowed > c.award ? c.award : escrowed;
+        fromEscrow = escrowed;
 
-        uint256 shortfall = c.award > fromEscrow ? c.award - fromEscrow : 0;
+        uint256 applied = escrowed > c.award ? c.award : escrowed;
+        uint256 shortfall = c.award > applied ? c.award - applied : 0;
         uint256 reserved = reservedBond[c.launchId];
         uint256 held = escrow.bondOf(c.launchId);
         uint256 available = held > reserved ? held - reserved : 0;

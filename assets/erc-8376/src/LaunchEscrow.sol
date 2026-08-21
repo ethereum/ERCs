@@ -204,10 +204,16 @@ contract LaunchEscrow is ILaunchEscrow, ReentrancyGuard {
         }
 
         Purchase storage p = _purchases[id][buyer];
+        // Track the change in net contribution rather than the gross amount, as
+        // `recordSale` does. A buyer whose realised value already exceeds what
+        // they paid nets to zero, so adding the gross here would put a
+        // contribution in the denominator that no buyer can claim against, and
+        // scale every honest buyer's share down by it.
+        uint256 before = _net(p);
         p.paid += paid;
         p.tokens += tokens;
         l.proceeds += paid;
-        if (!p.excluded) l.totalNetPaid += paid;
+        if (!p.excluded) l.totalNetPaid += _net(p) - before;
         emit PurchaseRecorded(id, buyer, paid, tokens);
 
         if (!native) _creditERC20(l.asset, paid);

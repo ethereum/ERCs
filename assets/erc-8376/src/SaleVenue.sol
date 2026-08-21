@@ -10,11 +10,23 @@ import {LaunchEscrow} from "./LaunchEscrow.sol";
 ///         A bonding curve differs only in how `tokens` is priced.
 contract SaleVenue {
     LaunchEscrow public immutable escrow;
+    /// @dev The escrow trusts the venue on purchases and sales, so the venue
+    ///      must in turn trust whoever speaks for it. Anything callable by
+    ///      anyone here is callable by anyone at the escrow.
+    address public immutable operator;
     bytes32 public launchId;
     uint256 public price; // wei per whole token
 
+    error NotOperator(address caller);
+
     constructor(LaunchEscrow escrow_) {
         escrow = escrow_;
+        operator = msg.sender;
+    }
+
+    modifier onlyOperator() {
+        if (msg.sender != operator) revert NotOperator(msg.sender);
+        _;
     }
 
     function open(
@@ -23,7 +35,7 @@ contract SaleVenue {
         uint64  releaseStart,
         uint64  releaseEnd,
         uint256 price_
-    ) external payable returns (bytes32) {
+    ) external payable onlyOperator returns (bytes32) {
         require(launchId == bytes32(0), "already open");
         require(price_ > 0, "price must be non-zero");
         price = price_;
@@ -38,7 +50,10 @@ contract SaleVenue {
     }
 
     /// @notice Report value a buyer realised by selling on a secondary market.
-    function reportSale(address buyer, uint256 realised) external {
+    /// @dev Operator-only. A sale report reduces the buyer's net contribution
+    ///      and the refund denominator with it, so an unrestricted report is a
+    ///      way to zero another buyer's entitlement and redirect their share.
+    function reportSale(address buyer, uint256 realised) external onlyOperator {
         escrow.recordSale(launchId, buyer, realised);
     }
 }

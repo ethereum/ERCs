@@ -9,7 +9,7 @@ forge build
 forge test
 ```
 
-194 tests and four fuzzed invariants. Every interface in the ERC matches these
+198 tests and four fuzzed invariants. Every interface in the ERC matches these
 sources signature for signature.
 
 Not independently audited. This shows the interfaces can be implemented and that
