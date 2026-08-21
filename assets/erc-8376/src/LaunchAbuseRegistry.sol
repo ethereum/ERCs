@@ -4,10 +4,12 @@ pragma solidity ^0.8.24;
 import {ILaunchAbuseRegistry} from "./ILaunchAbuseRegistry.sol";
 import {
     AbuseReport,
+    BASE_VECTOR_VERSION,
     UnknownReport,
     ReportAlreadyRetracted,
     DetectorNotBonded,
     InvalidSignalVector,
+    UnsupportedVectorVersion,
     OutcomeSignalNotPermitted
 } from "./LaunchAbuseTypes.sol";
 import {ReentrancyGuard} from "./ReentrancyGuard.sol";
@@ -148,6 +150,17 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
     }
 
     function _validate(AbuseReport calldata r) internal pure {
+        // A vector of an unknown version cannot be read, and reading it as
+        // version 1 would silently misinterpret every field that moved.
+        if (r.vectorVersion != BASE_VECTOR_VERSION) {
+            revert UnsupportedVectorVersion(r.vectorVersion, BASE_VECTOR_VERSION);
+        }
+        // Schema and payload travel together. A schema with nothing under it
+        // claims a reading that was never made; a payload with no schema is
+        // bytes nobody can decode.
+        if ((r.extensionSchema == bytes32(0)) != (r.extensionSignals.length == 0)) {
+            revert InvalidSignalVector();
+        }
         if (r.abuseScore > 100 || r.confidence > 100) revert InvalidSignalVector();
         if (r.windowEnd < r.launchedAt) revert InvalidSignalVector();
         if (r.evidenceRoot == bytes32(0)) revert InvalidSignalVector();

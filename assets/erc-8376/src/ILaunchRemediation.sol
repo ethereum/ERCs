@@ -14,6 +14,7 @@ interface ILaunchRemediation {
     event ClaimAdjudicated(bytes32 indexed claimId, ClaimStatus outcome, uint256 award);
     event RemedyExecuted(bytes32 indexed claimId, uint256 fromEscrow, uint256 fromBond);
     event ContainmentApplied(bytes32 indexed launchId, ContainmentAction action, uint64 until);
+    event DetectorRewarded(bytes32 indexed claimId, address indexed detector, uint256 amount);
 
     function postBond(bytes32 launchId) external payable;
     function requiredBond(uint256 targetRaise) external view returns (uint256);
@@ -44,8 +45,18 @@ interface ILaunchRemediation {
         view
         returns (bytes32 launchId, address claimant, ClaimStatus status, uint256 award);
 
+    /// @notice Pull the detector's share of an executed remedy.
+    /// @dev MUST revert unless the claim is Executed. MUST pay the detector
+    ///      recorded against the report the claim referenced, never the caller
+    ///      and never the party that relayed an atomic submission.
+    function claimDetectorReward(bytes32 claimId) external returns (uint256 amount);
+
     function bondOf(bytes32 launchId) external view returns (uint256);
     function contestWindow()          external view returns (uint64);
     function bondCooldown()           external view returns (uint64);
     function feeBps()                 external view returns (uint16);
+
+    /// @notice Share of a successful restitution paid to the detector whose
+    ///         report supported the claim. MUST NOT exceed feeBps().
+    function detectorFeeBps()         external view returns (uint16);
 }

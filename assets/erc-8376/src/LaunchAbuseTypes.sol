@@ -13,6 +13,15 @@ library Patterns {
     bytes32 internal constant WASH_LAUNCH         = keccak256("erc.launch.wash-launch");
     bytes32 internal constant UNLOCK_EXIT         = keccak256("erc.launch.unlock-exit");
     bytes32 internal constant SERIAL_DEPLOYER     = keccak256("erc.launch.serial-deployer");
+    bytes32 internal constant IMPERSONATION       = keccak256("erc.launch.impersonation");
+}
+
+/// @dev Extension schema identifiers, namespaced under `erc.launch.schema.`.
+///      A schema publishes name, type, units, definition, polarity and
+///      threshold for every field it adds, or a third party cannot recompute
+///      the score it feeds.
+library Schemas {
+    bytes32 internal constant IMPERSONATION = keccak256("erc.launch.schema.impersonation");
 }
 
 /// @dev Bit assignments for `SignalVector.privilegedPowers`.
@@ -30,7 +39,8 @@ library Powers {
     uint16 internal constant DANGEROUS = MINT | UPGRADE | SEIZE;
 }
 
-/// @notice Ten signals describing deployer conduct. Never buyer outcome.
+/// @notice The twelve base signals describing deployer conduct. Never buyer
+///         outcome. Version 1 of the vector is exactly these fields.
 /// @dev Unavailable signals MUST be reported as the type maximum, not zero.
 struct SignalVector {
     uint16 deployerSupplyShare;    // bps, adverse
@@ -47,17 +57,36 @@ struct SignalVector {
     uint16 washTradeRatio;         // bps, adverse: volume returning to its origin
 }
 
+/// @dev Version of the base signal vector a report was computed under. A
+///      consumer that does not implement the version MUST reject the report
+///      rather than misread it.
+uint16 constant BASE_VECTOR_VERSION = 1;
+
+/// @notice Fields of the reference impersonation extension schema, in the
+///         order `extensionSignals` encodes them.
+/// @dev The abuse is entirely in the identity claim, so none of it is
+///      expressible in the base vector: a deployer may retain no supply,
+///      lock liquidity, hold no powers, and read clean on all twelve.
+struct ImpersonationSignals {
+    uint16 symbolCollision; // bitmask, adverse: 1 any, 2 older, 4 deeper
+    uint16 nameSimilarity;  // bps, adverse
+    uint16 metadataReuse;   // bps, adverse
+}
+
 struct AbuseReport {
     bytes32      patternId;
-    bytes32      launchId;
+    bytes32      launchId;         // as listed in ILaunchDirectory
     address      token;
     address      deployer;
     address[]    linkedAddresses;
     uint8        abuseScore;
     uint8        confidence;
+    uint16       vectorVersion;    // 1 for the base twelve signals
     uint64       launchedAt;
     uint64       windowEnd;
     SignalVector signals;
+    bytes32      extensionSchema;  // zero where no extension is used
+    bytes        extensionSignals; // ABI-encoded, in schema-declared order
     bytes32      evidenceRoot;
     string       evidenceURI;
 }
@@ -75,6 +104,8 @@ error InsufficientScore(uint8 score, uint8 required);
 error InsufficientConfidence(uint8 confidence, uint8 required);
 error OutcomeSignalNotPermitted();
 error InvalidSignalVector();
+error UnsupportedVectorVersion(uint16 declared, uint16 supported);
+error UnknownExtensionSchema(bytes32 extensionSchema);
 error InvalidPattern(bytes32 patternId);
 error DetectorNotBonded(address detector, uint256 held, uint256 required);
 error UnknownLaunch(bytes32 launchId);

@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-import {SignalVector, Powers, Patterns, InvalidSignalVector, InvalidPattern}
-    from "./LaunchAbuseTypes.sol";
+import {
+    SignalVector,
+    ImpersonationSignals,
+    Powers,
+    Patterns,
+    Schemas,
+    InvalidSignalVector,
+    InvalidPattern,
+    UnknownExtensionSchema
+} from "./LaunchAbuseTypes.sol";
 
 /// @title Fixed-point evaluator for the launch abuse score.
 /// @notice Implements `abuseScore = round(100 * sum(w[i] * s[i]) / sum(w[i]))`
@@ -12,7 +20,14 @@ import {SignalVector, Powers, Patterns, InvalidSignalVector, InvalidPattern}
 ///      to this library carrying price, market capitalization or buyer loss:
 ///      scoring outcome would flag honest failure as fraud.
 library ScoreEvaluator {
+    /// @dev Base signals. The twelve of version 1, and only those.
     uint256 internal constant N   = 12;
+    /// @dev Slots reserved for the fields an extension schema adds. A pattern
+    ///      that can be named but not scored is an identifier rather than a
+    ///      detection, so the vector has to extend where the taxonomy does.
+    uint256 internal constant EXT = 3;
+    /// @dev Total addressable signals: base, then extension.
+    uint256 internal constant M   = N + EXT;
     uint256 internal constant BPS = 10_000;
 
     // Signal indices, matching the order of `SignalVector`.
@@ -29,10 +44,20 @@ library ScoreEvaluator {
     uint256 internal constant I_SUPPLY_INFLATION  = 10;
     uint256 internal constant I_WASH_TRADE        = 11;
 
+    // Extension indices, in the order a schema declares its fields.
+    uint256 internal constant I_EXT_0 = 12;
+    uint256 internal constant I_EXT_1 = 13;
+    uint256 internal constant I_EXT_2 = 14;
+
+    // Field positions of the reference impersonation schema.
+    uint256 internal constant I_SYMBOL_COLLISION = I_EXT_0;
+    uint256 internal constant I_NAME_SIMILARITY  = I_EXT_1;
+    uint256 internal constant I_METADATA_REUSE   = I_EXT_2;
+
     struct Profile {
-        uint16[N] weights;    // zero weight excludes the signal from the pattern
-        uint32[N] thresholds; // activation value; full contribution at or beyond
-        bool[N]   protective; // true: contribution falls as the value rises
+        uint16[M] weights;    // zero weight excludes the signal from the pattern
+        uint32[M] thresholds; // activation value; full contribution at or beyond
+        bool[M]   protective; // true: contribution falls as the value rises
     }
 
     /// @notice Reference weight profile for `Patterns.HARD_RUG`.
@@ -73,12 +98,75 @@ library ScoreEvaluator {
         if (patternId == Patterns.WASH_LAUNCH)         return washLaunchProfile();
         if (patternId == Patterns.UNLOCK_EXIT)         return unlockExitProfile();
         if (patternId == Patterns.SERIAL_DEPLOYER)     return serialDeployerProfile();
+        if (patternId == Patterns.IMPERSONATION)       return impersonationProfile();
         revert InvalidPattern(patternId);
     }
 
     /// @notice Score a vector under the reference profile for its pattern.
     function scoreFor(bytes32 patternId, SignalVector memory v) internal pure returns (uint8) {
         return score(v, profileFor(patternId));
+    }
+
+    /// @notice Score a vector together with the fields an extension schema adds.
+    /// @dev Extension signals participate on identical terms to base signals:
+    ///      they carry weights, they normalize against published thresholds, and
+    ///      they are excluded from both sums when reported as unavailable.
+    function scoreFor(
+        bytes32 patternId,
+        SignalVector memory v,
+        bytes32 extensionSchema,
+        bytes memory extensionSignals
+    ) internal pure returns (uint8) {
+        (uint32[M] memory value, bool[M] memory available) = flatten(v);
+        if (extensionSchema != bytes32(0)) {
+            (uint32[EXT] memory ev, bool[EXT] memory ea) =
+                flattenExtension(extensionSchema, extensionSignals);
+            for (uint256 i = 0; i < EXT; ++i) {
+                value[N + i] = ev[i];
+                available[N + i] = ea[i];
+            }
+        }
+        return _score(value, available, profileFor(patternId));
+    }
+
+    /// @notice Decode the fields of a known extension schema.
+    /// @dev A schema nobody can decode is not a detection either, so an
+    ///      unrecognized identifier reverts here rather than scoring as zero.
+    ///      A consumer that merely stores or displays a report treats an
+    ///      unrecognized schema as informational instead.
+    function flattenExtension(bytes32 extensionSchema, bytes memory extensionSignals)
+        internal
+        pure
+        returns (uint32[EXT] memory value, bool[EXT] memory available)
+    {
+        if (extensionSchema != Schemas.IMPERSONATION) {
+            revert UnknownExtensionSchema(extensionSchema);
+        }
+        uint16 u16 = type(uint16).max;
+        ImpersonationSignals memory i = abi.decode(extensionSignals, (ImpersonationSignals));
+
+        value[0] = i.symbolCollision;
+        value[1] = i.nameSimilarity;
+        value[2] = i.metadataReuse;
+
+        available[0] = i.symbolCollision != u16;
+        available[1] = i.nameSimilarity  != u16;
+        available[2] = i.metadataReuse   != u16;
+    }
+
+    /// @notice Reference profile for `Patterns.IMPERSONATION`.
+    /// @dev Every base signal can read clean while the token is a copy of
+    ///      someone else's, so the weight sits almost entirely in the extension.
+    ///      `priorUpheldClaims` is the one base signal that still carries: a
+    ///      deployer who has impersonated before is likely to again.
+    function impersonationProfile() internal pure returns (Profile memory p) {
+        p.weights[I_SYMBOL_COLLISION] = 40;
+        // Categorical, like `privilegedPowers`: the threshold is the mask of
+        // collision classes that count, not a proportion to divide by.
+        p.thresholds[I_SYMBOL_COLLISION] = 0x0007;
+        p.weights[I_NAME_SIMILARITY] = 30; p.thresholds[I_NAME_SIMILARITY] = 8_000;
+        p.weights[I_METADATA_REUSE]  = 20; p.thresholds[I_METADATA_REUSE]  = 5_000;
+        p.weights[I_PRIOR_CLAIMS]    = 10; p.thresholds[I_PRIOR_CLAIMS]    = 1;
     }
 
     function softRugProfile() internal pure returns (Profile memory p) {
@@ -164,7 +252,7 @@ library ScoreEvaluator {
     function flatten(SignalVector memory v)
         internal
         pure
-        returns (uint32[N] memory value, bool[N] memory available)
+        returns (uint32[M] memory value, bool[M] memory available)
     {
         uint16 u16 = type(uint16).max;
 
@@ -201,9 +289,11 @@ library ScoreEvaluator {
         pure
         returns (uint256 s)
     {
-        // The bitmask signal is categorical, not proportional: any dangerous
+        // The bitmask signals are categorical, not proportional: any dangerous
         // power contributes fully, and a merely inconvenient one not at all.
-        if (index == I_PRIVILEGED_POWERS) {
+        // A symbol collision reads the same way, since sharing the ticker of an
+        // older token is not twice as bad as sharing that of any token.
+        if (index == I_PRIVILEGED_POWERS || index == I_SYMBOL_COLLISION) {
             // The threshold carries the mask, so each pattern scores the
             // powers that matter to it: a honeypot cares about pause and
             // blacklist, a rug about mint, upgrade and seize.
@@ -228,11 +318,18 @@ library ScoreEvaluator {
         pure
         returns (uint8)
     {
-        (uint32[N] memory value, bool[N] memory available) = flatten(v);
+        (uint32[M] memory value, bool[M] memory available) = flatten(v);
+        return _score(value, available, p);
+    }
 
+    function _score(uint32[M] memory value, bool[M] memory available, Profile memory p)
+        internal
+        pure
+        returns (uint8)
+    {
         uint256 num = 0;
         uint256 den = 0;
-        for (uint256 i = 0; i < N; ++i) {
+        for (uint256 i = 0; i < M; ++i) {
             uint256 w = p.weights[i];
             if (w == 0 || !available[i]) continue;
             num += w * normalize(i, value[i], p);

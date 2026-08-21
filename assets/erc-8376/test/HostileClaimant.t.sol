@@ -41,6 +41,7 @@ contract HostileClaimantTest is TestBase {
         r.patternId = Patterns.HARD_RUG; r.launchId = id; r.token = address(0x70);
         r.deployer = dep; r.linkedAddresses = new address[](0);
         r.abuseScore = 95; r.confidence = 90; r.launchedAt = start;
+        r.vectorVersion = 1;
         r.windowEnd = uint64(block.timestamp);
         r.signals = SignalVector(0,0,0,0,0,6000,7000,9000,0x0011,2,0,0);
         r.evidenceRoot = keccak256("e"); r.evidenceURI = "ipfs://e";

@@ -19,6 +19,15 @@ contract LaunchRemediation is ReentrancyGuard {
     uint64  public constant CONTEST_WINDOW  = 72 hours;
     uint64  public constant BOND_COOLDOWN   = 30 days;
     uint16  public constant FEE_BPS         = 250; // 2.5% of restitution, funds adjudication
+    /// @notice Share of a successful restitution paid to the detector whose
+    ///         report supported the upheld claim.
+    /// @dev Detection is what every other part of this rests on, and it is not
+    ///      free: a detector posts slashable collateral, runs an indexing
+    ///      pipeline and commits to chain-anchored evidence. Funding
+    ///      adjudication and leaving detection unfunded would make forfeited
+    ///      claimant bonds the only detector revenue, so a detector that was
+    ///      never wrong would earn nothing. Never above FEE_BPS.
+    uint16  public constant DETECTOR_FEE_BPS = 100; // 1% of restitution
 
     /// @notice Independent detectors required before a high-value claim opens.
     uint8 public constant MIN_CORROBORATION = 2;
@@ -61,6 +70,10 @@ contract LaunchRemediation is ReentrancyGuard {
     ///      bilateral `settle` exit and stop `expire` from ever resolving.
     ///      Resolution credits; collection is a separate pull.
     mapping(address => uint256) public withdrawable;
+    /// @dev Reserved out of the bond at execution and left in the escrow until
+    ///      the detector pulls it. Reserving rather than pushing keeps a
+    ///      detector that cannot receive value from blocking the refund.
+    mapping(bytes32 => uint256) public detectorReward;
     uint256 internal _claimNonce;
 
     event BondPosted(bytes32 indexed launchId, uint256 amount);
@@ -71,6 +84,7 @@ contract LaunchRemediation is ReentrancyGuard {
     event ClaimAdjudicated(bytes32 indexed claimId, ClaimStatus outcome, uint256 award);
     event RemedyExecuted(bytes32 indexed claimId, uint256 fromEscrow, uint256 fromBond);
     event ContainmentApplied(bytes32 indexed launchId, ContainmentAction action, uint64 until);
+    event DetectorRewarded(bytes32 indexed claimId, address indexed detector, uint256 amount);
     event Credited(address indexed account, uint256 amount);
     event Withdrawn(address indexed account, uint256 amount);
 
@@ -276,9 +290,17 @@ contract LaunchRemediation is ReentrancyGuard {
         // The fee funds adjudication and is taken from bond, never from the
         // buyers' pool.
         uint256 fee = (fromBond * FEE_BPS) / 10_000;
+        // The detector's share is taken the same way and from the same base, so
+        // that both fall on the process that consumed them rather than on the
+        // buyers being made whole.
+        uint256 reward = (fromBond * DETECTOR_FEE_BPS) / 10_000;
         if (fee > 0) {
             escrow.releaseBond(c.launchId, feeRecipient, fee);
             fromBond -= fee;
+        }
+        if (reward > 0) {
+            detectorReward[claimId] = reward;
+            fromBond -= reward;
         }
 
         // A launch may face more than one upheld claim: the first opens the
@@ -291,6 +313,26 @@ contract LaunchRemediation is ReentrancyGuard {
 
         emit BondSlashed(c.launchId, fromBond + fee, claimId);
         emit RemedyExecuted(claimId, fromEscrow, fromBond);
+    }
+
+    /// @notice Pull the detector's share of an executed remedy.
+    /// @dev Paid to the detector recorded against the report the claim
+    ///      referenced, never to the caller and never to whoever relayed an
+    ///      atomic submission: the bond at risk was the detector's, and so is
+    ///      the reward. Anyone may call this; only the detector is paid.
+    function claimDetectorReward(bytes32 claimId) external nonReentrant returns (uint256 amount) {
+        Claim storage c = _claims[claimId];
+        if (c.status != ClaimStatus.Executed) revert ClaimNotOpen(claimId, c.status);
+
+        amount = detectorReward[claimId];
+        require(amount > 0, "nothing to pull");
+        detectorReward[claimId] = 0;
+
+        address detector = registry.detectorOf(c.reportId);
+        require(detector != address(0), "no detector");
+
+        escrow.releaseBond(c.launchId, detector, amount);
+        emit DetectorRewarded(claimId, detector, amount);
     }
 
     /// @notice Exclude a deployer-linked buyer from the refund pool.
@@ -354,7 +396,8 @@ contract LaunchRemediation is ReentrancyGuard {
 
     function contestWindow() external pure returns (uint64) { return CONTEST_WINDOW; }
     function bondCooldown()  external pure returns (uint64) { return BOND_COOLDOWN; }
-    function feeBps()        external pure returns (uint16) { return FEE_BPS; }
+    function feeBps()         external pure returns (uint16) { return FEE_BPS; }
+    function detectorFeeBps() external pure returns (uint16) { return DETECTOR_FEE_BPS; }
 
     /// @dev Unfreeze only when the last unresolved claim has closed. Releasing
     ///      on the first resolution would let a deployer clear one friendly

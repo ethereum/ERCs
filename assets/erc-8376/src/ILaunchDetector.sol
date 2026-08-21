@@ -53,6 +53,14 @@ interface ILaunchDetector {
 
     /// @notice The canonical evidence leaf, so the commitment format is
     ///         executable rather than prose.
+    /// @notice The `fieldId` an extension signal's evidence leaf commits to.
+    /// @dev Derived from the schema and the field name so that a leaf for an
+    ///      extension field cannot collide with one for a base signal.
+    function extensionFieldId(bytes32 extensionSchema, string calldata fieldName)
+        external
+        view
+        returns (bytes32);
+
     function evidenceLeaf(
         uint256 blockNumber,
         bytes32 txHash,

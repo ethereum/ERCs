@@ -12,6 +12,8 @@ interface Vm {
     function deal(address, uint256) external;
     function expectRevert() external;
     function expectRevert(bytes4) external;
+    /// @dev Matches on the selector alone, for errors carrying arguments.
+    function expectPartialRevert(bytes4) external;
 }
 
 contract TestBase {

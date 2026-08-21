@@ -64,6 +64,7 @@ contract RemediationTest is TestBase {
         r.linkedAddresses = new address[](0);
         r.abuseScore = score;
         r.confidence = confidence;
+        r.vectorVersion = 1;
         r.launchedAt = start;
         r.windowEnd = uint64(block.timestamp);
         r.signals = SignalVector(0, 0, 0, 0, 0, 6000, 7000, 9000, 0x0011, 2, 0, 0);

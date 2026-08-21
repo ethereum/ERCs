@@ -9,7 +9,7 @@ forge build
 forge test
 ```
 
-178 tests and four fuzzed invariants. Every interface in the ERC matches these
+192 tests and four fuzzed invariants. Every interface in the ERC matches these
 sources signature for signature.
 
 ## What it does
@@ -39,8 +39,8 @@ claimant ──openClaim──▶ remediation ──freeze / open──▶ escro
 
 | Path | Purpose |
 | --- | --- |
-| `LaunchAbuseTypes.sol` | Pattern identifiers, privileged-power bits, `SignalVector`, `AbuseReport` |
-| `ScoreEvaluator.sol` | Weighted-mean scoring, with a reference profile for all ten patterns |
+| `LaunchAbuseTypes.sol` | Pattern and schema identifiers, privileged-power bits, `SignalVector`, `AbuseReport` |
+| `ScoreEvaluator.sol` | Weighted-mean scoring, with a reference profile for all eleven patterns and the impersonation extension schema |
 | `SignalProbe.sol` | Derives the chain-readable signals from bytecode and balances |
 | `LaunchDetector.sol` | Assembles a signal vector; canonical evidence leaf and root |
 | `LaunchDirectory.sol` | Per-chain resolution from a token or deployer to its launches |
@@ -100,7 +100,7 @@ then combined as a weighted mean and scaled to `0-100`, rounding half up.
 - **Per-pattern masks.** `privilegedPowers` is categorical. A honeypot profile
   scores pause, blacklist and fee; a rug profile scores mint, upgrade and seize.
 
-All ten patterns carry a reference profile whose weights sum to 100:
+All eleven patterns carry a reference profile whose weights sum to 100:
 
 | Pattern | Leading signals |
 | --- | --- |
@@ -114,6 +114,36 @@ All ten patterns carry a reference profile whose weights sum to 100:
 | `wash-launch` | wash trade ratio, sniper concentration |
 | `unlock-exit` | lock remaining, deployer sell ratio, liquidity removed |
 | `serial-deployer` | prior upheld claims, retained supply |
+| `impersonation` | symbol collision, name similarity, metadata reuse |
+
+### Extension signals
+
+The twelve base signals cannot express every abuse, so a pattern MAY declare an
+extension schema whose fields are scored on identical terms: they carry weights,
+they normalize against published thresholds, and they are excluded from both
+sums when reported unavailable. A report names the schema in `extensionSchema`
+and ABI-encodes its fields, in declared order, into `extensionSignals`.
+
+`impersonation` is the reference case, and the reason the mechanism exists. A
+deployer may retain no supply, lock liquidity, hold no privileged powers and
+read clean on all twelve base signals, because the abuse is entirely in the
+identity claim. `ScoreEvaluator` scores it from `symbolCollision`,
+`nameSimilarity` and `metadataReuse` under
+`keccak256("erc.launch.schema.impersonation")`.
+
+Reports declare the base vector version they were computed under. The registry
+refuses a version it does not implement rather than misreading it, and refuses a
+schema and payload that do not travel together.
+
+### Paying for detection
+
+Detection is what everything else rests on, and a detector posts slashable
+collateral, runs an indexing pipeline and commits to chain-anchored evidence.
+`DETECTOR_FEE_BPS` is the share of a successful restitution reserved for the
+detector whose report supported the upheld claim, bounded by `FEE_BPS` and
+pulled with `claimDetectorReward`. It is paid to the detector recorded against
+the report, never to the caller and never to whoever relayed an atomic
+submission.
 
 ## Detector
 

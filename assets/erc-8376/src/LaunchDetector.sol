@@ -119,6 +119,14 @@ contract LaunchDetector is ILaunchDetector {
     ///      internal node can be presented as a leaf: the classic Merkle
     ///      second-preimage attack, which would let a detector prove membership
     ///      of evidence that was never in the set.
+    function extensionFieldId(bytes32 extensionSchema, string calldata fieldName)
+        external
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(extensionSchema, fieldName));
+    }
+
     function evidenceLeaf(
         uint256 blockNumber,
         bytes32 txHash,
