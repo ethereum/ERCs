@@ -17,13 +17,19 @@ interface ILaunchAbuseRegistry {
     event ReportRetracted(bytes32 indexed reportId, string reason);
     event DetectorBonded(address indexed detector, uint256 amount);
     event SubmitterSet(address indexed detector, address indexed submitter);
+    event SubmitterAccepted(address indexed detector, address indexed submitter);
     event DetectorSlashed(address indexed detector, uint256 amount, bytes32 claimId);
     event DetectorPoolFunded(address indexed from, uint256 amount);
 
-    /// @notice Authorize a hot key to submit on the caller's behalf, or revoke
+    /// @notice Nominate a hot key to submit on the caller's behalf, or revoke
     ///         with the zero address. Rotation retires a compromised key without
     ///         moving the bond or losing the detector's record.
+    /// @dev The nominee MUST accept before the binding takes effect. Revocation
+    ///      is one-sided.
     function setSubmitter(address submitter) external;
+
+    /// @notice Accept a nomination to submit on `detector`'s behalf.
+    function acceptSubmitter(address detector) external;
 
     /// @notice The detector a caller submits as.
     function principalOf(address caller) external view returns (address);

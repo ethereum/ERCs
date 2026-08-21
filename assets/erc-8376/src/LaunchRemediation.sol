@@ -80,6 +80,10 @@ contract LaunchRemediation is ReentrancyGuard {
     ///      reservation as available and sweep it into the refund pool, leaving
     ///      the first detector with a record backed by nothing.
     mapping(bytes32 => uint256) public reservedBond;
+    /// @dev Value a deployer has put up to close a claim, held here until the
+    ///      claimant accepts it. An offer is not a settlement: one party cannot
+    ///      end another party's claim by naming a number, least of all zero.
+    mapping(bytes32 => uint256) public settlementOffer;
     uint256 internal _claimNonce;
 
     event BondPosted(bytes32 indexed launchId, uint256 amount);
@@ -87,6 +91,8 @@ contract LaunchRemediation is ReentrancyGuard {
     event ClaimOpened(bytes32 indexed claimId, bytes32 indexed launchId, address claimant, uint256 bond);
     event ClaimContested(bytes32 indexed claimId, address respondent, string evidenceURI);
     event ClaimSettled(bytes32 indexed claimId, uint256 amount);
+    event SettlementOffered(bytes32 indexed claimId, uint256 amount);
+    event SettlementWithdrawn(bytes32 indexed claimId, uint256 amount);
     event ClaimAdjudicated(bytes32 indexed claimId, ClaimStatus outcome, uint256 award);
     event RemedyExecuted(bytes32 indexed claimId, uint256 fromEscrow, uint256 fromBond);
     event ContainmentApplied(bytes32 indexed launchId, ContainmentAction action, uint64 until);
@@ -242,8 +248,14 @@ contract LaunchRemediation is ReentrancyGuard {
         emit ClaimContested(claimId, msg.sender, evidenceURI);
     }
 
-    /// @notice Close a claim by agreement. Keeps the adjudicator from being both
-    ///         a bottleneck and the only route to resolution.
+    /// @notice Offer to close a claim by agreement. Keeps the adjudicator from
+    ///         being both a bottleneck and the only route to resolution.
+    /// @dev Deployer-only, and an offer alone settles nothing: the claimant must
+    ///      accept it. A one-sided close would let the respondent answer every
+    ///      claim with a zero-value settlement, ending the freeze, the
+    ///      adjudication and the refund at no cost, and no claim would ever
+    ///      reach an outcome the deployer did not choose. A replacement offer
+    ///      returns the previous one.
     function settle(bytes32 claimId, uint256 amount) external payable nonReentrant {
         Claim storage c = _claims[claimId];
         if (c.status != ClaimStatus.Open && c.status != ClaimStatus.Contested) {
@@ -251,13 +263,53 @@ contract LaunchRemediation is ReentrancyGuard {
         }
         require(msg.sender == escrow.deployerOf(c.launchId), "not the deployer");
         require(msg.value == amount, "value mismatch");
+        require(amount > 0, "settlement must be worth something");
 
+        uint256 previous = settlementOffer[claimId];
+        settlementOffer[claimId] = amount;
+        if (previous > 0) _send(msg.sender, previous);
+
+        emit SettlementOffered(claimId, amount);
+    }
+
+    /// @notice Accept a standing settlement offer. Claimant-only.
+    function acceptSettlement(bytes32 claimId) external nonReentrant {
+        Claim storage c = _claims[claimId];
+        if (c.status != ClaimStatus.Open && c.status != ClaimStatus.Contested) {
+            revert ClaimNotOpen(claimId, c.status);
+        }
+        require(msg.sender == c.claimant, "not the claimant");
+        uint256 amount = settlementOffer[claimId];
+        require(amount > 0, "nothing offered");
+
+        settlementOffer[claimId] = 0;
         c.status = ClaimStatus.Settled;
         uint256 refund = amount + c.bond;
         c.bond = 0;
         _send(c.claimant, refund); // settlement plus returned bond, collected by pull
         _closeClaim(c.launchId);
         emit ClaimSettled(claimId, amount);
+    }
+
+    /// @notice Withdraw a standing offer the claimant has not accepted.
+    function withdrawSettlementOffer(bytes32 claimId) external nonReentrant {
+        Claim storage c = _claims[claimId];
+        require(msg.sender == escrow.deployerOf(c.launchId), "not the deployer");
+        uint256 amount = settlementOffer[claimId];
+        require(amount > 0, "nothing offered");
+
+        settlementOffer[claimId] = 0;
+        _send(msg.sender, amount);
+        emit SettlementWithdrawn(claimId, amount);
+    }
+
+    /// @dev An offer outlives neither adjudication nor expiry.
+    function _returnOffer(bytes32 claimId, bytes32 launchId) internal {
+        uint256 amount = settlementOffer[claimId];
+        if (amount > 0) {
+            settlementOffer[claimId] = 0;
+            _send(escrow.deployerOf(launchId), amount);
+        }
     }
 
     function adjudicate(bytes32 claimId, ClaimStatus outcome, uint256 award)
@@ -271,6 +323,7 @@ contract LaunchRemediation is ReentrancyGuard {
         }
         require(outcome == ClaimStatus.Upheld || outcome == ClaimStatus.Rejected, "bad outcome");
 
+        _returnOffer(claimId, c.launchId);
         c.status = outcome;
         c.award = award;
 
@@ -399,6 +452,7 @@ contract LaunchRemediation is ReentrancyGuard {
         }
         require(block.timestamp > c.openedAt + escrow.maxFreezeDuration(), "not yet expired");
 
+        _returnOffer(claimId, c.launchId);
         c.status = ClaimStatus.Expired;
         uint256 bond = c.bond;
         c.bond = 0;

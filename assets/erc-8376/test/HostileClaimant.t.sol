@@ -13,6 +13,9 @@ contract HostileClaimant {
     function open(LaunchRemediation r, bytes32 id, bytes32 rep) external payable returns (bytes32) {
         return r.openClaim{value: msg.value}(id, rep, "x");
     }
+    function accept(LaunchRemediation r, bytes32 claimId) external {
+        r.acceptSettlement(claimId);
+    }
     receive() external payable { revert("no"); }
 }
 
@@ -55,6 +58,7 @@ contract HostileClaimantTest is TestBase {
         vm.deal(dep, 10 ether);
         vm.prank(dep);
         rem.settle{value: 1 ether}(cid, 1 ether);
+        h.accept(rem, cid);
 
         (, , ClaimStatus st, ) = rem.getClaim(cid);
         assertTrue(st == ClaimStatus.Settled, "settle was blocked");

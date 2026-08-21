@@ -449,6 +449,25 @@ contract RevertsTest is TestBase {
         vm.prank(dep);
         vm.expectRevert(); // value mismatch
         rem.settle{value: 1 ether}(cid, 2 ether);
+
+        vm.prank(dep);
+        vm.expectRevert(); // a settlement worth nothing is not an agreement
+        rem.settle{value: 0}(cid, 0);
+
+        // An offer is not a settlement: only the claimant can close the claim.
+        vm.prank(dep);
+        rem.settle{value: 1 ether}(cid, 1 ether);
+        (, , ClaimStatus mid, ) = rem.getClaim(cid);
+        assertTrue(mid != ClaimStatus.Settled, "an offer settled the claim by itself");
+
+        vm.prank(address(0xBAD));
+        vm.expectRevert(); // not the claimant
+        rem.acceptSettlement(cid);
+
+        vm.prank(alice);
+        rem.acceptSettlement(cid);
+        (, , ClaimStatus st, ) = rem.getClaim(cid);
+        assertTrue(st == ClaimStatus.Settled, "the claimant could not accept");
     }
 
     function test_adjudicateGuards() public {

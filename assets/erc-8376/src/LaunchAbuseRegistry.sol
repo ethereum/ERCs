@@ -53,6 +53,8 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
     ///      the history and the reputation all stay where they were.
     mapping(address => address)   public   submitterOf;
     mapping(address => address)   public   detectorOfSubmitter;
+    /// @dev Nominated but not yet accepted. A nomination is not authority.
+    mapping(address => address)   public   pendingSubmitter;
     /// @dev Forfeited claimant bonds, held for distribution to detectors.
     uint256 public detectorPool;
 
@@ -85,6 +87,15 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
     /// @dev Pass the zero address to revoke. Rotation is the same call with a
     ///      new key, so a compromised submitter is retired without touching the
     ///      bond or losing the detector's record.
+    /// @notice Nominate a hot key to submit on the caller's behalf, or clear
+    ///         the nomination and any binding with the zero address.
+    /// @dev The nomination binds nothing until the nominee accepts. Writing the
+    ///      binding here would let a bonded detector name an address that has
+    ///      not yet bonded and take everything it later submits: the reports
+    ///      would be attributed to the captor, the rewards paid to the captor,
+    ///      and the address could not even retract its own work. Revocation
+    ///      stays one-sided, because a detector must be able to retire a key it
+    ///      no longer trusts without asking the key.
     function setSubmitter(address submitter) external nonReentrant {
         require(detectorBond[msg.sender] >= MIN_DETECTOR_BOND, "not bonded");
 
@@ -92,12 +103,23 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
         if (prev != address(0)) delete detectorOfSubmitter[prev];
 
         submitterOf[msg.sender] = submitter;
-        if (submitter != address(0)) {
-            require(detectorOfSubmitter[submitter] == address(0), "submitter already bound");
-            require(detectorBond[submitter] == 0, "submitter is itself a detector");
-            detectorOfSubmitter[submitter] = msg.sender;
-        }
+        pendingSubmitter[submitter] = msg.sender;
         emit SubmitterSet(msg.sender, submitter);
+    }
+
+    /// @notice Accept a nomination to submit on a detector's behalf.
+    /// @dev Caller-side half of the binding. An address that is itself a bonded
+    ///      detector cannot become one, since its own bond would stop being the
+    ///      one at risk for what it publishes.
+    function acceptSubmitter(address detector) external nonReentrant {
+        require(pendingSubmitter[msg.sender] == detector, "not nominated");
+        require(submitterOf[detector] == msg.sender, "nomination withdrawn");
+        require(detectorOfSubmitter[msg.sender] == address(0), "already bound");
+        require(detectorBond[msg.sender] == 0, "submitter is itself a detector");
+
+        delete pendingSubmitter[msg.sender];
+        detectorOfSubmitter[msg.sender] = detector;
+        emit SubmitterAccepted(detector, msg.sender);
     }
 
     /// @notice The detector a caller submits as: itself, or whoever authorized it.

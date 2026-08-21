@@ -56,6 +56,7 @@ contract SubmitterTest is TestBase {
     /// A report signed by the hot key is attributed to the bonded detector.
     function test_submissionIsAttributedToTheBondedDetector() public {
         vm.prank(det); reg.setSubmitter(hot);
+        vm.prank(hot); reg.acceptSubmitter(det);
         assertTrue(reg.principalOf(hot) == det, "hot key does not resolve to the detector");
 
         vm.prank(hot);
@@ -67,9 +68,11 @@ contract SubmitterTest is TestBase {
     /// Rotation retires a compromised key and leaves everything else in place.
     function test_rotationRetiresTheOldKey() public {
         vm.prank(det); reg.setSubmitter(hot);
+        vm.prank(hot); reg.acceptSubmitter(det);
         vm.prank(hot); reg.submitReport(_rep(95));
 
         vm.prank(det); reg.setSubmitter(hot2);
+        vm.prank(hot2); reg.acceptSubmitter(det);
 
         assertTrue(reg.principalOf(hot) == hot, "old key still resolves to the detector");
         assertTrue(reg.principalOf(hot2) == det, "new key does not resolve");
@@ -89,6 +92,7 @@ contract SubmitterTest is TestBase {
     /// Revocation leaves the detector able to publish directly.
     function test_revocationLeavesTheDetectorIntact() public {
         vm.prank(det); reg.setSubmitter(hot);
+        vm.prank(hot); reg.acceptSubmitter(det);
         vm.prank(det); reg.setSubmitter(address(0));
 
         assertTrue(reg.principalOf(hot) == hot, "revoked key still resolves");
@@ -100,6 +104,7 @@ contract SubmitterTest is TestBase {
     /// Only the bonded detector may retract, whichever key filed the report.
     function test_retractionFollowsThePrincipal() public {
         vm.prank(det); reg.setSubmitter(hot);
+        vm.prank(hot); reg.acceptSubmitter(det);
         vm.prank(hot); bytes32 rid = reg.submitReport(_rep(95));
 
         vm.prank(address(0xBAD));
@@ -111,23 +116,50 @@ contract SubmitterTest is TestBase {
     }
 
     function test_submitterGuards() public {
-        // An unbonded address cannot delegate.
+        // An unbonded address cannot nominate.
         vm.prank(address(0xBAD));
         vm.expectRevert();
         reg.setSubmitter(hot);
 
+        // A nomination on its own binds nothing.
+        vm.prank(det); reg.setSubmitter(hot);
+        assertTrue(reg.principalOf(hot) == hot, "a nomination bound the key on its own");
+
         // One key cannot serve two detectors.
         vm.deal(address(0xC0), 10 ether);
         vm.prank(address(0xC0)); reg.bondDetector{value: 1 ether}();
-        vm.prank(det); reg.setSubmitter(hot);
+        vm.prank(hot); reg.acceptSubmitter(det);
+        vm.prank(address(0xC0)); reg.setSubmitter(hot);
+        vm.prank(hot);
+        vm.expectRevert();
+        reg.acceptSubmitter(address(0xC0));
+
+        // A bonded detector cannot become someone else's submitter.
+        vm.prank(det); reg.setSubmitter(address(0xC0));
         vm.prank(address(0xC0));
         vm.expectRevert();
-        reg.setSubmitter(hot);
+        reg.acceptSubmitter(det);
+    }
 
-        // A bonded detector cannot be made someone else's submitter.
-        vm.prank(det);
+    /// A detector must not be able to take an address that never agreed, and
+    /// with it everything that address later publishes.
+    function test_nominationCannotCaptureAnUnwillingAddress() public {
+        address victim = address(0x5EED);
+        vm.deal(victim, 10 ether);
+
+        vm.prank(det); reg.setSubmitter(victim); // never accepted
+
+        vm.prank(victim); reg.bondDetector{value: 1 ether}();
+        vm.prank(victim);
+        bytes32 rid = reg.submitReport(_rep(95));
+
+        assertTrue(reg.detectorOf(rid) == victim, "the report was captured");
+        assertTrue(reg.principalOf(victim) == victim, "the victim resolves to the captor");
+
+        // And having bonded, the victim can no longer be bound at all.
+        vm.prank(victim);
         vm.expectRevert();
-        reg.setSubmitter(address(0xC0));
+        reg.acceptSubmitter(det);
     }
 
     receive() external payable {}

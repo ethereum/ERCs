@@ -11,6 +11,8 @@ interface ILaunchRemediation {
     event ClaimOpened(bytes32 indexed claimId, bytes32 indexed launchId, address claimant, uint256 bond);
     event ClaimContested(bytes32 indexed claimId, address respondent, string evidenceURI);
     event ClaimSettled(bytes32 indexed claimId, uint256 amount);
+    event SettlementOffered(bytes32 indexed claimId, uint256 amount);
+    event SettlementWithdrawn(bytes32 indexed claimId, uint256 amount);
     event ClaimAdjudicated(bytes32 indexed claimId, ClaimStatus outcome, uint256 award);
     event RemedyExecuted(bytes32 indexed claimId, uint256 fromEscrow, uint256 fromBond);
     event ContainmentApplied(bytes32 indexed launchId, ContainmentAction action, uint64 until);
@@ -33,8 +35,17 @@ interface ILaunchRemediation {
 
     function contest(bytes32 claimId, string calldata evidenceURI) external;
 
-    /// @notice Close a claim by agreement, without adjudication.
+    /// @notice Offer to close a claim by agreement, without adjudication.
+    /// @dev Deployer-only. An offer settles nothing on its own: the claimant
+    ///      MUST accept it. A one-sided close would let the respondent end every
+    ///      claim against it for nothing.
     function settle(bytes32 claimId, uint256 amount) external payable;
+
+    /// @notice Accept a standing offer. Claimant-only.
+    function acceptSettlement(bytes32 claimId) external;
+
+    /// @notice Withdraw an offer the claimant has not accepted. Deployer-only.
+    function withdrawSettlementOffer(bytes32 claimId) external;
 
     function adjudicate(bytes32 claimId, ClaimStatus outcome, uint256 award) external;
 
