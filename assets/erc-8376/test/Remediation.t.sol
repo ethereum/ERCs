@@ -179,7 +179,7 @@ contract RemediationTest is TestBase {
         vm.prank(deployer);
         remediation.settle{value: 2 ether}(claimId, 2 ether);
         vm.prank(alice);
-        remediation.acceptSettlement(claimId);
+        remediation.acceptSettlement(claimId, 2 ether);
 
         (, , ClaimStatus status, ) = remediation.getClaim(claimId);
         assertTrue(status == ClaimStatus.Settled, "not settled");

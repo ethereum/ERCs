@@ -345,6 +345,28 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
         emit DetectorPoolFunded(msg.sender, msg.value);
     }
 
+    /// @notice Pay part of the pool to a detector behind an upheld claim.
+    /// @dev Remediation-only, and bounded by what the pool holds. A pool with no
+    ///      way out is value taken from claimants and given to nobody.
+    /// @return paid the amount actually sent, which MAY be less than requested.
+    function drawDetectorPool(address to, uint256 amount)
+        external
+        nonReentrant
+        returns (uint256 paid)
+    {
+        if (msg.sender != remediation) revert NotRemediation(msg.sender);
+        require(to != address(0), "zero recipient");
+
+        paid = amount > detectorPool ? detectorPool : amount;
+        if (paid == 0) return 0;
+
+        detectorPool -= paid;
+        // slither-disable-next-line arbitrary-send-eth
+        (bool ok, ) = to.call{value: paid}("");
+        require(ok, "pool transfer failed");
+        emit DetectorPoolPaid(to, paid);
+    }
+
     receive() external payable {}
 }
 // slither-disable-end timestamp

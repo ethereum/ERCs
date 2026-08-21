@@ -42,7 +42,9 @@ interface ILaunchRemediation {
     function settle(bytes32 claimId, uint256 amount) external payable;
 
     /// @notice Accept a standing offer. Claimant-only.
-    function acceptSettlement(bytes32 claimId) external;
+    /// @param expected the offer being agreed to. MUST match the standing
+    ///        offer, so it cannot be replaced in front of the acceptance.
+    function acceptSettlement(bytes32 claimId, uint256 expected) external;
 
     /// @notice Withdraw an offer the claimant has not accepted. Deployer-only.
     function withdrawSettlementOffer(bytes32 claimId) external;

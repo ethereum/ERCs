@@ -14,6 +14,7 @@ interface Vm {
     function expectRevert(bytes4) external;
     /// @dev Matches on the selector alone, for errors carrying arguments.
     function expectPartialRevert(bytes4) external;
+    function etch(address, bytes calldata) external;
 }
 
 contract TestBase {

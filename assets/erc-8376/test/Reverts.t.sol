@@ -462,10 +462,10 @@ contract RevertsTest is TestBase {
 
         vm.prank(address(0xBAD));
         vm.expectRevert(); // not the claimant
-        rem.acceptSettlement(cid);
+        rem.acceptSettlement(cid, 1 ether);
 
         vm.prank(alice);
-        rem.acceptSettlement(cid);
+        rem.acceptSettlement(cid, 1 ether);
         (, , ClaimStatus st, ) = rem.getClaim(cid);
         assertTrue(st == ClaimStatus.Settled, "the claimant could not accept");
     }

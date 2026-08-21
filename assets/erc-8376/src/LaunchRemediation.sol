@@ -273,7 +273,13 @@ contract LaunchRemediation is ReentrancyGuard {
     }
 
     /// @notice Accept a standing settlement offer. Claimant-only.
-    function acceptSettlement(bytes32 claimId) external nonReentrant {
+    /// @param expected the offer the claimant is agreeing to, which MUST be the
+    ///        one standing when this executes.
+    /// @dev Accepting whatever happened to be there would let the deployer
+    ///      replace a real offer with one wei in front of the acceptance and
+    ///      still close the claim: terminal, unfrozen, and paid for nothing.
+    ///      The claimant names the figure they agreed to, or the call fails.
+    function acceptSettlement(bytes32 claimId, uint256 expected) external nonReentrant {
         Claim storage c = _claims[claimId];
         if (c.status != ClaimStatus.Open && c.status != ClaimStatus.Contested) {
             revert ClaimNotOpen(claimId, c.status);
@@ -281,6 +287,7 @@ contract LaunchRemediation is ReentrancyGuard {
         require(msg.sender == c.claimant, "not the claimant");
         uint256 amount = settlementOffer[claimId];
         require(amount > 0, "nothing offered");
+        require(amount == expected, "offer changed");
 
         settlementOffer[claimId] = 0;
         c.status = ClaimStatus.Settled;
@@ -415,6 +422,15 @@ contract LaunchRemediation is ReentrancyGuard {
         require(detector != address(0), "no detector");
 
         escrow.releaseBond(c.launchId, detector, amount);
+
+        // Forfeited claimant bonds accumulate in the registry against exactly
+        // this: an upheld claim rests on a detector having found the abuse, and
+        // a pool that only ever fills is not funding anything. The top-up is
+        // bounded by the reward itself, so the pool supplements detection
+        // rather than becoming a second, unbounded fee.
+        uint256 topUp = registry.drawDetectorPool(detector, amount);
+        amount += topUp;
+
         emit DetectorRewarded(claimId, detector, amount);
     }
 

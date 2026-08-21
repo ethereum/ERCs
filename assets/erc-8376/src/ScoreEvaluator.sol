@@ -143,10 +143,18 @@ library ScoreEvaluator {
         if (extensionSchema != bytes32(0)) {
             (uint32[EXT] memory ev, bool[EXT] memory ea) =
                 flattenExtension(extensionSchema, extensionSignals);
+            bool any;
             for (uint256 i = 0; i < EXT; ++i) {
                 value[N + i] = ev[i];
                 available[N + i] = ea[i];
+                if (ea[i] && profile.weights[N + i] != 0) any = true;
             }
+            // A schema every field of which is unavailable is a declaration, not
+            // a reading. Scoring it would drop the whole extension from both
+            // sums and leave the profile's one base signal deciding: for
+            // impersonation, a single prior claim would reach 100 with no
+            // impersonation evidence at all.
+            if (!any) revert InvalidSignalVector();
         }
         return _score(value, available, profile);
     }

@@ -91,7 +91,10 @@ library SignalProbe {
     ///      map a compiler actually emits, and where it is small enough to be
     ///      one. Anything else is treated as having no metadata section, and the
     ///      whole runtime is scanned.
-    uint256 private constant MAX_METADATA = 128;
+    /// @dev A solc metadata blob is around fifty bytes. Anything materially
+    ///      larger is not one, and is large enough to hide a dispatcher and a
+    ///      delegating fallback, which is the whole point of trimming it.
+    uint256 private constant MAX_METADATA = 64;
 
     function _codeEnd(bytes memory code) private pure returns (uint256) {
         if (code.length < 3) return code.length;
@@ -103,6 +106,15 @@ library SignalProbe {
         // solc emits a CBOR map of two to four entries at that offset.
         uint8 header = uint8(code[end]);
         if (header < 0xa1 || header > 0xa4) return code.length;
+
+        // Every byte read so far was written by the party under examination, so
+        // the hint is only worth following where what it points at cannot be
+        // the thing being looked for. A region carrying DELEGATECALL is not
+        // metadata, whatever it claims: scan the whole runtime instead of
+        // trimming a hiding place out of view.
+        for (uint256 i = end; i < code.length; ++i) {
+            if (uint8(code[i]) == 0xf4) return code.length;
+        }
         return end;
     }
 
