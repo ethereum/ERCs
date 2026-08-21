@@ -8,6 +8,7 @@ import {LaunchAbuseRegistry} from "../src/LaunchAbuseRegistry.sol";
 import {LaunchRemediation} from "../src/LaunchRemediation.sol";
 import {SaleVenue} from "../src/SaleVenue.sol";
 import {SignalProbe} from "../src/SignalProbe.sol";
+import {Powers} from "../src/LaunchAbuseTypes.sol";
 import {ScoreEvaluator} from "../src/ScoreEvaluator.sol";
 import {
     AbuseReport,
@@ -162,30 +163,50 @@ contract AuditRegressionTest is TestBase {
 
     // --- the bytecode scan --------------------------------------------------
 
-    /// @dev The trailing length is written by the token, so a trim is a request
-    ///      and not a fact. What matters is not whether the skipped region looks
-    ///      like metadata but whether it could have been code: if control can
-    ///      reach it, the scan has shown the absence of nothing and must say so
-    ///      rather than report a clean mask.
-    function test_reachableTailIsNotCertifiedClean() public {
-        // 40 bytes of body that falls through, then a region declared as
-        // metadata which opens with a CBOR map header and carries a JUMPDEST
-        // followed by a dispatch entry for mint(address,uint256).
+    /// @dev A token cannot decide which of its own bytecode gets examined.
+    ///      Declaring a region as metadata used to remove it from the scan, so
+    ///      a dispatch table placed there read as absent. Nothing is trimmed
+    ///      now: the selector is found wherever the token put it.
+    function test_selectorHiddenInDeclaredMetadataIsFound() public {
         bytes memory code = new bytes(80);
         for (uint256 i = 0; i < 40; ++i) code[i] = 0x60; // PUSH1 filler
         code[40] = 0xa1;                                  // CBOR map header
-        code[41] = 0x5b;                                  // JUMPDEST: control can arrive
+        code[41] = 0x5b;                                  // JUMPDEST
         code[42] = 0x63;                                  // PUSH4
-        code[43] = 0x40; code[44] = 0xc1; code[45] = 0x0f; code[46] = 0x19; // mint selector
+        code[43] = 0x40; code[44] = 0xc1; code[45] = 0x0f; code[46] = 0x19; // mint
         uint256 mlen = 80 - 2 - 40;
         code[78] = bytes1(uint8(mlen >> 8));
         code[79] = bytes1(uint8(mlen));
 
         vm.etch(address(0xC0DE), code);
 
-        (, bool exact) = SignalProbe.powersOf(address(0xC0DE));
-        assertTrue(!exact, "a token that hid a dispatcher in its metadata was certified clean");
-        assertEq(SignalProbe.privilegedPowers(address(0xC0DE)), type(uint16).max, "not the sentinel");
+        (uint16 mask, bool exact) = SignalProbe.powersOf(address(0xC0DE));
+        assertTrue(mask & Powers.MINT != 0, "a selector declared as metadata went unread");
+        assertTrue(exact, "an ordinary contract was reported unexaminable");
+    }
+
+    /// @dev The constant is what identifies the power. How it reaches the stack
+    ///      is the author's choice: PUSH5 with a leading zero pushes the same
+    ///      value, and a dispatcher can keep its constants as data and CODECOPY
+    ///      them in. Keying on PUSH4 missed both.
+    function test_selectorIsFoundWhateverCarriesIt() public {
+        bytes memory push5 = new bytes(12);
+        push5[0] = 0x64;                                   // PUSH5
+        push5[1] = 0x00;
+        push5[2] = 0x40; push5[3] = 0xc1; push5[4] = 0x0f; push5[5] = 0x19; // mint
+        vm.etch(address(0xC0E1), push5);
+        assertTrue(
+            SignalProbe.hasSelector(address(0xC0E1), bytes4(keccak256("mint(address,uint256)"))),
+            "a selector pushed as PUSH5 went unread"
+        );
+
+        bytes memory asData = new bytes(12);
+        asData[6] = 0x84; asData[7] = 0x56; asData[8] = 0xcb; asData[9] = 0x59; // pause
+        vm.etch(address(0xC0E2), asData);
+        assertTrue(
+            SignalProbe.hasSelector(address(0xC0E2), bytes4(keccak256("pause()"))),
+            "a selector held as data went unread"
+        );
     }
 
     /// @dev CALLCODE runs foreign code against this contract's own storage. For
@@ -205,22 +226,4 @@ contract AuditRegressionTest is TestBase {
         assertEq(SignalProbe.privilegedPowers(address(0xC0DF)), type(uint16).max, "not the sentinel");
     }
 
-    /// @dev And an unreachable region is still trimmed, so an ordinary token
-    ///      keeps an exact reading rather than being called unexaminable.
-    function test_unreachableTailIsStillTrimmed() public {
-        bytes memory code = new bytes(80);
-        for (uint256 i = 0; i < 39; ++i) code[i] = 0x60;
-        code[39] = 0x00;  // STOP: the body ends, nothing falls through
-        code[40] = 0xa1;  // CBOR map header
-        code[50] = 0x63;  // a PUSH4 byte by coincidence, but unreachable
-        uint256 mlen = 80 - 2 - 40;
-        code[78] = bytes1(uint8(mlen >> 8));
-        code[79] = bytes1(uint8(mlen));
-
-        vm.etch(address(0xC0E0), code);
-
-        (uint16 mask, bool exact) = SignalProbe.powersOf(address(0xC0E0));
-        assertTrue(exact, "an unreachable tail made an ordinary token unexaminable");
-        assertEq(mask, 0, "powers found in a region that cannot run");
-    }
 }

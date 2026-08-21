@@ -82,38 +82,27 @@ library SignalProbe {
     ///      scan that reads them will report ordinary contracts as proxies and
     ///      blind the `privilegedPowers` signal on most real tokens. Everything
     ///      here stops at the start of that blob.
-    /// @dev The trailing length is written by the party under examination, so
-    ///      it is a hint and never an instruction. A token that could name any
-    ///      length could name one that collapses the scan window to nothing,
-    ///      and every privileged power would then read as absent rather than as
-    ///      unavailable: an exculpatory answer, from evidence never examined.
-    ///      A hint is followed only where what it points at looks like the CBOR
-    ///      map a compiler actually emits, and where it is small enough to be
-    ///      one. Anything else is treated as having no metadata section, and the
-    ///      whole runtime is scanned.
-    /// @dev A solc metadata blob is around fifty bytes. Anything materially
-    ///      larger is not one, and is large enough to hide a dispatcher and a
-    ///      delegating fallback, which is the whole point of trimming it.
-    uint256 private constant MAX_METADATA = 64;
-
-    function _codeEnd(bytes memory code) private pure returns (uint256) {
-        if (code.length < 3) return code.length;
-        uint256 mlen = (uint256(uint8(code[code.length - 2])) << 8) | uint256(uint8(code[code.length - 1]));
-        // A length that cannot be right means no recognizable metadata section.
-        if (mlen == 0 || mlen > MAX_METADATA || mlen + 2 >= code.length) return code.length;
-
-        uint256 end = code.length - 2 - mlen;
-        // solc emits a CBOR map of two to four entries at that offset.
-        uint8 header = uint8(code[end]);
-        if (header < 0xa1 || header > 0xa4) return code.length;
-
-        return end;
-    }
-
+    /// @dev Delegation anywhere in the runtime, walked as opcodes from the
+    ///      start so PUSH immediates are not mistaken for instructions.
+    ///
+    ///      Nothing here trims a trailing metadata section, and the several
+    ///      attempts to do so are why. The length, the header and every byte
+    ///      that would justify skipping a region are written by the party under
+    ///      examination, so each test of whether a region "is metadata" was a
+    ///      test the subject could pass by construction: name a length, place a
+    ///      CBOR header, avoid whichever opcode the last version looked for.
+    ///      Every such rule bought a smaller scan at the price of letting the
+    ///      token choose what went unread, and an unread region reported as
+    ///      clean is the one error this signal must not make.
+    ///
+    ///      Scanning everything costs the opposite error instead: bytes that
+    ///      are data may read as an opcode by coincidence. That direction is
+    ///      survivable. An over-reported power is a claim a detector must
+    ///      corroborate before acting on, which the proposal already requires;
+    ///      an under-reported one is an assurance nobody checks.
     function _hasDelegateCall(bytes memory code) private pure returns (bool) {
-        uint256 end = _codeEnd(code);
         uint256 i = 0;
-        while (i < end) {
+        while (i < code.length) {
             uint8 op = uint8(code[i]);
             // CALLCODE runs foreign code against this contract's own storage.
             // For everything this signal is for, that is delegation.
@@ -124,62 +113,29 @@ library SignalProbe {
         return false;
     }
 
-    /// @dev Whether the region the trailing length asked to be skipped could be
-    ///      code rather than metadata.
-    ///
-    ///      The length, the header and every byte after them are written by the
-    ///      party under examination, so a trim is a request, not a fact. Refusing
-    ///      the request outright would read half of all honest tokens as
-    ///      unexaminable, because a compiler's metadata blob is arbitrary bytes
-    ///      and will contain opcodes by coincidence. The question worth asking is
-    ///      narrower: could what was skipped have run, and could it have held
-    ///      what we were looking for.
-    ///
-    ///      It could have run if control can arrive there: a JUMPDEST anywhere
-    ///      in the region, which a JUMP can target, or a body that does not end
-    ///      in a terminator and so falls through into it. Unreachable bytes
-    ///      cannot be the code we failed to look at, whatever else they are.
-    ///
-    ///      Where it does trip, the answer is the unavailability sentinel rather
-    ///      than a clean reading: absence was not established, and saying so is
-    ///      the whole difference between a signal and an assertion.
-    function _tailSuspect(bytes memory code) private pure returns (bool) {
-        uint256 end = _codeEnd(code);
-        if (end >= code.length) return false; // nothing was skipped
-
-        uint8 last = uint8(code[end - 1]);
-        // STOP, JUMP, RETURN, REVERT, INVALID, SELFDESTRUCT end a basic block.
-        bool reachable = !(
-            last == 0x00 || last == 0x56 || last == 0xf3 ||
-            last == 0xfd || last == 0xfe || last == 0xff
-        );
-
-        if (!reachable) {
-            for (uint256 i = end; i < code.length; ++i) {
-                if (uint8(code[i]) == 0x5b) { reachable = true; break; } // JUMPDEST
-            }
-        }
-        return reachable;
-    }
-
-    /// @notice Scan runtime bytecode for a PUSH4 of `selector`.
+    /// @notice Whether `selector` appears anywhere in the runtime bytecode.
     /// @dev A heuristic, and stated as one. It sees selectors a contract
     ///      dispatches on, so it can report a power that is present but
     ///      permanently disabled. Detectors MUST treat a positive as grounds to
     ///      look, not as proof.
+    ///
+    ///      The four bytes are matched wherever they sit, rather than only
+    ///      behind a PUSH4. Keying on the instruction meant `PUSH5` with a
+    ///      leading zero pushed the same value and read as absent, and a
+    ///      dispatcher could keep its constants as data and `CODECOPY` them in.
+    ///      A selector is recognisable as itself; how it reaches the stack is
+    ///      the author's choice and not evidence of anything.
     function hasSelector(address target, bytes4 selector) internal view returns (bool) {
         bytes memory code = target.code;
-        if (code.length < 5) return false;
-        uint256 end = _codeEnd(code);
+        if (code.length < 4) return false;
 
         bytes1 b0 = selector[0];
-        for (uint256 i = 0; i + 4 < end; ++i) {
-            if (code[i] != 0x63) continue; // PUSH4
-            if (code[i + 1] != b0) continue;
+        for (uint256 i = 0; i + 3 < code.length; ++i) {
+            if (code[i] != b0) continue;
             if (
-                code[i + 2] == selector[1] &&
-                code[i + 3] == selector[2] &&
-                code[i + 4] == selector[3]
+                code[i + 1] == selector[1] &&
+                code[i + 2] == selector[2] &&
+                code[i + 3] == selector[3]
             ) return true;
         }
         return false;
@@ -202,11 +158,9 @@ library SignalProbe {
             mask |= _scan(impl);
         }
 
-        // A scan that skipped a region which could have been code has not shown
-        // the absence of anything, and reporting a clean mask would state
-        // exactly that. The powers it did find still stand: finding one is
-        // sound wherever it was found.
-        exact = (!isProxy || resolved) && !_tailSuspect(token.code);
+        // Nothing is skipped, so the only thing that can hide code from this
+        // scan is a proxy whose implementation could not be resolved.
+        exact = !isProxy || resolved;
     }
 
     /// @notice Bitmask form for the signal vector.
@@ -241,21 +195,19 @@ library SignalProbe {
             Powers.UPGRADE, Powers.SEIZE, Powers.LIMITS, Powers.EXEMPT
         ];
 
-        uint256 end = _codeEnd(code);
-        uint256 i = 0;
-        while (i + 4 < end) {
-            uint8 op = uint8(code[i]);
-            if (op == 0x63) { // PUSH4: a dispatch-table selector
-                for (uint256 k = 0; k < 8; ++k) {
-                    if (mask & bits[k] != 0) continue;
-                    if (
-                        code[i + 1] == sels[k][0] && code[i + 2] == sels[k][1] &&
-                        code[i + 3] == sels[k][2] && code[i + 4] == sels[k][3]
-                    ) { mask |= bits[k]; break; }
-                }
+        // Every byte, and the constant rather than the instruction carrying it.
+        // A four-byte sequence occurring by chance in a few kilobytes is
+        // vanishingly unlikely; a selector the scan declines to look at is a
+        // power reported absent.
+        for (uint256 i = 0; i + 3 < code.length; ++i) {
+            bytes1 b = code[i];
+            for (uint256 k = 0; k < 8; ++k) {
+                if (mask & bits[k] != 0) continue;
+                if (
+                    b == sels[k][0] && code[i + 1] == sels[k][1] &&
+                    code[i + 2] == sels[k][2] && code[i + 3] == sels[k][3]
+                ) { mask |= bits[k]; break; }
             }
-            if (op >= 0x60 && op <= 0x7f) i += uint256(op) - 0x5f;
-            ++i;
         }
     }
 
