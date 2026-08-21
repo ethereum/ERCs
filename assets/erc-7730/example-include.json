@@ -1,6 +1,6 @@
 {
 
-    "$schema": "./erc7730-v1.schema.json",
+    "$schema": "./erc7730-v2.schema.json",
 
     "$comment": "This is an example of ERC-7730 display definition that includes another definition file to demonstrate reusability for common interfaces such as ERC-20.",
 

@@ -1,0 +1,49 @@
+@startuml
+title Alice's Private Transfer ERC-20 to Bob without ZWToken Awareness
+
+actor Alice1
+actor "Alice2 / Relayer" as Alice2
+actor Bob
+participant "ZWToken Contract" as ZW
+participant "Underlying Token" as U
+
+== Alice1 Wraps Token into ZWToken and Burns It ==
+Alice1 -> U : underlying.approve(ZWToken Contract, amount)
+Alice1 <-- U
+Alice1 -> Alice1 : Generate a provable burn address (e.g., using Poseidon hash)
+Alice1 -> ZW : ZWToken.deposit(to=provable burn address, id=0, amount, data="")
+ZW -> U : underlying.transferFrom(Alice1, ZWToken Contract, amount)
+ZW <-- U
+ZW -> ZW : mint amount ZWToken to provable burn address
+alt Contract-maintained commitment
+    ZW -> ZW : update commitment
+    ZW -> ZW : emit CommitmentUpdated(id=0, commitment, to=provable burn address, amount)
+end
+ZW -> ZW : emit Deposited(from=Alice1, to=provable burn address, id=0, amount)
+Alice1 <-- ZW
+note right of Alice1 : Alice1 does not hold ZWToken and is unaware of ZWToken
+
+== Alice1 Generates Proof of Provable Burn Address for Reminting ==
+alt Contract-maintained commitment
+    Alice1 -> ZW : fetch commit data / event CommitmentUpdated
+    Alice1 <-- ZW
+else Protocol-level MPT commitment
+    Alice1 -> ZW : eth_getProof
+    Alice1 <-- ZW
+end
+Alice1 -> Alice1 : rebuild commitment
+Alice1 -> Alice1 : generate proof for reminting
+
+== Alice2 / Relayer Remints and Unwraps Underlying Token to Bob ==
+Alice1 -> Alice2 : provide proof for reminting
+Alice1 <-- Alice2
+Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, data={commitment,nullifiers,proverData,relayerData,redeem=true,proof})
+ZW -> ZW : check nullifier
+ZW -> ZW : mark nullifier as used
+ZW -> ZW : verify ZK proof
+ZW -> U : underlying.transfer(to=Bob, amount)
+ZW <-- U
+ZW -> ZW : emit Withdrawn(from=Alice2 / Relayer, to=Bob, id=0, amount)
+Alice2 <-- ZW
+note right of Bob : Bob does not hold ZWToken and is unaware of ZWToken
+@enduml
