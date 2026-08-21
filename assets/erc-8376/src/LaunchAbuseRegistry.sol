@@ -9,6 +9,7 @@ import {
     ReportAlreadyRetracted,
     DetectorNotBonded,
     InvalidSignalVector,
+    NotRemediation,
     UnsupportedVectorVersion,
     OutcomeSignalNotPermitted
 } from "./LaunchAbuseTypes.sol";
@@ -67,7 +68,7 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
     ///      nonReentrant and clears the bond before paying.
     // slither-disable-next-line low-level-calls
     function slashDetector(address detector, uint256 amount, bytes32 claimId, address to) external nonReentrant {
-        require(msg.sender == remediation, "not remediation");
+        if (msg.sender != remediation) revert NotRemediation(msg.sender);
         require(to != address(0), "zero recipient");
         require(detectorBond[detector] >= amount, "bond exceeded");
         detectorBond[detector] -= amount;
@@ -119,7 +120,7 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
         nonReentrant
         returns (bytes32 reportId)
     {
-        require(msg.sender == remediation, "not remediation");
+        if (msg.sender != remediation) revert NotRemediation(msg.sender);
         return _submit(report, principalOf(detector));
     }
 
