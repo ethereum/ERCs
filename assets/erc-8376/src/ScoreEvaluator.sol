@@ -103,8 +103,25 @@ library ScoreEvaluator {
     }
 
     /// @notice Score a vector under the reference profile for its pattern.
+    /// @dev Reverts for a pattern whose weight sits in an extension. Scoring it
+    ///      on the base vector alone would drop every extension field from both
+    ///      sums and decide the pattern on whatever base signal the profile
+    ///      happens to share: for impersonation, a single prior upheld claim
+    ///      would carry the whole score to 100 with no impersonation evidence
+    ///      at all, and genuine impersonation with no prior claim would not
+    ///      score at all.
     function scoreFor(bytes32 patternId, SignalVector memory v) internal pure returns (uint8) {
-        return score(v, profileFor(patternId));
+        Profile memory p = profileFor(patternId);
+        if (weighsExtension(p)) revert UnknownExtensionSchema(bytes32(0));
+        return score(v, p);
+    }
+
+    /// @notice Whether a profile places weight on any extension field.
+    function weighsExtension(Profile memory p) internal pure returns (bool) {
+        for (uint256 i = N; i < M; ++i) {
+            if (p.weights[i] != 0) return true;
+        }
+        return false;
     }
 
     /// @notice Score a vector together with the fields an extension schema adds.
@@ -117,6 +134,11 @@ library ScoreEvaluator {
         bytes32 extensionSchema,
         bytes memory extensionSignals
     ) internal pure returns (uint8) {
+        Profile memory profile = profileFor(patternId);
+        if (extensionSchema == bytes32(0) && weighsExtension(profile)) {
+            revert UnknownExtensionSchema(bytes32(0));
+        }
+
         (uint32[M] memory value, bool[M] memory available) = flatten(v);
         if (extensionSchema != bytes32(0)) {
             (uint32[EXT] memory ev, bool[EXT] memory ea) =
@@ -126,7 +148,7 @@ library ScoreEvaluator {
                 available[N + i] = ea[i];
             }
         }
-        return _score(value, available, profileFor(patternId));
+        return _score(value, available, profile);
     }
 
     /// @notice Decode the fields of a known extension schema.

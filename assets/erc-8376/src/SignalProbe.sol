@@ -59,9 +59,13 @@ library SignalProbe {
             if (a != address(0) && a.code.length > 0) return (a, true, true);
         }
 
-        // Otherwise: does it delegatecall at all? Small contracts that
-        // delegatecall are proxies whose target we cannot see from here.
-        if (_hasDelegateCall(code) && code.length < 1024) {
+        // Otherwise: does it delegatecall at all? A contract that delegates is
+        // a proxy whose target we cannot see from here, whatever its size. The
+        // size test this replaces read every proxy above a kilobyte as an
+        // ordinary contract and reported it as having no privileged powers,
+        // which is the strongest possible statement about the code least
+        // possible to examine.
+        if (_hasDelegateCall(code)) {
             return (address(0), true, false);
         }
 
@@ -78,12 +82,28 @@ library SignalProbe {
     ///      scan that reads them will report ordinary contracts as proxies and
     ///      blind the `privilegedPowers` signal on most real tokens. Everything
     ///      here stops at the start of that blob.
+    /// @dev The trailing length is written by the party under examination, so
+    ///      it is a hint and never an instruction. A token that could name any
+    ///      length could name one that collapses the scan window to nothing,
+    ///      and every privileged power would then read as absent rather than as
+    ///      unavailable: an exculpatory answer, from evidence never examined.
+    ///      A hint is followed only where what it points at looks like the CBOR
+    ///      map a compiler actually emits, and where it is small enough to be
+    ///      one. Anything else is treated as having no metadata section, and the
+    ///      whole runtime is scanned.
+    uint256 private constant MAX_METADATA = 128;
+
     function _codeEnd(bytes memory code) private pure returns (uint256) {
         if (code.length < 3) return code.length;
         uint256 mlen = (uint256(uint8(code[code.length - 2])) << 8) | uint256(uint8(code[code.length - 1]));
         // A length that cannot be right means no recognizable metadata section.
-        if (mlen == 0 || mlen + 2 >= code.length) return code.length;
-        return code.length - 2 - mlen;
+        if (mlen == 0 || mlen > MAX_METADATA || mlen + 2 >= code.length) return code.length;
+
+        uint256 end = code.length - 2 - mlen;
+        // solc emits a CBOR map of two to four entries at that offset.
+        uint8 header = uint8(code[end]);
+        if (header < 0xa1 || header > 0xa4) return code.length;
+        return end;
     }
 
     function _hasDelegateCall(bytes memory code) private pure returns (bool) {

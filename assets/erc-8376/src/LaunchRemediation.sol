@@ -189,12 +189,14 @@ contract LaunchRemediation is ReentrancyGuard {
         if (atStake > highValueThreshold) {
             (score, conf, backers) = registry.corroboratedScore(launchId, MIN_CORROBORATION);
             require(backers >= MIN_CORROBORATION, "insufficient corroboration");
-        } else {
-            (score, conf, top) = registry.activeScore(launchId);
-            require(top != bytes32(0), "no live report");
+            require(conf > 0, "report carries no confidence");
+            if (score < MIN_CLAIM_SCORE) revert InsufficientScore(score, MIN_CLAIM_SCORE);
         }
-        require(conf > 0, "report carries no confidence");
-        if (score < MIN_CLAIM_SCORE) revert InsufficientScore(score, MIN_CLAIM_SCORE);
+        // Below the corroboration threshold the cited report is the whole test,
+        // and it was checked above. Re-deriving the score from the newest
+        // reports would let anyone holding a detector bond bury a real finding
+        // under enough padding to push it out of the scan window, after which
+        // no claim could be opened at all.
 
         claimId = keccak256(abi.encode(launchId, reportId, msg.sender, _claimNonce++));
         Claim storage c = _claims[claimId];
@@ -281,7 +283,9 @@ contract LaunchRemediation is ReentrancyGuard {
             c.bond = 0;
             uint256 half = forfeited / 2;
             _send(escrow.deployerOf(c.launchId), half);
-            _send(address(registry), forfeited - half);
+            // Paid in, not credited: the registry is a contract with no way
+            // to call `withdraw`, so a credit here would strand the value.
+            registry.fundDetectorPool{value: forfeited - half}();
             _closeClaim(c.launchId);
         }
         emit ClaimAdjudicated(claimId, outcome, award);

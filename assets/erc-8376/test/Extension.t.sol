@@ -163,11 +163,36 @@ contract ExtensionTest is TestBase {
         assertTrue(s >= 41, "impersonation must reach at least the Elevated band");
     }
 
-    /// @dev Without the extension the same launch is invisible: every base
-    ///      signal is clean and only `priorUpheldClaims` carries any weight.
-    function test_20_baseVectorAloneCannotSeeIt() public pure {
-        uint8 s = ScoreEvaluator.scoreFor(Patterns.IMPERSONATION, _cleanVector());
-        assertEq(s, 0, "a clean base vector must not score impersonation");
+    /// @dev The base vector cannot see impersonation at all, so scoring it
+    ///      without the schema must refuse rather than answer. Ninety of the
+    ///      hundred weight sits in the extension: drop it and `priorUpheldClaims`
+    ///      alone decides, so one prior claim would score 100 on no
+    ///      impersonation evidence, and real impersonation with no prior claim
+    ///      would not score at all.
+    function test_20_baseVectorAloneCannotScoreIt() public {
+        vm.expectPartialRevert(UnknownExtensionSchema.selector);
+        this.scoreBaseOnly();
+
+        vm.expectPartialRevert(UnknownExtensionSchema.selector);
+        this.scoreWithoutSchema();
+    }
+
+    function scoreBaseOnly() external pure returns (uint8) {
+        SignalVector memory v = _cleanVector();
+        v.priorUpheldClaims = 1; // the signal that would otherwise carry it to 100
+        return ScoreEvaluator.scoreFor(Patterns.IMPERSONATION, v);
+    }
+
+    function scoreWithoutSchema() external pure returns (uint8) {
+        return ScoreEvaluator.scoreFor(Patterns.IMPERSONATION, _cleanVector(), bytes32(0), "");
+    }
+
+    /// @dev And a base pattern still scores from the base vector alone.
+    function test_20_basePatternsStillScoreWithoutAnExtension() public pure {
+        SignalVector memory v = _cleanVector();
+        v.priorUpheldClaims = 1;
+        uint8 s = ScoreEvaluator.scoreFor(Patterns.HARD_RUG, v);
+        assertTrue(s < 61, "a clean hard-rug vector must not reach the claim threshold");
     }
 
     /// @dev An unavailable extension field is excluded from both sums, exactly

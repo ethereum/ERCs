@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import {ILaunchAbuseRegistry} from "./ILaunchAbuseRegistry.sol";
 import {
     AbuseReport,
+    Patterns,
+    UnknownExtensionSchema,
     BASE_VECTOR_VERSION,
     UnknownReport,
     ReportAlreadyRetracted,
@@ -51,6 +53,8 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
     ///      the history and the reputation all stay where they were.
     mapping(address => address)   public   submitterOf;
     mapping(address => address)   public   detectorOfSubmitter;
+    /// @dev Forfeited claimant bonds, held for distribution to detectors.
+    uint256 public detectorPool;
 
     constructor(address remediation_) {
         require(remediation_ != address(0), "zero address");
@@ -163,6 +167,12 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
             revert InvalidSignalVector();
         }
         if (r.abuseScore > 100 || r.confidence > 100) revert InvalidSignalVector();
+        // A pattern whose weight sits in an extension cannot be scored without
+        // one, and a report that omits it would be evaluated on whatever base
+        // signal the profile happens to share.
+        if (r.patternId == Patterns.IMPERSONATION && r.extensionSchema == bytes32(0)) {
+            revert UnknownExtensionSchema(bytes32(0));
+        }
         if (r.windowEnd < r.launchedAt) revert InvalidSignalVector();
         if (r.evidenceRoot == bytes32(0)) revert InvalidSignalVector();
         if (r.launchId == bytes32(0)) revert InvalidSignalVector();
@@ -210,7 +220,7 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
             bytes32 rid = list[i - 1];
             Stored storage s = _reports[rid];
             if (s.retracted) continue;
-            if (block.timestamp > s.report.windowEnd + MAX_REPORT_AGE) continue;
+            if (block.timestamp > uint256(s.report.windowEnd) + MAX_REPORT_AGE) continue;
             if (s.report.abuseScore > abuseScore) {
                 abuseScore = s.report.abuseScore;
                 confidence = s.report.confidence;
@@ -250,7 +260,7 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
             ++scanned;
             Stored storage s = _reports[list[i - 1]];
             if (s.retracted) continue;
-            if (block.timestamp > s.report.windowEnd + MAX_REPORT_AGE) continue;
+            if (block.timestamp > uint256(s.report.windowEnd) + MAX_REPORT_AGE) continue;
 
             uint256 j = 0;
             bool seen = false;
@@ -284,7 +294,7 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
 
     function isLive(bytes32 reportId) external view returns (bool) {
         Stored storage s = _reports[reportId];
-        return s.exists && !s.retracted && block.timestamp <= s.report.windowEnd + MAX_REPORT_AGE;
+        return s.exists && !s.retracted && block.timestamp <= uint256(s.report.windowEnd) + MAX_REPORT_AGE;
     }
 
     function detectorOf(bytes32 reportId) external view returns (address) {
@@ -302,6 +312,16 @@ contract LaunchAbuseRegistry is ILaunchAbuseRegistry, ReentrancyGuard {
     function minDetectorBond() external pure returns (uint256) { return MIN_DETECTOR_BOND; }
     function maxReportAge()    external pure returns (uint64)  { return MAX_REPORT_AGE; }
     function openingBlocks()   external pure returns (uint32)  { return OPENING_BLOCKS; }
+
+/// @notice Fund the pool that forfeited claimant bonds flow into.
+    /// @dev The remediation contract pays in here on a rejected claim. Value
+    ///      arriving with no way to account for it would sit unreachable, so
+    ///      the pool is an explicit balance and the event is what makes its
+    ///      growth observable.
+    function fundDetectorPool() external payable {
+        detectorPool += msg.value;
+        emit DetectorPoolFunded(msg.sender, msg.value);
+    }
 
     receive() external payable {}
 }

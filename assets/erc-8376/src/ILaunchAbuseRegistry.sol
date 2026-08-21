@@ -18,6 +18,7 @@ interface ILaunchAbuseRegistry {
     event DetectorBonded(address indexed detector, uint256 amount);
     event SubmitterSet(address indexed detector, address indexed submitter);
     event DetectorSlashed(address indexed detector, uint256 amount, bytes32 claimId);
+    event DetectorPoolFunded(address indexed from, uint256 amount);
 
     /// @notice Authorize a hot key to submit on the caller's behalf, or revoke
     ///         with the zero address. Rotation retires a compromised key without
