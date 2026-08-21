@@ -12,6 +12,9 @@ forge test
 194 tests and four fuzzed invariants. Every interface in the ERC matches these
 sources signature for signature.
 
+Not independently audited. This shows the interfaces can be implemented and that
+the invariants hold under test; it is not meant to be deployed as it stands.
+
 ## What it does
 
 A launch venue takes buyer funds into escrow instead of forwarding them to the
