@@ -107,14 +107,6 @@ library SignalProbe {
         uint8 header = uint8(code[end]);
         if (header < 0xa1 || header > 0xa4) return code.length;
 
-        // Every byte read so far was written by the party under examination, so
-        // the hint is only worth following where what it points at cannot be
-        // the thing being looked for. A region carrying DELEGATECALL is not
-        // metadata, whatever it claims: scan the whole runtime instead of
-        // trimming a hiding place out of view.
-        for (uint256 i = end; i < code.length; ++i) {
-            if (uint8(code[i]) == 0xf4) return code.length;
-        }
         return end;
     }
 
@@ -123,11 +115,51 @@ library SignalProbe {
         uint256 i = 0;
         while (i < end) {
             uint8 op = uint8(code[i]);
-            if (op == 0xf4) return true; // DELEGATECALL
+            // CALLCODE runs foreign code against this contract's own storage.
+            // For everything this signal is for, that is delegation.
+            if (op == 0xf4 || op == 0xf2) return true; // DELEGATECALL, CALLCODE
             if (op >= 0x60 && op <= 0x7f) i += uint256(op) - 0x5f; // skip PUSH data
             ++i;
         }
         return false;
+    }
+
+    /// @dev Whether the region the trailing length asked to be skipped could be
+    ///      code rather than metadata.
+    ///
+    ///      The length, the header and every byte after them are written by the
+    ///      party under examination, so a trim is a request, not a fact. Refusing
+    ///      the request outright would read half of all honest tokens as
+    ///      unexaminable, because a compiler's metadata blob is arbitrary bytes
+    ///      and will contain opcodes by coincidence. The question worth asking is
+    ///      narrower: could what was skipped have run, and could it have held
+    ///      what we were looking for.
+    ///
+    ///      It could have run if control can arrive there: a JUMPDEST anywhere
+    ///      in the region, which a JUMP can target, or a body that does not end
+    ///      in a terminator and so falls through into it. Unreachable bytes
+    ///      cannot be the code we failed to look at, whatever else they are.
+    ///
+    ///      Where it does trip, the answer is the unavailability sentinel rather
+    ///      than a clean reading: absence was not established, and saying so is
+    ///      the whole difference between a signal and an assertion.
+    function _tailSuspect(bytes memory code) private pure returns (bool) {
+        uint256 end = _codeEnd(code);
+        if (end >= code.length) return false; // nothing was skipped
+
+        uint8 last = uint8(code[end - 1]);
+        // STOP, JUMP, RETURN, REVERT, INVALID, SELFDESTRUCT end a basic block.
+        bool reachable = !(
+            last == 0x00 || last == 0x56 || last == 0xf3 ||
+            last == 0xfd || last == 0xfe || last == 0xff
+        );
+
+        if (!reachable) {
+            for (uint256 i = end; i < code.length; ++i) {
+                if (uint8(code[i]) == 0x5b) { reachable = true; break; } // JUMPDEST
+            }
+        }
+        return reachable;
     }
 
     /// @notice Scan runtime bytecode for a PUSH4 of `selector`.
@@ -170,7 +202,11 @@ library SignalProbe {
             mask |= _scan(impl);
         }
 
-        exact = !isProxy || resolved;
+        // A scan that skipped a region which could have been code has not shown
+        // the absence of anything, and reporting a clean mask would state
+        // exactly that. The powers it did find still stand: finding one is
+        // sound wherever it was found.
+        exact = (!isProxy || resolved) && !_tailSuspect(token.code);
     }
 
     /// @notice Bitmask form for the signal vector.

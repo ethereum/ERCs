@@ -162,31 +162,65 @@ contract AuditRegressionTest is TestBase {
 
     // --- the bytecode scan --------------------------------------------------
 
-    /// @dev The trailing length is written by the token. Pointing it at a region
-    ///      that carries DELEGATECALL must not trim that region out of view:
-    ///      the token would then read as an ordinary contract with no
-    ///      privileged powers, which is an exculpatory answer drawn from
-    ///      evidence never examined.
-    function test_metadataHintCannotHideDelegation() public {
-        address crafted = address(0xC0DE);
-
-        // 40 bytes of ordinary-looking front matter, then a tail that opens with
-        // a CBOR map header, carries a DELEGATECALL, and declares its own length.
+    /// @dev The trailing length is written by the token, so a trim is a request
+    ///      and not a fact. What matters is not whether the skipped region looks
+    ///      like metadata but whether it could have been code: if control can
+    ///      reach it, the scan has shown the absence of nothing and must say so
+    ///      rather than report a clean mask.
+    function test_reachableTailIsNotCertifiedClean() public {
+        // 40 bytes of body that falls through, then a region declared as
+        // metadata which opens with a CBOR map header and carries a JUMPDEST
+        // followed by a dispatch entry for mint(address,uint256).
         bytes memory code = new bytes(80);
         for (uint256 i = 0; i < 40; ++i) code[i] = 0x60; // PUSH1 filler
         code[40] = 0xa1;                                  // CBOR map header
-        code[60] = 0xf4;                                  // DELEGATECALL, hidden in the "metadata"
-        uint256 mlen = 80 - 2 - 40;                       // trim would start at 40
+        code[41] = 0x5b;                                  // JUMPDEST: control can arrive
+        code[42] = 0x63;                                  // PUSH4
+        code[43] = 0x40; code[44] = 0xc1; code[45] = 0x0f; code[46] = 0x19; // mint selector
+        uint256 mlen = 80 - 2 - 40;
         code[78] = bytes1(uint8(mlen >> 8));
         code[79] = bytes1(uint8(mlen));
 
-        vm.etch(crafted, code);
+        vm.etch(address(0xC0DE), code);
 
-        (, bool isProxy, bool resolved) = SignalProbe.implementationOf(crafted);
-        assertTrue(isProxy, "delegation in the declared metadata was trimmed out of view");
-        assertTrue(!resolved, "an unresolvable proxy reported as resolved");
+        (, bool exact) = SignalProbe.powersOf(address(0xC0DE));
+        assertTrue(!exact, "a token that hid a dispatcher in its metadata was certified clean");
+        assertEq(SignalProbe.privilegedPowers(address(0xC0DE)), type(uint16).max, "not the sentinel");
+    }
 
-        (, bool exact) = SignalProbe.powersOf(crafted);
-        assertTrue(!exact, "a token that hid its delegation was certified exact");
+    /// @dev CALLCODE runs foreign code against this contract's own storage. For
+    ///      everything this signal is for, that is delegation, and reading it as
+    ///      an ordinary contract certifies an upgradeable token as powerless.
+    function test_callcodeCountsAsDelegation() public {
+        bytes memory code = new bytes(8);
+        code[0] = 0x60; code[1] = 0x00; // PUSH1 0
+        code[2] = 0xf2;                 // CALLCODE
+        code[3] = 0x00;                 // STOP
+
+        vm.etch(address(0xC0DF), code);
+
+        (, bool isProxy, bool resolved) = SignalProbe.implementationOf(address(0xC0DF));
+        assertTrue(isProxy, "callcode was not read as delegation");
+        assertTrue(!resolved, "an unresolvable delegate reported as resolved");
+        assertEq(SignalProbe.privilegedPowers(address(0xC0DF)), type(uint16).max, "not the sentinel");
+    }
+
+    /// @dev And an unreachable region is still trimmed, so an ordinary token
+    ///      keeps an exact reading rather than being called unexaminable.
+    function test_unreachableTailIsStillTrimmed() public {
+        bytes memory code = new bytes(80);
+        for (uint256 i = 0; i < 39; ++i) code[i] = 0x60;
+        code[39] = 0x00;  // STOP: the body ends, nothing falls through
+        code[40] = 0xa1;  // CBOR map header
+        code[50] = 0x63;  // a PUSH4 byte by coincidence, but unreachable
+        uint256 mlen = 80 - 2 - 40;
+        code[78] = bytes1(uint8(mlen >> 8));
+        code[79] = bytes1(uint8(mlen));
+
+        vm.etch(address(0xC0E0), code);
+
+        (uint16 mask, bool exact) = SignalProbe.powersOf(address(0xC0E0));
+        assertTrue(exact, "an unreachable tail made an ordinary token unexaminable");
+        assertEq(mask, 0, "powers found in a region that cannot run");
     }
 }
