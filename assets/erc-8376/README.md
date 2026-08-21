@@ -9,7 +9,7 @@ forge build
 forge test
 ```
 
-192 tests and four fuzzed invariants. Every interface in the ERC matches these
+194 tests and four fuzzed invariants. Every interface in the ERC matches these
 sources signature for signature.
 
 ## What it does

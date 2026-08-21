@@ -5,7 +5,7 @@ import {LaunchEscrow} from "./LaunchEscrow.sol";
 import {LaunchAbuseRegistry} from "./LaunchAbuseRegistry.sol";
 import {AbuseReport, ClaimStatus, ContainmentAction,
         ClaimNotOpen, ContestWindowClosed, NotAdjudicator,
-        InsufficientScore, UnknownReport} from "./LaunchAbuseTypes.sol";
+        InsufficientScore, InsufficientConfidence, UnknownReport} from "./LaunchAbuseTypes.sol";
 import {Containment} from "./Containment.sol";
 import {ReentrancyGuard} from "./ReentrancyGuard.sol";
 
@@ -74,6 +74,12 @@ contract LaunchRemediation is ReentrancyGuard {
     ///      the detector pulls it. Reserving rather than pushing keeps a
     ///      detector that cannot receive value from blocking the refund.
     mapping(bytes32 => uint256) public detectorReward;
+    /// @dev Total reserved but not yet pulled, per launch. The reserved wei stay
+    ///      in the escrow's bond, so every spending decision here MUST net this
+    ///      off first: a second upheld claim would otherwise see another claim's
+    ///      reservation as available and sweep it into the refund pool, leaving
+    ///      the first detector with a record backed by nothing.
+    mapping(bytes32 => uint256) public reservedBond;
     uint256 internal _claimNonce;
 
     event BondPosted(bytes32 indexed launchId, uint256 amount);
@@ -160,6 +166,17 @@ contract LaunchRemediation is ReentrancyGuard {
         require(msg.value >= MIN_CLAIM_BOND, "claim bond too small");
         if (!registry.isLive(reportId)) revert UnknownReport(reportId);
         require(registry.launchOf(reportId) == launchId, "report is for another launch");
+
+        // The cited report is the one whose detector is paid on an upheld claim
+        // and slashed on a rejected one, so it must carry the claim on its own
+        // terms. Without this, a claimant could cite a throwaway report of their
+        // own and collect the detector's share of work somebody else did, while
+        // leaving the detector who actually found the abuse with nothing.
+        (AbuseReport memory cited, , ) = registry.getReport(reportId);
+        if (cited.abuseScore < MIN_CLAIM_SCORE) {
+            revert InsufficientScore(cited.abuseScore, MIN_CLAIM_SCORE);
+        }
+        if (cited.confidence == 0) revert InsufficientConfidence(0, 1);
 
         // Above the high-value threshold a single detector is not enough: one
         // detector colluding with one claimant could otherwise manufacture the
@@ -284,7 +301,9 @@ contract LaunchRemediation is ReentrancyGuard {
         fromEscrow = escrowed > c.award ? c.award : escrowed;
 
         uint256 shortfall = c.award > fromEscrow ? c.award - fromEscrow : 0;
-        uint256 available = escrow.bondOf(c.launchId);
+        uint256 reserved = reservedBond[c.launchId];
+        uint256 held = escrow.bondOf(c.launchId);
+        uint256 available = held > reserved ? held - reserved : 0;
         fromBond = shortfall > available ? available : shortfall;
 
         // The fee funds adjudication and is taken from bond, never from the
@@ -300,6 +319,7 @@ contract LaunchRemediation is ReentrancyGuard {
         }
         if (reward > 0) {
             detectorReward[claimId] = reward;
+            reservedBond[c.launchId] += reward;
             fromBond -= reward;
         }
 
@@ -327,6 +347,7 @@ contract LaunchRemediation is ReentrancyGuard {
         amount = detectorReward[claimId];
         require(amount > 0, "nothing to pull");
         detectorReward[claimId] = 0;
+        reservedBond[c.launchId] -= amount;
 
         address detector = registry.detectorOf(c.reportId);
         require(detector != address(0), "no detector");

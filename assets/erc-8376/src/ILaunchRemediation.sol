@@ -49,6 +49,9 @@ interface ILaunchRemediation {
     /// @dev MUST revert unless the claim is Executed. MUST pay the detector
     ///      recorded against the report the claim referenced, never the caller
     ///      and never the party that relayed an atomic submission.
+    ///      Where the share is reserved out of a bond rather than moved, the
+    ///      reservation MUST be netted off every later payout from that bond,
+    ///      or a subsequent upheld claim will spend it.
     function claimDetectorReward(bytes32 claimId) external returns (uint256 amount);
 
     function bondOf(bytes32 launchId) external view returns (uint256);

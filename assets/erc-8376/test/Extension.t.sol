@@ -17,6 +17,7 @@ import {
     Patterns,
     Schemas,
     UnsupportedVectorVersion,
+    InsufficientScore,
     UnknownExtensionSchema,
     InvalidSignalVector
 } from "../src/LaunchAbuseTypes.sol";
@@ -306,6 +307,88 @@ contract ExtensionTest is TestBase {
 
         vm.expectRevert();
         rem.claimDetectorReward(claimId);
+    }
+
+    /// @dev The cited report is the one whose detector is paid, so it must
+    ///      carry the claim itself. Otherwise a claimant bonds as a detector,
+    ///      files a worthless report of their own, cites that instead of the
+    ///      real one, and collects the detector's share of somebody else's work.
+    function test_22_citedReportMustSupportTheClaim() public {
+        vm.prank(alice);
+        ven.buy{value: 10 ether}();
+
+        AbuseReport memory real = _impersonationReport(ImpersonationSignals(0x0002, 9_000, 0));
+        real.abuseScore = 95;
+        real.confidence = 90;
+        vm.prank(detector);
+        reg.submitReport(real);
+
+        // The claimant bonds as a detector and files a report worth nothing.
+        vm.prank(alice);
+        reg.bondDetector{value: 1 ether}();
+        AbuseReport memory junk = _impersonationReport(ImpersonationSignals(0, 0, 0));
+        junk.abuseScore = 0;
+        junk.confidence = 0;
+        vm.prank(alice);
+        bytes32 junkId = reg.submitReport(junk);
+
+        // The launch scores 95 through the real report, so without the check
+        // the claim would open on a citation that contributed nothing.
+        vm.prank(alice);
+        vm.expectPartialRevert(InsufficientScore.selector);
+        rem.openClaim{value: 0.1 ether}(id, junkId, "x");
+    }
+
+    /// @dev A reservation left inside the bond must be visible to every later
+    ///      spending decision, or the next upheld claim sweeps it into the
+    ///      refund pool and the first detector is owed money that has gone.
+    function test_22_reservationSurvivesASecondClaim() public {
+        vm.prank(alice);
+        ven.buy{value: 10 ether}();
+
+        address detector2 = address(0xD2);
+        vm.deal(detector2, 100 ether);
+        vm.prank(detector2);
+        reg.bondDetector{value: 1 ether}();
+
+        AbuseReport memory r1 = _impersonationReport(ImpersonationSignals(0x0002, 9_000, 0));
+        r1.abuseScore = 95; r1.confidence = 90;
+        vm.prank(detector);
+        bytes32 rid1 = reg.submitReport(r1);
+
+        AbuseReport memory r2 = _impersonationReport(ImpersonationSignals(0x0004, 9_500, 0));
+        r2.abuseScore = 90; r2.confidence = 85;
+        vm.prank(detector2);
+        bytes32 rid2 = reg.submitReport(r2);
+
+        vm.prank(alice);
+        bytes32 c1 = rem.openClaim{value: 0.1 ether}(id, rid1, "x");
+        vm.prank(alice);
+        bytes32 c2 = rem.openClaim{value: 0.1 ether}(id, rid2, "y");
+
+        vm.prank(adj);
+        rem.adjudicate(c1, ClaimStatus.Upheld, 12 ether);
+        rem.executeRemedy(c1);
+
+        uint256 reserved1 = rem.detectorReward(c1);
+        assertTrue(reserved1 > 0, "first claim reserved nothing");
+
+        vm.prank(adj);
+        rem.adjudicate(c2, ClaimStatus.Upheld, 10 ether);
+        rem.executeRemedy(c2);
+
+        uint256 reserved2 = rem.detectorReward(c2);
+        assertLe(reserved1 + reserved2, esc.bondOf(id), "reservations exceed the bond behind them");
+
+        uint256 before1 = detector.balance;
+        rem.claimDetectorReward(c1);
+        assertEq(detector.balance - before1, reserved1, "first detector was not paid in full");
+
+        uint256 before2 = detector2.balance;
+        rem.claimDetectorReward(c2);
+        assertEq(detector2.balance - before2, reserved2, "second detector was not paid in full");
+
+        assertEq(rem.reservedBond(id), 0, "reservation outlived both pulls");
     }
 
     /// @dev The detector's share is bounded by the adjudication fee, so
