@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0",
+  "name": "deep",
+  "skillVersion": "0.0.1",
+  "summary": "finchip-daily-finance-brief",
+  "entrypoint": "docs/agent.md"
+}
