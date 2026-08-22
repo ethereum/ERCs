@@ -68,6 +68,8 @@ contract DetectorTest is TestBase {
         wallets[0] = dep;
         c = ILaunchDetector.ChainInputs({
             lpToken: lp,
+            lockedLiquidity: 0,
+            totalLiquidity: 0,
             lockSinks: sinks,
             deployerWallets: wallets,
             deployerAllocation: 1000 ether,
@@ -150,6 +152,58 @@ contract DetectorTest is TestBase {
         assertEq(v.liquidityRemoved, type(uint16).max, "no peak is unknowable");
         assertEq(v.proceedsWithdrawnShare, type(uint16).max, "no proceeds is unknowable");
         assertEq(v.insiderAllocationShare, type(uint16).max, "off-chain signal carried through");
+    }
+
+    /// A pool whose positions are non-fungible has no supply to take a share
+    /// of, and the share comes from the supplied liquidity amounts instead.
+    function test_nonFungibleLiquidityIsMeasured() public {
+        Supply tok = new Supply();
+        tok.mint(dep, 1000 ether);
+        bytes32 id = ven.open(address(tok), dep, start, end, 1);
+
+        ILaunchDetector.ChainInputs memory c = _inputs(address(0));
+        c.lockedLiquidity = 90 ether;
+        c.totalLiquidity  = 100 ether;
+
+        SignalVector memory v = det.observe(id, address(tok), c, _off());
+        assertEq(v.lpLockedShare, 9000, "liquidity share not measured");
+        assertEq(v.lpLockRemaining, uint32(365 days), "lock carried through");
+    }
+
+    /// A named liquidity token wins, so supplied amounts cannot be presented in
+    /// place of balances anyone can read for themselves.
+    function test_fungibleRouteWinsOverSuppliedAmounts() public {
+        Supply tok = new Supply();
+        tok.mint(dep, 1000 ether);
+        Clean lp = new Clean(address(0xdead), 1000 ether);
+        bytes32 id = ven.open(address(tok), dep, start, end, 1);
+
+        ILaunchDetector.ChainInputs memory c = _inputs(address(lp));
+        c.lockedLiquidity = 0;              // a claim the balances contradict
+        c.totalLiquidity  = 100 ether;
+
+        SignalVector memory v = det.observe(id, address(tok), c, _off());
+        assertEq(v.lpLockedShare, 10000, "supplied amounts overrode balances");
+    }
+
+    /// An empty pool, and a pool reporting more locked than it holds, are both
+    /// unmeasured rather than protected.
+    function test_incoherentLiquidityIsUnavailable() public {
+        Supply tok = new Supply();
+        tok.mint(dep, 1000 ether);
+        bytes32 id = ven.open(address(tok), dep, start, end, 1);
+
+        ILaunchDetector.ChainInputs memory c = _inputs(address(0));
+        c.totalLiquidity = 0;
+        c.lockedLiquidity = 0;
+        SignalVector memory v = det.observe(id, address(tok), c, _off());
+        assertEq(v.lpLockedShare, type(uint16).max, "empty pool read as measured");
+        assertEq(v.lpLockRemaining, type(uint32).max, "lock on nothing carried through");
+
+        c.totalLiquidity  = 100 ether;
+        c.lockedLiquidity = 101 ether;
+        v = det.observe(id, address(tok), c, _off());
+        assertEq(v.lpLockedShare, type(uint16).max, "more locked than held read as full protection");
     }
 
     /// An unlisted launch cannot have its proceeds read.

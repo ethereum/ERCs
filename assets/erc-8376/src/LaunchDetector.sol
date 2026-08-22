@@ -57,11 +57,15 @@ contract LaunchDetector is ILaunchDetector {
             ? NA16
             : SignalProbe.sellRatio(token, c.deployerWallets, c.deployerAllocation);
 
-        // Derived from the pool.
-        v.lpLockedShare = c.lpToken == address(0)
-            ? NA16
-            : SignalProbe.lockedShare(c.lpToken, c.lockSinks);
-        v.lpLockRemaining = c.lpToken == address(0) ? NA32 : c.lpLockRemaining;
+        // Derived from the pool, by whichever route the pool supports. A named
+        // liquidity token wins, so a detector cannot present supplied amounts in
+        // place of balances anyone can read for themselves.
+        v.lpLockedShare = c.lpToken != address(0)
+            ? SignalProbe.lockedShare(c.lpToken, c.lockSinks)
+            : SignalProbe.lockedLiquidityShare(c.lockedLiquidity, c.totalLiquidity);
+        // The remaining time secures the liquidity the share counted. Where no
+        // share could be established there is nothing for it to be remaining on.
+        v.lpLockRemaining = v.lpLockedShare == NA16 ? NA32 : c.lpLockRemaining;
         v.liquidityRemoved = SignalProbe.liquidityRemoved(c.peakLiquidity, c.currentLiquidity);
 
         // Supply minted after launch, which is dilution actually exercised

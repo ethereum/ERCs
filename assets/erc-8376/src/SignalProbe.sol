@@ -284,6 +284,22 @@ library SignalProbe {
         return toBps(held, supply);
     }
 
+    /// @notice Share of pool liquidity held at lock or burn addresses, in bps,
+    ///         where positions are non-fungible and there is no supply to divide.
+    /// @dev Same protective polarity as `lockedShare`, and the same sentinel on
+    ///      an empty pool: zero would assert that liquidity was measured and
+    ///      none of it was locked. More locked than total is incoherent input
+    ///      rather than full protection, so it reads as unavailable too.
+    function lockedLiquidityShare(uint256 lockedLiquidity, uint256 totalLiquidity)
+        internal
+        pure
+        returns (uint16)
+    {
+        if (totalLiquidity == 0) return type(uint16).max;
+        if (lockedLiquidity > totalLiquidity) return type(uint16).max;
+        return toBps(lockedLiquidity, totalLiquidity);
+    }
+
     /// @notice Share of a deployer's allocation that has left its wallets, in bps.
     function sellRatio(address token, address[] memory deployerWallets, uint256 allocated)
         internal

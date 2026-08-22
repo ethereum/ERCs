@@ -15,7 +15,13 @@ import {SignalVector} from "./LaunchAbuseTypes.sol";
 interface ILaunchDetector {
     /// @notice Hints a caller supplies for values that cannot be discovered from
     ///         a launch identifier alone.
-    /// @param lpToken the liquidity token whose lock is being measured
+    /// @param lpToken the fungible liquidity token whose lock is being measured,
+    ///        or the zero address where positions are non-fungible and
+    ///        `lockedLiquidity` and `totalLiquidity` are supplied instead
+    /// @param lockedLiquidity pool liquidity attributed to the lock sinks,
+    ///        where positions are non-fungible
+    /// @param totalLiquidity pool liquidity in total, where positions are
+    ///        non-fungible
     /// @param lockSinks addresses treated as locks or burns
     /// @param deployerWallets wallets attributed to the deployer
     /// @param deployerAllocation supply originally allocated to the deployer
@@ -24,6 +30,8 @@ interface ILaunchDetector {
     /// @param currentLiquidity pool liquidity at window end
     struct ChainInputs {
         address   lpToken;
+        uint256   lockedLiquidity;
+        uint256   totalLiquidity;
         address[] lockSinks;
         address[] deployerWallets;
         uint256   deployerAllocation;
