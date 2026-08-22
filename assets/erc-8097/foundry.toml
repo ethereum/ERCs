@@ -1,0 +1,8 @@
+[profile.default]
+src = "contracts"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+
+[dependencies]
+"openzeppelin-contracts" = "5.0.2"
