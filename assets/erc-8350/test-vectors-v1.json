@@ -1,0 +1,53 @@
+{
+  "schema": "agent-memory-state/test-vectors/v1",
+  "types": {
+    "experienceDelta": "ExperienceDelta(bytes32 spaceId,uint64 sequence,bytes32 prevStateRoot,bytes32 deltaCommitment,bytes32 provenanceCommitment,bytes32 profileId,bytes32 locatorCommitment)",
+    "memoryState": "MemoryState(bytes32 prevStateRoot,bytes32 transitionId)",
+    "memorySpace": "MemorySpace(address initialController,bytes32 salt)"
+  },
+  "commitment": {
+    "payload": "{\"op\":\"upsert\",\"resourceId\":\"memory-42\",\"value\":\"prefers dark mode\"}",
+    "payloadEncoding": "utf-8",
+    "deltaSalt": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "profileId": "0x2f53a8c7cdfafe7559a285db700638113866e8605b81c9454f0936d67ddbd759",
+    "deltaCommitment": "0x2cf1dc108cc32cfe1617db756a7c793f383b67165ea1bb542f456dc6100f967d",
+    "provenance": "{\"inference\":\"0xabcd\",\"input\":\"0x1234\"}",
+    "provenanceSalt": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "provenanceCommitment": "0x4791ee5d37e8fc775d00f82c3d451e6d313aa5fe16dd94de5efdbbb39dc0f05c",
+    "locator": "ipfs://bafybeigdyrzt5example",
+    "locatorSalt": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "locatorCommitment": "0xc5ff571b8429eecd969f718fc45e45017c0d3a217dff401ad1cc752686bac812"
+  },
+  "delta": {
+    "spaceId": "0xef5037465ae0323637cb58434eb554ae4a1fe1131bcc10888900f2d4cbe349d8",
+    "sequence": "1",
+    "prevStateRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "deltaCommitment": "0x2cf1dc108cc32cfe1617db756a7c793f383b67165ea1bb542f456dc6100f967d",
+    "provenanceCommitment": "0x4791ee5d37e8fc775d00f82c3d451e6d313aa5fe16dd94de5efdbbb39dc0f05c",
+    "profileId": "0x2f53a8c7cdfafe7559a285db700638113866e8605b81c9454f0936d67ddbd759",
+    "locatorCommitment": "0xc5ff571b8429eecd969f718fc45e45017c0d3a217dff401ad1cc752686bac812"
+  },
+  "expected": {
+    "experienceDeltaTypehash": "0x4f020f86bc06d852f1fde17853b4d92a70214eeab8e09718028124af097d070d",
+    "memoryStateTypehash": "0xf3148762556cbf851baf4b9a205e18ff4e6b366a58a3a1ef58e8626ba41beadb",
+    "memorySpaceTypehash": "0x9ae5478f084ad3b841da58a9cb2354d153cddec59ee64d0cb741fa9d08884531",
+    "transitionId": "0xdd00dd6eb3aec704b5455502647a0caacf23be6c724eda4a60d9645291e7f4e5",
+    "nextStateRoot": "0x9684a8d3571c5cd9c1e3abb1b0c0797b9fef6965e9002aeefba91e8cb1163754"
+  },
+  "eip712": {
+    "name": "AgentMemoryState",
+    "version": "1",
+    "chainId": "1",
+    "verifyingContract": "0x4444444444444444444444444444444444444444",
+    "domainSeparator": "0xc8e1b4a128b4de377427c24ccea92cac6d7c77f8fe55f4b2984432bbc3b3d5b9",
+    "signingDigest": "0xaa76377b6dc395d65e2c346a4ff3176bcbe3d27223e01b68be450f81f0f5f494"
+  },
+  "spaceAuthorization": {
+    "controller": "0x2222222222222222222222222222222222222222",
+    "authorizer": "0x3333333333333333333333333333333333333333",
+    "spaceSalt": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "registrationId": "0x7bea30aa6018c9c8a3e66bd9573377af482dc791994af8c50698e3fc9d4e5d64",
+    "updateNonce": "1",
+    "authorizationId": "0xa1fef7a8e52a533f7839f51962fa6e3ef9f8a8081efbac1eb13651801f4d1a92"
+  }
+}
