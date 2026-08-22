@@ -72,45 +72,99 @@ library SignalProbe {
         return (target, false, true);
     }
 
-    /// @dev Walks opcodes rather than bytes. A raw byte scan reports any 0xf4
-    ///      that happens to sit inside PUSH data or the trailing metadata, which
-    ///      marks ordinary contracts as upgradeable proxies. Skipping PUSH
-    ///      immediates is what makes the answer mean anything.
-    /// @dev Solidity appends a CBOR metadata blob to runtime bytecode, ending
-    ///      in a two-byte big-endian length. Those bytes are data, not opcodes,
-    ///      and they routinely contain values that look like instructions: a
-    ///      scan that reads them will report ordinary contracts as proxies and
-    ///      blind the `privilegedPowers` signal on most real tokens. Everything
-    ///      here stops at the start of that blob.
     /// @dev Delegation anywhere in the runtime, walked as opcodes from the
-    ///      start so PUSH immediates are not mistaken for instructions.
+    ///      start so PUSH immediates are not mistaken for instructions. A raw
+    ///      byte scan reports any 0xf4 sitting inside PUSH data and marks
+    ///      ordinary contracts as upgradeable proxies; skipping the immediates
+    ///      is what makes the answer mean anything.
     ///
-    ///      Nothing here trims a trailing metadata section, and the several
-    ///      attempts to do so are why. The length, the header and every byte
-    ///      that would justify skipping a region are written by the party under
-    ///      examination, so each test of whether a region "is metadata" was a
-    ///      test the subject could pass by construction: name a length, place a
-    ///      CBOR header, avoid whichever opcode the last version looked for.
-    ///      Every such rule bought a smaller scan at the price of letting the
-    ///      token choose what went unread, and an unread region reported as
-    ///      clean is the one error this signal must not make.
+    ///      No region is skipped on the subject's say-so, and the several
+    ///      attempts to skip one are why. The length, the header and every byte
+    ///      that would justify skipping a trailing section are written by the
+    ///      party under examination, so each test of whether a region "is
+    ///      metadata" was a test the subject could pass by construction: name a
+    ///      length, place a CBOR header, avoid whichever opcode the last
+    ///      version looked for. Every such rule bought a smaller scan at the
+    ///      price of letting the token choose what went unread, and an unread
+    ///      region reported as clean is the one error this signal must not make.
     ///
-    ///      Scanning everything costs the opposite error instead: bytes that
-    ///      are data may read as an opcode by coincidence. That direction is
-    ///      survivable. An over-reported power is a claim a detector must
-    ///      corroborate before acting on, which the proposal already requires;
-    ///      an under-reported one is an assurance nobody checks.
+    ///      `_unreachableRegion` skips a region on a different footing: not that it
+    ///      is metadata, but that it cannot execute. That is a property of the
+    ///      bytes rather than a claim about them, and a token that arranges for
+    ///      the region to be reachable is a token whose region gets walked.
     function _hasDelegateCall(bytes memory code) private pure returns (bool) {
+        uint256 region = _unreachableRegion(code);
         uint256 i = 0;
+        bool ended = false; // did the instruction just decoded end execution
         while (i < code.length) {
+            // The walk itself decides reachability. Arriving at the region on an
+            // instruction boundary, with execution already ended, is the only
+            // way to stop early: a body ending PUSH1 0x00 arrives here with
+            // `ended` false, because the 0x00 was an immediate and never ran.
+            if (i == region && ended) return false;
+
             uint8 op = uint8(code[i]);
             // CALLCODE runs foreign code against this contract's own storage.
             // For everything this signal is for, that is delegation.
             if (op == 0xf4 || op == 0xf2) return true; // DELEGATECALL, CALLCODE
+
+            ended =
+                op == 0x00 || // STOP
+                op == 0x56 || // JUMP
+                op == 0xf3 || // RETURN
+                op == 0xfd || // REVERT
+                op == 0xfe || // INVALID
+                op == 0xff;   // SELFDESTRUCT
+
             if (op >= 0x60 && op <= 0x7f) i += uint256(op) - 0x5f; // skip PUSH data
             ++i;
         }
         return false;
+    }
+
+    /// @dev The start of a trailing region that cannot execute, or the length of
+    ///      the code where there is none. Nothing here is taken on the subject's
+    ///      word. Solidity announces its CBOR metadata with a two-byte length
+    ///      the subject writes and could lie about, so the length locates a
+    ///      candidate and settles nothing.
+    ///
+    ///      Two ways in have to be closed. A region holding no `JUMPDEST` cannot
+    ///      be jumped into, which is decided here. Whether execution can fall
+    ///      into it is decided by the caller's walk instead, because it is the
+    ///      walk that knows whether the byte before the region was an
+    ///      instruction or a PUSH immediate. Reading that byte directly is the
+    ///      bypass this file has already been through: a body ending PUSH1 0x00
+    ///      reads as ending in STOP, and everything after it goes unread.
+    ///
+    ///      This is narrower than the trims the whole-runtime scan was right to
+    ///      refuse, and it is confined to delegation. A selector only needs to
+    ///      sit in a region as data, four bytes at a time, so `_scan` still
+    ///      reads every byte. An opcode has to run to matter, and unreachable
+    ///      bytes never run. What the old behavior cost was not an over-reported
+    ///      power, which a detector must corroborate anyway; it was reporting an
+    ///      ordinary token as a proxy whose code could not be seen, which blanks
+    ///      `privilegedPowers` outright. That fired on roughly one contract in
+    ///      fourteen here, moved whenever an unrelated source file changed, and
+    ///      fell on exactly the honest tokens the signal exists to clear.
+    function _unreachableRegion(bytes memory code) private pure returns (uint256) {
+        uint256 n = code.length;
+        if (n < 4) return n;
+
+        uint256 len = (uint256(uint8(code[n - 2])) << 8) | uint256(uint8(code[n - 1]));
+        if (len == 0 || len + 3 > n) return n;
+        uint256 start = n - 2 - len;
+
+        // A CBOR map header, as every Solidity version writes. Anything else is
+        // not the region this is about, and gets no benefit of the doubt.
+        uint8 header = uint8(code[start]);
+        if (header < 0xa1 || header > 0xbf) return n;
+
+        // One valid destination anywhere in it is enough to make it reachable.
+        for (uint256 i = start; i < n; ++i) {
+            if (uint8(code[i]) == 0x5b) return n; // JUMPDEST
+        }
+
+        return start;
     }
 
     /// @notice Whether `selector` appears anywhere in the runtime bytecode.

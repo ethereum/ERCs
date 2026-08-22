@@ -255,5 +255,42 @@ contract FullCoverageTest is TestBase {
         assertTrue(resolved, "plain contract should resolve");
     }
 
+    /// An unreachable trailing blob is not walked as opcodes, so the metadata
+    /// Solidity appends cannot turn an ordinary token into an unresolvable
+    /// proxy and blank its `privilegedPowers`.
+    function test_unreachableTrailingBlobIsNotCode() public {
+        // STOP, then three bytes announced as a CBOR blob, the last of them 0xf4.
+        vm.etch(address(0xB10B), hex"00a201f40003");
+        (, bool isProxy, bool resolved) = SignalProbe.implementationOf(address(0xB10B));
+        assertTrue(!isProxy, "unreachable blob read as delegation");
+        assertTrue(resolved, "ordinary contract left unresolvable");
+    }
+
+    /// The skip is earned by unreachability, not claimed by a length. A blob a
+    /// token could actually enter is walked like any other code.
+    function test_reachableTrailingBlobIsWalked() public {
+        // A JUMPDEST inside the region: it can be jumped into.
+        vm.etch(address(0xB10C), hex"00a25bf40003");
+        (, bool p1, bool r1) = SignalProbe.implementationOf(address(0xB10C));
+        assertTrue(p1 && !r1, "jumpable blob skipped");
+
+        // No terminating instruction before it: it can be fallen into.
+        vm.etch(address(0xB10D), hex"01a201f40003");
+        (, bool p2, bool r2) = SignalProbe.implementationOf(address(0xB10D));
+        assertTrue(p2 && !r2, "fall-through blob skipped");
+
+        // A length naming more bytes than exist decides nothing.
+        vm.etch(address(0xB10E), hex"00a201f400ff");
+        (, bool p3, bool r3) = SignalProbe.implementationOf(address(0xB10E));
+        assertTrue(p3 && !r3, "overlong length honoured");
+
+        // PUSH1 0x00 before the region: the 0x00 is an immediate that never
+        // runs, so execution falls through into the region rather than stopping
+        // at a STOP. Reading that byte as an opcode is the bypass this closes.
+        vm.etch(address(0xB10F), hex"6000a201f40003");
+        (, bool p4, bool r4) = SignalProbe.implementationOf(address(0xB10F));
+        assertTrue(p4 && !r4, "PUSH immediate read as a terminating instruction");
+    }
+
     receive() external payable {}
 }
