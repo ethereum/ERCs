@@ -4,10 +4,11 @@ pragma solidity ^0.8.24;
 import {SignalVector} from "./LaunchAbuseTypes.sol";
 
 /// @title The detector: assembly of a signal vector and its evidence.
-/// @notice Four of the ten signals are readable from chain state and are derived
-///         here, so a consumer need not trust the detector for them. Three
-///         require historical graph traversal and are supplied by the off-chain
-///         service. The remaining three come from the escrow and the directory.
+/// @notice Seven of the twelve signals are derived here from chain state, one of
+///         them through the escrow the directory names, so a consumer need not
+///         trust the detector for them. Four require historical graph traversal
+///         and are supplied by the off-chain service. The last, the time left on
+///         a liquidity lock, is supplied with the inputs and carried through.
 ///
 ///         Splitting it this way is the point: the more of the vector that is
 ///         independently recomputable, the more of a false report is provable,
