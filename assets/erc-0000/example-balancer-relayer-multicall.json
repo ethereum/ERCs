@@ -1,0 +1,40 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Balancer Relayer Multicall",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x35Cea9e57A393ac66Aaa7E25C391D52C74B5648f"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Balancer",
+        "contractName": "BalancerRelayer",
+        "info": {
+            "url": "https://docs-v2.balancer.fi/concepts/advanced/relayers.html"
+        }
+    },
+    "display": {
+        "formats": {
+            "multicall(bytes[] data)": {
+                "$id": "Balancer Relayer Multicall",
+                "intent": "Execute batch",
+                "fields": [
+                    {
+                        "path": "data[]",
+                        "label": "Batched relayer action",
+                        "format": "calldata",
+                        "params": {
+                            "callee": "0xeA66501dF1A00261E3bB79D1E90444fc6A186B62",
+                            "operation": "DELEGATECALL"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

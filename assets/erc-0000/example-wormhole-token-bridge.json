@@ -1,0 +1,147 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Wormhole Token Bridge",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Wormhole",
+        "contractName": "TokenBridge",
+        "info": {
+            "url": "https://github.com/wormhole-foundation/wormhole"
+        }
+    },
+    "display": {
+        "formats": {
+            "completeTransfer(bytes encodedVm)": {
+                "$id": "Complete Token Transfer",
+                "intent": "Complete cross-chain transfer",
+                "fields": [
+                    {
+                        "path": "encodedVm",
+                        "label": "Signed message (VAA)",
+                        "customEncoding": {
+                            "type": "object",
+                            "fields": [
+                                {
+                                    "name": "version",
+                                    "schema": { "type": "uint", "bytes": 1 }
+                                },
+                                {
+                                    "name": "guardianSetIndex",
+                                    "schema": { "type": "uint", "bytes": 4 }
+                                },
+                                {
+                                    "name": "numSignatures",
+                                    "schema": { "type": "uint", "bytes": 1 }
+                                },
+                                {
+                                    "name": "signatures",
+                                    "schema": {
+                                        "type": "sequence",
+                                        "countFrom": "numSignatures",
+                                        "element": {
+                                            "type": "object",
+                                            "fields": [
+                                                { "name": "guardianIndex", "schema": { "type": "uint", "bytes": 1 } },
+                                                { "name": "r", "schema": { "type": "bytes", "length": 32 } },
+                                                { "name": "s", "schema": { "type": "bytes", "length": 32 } },
+                                                { "name": "v", "schema": { "type": "uint", "bytes": 1 } }
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "name": "timestamp",
+                                    "schema": { "type": "uint", "bytes": 4 },
+                                    "label": "Signed at",
+                                    "format": "date",
+                                    "params": { "encoding": "timestamp" }
+                                },
+                                {
+                                    "name": "nonce",
+                                    "schema": { "type": "uint", "bytes": 4 }
+                                },
+                                {
+                                    "name": "emitterChainId",
+                                    "schema": { "type": "uint", "bytes": 2 },
+                                    "label": "Origin chain (Wormhole ID)"
+                                },
+                                {
+                                    "name": "emitterAddress",
+                                    "schema": { "type": "bytes", "length": 32 },
+                                    "label": "Origin emitter"
+                                },
+                                {
+                                    "name": "sequenceNumber",
+                                    "schema": { "type": "uint", "bytes": 8 }
+                                },
+                                {
+                                    "name": "consistencyLevel",
+                                    "schema": { "type": "uint", "bytes": 1 }
+                                },
+                                {
+                                    "name": "payload",
+                                    "label": "Transfer details",
+                                    "schema": {
+                                        "type": "switch",
+                                        "expression": { "type": "uint", "bytes": 1 },
+                                        "cases": {
+                                            "0x01": {
+                                                "customEncoding": {
+                                                    "type": "object",
+                                                    "fields": [
+                                                        {
+                                                            "name": "amount",
+                                                            "schema": { "type": "uint", "bytes": 32 },
+                                                            "label": "Amount",
+                                                            "format": "raw"
+                                                        },
+                                                        {
+                                                            "name": "tokenAddress",
+                                                            "schema": { "type": "bytes", "length": 32 },
+                                                            "label": "Token (origin chain address)"
+                                                        },
+                                                        {
+                                                            "name": "tokenChain",
+                                                            "schema": { "type": "uint", "bytes": 2 },
+                                                            "label": "Token's origin chain (Wormhole ID)"
+                                                        },
+                                                        {
+                                                            "name": "to",
+                                                            "schema": { "type": "bytes", "length": 32 },
+                                                            "label": "Recipient (destination chain address)"
+                                                        },
+                                                        {
+                                                            "name": "toChain",
+                                                            "schema": { "type": "uint", "bytes": 2 },
+                                                            "label": "Destination chain (Wormhole ID)"
+                                                        },
+                                                        {
+                                                            "name": "fee",
+                                                            "schema": { "type": "uint", "bytes": 32 },
+                                                            "label": "Relayer fee",
+                                                            "format": "raw"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "$default": "reject"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
