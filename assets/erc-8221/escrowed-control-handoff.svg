@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 840" role="img" aria-labelledby="title desc">
+  <title id="title">Escrowed Control Handoff</title>
+  <desc id="desc">Timeline diagram showing Alice transferring the controller NFT to an escrow contract, which freezes account execution. Bob pays the escrow, which releases the NFT to Bob. If Bob fails to pay, the escrow returns the NFT to Alice.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .step-box { stroke: #304254; stroke-width: 2.25; rx: 20; ry: 20; }
+    .alice-step { fill: #eef3ff; }
+    .escrow-step { fill: #fff3db; }
+    .bob-step { fill: #eaf7ef; }
+    .fail-step { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .step-title { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #1d2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .axis { stroke: #304254; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+    .circle { fill: #2d3d50; }
+    .circle-text { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #ffffff; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="840"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Escrowed Control Handoff</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">An escrow contract holds the controller NFT. While held, nobody can execute on the account.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">Payment releases control to the buyer. Timeout returns control to the seller.</text>
+
+  <!--
+    4 columns, each 270px wide, 50px gaps, centered in 1440px:
+    Box 1: x=105  center=240
+    Box 2: x=425  center=560
+    Box 3: x=745  center=880
+    Box 4: x=1065 center=1200
+  -->
+
+  <!-- Timeline axis -->
+  <line class="axis" x1="240" y1="170" x2="1300" y2="170"/>
+
+  <!-- Numbered circles on the axis -->
+  <circle class="circle" cx="240" cy="170" r="24"/>
+  <text class="circle-text" x="240" y="176" text-anchor="middle">1</text>
+  <circle class="circle" cx="560" cy="170" r="24"/>
+  <text class="circle-text" x="560" y="176" text-anchor="middle">2</text>
+  <circle class="circle" cx="880" cy="170" r="24"/>
+  <text class="circle-text" x="880" y="176" text-anchor="middle">3</text>
+  <circle class="circle" cx="1200" cy="170" r="24"/>
+  <text class="circle-text" x="1200" y="176" text-anchor="middle">4</text>
+
+  <!-- All step boxes: y=220 to y=420, height=200 -->
+
+  <!-- Step 1: Alice unlocks + transfers to escrow -->
+  <rect class="step-box alice-step" x="105" y="220" width="270" height="200"/>
+  <text class="step-title" x="240" y="258" text-anchor="middle">Alice Transfers</text>
+  <text class="step-title" x="240" y="280" text-anchor="middle">T to Escrow</text>
+  <text class="body" x="240" y="316" text-anchor="middle">proposeUnlock, wait,</text>
+  <text class="body" x="240" y="338" text-anchor="middle">completeUnlock, then</text>
+  <text class="body" x="240" y="360" text-anchor="middle">transfer T to E.</text>
+  <text class="body" x="240" y="396" text-anchor="middle">Execution frozen during</text>
+  <text class="body" x="240" y="416" text-anchor="middle">the unlock window.</text>
+
+  <!-- Step 2: Escrow holds — nobody executes -->
+  <rect class="step-box escrow-step" x="425" y="220" width="270" height="200"/>
+  <text class="step-title" x="560" y="258" text-anchor="middle">Escrow Holds T</text>
+  <text class="mono" x="560" y="294" text-anchor="middle">ownerOf(T) = E</text>
+  <text class="body" x="560" y="328" text-anchor="middle">Neither Alice nor Bob</text>
+  <text class="body" x="560" y="350" text-anchor="middle">can execute. E has no</text>
+  <text class="body" x="560" y="372" text-anchor="middle">execute path on A.</text>
+  <text class="body" x="560" y="406" text-anchor="middle">Account effectively frozen.</text>
+
+  <!-- Step 3: Bob pays -->
+  <rect class="step-box bob-step" x="745" y="220" width="270" height="200"/>
+  <text class="step-title" x="880" y="258" text-anchor="middle">Bob Pays</text>
+  <text class="body" x="880" y="294" text-anchor="middle">Bob sends payment to E.</text>
+  <text class="body" x="880" y="322" text-anchor="middle">E verifies receipt and</text>
+  <text class="body" x="880" y="344" text-anchor="middle">transfers T to Bob.</text>
+  <text class="mono" x="880" y="384" text-anchor="middle">ownerOf(T) = Bob</text>
+  <text class="mono" x="880" y="410" text-anchor="middle">controlVersion++</text>
+
+  <!-- Step 4: Bob controls (top) + timeout (bottom) -->
+  <rect class="step-box bob-step" x="1065" y="220" width="270" height="100"/>
+  <text class="step-title" x="1200" y="258" text-anchor="middle">Bob Controls A</text>
+  <text class="body" x="1200" y="286" text-anchor="middle">All assets, positions, and</text>
+  <text class="body" x="1200" y="308" text-anchor="middle">relationships intact.</text>
+
+  <rect class="step-box fail-step" x="1065" y="340" width="270" height="80"/>
+  <text class="step-title" x="1200" y="370" text-anchor="middle">Or: Timeout</text>
+  <text class="body" x="1200" y="398" text-anchor="middle">E returns T to Alice.</text>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="500" width="420" height="130"/>
+  <text class="label" x="280" y="538" text-anchor="middle">Escrow = Account Freeze</text>
+  <text class="body" x="280" y="568" text-anchor="middle">While the escrow contract holds T,</text>
+  <text class="body" x="280" y="590" text-anchor="middle">the account cannot execute. Only</text>
+  <text class="body" x="280" y="612" text-anchor="middle">ownerOf(T) can execute, and E has no path.</text>
+
+  <rect class="note" x="530" y="500" width="380" height="130"/>
+  <text class="label" x="720" y="538" text-anchor="middle">No Asset Migration</text>
+  <text class="body" x="720" y="568" text-anchor="middle">Assets, protocol positions, ENS names,</text>
+  <text class="body" x="720" y="590" text-anchor="middle">and address-based relationships stay at A.</text>
+  <text class="body" x="720" y="612" text-anchor="middle">One NFT transfer replaces individual moves.</text>
+
+  <rect class="warn" x="950" y="500" width="420" height="130"/>
+  <text class="label" x="1160" y="538" text-anchor="middle">Same Pattern, Many Uses</text>
+  <text class="body" x="1160" y="568" text-anchor="middle">Court-ordered asset freeze: court-appointed</text>
+  <text class="body" x="1160" y="590" text-anchor="middle">contract holds T. Vesting: releases T on</text>
+  <text class="body" x="1160" y="612" text-anchor="middle">schedule. Settlement: releases on confirmation.</text>
+
+  <rect class="note" x="70" y="700" width="1300" height="80"/>
+  <text class="label" x="720" y="732" text-anchor="middle">Token-level approvals survive transfer to escrow. The seller SHOULD batch-revoke outstanding approvals</text>
+  <text class="body" x="720" y="758" text-anchor="middle">during the unlock freeze window using the revocation interface, before the buyer receives control.</text>
+</svg>

@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
+  <title id="title">Transfer Lock and Execution Mutual Exclusion</title>
+  <desc id="desc">State diagram showing the controller token's lock lifecycle. Execution is permitted only in the Locked state with no outstanding unlock proposal. All other states block execution. Transfer is permitted only in the Unlocked state. proposeUnlock and lock both invalidate prior single-token approvals. This mutual exclusion is the anti-sell-and-drain property.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .state { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .locked { fill: #eaf7ef; }
+    .pending { fill: #fff3db; }
+    .ready { fill: #fff3db; }
+    .unlocked { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .amber { fill: #fff8e8; stroke: #c9a14d; stroke-width: 2; rx: 18; ry: 18; }
+    .exec-yes { fill: #d8eadf; stroke: #4d7a63; stroke-width: 1.5; rx: 14; ry: 14; }
+    .exec-no { fill: #ffe0d6; stroke: #b45d42; stroke-width: 1.5; rx: 14; ry: 14; }
+    .xfer-yes { fill: #d8eadf; stroke: #4d7a63; stroke-width: 1.5; rx: 14; ry: 14; }
+    .xfer-no { fill: #ffe0d6; stroke: #b45d42; stroke-width: 1.5; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .pill-label { font: 600 14px 'Segoe UI', Arial, sans-serif; }
+    .pill-yes { fill: #3d7a4f; }
+    .pill-no { fill: #b45d42; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .join { stroke: #304254; stroke-width: 3.2; fill: none; }
+    .dash { stroke-dasharray: 8 7; }
+    .invalidate { font: 700 14px 'Segoe UI', Arial, sans-serif; fill: #b45d42; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="1020"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Transfer Lock and Execution Mutual Exclusion</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Execution is allowed only while fully locked with no outstanding unlock proposal.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">Transfer is allowed only while unlocked. The two are never simultaneously available.</text>
+
+  <!-- ═══════ STATE BOXES ═══════ -->
+
+  <!-- Locked -->
+  <rect class="state locked" x="30" y="200" width="260" height="200"/>
+  <text class="title2" x="160" y="238" text-anchor="middle">Locked</text>
+  <text class="mono" x="160" y="266" text-anchor="middle">locked() = true</text>
+  <text class="mono" x="160" y="288" text-anchor="middle">unlockReadyAt = 0</text>
+  <rect class="exec-yes" x="50" y="310" width="110" height="28"/>
+  <text class="pill-label pill-yes" x="105" y="329" text-anchor="middle">Exec: YES</text>
+  <rect class="xfer-no" x="170" y="310" width="110" height="28"/>
+  <text class="pill-label pill-no" x="225" y="329" text-anchor="middle">Xfer: NO</text>
+  <text class="body" x="160" y="372" text-anchor="middle">Revocation always allowed.</text>
+
+  <!-- Pending Unlock -->
+  <rect class="state pending" x="440" y="200" width="260" height="200"/>
+  <text class="title2" x="570" y="238" text-anchor="middle">Pending Unlock</text>
+  <text class="mono" x="570" y="266" text-anchor="middle">locked() = true</text>
+  <text class="mono" x="570" y="288" text-anchor="middle">unlockReadyAt > now</text>
+  <rect class="exec-no" x="455" y="310" width="110" height="28"/>
+  <text class="pill-label pill-no" x="510" y="329" text-anchor="middle">Exec: NO</text>
+  <rect class="xfer-no" x="580" y="310" width="110" height="28"/>
+  <text class="pill-label pill-no" x="635" y="329" text-anchor="middle">Xfer: NO</text>
+  <text class="body" x="570" y="372" text-anchor="middle">Revocation always allowed.</text>
+
+  <!-- Unlock Ready -->
+  <rect class="state ready" x="830" y="200" width="260" height="200"/>
+  <text class="title2" x="960" y="238" text-anchor="middle">Unlock Ready</text>
+  <text class="mono" x="960" y="266" text-anchor="middle">locked() = true</text>
+  <text class="mono" x="960" y="288" text-anchor="middle">unlockReadyAt &lt;= now</text>
+  <rect class="exec-no" x="850" y="310" width="110" height="28"/>
+  <text class="pill-label pill-no" x="905" y="329" text-anchor="middle">Exec: NO</text>
+  <rect class="xfer-no" x="970" y="310" width="110" height="28"/>
+  <text class="pill-label pill-no" x="1025" y="329" text-anchor="middle">Xfer: NO</text>
+  <text class="body" x="960" y="372" text-anchor="middle">Revocation always allowed.</text>
+
+  <!-- Unlocked -->
+  <rect class="state unlocked" x="1180" y="200" width="230" height="200"/>
+  <text class="title2" x="1295" y="238" text-anchor="middle">Unlocked</text>
+  <text class="mono" x="1295" y="266" text-anchor="middle">locked() = false</text>
+  <rect class="exec-no" x="1195" y="310" width="95" height="28"/>
+  <text class="pill-label pill-no" x="1240" y="329" text-anchor="middle">Exec: NO</text>
+  <rect class="xfer-yes" x="1305" y="310" width="90" height="28"/>
+  <text class="pill-label pill-yes" x="1350" y="329" text-anchor="middle">Xfer: YES</text>
+  <text class="body" x="1295" y="372" text-anchor="middle">Revocation always allowed.</text>
+
+  <!-- ═══════ FORWARD TRANSITIONS ═══════ -->
+
+  <!-- Locked -> Pending: proposeUnlock -->
+  <path class="edge" d="M 290 290 L 440 290"/>
+  <text class="label" x="365" y="262" text-anchor="middle">proposeUnlock()</text>
+  <text class="invalidate" x="365" y="320" text-anchor="middle">approvals invalidated</text>
+
+  <!-- Pending -> Ready: time passes -->
+  <path class="edge dash" d="M 700 290 L 830 290"/>
+  <text class="label" x="760" y="268" text-anchor="middle">time passes</text>
+
+  <!-- Ready -> Unlocked: completeUnlock -->
+  <path class="edge" d="M 1090 290 L 1180 290"/>
+  <text class="label" x="1135" y="268" text-anchor="middle">complete</text>
+  <text class="label" x="1135" y="325" text-anchor="middle">Unlock()</text>
+
+  <!-- ═══════ BACK TRANSITIONS: lock() ═══════ -->
+
+  <!-- Pending -> Locked: lock() -->
+  <path class="join" d="M 560 400 L 560 460"/>
+  <path class="edge" d="M 560 460 L 200 460 L 200 400"/>
+  <text class="label" x="380" y="448" text-anchor="middle">lock()</text>
+  <text class="invalidate" x="380" y="480" text-anchor="middle">approvals invalidated; emit UnlockCancelled</text>
+
+  <!-- Ready -> Locked: lock() -->
+  <path class="join" d="M 960 400 L 960 530"/>
+  <path class="edge" d="M 960 530 L 200 530 L 200 400"/>
+  <text class="label" x="580" y="518" text-anchor="middle">lock()</text>
+  <text class="invalidate" x="580" y="550" text-anchor="middle">approvals invalidated; emit UnlockCancelled</text>
+
+  <!-- Unlocked -> Locked: lock() -->
+  <path class="join" d="M 1295 400 L 1295 600"/>
+  <path class="edge" d="M 1295 600 L 200 600 L 200 400"/>
+  <text class="label" x="748" y="588" text-anchor="middle">lock()</text>
+  <text class="invalidate" x="748" y="620" text-anchor="middle">approvals invalidated; emit Locked</text>
+
+  <!-- Transfer -> Locked: transfer + immediate relock -->
+  <path class="join" d="M 1370 400 L 1370 665"/>
+  <path class="edge" d="M 1370 665 L 100 665 L 100 400"/>
+  <text class="label" x="735" y="653" text-anchor="middle">transfer: immediate relock + controlVersion++</text>
+  <text class="invalidate" x="735" y="685" text-anchor="middle">approvals invalidated; emit Transfer + Locked; old validators/hooks inactive</text>
+
+  <!-- ═══════ BOTTOM PANELS ═══════ -->
+
+  <rect class="good" x="70" y="740" width="420" height="130"/>
+  <text class="label" x="280" y="778" text-anchor="middle">Anti-Sell-and-Drain Property</text>
+  <text class="body" x="280" y="808" text-anchor="middle">Execution and transfer are never both available.</text>
+  <text class="body" x="280" y="832" text-anchor="middle">A seller who drains must lock() first, which</text>
+  <text class="body" x="280" y="854" text-anchor="middle">invalidates the buyer's marketplace approval.</text>
+
+  <rect class="amber" x="530" y="740" width="380" height="130"/>
+  <text class="label" x="720" y="778" text-anchor="middle">Approval Invalidation</text>
+  <text class="body" x="720" y="808" text-anchor="middle">proposeUnlock, lock, and transfer all</text>
+  <text class="body" x="720" y="832" text-anchor="middle">increment the transfer approval version,</text>
+  <text class="body" x="720" y="854" text-anchor="middle">invalidating prior ERC-721 approvals on T.</text>
+
+  <rect class="note" x="950" y="740" width="420" height="130"/>
+  <text class="label" x="1160" y="778" text-anchor="middle">ERC-5192 Surface</text>
+  <text class="body" x="1160" y="808" text-anchor="middle">Pending and Ready states still report</text>
+  <text class="body" x="1160" y="832" text-anchor="middle">locked() = true under ERC-5192.</text>
+  <text class="body" x="1160" y="854" text-anchor="middle">Only Unlocked reports locked() = false.</text>
+
+  <!-- Summary bar -->
+  <rect class="warn" x="70" y="895" width="1300" height="75"/>
+  <text class="label" x="720" y="925" text-anchor="middle">Only the Locked state (no pending unlock) permits execution. Only the Unlocked state permits transfer.</text>
+  <text class="body" x="720" y="948" text-anchor="middle">Returning to Locked via lock() requires restarting the full unlock flow from scratch, including a new unlockDelay wait.</text>
+</svg>

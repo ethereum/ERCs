@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 780" role="img" aria-labelledby="title desc">
+  <title id="title">Control Transfer Flow</title>
+  <desc id="desc">Timeline showing propose-unlock, complete-unlock, transfer to a new owner, control version invalidation, and immediate relocking, while assets remain in the account and approvals survive.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2d3d50"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1d2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #556371; }
+    .axis { stroke: #2d3d50; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+    .step-box { stroke: #2d3d50; stroke-width: 2.25; rx: 20; ry: 20; }
+    .step-1 { fill: #e8eefb; }
+    .step-2 { fill: #eef6ff; }
+    .step-3 { fill: #fff3db; }
+    .step-4 { fill: #eaf7ef; }
+    .step-5 { fill: #f8ebff; }
+    .step-6 { fill: #f4f3ef; }
+    .step-title { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #1d2733; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #263442; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #263442; }
+    .circle { fill: #2d3d50; }
+    .circle-text { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #ffffff; }
+    .panel { stroke: #33465a; stroke-width: 2; rx: 22; ry: 22; }
+    .change { fill: #ebf6ee; }
+    .stable { fill: #fff7e6; }
+    .warn { fill: #fff0ec; }
+    .account { fill: #edf7ef; stroke: #4c7a62; stroke-width: 2; rx: 20; ry: 20; }
+    .small-label { font: 600 16px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .connector { stroke: #4c7a62; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1400" height="780"/>
+
+  <text class="title" x="700" y="48" text-anchor="middle">Control Transfer Flow</text>
+  <text class="subtitle" x="700" y="80" text-anchor="middle">Propose unlock, complete unlock, transfer, then relock. Custody stays at the same account.</text>
+
+  <line class="axis" x1="170" y1="170" x2="1260" y2="170"/>
+
+  <circle class="circle" cx="170" cy="170" r="24"/>
+  <text class="circle-text" x="170" y="176" text-anchor="middle">1</text>
+  <circle class="circle" cx="370" cy="170" r="24"/>
+  <text class="circle-text" x="370" y="176" text-anchor="middle">2</text>
+  <circle class="circle" cx="570" cy="170" r="24"/>
+  <text class="circle-text" x="570" y="176" text-anchor="middle">3</text>
+  <circle class="circle" cx="770" cy="170" r="24"/>
+  <text class="circle-text" x="770" y="176" text-anchor="middle">4</text>
+  <circle class="circle" cx="970" cy="170" r="24"/>
+  <text class="circle-text" x="970" y="176" text-anchor="middle">5</text>
+  <circle class="circle" cx="1170" cy="170" r="24"/>
+  <text class="circle-text" x="1170" y="176" text-anchor="middle">6</text>
+
+  <rect class="step-box step-1" x="72" y="225" width="195" height="120"/>
+  <text class="step-title" x="170" y="258" text-anchor="middle">Alice Owns T</text>
+  <text class="body" x="170" y="286" text-anchor="middle">Token starts locked.</text>
+  <text class="mono" x="170" y="315" text-anchor="middle">ownerOf(T) = Alice</text>
+
+  <rect class="step-box step-2" x="272" y="225" width="195" height="120"/>
+  <text class="step-title" x="370" y="258" text-anchor="middle">Propose Unlock</text>
+  <text class="body" x="370" y="286" text-anchor="middle">Alice calls proposeUnlock(T).</text>
+  <text class="body" x="370" y="312" text-anchor="middle">unlockReadyAt is recorded.</text>
+
+  <rect class="step-box step-3" x="472" y="225" width="195" height="120"/>
+  <text class="step-title" x="570" y="258" text-anchor="middle">Complete Unlock</text>
+  <text class="body" x="570" y="286" text-anchor="middle">After the delay, Alice calls</text>
+  <text class="body" x="570" y="312" text-anchor="middle">completeUnlock(T).</text>
+
+  <rect class="step-box step-4" x="672" y="225" width="195" height="120"/>
+  <text class="step-title" x="770" y="258" text-anchor="middle">Transfer</text>
+  <text class="body" x="770" y="286" text-anchor="middle">Alice transfers T to Bob.</text>
+  <text class="mono" x="770" y="315" text-anchor="middle">Transfer + Locked emit</text>
+
+  <rect class="step-box step-5" x="872" y="225" width="195" height="120"/>
+  <text class="step-title" x="970" y="258" text-anchor="middle">Control Rotates</text>
+  <text class="mono" x="970" y="286" text-anchor="middle">ownerOf(T) = Bob</text>
+  <text class="body" x="970" y="312" text-anchor="middle">Bob is root controller.</text>
+
+  <rect class="step-box step-6" x="1072" y="225" width="195" height="120"/>
+  <text class="step-title" x="1170" y="258" text-anchor="middle">Version Changes</text>
+  <text class="mono" x="1170" y="286" text-anchor="middle">controlVersion++</text>
+  <text class="body" x="1170" y="312" text-anchor="middle">Old validators inactive.</text>
+
+  <rect class="account" x="510" y="390" width="380" height="105"/>
+  <text class="step-title" x="700" y="422" text-anchor="middle">Account A Remains the Custody Address</text>
+  <text class="body" x="700" y="449" text-anchor="middle">Assets stay in A. No ETH, ERC-20, or NFT</text>
+  <text class="body" x="700" y="471" text-anchor="middle">balances move during controller transfer.</text>
+  <path class="connector" d="M 760 345 L 760 387"/>
+
+  <rect class="panel change" x="120" y="540" width="360" height="170"/>
+  <text class="step-title" x="300" y="578" text-anchor="middle">What Changes Immediately</text>
+  <text class="body" x="300" y="614" text-anchor="middle">Current controller becomes Bob.</text>
+  <text class="body" x="300" y="642" text-anchor="middle">controlVersion increments.</text>
+  <text class="body" x="300" y="670" text-anchor="middle">Validator installs scoped to the old</text>
+  <text class="body" x="300" y="692" text-anchor="middle">control version stop being active.</text>
+
+  <rect class="panel stable" x="520" y="540" width="360" height="170"/>
+  <text class="step-title" x="700" y="578" text-anchor="middle">What Does Not Move</text>
+  <text class="body" x="700" y="614" text-anchor="middle">Account address A stays the same.</text>
+  <text class="body" x="700" y="642" text-anchor="middle">Assets remain in A.</text>
+  <text class="body" x="700" y="670" text-anchor="middle">History, balances, and protocol positions</text>
+  <text class="body" x="700" y="692" text-anchor="middle">remain attached to that account.</text>
+
+  <rect class="panel warn" x="920" y="540" width="360" height="170"/>
+  <text class="step-title" x="1100" y="578" text-anchor="middle">What Survives Transfer</text>
+  <text class="body" x="1100" y="614" text-anchor="middle">Token-level approvals previously granted</text>
+  <text class="body" x="1100" y="642" text-anchor="middle">by account A to third-party contracts.</text>
+  <text class="body" x="1100" y="670" text-anchor="middle">Those approvals do not auto-revoke.</text>
+  <text class="body" x="1100" y="692" text-anchor="middle">The new controller may need to revoke them.</text>
+</svg>
