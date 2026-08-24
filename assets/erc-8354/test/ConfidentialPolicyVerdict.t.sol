@@ -11,6 +11,7 @@ import {MockVerifier} from "../src/mocks/MockVerifier.sol";
 import {GuardedExecutor} from "../src/GuardedExecutor.sol";
 import {PolicyAttestation, VerdictAttestation} from "../src/IPolicyAttestation.sol";
 import {MockValidationRegistry} from "../src/mocks/MockValidationRegistry.sol";
+import {MockIdentityRegistry} from "../src/mocks/MockIdentityRegistry.sol";
 
 /// @notice Minimal call target for GuardedExecutor tests.
 contract Sink {
@@ -411,6 +412,63 @@ contract CAPVTest is Test {
                 IConfidentialPolicyVerdict.VerdictKindMismatch.selector, uint8(1), PolicyKind.NOT_PERMITTED
             )
         );
+        guard.consume(v, "proof");
+    }
+
+    // --- ERC-8004 identity binding (ordered check 2) ---
+
+    // 21. A domain that declares an ERC-8004 Identity Registry rejects an agentId that does not
+    // exist there, and `verify` short-circuits on the same condition.
+    function test_UnknownAgentRefusedWhenDomainDeclaresIdentityRegistry() public {
+        MockIdentityRegistry identity = new MockIdentityRegistry();
+        identity.register(1, address(0xA6E7)); // agent 1 exists; agent 2 was never registered
+        registry.setIdentityRegistry(DOMAIN, address(identity));
+
+        Verdict memory unknown = _verdict();
+        unknown.agentId = 2;
+        assertFalse(guard.verify(unknown, "proof"), "verify must refuse an unknown agent");
+        vm.prank(EXECUTOR);
+        vm.expectRevert(abi.encodeWithSelector(IConfidentialPolicyVerdict.AgentUnknown.selector, uint256(2)));
+        guard.consume(unknown, "proof");
+
+        // The registered agent is unaffected.
+        Verdict memory known = _verdict(); // agentId 1
+        vm.prank(EXECUTOR);
+        guard.consume(known, "proof");
+        assertTrue(guard.isConsumed(DOMAIN, known.nullifier));
+    }
+
+    // 22. A domain that declares no registry leaves agentId unresolved rather than unresolvable:
+    // the check is conditional, so the standard stays usable on chains hosting no ERC-8004.
+    function test_AgentUnresolvedWhenDomainDeclaresNoIdentityRegistry() public {
+        assertEq(registry.domain(DOMAIN).identityRegistry, address(0), "fixture declares no registry");
+        Verdict memory v = _verdict();
+        v.agentId = 999_999; // no registry anywhere minted this id
+        vm.prank(EXECUTOR);
+        guard.consume(v, "proof");
+        assertTrue(guard.isConsumed(DOMAIN, v.nullifier));
+    }
+
+    // 23. A declared address holding no code names no agents: the domain is misconfigured, and
+    // the Guard says so with AgentUnknown rather than reverting without data.
+    function test_IdentityRegistryWithoutCodeRefusesEveryAgent() public {
+        registry.setIdentityRegistry(DOMAIN, address(0xDEAD)); // no code at this address
+        Verdict memory v = _verdict();
+        vm.prank(EXECUTOR);
+        vm.expectRevert(abi.encodeWithSelector(IConfidentialPolicyVerdict.AgentUnknown.selector, uint256(1)));
+        guard.consume(v, "proof");
+    }
+
+    // 24. Check 2 sits ahead of everything that could mask it: an inactive domain must not hide
+    // an unknown agent behind DomainInactive.
+    function test_UnknownAgentBeatsInactiveDomain() public {
+        MockIdentityRegistry identity = new MockIdentityRegistry();
+        registry.setIdentityRegistry(DOMAIN, address(identity));
+        registry.revokeDomain(DOMAIN);
+
+        Verdict memory v = _verdict(); // agentId 1, never registered in `identity`
+        vm.prank(EXECUTOR);
+        vm.expectRevert(abi.encodeWithSelector(IConfidentialPolicyVerdict.AgentUnknown.selector, uint256(1)));
         guard.consume(v, "proof");
     }
 

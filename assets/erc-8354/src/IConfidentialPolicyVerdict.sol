@@ -49,6 +49,8 @@ interface IConfidentialPolicyVerdict is IERC165 {
         bytes32 actionCommitment
     );
 
+    /// @dev The domain declares an ERC-8004 Identity Registry and `agentId` does not exist in it.
+    error AgentUnknown(uint256 agentId);
     error VerdictExpired(uint64 expiry);
     error VerdictReplayed(bytes32 nullifier);
     error ExecutorMismatch(address expected, address actual);
