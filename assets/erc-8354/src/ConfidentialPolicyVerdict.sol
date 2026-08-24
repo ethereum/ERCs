@@ -82,17 +82,23 @@ contract ConfidentialPolicyVerdict is IConfidentialPolicyVerdict, EIP712, ERC165
 
     /// @dev Checks run in the exact order the spec mandates; revert on the first failure.
     function _consume(Verdict calldata v, bytes calldata proof, bytes memory executorAuth) internal {
-        IPolicyDomainRegistry.Domain memory d = registry.domain(v.domainId);
-        if (!d.active) revert DomainInactive(v.domainId);                                    // 1
         if (!PolicyKind.agreesWithDecision(v.policyKind, v.decision)) {
-            revert VerdictKindMismatch(v.decision, v.policyKind);                            // 2a
+            revert VerdictKindMismatch(v.decision, v.policyKind);                            // 1
         }
-        if (v.decision != 1) revert VerdictDenied();                                         // 2
-        _requireExecutorAuthorized(v, executorAuth);                                         // 3
-        if (block.timestamp >= v.expiry) revert VerdictExpired(v.expiry);                    // 4
-        if (_consumed[v.domainId][v.nullifier]) revert VerdictReplayed(v.nullifier);         // 5
-        if (!registry.isRootAcceptable(v.domainId, v.policyRoot)) revert PolicyRootRejected(v.policyRoot); // 6
-        if (!IVerifier(d.verifier).verifyProof(d.programKey, abi.encode(v), proof)) revert InvalidProof(); // 7
+        IPolicyDomainRegistry.Domain memory d = registry.domain(v.domainId);
+        if (!d.active) revert DomainInactive(v.domainId);                                    // 2
+        if (v.decision != 1) revert VerdictDenied();                                         // 3
+        _requireExecutorAuthorized(v, executorAuth);                                         // 4
+        if (block.timestamp >= v.expiry) revert VerdictExpired(v.expiry);                    // 5
+        if (_consumed[v.domainId][v.nullifier]) revert VerdictReplayed(v.nullifier);         // 6
+        if (!registry.isRootAcceptable(v.domainId, v.policyRoot)) revert PolicyRootRejected(v.policyRoot); // 7
+        // Mirrors `verify`: a malformed proof must surface as InvalidProof rather than
+        // propagating the verifier's own error, which check 8 names.
+        try IVerifier(d.verifier).verifyProof(d.programKey, abi.encode(v), proof) returns (bool ok) {
+            if (!ok) revert InvalidProof();                                                  // 8
+        } catch {
+            revert InvalidProof();                                                           // 8
+        }
 
         _consumed[v.domainId][v.nullifier] = true;
         emit VerdictConsumed(v.nullifier, v.agentId, v.domainId, v.policyRoot, v.actionCommitment);

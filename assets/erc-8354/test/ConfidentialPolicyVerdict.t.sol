@@ -302,4 +302,29 @@ contract CAPVTest is Test {
         assertEq(uint256(got.decision), 1);
         assertEq(got.agentId, v.agentId);
     }
+
+    // 19. Malformed proof reaching consume reverts with InvalidProof, matching what the
+    // ordered check names, rather than propagating the verifier's own error.
+    function test_ConsumeMalformedProofRevertsInvalidProof() public {
+        verifier.setRevert(true);
+        Verdict memory v = _verdict();
+        vm.prank(EXECUTOR);
+        vm.expectRevert(IConfidentialPolicyVerdict.InvalidProof.selector);
+        guard.consume(v, "garbage");
+    }
+
+    // 20. Well-formedness is checked before anything that could mask it. An inactive domain
+    // would otherwise hide a decision/policyKind disagreement behind DomainInactive.
+    function test_KindMismatchBeatsInactiveDomain() public {
+        registry.revokeDomain(DOMAIN);
+        Verdict memory v = _verdict();
+        v.policyKind = PolicyKind.NOT_PERMITTED;
+        vm.prank(EXECUTOR);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IConfidentialPolicyVerdict.VerdictKindMismatch.selector, uint8(1), PolicyKind.NOT_PERMITTED
+            )
+        );
+        guard.consume(v, "proof");
+    }
 }
