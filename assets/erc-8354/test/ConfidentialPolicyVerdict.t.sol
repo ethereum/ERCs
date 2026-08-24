@@ -143,6 +143,67 @@ contract CAPVTest is Test {
         guard.consume(v2, "proof");
     }
 
+    // 8b. Grace is generation-agnostic. Two rotations inside maxRootAge must not drop the
+    // oldest root: the spec says a root is acceptable if it is current or superseded less
+    // than maxRootAge ago, and says nothing about how many rotations have happened since.
+    // Each retained root is measured against its OWN supersession time, not the current
+    // root's, so ROOT and root-v2 fall out of the window at different moments.
+    function test_TwoRapidRotationsKeepEveryRootInsideItsOwnWindow() public {
+        uint256 t0 = block.timestamp; // ROOT became current here, maxRootAge is 1 hour
+
+        vm.warp(t0 + 10 minutes);
+        registry.updateRoot(DOMAIN, keccak256("root-v2")); // ROOT superseded at t0 + 10m
+        vm.warp(t0 + 20 minutes);
+        registry.updateRoot(DOMAIN, keccak256("root-v3")); // root-v2 superseded at t0 + 20m
+
+        // ROOT was superseded 10 minutes ago. It is two generations back, but still inside
+        // its own grace window, so it is still acceptable.
+        assertTrue(registry.isRootAcceptable(DOMAIN, ROOT), "ROOT is inside its own maxRootAge");
+        assertTrue(registry.isRootAcceptable(DOMAIN, keccak256("root-v2")), "root-v2 is inside its own window");
+
+        // And it is acceptable end to end, through the guard.
+        Verdict memory v = _verdict(); // built after the warp, so expiry is fresh; still points at ROOT
+        vm.prank(EXECUTOR);
+        guard.consume(v, "proof");
+        assertTrue(guard.isConsumed(DOMAIN, v.nullifier));
+
+        // One second past ROOT's own window, ROOT is rejected while root-v2 — superseded
+        // 10 minutes later — is still inside its own.
+        vm.warp(t0 + 10 minutes + 1 hours);
+        assertFalse(registry.isRootAcceptable(DOMAIN, ROOT), "ROOT is past its own maxRootAge");
+        assertTrue(registry.isRootAcceptable(DOMAIN, keccak256("root-v2")), "root-v2 has 10 more minutes");
+
+        Verdict memory v2 = _verdict();
+        v2.nullifier = keccak256("nf-2");
+        vm.prank(EXECUTOR);
+        vm.expectRevert(abi.encodeWithSelector(IConfidentialPolicyVerdict.PolicyRootRejected.selector, ROOT));
+        guard.consume(v2, "proof");
+    }
+
+    // 8c. Retained history is bounded at eight superseded generations, so the grace rule is
+    // approximated from below: a domain that rotates more often than that inside one window
+    // loses its oldest roots early. They are rejected sooner than maxRootAge, never later,
+    // so the overflow fails closed.
+    function test_RotationsBeyondRetainedHistoryFailClosed() public {
+        for (uint256 i = 2; i <= 10; ++i) {
+            vm.warp(block.timestamp + 1 minutes);
+            registry.updateRoot(DOMAIN, keccak256(abi.encodePacked("root-v", i))); // 9 supersessions
+        }
+
+        // ROOT stopped being current nine minutes ago, well inside its one-hour window, but it
+        // is nine generations back and only eight are retained.
+        assertFalse(registry.isRootAcceptable(DOMAIN, ROOT), "the oldest generation ages out early");
+        assertTrue(
+            registry.isRootAcceptable(DOMAIN, keccak256(abi.encodePacked("root-v", uint256(2)))),
+            "the eight retained generations are unaffected"
+        );
+
+        Verdict memory v = _verdict();
+        vm.prank(EXECUTOR);
+        vm.expectRevert(abi.encodeWithSelector(IConfidentialPolicyVerdict.PolicyRootRejected.selector, ROOT));
+        guard.consume(v, "proof");
+    }
+
     // 9. Revocation is immediate, no grace
     function test_RevocationImmediate() public {
         registry.revokeDomain(DOMAIN);
@@ -352,4 +413,5 @@ contract CAPVTest is Test {
         );
         guard.consume(v, "proof");
     }
+
 }
