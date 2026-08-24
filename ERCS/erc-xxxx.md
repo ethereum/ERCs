@@ -226,7 +226,7 @@ A verifier MAY cache only a positive Universal Account result for a grant. The c
 
 ### 5. Canonical Revocation Registry
 
-The Ethereum mainnet (`eip155:1`) deployment is canonical and defines the registry address and runtime code hash. Each grant uses the registry at that address on the EIP-155 chain identified by its `issuer`. A verifier MUST derive the registry chain from `issuer`, verify the runtime code hash, and MUST NOT substitute another chain or registry address. An issuer on another chain therefore selects the corresponding deployment on that chain.
+The Ethereum mainnet (`eip155:1`) deployment is canonical and defines the registry address and runtime code hash. Each grant uses the registry at that address on the [EIP-155](./eip-155.md) chain identified by its `issuer`. A verifier MUST derive the registry chain from `issuer`, verify the runtime code hash, and MUST NOT substitute another chain or registry address. An issuer on another chain therefore selects the corresponding deployment on that chain.
 
 The reference deployment MUST use deterministic CREATE2, and this proposal will fix its address and runtime code hash before it advances beyond Draft. A registry on another chain MUST use that address and runtime code hash. Until those values are populated, production deployments MUST NOT claim conformance to this extension. Absence, code-hash mismatch, or unavailability of the required deployment yields `revocation_unavailable`.
 
