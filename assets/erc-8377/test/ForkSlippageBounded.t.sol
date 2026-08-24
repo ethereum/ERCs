@@ -13,7 +13,7 @@ interface IERC20 {
 }
 
 /// @dev Test router with a live reference. `_route` delivers `nextOut` of the real output token to the
-/// executor from a pre-funded source, so the guard measures a genuine balance delta on the fork.
+/// recipient from a pre-funded source, so the guard measures a genuine balance delta on the fork.
 contract ForkTestSwap is SlippageBoundedSwap {
     uint256 public nextOut;
     address public source;
@@ -71,11 +71,13 @@ contract ForkSlippageBoundedTest is Test {
 
         uint256 floor = ref * 9900 / 10000; // 1% tolerance, computed from the live reference
 
-        // Exactly at the floor passes, and the guard measured a real USDC balance delta.
+        // Exactly at the floor passes, and the guard measured a real USDC balance delta at the
+        // recipient rather than at the executor.
         swapc.configure(floor, source);
         uint256 out = swapc.swapWithPolicy(WETH, USDC, 1e18, RECIPIENT, _policy(100, 0), "");
         assertEq(out, floor);
-        assertEq(IERC20(USDC).balanceOf(address(swapc)), floor);
+        assertEq(IERC20(USDC).balanceOf(RECIPIENT), floor);
+        assertEq(IERC20(USDC).balanceOf(address(swapc)), 0);
 
         // One unit below the live-derived floor reverts.
         swapc.configure(floor - 1, source);
