@@ -18,30 +18,36 @@ struct SlippagePolicy {
 /// @notice Reference-Relative Slippage Bounds — a swap whose output floor is derived from a live
 /// ERC-7726 reference price at execution time rather than a static sign-time minimum.
 interface ISlippageBoundedSwap {
-    /// @dev Realized output (measured as the executor's tokenOut balance delta) fell below the floor.
+    /// @dev Realized output (measured as the recipient's tokenOut balance delta) fell below the floor.
     error SlippageExceeded(uint256 realizedOut, uint256 floor);
     /// @dev expectedCostBps or maxDeviationBps exceeded 10_000.
     error InvalidPolicy(uint32 expectedCostBps, uint32 maxDeviationBps);
+    /// @dev The recipient was the zero address, which no balance check can protect.
+    error InvalidRecipient();
 
     /// @notice Execute a swap whose output floor is derived from `policy` at execution time.
     /// @dev An implementation:
     ///  - MUST read the reference at execution via `IERC7726(policy.quoteOracle).getQuote(amountIn,
     ///    tokenIn, tokenOut)` and MUST NOT accept a reference supplied by the caller.
     ///  - MUST revert `InvalidPolicy` if `expectedCostBps > 10_000` or `maxDeviationBps > 10_000`.
+    ///  - MUST revert `InvalidRecipient` if `recipient` is the zero address.
     ///  - MUST compute
     ///      expectedOut = referenceOut * (10_000 - expectedCostBps) / 10_000,
     ///      referenceFloor = expectedOut * (10_000 - maxDeviationBps) / 10_000,
     ///      floor = max(referenceFloor, hardFloor).
-    ///  - MUST measure `amountOut` as the executor's actual tokenOut balance increase across the
+    ///  - MUST measure `amountOut` as `recipient`'s actual tokenOut balance increase across the
     ///    route, never a value the route reports, and MUST revert `SlippageExceeded` if it is below
-    ///    the floor.
+    ///    the floor. The bound is on what the recipient received. An executor sitting in the path may
+    ///    forward output or take a fee, so measuring the executor would bound the wrong account.
     ///  - `routeData` is an opaque execution hint. It MUST NOT influence the token pair, the
-    ///    recipient of the measured balance, or the measured `amountOut`.
-    /// @return amountOut the measured tokenOut received by the executor.
+    ///    `recipient`, or the measured `amountOut`.
+    /// @param  recipient the account whose tokenOut balance the floor is enforced against.
+    /// @return amountOut the measured tokenOut received by `recipient`.
     function swapWithPolicy(
         address tokenIn,
         address tokenOut,
         uint256 amountIn,
+        address recipient,
         SlippagePolicy calldata policy,
         bytes calldata routeData
     ) external returns (uint256 amountOut);

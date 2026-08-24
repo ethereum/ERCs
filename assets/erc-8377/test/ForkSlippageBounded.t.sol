@@ -23,14 +23,18 @@ contract ForkTestSwap is SlippageBoundedSwap {
         source = src;
     }
 
-    function _route(address, address tokenOut, uint256, bytes calldata) internal override {
-        IERC20(tokenOut).transferFrom(source, address(this), nextOut);
+    function _route(address, address tokenOut, uint256, address recipient, bytes calldata)
+        internal
+        override
+    {
+        IERC20(tokenOut).transferFrom(source, recipient, nextOut);
     }
 }
 
 /// Run with a mainnet RPC:  ETH_RPC_URL=<url> forge test --match-contract ForkSlippageBoundedTest -vv
 /// A free public endpoint works, e.g. https://ethereum-rpc.publicnode.com
 contract ForkSlippageBoundedTest is Test {
+    address constant RECIPIENT = address(0xBEEF);
     address constant ETH_USD_FEED = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419; // Chainlink ETH/USD, mainnet
     address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USD side (USD ~ USDC), 6 decimals
@@ -69,13 +73,13 @@ contract ForkSlippageBoundedTest is Test {
 
         // Exactly at the floor passes, and the guard measured a real USDC balance delta.
         swapc.configure(floor, source);
-        uint256 out = swapc.swapWithPolicy(WETH, USDC, 1e18, _policy(100, 0), "");
+        uint256 out = swapc.swapWithPolicy(WETH, USDC, 1e18, RECIPIENT, _policy(100, 0), "");
         assertEq(out, floor);
         assertEq(IERC20(USDC).balanceOf(address(swapc)), floor);
 
         // One unit below the live-derived floor reverts.
         swapc.configure(floor - 1, source);
         vm.expectRevert(abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, floor - 1, floor));
-        swapc.swapWithPolicy(WETH, USDC, 1e18, _policy(100, 0), "");
+        swapc.swapWithPolicy(WETH, USDC, 1e18, RECIPIENT, _policy(100, 0), "");
     }
 }

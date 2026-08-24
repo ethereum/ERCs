@@ -8,21 +8,32 @@ import {MockQuoteOracle} from "./mocks/MockQuoteOracle.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
 /// @dev Concrete test router: `_route` delivers a settable amount of the real output token to the
-/// executor, standing in for a venue fill. The guard measures the balance delta, so the settled
+/// recipient, standing in for a venue fill. The guard measures the balance delta, so the settled
 /// number has to actually be paid, not merely reported.
 contract TestSwap is SlippageBoundedSwap {
     uint256 public nextOut;
+    bool public keepOutput;
 
     function setNextOut(uint256 v) external {
         nextOut = v;
     }
 
-    function _route(address, address tokenOut, uint256, bytes calldata) internal override {
-        MockERC20(tokenOut).mint(address(this), nextOut);
+    /// @dev Deliver to the executor instead of the recipient, standing in for a router that
+    /// forwards nothing, takes the whole output as a fee, or simply sits in the path.
+    function setKeepOutput(bool v) external {
+        keepOutput = v;
+    }
+
+    function _route(address, address tokenOut, uint256, address recipient, bytes calldata)
+        internal
+        override
+    {
+        MockERC20(tokenOut).mint(keepOutput ? address(this) : recipient, nextOut);
     }
 }
 
 contract SlippageBoundedSwapTest is Test {
+    address internal constant RECIPIENT = address(0xBEEF);
     TestSwap internal swapc;
     MockQuoteOracle internal oracle;
     MockERC20 internal tokenOutTok;
@@ -52,7 +63,7 @@ contract SlippageBoundedSwapTest is Test {
     function test_passesWithinTolerance() public {
         // referenceOut 1000, no expected cost, 1% adverse tolerance => floor 990; realized 995 passes.
         swapc.setNextOut(995);
-        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 100, 0), "");
+        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
         assertEq(out, 995);
     }
 
@@ -62,14 +73,14 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, uint256(989), uint256(990))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 100, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
     }
 
     function test_expectedCostAndAdverseToleranceStack() public {
         // referenceOut 1000 mid. expectedCost 2% => expectedOut 980. adverse 1% => floor 970.
         // This is the two-field split: the known cost is not spent as adverse headroom.
         swapc.setNextOut(970);
-        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(200, 100, 0), "");
+        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(200, 100, 0), "");
         assertEq(out, 970);
 
         // One unit below the stacked floor reverts.
@@ -77,7 +88,7 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, uint256(969), uint256(970))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(200, 100, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(200, 100, 0), "");
     }
 
     function test_hardFloorTakesOverWhenHigher() public {
@@ -86,7 +97,7 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, uint256(995), uint256(996))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 100, 996), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 996), "");
     }
 
     function test_referenceIsLiveNotCallerSupplied() public {
@@ -96,7 +107,7 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, uint256(1979), uint256(1980))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 100, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
     }
 
     function test_adversarialSandwich() public {
@@ -107,11 +118,11 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, uint256(991), uint256(992))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(30, 50, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(30, 50, 0), "");
 
         // The same policy settles when the fill stays within the adverse band.
         swapc.setNextOut(992);
-        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(30, 50, 0), "");
+        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(30, 50, 0), "");
         assertEq(out, 992);
     }
 
@@ -122,7 +133,7 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, uint256(0), uint256(990))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 100, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
     }
 
     function test_revertsOnInvalidPolicy() public {
@@ -130,24 +141,40 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.InvalidPolicy.selector, uint32(10_001), uint32(100))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(10_001, 100, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(10_001, 100, 0), "");
 
         vm.expectRevert(
             abi.encodeWithSelector(ISlippageBoundedSwap.InvalidPolicy.selector, uint32(0), uint32(10_001))
         );
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 10_001, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 10_001, 0), "");
     }
 
     function test_bubblesOracleRevert() public {
         oracle.setShouldRevert(true);
         swapc.setNextOut(1000);
         vm.expectRevert(bytes("oracle: no fresh quote"));
-        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, _policy(0, 100, 0), "");
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
     }
 
     function test_supportsInterface() public view {
         assertTrue(swapc.supportsInterface(type(ISlippageBoundedSwap).interfaceId));
         assertTrue(swapc.supportsInterface(0x01ffc9a7));
         assertFalse(swapc.supportsInterface(0xffffffff));
+    }
+
+    // The bound is on what the recipient received. An executor that keeps the output cannot
+    // satisfy it, which is the whole reason the measurement moved off the executor.
+    function test_executorKeepingOutputCannotSatisfyTheFloor() public {
+        swapc.setNextOut(1000);
+        swapc.setKeepOutput(true);
+        vm.expectRevert(abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, 0, 990));
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
+        assertEq(MockERC20(tokenOut).balanceOf(RECIPIENT), 0, "recipient received nothing");
+    }
+
+    function test_revertsOnZeroRecipient() public {
+        swapc.setNextOut(1000);
+        vm.expectRevert(ISlippageBoundedSwap.InvalidRecipient.selector);
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, address(0), _policy(0, 100, 0), "");
     }
 }
