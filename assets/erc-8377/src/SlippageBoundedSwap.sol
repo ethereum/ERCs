@@ -39,6 +39,12 @@ abstract contract SlippageBoundedSwap is ISlippageBoundedSwap {
         }
         if (recipient == address(0)) revert InvalidRecipient();
 
+        // An expired intent is rejected before anything else can fail or succeed. A live reference
+        // keeps the floor honest, but it cannot tell that the caller decided to trade days ago.
+        if (policy.deadline != 0 && block.timestamp > policy.deadline) {
+            revert DeadlineExpired(policy.deadline, block.timestamp);
+        }
+
         // The reference is ALWAYS read from the oracle at execution time, never from the caller.
         // The oracle is expected to enforce freshness and revert when it cannot give a reliable quote.
         uint256 referenceOut = IERC7726(policy.quoteOracle).getQuote(amountIn, tokenIn, tokenOut);

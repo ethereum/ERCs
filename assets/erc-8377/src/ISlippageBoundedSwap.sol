@@ -2,17 +2,21 @@
 pragma solidity ^0.8.20;
 
 /// @notice Slippage policy: a reference oracle, the known cost that separates the mid-price
-/// reference from an achievable output, an adverse-only shortfall tolerance, and an absolute floor.
+/// reference from an achievable output, an adverse-only shortfall tolerance, an absolute floor, and
+/// the time past which the intent to trade expires.
 /// @dev The reference from an ERC-7726 oracle is a mid price with no fee or price impact. Folding
 /// fee, impact, and drift into a single tolerance rebuilds the wide band this proposal is meant to
 /// shrink, so the two costs are separated: `expectedCostBps` is the known, non-adversarial discount
 /// from the mid (pool fee plus modeled impact for the size), and `maxDeviationBps` is the adverse
-/// movement tolerated on top of the expected output.
+/// movement tolerated on top of the expected output. `deadline` bounds a different staleness. The
+/// floor never goes stale, but the decision to trade at all does, and no reference-relative bound
+/// can catch that.
 struct SlippagePolicy {
     address quoteOracle;      // an ERC-7726 oracle for (tokenIn, tokenOut); MUST enforce freshness
     uint32  expectedCostBps;  // known non-adversarial cost vs the mid reference (fee + impact), <= 10_000
     uint32  maxDeviationBps;  // adverse-only shortfall tolerance beyond the expected output, <= 10_000
     uint256 hardFloor;        // absolute minimum output accepted regardless of the reference
+    uint256 deadline;         // unix seconds past which the intent expires; 0 means unbounded
 }
 
 /// @notice Reference-Relative Slippage Bounds — a swap whose output floor is derived from a live
@@ -24,13 +28,18 @@ interface ISlippageBoundedSwap {
     error InvalidPolicy(uint32 expectedCostBps, uint32 maxDeviationBps);
     /// @dev The recipient was the zero address, which no balance check can protect.
     error InvalidRecipient();
+    /// @dev The intent expired: `block.timestamp` is past a non-zero `policy.deadline`.
+    error DeadlineExpired(uint256 deadline, uint256 timestamp);
 
     /// @notice Execute a swap whose output floor is derived from `policy` at execution time.
     /// @dev An implementation:
-    ///  - MUST read the reference at execution via `IERC7726(policy.quoteOracle).getQuote(amountIn,
-    ///    tokenIn, tokenOut)` and MUST NOT accept a reference supplied by the caller.
     ///  - MUST revert `InvalidPolicy` if `expectedCostBps > 10_000` or `maxDeviationBps > 10_000`.
     ///  - MUST revert `InvalidRecipient` if `recipient` is the zero address.
+    ///  - MUST revert `DeadlineExpired` if `deadline != 0 && block.timestamp > deadline`, before the
+    ///    reference is read and before the route runs, so an expired intent does not depend on an
+    ///    oracle read succeeding. A zero `deadline` is unbounded.
+    ///  - MUST read the reference at execution via `IERC7726(policy.quoteOracle).getQuote(amountIn,
+    ///    tokenIn, tokenOut)` and MUST NOT accept a reference supplied by the caller.
     ///  - MUST compute
     ///      expectedOut = referenceOut * (10_000 - expectedCostBps) / 10_000,
     ///      referenceFloor = expectedOut * (10_000 - maxDeviationBps) / 10_000,

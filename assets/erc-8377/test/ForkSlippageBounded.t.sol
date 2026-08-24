@@ -59,7 +59,8 @@ contract ForkSlippageBoundedTest is Test {
             quoteOracle: address(oracle),
             expectedCostBps: 0,
             maxDeviationBps: maxDeviationBps,
-            hardFloor: hardFloor
+            hardFloor: hardFloor,
+            deadline: 0
         });
     }
 

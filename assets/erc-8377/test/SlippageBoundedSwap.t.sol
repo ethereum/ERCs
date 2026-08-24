@@ -52,11 +52,20 @@ contract SlippageBoundedSwapTest is Test {
         view
         returns (SlippagePolicy memory)
     {
+        return _policyBy(expectedCostBps, maxDeviationBps, hardFloor, 0);
+    }
+
+    function _policyBy(uint32 expectedCostBps, uint32 maxDeviationBps, uint256 hardFloor, uint256 deadline)
+        internal
+        view
+        returns (SlippagePolicy memory)
+    {
         return SlippagePolicy({
             quoteOracle: address(oracle),
             expectedCostBps: expectedCostBps,
             maxDeviationBps: maxDeviationBps,
-            hardFloor: hardFloor
+            hardFloor: hardFloor,
+            deadline: deadline
         });
     }
 
@@ -157,6 +166,9 @@ contract SlippageBoundedSwapTest is Test {
     }
 
     function test_supportsInterface() public view {
+        // Pins the value the specification states, so a change to the interface cannot go unnoticed.
+        assertEq(type(ISlippageBoundedSwap).interfaceId, bytes4(0x41b46b60), "interface id moved");
+        assertTrue(swapc.supportsInterface(0x41b46b60));
         assertTrue(swapc.supportsInterface(type(ISlippageBoundedSwap).interfaceId));
         assertTrue(swapc.supportsInterface(0x01ffc9a7));
         assertFalse(swapc.supportsInterface(0xffffffff));
@@ -170,6 +182,50 @@ contract SlippageBoundedSwapTest is Test {
         vm.expectRevert(abi.encodeWithSelector(ISlippageBoundedSwap.SlippageExceeded.selector, 0, 990));
         swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policy(0, 100, 0), "");
         assertEq(MockERC20(tokenOut).balanceOf(RECIPIENT), 0, "recipient received nothing");
+    }
+
+    // A live reference is immune to price drift, so it says nothing about how old the decision to
+    // trade is. The deadline is the only thing that bounds a stale intent.
+    function test_revertsPastTheDeadline() public {
+        vm.warp(1_000_000);
+        swapc.setNextOut(995);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISlippageBoundedSwap.DeadlineExpired.selector, uint256(999_999), uint256(1_000_000)
+            )
+        );
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policyBy(0, 100, 0, 999_999), "");
+    }
+
+    // The intent expires before the reference is read: the oracle would revert here too, and the
+    // deadline error is what surfaces.
+    function test_deadlineIsCheckedBeforeTheOracleRead() public {
+        vm.warp(1_000_000);
+        oracle.setShouldRevert(true);
+        swapc.setNextOut(995);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ISlippageBoundedSwap.DeadlineExpired.selector, uint256(999_999), uint256(1_000_000)
+            )
+        );
+        swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policyBy(0, 100, 0, 999_999), "");
+    }
+
+    // The deadline is the last block that still settles, not the first that rejects.
+    function test_atTheDeadlineStillSettles() public {
+        vm.warp(1_000_000);
+        swapc.setNextOut(995);
+        uint256 out =
+            swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policyBy(0, 100, 0, 1_000_000), "");
+        assertEq(out, 995);
+    }
+
+    // Zero is unbounded, so a policy that sets no deadline behaves exactly as before.
+    function test_zeroDeadlineIsUnbounded() public {
+        vm.warp(4_000_000_000);
+        swapc.setNextOut(995);
+        uint256 out = swapc.swapWithPolicy(tokenIn, tokenOut, 1000, RECIPIENT, _policyBy(0, 100, 0, 0), "");
+        assertEq(out, 995);
     }
 
     function test_revertsOnZeroRecipient() public {
