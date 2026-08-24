@@ -321,7 +321,7 @@
                             "type": ["string", "integer", "number", "boolean", "null"]
                         }
                     },
-                    "unresolvedProperties": false
+                    "unevaluatedProperties": false
                 }
             }
         }
@@ -683,16 +683,19 @@
         "mapReference": {
             "title": "Map Reference",
             "type": "object",
+            "description": "A reference to a map declared in metadata.maps, used in place of a constant parameter value. The value pointed to by keyPath is converted to its canonical string form and matched, case-insensitively, against the keys of the map's values object.",
             "properties": {
                 "map": { 
                     "type": "string",
-                    "description": "The path to the referenced map."
+                    "description": "The path to the referenced map, starting from the root node (i.e. $.metadata.maps.MAP_NAME)."
                 },
                 "keyPath": {
                     "type": "string",
-                    "description": "The path to the key used to resolve a value using the referenced map."
+                    "description": "The path to the value used as the map key. Resolved in the same way as any other path parameter, including container paths such as @.to or @.chainId."
                 }
-            }
+            },
+            "required": ["map", "keyPath"],
+            "additionalProperties": false
         },
         "names": {
             "anyOf": [
@@ -791,6 +794,10 @@
                         {
                             "type": "string",
                             "description": "An address equal to this value is interpreted as the sender referenced by `@.from`."
+                        },
+                        {
+                            "$ref": "#/$format/mapReference",
+                            "description": "A map reference resolving to an address which, when equal to the field value, is interpreted as the sender referenced by `@.from`."
                         },
                         {
                             "type": "array",
@@ -903,6 +910,10 @@
                             "description": "An address equal to this value is interpreted as an amount in native currency rather than a token."
                         },
                         {
+                            "$ref": "#/$format/mapReference",
+                            "description": "A map reference resolving to an address which, when equal to the field value, is interpreted as an amount in native currency rather than a token. Useful when the sentinel address differs per deployment chain."
+                        },
+                        {
                             "type": "array",
                             "description": "An array of addresses, any of which are interpreted as an amount in native currency rather than a token.",
                             "items": {
@@ -913,8 +924,12 @@
                 },
                 "threshold": {
                     "title": "Unlimited Threshold",
-                    "type": "string",
-                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount. Constant, or a map reference."
                 },
                 "message": {
                     "title": "Unlimited Message",
@@ -1020,13 +1035,21 @@
             "properties": {
                 "base": {
                     "title": "Unit base symbol",
-                    "type": "string",
-                    "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps."
+                    "type": ["string", "object"],
+                    "anyOf": [
+                        { "type": "string" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps. Constant, or a map reference."
                 },
                 "decimals": {
                     "title": "Decimals",
-                    "type": "integer",
-                    "description": "The number of decimals of the value, used to convert to a float."
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "The number of decimals of the value, used to convert to a float. Constant, or a map reference."
                 },
                 "prefix": {
                     "title": "Prefix",
@@ -1082,6 +1105,10 @@
                         {
                             "type": "string",
                             "description": "An address equal to this value is interpreted as the sender referenced by `@.from`."
+                        },
+                        {
+                            "$ref": "#/$format/mapReference",
+                            "description": "A map reference resolving to an address which, when equal to the field value, is interpreted as the sender referenced by `@.from`."
                         },
                         {
                             "type": "array",
