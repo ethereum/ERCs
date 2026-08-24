@@ -6,6 +6,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ConfidentialPolicyVerdict} from "../src/ConfidentialPolicyVerdict.sol";
 import {PolicyDomainRegistry} from "../src/PolicyDomainRegistry.sol";
 import {IConfidentialPolicyVerdict, Verdict, PolicyKind} from "../src/IConfidentialPolicyVerdict.sol";
+import {PolicyAction, PolicyActionLib} from "../src/PolicyAction.sol";
 import {MockVerifier} from "../src/mocks/MockVerifier.sol";
 import {GuardedExecutor} from "../src/GuardedExecutor.sol";
 import {PolicyAttestation, VerdictAttestation} from "../src/IPolicyAttestation.sol";
@@ -264,6 +265,30 @@ contract CAPVTest is Test {
             abi.encodeWithSelector(GuardedExecutor.ActionCommitmentMismatch.selector, expected, v.actionCommitment)
         );
         gx.execute(v, "proof", "", address(sink), 0, cd);
+    }
+
+    // 7. Cross-chain / cross-domain replay. `chainId` and `domainId` are the two leading fields of
+    // the commitment preimage, so the identical action commits to a different value on another
+    // chain or under another policy domain, and a verdict minted for one never matches the
+    // commitment a guarded contract recomputes on the other.
+    function test_CrossChainAndCrossDomainCommitmentsDiffer() public pure {
+        PolicyAction memory a = PolicyAction({
+            chainId: 1,
+            domainId: DOMAIN,
+            agentId: 1,
+            target: address(0x51E),
+            value: 0,
+            callDataHash: keccak256(abi.encodeWithSignature("ping()")),
+            actionNonce: 0
+        });
+        bytes32 onChainOne = PolicyActionLib.commit(a);
+
+        a.chainId = 2; // same action, different chain
+        assertTrue(PolicyActionLib.commit(a) != onChainOne, "chainId must separate the commitment");
+
+        a.chainId = 1;
+        a.domainId = keccak256("other-compliance"); // same action, different policy domain
+        assertTrue(PolicyActionLib.commit(a) != onChainOne, "domainId must separate the commitment");
     }
 
     // --- ERC-165 ---
