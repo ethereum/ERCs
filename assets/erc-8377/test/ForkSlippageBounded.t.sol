@@ -2,8 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
-import {SlippageBoundedSwap} from "../src/SlippageBoundedSwap.sol";
-import {ISlippageBoundedSwap, SlippagePolicy} from "../src/ISlippageBoundedSwap.sol";
+import {SlippageBoundedSwap, ISlippageBoundedSwap, SlippagePolicy} from "../src/SlippageBoundedSwap.sol";
 import {ChainlinkQuoteOracle} from "../src/adapters/ChainlinkQuoteOracle.sol";
 
 interface IERC20 {
