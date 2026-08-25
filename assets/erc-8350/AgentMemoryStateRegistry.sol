@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import {ECDSA} from "./ECDSA.sol";
 import {IAgentMemoryState} from "./IAgentMemoryState.sol";
-import {IERC1271} from "./IERC1271.sol";
 
 /// @title AgentMemoryStateRegistry
 /// @notice Reference implementation of ExperienceDelta v1 and its linear state machine.
@@ -39,7 +38,7 @@ contract AgentMemoryStateRegistry is IAgentMemoryState {
         "SpaceAuthorization(bytes32 spaceId,address newController,address newAuthorizer,uint64 nonce)"
     );
 
-    bytes4 private constant _ERC1271_MAGIC_VALUE = IERC1271.isValidSignature.selector;
+    bytes4 private constant _ERC1271_MAGIC_VALUE = 0x1626ba7e;
 
     struct SpaceRecord {
         address controller;
@@ -325,8 +324,9 @@ contract AgentMemoryStateRegistry is IAgentMemoryState {
         view
         returns (bool)
     {
-        (bool success, bytes memory result) =
-            signer.staticcall(abi.encodeCall(IERC1271.isValidSignature, (digest, signature)));
+        (bool success, bytes memory result) = signer.staticcall(
+            abi.encodeWithSelector(_ERC1271_MAGIC_VALUE, digest, signature)
+        );
         return success && result.length >= 32
             && abi.decode(result, (bytes4)) == _ERC1271_MAGIC_VALUE;
     }
