@@ -26,6 +26,18 @@ contract InvFreqTest is Test {
     uint256 internal constant PRINCIPAL = 1_000_000 * UNIT;
     uint16 internal constant PENALTY_BPS_PER_DAY = 10; // 0.10%/dia
 
+    /// @dev Storage, no local: con el optimizer activado, una local que
+    ///      guarda block.timestamp antes de un vm.warp puede quedar elidida
+    ///      y solc rematerializa TIMESTAMP en el punto de uso (correcto
+    ///      bajo semantica EVM real -- el timestamp no cambia intra-tx --
+    ///      pero rompe estos tests, que usan vm.warp, un cheatcode, para
+    ///      simular avance de tiempo dentro de la misma tx de test). Un
+    ///      SLOAD no sufre esto: el optimizer debe asumir reentrada
+    ///      potencial en cualquier llamada externa (los cheatcodes de foundry
+    ///      son llamadas externas a la address del VM) y no puede elidir la
+    ///      relectura de storage a traves de ellas.
+    uint256 internal t0Slot;
+
     function setUp() public {
         lease = new FinancialLease();
         token = new MockERC20();
@@ -80,16 +92,16 @@ contract InvFreqTest is Test {
         uint256 idA = _mkLease();
         uint256 idB = _mkLease();
         vm.warp(block.timestamp + 2);
-        uint256 t0 = block.timestamp;
+        t0Slot = block.timestamp;
 
-        vm.warp(t0 + 90 days);
+        vm.warp(t0Slot + 90 days);
         uint256 arrearsA = lease.arrears(idA);
 
         for (uint256 i = 0; i < 90; i++) {
-            vm.warp(t0 + i * 1 days);
+            vm.warp(t0Slot + i * 1 days);
             lease.arrears(idB); // descartado — una view no puede mutar nada
         }
-        vm.warp(t0 + 90 days);
+        vm.warp(t0Slot + 90 days);
         uint256 arrearsB = lease.arrears(idB);
 
         assertEq(arrearsA, arrearsB, "trivial: las views nunca mutan storage");
@@ -139,7 +151,7 @@ contract InvFreqTest is Test {
         uint256 idB = _mkLease();
 
         vm.warp(block.timestamp + 2); // cruzar el vencimiento en ambos
-        uint256 t0 = block.timestamp;
+        t0Slot = block.timestamp;
 
         // Lease B: intercalar toda transaccion real sin efecto economico
         // que el contrato permite, ANTES del pago.
@@ -166,13 +178,13 @@ contract InvFreqTest is Test {
         // Avanzar 90 dias intercalando MAS transacciones sin pago en B
         // (lease A no recibe ninguna — solo el paso del tiempo).
         for (uint256 i = 0; i < 90; i++) {
-            vm.warp(t0 + (i + 1) * 1 days);
+            vm.warp(t0Slot + (i + 1) * 1 days);
             if (i % 10 == 0) {
                 vm.prank(lessor_);
                 lease.updateServicing(idB, INPUT_COLLECTIONS, uint64(block.timestamp));
             }
         }
-        assertEq(block.timestamp, t0 + 90 days, "precondicion: mismo timestamp final");
+        assertEq(block.timestamp, t0Slot + 90 days, "precondicion: mismo timestamp final");
 
         // El MISMO pago, en el MISMO instante, en ambos leases — este es
         // el unico tipo de transaccion que el diseño permite que altere

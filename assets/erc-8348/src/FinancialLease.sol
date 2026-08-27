@@ -372,9 +372,21 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
             }
             uint256 applied = Math.min(remaining, unpaid);
 
+            // Cristaliza la DIFERENCIA de grosses floorados (gross(unpaid)
+            // antes vs. despues de este pago), no floor(applied*r): floor
+            // es subaditivo (floor(a*r)+floor(b*r) <= floor((a+b)*r)), asi
+            // que cristalizar floor(applied*r) por separado pierde hasta 1
+            // unidad cada vez que un pago parte un tramo, y esa perdida
+            // nunca se recupera -> underflow en _penaltyOwed si se repite
+            // lo suficiente (ver test_T70_BUG). Por telescopado, la suma de
+            // estas diferencias a lo largo de cualquier cantidad de pagos
+            // sobre el mismo tramo da EXACTO gross(unpaid_inicial) -
+            // gross(unpaid_final), sin residuo.
             if (bps > 0 && l.dueDates[i] < nowEff) {
                 uint256 daysLate = (nowEff - l.dueDates[i]) / 1 days;
-                crystallizedNow += applied.mulDiv(uint256(bps) * daysLate, 10_000, Math.Rounding.Floor);
+                uint256 r = uint256(bps) * daysLate;
+                crystallizedNow += unpaid.mulDiv(r, 10_000, Math.Rounding.Floor)
+                    - (unpaid - applied).mulDiv(r, 10_000, Math.Rounding.Floor);
             }
 
             settledSoFar += applied;

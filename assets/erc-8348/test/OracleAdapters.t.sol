@@ -13,6 +13,17 @@ contract OracleAdaptersTest is Test {
     MockAggregator feedA;
     MockAggregator feedB;
 
+    /// @dev T21 necesita un timestamp "viejo" fijado ANTES de un vm.warp
+    ///      y comparado DESPUES. Con el optimizer activado, solc trata
+    ///      block.timestamp como puro dentro de la tx y puede rematerializar
+    ///      el opcode TIMESTAMP en el punto de uso en lugar de leer la
+    ///      local guardada -- correcto bajo semantica EVM real (el
+    ///      timestamp no cambia intra-tx), pero rompe tests que usan
+    ///      vm.warp (un cheatcode que solc no conoce) para simular el paso
+    ///      del tiempo entre "instantes" dentro de la misma tx de test.
+    ///      Una constante de contrato no sufre esto.
+    uint64 internal constant FEED_TS = 1_700_000_000;
+
     address owner = makeAddr("owner");
     address attester = makeAddr("attester");
     address rando = makeAddr("rando");
@@ -40,15 +51,15 @@ contract OracleAdaptersTest is Test {
     // ─── T21: asOf = updatedAt del feed, no block.timestamp ──
 
     function test_T21_asOfTracksFeedNotBlockTimestamp() public {
-        uint256 oldUpdatedAt = block.timestamp;
+        vm.warp(FEED_TS);
         feedA.setAnswer(1e8);
-        feedA.setUpdatedAt(oldUpdatedAt);
+        feedA.setUpdatedAt(FEED_TS);
 
         ChainlinkConversionOracle o = new ChainlinkConversionOracle(address(feedA), 18);
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(FEED_TS + 30 days);
 
         (, uint64 asOf) = o.latestRate();
-        assertEq(asOf, uint64(oldUpdatedAt), "asOf debe ser el updatedAt del feed, no el timestamp actual");
+        assertEq(asOf, FEED_TS, "asOf debe ser el updatedAt del feed, no el timestamp actual");
     }
 
     // ─── T22: respuestas invalidas del feed ───────────────────
