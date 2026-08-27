@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {stdError} from "forge-std/StdError.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {FinancialLease} from "../src/FinancialLease.sol";
@@ -1606,5 +1607,82 @@ contract FinancialLeaseTest is Test {
             );
             assertEq(_tryUpdateServicing(_mkLeaseAtStatus(st)), expectUpdateServicing[s], "matriz: updateServicing");
         }
+    }
+
+    // ─── T70: BUG CRITICO (revision externa) — underflow en _penaltyOwed
+    //          por fraccionar un pago en el mismo block.timestamp ────────
+
+    /// @dev floor(a*r) + floor(b*r) <= floor((a+b)*r): cristalizar el
+    ///      punitorio de a y b por separado (dos pagos que parten el mismo
+    ///      tramo vencido) pierde hasta 1 unidad contra cristalizar de una
+    ///      sola vez. penaltyPaidUnits no compensaba esa perdida, asi que
+    ///      suficientes fracciones underfloweaban
+    ///      crystallizedPenaltyUnits + penaltyGrossNow - penaltyPaidUnits
+    ///      en _penaltyOwed (panic 0x11) — reproducido con esta secuencia
+    ///      exacta antes del fix de _applyToPrincipal (cristalizar la
+    ///      diferencia de grosses en vez del floor de lo aplicado). Post
+    ///      fix, ademas de no revertir, fraccionar no debe cambiar
+    ///      arrears() (MUST NOT de S3-01).
+    function test_T70_regressionUnderflowPorFraccionarPago() public {
+        (uint64[] memory dueDatesA, uint256[] memory unitAmountsA) = _schedule(12, 1e23);
+        uint256 idA = _createLease(address(oracle), 0, dueDatesA, unitAmountsA);
+        (uint64[] memory dueDatesB, uint256[] memory unitAmountsB) = _schedule(12, 1e23);
+        uint256 idB = _createLease(address(oracle), 0, dueDatesB, unitAmountsB);
+
+        vm.warp(block.timestamp + 200 days);
+        assertEq(lease.arrears(idA), 657_000 * UNIT, "precondicion");
+        assertEq(lease.arrears(idB), 657_000 * UNIT, "precondicion");
+
+        uint256 p1 = 42844390007361274575661;
+        uint256 p2 = 42844390007361274575660;
+        uint256 p3 = 42844390007361274575660;
+
+        // idA: el mismo total, de una sola vez.
+        _pay(idA, p1 + p2 + p3);
+
+        // idB: EXACTAMENTE la secuencia que underfloweaba pre-fix. Post
+        // fix, el tercer pago ya no debe revertir.
+        _pay(idB, p1);
+        _pay(idB, p2);
+        _pay(idB, p3);
+
+        assertEq(lease.arrears(idA), lease.arrears(idB), "fraccionar en el mismo timestamp no debe cambiar arrears()");
+    }
+
+    /// @dev Fix permanente: pagar N unidades en una sola tx vs. en k
+    ///      fracciones dentro del MISMO block.timestamp debe dar arrears()
+    ///      identico. Fuzzea sobre k (cantidad de fracciones) y sobre el
+    ///      total pagado.
+    function testFuzz_T71_INV_fractioningSameTimestampDoesNotChangeArrears(uint8 kRaw, uint96 totalRaw) public {
+        // Se paga `total` dos veces (una vez por lease) en el mismo test;
+        // el balance de setUp (1_000_000e18) no alcanza para eso mas el
+        // total del cronograma (1.2e24). Fondeo extra solo para este test.
+        token.mint(lessee, 10_000_000 * UNIT);
+
+        uint256 k = bound(uint256(kRaw), 1, 12);
+        (uint64[] memory dueDatesA, uint256[] memory unitAmountsA) = _schedule(12, 1e23);
+        uint256 idA = _createLease(address(oracle), 0, dueDatesA, unitAmountsA);
+        (uint64[] memory dueDatesB, uint256[] memory unitAmountsB) = _schedule(12, 1e23);
+        uint256 idB = _createLease(address(oracle), 0, dueDatesB, unitAmountsB);
+
+        vm.warp(block.timestamp + 200 days);
+        oracle.set(1e18);
+
+        uint256 owed = lease.arrears(idA);
+        uint256 total = bound(uint256(totalRaw), 1, owed);
+
+        // idA: un unico pago de `total`.
+        _pay(idA, total);
+
+        // idB: el MISMO `total`, fraccionado en k pagos (mismo timestamp).
+        uint256 base = total / k;
+        uint256 rem = total - base * k;
+        for (uint256 i = 0; i < k; i++) {
+            uint256 amt = base + (i == k - 1 ? rem : 0);
+            if (amt == 0) continue;
+            _pay(idB, amt);
+        }
+
+        assertEq(lease.arrears(idA), lease.arrears(idB), "fraccionar un pago en el mismo timestamp no debe cambiar arrears()");
     }
 }
