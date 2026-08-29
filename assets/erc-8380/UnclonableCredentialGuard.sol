@@ -37,11 +37,11 @@ contract UnclonableCredentialGuard {
     /// @notice Rebuild public inputs in the exact order expected by the circuit
     ///         and the HonkVerifierAdapter.
     /// @dev Order: [capabilityCommitment, agentId, homeChainId, homeDomainId,
-    ///         capabilityIndex, actionCommitment, executor, expiry]
+    ///         capabilityIndex, actionCommitment, executor, expiry, nullifier]
     function _buildPublicInputs(
         IUnclonableCredential.Capability calldata cap
     ) internal pure returns (bytes32[] memory) {
-        bytes32[] memory inputs = new bytes32[](8);
+        bytes32[] memory inputs = new bytes32[](9);
         inputs[0] = cap.capabilityCommitment;
         inputs[1] = bytes32(uint256(cap.agentId));
         inputs[2] = bytes32(uint256(cap.homeChainId));
@@ -50,6 +50,7 @@ contract UnclonableCredentialGuard {
         inputs[5] = cap.actionCommitment;
         inputs[6] = bytes32(uint256(uint160(cap.executor)));
         inputs[7] = bytes32(uint256(cap.expiry));
+        inputs[8] = cap.nullifier;
         return inputs;
     }
 

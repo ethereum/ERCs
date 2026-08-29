@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.0;
 
-/// @title DomainRegistry — Minimal Domain Lifecycle
+/// @title DomainRegistry, Minimal Domain Lifecycle
 /// @notice Tracks which orchestrator domains are active. Separate from CAPV
-///         to preserve standard independence per ERC-1953 §6.1.
+///         to preserve standard independence per ERC-8380 §6.1.
 contract DomainRegistry {
     struct Domain {
         bool registered;

@@ -54,14 +54,16 @@ contract CoupledCredentialGuard is IUnclonableCredential {
     }
 
     /// @dev Order: [capabilityCommitment, agentId, homeChainId, homeDomainId, capabilityIndex,
-    ///      actionCommitment, executor, expiry]. The circuit recomputes the commitment from the
-    ///      private salt and these inputs, so the salt never reaches calldata.
+    ///      actionCommitment, executor, expiry, nullifier]. The circuit recomputes the commitment
+    ///      from the private salt and these inputs, so the salt never reaches calldata, and it
+    ///      must prove its own H(NULLIFIER_TAG, salt) output equals the nullifier input, so
+    ///      cap.nullifier is checked against a value the circuit actually derived.
     function _buildPublicInputs(IUnclonableCredential.Capability calldata cap)
         internal
         pure
         returns (bytes32[] memory inputs)
     {
-        inputs = new bytes32[](8);
+        inputs = new bytes32[](9);
         inputs[0] = cap.capabilityCommitment;
         inputs[1] = bytes32(cap.agentId);
         inputs[2] = bytes32(cap.homeChainId);
@@ -70,6 +72,7 @@ contract CoupledCredentialGuard is IUnclonableCredential {
         inputs[5] = cap.actionCommitment;
         inputs[6] = bytes32(uint256(uint160(cap.executor)));
         inputs[7] = bytes32(cap.expiry);
+        inputs[8] = cap.nullifier;
     }
 
     /// @inheritdoc IUnclonableCredential
