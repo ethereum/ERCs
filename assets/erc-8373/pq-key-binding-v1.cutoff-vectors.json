@@ -446,6 +446,127 @@
         "evidence": "verified",
         "decision": "ADMIT"
       }
+    },
+    {
+      "name": "unavailable-anchor — a derived key with NO immutable anchor (binding_anchor_time null) has no reproducible boundary B: unverifiable/REJECT (derivability != anchored authority)",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": null
+        }
+      ],
+      "artifact": {
+        "anchor_time": 1785500000,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "binding_anchor_unavailable",
+        "rule": "binding_anchor_unavailable",
+        "evidence": "unverifiable",
+        "decision": "REJECT"
+      }
+    },
+    {
+      "name": "later-anchor-transition (BEFORE anchor) — the baseline while still unanchored: unverifiable/REJECT",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": null
+        }
+      ],
+      "artifact": {
+        "anchor_time": 150,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "binding_anchor_unavailable",
+        "rule": "binding_anchor_unavailable",
+        "evidence": "unverifiable",
+        "decision": "REJECT"
+      }
+    },
+    {
+      "name": "later-anchor-transition (AFTER anchor, t < B) — once anchored at 200, an artifact at 150 is pre_baseline, NOT retroactively governed",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 200
+        }
+      ],
+      "artifact": {
+        "anchor_time": 150,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "pre_baseline",
+        "rule": "pre_baseline_legacy_admit",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "later-anchor-transition (AFTER anchor, t >= B) — an artifact at 200 is in_force under the now-anchored key",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 200
+        }
+      ],
+      "artifact": {
+        "anchor_time": 200,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": "kya-l4-genesis",
+        "resolution_reason": "resolved_at_anchor_time",
+        "rule": "anchored_before_cutoff",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "unanchored binding ignored — un-anchored baseline + anchored successor(@200); artifact at 150 is pre_baseline, the un-anchored key never governs",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": null
+        },
+        {
+          "name": "kya-l4-successor",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+          "binding_anchor_time": 200
+        }
+      ],
+      "artifact": {
+        "anchor_time": 150,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "pre_baseline",
+        "rule": "pre_baseline_legacy_admit",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
     }
   ]
 }

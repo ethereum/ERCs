@@ -14,10 +14,13 @@ STOP the back catalogue being retroactively invalidated:
      from B — no binding claims retroactive authority. This turns v0's "anchored before any binding
      existed -> REJECT" (which retro-invalidated the oldest back catalogue) into an admit that never
      manufactures governance.
-     Fail-closed, three distinct ways: an UNAVAILABLE chain (bindings is None) is unverifiable; a
+     Fail-closed, four distinct ways: an UNAVAILABLE chain (bindings is None) is unverifiable; a
      RESOLVED-EMPTY chain (zero bindings) is a determinate refuse (no baseline to be "before"); a
-     MALFORMED binding (activated_at before its own anchor) is unverifiable. pre_baseline is emitted
-     ONLY after the chain resolves non-empty and well-formed and B is known — never silently.
+     MALFORMED binding (activated_at before its own anchor) is unverifiable; and an UNANCHORED binding
+     (binding_anchor_time None — a derived key with no immutable anchor) has no reproducible boundary and
+     cannot govern (unverifiable/binding_anchor_unavailable when no binding is anchored — derivability is
+     not anchored authority). pre_baseline is emitted ONLY after the chain resolves non-empty, well-formed,
+     and against an ANCHORED binding whose B is known — never silently.
 
   2. TRI-STATE EVIDENCE. The verdict carries evidence in {verified, refuted, unverifiable}; the
      boolean decision (ADMIT/REJECT) is a DERIVED projection of it (project()). "checked and failed"
@@ -62,6 +65,8 @@ def resolve_in_force(bindings, at_time):
     at/after are no longer governed). Returns (binding | None, reason)."""
     eligible = []
     for b in bindings:
+        if b.get("binding_anchor_time") is None:
+            continue                                     # anchor UNAVAILABLE — no reproducible B, cannot govern
         if activation_of(bindings, b) > at_time:
             continue
         rev = b.get("revoked_at")
@@ -111,18 +116,28 @@ def admit(bindings, consumer_cutoff, artifact):
     # An activated_at BEFORE binding_anchor_time would let an optional field reopen the retroactive-authority
     # path §states forbids (an activated_at=0 baseline governing an artifact anchored before it existed), so
     # it is rejected fail-closed. activated_at may only DELAY the effective boundary, never advance it.
-    if any(isinstance(b.get("activated_at"), int) and b["activated_at"] < b["binding_anchor_time"] for b in bindings):
+    if any(isinstance(b.get("activated_at"), int) and b.get("binding_anchor_time") is not None
+           and b["activated_at"] < b["binding_anchor_time"] for b in bindings):
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "chain_malformed",
                 "evidence": "unverifiable", "unverifiable_reason": "activation_before_anchor",
                 "decision": project("unverifiable"), "rule": "chain_malformed"}
     resolved, reason = resolve_in_force(bindings, at)
     if resolved is None:
-        # Chain resolved and non-empty; nothing governs at `at`. Split the two determinate causes: an
-        # innocent pre-baseline back catalogue (anchored before the baseline's EFFECTIVE ACTIVATION
-        # BOUNDARY B — see activation_of) vs post-revocation / genuinely ungoverned (at >= B). Evidence
-        # stays the closed set {verified, refuted, unverifiable} — the legacy admission lives in
-        # resolution_reason + rule, not a new value.
-        baseline = min(bindings, key=lambda x: x["binding_anchor_time"])
+        # Chain resolved and non-empty; nothing ANCHORED governs at `at`. First the fail-closed cause
+        # Pavlo's rule names: a binding whose anchor is UNAVAILABLE (binding_anchor_time is None) has no
+        # reproducible activation boundary B — key derivability is NOT anchored authority. If NO binding
+        # in the chain carries an immutable anchor, there is no B to resolve against at all → unverifiable,
+        # never a from-always admit. (Distinct from chain_unavailable, which is the chain itself missing.)
+        anchored = [b for b in bindings if b.get("binding_anchor_time") is not None]
+        if not anchored:
+            return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "binding_anchor_unavailable",
+                    "evidence": "unverifiable", "unverifiable_reason": "binding_anchor_unavailable",
+                    "decision": project("unverifiable"), "rule": "binding_anchor_unavailable"}
+        # Otherwise split an innocent pre-baseline back catalogue (anchored before the earliest ANCHORED
+        # binding's EFFECTIVE ACTIVATION BOUNDARY B — an un-anchored binding is simply ignored here, it
+        # never governs) vs post-revocation / genuinely ungoverned (at >= B). Evidence stays the closed
+        # set {verified, refuted, unverifiable}; the legacy admission lives in resolution_reason + rule.
+        baseline = min(anchored, key=lambda x: x["binding_anchor_time"])
         if at < activation_of(bindings, baseline):
             # pre_baseline: NOT governed (resolved stays null) but ADMITTED under the legacy back-catalogue
             # rule. `verified` attests the TEMPORAL classification only — provably anchored before B (the
