@@ -6,13 +6,14 @@ which is itself the operative side of this profile. v1 over v0 changes exactly t
 STOP the back catalogue being retroactively invalidated:
 
   1. PRE-BASELINE LEGACY ADMIT (admitted, NOT governed). An artifact anchored before the baseline's
-     OWN anchor time B is not governed by any binding — there was no anchored binding in force at that
-     instant — but it is ADMITTED classical-only rather than refused: it was legitimately classical-
-     signed when classical was the norm and claims no PQ companion, so nothing asserts protection it
-     lacks. The result is distinct: resolved=null, resolution_reason=pre_baseline, decision=ADMIT. The
-     baseline governs only from B, exactly like a successor from its own anchor — no binding claims
-     retroactive authority. This turns v0's "anchored before any binding existed -> REJECT" (which
-     retro-invalidated the oldest back catalogue) into an admit that never manufactures governance.
+     EFFECTIVE ACTIVATION BOUNDARY B (its anchor, or a later activated_at — see activation_of) is not
+     governed by any binding — no binding was in force at that instant — but it is ADMITTED classical-
+     only rather than refused: it claims no PQ companion, so nothing asserts protection it lacks (whether
+     the artifact's classical signature holds is an input precondition, not checked here). The result is
+     distinct: resolved=null, resolution_reason=pre_baseline, decision=ADMIT. The baseline governs only
+     from B — no binding claims retroactive authority. This turns v0's "anchored before any binding
+     existed -> REJECT" (which retro-invalidated the oldest back catalogue) into an admit that never
+     manufactures governance.
      Fail-closed, three distinct ways: an UNAVAILABLE chain (bindings is None) is unverifiable; a
      RESOLVED-EMPTY chain (zero bindings) is a determinate refuse (no baseline to be "before"); a
      MALFORMED binding (activated_at before its own anchor) is unverifiable. pre_baseline is emitted
@@ -34,13 +35,17 @@ import sys, json, os
 
 
 def activation_of(bindings, b):
-    """When a binding's AUTHORITY starts: its own anchor time (not the moment the key was created).
-    activated_at may only DELAY activation (>= binding_anchor_time), never advance it before the
-    binding's own anchor; otherwise every binding — the baseline included — governs only from its
-    binding_anchor_time. No binding reaches back before its own anchor: an artifact anchored before the
-    baseline's anchor is NOT governed (handled as pre_baseline in admit()), never retroactively governed.
-    (Corrected from baseline-governs-from-0, which manufactured retroactive authority the spec's §states
-    forbids: pre_baseline is "anchored before any binding governed it".)"""
+    """A binding's EFFECTIVE ACTIVATION BOUNDARY B: the time its authority begins to GOVERN. That is its
+    own anchor time, OR a LATER activated_at — delayed activation / pre-registration ahead of a flag day,
+    the migration shape §states describes — clamped to >= binding_anchor_time so authority can never begin
+    before the binding was anchored. B is the ONE boundary the whole profile turns on, defined once here:
+      • pre_baseline  = artifact anchored before B  (this binding did not yet govern — whether that is
+                        before its anchor, or in the dormant gap between a delayed binding's anchor and
+                        its activated_at); admitted classical-only, NOT governed.
+      • in_force      = B <= t < R; governance begins at B, inclusive.
+    No binding reaches back before its own anchor. (Corrected from baseline-governs-from-0, which
+    manufactured retroactive authority §states forbids: pre_baseline is "anchored before any binding
+    governed it" — governed, i.e. before B, not merely before it existed.)"""
     # Clamp to >= binding_anchor_time HERE so this function can never, in isolation, hand back a
     # sub-anchor activation — the exact bypass a bare `return activated_at` would leave open (an
     # activated_at=0 baseline governing an artifact anchored before it existed). A chain that even
@@ -102,10 +107,10 @@ def admit(bindings, consumer_cutoff, artifact):
     if len(bindings) == 0:
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "no_bindings_in_chain",
                 "evidence": "refuted", "decision": project("refuted"), "rule": "no_bindings_in_chain"}
-    # MALFORMED chain: authority begins at a binding's OWN anchor. An activated_at BEFORE binding_anchor_time
-    # would let an optional field reopen the retroactive-authority path §states forbids (an activated_at=0
-    # baseline governing an artifact anchored before it existed), so it is rejected fail-closed. activated_at
-    # may only DELAY activation (>= anchor), never advance it before the anchor.
+    # MALFORMED chain: a binding's authority may begin at its anchor or LATER (activated_at), never before.
+    # An activated_at BEFORE binding_anchor_time would let an optional field reopen the retroactive-authority
+    # path §states forbids (an activated_at=0 baseline governing an artifact anchored before it existed), so
+    # it is rejected fail-closed. activated_at may only DELAY the effective boundary, never advance it.
     if any(isinstance(b.get("activated_at"), int) and b["activated_at"] < b["binding_anchor_time"] for b in bindings):
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "chain_malformed",
                 "evidence": "unverifiable", "unverifiable_reason": "activation_before_anchor",
@@ -113,15 +118,17 @@ def admit(bindings, consumer_cutoff, artifact):
     resolved, reason = resolve_in_force(bindings, at)
     if resolved is None:
         # Chain resolved and non-empty; nothing governs at `at`. Split the two determinate causes: an
-        # innocent pre-baseline back catalogue (anchored before the baseline's OWN anchor B) vs
-        # post-revocation / genuinely ungoverned (at >= B). Evidence stays the closed set {verified,
-        # refuted, unverifiable} — the legacy admission lives in resolution_reason + rule, not a new value.
+        # innocent pre-baseline back catalogue (anchored before the baseline's EFFECTIVE ACTIVATION
+        # BOUNDARY B — see activation_of) vs post-revocation / genuinely ungoverned (at >= B). Evidence
+        # stays the closed set {verified, refuted, unverifiable} — the legacy admission lives in
+        # resolution_reason + rule, not a new value.
         baseline = min(bindings, key=lambda x: x["binding_anchor_time"])
         if at < activation_of(bindings, baseline):
             # pre_baseline: NOT governed (resolved stays null) but ADMITTED under the legacy back-catalogue
-            # rule. `verified` attests the TEMPORAL classification only — provably anchored before B, admitted
-            # classical-only. It does NOT assert a classical-signature check: this evaluator performs none,
-            # and classical-signedness is an input precondition of the legacy admit, not a fact proven here.
+            # rule. `verified` attests the TEMPORAL classification only — provably anchored before B (the
+            # effective activation boundary), admitted classical-only. It does NOT assert a classical-
+            # signature check: this evaluator performs none, and classical-signedness is an input
+            # precondition of the legacy admit, not a fact proven here.
             return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "pre_baseline",
                     "evidence": "verified", "decision": project("verified"), "rule": "pre_baseline_legacy_admit"}
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": reason,

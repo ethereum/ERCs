@@ -374,6 +374,78 @@
         "evidence": "unverifiable",
         "decision": "REJECT"
       }
+    },
+    {
+      "name": "delayed activation — DORMANT GAP: binding anchored at 100 but activated_at=200; artifact at t=150 is pre_baseline (not yet governed), NOT in_force",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 100,
+          "activated_at": 200
+        }
+      ],
+      "artifact": {
+        "anchor_time": 150,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "pre_baseline",
+        "rule": "pre_baseline_legacy_admit",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "delayed activation boundary t == activated_at-1 (199): still pre_baseline — before the effective activation boundary B=200",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 100,
+          "activated_at": 200
+        }
+      ],
+      "artifact": {
+        "anchor_time": 199,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "pre_baseline",
+        "rule": "pre_baseline_legacy_admit",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "delayed activation boundary t == activated_at (200): in_force — governance begins at B=activated_at, inclusive (B = effective boundary, not the anchor)",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 100,
+          "activated_at": 200
+        }
+      ],
+      "artifact": {
+        "anchor_time": 200,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": "kya-l4-genesis",
+        "resolution_reason": "resolved_at_anchor_time",
+        "rule": "anchored_before_cutoff",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
     }
   ]
 }
