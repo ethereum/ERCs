@@ -13,8 +13,10 @@ STOP the back catalogue being retroactively invalidated:
      baseline governs only from B, exactly like a successor from its own anchor — no binding claims
      retroactive authority. This turns v0's "anchored before any binding existed -> REJECT" (which
      retro-invalidated the oldest back catalogue) into an admit that never manufactures governance.
-     Fail-closed: pre_baseline is emitted ONLY after the chain and B resolve; an empty/unresolvable
-     chain stays unverifiable, never a silent pre_baseline admit.
+     Fail-closed, three distinct ways: an UNAVAILABLE chain (bindings is None) is unverifiable; a
+     RESOLVED-EMPTY chain (zero bindings) is a determinate refuse (no baseline to be "before"); a
+     MALFORMED binding (activated_at before its own anchor) is unverifiable. pre_baseline is emitted
+     ONLY after the chain resolves non-empty and well-formed and B is known — never silently.
 
   2. TRI-STATE EVIDENCE. The verdict carries evidence in {verified, refuted, unverifiable}; the
      boolean decision (ADMIT/REJECT) is a DERIVED projection of it (project()). "checked and failed"
@@ -61,6 +63,8 @@ def resolve_in_force(bindings, at_time):
 
 
 def apply_revocations(bindings, revocations):
+    if bindings is None:                                  # unavailable chain stays unavailable
+        return None
     if not revocations:
         return bindings
     earliest = {}
@@ -80,23 +84,38 @@ def project(evidence):
 
 def admit(bindings, consumer_cutoff, artifact):
     at = artifact["anchor_time"]
-    # Fail-closed: an empty / unresolvable chain cannot be read, so the verdict is UNVERIFIABLE — never
-    # a silent pre_baseline admit. pre_baseline may be emitted ONLY after the chain and its baseline
-    # anchor B have resolved successfully (below), where `at` is provably before B.
-    if not bindings:
-        return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "unresolvable_chain",
-                "evidence": "unverifiable", "unverifiable_reason": "chain_unavailable",
+    # Fail-closed DEPENDENCY FAILURE: the chain could not be resolved (bindings is None / unavailable).
+    # UNVERIFIABLE — never a silent admit. Distinct from a chain that resolved and is legitimately empty.
+    if bindings is None:
+        return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "chain_unavailable",
+                "evidence": "unverifiable", "unverifiable_reason": "chain_dependency_unresolved",
                 "decision": project("unverifiable"), "rule": "chain_unavailable"}
+    # RESOLVED-EMPTY: the chain read successfully and the agent has zero bindings. Determinate — no binding
+    # governs, and with no baseline there is nothing for `at` to be "before", so this is NOT pre_baseline.
+    # A successfully-read fact, hence refuted (not unverifiable). Kept separate from the unavailable case.
+    if len(bindings) == 0:
+        return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "no_bindings_in_chain",
+                "evidence": "refuted", "decision": project("refuted"), "rule": "no_bindings_in_chain"}
+    # MALFORMED chain: authority begins at a binding's OWN anchor. An activated_at BEFORE binding_anchor_time
+    # would let an optional field reopen the retroactive-authority path §states forbids (an activated_at=0
+    # baseline governing an artifact anchored before it existed), so it is rejected fail-closed. activated_at
+    # may only DELAY activation (>= anchor), never advance it before the anchor.
+    if any(isinstance(b.get("activated_at"), int) and b["activated_at"] < b["binding_anchor_time"] for b in bindings):
+        return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "chain_malformed",
+                "evidence": "unverifiable", "unverifiable_reason": "activation_before_anchor",
+                "decision": project("unverifiable"), "rule": "chain_malformed"}
     resolved, reason = resolve_in_force(bindings, at)
     if resolved is None:
-        # Chain resolved, nothing governs at `at`. Split the two determinate causes: an innocent
-        # pre-baseline back catalogue (anchored before the baseline's OWN anchor B) vs post-revocation /
-        # genuinely ungoverned (at >= B). The evidence axis stays the closed set {verified, refuted,
-        # unverifiable} — the legacy admission lives in resolution_reason + rule, not a new value.
+        # Chain resolved and non-empty; nothing governs at `at`. Split the two determinate causes: an
+        # innocent pre-baseline back catalogue (anchored before the baseline's OWN anchor B) vs
+        # post-revocation / genuinely ungoverned (at >= B). Evidence stays the closed set {verified,
+        # refuted, unverifiable} — the legacy admission lives in resolution_reason + rule, not a new value.
         baseline = min(bindings, key=lambda x: x["binding_anchor_time"])
         if at < activation_of(bindings, baseline):
-            # pre_baseline: NOT governed (resolved stays null) but ADMITTED classical-only. Verified: a
-            # legitimately classical-signed artifact from before the migration, claiming no PQ companion.
+            # pre_baseline: NOT governed (resolved stays null) but ADMITTED under the legacy back-catalogue
+            # rule. `verified` attests the TEMPORAL classification only — provably anchored before B, admitted
+            # classical-only. It does NOT assert a classical-signature check: this evaluator performs none,
+            # and classical-signedness is an input precondition of the legacy admit, not a fact proven here.
             return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "pre_baseline",
                     "evidence": "verified", "decision": project("verified"), "rule": "pre_baseline_legacy_admit"}
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": reason,

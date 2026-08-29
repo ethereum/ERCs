@@ -267,8 +267,8 @@
       }
     },
     {
-      "name": "fail-closed — empty / unresolvable chain is UNVERIFIABLE, never a silent pre_baseline admit",
-      "bindings": [],
+      "name": "fail-closed — UNAVAILABLE chain (bindings=null, dependency unresolved) is unverifiable, never a silent admit",
+      "bindings": null,
       "artifact": {
         "anchor_time": 1785500000,
         "anchored": true,
@@ -276,7 +276,7 @@
       },
       "expected": {
         "resolved": null,
-        "resolution_reason": "unresolvable_chain",
+        "resolution_reason": "chain_unavailable",
         "rule": "chain_unavailable",
         "evidence": "unverifiable",
         "decision": "REJECT"
@@ -333,6 +333,46 @@
         "rule": "anchored_before_cutoff",
         "evidence": "verified",
         "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "resolved-empty chain (bindings=[], agent has zero bindings) — determinate refuse, NOT pre_baseline, distinct from unavailable",
+      "bindings": [],
+      "artifact": {
+        "anchor_time": 1785500000,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "no_bindings_in_chain",
+        "rule": "no_bindings_in_chain",
+        "evidence": "refuted",
+        "decision": "REJECT"
+      }
+    },
+    {
+      "name": "malformed — activated_at (0) BEFORE the binding's own anchor (100) cannot reopen retroactive authority: t=50 is unverifiable, NOT baseline/ADMIT",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 100,
+          "activated_at": 0
+        }
+      ],
+      "artifact": {
+        "anchor_time": 50,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "chain_malformed",
+        "rule": "chain_malformed",
+        "evidence": "unverifiable",
+        "decision": "REJECT"
       }
     }
   ]
