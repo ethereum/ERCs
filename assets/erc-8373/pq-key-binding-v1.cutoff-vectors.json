@@ -1,6 +1,6 @@
 {
   "profile": "pq_key_binding.v1/cutoff-enforcement",
-  "description": "Cutoff enforcement, v1. Admit an artifact iff PROVEN ANCHORED BEFORE the consumer cutoff, OR it carries a VALID PQ companion under the pq_pubkey of the binding IN FORCE at the artifact's anchor time (cutoff by ANCHOR TIME, consumer policy). v1 over v0: (1) the baseline binding governs from creation (activation 0), so an artifact anchored before the baseline's own registration is admitted classical-only rather than retro-invalidated; (2) the verdict is tri-state \u2014 evidence in {verified, refuted, unverifiable}, decision a derived projection. A REVOCATION still ends authority at its anchor time: a post-revocation artifact is REFUTED even pre-cutoff, distinct from an innocent pre-baseline artifact. Each case asserts the resolution step, the evidence, the rule, AND the decision.",
+  "description": "Cutoff enforcement, v1. Admit an artifact iff PROVEN ANCHORED BEFORE the consumer cutoff, OR it carries a VALID PQ companion under the pq_pubkey of the binding IN FORCE at the artifact's anchor time (cutoff by ANCHOR TIME, consumer policy). v1 over v0: (1) an artifact anchored before the baseline's OWN anchor B is admitted classical-only but NOT governed (resolved=null, resolution_reason=pre_baseline, rule=pre_baseline_legacy_admit) — the baseline governs only from B, no binding claims retroactive authority; emitted fail-closed (an empty/unresolvable chain stays unverifiable); (2) the verdict is tri-state — evidence in {verified, refuted, unverifiable}, decision a derived projection. A REVOCATION still ends authority at its anchor time: a post-revocation artifact is REFUTED even pre-cutoff, distinct from an innocent pre-baseline artifact. Each case asserts the resolution step, the evidence, the rule, AND the decision.",
   "v1_changes_from_v0": [
     "pre-baseline artifact: v0 REJECT (no_in_force_binding) -> v1 ADMIT (anchored_before_cutoff); the baseline governs from 0. This is the back-catalogue guarantee zexoverz flagged.",
     "expected.evidence added (verified|refuted|unverifiable); decision is project(evidence).",
@@ -126,22 +126,22 @@
       }
     },
     {
-      "name": "FIXED v1 \u2014 artifact anchored BEFORE the baseline's registration (back catalogue, admits classical-only)",
+      "name": "pre_baseline — artifact anchored BEFORE the baseline's own anchor B (admitted classical-only, NOT governed)",
       "artifact": {
         "anchor_time": 1785000000,
         "anchored": true,
         "pq_companion": null
       },
       "expected": {
-        "resolved": "kya-l4-genesis",
-        "resolution_reason": "resolved_at_anchor_time",
-        "rule": "anchored_before_cutoff",
+        "resolved": null,
+        "resolution_reason": "pre_baseline",
+        "rule": "pre_baseline_legacy_admit",
         "evidence": "verified",
         "decision": "ADMIT"
       }
     },
     {
-      "name": "revocation slot \u2014 artifact anchored BEFORE revocation still governed (stays valid)",
+      "name": "revocation slot — artifact anchored BEFORE revocation still governed (stays valid)",
       "bindings": [
         {
           "name": "kya-l4-genesis",
@@ -165,7 +165,7 @@
       }
     },
     {
-      "name": "revocation slot \u2014 artifact anchored AT/AFTER revocation no longer governed (REFUTED even pre-cutoff)",
+      "name": "revocation slot — artifact anchored AT/AFTER revocation no longer governed (REFUTED even pre-cutoff)",
       "bindings": [
         {
           "name": "kya-l4-genesis",
@@ -189,7 +189,7 @@
       }
     },
     {
-      "name": "boundary \u2014 artifact anchored at EXACTLY the activation anchor is in_force (t == B, activation-inclusive)",
+      "name": "boundary — artifact anchored at EXACTLY the activation anchor is in_force (t == B, activation-inclusive)",
       "bindings": [
         {
           "name": "kya-l4-genesis",
@@ -213,7 +213,7 @@
       }
     },
     {
-      "name": "boundary \u2014 artifact anchored at EXACTLY the revocation anchor is authority_revoked (t == R, inclusive on the revoked side)",
+      "name": "boundary — artifact anchored at EXACTLY the revocation anchor is authority_revoked (t == R, inclusive on the revoked side)",
       "bindings": [
         {
           "name": "kya-l4-genesis",
@@ -234,6 +234,105 @@
         "rule": "no_in_force_binding",
         "evidence": "refuted",
         "decision": "REJECT"
+      }
+    },
+    {
+      "name": "boundary t == B-1 — one second before the baseline anchor: pre_baseline (resolved null, legacy admit)",
+      "artifact": {
+        "anchor_time": 1785423298,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "pre_baseline",
+        "rule": "pre_baseline_legacy_admit",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "boundary t == B — at the baseline anchor: in_force (activation inclusive; baseline governs FROM B, not before)",
+      "artifact": {
+        "anchor_time": 1785423299,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": "kya-l4-genesis",
+        "resolution_reason": "resolved_at_anchor_time",
+        "rule": "anchored_before_cutoff",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "fail-closed — empty / unresolvable chain is UNVERIFIABLE, never a silent pre_baseline admit",
+      "bindings": [],
+      "artifact": {
+        "anchor_time": 1785500000,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": null,
+        "resolution_reason": "unresolvable_chain",
+        "rule": "chain_unavailable",
+        "evidence": "unverifiable",
+        "decision": "REJECT"
+      }
+    },
+    {
+      "name": "successor non-retroactivity — artifact before the successor's anchor resolves to the BASELINE, not the successor",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 1785423299
+        },
+        {
+          "name": "kya-l4-successor",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+          "binding_anchor_time": 1786000000
+        }
+      ],
+      "artifact": {
+        "anchor_time": 1785700000,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": "kya-l4-genesis",
+        "resolution_reason": "resolved_at_anchor_time",
+        "rule": "anchored_before_cutoff",
+        "evidence": "verified",
+        "decision": "ADMIT"
+      }
+    },
+    {
+      "name": "boundary t == R-1 — one second before revocation: still governed by the baseline (revocation exclusive on the pre side)",
+      "bindings": [
+        {
+          "name": "kya-l4-genesis",
+          "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+          "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+          "binding_anchor_time": 1785423299,
+          "revoked_at": 1786000000
+        }
+      ],
+      "artifact": {
+        "anchor_time": 1785999999,
+        "anchored": true,
+        "pq_companion": null
+      },
+      "expected": {
+        "resolved": "kya-l4-genesis",
+        "resolution_reason": "resolved_at_anchor_time",
+        "rule": "anchored_before_cutoff",
+        "evidence": "verified",
+        "decision": "ADMIT"
       }
     }
   ]

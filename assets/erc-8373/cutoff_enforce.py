@@ -5,12 +5,16 @@ A faithful port of the live gateway enforcer (trustless-ai/vertice-gateway src/l
 which is itself the operative side of this profile. v1 over v0 changes exactly two things, both to
 STOP the back catalogue being retroactively invalidated:
 
-  1. ACTIVATION (baseline governs from creation). The baseline binding (earliest, key_epoch 0)
-     activates at time 0, not at its anchor time. Anchoring gives a binding a provable time, not a
-     birthday: an artifact anchored before the baseline's own registration is still governed by it.
-     Successors keep activated_at = their anchor time, so a rotation still cannot claim retroactive
-     coverage. This is what turns v0's "artifact anchored before any binding existed -> REJECT"
-     (which retro-invalidated the oldest back catalogue) into ADMIT-classical-only.
+  1. PRE-BASELINE LEGACY ADMIT (admitted, NOT governed). An artifact anchored before the baseline's
+     OWN anchor time B is not governed by any binding — there was no anchored binding in force at that
+     instant — but it is ADMITTED classical-only rather than refused: it was legitimately classical-
+     signed when classical was the norm and claims no PQ companion, so nothing asserts protection it
+     lacks. The result is distinct: resolved=null, resolution_reason=pre_baseline, decision=ADMIT. The
+     baseline governs only from B, exactly like a successor from its own anchor — no binding claims
+     retroactive authority. This turns v0's "anchored before any binding existed -> REJECT" (which
+     retro-invalidated the oldest back catalogue) into an admit that never manufactures governance.
+     Fail-closed: pre_baseline is emitted ONLY after the chain and B resolve; an empty/unresolvable
+     chain stays unverifiable, never a silent pre_baseline admit.
 
   2. TRI-STATE EVIDENCE. The verdict carries evidence in {verified, refuted, unverifiable}; the
      boolean decision (ADMIT/REJECT) is a DERIVED projection of it (project()). "checked and failed"
@@ -28,15 +32,15 @@ import sys, json, os
 
 
 def activation_of(bindings, b):
-    """When a binding's AUTHORITY starts (not the anchor that proves it exists).
-    Explicit activated_at wins. Else: the baseline (earliest binding) governs from 0; every other
-    binding governs from its own anchor time."""
+    """When a binding's AUTHORITY starts: its own anchor time (not the moment the key was created).
+    Explicit activated_at wins; otherwise every binding — the baseline included — governs only from
+    its binding_anchor_time. No binding reaches back before its own anchor: an artifact anchored
+    before the baseline's anchor is NOT governed (it is handled as pre_baseline in admit()), never
+    retroactively governed. (Corrected from baseline-governs-from-0, which manufactured retroactive
+    authority the spec's §states forbids: pre_baseline is "anchored before any binding governed it".)"""
     if isinstance(b.get("activated_at"), int):
         return b["activated_at"]
-    if not bindings:
-        return b["binding_anchor_time"]
-    baseline = min(bindings, key=lambda x: x["binding_anchor_time"])
-    return 0 if b is baseline or b.get("name") == baseline.get("name") else b["binding_anchor_time"]
+    return b["binding_anchor_time"]
 
 
 def resolve_in_force(bindings, at_time):
@@ -76,10 +80,25 @@ def project(evidence):
 
 def admit(bindings, consumer_cutoff, artifact):
     at = artifact["anchor_time"]
+    # Fail-closed: an empty / unresolvable chain cannot be read, so the verdict is UNVERIFIABLE — never
+    # a silent pre_baseline admit. pre_baseline may be emitted ONLY after the chain and its baseline
+    # anchor B have resolved successfully (below), where `at` is provably before B.
+    if not bindings:
+        return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "unresolvable_chain",
+                "evidence": "unverifiable", "unverifiable_reason": "chain_unavailable",
+                "decision": project("unverifiable"), "rule": "chain_unavailable"}
     resolved, reason = resolve_in_force(bindings, at)
     if resolved is None:
-        # Determinate: the chain was read and nothing governs here (pre-baseline is now impossible
-        # for a baseline that governs from 0; this fires for post-revocation / genuinely empty chains).
+        # Chain resolved, nothing governs at `at`. Split the two determinate causes: an innocent
+        # pre-baseline back catalogue (anchored before the baseline's OWN anchor B) vs post-revocation /
+        # genuinely ungoverned (at >= B). The evidence axis stays the closed set {verified, refuted,
+        # unverifiable} — the legacy admission lives in resolution_reason + rule, not a new value.
+        baseline = min(bindings, key=lambda x: x["binding_anchor_time"])
+        if at < activation_of(bindings, baseline):
+            # pre_baseline: NOT governed (resolved stays null) but ADMITTED classical-only. Verified: a
+            # legitimately classical-signed artifact from before the migration, claiming no PQ companion.
+            return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": "pre_baseline",
+                    "evidence": "verified", "decision": project("verified"), "rule": "pre_baseline_legacy_admit"}
         return {"resolved": None, "resolved_pq_pubkey": None, "resolution_reason": reason,
                 "evidence": "refuted", "decision": project("refuted"), "rule": "no_in_force_binding"}
 
