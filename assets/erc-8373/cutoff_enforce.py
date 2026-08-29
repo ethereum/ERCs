@@ -35,13 +35,19 @@ import sys, json, os
 
 def activation_of(bindings, b):
     """When a binding's AUTHORITY starts: its own anchor time (not the moment the key was created).
-    Explicit activated_at wins; otherwise every binding — the baseline included — governs only from
-    its binding_anchor_time. No binding reaches back before its own anchor: an artifact anchored
-    before the baseline's anchor is NOT governed (it is handled as pre_baseline in admit()), never
-    retroactively governed. (Corrected from baseline-governs-from-0, which manufactured retroactive
-    authority the spec's §states forbids: pre_baseline is "anchored before any binding governed it".)"""
+    activated_at may only DELAY activation (>= binding_anchor_time), never advance it before the
+    binding's own anchor; otherwise every binding — the baseline included — governs only from its
+    binding_anchor_time. No binding reaches back before its own anchor: an artifact anchored before the
+    baseline's anchor is NOT governed (handled as pre_baseline in admit()), never retroactively governed.
+    (Corrected from baseline-governs-from-0, which manufactured retroactive authority the spec's §states
+    forbids: pre_baseline is "anchored before any binding governed it".)"""
+    # Clamp to >= binding_anchor_time HERE so this function can never, in isolation, hand back a
+    # sub-anchor activation — the exact bypass a bare `return activated_at` would leave open (an
+    # activated_at=0 baseline governing an artifact anchored before it existed). A chain that even
+    # CONTAINS an activated_at < binding_anchor_time is additionally rejected as malformed in admit()
+    # before resolution runs; this clamp is defense-in-depth at the resolution site.
     if isinstance(b.get("activated_at"), int):
-        return b["activated_at"]
+        return max(b["activated_at"], b["binding_anchor_time"])
     return b["binding_anchor_time"]
 
 
