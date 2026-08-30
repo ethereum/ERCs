@@ -1,7 +1,7 @@
 # ERC-8376 Conformance Test Cases v0.1
 
 The cases a conformant implementation MUST cover at minimum, referenced from the
-Test Cases section of [ERC-8376](../../ERCS/erc-8376.md).
+Test Cases section of ERC-8376.
 
 1. **Score reproducibility.** A fixed `SignalVector` under the reference hard-rug profile yields a deterministic score. `liquidityRemoved = 6000`, `lpLockedShare = 0`, `proceedsWithdrawnShare = 9000`, `lpLockRemaining = 0`, `deployerSellRatio = 7000`, `privilegedPowers = 0x0011`, `priorUpheldClaims = 2` scores in the Conclusive band.
 2. **Protective polarity.** The same vector with `lpLockedShare = 10000` and `lpLockRemaining = 365 days` scores materially lower. A protective signal at full strength MUST reduce the score, never raise it.

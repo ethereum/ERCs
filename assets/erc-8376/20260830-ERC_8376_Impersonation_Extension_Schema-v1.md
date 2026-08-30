@@ -1,7 +1,7 @@
 # ERC-8376 Impersonation Extension Schema v1
 
 The reference extension schema for `PATTERN_IMPERSONATION`, published at a stable URI as
-the Extension Signals section of [ERC-8376](../../ERCS/erc-8376.md) requires.
+the Extension Signals section of ERC-8376 requires.
 
 `PATTERN_IMPERSONATION` cannot be scored from the base vector. A deployer may retain no supply, lock liquidity, hold no privileged powers, and read clean on all twelve signals, because the abuse is entirely in the identity claim. It is the reason extension schemas exist and is specified here as their reference.
 
