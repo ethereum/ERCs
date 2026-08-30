@@ -190,6 +190,45 @@ contract RemediationTest is TestBase {
         assertTrue(escrow.stateOf(id) != LaunchState.Frozen, "still frozen after settlement");
     }
 
+    // An offer stands until it is taken. A deployer may withdraw it before
+    // acceptance, and the claim survives the withdrawal unchanged.
+    function test_settlementOfferWithdrawnBeforeAcceptance() public {
+        _buy(alice, 10 ether);
+        (, bytes32 claimId) = _fileClaim(95);
+
+        uint256 before = deployer.balance;
+        vm.prank(deployer);
+        remediation.settle{value: 2 ether}(claimId, 2 ether);
+
+        vm.prank(deployer);
+        remediation.withdrawSettlementOffer(claimId);
+        vm.prank(deployer);
+        remediation.withdraw();
+        assertEq(deployer.balance, before, "offer not returned to the deployer");
+
+        // Nothing is left to accept, and the claim is untouched.
+        vm.prank(alice);
+        vm.expectRevert();
+        remediation.acceptSettlement(claimId, 2 ether);
+
+        (, , ClaimStatus status, ) = remediation.getClaim(claimId);
+        assertTrue(status == ClaimStatus.Open, "withdrawal closed the claim");
+        assertTrue(escrow.stateOf(id) == LaunchState.Frozen, "withdrawal unfroze the launch");
+    }
+
+    // Only the deployer who posted an offer may take it back.
+    function test_settlementOfferWithdrawableOnlyByDeployer() public {
+        _buy(alice, 10 ether);
+        (, bytes32 claimId) = _fileClaim(95);
+
+        vm.prank(deployer);
+        remediation.settle{value: 2 ether}(claimId, 2 ether);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        remediation.withdrawSettlementOffer(claimId);
+    }
+
     // An unadjudicated claim must not freeze a launch forever.
     function test_claimExpiresAndUnfreezes() public {
         _buy(alice, 10 ether);
