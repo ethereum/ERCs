@@ -518,6 +518,10 @@ A signature can authenticate an artifact and an on-chain transaction can anchor 
 
 A profile MUST NOT label a nondeterministic judgment `REPRODUCED` merely because another implementation produced similar prose or the same coarse verdict. It MAY reproduce deterministic sub-checks or a deterministic verification relation over an authenticated judgment artifact, but the profile must name that narrower proposition.
 
+### Procedure completeness
+
+`REPRODUCED` establishes stability under the profile-defined procedure; it does not establish that the procedure is complete with respect to any broader claim not committed by the Verification Profile.
+
 ### Mutable external context
 
 Live RPC responses, registries, clocks, mutable policies, model endpoints, and resolver results can change outcomes. They MUST NOT influence a reproducible result unless the profile commits an immutable snapshot and exact resolution rules. An unavailable required snapshot produces `CANNOT_RECOMPUTE`.
