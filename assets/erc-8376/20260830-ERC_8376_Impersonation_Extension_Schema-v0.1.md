@@ -17,4 +17,6 @@ Weights: `symbolCollision` 40, `nameSimilarity` 30, `metadataReuse` 20, `priorUp
 
 "Established" MUST be defined by the deployment and published with the profile. Age and liquidity are both reasonable bases; neither is mandated, because the right threshold differs by chain and venue.
 
+Both `symbolCollision` and `nameSimilarity` MUST be computed over normalized strings, since the attack this pattern describes is carried in the encoding rather than in the glyphs a reader sees. A detector MUST apply Unicode Normalization Form KC, MUST strip characters with no visual width, including zero-width space, zero-width non-joiner, zero-width joiner and the byte order mark, and MUST fold confusable characters to a skeleton by a published mapping, for which the Unicode consortium's confusables data is RECOMMENDED. A symbol rendering identically to an established token's while differing in code points MUST set the same bits in `symbolCollision` as an exact match, and a detector MUST report in `evidenceURI` the normalization and confusable mapping it applied, with their versions.
+
 Detectors MUST NOT report `nameSimilarity` from a proprietary measure without naming it. A measure that a third party cannot reproduce cannot be verified, and a bond posted against it cannot be enforced.
