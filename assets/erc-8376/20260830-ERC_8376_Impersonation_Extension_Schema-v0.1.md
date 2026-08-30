@@ -1,4 +1,4 @@
-# ERC-8376 Impersonation Extension Schema v1
+# ERC-8376 Impersonation Extension Schema v0.1
 
 The reference extension schema for `PATTERN_IMPERSONATION`, published at a stable URI as
 the Extension Signals section of ERC-8376 requires.
