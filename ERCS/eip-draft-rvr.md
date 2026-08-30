@@ -416,9 +416,9 @@ RVR is a portable artifact format. A receipt digest MAY be anchored by an applic
 
 RVR is complementary to application-layer mechanisms that authenticate requests, commit observations, prove private-policy evaluation, record provenance, or verify inference proofs.
 
-[ERC-8354](./erc-8354.md) defines confidential agent policy verdicts. RVR does not define its proof system or policy semantics; a Verification Profile can identify such a deterministic proof-verification relation and its committed inputs.
+[ERC-8354](./eip-8354.md) defines confidential agent policy verdicts. RVR does not define its proof system or policy semantics; a Verification Profile can identify such a deterministic proof-verification relation and its committed inputs.
 
-[ERC-8004](./erc-8004.md) defines agent identity, reputation, and validation registries. RVR requires neither an agent identity nor a registry.
+[ERC-8004](./eip-8004.md) defines agent identity, reputation, and validation registries. RVR requires neither an agent identity nor a registry.
 
 The open Observation Commitment Protocol, AI Inference Proof Verification Interfaces, AI Input Provenance, and Delegated Signed HTTP Requests proposals address commitment, proof, provenance, and authorization layers. RVR addresses the distinct layer of reproducing a profile-defined semantic result over committed verification inputs.
 
