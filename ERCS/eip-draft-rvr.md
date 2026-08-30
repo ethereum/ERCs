@@ -1,6 +1,6 @@
 ---
 title: Recomputable Verification Receipts
-description: A content-addressed receipt format for reproducing profile-defined verification results.
+description: A six-field receipt using content-addressed claim, evidence-set, profile, and result identities.
 author: Pavlo Tvardovskyi (@pipavlo82)
 discussions-to: https://ethereum-magicians.org/t/recomputable-verification-receipts-rvr/29521
 status: Draft
@@ -11,7 +11,7 @@ created: 2026-08-29
 
 ## Abstract
 
-This ERC defines Recomputable Verification Receipts (RVR), a six-field, content-addressed receipt format for independently recomputing profile-defined verification results. An RVR commits to a claim, an evidence-set closure, a Verification Profile, and one canonical result while keeping the semantic verification outcome separate from the status of a later recomputation. The format does not make a producer implementation authoritative and does not require an on-chain registry.
+This ERC defines Recomputable Verification Receipts (RVR), a six-field receipt format built from content-addressed claim, evidence-set, profile, and result identities for independently recomputing profile-defined verification results. An RVR commits to a claim, an evidence-set closure, a Verification Profile, and one canonical result while keeping the semantic verification outcome separate from the status of a later recomputation. The format does not make a producer implementation authoritative and does not require an on-chain registry.
 
 ## Motivation
 
@@ -58,7 +58,7 @@ The recomputation status concerns a later independent run and MUST be one of:
 | --- | --- |
 | `REPRODUCED` | The candidate claim, evidence set, profile, and canonical result identities equal those committed by the receipt. |
 | `DIVERGED` | Required dependencies were available and evaluation completed, but a candidate input identity or canonical result identity differed. |
-| `CANNOT_RECOMPUTE` | A required committed dependency or committed-present payload could not be resolved and verified, so evaluation could not legitimately complete. |
+| `CANNOT_RECOMPUTE` | A required profile dependency or committed-present payload could not be resolved, or a required profile dependency resolved to bytes that failed its immutable pin, so evaluation could not legitimately run. |
 
 The recomputation status is not a seventh receipt field. It is the output of applying the recomputation procedure to a receipt and supplied dependencies.
 
@@ -85,7 +85,7 @@ The receipt is accompanied by, but does not embed, the claim object, evidence-se
 
 All identity-bearing RVR JSON objects MUST use `rvr-canonical-json-v0`.
 
-Its input domain consists only of JSON null, booleans, Unicode scalar-value strings, arrays, and objects. JSON numbers are forbidden. Quantities such as byte lengths MUST be encoded as canonical unsigned decimal strings by their governing schema.
+Its input domain consists only of JSON null, booleans, Unicode scalar-value strings, arrays, and objects. JSON numbers are forbidden. Quantities such as byte lengths MUST be encoded as canonical unsigned decimal strings matching `^(?:0|[1-9][0-9]*)$`, with no sign and no leading zeros except for the single string `0`.
 
 Canonicalization MUST apply these rules:
 
@@ -153,7 +153,7 @@ byteLength
 digest
 ```
 
-`byteLength` MUST be the canonical unsigned decimal length of the exact raw payload bytes. `digest` MUST be the SHA-256 digest of those exact bytes. A present member MUST have exactly one supplied payload whose length and digest match.
+`byteLength` MUST be the canonical unsigned decimal length of the exact raw payload bytes. `digest` MUST be the SHA-256 digest of those exact bytes. A resolved `PRESENT` member MUST have exactly one supplied payload whose byte length and digest match the descriptor. If the committed-present payload cannot be resolved, the descriptor remains valid but recomputation MUST return `CANNOT_RECOMPUTE` with `evaluationPerformed = false` and MUST NOT run evaluation.
 
 An unavailable member MUST contain exactly:
 
@@ -232,7 +232,7 @@ sha256
 requiredForRecomputation
 ```
 
-`id` MUST be unique within its containing dependency set. `path` MUST follow the resolution rules below. `sha256` MUST be a lowercase hexadecimal SHA-256 digest. `requiredForRecomputation` MUST be a boolean.
+`id` MUST be unique within its containing dependency set. `path` MUST follow the resolution rules below. `sha256` MUST be a lowercase hexadecimal SHA-256 digest. `requiredForRecomputation` MUST be a boolean. Any dependency whose bytes can affect validation, evaluation, the canonical result, or recomputation status MUST set `requiredForRecomputation` to `true`. A dependency marked `false` MUST be non-semantic conformance or provenance material and MUST NOT influence recomputation.
 
 `profileSchemaContract` MUST identify both the generic manifest schema and a profile-specific constraints schema. The constraints schema MUST NOT be parsed or applied before its exact bytes match its committed digest.
 
@@ -356,9 +356,9 @@ Given a receipt, original canonical result, candidate claim and evidence, and a 
 
 1. Strictly parse the receipt and generic Verification Profile envelope. Reject duplicate keys, forbidden numbers, lone surrogates, and schema-invalid shapes.
 2. Recompute `verificationProfileDigest` and require equality with the receipt.
-3. Resolve every required profile dependency using hash-before-parse rules. If a required dependency or committed-present payload cannot be resolved and verified, return `CANNOT_RECOMPUTE` with `evaluationPerformed = false`.
+3. Resolve every required profile dependency using hash-before-parse rules and resolve every candidate evidence payload whose descriptor is committed as `PRESENT`. If a required profile dependency or committed-present payload cannot be resolved, return `CANNOT_RECOMPUTE` with `evaluationPerformed = false`. If a required profile dependency resolves to bytes whose SHA-256 digest does not equal its committed pin, return `CANNOT_RECOMPUTE` with `evaluationPerformed = false`; those bytes MUST NOT be parsed or used.
 4. Validate the original receipt, canonical result identity, and result projections. Contradictory projections or malformed committed objects are gate rejections.
-5. Validate the candidate evidence closure. Duplicate members, uncommitted outcome-relevant input, payload identity mismatch, or an unavailable member with a payload are gate rejections.
+5. Validate the candidate evidence closure. Duplicate members, uncommitted outcome-relevant input, a resolved `PRESENT` payload whose byte length or digest does not match its descriptor, or an `UNAVAILABLE` member with a payload are gate rejections.
 6. Recompute the candidate `claimDigest` and `evidenceSetDigest`.
 7. Execute the profile's deterministic verification procedure and derive exactly one canonical result.
 8. Recompute the canonical result bytes and `resultDigest`.
@@ -375,6 +375,10 @@ A conforming profile suite MUST mechanically demonstrate at least:
 - an evaluated, internally self-consistent claim- or evidence-relevant mutation producing `DIVERGED` for the intended semantic reason rather than failing only because of unrelated descriptor drift;
 - an original `UNVERIFIABLE` result independently producing `REPRODUCED`;
 - an unavailable required normative dependency producing `CANNOT_RECOMPUTE` without evaluation;
+- a required normative dependency resolving to bytes that fail its committed digest producing `CANNOT_RECOMPUTE` without parsing or evaluation;
+- an unavailable committed-present evidence payload producing `CANNOT_RECOMPUTE` without evaluation;
+- rejection of a resolved committed-present payload whose byte length or digest does not match its descriptor;
+- a control proving that withholding or substituting the bytes of a dependency marked `requiredForRecomputation = false` cannot change validation, evaluation, the canonical result, or recomputation status;
 - rejection of a contradictory receipt projection while preserving `resultDigest`;
 - rejection of outcome-relevant hidden state;
 - a hash-before-parse negative control for profile-specific constraints;
