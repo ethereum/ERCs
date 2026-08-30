@@ -11,9 +11,9 @@ pragma solidity >=0.7.0;
  * one is implemented by a smart contract on one chain (e.g. the "asset chain" - the asset contract), the other is implemented by
  * a smart contract on another chain (e.g. the "payment chain" - the payment contract).
  * One contract performs a locking, where a transfer is conditional on a presented key: locking contract.
- * The other contract performs a condition decryption of keys, conditional to transfer success or failure: decryption contract.
+ * The other contract performs a conditional decryption of keys, conditional to transfer success or failure: decryption contract.
  *
- * This is the locking contracts interface.
+ * This is the locking contract's interface.
  *
  * The rationale is that the token is locked with two encrypted keys
  * or hashes of keys associated with two different addresses (buyer/seller).
@@ -27,37 +27,55 @@ interface ILockingContract {
     /*------------------------------------------- EVENTS ---------------------------------------------------------------------------------------*/
 
     /**
-     * @dev Emitted  when the transfer for the token is incepted
-     * @param id the trade identifier of the trade.
+     * @dev Emitted when the transfer for the token is incepted.
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
      * @param from The address of the seller.
      * @param to The address of the buyer.
+     * @param transaction Immutable application-specific transfer data.
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
      * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token, if it was provided to inceptTransfer.
      */
-    event TransferIncepted(uint256 id, int amount, address from, address to, bytes keyHashedSeller, bytes keyEncryptedSeller);
+    event TransferIncepted(
+        uint256 id,
+        int amount,
+        address from,
+        address to,
+        bytes transaction,
+        bytes keyHashedSeller,
+        bytes keyEncryptedSeller
+    );
 
     /**
-     * @dev Emitted  when the transfer for the token is confirmed
-     * @param id the trade identifier of the trade.
+     * @dev Emitted when the transfer for the token is confirmed.
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
      * @param from The address of the seller.
      * @param to The address of the buyer.
+     * @param transaction Immutable application-specific transfer data.
      * @param keyHashedBuyer Hashing (or, alternatively, encryption) of the key that can be used by the buyer to claim the token.
      * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token, if it was provided to confirmTransfer.
      */
-    event TransferConfirmed(uint256 id, int amount, address from, address to, bytes keyHashedBuyer, bytes keyEncryptedBuyer);
+    event TransferConfirmed(
+        uint256 id,
+        int amount,
+        address from,
+        address to,
+        bytes transaction,
+        bytes keyHashedBuyer,
+        bytes keyEncryptedBuyer
+    );
 
     /**
      * @dev Emitted when the token was successfully claimed (forwarded to the buyer).
-     * @param id the trade ID
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param key the key that was used to claim the asset
      */
     event TokenClaimed(uint256 id, bytes key);
 
     /**
      * @dev Emitted when the token was re-claimed (back to seller).
-     * @param id the trade ID
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param key the key that was used to claim the asset
      */
     event TokenReclaimed(uint256 id, bytes key);
@@ -65,43 +83,88 @@ interface ILockingContract {
     /*------------------------------------------- FUNCTIONALITY ---------------------------------------------------------------------------------------*/
 
     /**
-     * @notice Called from the buyer of the token to initiate the token transfer.
-     * @dev emits a {TransferIncepted}
-     * @param id the trade identifier of the trade.
+     * @notice Initiates a token transfer.
+     * @dev The interface MUST NOT infer either participant from msg.sender.
+     * Implementations MUST authorize the submitter separately from the explicit
+     * participant fields.
+     * Emits a {TransferIncepted}.
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
-     * @param from The address of the seller (the address of the buyer is message.sender).
+     * @param from The address of the seller.
+     * @param to The address of the buyer.
+     * @param transaction Immutable application-specific transfer data.
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
-     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
+     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they do not agree, the method will emit both, to allow observing the pair.
      */
-    function inceptTransfer(uint256 id, int amount, address from, bytes memory keyHashedSeller, bytes memory keyEncryptedSeller) external;
+    function inceptTransfer(
+        uint256 id,
+        int amount,
+        address from,
+        address to,
+        bytes memory transaction,
+        bytes memory keyHashedSeller,
+        bytes memory keyEncryptedSeller
+    ) external;
 
     /**
-     * @notice Called from the seller of the token to confirm the token transfer. Locks the token.
-     * @dev emits a {TransferConfirmed}
-     * @param id the trade identifier of the trade.
+     * @notice Confirms the token transfer and locks the token.
+     * @dev Every context argument MUST match the immutable inception. The interface
+     * MUST NOT infer either participant from msg.sender.
+     * Implementations MUST authorize the submitter separately from the explicit
+     * participant fields. The buyer and seller outcome material MUST identify
+     * distinct keys where the representations are directly comparable.
+     * Emits a {TransferConfirmed}.
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
-     * @param to The address of the buyer (the address of the seller is message.sender).
+     * @param from The address of the seller.
+     * @param to The address of the buyer.
+     * @param transaction Immutable application-specific transfer data.
      * @param keyHashedBuyer Hashing (or, alternatively, encryption) of the key that can be used by the buyer to claim the token.
-     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
+     * @param keyEncryptedBuyer Encryption of the key that can be used by the buyer to claim the token. This parameter is optional if keyHashedBuyer and keyEncryptedBuyer agree. If they do not agree, the method will emit both, to allow observing the pair.
      */
-    function confirmTransfer(uint256 id, int amount, address to, bytes memory keyHashedBuyer, bytes memory keyEncryptedBuyer) external;
+    function confirmTransfer(
+        uint256 id,
+        int amount,
+        address from,
+        address to,
+        bytes memory transaction,
+        bytes memory keyHashedBuyer,
+        bytes memory keyEncryptedBuyer
+    ) external;
 
     /**
-     * @notice Called from the buyer of the token to cancel token transfer (cancels the incept transfer).
-     * @dev emits a {TransferKeyRequested}
-     * @param id the trade identifier of the trade.
+     * @notice Cancels the token transfer before confirmation.
+     * @dev Every argument MUST match the immutable inception. The caller submits
+     * the cancellation. The interface MUST NOT infer either participant from
+     * msg.sender. Implementations MUST authorize the submitter separately from the
+     * explicit participant fields.
+     * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
-     * @param from The address of the seller (the address of the buyer is message.sender).
+     * @param from The address of the seller.
+     * @param to The address of the buyer.
+     * @param transaction Immutable application-specific transfer data.
      * @param keyHashedSeller Hashing (or, alternatively, encryption) of the key that can be used by the seller to (re-)claim the token.
-     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they not agree, the method will emit both, to allow observing the pair.
+     * @param keyEncryptedSeller Encryption of the key that can be used by the seller to (re-)claim the token. This parameter is optional if keyHashedSeller and keyEncryptedSeller agree. If they do not agree, the method will emit both, to allow observing the pair.
      */
-    function cancelTransfer(uint256 id, int amount, address from, bytes memory keyHashedSeller, bytes memory keyEncryptedSeller) external;
+    function cancelTransfer(
+        uint256 id,
+        int amount,
+        address from,
+        address to,
+        bytes memory transaction,
+        bytes memory keyHashedSeller,
+        bytes memory keyEncryptedSeller
+    ) external;
 
     /**
-     * @notice Called from the buyer or seller to claim or (re-)claim the token. Unlocks the token.
-     * @dev emits a {TokenClaimed} or {TokenReclaimed}
-     * @param id the trade identifier of the trade.
-     * @param key The key for which the hash or encryption matches either keyEncryptedBuyer (for transfer to the buyer) or keyEncryptedSeller (for transfer to the seller).
+     * @notice Presents a released key to claim or (re-)claim the token. Unlocks the token.
+     * @dev The caller MAY be the buyer, seller, a decryption contract, or another relayer.
+     * An implementation MAY restrict callers, but where the stored participants and matching
+     * key determine the immutable destination, knowledge of the key can be the authorization.
+     * Emits a {TokenClaimed} or {TokenReclaimed}.
+     * @param id Lifetime-unique identifier of this transfer leg.
+     * @param key The released key whose derived hash or other locking representation
+     * matches the stored buyer or seller outcome value.
      */
     function transferWithKey(uint256 id, bytes memory key) external;
 }
