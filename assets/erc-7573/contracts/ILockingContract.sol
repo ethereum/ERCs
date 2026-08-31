@@ -84,9 +84,9 @@ interface ILockingContract {
 
     /**
      * @notice Initiates a token transfer.
-     * @dev The interface MUST NOT infer either participant from msg.sender.
-     * Implementations MUST authorize the submitter separately from the explicit
-     * participant fields.
+     * @dev The `from` and `to` participants MUST be supplied explicitly. `msg.sender`
+     * identifies only the caller and MUST NOT, by itself, determine either participant.
+     * Implementations MAY require `msg.sender` to be a participant or an authorized operator.
      * Emits a {TransferIncepted}.
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
@@ -108,11 +108,11 @@ interface ILockingContract {
 
     /**
      * @notice Confirms the token transfer and locks the token.
-     * @dev Every context argument MUST match the immutable inception. The interface
-     * MUST NOT infer either participant from msg.sender.
-     * Implementations MUST authorize the submitter separately from the explicit
-     * participant fields. The buyer and seller outcome material MUST identify
-     * distinct keys where the representations are directly comparable.
+     * @dev Every context argument MUST match the immutable inception. The `from` and `to`
+     * participants MUST be supplied explicitly. `msg.sender` identifies only the caller
+     * and MUST NOT, by itself, determine either participant. Implementations MAY require
+     * `msg.sender` to be a participant or an authorized operator. The buyer and seller
+     * outcome material MUST identify distinct keys where the representations are directly comparable.
      * Emits a {TransferConfirmed}.
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
@@ -134,10 +134,10 @@ interface ILockingContract {
 
     /**
      * @notice Cancels the token transfer before confirmation.
-     * @dev Every argument MUST match the immutable inception. The caller submits
-     * the cancellation. The interface MUST NOT infer either participant from
-     * msg.sender. Implementations MUST authorize the submitter separately from the
-     * explicit participant fields.
+     * @dev Every argument MUST match the immutable inception. The `from` and `to`
+     * participants MUST be supplied explicitly. `msg.sender` identifies only the caller
+     * and MUST NOT, by itself, determine either participant. Implementations MAY require
+     * `msg.sender` to be a participant or an authorized operator.
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
      * @param from The address of the seller.

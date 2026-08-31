@@ -30,11 +30,11 @@ lifetime-unique and rejects its reuse. Corresponding locking and decryption cont
 the same numeric `id` for the two sides of one DvP operation. A group or multi-party identifier
 belongs in `transaction`; distinct legs on one implementation still require distinct IDs.
 
-Every transfer term-bearing call supplies `from` and `to` explicitly. The interfaces never derive
-either participant from `msg.sender`: the caller is only the submitter, and implementations
-authorize that submitter separately. Decryption confirmation and cancellation repeat the complete
-context, including the asynchronous callback (or zero), and both key references. Locking
-confirmation repeats the transfer context and adds the
+Every transfer term-bearing call supplies `from` and `to` explicitly. `msg.sender` identifies only
+the caller and MUST NOT, by itself, determine either participant. Implementations MAY require the
+caller to be a participant or an authorized operator. Decryption confirmation and cancellation
+repeat the complete context, including the asynchronous callback (or zero), and both key
+references. Locking confirmation repeats the transfer context and adds the
 other party's outcome-key material. These explicit arguments let each contract require exact
 agreement with its immutable inception, so separate inception and confirmation hashes are
 unnecessary.

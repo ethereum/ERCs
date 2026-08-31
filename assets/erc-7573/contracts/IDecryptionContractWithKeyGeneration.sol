@@ -17,9 +17,10 @@ interface IDecryptionContractWithKeyGeneration is IDecryptionContract {
      * @dev TransferIncepted is emitted only after both generated keys have been
      * validated and stored. The id, amount, participants, transaction, and callback
      * MUST remain immutable. The generated success and failure material MUST identify
-     * distinct outcome keys. The interface MUST NOT infer either participant from
-     * msg.sender; implementations MUST authorize the submitter separately from the
-     * explicit participant fields.
+     * distinct outcome keys. The `from` and `to` participants MUST be supplied explicitly.
+     * `msg.sender` identifies only the caller and MUST NOT, by itself, determine either
+     * participant. Implementations MAY require `msg.sender` to be a participant or an
+     * authorized operator.
      *
      * If callback is address(0), the implementation MUST skip callback delivery.
      * Otherwise, after the inception has been completed and

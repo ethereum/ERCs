@@ -95,8 +95,9 @@ interface IDecryptionContract {
 
     /**
      * @notice Initiates a payment transfer.
-     * @dev The interface MUST NOT infer either participant from msg.sender. Implementations
-     * MUST authorize the submitter separately from the explicit participant fields.
+     * @dev The `from` and `to` participants MUST be supplied explicitly. `msg.sender`
+     * identifies only the caller and MUST NOT, by itself, determine either participant.
+     * Implementations MAY require `msg.sender` to be a participant or an authorized operator.
      * The success and failure references MUST identify distinct outcome keys.
      * Emits a {TransferIncepted}.
      * @param id Lifetime-unique identifier of this transfer leg.
@@ -119,9 +120,10 @@ interface IDecryptionContract {
 
     /**
      * @notice Confirms a payment transfer.
-     * @dev Every argument MUST match the immutable completed inception. The interface
-     * MUST NOT infer either participant from msg.sender. Implementations
-     * MUST authorize the submitter separately from the explicit participant fields.
+     * @dev Every argument MUST match the immutable completed inception. The `from` and `to`
+     * participants MUST be supplied explicitly. `msg.sender` identifies only the caller
+     * and MUST NOT, by itself, determine either participant. Implementations MAY require
+     * `msg.sender` to be a participant or an authorized operator.
      * Emits a {TransferConfirmed}.
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the amount to be transferred.
@@ -155,9 +157,10 @@ interface IDecryptionContract {
 
     /**
      * @notice Cancels a payment transfer and requests its failure key.
-     * @dev Every argument MUST match the immutable completed inception. The interface
-     * MUST NOT infer either participant from msg.sender. Implementations
-     * MUST authorize the submitter separately from the explicit participant fields.
+     * @dev Every argument MUST match the immutable completed inception. The `from` and `to`
+     * participants MUST be supplied explicitly. `msg.sender` identifies only the caller
+     * and MUST NOT, by itself, determine either participant. Implementations MAY require
+     * `msg.sender` to be a participant or an authorized operator.
      * Emits a {TransferKeyRequested}.
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the amount to be transferred.

@@ -35,9 +35,10 @@ interface ILockingContractWithKeyGeneration is
 
     /**
      * @notice Initiates a transfer with asynchronously generated keys.
-     * @dev The interface MUST NOT infer either participant from msg.sender;
-     * implementations MUST authorize the submitter separately from the explicit
-     * participant fields. The locking contract MUST store the exact context and
+     * @dev The `from` and `to` participants MUST be supplied explicitly. `msg.sender`
+     * identifies only the caller and MUST NOT, by itself, determine either participant.
+     * Implementations MAY require `msg.sender` to be a participant or an authorized operator.
+     * The locking contract MUST store the exact context and
      * decryptionContract. It MUST accept key material only from an inception whose
      * id and transaction match, whose payment sender is this asset buyer (to), whose
      * payment receiver is this asset seller (from), and whose callback is this
@@ -74,8 +75,9 @@ interface ILockingContractWithKeyGeneration is
 
     /**
      * @notice Cancels an asynchronous asset inception before it has been locked.
-     * @dev The interface MUST NOT infer the buyer from msg.sender. Implementations
-     * MUST authorize the submitter separately from the stored participant fields.
+     * @dev The buyer MUST be loaded from the stored inception rather than inferred from
+     * `msg.sender`. Implementations MAY require `msg.sender` to be the buyer or an
+     * authorized operator.
      * The implementation MUST retain the immutable context as a cancellation
      * tombstone and acknowledge a later matching authenticated completion without
      * locking, so asynchronous completion does not deadlock the failure-key path.
