@@ -11,7 +11,7 @@ import {AgentMandate} from "../contracts/AgentMandate.sol";
 import {ComplianceProvider} from "../contracts/ComplianceProvider.sol";
 import {IComplianceProvider} from "../contracts/interfaces/IComplianceProvider.sol";
 import {IAgentMandate} from "../contracts/interfaces/IAgentMandate.sol";
-import {uRWA20} from "../contracts/regulated-asset-mock/uRWA20.sol";
+import {uRWA20} from "../contracts/mocks/uRWA20.sol";
 
 contract MockWallet {
     using ECDSA for bytes32;
@@ -143,22 +143,78 @@ contract AgentMandateTest is Test {
 
     function test_CanExecuteActionNotEnabled() public {
         _grant();
-        assertFalse(mandate.canExecute(agent, principal, address(token), OTHER_ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), OTHER_ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.ACTION_NOT_ENABLED));
     }
 
     function test_CanExecuteNonexistentMandate() public view {
-        assertFalse(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.NONEXISTENT));
     }
 
     function test_CanExecuteOutsideWindow() public {
         _grant();
         vm.warp(block.timestamp + 2 days);
-        assertFalse(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.EXPIRED));
+    }
+
+    function test_CanExecuteNotYetValid() public {
+        bytes32[] memory actions = new bytes32[](1);
+        actions[0] = ACTION;
+        IAgentMandate.GrantMandateParams memory p = IAgentMandate.GrantMandateParams({
+            agent: agent,
+            validFrom: uint48(block.timestamp + 1 hours),
+            validUntil: uint48(block.timestamp + 2 hours),
+            principal: principal,
+            complianceProvider: address(compliance),
+            identityRef: IDREF,
+            asset: address(token),
+            maxTransactionValue: 1000,
+            maxCumulativeValue: 1500,
+            metadata: bytes32(0),
+            actions: actions,
+            deadline: 0
+        });
+        vm.prank(principal);
+        mandate.grantMandate(p, "");
+
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.NOT_YET_VALID));
+    }
+
+    function test_CanExecuteOverCumulativeCap() public {
+        _grant();
+        vm.prank(principal);
+        mandate.recordExecution(agent, principal, ACTION, 1000);
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 1000);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP));
+    }
+
+    function test_CanExecuteOverTxCap() public {
+        _grant();
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 2000);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OVER_TX_CAP));
     }
 
     function test_CanExecuteWrongAsset() public {
         _grant();
-        assertFalse(mandate.canExecute(agent, principal, address(0xBEEF), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(0xBEEF), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.WRONG_ASSET));
     }
 
     function test_EnforcerCannotAlsoBeAdmin() public {
@@ -209,6 +265,26 @@ contract AgentMandateTest is Test {
         assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 500);
     }
 
+    function test_ExtendRevertsAfterComplianceExpiry() public {
+        vm.prank(complianceOwner);
+        compliance.grantPrincipal(principal, IDREF, uint48(block.timestamp + 2 days));
+        _grant();
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.InvalidExpiry.selector);
+        mandate.extendMandate(agent, principal, uint48(block.timestamp + 5 days), 0, "");
+    }
+
+    function test_ExtendRevertsWhenPrincipalIneligible() public {
+        _grant();
+        vm.prank(complianceOwner);
+        compliance.revokePrincipal(principal, IComplianceProvider.ReasonCode.AML_FLAG);
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.PrincipalNotEligible.selector);
+        mandate.extendMandate(agent, principal, uint48(block.timestamp + 10 days), 0, "");
+    }
+
     function test_ExtendRevertsInvalidExpiry() public {
         _grant();
         uint48 current = mandate.getMandate(agent, principal).validUntil;
@@ -237,12 +313,17 @@ contract AgentMandateTest is Test {
 
         vm.prank(enforcer);
         mandate.freezeAgent(agent);
-        assertTrue(mandate.isFrozen(agent));
-        assertFalse(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        assertTrue(mandate.isAgentFrozen(agent));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.AGENT_FROZEN));
 
         vm.prank(enforcer);
         mandate.unfreezeAgent(agent);
-        assertTrue(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (ok, reason) = mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
     }
 
     function test_FreezeOnlyEnforcer() public {
@@ -251,6 +332,112 @@ contract AgentMandateTest is Test {
             abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, enforcerRole)
         );
         mandate.freezeAgent(agent);
+    }
+
+    function test_FreezePrincipalByEnforcerBlocksAndUnfreeze() public {
+        _grant();
+        vm.prank(admin);
+        mandate.grantRole(enforcerRole, enforcer);
+
+        vm.prank(enforcer);
+        mandate.freezePrincipal(principal);
+        assertTrue(mandate.isPrincipalFrozen(principal));
+        assertFalse(mandate.isAgentFrozen(agent));
+
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.PRINCIPAL_FROZEN));
+
+        vm.prank(enforcer);
+        mandate.unfreezePrincipal(principal);
+        (ok, reason) = mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
+    }
+
+    function test_FreezePrincipalBlocksRecordExecution() public {
+        _grant();
+        vm.prank(admin);
+        mandate.grantRole(enforcerRole, enforcer);
+
+        vm.prank(enforcer);
+        mandate.freezePrincipal(principal);
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.NotExecutable.selector);
+        mandate.recordExecution(agent, principal, ACTION, 100);
+    }
+
+    function test_FreezePrincipalCoversMandatesGrantedLater() public {
+        vm.prank(admin);
+        mandate.grantRole(enforcerRole, enforcer);
+        vm.prank(enforcer);
+        mandate.freezePrincipal(principal);
+
+        _grant();
+
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.PRINCIPAL_FROZEN));
+    }
+
+    function test_AgentFreezeReportedBeforePrincipalFreeze() public {
+        _grant();
+        vm.startPrank(admin);
+        mandate.grantRole(enforcerRole, enforcer);
+        vm.stopPrank();
+
+        vm.startPrank(enforcer);
+        mandate.freezeAgent(agent);
+        mandate.freezePrincipal(principal);
+        vm.stopPrank();
+
+        (, IAgentMandate.MandateReason reason) = mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.AGENT_FROZEN));
+    }
+
+    function test_FreezePrincipalDoesNotRevoke() public {
+        _grant();
+        vm.prank(admin);
+        mandate.grantRole(enforcerRole, enforcer);
+
+        vm.prank(enforcer);
+        mandate.freezePrincipal(principal);
+
+        assertFalse(mandate.getMandate(agent, principal).revoked);
+    }
+
+    function test_FreezePrincipalEmitsEvents() public {
+        vm.prank(admin);
+        mandate.grantRole(enforcerRole, enforcer);
+
+        vm.expectEmit(true, true, false, false);
+        emit IAgentMandate.PrincipalFrozen(principal, enforcer);
+        vm.prank(enforcer);
+        mandate.freezePrincipal(principal);
+
+        vm.expectEmit(true, true, false, false);
+        emit IAgentMandate.PrincipalUnfrozen(principal, enforcer);
+        vm.prank(enforcer);
+        mandate.unfreezePrincipal(principal);
+    }
+
+    function test_FreezePrincipalOnlyEnforcer() public {
+        vm.prank(stranger);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, enforcerRole)
+        );
+        mandate.freezePrincipal(principal);
+    }
+
+    function test_UnfreezePrincipalOnlyEnforcer() public {
+        vm.prank(stranger);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, stranger, enforcerRole)
+        );
+        mandate.unfreezePrincipal(principal);
     }
 
     function test_GrantByContractWallet_EIP1271() public {
@@ -268,7 +455,10 @@ contract AgentMandateTest is Test {
         vm.prank(relayer);
         mandate.grantMandate(p, sig);
 
-        assertTrue(mandate.canExecute(agent, address(wallet), address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, address(wallet), address(token), ACTION, 100);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
     }
 
     function test_GrantBySignature() public {
@@ -279,7 +469,10 @@ contract AgentMandateTest is Test {
         vm.prank(relayer);
         mandate.grantMandate(p, sig);
 
-        assertTrue(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
         assertEq(mandate.nonces(principal), 1);
     }
 
@@ -287,7 +480,10 @@ contract AgentMandateTest is Test {
         _grant();
         assertEq(mandate.getMandate(agent, principal).principal, principal);
         assertTrue(mandate.isActionEnabled(agent, principal, ACTION));
-        assertTrue(mandate.canExecute(agent, principal, address(token), ACTION, 1000));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 1000);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
     }
 
     function test_GrantRevertsAlreadyActive() public {
@@ -315,6 +511,15 @@ contract AgentMandateTest is Test {
         mandate.grantMandate(p, "");
     }
 
+    function test_GrantRevertsAfterComplianceExpiry() public {
+        vm.prank(complianceOwner);
+        compliance.grantPrincipal(principal, IDREF, uint48(block.timestamp + 1 hours));
+
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.InvalidExpiry.selector);
+        mandate.grantMandate(_params(), "");
+    }
+
     function test_GrantRevertsNotEligible() public {
         vm.prank(complianceOwner);
         compliance.revokePrincipal(principal, IComplianceProvider.ReasonCode.AML_FLAG);
@@ -337,6 +542,14 @@ contract AgentMandateTest is Test {
         mandate.grantMandate(p, "");
     }
 
+    function test_GrantRevertsZeroAction() public {
+        IAgentMandate.GrantMandateParams memory p = _params();
+        p.actions[0] = bytes32(0);
+        vm.prank(principal);
+        vm.expectRevert(AgentMandate.ZeroAction.selector);
+        mandate.grantMandate(p, "");
+    }
+
     function test_NoLimitCapsAllowHugeAmount() public {
         IAgentMandate.GrantMandateParams memory p = _params();
         p.maxTransactionValue = type(uint256).max;
@@ -345,7 +558,10 @@ contract AgentMandateTest is Test {
         mandate.grantMandate(p, "");
 
         uint256 huge = type(uint256).max;
-        assertTrue(mandate.canExecute(agent, principal, address(token), ACTION, huge));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, huge);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
         vm.prank(principal);
         mandate.recordExecution(agent, principal, ACTION, huge);
         assertEq(mandate.getMandate(agent, principal).cumulativeUsed, huge);
@@ -444,7 +660,10 @@ contract AgentMandateTest is Test {
         vm.warp(block.timestamp + 101);
         vm.prank(principal);
         mandate.grantMandate(_params(), "");
-        assertTrue(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
     }
 
     function test_RegrantAfterRevoke() public {
@@ -453,7 +672,27 @@ contract AgentMandateTest is Test {
         mandate.revokeMandate(agent, principal, 0, "");
         vm.prank(principal);
         mandate.grantMandate(_params(), "");
-        assertTrue(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertTrue(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.OK));
+    }
+
+    function test_RegrantClearsPriorActions() public {
+        _grant();
+        vm.prank(principal);
+        mandate.revokeMandate(agent, principal, 0, "");
+
+        IAgentMandate.GrantMandateParams memory params = _params();
+        params.actions[0] = OTHER_ACTION;
+        vm.prank(principal);
+        mandate.grantMandate(params, "");
+
+        assertFalse(mandate.isActionEnabled(agent, principal, ACTION));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.ACTION_NOT_ENABLED));
     }
 
     function test_RevokeByOperator() public {
@@ -462,14 +701,20 @@ contract AgentMandateTest is Test {
         mandate.setOperator(principal, operator, true, 0, "");
         vm.prank(operator);
         mandate.revokeMandate(agent, principal, 0, "");
-        assertFalse(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.REVOKED));
     }
 
     function test_RevokeByPrincipal() public {
         _grant();
         vm.prank(principal);
         mandate.revokeMandate(agent, principal, 0, "");
-        assertFalse(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.REVOKED));
     }
 
     function test_RevokeBySignature() public {
@@ -480,7 +725,10 @@ contract AgentMandateTest is Test {
         );
         vm.prank(relayer);
         mandate.revokeMandate(agent, principal, deadline, sig);
-        assertFalse(mandate.canExecute(agent, principal, address(token), ACTION, 100));
+        (bool ok, IAgentMandate.MandateReason reason) =
+            mandate.canExecute(agent, principal, address(token), ACTION, 100);
+        assertFalse(ok);
+        assertEq(uint8(reason), uint8(IAgentMandate.MandateReason.REVOKED));
     }
 
     function test_RevokeRevertsNoActiveMandate() public {
