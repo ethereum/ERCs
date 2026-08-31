@@ -33,9 +33,12 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     mapping(address agent => mapping(address principal => bytes32[])) private _enabledList;
     mapping(address principal => mapping(address operator => bool)) private _operatorApproved;
     mapping(address agent => bool) private _frozen;
+
+    mapping(address principal => bool) private _frozenPrincipal;
     mapping(address principal => uint256) public nonces;
 
     error ZeroComplianceProvider();
+    error ZeroAction();
     error MandateAlreadyActive();
     error NoActiveMandate();
     error PrincipalNotEligible();
@@ -99,6 +102,7 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         );
 
         for (uint256 i = 0; i < params.actions.length; i++) {
+            if (params.actions[i] == bytes32(0)) revert ZeroAction();
             _actionEnabled[params.agent][params.principal][params.actions[i]] = true;
             _enabledList[params.agent][params.principal].push(params.actions[i]);
             emit ActionEnabled(params.agent, params.principal, params.actions[i]);
@@ -171,6 +175,18 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
+    function freezePrincipal(address principal) external onlyRole(ENFORCER_ROLE) {
+        _frozenPrincipal[principal] = true;
+        emit PrincipalFrozen(principal, msg.sender);
+    }
+
+    /// @inheritdoc IAgentMandate
+    function unfreezePrincipal(address principal) external onlyRole(ENFORCER_ROLE) {
+        _frozenPrincipal[principal] = false;
+        emit PrincipalUnfrozen(principal, msg.sender);
+    }
+
+    /// @inheritdoc IAgentMandate
     function recordExecution(address agent, address principal, bytes32 action, uint256 amount) external {
         Mandate storage mandate = _mandates[agent][principal];
         if (msg.sender != mandate.asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
@@ -211,8 +227,13 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
-    function isFrozen(address agent) external view returns (bool) {
+    function isAgentFrozen(address agent) external view returns (bool) {
         return _frozen[agent];
+    }
+
+    /// @inheritdoc IAgentMandate
+    function isPrincipalFrozen(address principal) external view returns (bool) {
+        return _frozenPrincipal[principal];
     }
 
     /// @inheritdoc IAgentMandate
@@ -283,7 +304,8 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @dev Single source of truth for canExecute and recordExecution (existence, asset, validity window,
-    ///      revocation, action, freeze, and caps) so the read check and the state mutation cannot drift.
+    ///      revocation, action, agent and principal freeze, and caps) so the read check and the state mutation
+    ///      cannot drift.
     ///      Returns MandateReason.OK when the action may execute, otherwise the first failing check.
     function _evaluate(
         Mandate storage mandate,
@@ -294,18 +316,19 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         uint256 amount
     ) private view returns (MandateReason) {
         if (mandate.principal == address(0)) return MandateReason.NONEXISTENT;
+        if (_frozen[agent]) return MandateReason.AGENT_FROZEN;
+        if (_frozenPrincipal[principal]) return MandateReason.PRINCIPAL_FROZEN;
         if (asset != mandate.asset) return MandateReason.WRONG_ASSET;
         if (block.timestamp < mandate.validFrom) return MandateReason.NOT_YET_VALID;
         if (block.timestamp > mandate.validUntil) return MandateReason.EXPIRED;
         if (mandate.revoked) return MandateReason.REVOKED;
         if (!_actionEnabled[agent][principal][action]) return MandateReason.ACTION_NOT_ENABLED;
-        if (_frozen[agent]) return MandateReason.FROZEN;
         if (mandate.maxTransactionValue != type(uint256).max && amount > mandate.maxTransactionValue) {
             return MandateReason.OVER_TX_CAP;
         }
         if (
             mandate.maxCumulativeValue != type(uint256).max
-                && mandate.cumulativeUsed + amount > mandate.maxCumulativeValue
+                && amount > mandate.maxCumulativeValue - mandate.cumulativeUsed
         ) {
             return MandateReason.OVER_CUMULATIVE_CAP;
         }

@@ -4,13 +4,13 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC7943Fungible} from "../contracts/regulated-asset-mock/IERC7943.sol";
+import {IERC7943Fungible} from "../contracts/mocks/IERC7943.sol";
 
 import {AgentExecutor} from "../contracts/AgentExecutor.sol";
 import {AgentMandate} from "../contracts/AgentMandate.sol";
 import {ComplianceProvider} from "../contracts/ComplianceProvider.sol";
 import {IAgentMandate} from "../contracts/interfaces/IAgentMandate.sol";
-import {uRWA20} from "../contracts/regulated-asset-mock/uRWA20.sol";
+import {uRWA20} from "../contracts/mocks/uRWA20.sol";
 
 /// @notice Tests the executor venue against the real registry, compliance provider, and a uRWA-20 asset.
 contract AgentExecutorTest is Test {
@@ -197,7 +197,7 @@ contract AgentExecutorTest is Test {
                 address(token),
                 TRANSFER_FROM,
                 uint256(500),
-                IAgentMandate.MandateReason.FROZEN
+                IAgentMandate.MandateReason.AGENT_FROZEN
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));

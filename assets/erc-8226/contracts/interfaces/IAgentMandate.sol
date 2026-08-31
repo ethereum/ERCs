@@ -7,6 +7,10 @@ interface IAgentMandate is IERC165 {
     /// @notice Reason a canExecute check passed or failed. OK means the action may execute.
     /// @dev The listed reasons are the normative check set. OTHER is only for implementation-specific
     ///      checks not covered here, and MUST NOT stand in for one of the listed reasons.
+    ///      Enum order is fixed for append-only compatibility and does not reflect evaluation order.
+    ///      AGENT_FROZEN and PRINCIPAL_FROZEN are enforcement-scoped: they apply across every mandate the
+    ///      frozen party holds, and are evaluated ahead of the mandate-specific reasons, after NONEXISTENT,
+    ///      so a freeze is reported in preference to them and lifting one may reveal one of them.
     enum MandateReason {
         OK,
         NONEXISTENT,
@@ -15,7 +19,8 @@ interface IAgentMandate is IERC165 {
         EXPIRED,
         REVOKED,
         ACTION_NOT_ENABLED,
-        FROZEN,
+        AGENT_FROZEN,
+        PRINCIPAL_FROZEN,
         OVER_TX_CAP,
         OVER_CUMULATIVE_CAP,
         OTHER
@@ -98,6 +103,12 @@ interface IAgentMandate is IERC165 {
     /// @notice Emitted when a freeze is lifted.
     event AgentUnfrozen(address indexed agent, address indexed enforcer);
 
+    /// @notice Emitted when a principal is frozen. Freezing is restricted to authorized enforcer roles.
+    event PrincipalFrozen(address indexed principal, address indexed enforcer);
+
+    /// @notice Emitted when a freeze on a principal is lifted.
+    event PrincipalUnfrozen(address indexed principal, address indexed enforcer);
+
     /// @notice Grants a mandate from a principal to an agent.
     /// @dev If `signature` is empty, msg.sender MUST equal params.principal. Otherwise the signature is verified
     ///      via SignatureChecker against the GrantMandate EIP-712 digest.
@@ -136,6 +147,18 @@ interface IAgentMandate is IERC165 {
     /// @param agent The agent address to unfreeze.
     function unfreezeAgent(address agent) external;
 
+    /// @notice Freezes a principal, halting every mandate granted by that principal. Restricted to authorized
+    ///         enforcer roles.
+    /// @dev Reversible and keyed by principal alone, so it needs no enumeration of the principal's agents and
+    ///      also covers mandates granted while the freeze is in place. It does not revoke: revocation stays with
+    ///      the principal, so an enforcer cannot destroy a delegation the principal wants to keep.
+    /// @param principal The principal address to freeze.
+    function freezePrincipal(address principal) external;
+
+    /// @notice Lifts a freeze on a principal.
+    /// @param principal The principal address to unfreeze.
+    function unfreezePrincipal(address principal) external;
+
     /// @notice Sets or revokes operator approval for the principal.
     /// @dev Callable by the principal directly or by anyone with a valid principal signature.
     /// @param principal The principal granting/revoking operator status.
@@ -155,7 +178,7 @@ interface IAgentMandate is IERC165 {
 
     /// @notice Returns whether the agent can execute the action on the asset for the principal at the given
     ///         amount, and the reason.
-    /// @dev Bundles asset, existence, validity, freeze, action, and cap checks into one call.
+    /// @dev Bundles asset, existence, validity, agent and principal freeze, action, and cap checks into one call.
     /// @param agent The agent address.
     /// @param principal The principal address.
     /// @param asset The asset the action targets; MUST equal the mandate's `asset`.
@@ -190,7 +213,12 @@ interface IAgentMandate is IERC165 {
     /// @notice Returns true if the agent is frozen.
     /// @param agent The agent address.
     /// @return True if frozen.
-    function isFrozen(address agent) external view returns (bool);
+    function isAgentFrozen(address agent) external view returns (bool);
+
+    /// @notice Returns true if the principal is frozen.
+    /// @param principal The principal address.
+    /// @return True if frozen.
+    function isPrincipalFrozen(address principal) external view returns (bool);
 
     /// @notice Returns the current nonce for a principal (used in signed operations).
     /// @param principal The principal address.
