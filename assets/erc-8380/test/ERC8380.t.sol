@@ -270,8 +270,9 @@ contract ERC8380Test {
     }
 
     // ── 16. Collision classification ─────────────────────────────────────────
-    // KNOWN GAP. This case asserts the behaviour as it stands, not the behaviour the table
-    // promises, and it is named so nobody mistakes the green for coverage.
+    // This case asserts what row 16 of the table promises, not what the reference implementation
+    // currently does, so it FAILS on the current keying. That failure is the point: it is the
+    // regression artifact the fix has to turn green.
     //
     // The Specification puts the index space on the pair of `agentId` and `homeDomainId`, and
     // the salt derivation agrees. `highestIssuedIndex` is keyed on `agentId` alone and `issue`
@@ -281,9 +282,9 @@ contract ERC8380Test {
     // as the orchestrator's own reissue bug. The classification inverts in the one case the
     // mechanism exists for.
     //
-    // When the keying moves to [agentId][homeDomainId] this test MUST fail, and rewriting it to
-    // the table's wording is the last step of that fix.
-    function test_16_KNOWNGAP_CollisionClassificationAcrossDomains() public {
+    // Moving the ceiling to [agentId][homeDomainId] and passing a domain to `issue` turns this
+    // green. Both are interface changes, so this case is rewritten in the same commit as the fix.
+    function test_16_CollisionClassificationIsPerDomain() public {
         setUp();
         registry.registerDomain(OTHER_DOMAIN);
 
@@ -291,15 +292,16 @@ contract ERC8380Test {
             guard.issue(keccak256(abi.encode(DOMAIN, i)), AGENT, i);
         }
 
-        // OTHER_DOMAIN has issued nothing for this agent, so the honest answer for index 4 is
-        // "never issued here, therefore a clone". The shared ceiling says otherwise.
         require(
             guard.highestIssuedIndex(AGENT) == 10,
             "domain A raised the agent-keyed ceiling"
         );
+
+        // OTHER_DOMAIN has issued nothing for this agent, so row 16's answer for index 4 is
+        // "never issued here, therefore a clone". The shared ceiling says otherwise.
         require(
-            4 <= guard.highestIssuedIndex(AGENT),
-            "KNOWN GAP: index 4 was never issued in OTHER_DOMAIN, yet the agent-keyed ceiling reads it as issued"
+            !(4 <= guard.highestIssuedIndex(AGENT)),
+            "index 4 was never issued in OTHER_DOMAIN, but the agent-keyed ceiling reads it as issued, so a clone is classified as an orchestrator reissue bug"
         );
     }
 

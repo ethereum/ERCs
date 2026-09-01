@@ -16,10 +16,18 @@ binding cases were checked to be testing the binding rather than the mock. Case 
 under that swap, so a lifted proof is stopped by `msg.sender != cap.executor` and not by the
 circuit.
 
-## Case 16 is a named known gap
+## Case 16 fails on purpose
 
-It asserts the behaviour as it stands, not the behaviour the table promises, and is named so
-nobody mistakes the green for coverage. See the comment above it.
+`forge test` reports 16 passed, 1 failed. Case 16 asserts what row 16 of the table promises,
+and the reference implementation does not do it: `capabilityIndex` is specified per pair of
+`agentId` and `homeDomainId`, but `highestIssuedIndex` is keyed on `agentId` alone and `issue`
+never receives a domain. Once an agent operates in two domains the ceiling is shared, and a
+genuine clone colliding at an index another domain already issued reads as the orchestrator's
+own reissue bug.
+
+The failure is the regression artifact. Moving the ceiling to `[agentId][homeDomainId]` and
+passing a domain to `issue` turns it green. Both are interface changes, so this case is
+rewritten in the same commit as the fix rather than left to rot.
 
 ## Commitment parity
 
