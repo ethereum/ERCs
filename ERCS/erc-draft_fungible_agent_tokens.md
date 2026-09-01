@@ -2,7 +2,7 @@
 title: Fungible Agent Tokens (FAT) Protocol
 description: AI agents as on-chain economic entities that issue their own equity, act within owner-set boundaries, and attest to the reasoning behind every action.
 author: Ashton (@AshtonMagic)
-discussions-to: <MAGICIANS_THREAD_URL>
+discussions-to: https://ethereum-magicians.org/t/draft-fungible-agent-tokens-fat-a-minimal-standard-for-ai-agents-as-on-chain-economic-entities/29220
 status: Draft
 type: Standards Track
 category: ERC
