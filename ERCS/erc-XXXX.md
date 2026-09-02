@@ -21,6 +21,8 @@ Onchain metadata is conventionally exposed through purpose-built functions, each
 
 This proposal changes the adoption model. A contract exposes a single generic key/value surface once. From then on, adopting any new metadata convention is a matter of writing a value at a new key — no new function, no new code, and no upgrade. The convention that gives a key its meaning can be defined independently, and after the contract was deployed.
 
+This interface is meant to augment existing metadata mechanisms, not to replace them. Established, widely-adopted metadata — such as the name and symbol accessors of [ERC-20](./erc-20.md), or contract-level metadata via `contractURI` as described in [ERC-7572](./erc-7572.md) — already benefits from strong network effects, and this proposal does not seek to displace it where those effects exist. The aim is instead to be a common hub for metadata that has no home yet: a place to enshrine future metadata conventions, and to revive earlier ideas that never reached sufficient adoption because each one previously required its own contract changes.
+
 This proposal deliberately covers only the transport: how a key/value entry is read, written, observed, and discovered. It does not define any particular key, nor the value expected at any key. Subsequent proposals are encouraged to build on this one by enshrining specific keys and their expected values; those definitions are out of scope here.
 
 ## Specification
