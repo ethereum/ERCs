@@ -48,7 +48,7 @@ permalink: /:slug
 defaults:
   -
     scope:
-      path: "EIPS"
+      path: "ERCS"
     values:
       layout: "eip"
 
