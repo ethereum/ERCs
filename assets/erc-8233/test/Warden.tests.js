@@ -19,6 +19,7 @@ describe("Warden", function () {
   let token
   let warden
   let controller
+  let controllerAddress
   let holder, holder2, holder3
 
   beforeEach(async function () {
@@ -31,6 +32,7 @@ describe("Warden", function () {
     warden = _warden
     token = _token
     ;[controller, holder, holder2, holder3] = await ethers.getSigners()
+    controllerAddress = await controller.getAddress()
     const tx = await token.mint(await controller.getAddress(), 1_000_000)
     await tx.wait()
   })
@@ -76,14 +78,33 @@ describe("Warden", function () {
     it("allows a lock to be set", async function () {
       const expiry = (await currentTime()) + 80
       const maximum = (await currentTime()) + 100
-      await warden.lock(fund, expiry, maximum)
+      await warden["lock(bytes32,uint40,uint40)"](fund, expiry, maximum)
       expect(await warden.getFundStatus(fund)).to.equal(FundStatus.Locked)
       expect(await warden.getLockExpiry(fund)).to.equal(expiry)
     })
 
+    it("emits WardenFundLocked when a lock is set", async function () {
+      const expiry = (await currentTime()) + 80
+      const maximum = (await currentTime()) + 100
+      await expect(warden["lock(bytes32,uint40,uint40)"](fund, expiry, maximum))
+        .to.emit(warden, "WardenFundLocked")
+        .withArgs(controllerAddress, hexlify(fund), expiry, maximum)
+    })
+
+    it("emits WardenFundLocked with maximum equal to expiry when locking without a maximum", async function () {
+      const expiry = (await currentTime()) + 80
+      await expect(warden["lock(bytes32,uint40)"](fund, expiry))
+        .to.emit(warden, "WardenFundLocked")
+        .withArgs(controllerAddress, hexlify(fund), expiry, expiry)
+    })
+
     it("does not allow a lock with expiry past maximum", async function () {
       let maximum = (await currentTime()) + 100
-      const locking = warden.lock(fund, maximum + 1, maximum)
+      const locking = warden["lock(bytes32,uint40,uint40)"](
+        fund,
+        maximum + 1,
+        maximum,
+      )
       await expect(locking).to.be.revertedWithCustomError(
         warden,
         "WardenInvalidExpiry",
@@ -110,7 +131,7 @@ describe("Warden", function () {
       )
       await setAutomine(false)
       await setNextBlockTimestamp(beginning)
-      await warden.lock(fund, expiry, maximum)
+      await warden["lock(bytes32,uint40,uint40)"](fund, expiry, maximum)
     })
 
     describe("locking", function () {
@@ -120,7 +141,7 @@ describe("Warden", function () {
 
       it("cannot set lock when already locked", async function () {
         await expect(
-          warden.lock(fund, expiry, maximum),
+          warden["lock(bytes32,uint40,uint40)"](fund, expiry, maximum),
         ).to.be.revertedWithCustomError(warden, "WardenFundAlreadyLocked")
       })
 
@@ -129,6 +150,12 @@ describe("Warden", function () {
         expect(await warden.getLockExpiry(fund)).to.equal(expiry + 1)
         await warden.extendLock(fund, maximum)
         expect(await warden.getLockExpiry(fund)).to.equal(maximum)
+      })
+
+      it("emits WardenLockExtended with the previous and the new expiry", async function () {
+        await expect(warden.extendLock(fund, expiry + 1))
+          .to.emit(warden, "WardenLockExtended")
+          .withArgs(controllerAddress, hexlify(fund), expiry, expiry + 1)
       })
 
       it("cannot extend a lock past its maximum", async function () {
@@ -178,12 +205,39 @@ describe("Warden", function () {
         expect(balance).to.equal(amount)
       })
 
+      it("emits WardenDeposited", async function () {
+        await token
+          .connect(controller)
+          .approve(await warden.getAddress(), amount)
+        await expect(warden.deposit(fund, account, amount))
+          .to.emit(warden, "WardenDeposited")
+          .withArgs(controllerAddress, hexlify(fund), account, amount)
+      })
+
+      it("emits WardenDeposited before the ERC-20 transfer", async function () {
+        await token
+          .connect(controller)
+          .approve(await warden.getAddress(), amount)
+        const receipt = await (
+          await warden.deposit(fund, account, amount)
+        ).wait()
+        const wardenLog = receipt.logs.find(
+          (log) => log.address === warden.target,
+        )
+        const tokenLog = receipt.logs.find(
+          (log) => log.address === token.target,
+        )
+        expect(wardenLog.index).to.be.lessThan(tokenLog.index)
+      })
+
       it("keeps custody of tokens that are deposited", async function () {
         await token
           .connect(controller)
           .approve(await warden.getAddress(), amount)
         await warden.deposit(fund, account, amount)
-        expect(await token.balanceOf(await warden.getAddress())).to.equal(amount)
+        expect(await token.balanceOf(await warden.getAddress())).to.equal(
+          amount,
+        )
       })
 
       it("deposit fails when tokens cannot be transferred", async function () {
@@ -221,8 +275,8 @@ describe("Warden", function () {
       it("separates deposits from different funds", async function () {
         const fund1 = randomBytes(32)
         const fund2 = randomBytes(32)
-        await warden.lock(fund1, expiry, maximum)
-        await warden.lock(fund2, expiry, maximum)
+        await warden["lock(bytes32,uint40,uint40)"](fund1, expiry, maximum)
+        await warden["lock(bytes32,uint40,uint40)"](fund2, expiry, maximum)
         await token.connect(controller).approve(await warden.getAddress(), 3)
         await warden.deposit(fund1, account, 1)
         await warden.deposit(fund2, account, 2)
@@ -235,8 +289,8 @@ describe("Warden", function () {
         const controller2 = holder3
         const warden1 = warden.connect(controller1)
         const warden2 = warden.connect(controller2)
-        await warden1.lock(fund, expiry, maximum)
-        await warden2.lock(fund, expiry, maximum)
+        await warden1["lock(bytes32,uint40,uint40)"](fund, expiry, maximum)
+        await warden2["lock(bytes32,uint40,uint40)"](fund, expiry, maximum)
         await token.mint(await controller1.getAddress(), 1000)
         await token.mint(await controller2.getAddress(), 1000)
         await token.connect(controller1).approve(await warden.getAddress(), 1)
@@ -271,7 +325,16 @@ describe("Warden", function () {
       it("can designate tokens for the account holder", async function () {
         await setAutomine(true)
         await warden.designate(fund, account, amount)
-        expect(await warden.getDesignatedBalance(fund, account)).to.equal(amount)
+        expect(await warden.getDesignatedBalance(fund, account)).to.equal(
+          amount,
+        )
+      })
+
+      it("emits WardenDesignated", async function () {
+        await setAutomine(true)
+        await expect(warden.designate(fund, account, amount))
+          .to.emit(warden, "WardenDesignated")
+          .withArgs(controllerAddress, hexlify(fund), account, amount)
       })
 
       it("can designate part of the balance", async function () {
@@ -300,7 +363,6 @@ describe("Warden", function () {
           warden.designate(fund, account, 1),
         ).to.be.revertedWithCustomError(warden, "WardenInsufficientBalance")
       })
-
     })
 
     describe("transfering", function () {
@@ -332,6 +394,32 @@ describe("Warden", function () {
         await warden.transfer(fund, account1, account2, amount)
         expect(await warden.getBalance(fund, account1)).to.equal(0)
         expect(await warden.getBalance(fund, account2)).to.equal(amount)
+      })
+
+      it("emits WardenTransferred", async function () {
+        await setAutomine(true)
+        await expect(warden.transfer(fund, account1, account2, amount))
+          .to.emit(warden, "WardenTransferred")
+          .withArgs(
+            controllerAddress,
+            hexlify(fund),
+            account1,
+            account2,
+            amount,
+          )
+      })
+
+      it("emits WardenTransferred when transferring to self", async function () {
+        await setAutomine(true)
+        await expect(warden.transfer(fund, account1, account1, amount))
+          .to.emit(warden, "WardenTransferred")
+          .withArgs(
+            controllerAddress,
+            hexlify(fund),
+            account1,
+            account1,
+            amount,
+          )
       })
 
       it("can transfer part of a balance", async function () {
@@ -412,6 +500,12 @@ describe("Warden", function () {
           expect(await warden.getBalance(fund, account1)).to.equal(amount - 10)
         })
 
+        it("emits WardenDesignatedBurned", async function () {
+          await expect(warden.burnDesignated(fund, account1, 10))
+            .to.emit(warden, "WardenDesignatedBurned")
+            .withArgs(controllerAddress, hexlify(fund), account1, 10)
+        })
+
         it("can burn all of the designated tokens", async function () {
           await warden.burnDesignated(fund, account1, designated)
           expect(await warden.getDesignatedBalance(fund, account1)).to.equal(0)
@@ -440,6 +534,19 @@ describe("Warden", function () {
           expect(await warden.getBalance(fund, account1)).to.equal(0)
         })
 
+        it("emits WardenAccountBurned reporting available and designated separately", async function () {
+          await warden.designate(fund, account1, 400)
+          await expect(warden.burnAccount(fund, account1))
+            .to.emit(warden, "WardenAccountBurned")
+            .withArgs(controllerAddress, hexlify(fund), account1, 600, 400)
+        })
+
+        it("emits WardenAccountBurned with zeroes for an empty account", async function () {
+          await expect(warden.burnAccount(fund, account2))
+            .to.emit(warden, "WardenAccountBurned")
+            .withArgs(controllerAddress, hexlify(fund), account2, 0, 0)
+        })
+
         it("also burns the designated tokens", async function () {
           await warden.designate(fund, account1, 10)
           await warden.burnAccount(fund, account1)
@@ -463,7 +570,6 @@ describe("Warden", function () {
           await warden.burnAccount(fund, account1)
           expect(await warden.getBalance(fund, account1a)).to.equal(10)
         })
-
       })
     })
 
@@ -495,6 +601,12 @@ describe("Warden", function () {
         expect(await warden.getFundStatus(fund)).to.equal(FundStatus.Sealed)
       })
 
+      it("emits WardenFundSealed", async function () {
+        await setAutomine(true)
+        await expect(warden.sealFund(fund))
+          .to.emit(warden, "WardenFundSealed")
+          .withArgs(controllerAddress, hexlify(fund))
+      })
     })
 
     describe("withdrawing", function () {
@@ -566,7 +678,7 @@ describe("Warden", function () {
       )
       await setAutomine(false)
       await setNextBlockTimestamp(beginning)
-      await warden.lock(fund, expiry, maximum)
+      await warden["lock(bytes32,uint40,uint40)"](fund, expiry, maximum)
     })
 
     async function expire() {
@@ -588,7 +700,11 @@ describe("Warden", function () {
 
       it("cannot set lock when lock expired", async function () {
         await expire()
-        const locking = warden.lock(fund, expiry, maximum)
+        const locking = warden["lock(bytes32,uint40,uint40)"](
+          fund,
+          expiry,
+          maximum,
+        )
         await expect(locking).to.be.revertedWithCustomError(
           warden,
           "WardenFundAlreadyLocked",
@@ -600,7 +716,11 @@ describe("Warden", function () {
         await warden.deposit(fund, account1, 30)
         await expire()
         await warden.withdraw(fund, account1)
-        const locking = warden.lock(fund, expiry, maximum)
+        const locking = warden["lock(bytes32,uint40,uint40)"](
+          fund,
+          expiry,
+          maximum,
+        )
         await expect(locking).to.be.revertedWithCustomError(
           warden,
           "WardenFundAlreadyLocked",
@@ -629,6 +749,40 @@ describe("Warden", function () {
         await warden.withdraw(fund, account1)
         const after = await token.balanceOf(await holder.getAddress())
         expect(after - before).to.equal(amount)
+      })
+
+      it("emits WardenWithdrawn", async function () {
+        await expire()
+        await expect(warden.withdraw(fund, account1))
+          .to.emit(warden, "WardenWithdrawn")
+          .withArgs(controllerAddress, hexlify(fund), account1, amount, 0)
+      })
+
+      it("emits WardenWithdrawn reporting available and designated separately", async function () {
+        await warden.designate(fund, account1, 400)
+        await expire()
+        await expect(warden.withdraw(fund, account1))
+          .to.emit(warden, "WardenWithdrawn")
+          .withArgs(controllerAddress, hexlify(fund), account1, 600, 400)
+      })
+
+      it("emits WardenWithdrawn with the controller argument, not msg.sender, when the holder withdraws", async function () {
+        await expire()
+        await expect(
+          warden
+            .connect(holder)
+            .withdrawByRecipient(controllerAddress, fund, account1),
+        )
+          .to.emit(warden, "WardenWithdrawn")
+          .withArgs(controllerAddress, hexlify(fund), account1, amount, 0)
+      })
+
+      it("emits WardenWithdrawn with zeroes when the account is already empty", async function () {
+        await expire()
+        await warden.withdraw(fund, account1)
+        await expect(warden.withdraw(fund, account1))
+          .to.emit(warden, "WardenWithdrawn")
+          .withArgs(controllerAddress, hexlify(fund), account1, 0, 0)
       })
 
       it("allows account holder to withdraw for itself", async function () {
@@ -746,13 +900,17 @@ describe("Warden", function () {
         randomBytes(12),
       )
       await token.connect(controller).approve(await warden.getAddress(), amount)
-      await warden.lock(fund, expiry, expiry)
+      await warden["lock(bytes32,uint40,uint40)"](fund, expiry, expiry)
       await warden.deposit(fund, account, amount)
       await warden.sealFund(fund)
     })
 
     it("does not allow setting a lock", async function () {
-      const locking = warden.lock(fund, expiry, expiry)
+      const locking = warden["lock(bytes32,uint40,uint40)"](
+        fund,
+        expiry,
+        expiry,
+      )
       await expect(locking).to.be.revertedWithCustomError(
         warden,
         "WardenFundAlreadyLocked",
@@ -897,7 +1055,7 @@ describe("Warden", function () {
           await holder2.getAddress(),
           randomBytes(12),
         )
-        await warden.lock(fund, expiry, maximum)
+        await warden["lock(bytes32,uint40,uint40)"](fund, expiry, maximum)
         await token.approve(await warden.getAddress(), 1000)
         await warden.deposit(fund, account1, 1000)
         await warden.designate(fund, account1, 100)
@@ -917,7 +1075,7 @@ describe("Warden", function () {
         const fund = randomBytes(32)
         const expiry = (await currentTime()) + 100
         await expect(
-          warden.lock(fund, expiry, expiry),
+          warden["lock(bytes32,uint40,uint40)"](fund, expiry, expiry),
         ).to.be.revertedWithCustomError(warden, "EnforcedPause")
       })
 
@@ -973,5 +1131,4 @@ describe("Warden", function () {
       })
     })
   })
-
 })

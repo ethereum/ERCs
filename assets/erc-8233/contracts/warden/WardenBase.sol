@@ -34,7 +34,7 @@ abstract contract WardenBase {
   mapping(Controller => mapping(FundId => Fund)) private _funds;
   /// Each account holder has its own set of accounts in a fund
   mapping(Controller => mapping(FundId => mapping(AccountId => Account)))
-    private _accounts;
+  private _accounts;
 
   constructor(IERC20 token) {
     _token = token;
@@ -77,6 +77,8 @@ abstract contract WardenBase {
     fund.lockMaximum = maximum;
     _checkLockInvariant(fund);
     _funds[controller][fundId] = fund;
+
+    emit WardenFundLocked(controller, fundId, expiry, maximum);
   }
 
   function _extendLock(
@@ -87,9 +89,12 @@ abstract contract WardenBase {
     Fund memory fund = _funds[controller][fundId];
     require(fund.status() == FundStatus.Locked, WardenFundNotLocked());
     require(fund.lockExpiry <= expiry, WardenInvalidExpiry());
+    Timestamp previousExpiry = fund.lockExpiry;
     fund.lockExpiry = expiry;
     _checkLockInvariant(fund);
     _funds[controller][fundId] = fund;
+
+    emit WardenLockExtended(controller, fundId, previousExpiry, expiry);
   }
 
   function _deposit(
@@ -104,6 +109,8 @@ abstract contract WardenBase {
     Account storage account = _accounts[controller][fundId][accountId];
 
     account.balance.available += amount;
+
+    emit WardenDeposited(controller, fundId, accountId, amount);
 
     _token.safeTransferFrom(
       Controller.unwrap(controller),
@@ -128,6 +135,8 @@ abstract contract WardenBase {
     account.balance.designated += amount;
 
     _accounts[controller][fundId][accountId] = account;
+
+    emit WardenDesignated(controller, fundId, accountId, amount);
   }
 
   function _transfer(
@@ -148,6 +157,8 @@ abstract contract WardenBase {
     _accounts[controller][fundId][from] = sender;
 
     _accounts[controller][fundId][to].balance.available += amount;
+
+    emit WardenTransferred(controller, fundId, from, to, amount);
   }
 
   function _burnDesignated(
@@ -164,6 +175,8 @@ abstract contract WardenBase {
 
     account.balance.designated -= amount;
 
+    emit WardenDesignatedBurned(controller, fundId, accountId, amount);
+
     _token.safeTransfer(address(0xdead), amount);
   }
 
@@ -178,9 +191,19 @@ abstract contract WardenBase {
     );
 
     Account memory account = _accounts[controller][fundId][accountId];
-    uint128 amount = account.balance.available + account.balance.designated;
+    uint128 available = account.balance.available;
+    uint128 designated = account.balance.designated;
+    uint128 amount = available + designated;
 
     delete _accounts[controller][fundId][accountId];
+
+    emit WardenAccountBurned(
+      controller,
+      fundId,
+      accountId,
+      available,
+      designated
+    );
 
     _token.safeTransfer(address(0xdead), amount);
   }
@@ -190,6 +213,8 @@ abstract contract WardenBase {
     require(fund.status() == FundStatus.Locked, WardenFundNotLocked());
 
     fund.sealedAt = Timestamps.currentTime();
+
+    emit WardenFundSealed(controller, fundId);
   }
 
   function _withdraw(
@@ -203,9 +228,13 @@ abstract contract WardenBase {
     );
 
     Account memory account = _accounts[controller][fundId][accountId];
-    uint128 amount = account.balance.available + account.balance.designated;
+    uint128 available = account.balance.available;
+    uint128 designated = account.balance.designated;
+    uint128 amount = available + designated;
 
     delete _accounts[controller][fundId][accountId];
+
+    emit WardenWithdrawn(controller, fundId, accountId, available, designated);
 
     (address owner, ) = Accounts.decodeId(accountId);
     _token.safeTransfer(owner, amount);
@@ -214,6 +243,91 @@ abstract contract WardenBase {
   function _checkLockInvariant(Fund memory fund) private pure {
     require(fund.lockExpiry <= fund.lockMaximum, WardenInvalidExpiry());
   }
+
+  /// Emitted when a fund is locked, transitioning it from `Inactive` to
+  /// `Locked`. Implementations that do not support the lock extension emit
+  /// `maximum` equal to `expiry`.
+  /// Note that the subsequent transition to `Withdrawing` is derived from
+  /// `expiry` and happens without a transaction, so it emits no event.
+  event WardenFundLocked(
+    Controller indexed controller,
+    FundId indexed fundId,
+    Timestamp expiry,
+    Timestamp maximum
+  );
+
+  /// Emitted when the lock expiry of a locked fund is moved forward.
+  event WardenLockExtended(
+    Controller indexed controller,
+    FundId indexed fundId,
+    Timestamp previousExpiry,
+    Timestamp expiry
+  );
+
+  /// Emitted when a locked fund is sealed, transitioning it from `Locked` to
+  /// `Sealed`.
+  event WardenFundSealed(Controller indexed controller, FundId indexed fundId);
+
+  /// Emitted when tokens are deposited into an account, increasing its
+  /// available balance.
+  event WardenDeposited(
+    Controller indexed controller,
+    FundId indexed fundId,
+    AccountId indexed accountId,
+    uint128 amount
+  );
+
+  /// Emitted when available tokens move between two accounts in a fund.
+  /// `from` and `to` are not indexed; only three topics are available and
+  /// `controller` and `fundId` claim two of them. Keeping both accounts in the
+  /// data section avoids making one side of a transfer filterable and the
+  /// other not.
+  event WardenTransferred(
+    Controller indexed controller,
+    FundId indexed fundId,
+    AccountId from,
+    AccountId to,
+    uint128 amount
+  );
+
+  /// Emitted when available tokens are irreversibly designated for the account
+  /// holder.
+  event WardenDesignated(
+    Controller indexed controller,
+    FundId indexed fundId,
+    AccountId indexed accountId,
+    uint128 amount
+  );
+
+  /// Emitted when designated tokens are burned from an account.
+  event WardenDesignatedBurned(
+    Controller indexed controller,
+    FundId indexed fundId,
+    AccountId indexed accountId,
+    uint128 amount
+  );
+
+  /// Emitted when an entire account is burned. Both balances are reported so
+  /// that consumers can determine the final state of the account without
+  /// having tracked every preceding event.
+  event WardenAccountBurned(
+    Controller indexed controller,
+    FundId indexed fundId,
+    AccountId indexed accountId,
+    uint128 available,
+    uint128 designated
+  );
+
+  /// Emitted when an account is emptied and its tokens are transferred to the
+  /// account holder. Both balances are reported for the same reason as in
+  /// `WardenAccountBurned`.
+  event WardenWithdrawn(
+    Controller indexed controller,
+    FundId indexed fundId,
+    AccountId indexed accountId,
+    uint128 available,
+    uint128 designated
+  );
 
   error WardenInsufficientBalance();
   error WardenInvalidExpiry();
