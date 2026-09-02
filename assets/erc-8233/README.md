@@ -17,7 +17,7 @@ written for Codex (now [Logos](https://logos.co/) Storage) and later forked into
 [Archivist](https://archivist.storage/), where it is
 [actively used](https://github.com/durability-labs/archivist-contracts/blob/main/contracts/Vault.sol).
 
-This implementation covers the core [specification](./SPEC.md) and the Lock Extension. For the
+This implementation covers the core specification and the Lock Extension. For the
 Token Streaming extension, see [the original Archivist implementation](https://github.com/durability-labs/archivist-contracts/blob/main/contracts/Vault.sol).
 Below is a changelog of the changes that differentiate this reference implementation from the original.
 
