@@ -1,11 +1,20 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-import "../interfaces/IDiveLogTypes.sol";
-import "../interfaces/IDiveLog.sol";
-import "../interfaces/IDiveLogTypedData.sol";
+import "./interfaces/IDiveLogTypes.sol";
+import "./interfaces/IDiveLog.sol";
+import "./interfaces/IDiveLogTypedData.sol";
 
 contract SovereignDiveLog is IDiveLog {
+    error InvalidDate();
+    error InvalidBatchSize(uint256 length);
+
+    // secp256k1n / 2 — upper bound for canonical (non-malleable) s values (EIP-2)
+    uint256 private constant _HALF_N = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
+
+    // Maximum dives per batchLogDives() call; guards against block-gas self-DoS
+    uint256 public constant MAX_BATCH_SIZE = 100;
+
     address public immutable owner;
 
     uint256 public diveCount;
@@ -34,6 +43,7 @@ contract SovereignDiveLog is IDiveLog {
     function logDive(DiveInput calldata input) external onlyOwner returns (uint256) {
         if (input.data.maxDepth == 0) revert InvalidDepth();
         if (input.data.bottomTimeMinutes == 0) revert InvalidTimes();
+        if (input.diveDate == 0) revert InvalidDate();
 
         uint256 diveId = ++diveCount;
 
@@ -56,11 +66,13 @@ contract SovereignDiveLog is IDiveLog {
 
     function batchLogDives(DiveInput[] calldata inputs) external onlyOwner returns (uint256[] memory) {
         uint256 len = inputs.length;
+        if (len == 0 || len > MAX_BATCH_SIZE) revert InvalidBatchSize(len);
         uint256[] memory ids = new uint256[](len);
 
         for (uint256 i; i < len; ) {
             if (inputs[i].data.maxDepth == 0) revert InvalidDepth();
             if (inputs[i].data.bottomTimeMinutes == 0) revert InvalidTimes();
+            if (inputs[i].diveDate == 0) revert InvalidDate();
 
             uint256 diveId = ++diveCount;
 
@@ -208,6 +220,7 @@ contract SovereignDiveLog is IDiveLog {
 
         if (v < 27) v += 27;
         if (v != 27 && v != 28) return address(0);
+        if (uint256(s) > _HALF_N) return address(0);
 
         return ecrecover(digest, v, r, s);
     }
