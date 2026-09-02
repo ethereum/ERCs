@@ -16,18 +16,18 @@ binding cases were checked to be testing the binding rather than the mock. Case 
 under that swap, so a lifted proof is stopped by `msg.sender != cap.executor` and not by the
 circuit.
 
-## Case 16 fails on purpose
+## Case 16 is fixed
 
-`forge test` reports 16 passed, 1 failed. Case 16 asserts what row 16 of the table promises,
-and the reference implementation does not do it: `capabilityIndex` is specified per pair of
-`agentId` and `homeDomainId`, but `highestIssuedIndex` is keyed on `agentId` alone and `issue`
-never receives a domain. Once an agent operates in two domains the ceiling is shared, and a
-genuine clone colliding at an index another domain already issued reads as the orchestrator's
-own reissue bug.
+`forge test` reports 17 passed. Case 16 used to fail because `capabilityIndex` is specified per
+pair of `agentId` and `homeDomainId`, but `highestIssuedIndex` was keyed on `agentId` alone and
+`issue` never received a domain. Once an agent operated in two domains the ceiling was shared,
+and a genuine clone colliding at an index another domain already issued read as the
+orchestrator's own reissue bug.
 
-The failure is the regression artifact. Moving the ceiling to `[agentId][homeDomainId]` and
-passing a domain to `issue` turns it green. Both are interface changes, so this case is
-rewritten in the same commit as the fix rather than left to rot.
+Fixed by moving the ceiling to `[agentId][homeDomainId]` and passing a domain to `issue`.
+Orchestrator authorization for `issue` moved into `DomainRegistry` at the same time, one address
+per domain rather than one for the whole Guard, since a single global orchestrator was the same
+domain-blind-issuance root cause surfacing a second time.
 
 ## Commitment parity
 

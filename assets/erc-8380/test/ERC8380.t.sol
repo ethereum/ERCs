@@ -26,10 +26,10 @@ contract ERC8380Test {
 
     function setUp() public {
         registry = new DomainRegistry();
-        registry.registerDomain(DOMAIN);
+        registry.registerDomain(DOMAIN, address(this));
         verifier = new BindingVerifier();
         target = new ActionTarget();
-        guard = new CoupledCredentialGuard(address(verifier), address(registry), address(this));
+        guard = new CoupledCredentialGuard(address(verifier), address(registry));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ contract ERC8380Test {
 
     /// Issue the capability on chain and mint a proof bound to exactly its public inputs.
     function _arm(IUnclonableCredential.Capability memory c, bytes memory proof) internal {
-        guard.issue(c.capabilityCommitment, c.agentId, c.capabilityIndex);
+        guard.issue(c.capabilityCommitment, c.agentId, c.homeDomainId, c.capabilityIndex);
         verifier.issueProof(proof, _inputs(c));
     }
 
@@ -183,10 +183,14 @@ contract ERC8380Test {
     }
 
     // ── 10. Unregistered domain ──────────────────────────────────────────────
+    // Orchestrator authorization now lives in the domain registry, one address per domain, so
+    // `issue` itself has nothing to authorize against for a domain that was never registered.
+    // The case this row tests is `execute`'s own domain check, which runs before the issuance
+    // check, so a proof is armed directly against the verifier without going through `issue`.
     function test_10_UnregisteredDomain() public {
         setUp();
         IUnclonableCredential.Capability memory c = _cap(bytes32(uint256(10)), OTHER_DOMAIN, INDEX, address(this), EXPIRY);
-        _arm(c, "p10");
+        verifier.issueProof("p10", _inputs(c));
         _expectRevert(c, "p10", "an unregistered homeDomainId must revert");
     }
 
@@ -269,40 +273,42 @@ contract ERC8380Test {
         require(guard.isConsumed(c.nullifier), "and burn the nullifier");
     }
 
-    // ── 16. Collision classification ─────────────────────────────────────────
-    // This case asserts what row 16 of the table promises, not what the reference implementation
-    // currently does, so it FAILS on the current keying. That failure is the point: it is the
-    // regression artifact the fix has to turn green.
+    // ── 16. Collision classification, scoped per domain ──────────────────────
+    // Row 16 promises that a collision at an issued index and one at an unissued index are
+    // distinguishable through highestIssuedIndex, scoped per (agentId, homeDomainId). This used
+    // to fail: highestIssuedIndex was keyed on agentId alone and issue never received a domain,
+    // so domain A issuing up to index 10 made a genuine clone colliding at index 4 in domain B
+    // read as "an index the orchestrator did issue" instead of a clone.
     //
-    // The Specification puts the index space on the pair of `agentId` and `homeDomainId`, and
-    // the salt derivation agrees. `highestIssuedIndex` is keyed on `agentId` alone and `issue`
-    // never receives a domain, so once an agent operates in two domains the ceiling is shared.
-    // Domain A issuing up to index 10 makes a genuine clone colliding at index 4 in domain B
-    // read as "an index the orchestrator did issue", which the Security Considerations classify
-    // as the orchestrator's own reissue bug. The classification inverts in the one case the
-    // mechanism exists for.
-    //
-    // Moving the ceiling to [agentId][homeDomainId] and passing a domain to `issue` turns this
-    // green. Both are interface changes, so this case is rewritten in the same commit as the fix.
+    // Fixed by moving the ceiling to [agentId][homeDomainId] and passing a domain to `issue`.
+    // Orchestrator authorization for `issue` also moved into the domain registry, one address per
+    // domain, since a single global orchestrator was the same domain-blind-issuance root cause
+    // surfacing a second time (Observability said "the issuing orchestrator of the domain" while
+    // the Guard held one address for all of them).
     function test_16_CollisionClassificationIsPerDomain() public {
         setUp();
-        registry.registerDomain(OTHER_DOMAIN);
+        registry.registerDomain(OTHER_DOMAIN, address(this));
 
         for (uint256 i = 1; i <= 10; i++) {
-            guard.issue(keccak256(abi.encode(DOMAIN, i)), AGENT, i);
+            guard.issue(keccak256(abi.encode(DOMAIN, i)), AGENT, DOMAIN, i);
         }
 
+        require(guard.highestIssuedIndex(AGENT, DOMAIN) == 10, "domain A's ceiling reached 10");
         require(
-            guard.highestIssuedIndex(AGENT) == 10,
-            "domain A raised the agent-keyed ceiling"
+            guard.highestIssuedIndex(AGENT, OTHER_DOMAIN) == 0,
+            "domain B's ceiling for this agent is untouched by domain A's issuance"
         );
 
-        // OTHER_DOMAIN has issued nothing for this agent, so row 16's answer for index 4 is
-        // "never issued here, therefore a clone". The shared ceiling says otherwise.
+        // Index 4 was never issued in OTHER_DOMAIN. A collision there must be classified as a
+        // clone: the commitment was never issued, so execute() must revert rather than land.
+        IUnclonableCredential.Capability memory collision =
+            _cap(bytes32(uint256(16)), OTHER_DOMAIN, 4, address(this), EXPIRY);
+        verifier.issueProof("p16", _inputs(collision));
         require(
-            !(4 <= guard.highestIssuedIndex(AGENT)),
-            "index 4 was never issued in OTHER_DOMAIN, but the agent-keyed ceiling reads it as issued, so a clone is classified as an orchestrator reissue bug"
+            4 > guard.highestIssuedIndex(collision.agentId, OTHER_DOMAIN),
+            "index 4 must read as unissued in OTHER_DOMAIN despite domain A's ceiling reaching 10"
         );
+        _expectRevert(collision, "p16", "a collision unissued in its own domain must revert, not read as a reissue");
     }
 
     // ── 17. Recovery ─────────────────────────────────────────────────────────

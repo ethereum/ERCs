@@ -11,6 +11,7 @@ interface IUnclonableCredential {
     event CapabilityIssued(
         bytes32 indexed capabilityCommitment,
         uint256 indexed agentId,
+        uint256 indexed homeDomainId,
         uint256 capabilityIndex
     );
 
@@ -48,10 +49,12 @@ interface IUnclonableCredential {
         uint256 expiry;               // unix seconds
     }
 
-    /// @notice Authorize a capability commitment. Restricted to the issuing orchestrator.
+    /// @notice Authorize a capability commitment. Restricted to the issuing orchestrator of
+    ///         `homeDomainId`.
     function issue(
         bytes32 capabilityCommitment,
         uint256 agentId,
+        uint256 homeDomainId,
         uint256 capabilityIndex
     ) external;
 
@@ -68,6 +71,6 @@ interface IUnclonableCredential {
     /// @notice Query whether a nullifier has been burned.
     function isConsumed(bytes32 nullifier) external view returns (bool);
 
-    /// @notice Highest capability index the orchestrator has issued for an agent.
-    function highestIssuedIndex(uint256 agentId) external view returns (uint256);
+    /// @notice Highest capability index the orchestrator has issued for an agent in a domain.
+    function highestIssuedIndex(uint256 agentId, uint256 homeDomainId) external view returns (uint256);
 }
