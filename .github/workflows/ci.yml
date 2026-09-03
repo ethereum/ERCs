@@ -282,17 +282,23 @@ jobs:
 
       - name: Get Changed Files
         id: changed
-        continue-on-error: true
         run: |
-          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
-          gh pr diff ${{ github.event.number }} --name-only | grep -E -x '[^/]+\.md|EIPS/eip-[0-9]+\.md' >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          ALL_CHANGED=$(gh pr diff ${{ github.event.number }} --name-only)
+          CHANGED_FILES=$(echo "$ALL_CHANGED" | grep -E -x '[^/]+\.md|ERCS/erc-[0-9]+\.md' || true)
+          if [ -z "$CHANGED_FILES" ]; then
+            exit 0
+          fi
+          {
+            echo "CHANGED_FILES<<EOF"
+            echo "$CHANGED_FILES"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint
         uses: DavidAnson/markdownlint-cli2-action@f5cf187ef11bd3a68a127321b794aa252ff23019
-        if: steps.changed.outcome == 'success'
+        if: steps.changed.outcome == 'success' && env.CHANGED_FILES != ''
         with:
           command: config
           globs: |
