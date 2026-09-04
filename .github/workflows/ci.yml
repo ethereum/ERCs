@@ -285,7 +285,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
-          gh pr diff ${{ github.event.number }} --name-only | grep -E -x '[^/]+\.md|EIPS/eip-[0-9]+\.md' >> $GITHUB_ENV
+          gh pr diff ${{ github.event.number }} --name-only | grep -E -x '[^/]+\.md|ERCS/erc-[0-9]+\.md' >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
