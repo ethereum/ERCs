@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+optimizer = true
+optimizer_runs = 200
+verbosity = 2
+fuzz = { runs = 256 }
+
+# Disable file-system access in tests (security default)
+fs_permissions = []
+
+# Strict re-entrancy + invariant settings
+remappings = []
