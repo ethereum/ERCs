@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8409/artifact-reference.schema.json",
+  "title": "Artifact reference",
+  "description": "An envelope naming a wallet-bound payload by location and keccak256 digest instead of carrying it. Structural constraints only; the conditional and procedural rules stated normatively in ERC-8409 MUST also be enforced, in particular that integrity and bytes are required for an https url, that a data: URI is never fetched over the network, that the retrieved length and digest are checked before parsing, and the whole of the https admission policy.",
+  "type": "object",
+  "required": ["kind", "artifact_type", "url"],
+  "properties": {
+    "kind": {
+      "description": "Discriminates this envelope from a payload supplied inline.",
+      "type": "string",
+      "const": "artifact_reference"
+    },
+    "artifact_type": {
+      "description": "What sort of document the referenced bytes are. A consumer rejects a type it does not implement, and rejects a reference whose type differs from the one expected at the point of use. Open for extension by later proposals.",
+      "type": "string",
+      "examples": ["execution_plan", "read_calls", "token_list"]
+    },
+    "url": {
+      "description": "Where the bytes are. Either a public https URL on the default port, or a bounded data:application/json URI carrying them inline.",
+      "type": "string",
+      "anyOf": [
+        { "pattern": "^https://" },
+        { "pattern": "^data:application/json[;,]" }
+      ]
+    },
+    "integrity": { "$ref": "#/$defs/ArtifactIntegrity" },
+    "bytes": {
+      "description": "Exact byte length of the stored body. Lets a consumer refuse an oversized body before opening a connection, and stop reading the moment a response exceeds what was promised. Required alongside integrity for an https url.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "instruction": {
+      "description": "Producer-supplied prose. Display context only; it MUST NOT influence any authorization decision.",
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "ArtifactIntegrity": {
+      "description": "Digest over the exact stored bytes. Strict, unlike the enclosing envelope: an integrity object carrying a member the consumer does not understand is one it cannot claim to have verified, so unknown members are rejected rather than ignored.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": {
+          "description": "Kept an open string rather than an enumeration so a rejection can name both what was offered and what is supported. Only keccak256 is defined by this revision.",
+          "type": "string",
+          "examples": ["keccak256"]
+        },
+        "value": {
+          "description": "0x followed by 64 hexadecimal digits.",
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        }
+      }
+    }
+  }
+}
