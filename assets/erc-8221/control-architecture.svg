@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 840" role="img" aria-labelledby="title desc">
+  <title id="title">Core Architecture: Control versus Custody</title>
+  <desc id="desc">Diagram showing that, from a user perspective, the controller NFT acts as the transferable handle to the wallet, while at the protocol level the separate account contract remains the custody address that holds assets directly.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.5; rx: 26; ry: 26; }
+    .owner { fill: #eef3ff; }
+    .token { fill: #fff3db; }
+    .account { fill: #eaf7ef; }
+    .box-title { font: 700 24px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 600 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .label-small { font: 600 15px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .mono-small { font: 600 14px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .asset { fill: #d8eadf; stroke: #4d7a63; stroke-width: 1.5; rx: 16; ry: 16; }
+    .arrow { stroke: #304254; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 8 7; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1360" height="840"/>
+
+  <text class="title" x="680" y="52" text-anchor="middle">Control-vs-Custody Separation</text>
+  <text class="subtitle" x="680" y="84" text-anchor="middle">User-facing: the NFT acts like the wallet's transferable handle.</text>
+  <text class="subtitle" x="680" y="108" text-anchor="middle">Protocol-facing: the account contract remains the custody address.</text>
+
+  <rect class="box owner" x="60" y="190" width="290" height="250"/>
+  <text class="box-title" x="205" y="235" text-anchor="middle">Owner Account (O)</text>
+  <text class="body" x="205" y="270" text-anchor="middle">EOA, multisig, or</text>
+  <text class="body" x="205" y="295" text-anchor="middle">another smart account</text>
+  <text class="body" x="205" y="340" text-anchor="middle">Submits ordinary transactions</text>
+  <text class="body" x="205" y="365" text-anchor="middle">that call the controlled account</text>
+  <text class="mono" x="205" y="410" text-anchor="middle">Can own many controller NFTs (T)</text>
+
+  <rect class="box token" x="520" y="145" width="320" height="350"/>
+  <text class="box-title" x="680" y="190" text-anchor="middle">Controller NFT (T)</text>
+  <text class="body" x="680" y="230" text-anchor="middle">ERC-721 token</text>
+  <text class="mono-small" x="680" y="266" text-anchor="middle">tokenId = uint256(uint160(A))</text>
+  <text class="mono-small" x="680" y="301" text-anchor="middle">ownerOf(tokenId) = controller (O)</text>
+  <text class="mono-small" x="680" y="336" text-anchor="middle">controlVersion changes on transfer</text>
+  <rect class="note" x="555" y="385" width="250" height="95"/>
+  <text class="label" x="680" y="418" text-anchor="middle">Root Control</text>
+  <text class="body" x="680" y="442" text-anchor="middle">What users transfer to</text>
+  <text class="body" x="680" y="462" text-anchor="middle">move wallet control.</text>
+
+  <rect class="box account" x="1010" y="165" width="300" height="375"/>
+  <text class="box-title" x="1160" y="210" text-anchor="middle">Account Contract (A)</text>
+  <text class="mono-small" x="1160" y="248" text-anchor="middle">A = address(uint160(tokenId))</text>
+  <text class="body" x="1160" y="288" text-anchor="middle">Separate smart account / wallet</text>
+  <text class="body" x="1160" y="313" text-anchor="middle">Implements execute / executeBatch</text>
+  <rect class="note" x="1060" y="338" width="200" height="70"/>
+  <text class="label" x="1160" y="370" text-anchor="middle">Custody Address</text>
+  <text class="body" x="1160" y="392" text-anchor="middle">Holds assets directly.</text>
+
+  <rect class="asset" x="1040" y="430" width="70" height="34"/>
+  <rect class="asset" x="1120" y="430" width="70" height="34"/>
+  <rect class="asset" x="1200" y="430" width="80" height="34"/>
+  <text class="body" x="1075" y="452" text-anchor="middle">ETH</text>
+  <text class="body" x="1155" y="452" text-anchor="middle">ERC-20</text>
+  <text class="body" x="1240" y="452" text-anchor="middle">ERC-721</text>
+
+  <rect class="asset" x="1060" y="474" width="100" height="34"/>
+  <rect class="asset" x="1175" y="474" width="80" height="34"/>
+  <text class="body" x="1110" y="496" text-anchor="middle">ERC-1155</text>
+  <text class="body" x="1215" y="496" text-anchor="middle">More...</text>
+
+  <line class="arrow" x1="350" y1="300" x2="520" y2="300"/>
+  <text class="label" x="435" y="268" text-anchor="middle">owns</text>
+
+  <line class="arrow" x1="840" y1="300" x2="1010" y2="300"/>
+  <text class="label" x="925" y="268" text-anchor="middle">controls</text>
+
+  <path class="arrow dash" d="M 680 495 C 700 640, 1065 650, 1115 540"/>
+
+  <rect class="note" x="70" y="610" width="420" height="120"/>
+  <text class="label" x="280" y="648" text-anchor="middle">To a user the NFT is effectively a transferable wallet</text>
+  <text class="body" x="280" y="682" text-anchor="middle">Transferring the NFT (T) rotates control,</text>
+  <text class="body" x="280" y="706" text-anchor="middle">and assets stay at the same account address (A).</text>
+
+  <rect class="note" x="845" y="635" width="430" height="128"/>
+  <text class="label" x="1060" y="674" text-anchor="middle">Protocol Distinction</text>
+  <text class="body" x="1060" y="708" text-anchor="middle">The NFT moves control.</text>
+  <text class="body" x="1060" y="732" text-anchor="middle">The account address keeps custody, balances, approvals,</text>
+  <text class="body" x="1060" y="756" text-anchor="middle">and execution history.</text>
+</svg>

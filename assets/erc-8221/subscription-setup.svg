@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 820" role="img" aria-labelledby="title desc">
+  <title id="title">Subscription Setup — Child Account with Validator and Hooks</title>
+  <desc id="desc">Architecture diagram showing Alice deploying a child account Sub from parent P, funding it with a monthly budget, installing a session-key validator authorizing the service provider's key S, and installing execution hooks (spending-limit and target-whitelist) scoped to signed execution. The child account's EVM balance is the hard cap.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .alice { fill: #eef3ff; }
+    .parent { fill: #eaf7ef; }
+    .child { fill: #fff3db; }
+    .external { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .budget { fill: #d8eadf; stroke: #4d7a63; stroke-width: 2; rx: 16; ry: 16; }
+    .validator { fill: #f3f7ff; stroke: #8ea8c7; stroke-width: 2; rx: 14; ry: 14; }
+    .hook { fill: #faf3ff; stroke: #a88ec7; stroke-width: 2; rx: 14; ry: 14; }
+    .blocked { fill: #ffe0d6; stroke: #b45d42; stroke-width: 2; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 8 7; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="820"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Subscription Setup — Child Account with Validator and Hooks</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Alice deploys a purpose-specific child account, funds it with a capped budget, and installs scoped controls.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">No new primitives — validators, hooks, and child accounts compose naturally for recurring payments.</text>
+
+  <!-- Alice's EOA -->
+  <rect class="box alice" x="80" y="160" width="280" height="90"/>
+  <text class="title2" x="220" y="198" text-anchor="middle">Alice's EOA</text>
+  <text class="body" x="220" y="223" text-anchor="middle">Root controller — owns T_P</text>
+
+  <!-- Arrow: Alice -> P -->
+  <path class="edge" d="M 220 250 L 220 300"/>
+  <text class="label" x="240" y="282" text-anchor="start">controls</text>
+
+  <!-- Parent account P -->
+  <rect class="box parent" x="80" y="300" width="280" height="170"/>
+  <text class="title2" x="220" y="338" text-anchor="middle">Parent Account (P)</text>
+  <text class="body" x="220" y="368" text-anchor="middle">Holds T_Sub and all</text>
+  <text class="body" x="220" y="388" text-anchor="middle">other assets under Alice.</text>
+  <text class="mono" x="220" y="428" text-anchor="middle">resetDelegations(T_Sub)</text>
+  <text class="body" x="220" y="450" text-anchor="middle">revokes S instantly</text>
+
+  <!-- Arrow: P funds Sub -->
+  <path class="edge" d="M 360 385 L 520 385"/>
+  <text class="label" x="440" y="372" text-anchor="middle">funds 100 USDC</text>
+
+  <!-- Child account Sub -->
+  <rect class="box child" x="520" y="140" width="480" height="480"/>
+  <text class="title2" x="760" y="178" text-anchor="middle">Child Account (Sub)</text>
+  <text class="mono" x="760" y="208" text-anchor="middle">ownerOf(T_Sub) = P</text>
+
+  <!-- Budget box inside Sub -->
+  <rect class="budget" x="560" y="232" width="400" height="50"/>
+  <text class="label" x="760" y="254" text-anchor="middle">Budget = 100 USDC (the EVM balance)</text>
+  <text class="body" x="760" y="274" text-anchor="middle">Hard cap — enforced by the EVM, not by policy.</text>
+
+  <!-- Validator inside Sub -->
+  <rect class="validator" x="560" y="310" width="400" height="70"/>
+  <text class="label" x="760" y="336" text-anchor="middle">Session-key validator: provider key S</text>
+  <text class="body" x="760" y="358" text-anchor="middle">Accepts only pay() on subscription contract</text>
+  <text class="body" x="760" y="374" text-anchor="middle">for current controlVersion</text>
+
+  <!-- Hook 1: spending limit -->
+  <rect class="hook" x="560" y="408" width="400" height="56"/>
+  <text class="label" x="760" y="432" text-anchor="middle">Spending-limit hook (scope = signed exec)</text>
+  <text class="body" x="760" y="452" text-anchor="middle">50 USDC per 30-day period</text>
+
+  <!-- Hook 2: target whitelist -->
+  <rect class="hook" x="560" y="490" width="400" height="56"/>
+  <text class="label" x="760" y="514" text-anchor="middle">Target-whitelist hook (scope = signed exec)</text>
+  <text class="body" x="760" y="534" text-anchor="middle">Only subscription contract callable</text>
+
+  <!-- Blocked: no path to P -->
+  <rect class="blocked" x="560" y="572" width="400" height="36"/>
+  <text class="label" x="760" y="595" text-anchor="middle" style="fill: #b45d42;">No execution path to P or P's assets</text>
+
+  <!-- Service provider (external) -->
+  <rect class="box external" x="1100" y="280" width="260" height="130"/>
+  <text class="title2" x="1230" y="318" text-anchor="middle">Service Provider</text>
+  <text class="body" x="1230" y="348" text-anchor="middle">Holds signing key S.</text>
+  <text class="body" x="1230" y="370" text-anchor="middle">Pulls subscription fee</text>
+  <text class="body" x="1230" y="392" text-anchor="middle">via signed execution.</text>
+
+  <!-- Arrow: provider -> Sub (signed execution) -->
+  <path class="edge dash" d="M 1100 345 L 1000 345"/>
+  <text class="label" x="1050" y="332" text-anchor="middle">signs</text>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="660" width="420" height="130"/>
+  <text class="label" x="280" y="698" text-anchor="middle">Three Independent Guarantees</text>
+  <text class="body" x="280" y="728" text-anchor="middle">Validator: who can act (key S only).</text>
+  <text class="body" x="280" y="750" text-anchor="middle">Hooks: what is allowed (target + spend cap).</text>
+  <text class="body" x="280" y="772" text-anchor="middle">Child balance: total exposure (100 USDC).</text>
+
+  <rect class="warn" x="530" y="660" width="380" height="130"/>
+  <text class="label" x="720" y="698" text-anchor="middle">Blast Radius Is the Balance</text>
+  <text class="body" x="720" y="728" text-anchor="middle">If S is compromised, loss is bounded</text>
+  <text class="body" x="720" y="750" text-anchor="middle">by Sub's 100 USDC. P and everything</text>
+  <text class="body" x="720" y="772" text-anchor="middle">under P is unreachable from Sub.</text>
+
+  <rect class="note" x="950" y="660" width="420" height="130"/>
+  <text class="label" x="1160" y="698" text-anchor="middle">Instant Revocation</text>
+  <text class="body" x="1160" y="728" text-anchor="middle">Alice calls resetDelegations on T_Sub.</text>
+  <text class="body" x="1160" y="750" text-anchor="middle">controlVersion increments, S is invalid.</text>
+  <text class="body" x="1160" y="772" text-anchor="middle">Sweep remaining funds back to P.</text>
+</svg>
