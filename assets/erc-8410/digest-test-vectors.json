@@ -1,5 +1,5 @@
 {
-  "description": "Plan digest test vectors for ERC-8409. canonical_form is the exact UTF-8 byte string the digest is taken over; digest is its keccak256 hash. Note that the canonical member order is the one ERC-8409 specifies, which is not lexicographic: a generic RFC 8785 canonicalizer would sort the members and produce a different digest.",
+  "description": "Plan digest test vectors for ERC-8410. canonical_form is the exact UTF-8 byte string the digest is taken over; digest is its keccak256 hash. Note that the canonical member order is the one ERC-8410 specifies, which is not lexicographic: a generic RFC 8785 canonicalizer would sort the members and produce a different digest.",
   "cases": [
     {
       "name": "minimal-single-step",

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://eips.ethereum.org/assets/erc-8409/execution-plan.schema.json",
+  "$id": "https://eips.ethereum.org/assets/erc-8410/execution-plan.schema.json",
   "title": "Execution plan",
-  "description": "An ordered sequence of calls one sender is asked to make on one chain, prepared by software that holds no keys and consumed by a wallet that does. Structural constraints only; the cross-field rules (caip2_chain_id agreement, consecutive one-indexed steps, per-step chain and sender agreement, the forbidden retry_same_plan actions, and the total calldata and document size limits) are stated normatively in ERC-8409 and MUST also be enforced.",
+  "description": "An ordered sequence of calls one sender is asked to make on one chain, prepared by software that holds no keys and consumed by a wallet that does. Structural constraints only; the cross-field rules (caip2_chain_id agreement, consecutive one-indexed steps, per-step chain and sender agreement, the forbidden retry_same_plan actions, and the total calldata and document size limits) are stated normatively in ERC-8410 and MUST also be enforced.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "chain_id", "caip2_chain_id", "sender", "ordered_steps"],
