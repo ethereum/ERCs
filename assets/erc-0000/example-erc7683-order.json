@@ -1,0 +1,65 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Across Origin Settler",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 8453,
+                    "address": "0x4afb570AC68BfFc26Bb02FdA3D801728B0f93C9E"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Across Protocol",
+        "contractName": "AcrossOriginSettler",
+        "info": {
+            "url": "https://docs.across.to/guides/concepts/erc-7683"
+        }
+    },
+    "display": {
+        "formats": {
+            "open((uint32 fillDeadline,bytes32 orderDataType,bytes orderData) order)": {
+                "$id": "ERC-7683 Open Order",
+                "intent": "Open cross-chain order",
+                "fields": [
+                    {
+                        "path": "order.fillDeadline",
+                        "label": "Fill deadline",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
+                    {
+                        "path": "order.orderData",
+                        "label": "Order data",
+                        "switch": {
+                            "expression": {
+                                "path": "order.orderDataType"
+                            },
+                            "cases": {
+                                "0x9df4b782e7bbc178b3b93bfe8aafb909e84e39484d7f3c59f400f1b4691f85e2": {
+                                    "(address inputToken,uint256 inputAmount,address outputToken,uint256 outputAmount,uint256 destinationChainId,bytes32 recipient,address exclusiveRelayer,uint256 depositNonce,uint32 exclusivityPeriod,bytes message)": {
+                                        "intent": "Across V3 relay order",
+                                        "fields": [
+                                            { "path": "inputToken", "label": "Input token", "format": "addressName" },
+                                            { "path": "inputAmount", "label": "Input amount", "format": "tokenAmount", "params": { "tokenPath": "inputToken" } },
+                                            { "path": "outputToken", "label": "Output token", "format": "addressName" },
+                                            { "path": "outputAmount", "label": "Output amount", "format": "tokenAmount", "params": { "tokenPath": "outputToken" } },
+                                            { "path": "destinationChainId", "label": "Destination chain", "format": "chainId" },
+                                            { "path": "recipient", "label": "Recipient" },
+                                            { "path": "exclusiveRelayer", "label": "Exclusive relayer", "format": "addressName" }
+                                        ]
+                                    }
+                                },
+                                "$default": "reject"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,67 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "TieredExecutor Example",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xYourTieredExecutorAddress"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Example",
+        "contractName": "TieredExecutor",
+        "enums": {
+            "operationKind": {
+                "1": "Grant reward",
+                "2": "Credit legacy balance"
+            }
+        }
+    },
+    "display": {
+        "formats": {
+            "executeOperation(address target,uint8 op,address account,uint256 amount)": {
+                "$id": "Execute Operation",
+                "switch": {
+                    "expression": {
+                        "path": "op"
+                    },
+                    "cases": {
+                        "1": {
+                            "interaction": {
+                                "to": "target",
+                                "signature": "grantReward(address,uint256)",
+                                "args": [
+                                    {
+                                        "path": "account"
+                                    },
+                                    {
+                                        "path": "amount"
+                                    }
+                                ]
+                            }
+                        },
+                        "2": {
+                            "interaction": {
+                                "to": "target",
+                                "signature": "creditAccount(uint256,address)",
+                                "args": [
+                                    {
+                                        "path": "amount"
+                                    },
+                                    {
+                                        "path": "account"
+                                    }
+                                ]
+                            }
+                        },
+                        "$default": "reject"
+                    }
+                }
+            }
+        }
+    }
+}
