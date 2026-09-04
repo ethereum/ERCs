@@ -1,9 +1,34 @@
 {
-  "description": "Plan digest test vectors for ERC-8409. canonical_form is the exact UTF-8 byte string the digest is taken over; digest is its keccak256 hash. The second case shares a digest with the first, and the third does not.",
+  "description": "Plan digest test vectors for ERC-8409. canonical_form is the exact UTF-8 byte string the digest is taken over; digest is its keccak256 hash. Note that the canonical member order is the one ERC-8409 specifies, which is not lexicographic: a generic RFC 8785 canonicalizer would sort the members and produce a different digest.",
   "cases": [
     {
+      "name": "minimal-single-step",
+      "note": "A one-step plan with empty calldata. This vector is cross-checked: an independent implementation of the canonical form above and the Rust reference implementation produce the same digest for it.",
+      "plan": {
+        "schema_version": "1",
+        "chain_id": "1",
+        "caip2_chain_id": "eip155:1",
+        "sender": "0x1111111111111111111111111111111111111111",
+        "ordered_steps": [
+          {
+            "step": 1,
+            "kind": "execution",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x2222222222222222222222222222222222222222",
+              "data": "0x",
+              "value": "0"
+            }
+          }
+        ]
+      },
+      "canonical_form": "{\"schema_version\":\"1\",\"chain_id\":\"1\",\"sender\":\"0x1111111111111111111111111111111111111111\",\"ordered_steps\":[{\"step\":1,\"kind\":\"execution\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x2222222222222222222222222222222222222222\",\"data\":\"0x\",\"value\":\"0\"}}]}",
+      "digest": "0x93aeec006e55dfe0f54041d53c94387e08c504d4f3b3826cd3426dbc7da38ea5"
+    },
+    {
       "name": "two-step-plan",
-      "note": "A two-step plan. Note that step 2 carries a gas hint, which the canonical form omits.",
+      "note": "A two-step plan. Step 2 carries a gas hint, which the canonical form omits.",
       "plan": {
         "schema_version": "1",
         "chain_id": "1",
@@ -60,7 +85,7 @@
     },
     {
       "name": "same-digest-excluded-fields-differ",
-      "note": "Identical to the first case except for gas, extensions, required_capabilities, and a simulation_failure_policy instruction. All are excluded from the digest, so the digest is unchanged: approving one is the same act as approving the other.",
+      "note": "Identical to the two-step case except for gas, extensions, required_capabilities, and a simulation_failure_policy instruction. All are excluded from the digest, so the digest is unchanged: approving one is the same act as approving the other.",
       "plan": {
         "schema_version": "1",
         "chain_id": "1",
@@ -115,7 +140,7 @@
     },
     {
       "name": "different-digest-one-calldata-byte",
-      "note": "Identical to the first case except for the final byte of step 2 calldata. That byte is broadcast, so the digest differs.",
+      "note": "Identical to the two-step case except for the final byte of step 2 calldata. That byte is broadcast, so the digest differs.",
       "plan": {
         "schema_version": "1",
         "chain_id": "1",
