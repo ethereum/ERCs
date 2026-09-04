@@ -1,0 +1,174 @@
+{
+  "description": "Plan digest test vectors for ERC-8409. canonical_form is the exact UTF-8 byte string the digest is taken over; digest is its keccak256 hash. The second case shares a digest with the first, and the third does not.",
+  "cases": [
+    {
+      "name": "two-step-plan",
+      "note": "A two-step plan. Note that step 2 carries a gas hint, which the canonical form omits.",
+      "plan": {
+        "schema_version": "1",
+        "chain_id": "1",
+        "caip2_chain_id": "eip155:1",
+        "sender": "0x1111111111111111111111111111111111111111",
+        "ordered_steps": [
+          {
+            "step": 1,
+            "kind": "approval",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x2222222222222222222222222222222222222222",
+              "data": "0x095ea7b3",
+              "value": "0"
+            }
+          },
+          {
+            "step": 2,
+            "kind": "execution",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x3333333333333333333333333333333333333333",
+              "data": "0xdeadbeef",
+              "value": "1000000000000000000",
+              "gas": "210000"
+            }
+          }
+        ],
+        "required_capabilities": [
+          "atomic_batch"
+        ],
+        "simulation_failure_policy": {
+          "rpc_error": {
+            "action": "retry_same_plan",
+            "instruction": "Endpoint hiccup; retry."
+          },
+          "execution_reverted": {
+            "action": "reprepare_plan",
+            "instruction": "Quote is stale; request a fresh plan."
+          },
+          "simulation_setup_error": {
+            "action": "user_review",
+            "instruction": "Ask the user."
+          }
+        },
+        "extensions": {
+          "producer": "example"
+        }
+      },
+      "canonical_form": "{\"schema_version\":\"1\",\"chain_id\":\"1\",\"sender\":\"0x1111111111111111111111111111111111111111\",\"ordered_steps\":[{\"step\":1,\"kind\":\"approval\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x2222222222222222222222222222222222222222\",\"data\":\"0x095ea7b3\",\"value\":\"0\"}},{\"step\":2,\"kind\":\"execution\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x3333333333333333333333333333333333333333\",\"data\":\"0xdeadbeef\",\"value\":\"1000000000000000000\"}}]}",
+      "digest": "0x13c4b058741ee7bdfe5a51825c71bd205859b89436505a15adf60bd3f2281deb"
+    },
+    {
+      "name": "same-digest-excluded-fields-differ",
+      "note": "Identical to the first case except for gas, extensions, required_capabilities, and a simulation_failure_policy instruction. All are excluded from the digest, so the digest is unchanged: approving one is the same act as approving the other.",
+      "plan": {
+        "schema_version": "1",
+        "chain_id": "1",
+        "caip2_chain_id": "eip155:1",
+        "sender": "0x1111111111111111111111111111111111111111",
+        "ordered_steps": [
+          {
+            "step": 1,
+            "kind": "approval",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x2222222222222222222222222222222222222222",
+              "data": "0x095ea7b3",
+              "value": "0"
+            }
+          },
+          {
+            "step": 2,
+            "kind": "execution",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x3333333333333333333333333333333333333333",
+              "data": "0xdeadbeef",
+              "value": "1000000000000000000",
+              "gas": "999999"
+            }
+          }
+        ],
+        "required_capabilities": [],
+        "simulation_failure_policy": {
+          "rpc_error": {
+            "action": "retry_same_plan",
+            "instruction": "Different words entirely."
+          },
+          "execution_reverted": {
+            "action": "reprepare_plan",
+            "instruction": "Quote is stale; request a fresh plan."
+          },
+          "simulation_setup_error": {
+            "action": "user_review",
+            "instruction": "Ask the user."
+          }
+        },
+        "extensions": {
+          "producer": "someone-else"
+        }
+      },
+      "canonical_form": "{\"schema_version\":\"1\",\"chain_id\":\"1\",\"sender\":\"0x1111111111111111111111111111111111111111\",\"ordered_steps\":[{\"step\":1,\"kind\":\"approval\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x2222222222222222222222222222222222222222\",\"data\":\"0x095ea7b3\",\"value\":\"0\"}},{\"step\":2,\"kind\":\"execution\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x3333333333333333333333333333333333333333\",\"data\":\"0xdeadbeef\",\"value\":\"1000000000000000000\"}}]}",
+      "digest": "0x13c4b058741ee7bdfe5a51825c71bd205859b89436505a15adf60bd3f2281deb"
+    },
+    {
+      "name": "different-digest-one-calldata-byte",
+      "note": "Identical to the first case except for the final byte of step 2 calldata. That byte is broadcast, so the digest differs.",
+      "plan": {
+        "schema_version": "1",
+        "chain_id": "1",
+        "caip2_chain_id": "eip155:1",
+        "sender": "0x1111111111111111111111111111111111111111",
+        "ordered_steps": [
+          {
+            "step": 1,
+            "kind": "approval",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x2222222222222222222222222222222222222222",
+              "data": "0x095ea7b3",
+              "value": "0"
+            }
+          },
+          {
+            "step": 2,
+            "kind": "execution",
+            "transaction": {
+              "chain_id": "1",
+              "from": "0x1111111111111111111111111111111111111111",
+              "to": "0x3333333333333333333333333333333333333333",
+              "data": "0xdeadbeee",
+              "value": "1000000000000000000",
+              "gas": "210000"
+            }
+          }
+        ],
+        "required_capabilities": [
+          "atomic_batch"
+        ],
+        "simulation_failure_policy": {
+          "rpc_error": {
+            "action": "retry_same_plan",
+            "instruction": "Endpoint hiccup; retry."
+          },
+          "execution_reverted": {
+            "action": "reprepare_plan",
+            "instruction": "Quote is stale; request a fresh plan."
+          },
+          "simulation_setup_error": {
+            "action": "user_review",
+            "instruction": "Ask the user."
+          }
+        },
+        "extensions": {
+          "producer": "example"
+        }
+      },
+      "canonical_form": "{\"schema_version\":\"1\",\"chain_id\":\"1\",\"sender\":\"0x1111111111111111111111111111111111111111\",\"ordered_steps\":[{\"step\":1,\"kind\":\"approval\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x2222222222222222222222222222222222222222\",\"data\":\"0x095ea7b3\",\"value\":\"0\"}},{\"step\":2,\"kind\":\"execution\",\"transaction\":{\"chain_id\":\"1\",\"from\":\"0x1111111111111111111111111111111111111111\",\"to\":\"0x3333333333333333333333333333333333333333\",\"data\":\"0xdeadbeee\",\"value\":\"1000000000000000000\"}}]}",
+      "digest": "0x5bf27f490fa44998b6386dfe1b0fae6df0c1b2a9604b69d83bbbbd7a6d285549"
+    }
+  ]
+}

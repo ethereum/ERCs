@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8409/execution-plan.schema.json",
+  "title": "Execution plan",
+  "description": "An ordered sequence of calls one sender is asked to make on one chain, prepared by software that holds no keys and consumed by a wallet that does. Structural constraints only; the cross-field rules (caip2_chain_id agreement, consecutive one-indexed steps, per-step chain and sender agreement, the forbidden retry_same_plan actions, and the total calldata and document size limits) are stated normatively in ERC-8409 and MUST also be enforced.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "chain_id", "caip2_chain_id", "sender", "ordered_steps"],
+  "properties": {
+    "schema_version": {
+      "description": "Revision of this format. This document describes revision 1.",
+      "type": "string",
+      "const": "1"
+    },
+    "chain_id": {
+      "description": "EIP-155 chain identifier the plan executes on.",
+      "$ref": "#/$defs/Quantity"
+    },
+    "caip2_chain_id": {
+      "description": "CAIP-2 identifier for the same chain. MUST equal \"eip155:\" concatenated with chain_id.",
+      "type": "string",
+      "pattern": "^eip155:(0|[1-9][0-9]*)$"
+    },
+    "sender": {
+      "description": "Account expected to send every step.",
+      "$ref": "#/$defs/Address"
+    },
+    "ordered_steps": {
+      "description": "Steps in execution order. Entry n MUST carry step == n.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4096,
+      "items": { "$ref": "#/$defs/ExecutionStep" }
+    },
+    "required_capabilities": {
+      "description": "Behaviors this plan needs of whatever executes it. A consumer MUST reject a plan naming a capability it does not implement.",
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[\\x21-\\x7e]+$"
+      }
+    },
+    "simulation_failure_policy": { "$ref": "#/$defs/SimulationFailurePolicy" },
+    "extensions": {
+      "description": "Producer-defined data. Consumers ignore it, bound its serialized size, and exclude it from the plan digest, so it MUST NOT carry anything that changes what executes or what a reviewer needs to see.",
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "Quantity": {
+      "description": "A canonical unsigned decimal integer that fits in a uint256: the single character 0, or a digit string with no leading zero.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "ByteString": {
+      "description": "0x followed by an even number of lowercase hexadecimal digits.",
+      "type": "string",
+      "pattern": "^0x([0-9a-f]{2})*$"
+    },
+    "Address": {
+      "description": "A 20-byte address, lowercase. The mixed-case checksum form is a display convention and MUST NOT appear here.",
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}$"
+    },
+    "ExecutionStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "kind", "transaction"],
+      "properties": {
+        "step": {
+          "description": "One-indexed position of this entry in ordered_steps.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "kind": { "$ref": "#/$defs/ExecutionStepKind" },
+        "transaction": { "$ref": "#/$defs/PlannedTransaction" },
+        "revert_decode": { "$ref": "#/$defs/RevertDecodePlan" }
+      }
+    },
+    "ExecutionStepKind": {
+      "description": "Why this step is in the plan. Presentation-affecting only: a consumer never derives authority from it, because it is the producer's caption on calldata the reviewer sees regardless.",
+      "type": "string",
+      "enum": [
+        "execution",
+        "approval",
+        "allowance_cleanup",
+        "signature_dependent_execution",
+        "other"
+      ]
+    },
+    "PlannedTransaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chain_id", "from", "to", "data", "value"],
+      "properties": {
+        "chain_id": {
+          "description": "MUST equal the plan's chain_id.",
+          "$ref": "#/$defs/Quantity"
+        },
+        "from": {
+          "description": "MUST equal the plan's sender.",
+          "$ref": "#/$defs/Address"
+        },
+        "to": { "$ref": "#/$defs/Address" },
+        "data": { "$ref": "#/$defs/ByteString" },
+        "value": {
+          "description": "Native token value moved by this call, in wei.",
+          "$ref": "#/$defs/Quantity"
+        },
+        "gas": {
+          "description": "Producer hint. Excluded from the plan digest, and a consumer MUST NOT broadcast it without its own estimation: the value is chosen by a party that does not pay for it.",
+          "$ref": "#/$defs/Quantity"
+        }
+      }
+    },
+    "RevertDecodePlan": {
+      "description": "ABI for rendering a custom revert from this step as its declared error rather than as opaque bytes. Display only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "abi"],
+      "properties": {
+        "kind": { "type": "string", "const": "error_result" },
+        "abi": {
+          "description": "A JSON ABI fragment declaring at least one error. Consumers bound what they accept; 128 entries and 65536 bytes is the limit in the reference implementation.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": { "type": "object" }
+        },
+        "required": {
+          "description": "Whether the producer considers a successful decode necessary to present this failure.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "SimulationFailurePolicy": {
+      "description": "Producer advice on what to do when simulation fails. Advice only: a consumer MAY ignore it and MUST NOT treat it as authorization to broadcast.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rpc_error", "execution_reverted", "simulation_setup_error"],
+      "properties": {
+        "rpc_error": { "$ref": "#/$defs/SimulationFailureDirective" },
+        "execution_reverted": {
+          "description": "MUST NOT specify retry_same_plan: calldata that reverted against current state reverts again.",
+          "$ref": "#/$defs/SimulationFailureDirective"
+        },
+        "simulation_setup_error": {
+          "description": "MUST NOT specify retry_same_plan.",
+          "$ref": "#/$defs/SimulationFailureDirective"
+        }
+      }
+    },
+    "SimulationFailureDirective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "instruction"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["retry_same_plan", "reprepare_plan", "user_review"]
+        },
+        "instruction": {
+          "description": "Human-readable explanation of the advice.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    }
+  }
+}
