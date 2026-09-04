@@ -1,0 +1,675 @@
+{
+  "description": "ERC-8281 conformance test vectors. Receipts and chain IDs are offline fixtures; a conforming verifier run against the fixture provider must produce the expected outcome for every vector.",
+  "envelope_version": "erc8281/1",
+  "constants": {
+    "topic0": "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+    "erc165_interface_id": "0xb5c645bd"
+  },
+  "allowed_hash_functions": [
+    "sha2-256",
+    "keccak-256",
+    "blake2b-256"
+  ],
+  "vectors": [
+    {
+      "id": "01",
+      "name": "correct verification, sha2-256",
+      "expect": "pass",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303031",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x9f7f3830e030fd0c326a1f4e231c65b97583f06f264dfae60d02a6f8b775445d",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x2ad1a7bbf87df18e6fc0c190aa6fa5639cdef2bdc94a3765f7c2e789ea877854",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x2ad1a7bbf87df18e6fc0c190aa6fa5639cdef2bdc94a3765f7c2e789ea877854",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x9f7f3830e030fd0c326a1f4e231c65b97583f06f264dfae60d02a6f8b775445d",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "02",
+      "name": "correct verification, keccak-256",
+      "expect": "pass",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303032",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x319edbc1c499a7eccdc8a1a4d5bc6f9bd64feba0fc22c19ffaec6742713cbd2e",
+        "hash_function": "keccak-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xfcf8b7a73f598162dab9d6008dff7cc15d0907372530bdb0b3eec43b1b437866",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xfcf8b7a73f598162dab9d6008dff7cc15d0907372530bdb0b3eec43b1b437866",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x319edbc1c499a7eccdc8a1a4d5bc6f9bd64feba0fc22c19ffaec6742713cbd2e",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "03",
+      "name": "correct verification, blake2b-256 (parameterized)",
+      "expect": "pass",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303033",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xf4e85d5d8c54378ff3f7869987bbb0608a7695fcff4e15d559c30ab0909ee23b",
+        "hash_function": "blake2b-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x75d3a3c3e17f801f6e036cb11fe6a41e80517d25a66f4d05ed4799f84cdf9eba",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x75d3a3c3e17f801f6e036cb11fe6a41e80517d25a66f4d05ed4799f84cdf9eba",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xf4e85d5d8c54378ff3f7869987bbb0608a7695fcff4e15d559c30ab0909ee23b",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "03b",
+      "name": "negative companion: truncated blake2b-512 digest does not verify under blake2b-256",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303033",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xbfa24fd3a0b7163dd8691fb59cf44a364061bb68cba0aec336bd33cd3e8c81ad",
+        "hash_function": "blake2b-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xfe2a4c33a22f9be5ea8d42a1a354279ac33c5183e43325ee7c772a4ef81098a7",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xfe2a4c33a22f9be5ea8d42a1a354279ac33c5183e43325ee7c772a4ef81098a7",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xbfa24fd3a0b7163dd8691fb59cf44a364061bb68cba0aec336bd33cd3e8c81ad",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "digest_mismatch",
+      "note": "On-chain digest equals truncated BLAKE2b-512(observation); recomputation under parameterized blake2b-256 yields a different value, so step 2 fails."
+    },
+    {
+      "id": "04",
+      "name": "digest mismatch (H_prime != digest)",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e2030303420414c5445524544",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x9f7f3830e030fd0c326a1f4e231c65b97583f06f264dfae60d02a6f8b775445d",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xff2b77c9590162c4b998a4ed91668743fed31f12a595a0978cc153ae907e90fe",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xff2b77c9590162c4b998a4ed91668743fed31f12a595a0978cc153ae907e90fe",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x9f7f3830e030fd0c326a1f4e231c65b97583f06f264dfae60d02a6f8b775445d",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "digest_mismatch"
+    },
+    {
+      "id": "05",
+      "name": "on-chain digest mismatch at receipt_log_position",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303035",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xc021e0fa73215698aece86002f68f7b314320e47d64e68f47823bd7076a4a1b9",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x0167b9198a17d0137a498184bfc0b72d72ca4c33a184e1c11b5dbb43e161d98c",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x0167b9198a17d0137a498184bfc0b72d72ca4c33a184e1c11b5dbb43e161d98c",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x77f20d73525e8a05424804238c75c4d1a90eadbe503fec8eaedf3e27b5abdfff",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "onchain_digest_mismatch"
+    },
+    {
+      "id": "06",
+      "name": "committer mismatch",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303036",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x5cacc3eecec345d5a641ae6af5e4844630845912ded61453fd1ca8166e54c6cb",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x4e2af6a7fa6a8fd50a915c88b2ee94b674014555f33313f60e60b367f6002e49",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0x0DDBA1100000000000000000000000000000D1f0"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x4e2af6a7fa6a8fd50a915c88b2ee94b674014555f33313f60e60b367f6002e49",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x5cacc3eecec345d5a641ae6af5e4844630845912ded61453fd1ca8166e54c6cb",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "committer_mismatch"
+    },
+    {
+      "id": "07",
+      "name": "block_number mismatch",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303037",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xd15cc51ff7e46ecce0997787124ddffbb53e99be539a55debcd5015d231301a5",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x994f6ffc4bbac7bd1927912c55c9bfd0b3603af4ee8a79ed77acfb2c7f2b416c",
+        "block_number": "352800999",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x994f6ffc4bbac7bd1927912c55c9bfd0b3603af4ee8a79ed77acfb2c7f2b416c",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xd15cc51ff7e46ecce0997787124ddffbb53e99be539a55debcd5015d231301a5",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "block_number_mismatch"
+    },
+    {
+      "id": "08",
+      "name": "unrecognized hash_function identifier",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303038",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xb0cf920daf29510b5e5e002961d154a026beb258ce0a4d626b6091c87707e4b0",
+        "hash_function": "md5",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x4e2922b6ea6e7c023931599d4fefc5c600b357708fa9b1ec489cb53e60e854a5",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x4e2922b6ea6e7c023931599d4fefc5c600b357708fa9b1ec489cb53e60e854a5",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xb0cf920daf29510b5e5e002961d154a026beb258ce0a4d626b6091c87707e4b0",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "hash_function_not_allowed"
+    },
+    {
+      "id": "09",
+      "name": "receipt status == 0 (reverted)",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303039",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x09edebb8439f14016760f4f2dfdb7730f95cf33003249670a6af1bac1eac239e",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xaa95834e2e8c9497cd8fdb9cff258737e2e30076489b03b782f334e87e190827",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xaa95834e2e8c9497cd8fdb9cff258737e2e30076489b03b782f334e87e190827",
+          "status": "0x0",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": []
+        }
+      },
+      "reject_reason": "receipt_reverted"
+    },
+    {
+      "id": "10",
+      "name": "receipt_log_position out of range",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303130",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xb79e133b4be5151f207e99c58ffd213d3f6d641c1bdb94df15b7af4d8aaf45cd",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x8c96b815df34f2a09b814e7a5abe954e7534eb30a7ae55595f665374ed308329",
+        "block_number": "352800417",
+        "receipt_log_position": "5",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x8c96b815df34f2a09b814e7a5abe954e7534eb30a7ae55595f665374ed308329",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xb79e133b4be5151f207e99c58ffd213d3f6d641c1bdb94df15b7af4d8aaf45cd",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "log_position_out_of_range"
+    },
+    {
+      "id": "11",
+      "name": "contract address mismatch at receipt_log_position",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303131",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x10bc65d20f991b9ab65477c5e64d7ae9aec86bc6db362187232b703ae2f13eb1",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xfbc9bd1514d9e58815488ce2488c2acda77ffed7b7b309d236df68059fd1bec2",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xfbc9bd1514d9e58815488ce2488c2acda77ffed7b7b309d236df68059fd1bec2",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0ddba1100000000000000000000000000000d1f0",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x10bc65d20f991b9ab65477c5e64d7ae9aec86bc6db362187232b703ae2f13eb1",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "contract_mismatch"
+    },
+    {
+      "id": "12",
+      "name": "block_hash mismatch (optional field present)",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303132",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x81fb2805155fac655fa94a07895f4b9c250652028ee9f2e3194c5aaf08f3e3e8",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x3f7c3207109159fcbff9236c86fbc7859eb41de374af5a19cd83ed69881188c2",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf",
+        "block_hash": "0xd10c75eb5f2306df7b22b09e4816ee161abf25ea327d241b5015c5843994ba8b"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x3f7c3207109159fcbff9236c86fbc7859eb41de374af5a19cd83ed69881188c2",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x81fb2805155fac655fa94a07895f4b9c250652028ee9f2e3194c5aaf08f3e3e8",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "block_hash_mismatch"
+    },
+    {
+      "id": "13",
+      "name": "address fails EIP-55 checksum validation",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303133",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xb77e0b59fabef38819e85ea3923831ad41f04087402d3f00c466a13c48ca0a54",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xd1df272f45d184dd6573dbb4d63073a951fc53c79a5a3b5c0467ce5fa95b23e5",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xC0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xd1df272f45d184dd6573dbb4d63073a951fc53c79a5a3b5c0467ce5fa95b23e5",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xb77e0b59fabef38819e85ea3923831ad41f04087402d3f00c466a13c48ca0a54",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "eip55_checksum_invalid"
+    },
+    {
+      "id": "14",
+      "name": "constant verification: topic-0 and ERC-165 interface ID",
+      "expect": "constants",
+      "constants": {
+        "topic0_signature": "Recorded(bytes32,address)",
+        "topic0": "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+        "interface_id_signature": "record(bytes32)",
+        "interface_id": "0xb5c645bd"
+      }
+    },
+    {
+      "id": "15",
+      "name": "distinction: JSON-RPC logIndex (block-scoped) differs from receipt array position",
+      "expect": "pass",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303135",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x7a95602acba58d2c85fe3b4a17f6ee48b1cb494a23b7c42d9af531f4bd29a219",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xc03658e7f26f67fd9de3f9fbe41a3c80c14f44f0d7a95f2f2e80dbe25c12d007",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0xc03658e7f26f67fd9de3f9fbe41a3c80c14f44f0d7a95f2f2e80dbe25c12d007",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0x7a95602acba58d2c85fe3b4a17f6ee48b1cb494a23b7c42d9af531f4bd29a219",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x7"
+            }
+          ]
+        }
+      },
+      "note": "logIndex 0x7 is block-scoped; conforming implementations select receipt.logs[0] by array position and pass."
+    },
+    {
+      "id": "16",
+      "name": "endpoint eth_chainId does not match envelope chain_id",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303136",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0xef6ff529328d73903ca646fdfadb02a92e65138de633c331e1ef335adb57d293",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0xaca90a2ce0632acfa13bdab003413343544293dd77a158759b8c523486844290",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xaa36a7",
+        "receipt": {
+          "transactionHash": "0xaca90a2ce0632acfa13bdab003413343544293dd77a158759b8c523486844290",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497",
+                "0xef6ff529328d73903ca646fdfadb02a92e65138de633c331e1ef335adb57d293",
+                "0x000000000000000000000000c0aa17de0000000000000000000000000000beef"
+              ],
+              "data": "0x",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "chain_id_mismatch"
+    },
+    {
+      "id": "17",
+      "name": "log with matching topics[0] but fewer than three topics",
+      "expect": "reject",
+      "observation_hex": "0x4552432d3832383120636f6e666f726d616e6365206f62736572766174696f6e20303137",
+      "envelope": {
+        "version": "erc8281/1",
+        "digest": "0x7c066a4dfd62cb3b210be5b02734ad3d1068b781a63c68c8e8a62c1d246e6511",
+        "hash_function": "sha2-256",
+        "chain_id": "42161",
+        "contract": "0x0C0117AC70000000000000000000000000000001",
+        "tx_hash": "0x94fd9cb2fa4e73c3219bca4f1cb6f3a1c31a8842641747e4b50ce33f13cf743e",
+        "block_number": "352800417",
+        "receipt_log_position": "0",
+        "committer": "0xc0Aa17dE0000000000000000000000000000beEf"
+      },
+      "fixtures": {
+        "eth_chainId": "0xa4b1",
+        "receipt": {
+          "transactionHash": "0x94fd9cb2fa4e73c3219bca4f1cb6f3a1c31a8842641747e4b50ce33f13cf743e",
+          "status": "0x1",
+          "blockNumber": "0x15074ea1",
+          "blockHash": "0x31147401e22d1747af6e1411cf8837a12f27a08d6397e363cd93230059557c3d",
+          "logs": [
+            {
+              "address": "0x0c0117ac70000000000000000000000000000001",
+              "topics": [
+                "0xdca60c2087041cbb12d9a57628c6cad28ecbd0437e47c7ab6c3aa6e162bf4497"
+              ],
+              "data": "0x7c066a4dfd62cb3b210be5b02734ad3d1068b781a63c68c8e8a62c1d246e6511",
+              "logIndex": "0x0"
+            }
+          ]
+        }
+      },
+      "reject_reason": "topic_count_invalid"
+    }
+  ]
+}
