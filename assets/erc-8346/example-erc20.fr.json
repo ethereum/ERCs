@@ -1,0 +1,9 @@
+{
+    "$schema": "./erc8346-v3.0.0-next.schema.json",
+    "$locale": "fr",
+    "translations": {
+        "erc20.transfer.intent":       "Envoyer",
+        "erc20.transfer.to_label":     "Destinataire",
+        "erc20.transfer.amount_label": "Montant"
+    }
+}
