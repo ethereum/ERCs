@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://eips.ethereum.org/assets/erc-8409/artifact-reference.schema.json",
+  "$id": "https://eips.ethereum.org/assets/erc-8410/artifact-reference.schema.json",
   "title": "Artifact reference",
-  "description": "An envelope naming a wallet-bound payload by location and keccak256 digest instead of carrying it. Structural constraints only; the conditional and procedural rules stated normatively in ERC-8409 MUST also be enforced, in particular that integrity and bytes are required for an https url, that a data: URI is never fetched over the network, that the retrieved length and digest are checked before parsing, and the whole of the https admission policy.",
+  "description": "An envelope naming a wallet-bound payload by location and keccak256 digest instead of carrying it. Structural constraints only; the conditional and procedural rules stated normatively in ERC-8410 MUST also be enforced, in particular that integrity and bytes are required for an https url, that a data: URI is never fetched over the network, that the retrieved length and digest are checked before parsing, and the whole of the https admission policy.",
   "type": "object",
   "required": ["kind", "artifact_type", "url"],
   "properties": {
