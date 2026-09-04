@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8411/policy.schema.json",
+  "title": "Wallet signing policy",
+  "description": "An ordered, stateless predicate over each planned call, the exact prepared transaction envelope, and the channel that delivered the request. The first matching rule decides each call: allow signs with no human interaction, review requires explicit approval, deny rejects without queuing, and matching no rule also requires review. Every call is evaluated before the transaction takes the least-permissive result under deny < review < allow. Omitted matchers match anything and present matchers are ANDed. Structural constraints only; the evaluation, installation, and tightening rules stated normatively in ERC-8411 MUST also be enforced.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "rules"],
+  "properties": {
+    "$schema": { "type": ["string", "null"] },
+    "version": {
+      "description": "Revision of this format. A wallet encountering a later revision rejects it rather than enforcing a document it partly understands.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1
+    },
+    "rules": {
+      "description": "Evaluated in order. Order is authority: an exception goes above the general rule it excepts. A rule provably shadowed by an earlier one SHOULD be rejected at installation.",
+      "type": "array",
+      "maxItems": 256,
+      "items": { "$ref": "#/$defs/Rule" }
+    }
+  },
+  "$defs": {
+    "Rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect"],
+      "properties": {
+        "effect": { "$ref": "#/$defs/Effect" },
+        "label": {
+          "description": "Human-readable note. Never an authorization input.",
+          "type": ["string", "null"]
+        },
+
+        "chain_id": { "$ref": "#/$defs/MaybePredicate" },
+        "to": { "$ref": "#/$defs/MaybePredicate" },
+        "native_value": { "$ref": "#/$defs/MaybePredicate" },
+        "calldata": { "$ref": "#/$defs/MaybePredicate" },
+
+        "transaction_type": { "$ref": "#/$defs/MaybePredicate" },
+        "nonce": { "$ref": "#/$defs/MaybePredicate" },
+        "gas_limit": { "$ref": "#/$defs/MaybePredicate" },
+        "max_fee_per_gas": { "$ref": "#/$defs/MaybePredicate" },
+        "max_priority_fee_per_gas": { "$ref": "#/$defs/MaybePredicate" },
+        "delegation": { "$ref": "#/$defs/MaybePredicate" },
+        "envelope_to": { "$ref": "#/$defs/MaybePredicate" },
+        "envelope_native_value": { "$ref": "#/$defs/MaybePredicate" },
+
+        "source": {
+          "anyOf": [{ "$ref": "#/$defs/SourceMatcher" }, { "type": "null" }]
+        }
+      }
+    },
+
+    "Effect": {
+      "description": "allow signs with no human interaction; review signs only after explicit human approval; deny rejects without offering an approval prompt at all.",
+      "type": "string",
+      "enum": ["allow", "review", "deny"]
+    },
+
+    "MaybePredicate": {
+      "anyOf": [{ "$ref": "#/$defs/Predicate" }, { "type": "null" }]
+    },
+
+    "Predicate": {
+      "description": "All scalar values are JSON strings: integers as canonical unsigned decimal, addresses 0x-prefixed and compared case-insensitively. The single variable $self may appear where an address literal is expected.",
+      "oneOf": [
+        { "type": "string", "const": "any_value" },
+        { "$ref": "#/$defs/Eq" },
+        { "$ref": "#/$defs/In" },
+        { "$ref": "#/$defs/Lt" },
+        { "$ref": "#/$defs/Lte" },
+        { "$ref": "#/$defs/Gt" },
+        { "$ref": "#/$defs/Gte" },
+        { "$ref": "#/$defs/Selector" },
+        { "$ref": "#/$defs/Each" },
+        { "$ref": "#/$defs/Tuple" },
+        { "$ref": "#/$defs/Any" },
+        { "$ref": "#/$defs/All" },
+        { "$ref": "#/$defs/Not" },
+        { "$ref": "#/$defs/Length" }
+      ]
+    },
+
+    "Eq": { "type": "object", "additionalProperties": false, "required": ["eq"], "properties": { "eq": { "type": "string" } } },
+    "In": { "type": "object", "additionalProperties": false, "required": ["in"], "properties": { "in": { "type": "array", "uniqueItems": true, "items": { "type": "string" } } } },
+    "Lt": { "type": "object", "additionalProperties": false, "required": ["lt"], "properties": { "lt": { "type": "string" } } },
+    "Lte": { "type": "object", "additionalProperties": false, "required": ["lte"], "properties": { "lte": { "type": "string" } } },
+    "Gt": { "type": "object", "additionalProperties": false, "required": ["gt"], "properties": { "gt": { "type": "string" } } },
+    "Gte": { "type": "object", "additionalProperties": false, "required": ["gte"], "properties": { "gte": { "type": "string" } } },
+
+    "Selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector"],
+      "properties": { "selector": { "$ref": "#/$defs/SelectorPredicate" } }
+    },
+    "SelectorPredicate": {
+      "description": "Matches when the call's selector matches the signature and every named argument's predicate matches.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["abi"],
+      "properties": {
+        "abi": {
+          "description": "A full canonical ABI function signature naming every top-level parameter, for example \"approve(address spender, uint256 amount)\".",
+          "type": "string"
+        },
+        "args": {
+          "description": "Keyed by the parameter names given in abi.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/Predicate" }
+        }
+      }
+    },
+
+    "Each": { "type": "object", "additionalProperties": false, "required": ["each"], "properties": { "each": { "$ref": "#/$defs/Predicate" } } },
+    "Tuple": {
+      "description": "Positional, because Solidity selector types do not preserve tuple component names. Arity MUST equal the ABI tuple's; null leaves a position unconstrained.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tuple"],
+      "properties": {
+        "tuple": { "type": "array", "items": { "$ref": "#/$defs/MaybePredicate" } }
+      }
+    },
+    "Any": { "type": "object", "additionalProperties": false, "required": ["any"], "properties": { "any": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Predicate" } } } },
+    "All": { "type": "object", "additionalProperties": false, "required": ["all"], "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/Predicate" } } } },
+    "Not": { "type": "object", "additionalProperties": false, "required": ["not"], "properties": { "not": { "$ref": "#/$defs/Predicate" } } },
+    "Length": { "type": "object", "additionalProperties": false, "required": ["length"], "properties": { "length": { "$ref": "#/$defs/NumberPredicate" } } },
+
+    "SourceMatcher": {
+      "description": "Which channel delivered the request, and what that channel is required to have known about who asked. Tagged by channel so the channel and its own fields cannot come apart. Naming a field requires the request to carry it, so this matcher never matches a request whose origin the wallet does not know, and adding one to a rule can only shrink what it matches.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["walletconnect"],
+          "properties": {
+            "walletconnect": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "domain": {
+                  "description": "Host of the URL the dapp gives for itself, lowercased, without scheme or port. CLAIMED by the dapp in its session proposal and attested by nothing: a site served from anywhere may name any domain. Separates connected dapps from one another; proves nothing about who is on the other end.",
+                  "anyOf": [{ "$ref": "#/$defs/StringPredicate" }, { "type": "null" }]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["agent"],
+          "properties": {
+            "agent": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "client": {
+                  "description": "The agent harness identifier. CLAIMED by whatever local process connected and attested by nothing; any local process may present any value. Useful for keeping one agent's rules off another agent's requests, not as a barrier against a hostile one.",
+                  "anyOf": [{ "$ref": "#/$defs/StringPredicate" }, { "type": "null" }]
+                },
+                "plan_host": {
+                  "description": "Host that served the request's bytes, PROVED by transport authentication. A payload supplied inline has no host, so constraining this at all is also how a rule refuses an inline payload.",
+                  "anyOf": [{ "$ref": "#/$defs/StringPredicate" }, { "type": "null" }]
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["automation"],
+          "properties": {
+            "automation": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "description": "The installed scheduled job's identifier. PROVED: nothing outside the wallet chooses it.",
+                  "anyOf": [{ "$ref": "#/$defs/StringPredicate" }, { "type": "null" }]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "StringPredicate": {
+      "description": "The predicate language restricted to the forms a string-typed slot can answer. A wallet rejects the others where they are written rather than treating them as a silent non-match.",
+      "oneOf": [
+        { "type": "string", "const": "any_value" },
+        { "$ref": "#/$defs/Eq" },
+        { "$ref": "#/$defs/In" },
+        { "type": "object", "additionalProperties": false, "required": ["any"], "properties": { "any": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/StringPredicate" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["all"], "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/StringPredicate" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["not"], "properties": { "not": { "$ref": "#/$defs/StringPredicate" } } },
+        { "type": "object", "additionalProperties": false, "required": ["length"], "properties": { "length": { "$ref": "#/$defs/NumberPredicate" } } }
+      ]
+    },
+
+    "NumberPredicate": {
+      "description": "The predicate language restricted to the forms an unsigned-integer slot can answer. length is absent: its subject is an array, bytes, or a string, never a number.",
+      "oneOf": [
+        { "type": "string", "const": "any_value" },
+        { "$ref": "#/$defs/Eq" },
+        { "$ref": "#/$defs/In" },
+        { "$ref": "#/$defs/Lt" },
+        { "$ref": "#/$defs/Lte" },
+        { "$ref": "#/$defs/Gt" },
+        { "$ref": "#/$defs/Gte" },
+        { "type": "object", "additionalProperties": false, "required": ["any"], "properties": { "any": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/NumberPredicate" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["all"], "properties": { "all": { "type": "array", "items": { "$ref": "#/$defs/NumberPredicate" } } } },
+        { "type": "object", "additionalProperties": false, "required": ["not"], "properties": { "not": { "$ref": "#/$defs/NumberPredicate" } } }
+      ]
+    }
+  }
+}
