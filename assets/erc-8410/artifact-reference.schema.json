@@ -12,9 +12,9 @@
       "const": "artifact_reference"
     },
     "artifact_type": {
-      "description": "What sort of document the referenced bytes are. A consumer rejects a type it does not implement, and rejects a reference whose type differs from the one expected at the point of use. Open for extension by later proposals.",
+      "description": "Exactly one of the two document types defined by this revision. A consumer rejects a type it does not implement, and rejects a reference whose type differs from the one expected at the point of use.",
       "type": "string",
-      "examples": ["execution_plan", "read_calls", "token_list"]
+      "enum": ["execution_plan", "typed_data_signature_request"]
     },
     "url": {
       "description": "Where the bytes are. A public https URL on the default port, a bounded data:application/json URI carrying them inline, or a file URI with an empty host or localhost naming an absolute path on the consumer's own filesystem.",
