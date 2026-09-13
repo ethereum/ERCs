@@ -1,0 +1,5 @@
+.gitmodules
+foundry.lock
+out/
+cache/
+lib/

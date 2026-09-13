@@ -1,0 +1,16 @@
+# A valid witness (allowlist of one entry: target 0x1234 at index 0, path of zeros).
+# Public inputs mirror the Verdict; private inputs are the action preimage + membership proof.
+agent_id = "7"
+domain_id = "42"
+policy_root = "0x053d4542d140ad2350a0ee79fae4a522821274e428bd881e7e803ecd816635ac"
+action_commitment = [124, 203, 122, 78, 157, 81, 18, 139, 149, 28, 190, 221, 239, 174, 193, 20, 1, 128, 163, 209, 63, 110, 174, 111, 6, 89, 109, 196, 50, 5, 124, 250]
+nullifier = "0x041271fcaf479f6ab927df3a03f74d3809e9f49d880cd7a9595c8dc0a58a5e03"
+decision = "1"
+executor = "0xE0"
+chain_id = "1"
+target = "0x1234"
+value = "0"
+call_data_hash = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+action_nonce = "3"
+index = "0"
+path = ["0", "0", "0", "0", "0", "0", "0", "0"]

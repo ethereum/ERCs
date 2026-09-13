@@ -1,0 +1,21 @@
+{
+  "name": "@masdxi/erc8047",
+  "private": false,
+  "version": "1.0.0-rc1",
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "author": "sirawt",
+  "files": [
+    "abstracts/**/*",
+    "interfaces/**/*",
+    "libraries/**/*",
+    "policies/**/*",
+    "!mocks/**/*"
+  ],
+  "repository": "https://github.com/MASDXI/Forest.git",
+  "scripts": {},
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  },
+  "devDependencies": {}
+}

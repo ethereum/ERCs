@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="560" viewBox="0 0 1280 560" role="img" aria-labelledby="title description">
+  <title id="title">Claim lifecycle state transitions</title>
+  <desc id="description">A proposed claim can be validated, activated, suspended, revoked, or become expired when its validity period ends.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#344054"/>
+    </marker>
+    <marker id="arrow-expired" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9a6700"/>
+    </marker>
+    <marker id="arrow-revoked" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8e3b46"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="560" fill="#ffffff"/>
+  <text x="640" y="28" text-anchor="middle" fill="#101828" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">Claim lifecycle</text>
+
+  <circle cx="35" cy="150" r="12" fill="#344054"/>
+
+  <g fill="none" stroke="#344054" stroke-width="2.5" marker-end="url(#arrow)">
+    <path d="M 47 150 H 145"/>
+    <path d="M 335 150 H 420"/>
+    <path d="M 610 150 H 695"/>
+    <path d="M 695 175 C 655 265, 555 265, 515 185"/>
+  </g>
+
+  <g fill="none" stroke="#9a6700" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrow-expired)">
+    <path d="M 515 115 C 515 48, 1155 48, 1155 115"/>
+    <path d="M 885 150 H 1060"/>
+  </g>
+
+  <g fill="none" stroke="#8e3b46" stroke-width="2.5" marker-end="url(#arrow-revoked)">
+    <path d="M 240 185 C 240 315, 445 355, 575 430"/>
+    <path d="M 495 185 C 485 320, 555 365, 615 430"/>
+    <path d="M 810 185 C 820 315, 735 365, 665 430"/>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#344054">
+    <rect x="45" y="122" width="102" height="22" rx="4" fill="#ffffff"/>
+    <rect x="333" y="122" width="90" height="22" rx="4" fill="#ffffff"/>
+    <rect x="607" y="122" width="90" height="22" rx="4" fill="#ffffff"/>
+    <text x="96" y="139" text-anchor="middle">proposeClaim</text>
+    <text x="378" y="139" text-anchor="middle">validateClaim</text>
+    <text x="652" y="139" text-anchor="middle">activateClaim</text>
+    <text x="607" y="262" text-anchor="middle">suspendClaim</text>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#9a6700">
+    <rect x="901" y="122" width="144" height="22" rx="4" fill="#ffffff"/>
+    <text x="835" y="96" text-anchor="middle">validUntil reached</text>
+    <text x="973" y="139" text-anchor="middle">validUntil reached</text>
+  </g>
+
+  <g font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#8e3b46">
+    <text x="245" y="285" text-anchor="middle">revokeClaim</text>
+    <text x="600" y="335" text-anchor="middle">revokeClaim</text>
+    <text x="848" y="285" text-anchor="middle">revokeClaim</text>
+  </g>
+
+  <g stroke-width="2">
+    <g fill="#eff8ff" stroke="#175cd3">
+      <rect x="145" y="115" width="190" height="70" rx="35"/>
+      <rect x="420" y="115" width="190" height="70" rx="35"/>
+      <rect x="695" y="115" width="190" height="70" rx="35"/>
+    </g>
+    <rect x="1060" y="115" width="190" height="70" rx="35" fill="#fffaeb" stroke="#b54708"/>
+    <rect x="540" y="430" width="200" height="70" rx="35" fill="#fef3f2" stroke="#b42318"/>
+  </g>
+
+  <g fill="#101828" font-family="Consolas, Monaco, monospace" font-size="17" font-weight="700" text-anchor="middle">
+    <text x="240" y="156">PROPOSED</text>
+    <text x="515" y="156">VALID</text>
+    <text x="790" y="156">ACTIVE</text>
+    <text x="1155" y="156">EXPIRED</text>
+    <text x="640" y="471">REVOKED</text>
+  </g>
+
+  <text x="1155" y="214" text-anchor="middle" fill="#9a6700" font-family="Arial, Helvetica, sans-serif" font-size="13">time-derived</text>
+</svg>
