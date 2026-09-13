@@ -29,6 +29,14 @@ contract ECDSAFrameValidator is IFrameValidator {
         address owner = ownerOf[msg.sender];
         if (owner == address(0) || data.length != 65) return APPROVE_NONE; // data: r(32) || s(32) || v(1)
 
+        // Confirm the caller really is the account this transaction is being validated for;
+        // the frame context itself is read via introspection (see _allowedScope).
+        uint256 sender;
+        assembly {
+            sender := verbatim_1i_1o(hex"b0", 0x02) // TXPARAM sender
+        }
+        if (address(uint160(sender)) != msg.sender) return APPROVE_NONE;
+
         bytes32 r = bytes32(data[0:32]);
         bytes32 s = bytes32(data[32:64]);
         uint8 v = uint8(data[64]);
