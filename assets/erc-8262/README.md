@@ -32,7 +32,7 @@ circuits/
 
 ### Where public-input validation lives
 
-The split matters when reading the [Public Input Validation](../../ERCS/erc-8262.md#public-input-validation)
+The split matters when reading the [Public Input Validation](../../EIPS/eip-8262.md#public-input-validation)
 section of the standard:
 
 - `ProofTypes.validatePublicInputs` checks **shape only** -- 32-byte alignment
