@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://eips.ethereum.org/assets/erc-8410/artifact-reference.schema.json",
   "title": "Artifact reference",
-  "description": "An envelope naming a wallet-bound payload by location and keccak256 digest instead of carrying it. Structural constraints only; the conditional and procedural rules stated normatively in ERC-8410 MUST also be enforced, in particular that integrity and bytes are required for an https url, that a data: URI is never fetched over the network, that the retrieved length and digest are checked before parsing, and the whole of the https admission policy.",
+  "description": "An envelope naming a wallet-bound payload by location and keccak256 digest instead of carrying it. Structural constraints only; the conditional and procedural rules stated normatively in ERC-8410 MUST also be enforced, in particular that integrity and bytes are required for an https or file url, that a data: URI is never fetched over the network, that the retrieved length and digest are checked before parsing, and the whole of the https and file admission policies.",
   "type": "object",
   "required": ["kind", "artifact_type", "url"],
   "properties": {
@@ -17,16 +17,17 @@
       "examples": ["execution_plan", "read_calls", "token_list"]
     },
     "url": {
-      "description": "Where the bytes are. Either a public https URL on the default port, or a bounded data:application/json URI carrying them inline.",
+      "description": "Where the bytes are. A public https URL on the default port, a bounded data:application/json URI carrying them inline, or a file URI with an empty host or localhost naming an absolute path on the consumer's own filesystem.",
       "type": "string",
       "anyOf": [
         { "pattern": "^https://" },
-        { "pattern": "^data:application/json[;,]" }
+        { "pattern": "^data:application/json[;,]" },
+        { "pattern": "^file://(localhost)?/" }
       ]
     },
     "integrity": { "$ref": "#/$defs/ArtifactIntegrity" },
     "bytes": {
-      "description": "Exact byte length of the stored body. Lets a consumer refuse an oversized body before opening a connection, and stop reading the moment a response exceeds what was promised. Required alongside integrity for an https url.",
+      "description": "Exact byte length of the stored body. Lets a consumer refuse an oversized body before opening a connection or reading a file, and stop reading the moment a response exceeds what was promised. Required alongside integrity for an https or file url.",
       "type": "integer",
       "minimum": 0
     },
