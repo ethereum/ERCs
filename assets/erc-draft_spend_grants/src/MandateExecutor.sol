@@ -1,34 +1,34 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {IMandateRegistry, Mandate, MandateError, Reason} from "./MandateTypes.sol";
+import {ISpendGrantRegistry, SpendGrant, MandateError, Reason} from "./MandateTypes.sol";
 
 contract MandateExecutor {
     error NotDelegate();
     error UnexpectedMsgValue();
     error TransferFailed();
 
-    IMandateRegistry public immutable registry;
+    ISpendGrantRegistry public immutable registry;
 
-    constructor(IMandateRegistry registry_) {
+    constructor(ISpendGrantRegistry registry_) {
         registry = registry_;
         if (registry_.executor() != address(this)) revert MandateError(Reason.UNAUTHORIZED_EXECUTOR);
     }
 
     function spend(
-        Mandate calldata mandate,
-        bytes calldata mandateSignature,
+        SpendGrant calldata grant,
+        bytes calldata grantSignature,
         address asset,
         uint256 amount,
         address recipient
     ) external payable {
-        if (msg.sender != mandate.delegate) revert NotDelegate();
+        if (msg.sender != grant.delegate) revert NotDelegate();
 
-        address to = mandate.recipientMode == 0 ? mandate.recipient : recipient;
+        address to = grant.recipientMode == 0 ? grant.recipient : recipient;
 
         // Record the debit first so a recipient callback cannot double-spend; movement
         // still shares the transaction and reverts with consume if either step fails.
-        registry.consume(mandate, mandateSignature, asset, amount, to);
+        registry.consume(grant, grantSignature, asset, amount, to);
 
         if (asset == address(0)) {
             // Reference limitation: native value is supplied by the delegate
@@ -39,7 +39,7 @@ contract MandateExecutor {
             if (!ok) revert TransferFailed();
         } else {
             if (msg.value != 0) revert UnexpectedMsgValue();
-            _safeTransferFrom(asset, mandate.principal, to, amount);
+            _safeTransferFrom(asset, grant.principal, to, amount);
         }
     }
 

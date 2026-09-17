@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {
     AssetLimit,
     IERC1271,
-    IMandateRegistry,
-    Mandate,
+    ISpendGrantRegistry,
+    SpendGrant,
     MandateError,
     MAX_ASSETS,
     MAX_LIVE_DEBITS,
@@ -14,7 +14,7 @@ import {
 } from "./MandateTypes.sol";
 import {MandateHash} from "./MandateHash.sol";
 
-contract MandateRegistry is IMandateRegistry {
+contract MandateRegistry is ISpendGrantRegistry {
     struct Debit {
         uint64 time;
         uint256 amount;
@@ -43,7 +43,7 @@ contract MandateRegistry is IMandateRegistry {
     function revoke(bytes32 mandateHash) external {
         if (revoked[msg.sender][mandateHash]) return;
         revoked[msg.sender][mandateHash] = true;
-        emit MandateRevoked(msg.sender, mandateHash);
+        emit GrantRevoked(msg.sender, mandateHash);
     }
 
     function usage(bytes32 mandateHash, address asset) external view returns (uint256 spent, uint256 calls) {
@@ -61,34 +61,34 @@ contract MandateRegistry is IMandateRegistry {
     }
 
     function consume(
-        Mandate calldata mandate,
-        bytes calldata mandateSignature,
+        SpendGrant calldata grant,
+        bytes calldata grantSignature,
         address asset,
         uint256 amount,
         address recipient
     ) external {
         if (msg.sender != executor) revert MandateError(Reason.UNAUTHORIZED_EXECUTOR);
 
-        _assertStructure(mandate);
+        _assertStructure(grant);
 
-        bytes32 mandateHash = MandateHash.digest(block.chainid, address(this), mandate);
-        if (!_validSignature(mandate.principal, mandateHash, mandateSignature)) {
+        bytes32 mandateHash = MandateHash.digest(block.chainid, address(this), grant);
+        if (!_validSignature(grant.principal, mandateHash, grantSignature)) {
             revert MandateError(Reason.BAD_SIGNATURE);
         }
 
-        if (block.timestamp < mandate.validAfter) revert MandateError(Reason.NOT_YET_VALID);
-        if (block.timestamp >= mandate.validUntil) revert MandateError(Reason.EXPIRED);
-        if (revoked[mandate.principal][mandateHash]) revert MandateError(Reason.REVOKED);
+        if (block.timestamp < grant.validAfter) revert MandateError(Reason.NOT_YET_VALID);
+        if (block.timestamp >= grant.validUntil) revert MandateError(Reason.EXPIRED);
+        if (revoked[grant.principal][mandateHash]) revert MandateError(Reason.REVOKED);
 
-        if (mandate.recipientMode == 0) {
-            if (recipient != mandate.recipient) revert MandateError(Reason.WRONG_RECIPIENT);
+        if (grant.recipientMode == 0) {
+            if (recipient != grant.recipient) revert MandateError(Reason.WRONG_RECIPIENT);
         }
 
-        AssetLimit calldata limit = _asset(mandate, asset);
+        AssetLimit calldata limit = _asset(grant, asset);
 
         if (amount == 0 || amount > limit.maxPerCall) revert MandateError(Reason.OVER_TX_CAP);
 
-        uint64 windowSeconds = mandate.windowSeconds;
+        uint64 windowSeconds = grant.windowSeconds;
         if (_windowSeconds[mandateHash] == 0) _windowSeconds[mandateHash] = windowSeconds;
 
         AssetUsage storage u = _usage[mandateHash][asset];
@@ -96,7 +96,7 @@ contract MandateRegistry is IMandateRegistry {
         if (u.window.length >= MAX_LIVE_DEBITS) revert MandateError(Reason.WINDOW_FULL);
 
         uint256 windowPieWad;
-        if (mandate.assetCombine == 0) {
+        if (grant.assetCombine == 0) {
             (uint256 rollingSpent,) = _rolling(u, windowSeconds);
             if (rollingSpent >= limit.maxPerWindow || amount > limit.maxPerWindow - rollingSpent) {
                 revert MandateError(Reason.OVER_WINDOW_CAP);
@@ -121,10 +121,10 @@ contract MandateRegistry is IMandateRegistry {
         u.spent += amount;
         u.calls += 1;
 
-        emit MandateConsumed(mandateHash, asset, amount, recipient);
+        emit GrantConsumed(mandateHash, asset, amount, recipient);
     }
 
-    function _assertStructure(Mandate calldata m) internal view {
+    function _assertStructure(SpendGrant calldata m) internal view {
         if (m.principal == address(0) || m.delegate == address(0) || m.delegate == m.principal) {
             revert MandateError(Reason.INVALID_MANDATE);
         }
@@ -153,7 +153,7 @@ contract MandateRegistry is IMandateRegistry {
         }
     }
 
-    function _asset(Mandate calldata m, address asset) internal pure returns (AssetLimit calldata limit) {
+    function _asset(SpendGrant calldata m, address asset) internal pure returns (AssetLimit calldata limit) {
         uint256 n = m.assets.length;
         for (uint256 i = 0; i < n; i++) {
             if (m.assets[i].asset == asset) return m.assets[i];
