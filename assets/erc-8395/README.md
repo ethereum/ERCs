@@ -4,6 +4,9 @@ These assets accompany [ERC-8395](../../ERCS/erc-8395.md). The Solidity helper
 implements grant-proof verification. The clear-signing descriptor and display
 fixtures are informative.
 
+- [Test vectors and expected results](test-vectors.md)
+- [Verifier pseudocode](verifier-pseudocode.md)
+
 ## Grant-proof helper
 
 [DelegationVerifier.sol](DelegationVerifier.sol) verifies individual grant
