@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, Mandate} from "../src/MandateTypes.sol";
+import {AssetLimit, SpendGrant} from "../src/MandateTypes.sol";
 import {MandateHash} from "../src/MandateHash.sol";
 import {HashHarness} from "./HashHarness.sol";
 
@@ -15,9 +15,9 @@ contract MandateHashTest is Test {
 
     function test_encodeType_matchesSpec() public pure {
         bytes32 expected = keccak256(
-            "Mandate(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"
+            "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"
         );
-        Mandate memory m;
+        SpendGrant memory m;
         m.assets = new AssetLimit[](1);
         m.assets[0] = AssetLimit(address(0), 1, 1, 1);
         // Touch library via hashStruct so the typehash is the one compiled in.
@@ -67,7 +67,7 @@ contract MandateHashTest is Test {
     }
 
     function test_goldenVectors() public {
-        string memory json = vm.readFile("assets/erc-draft_spend_mandate/vectors/v1.json");
+        string memory json = vm.readFile("assets/erc-draft_spend_grants/vectors/v1.json");
         for (uint256 i = 0; i < 4; i++) {
             string memory p = string.concat(".vectors[", vm.toString(i), "]");
             uint256 chainId = vm.parseJsonUint(json, string.concat(p, ".chainId"));
@@ -75,11 +75,11 @@ contract MandateHashTest is Test {
             bytes32 domain = vm.parseJsonBytes32(json, string.concat(p, ".domainSeparator"));
             bytes32 structHash = vm.parseJsonBytes32(json, string.concat(p, ".structHash"));
             bytes32 digest_ = vm.parseJsonBytes32(json, string.concat(p, ".digest"));
-            bytes32 renderingHash = vm.parseJsonBytes32(json, string.concat(p, ".mandate.renderingHash"));
+            bytes32 renderingHash = vm.parseJsonBytes32(json, string.concat(p, ".grant.renderingHash"));
             string memory rendering = vm.parseJsonString(json, string.concat(p, ".rendering"));
 
             uint256 nAssets = (i == 0 || i == 3) ? 1 : 2;
-            Mandate memory m = _mandateFromJson(json, p, nAssets);
+            SpendGrant memory m = _mandateFromJson(json, p, nAssets);
             assertEq(keccak256(bytes(rendering)), renderingHash);
             assertEq(m.renderingHash, renderingHash);
 
@@ -108,7 +108,7 @@ contract MandateHashTest is Test {
     }
 
     function test_digest_dependsOnChainAndRegistry() public {
-        Mandate memory m;
+        SpendGrant memory m;
         m.principal = address(0x1);
         m.delegate = address(0x2);
         m.recipientMode = 1;
@@ -127,21 +127,21 @@ contract MandateHashTest is Test {
     function _mandateFromJson(string memory json, string memory p, uint256 nAssets)
         internal
         view
-        returns (Mandate memory m)
+        returns (SpendGrant memory m)
     {
-        m.principal = vm.parseJsonAddress(json, string.concat(p, ".mandate.principal"));
-        m.delegate = vm.parseJsonAddress(json, string.concat(p, ".mandate.delegate"));
-        m.recipientMode = uint8(vm.parseJsonUint(json, string.concat(p, ".mandate.recipientMode")));
-        m.recipient = vm.parseJsonAddress(json, string.concat(p, ".mandate.recipient"));
-        m.assetCombine = uint8(vm.parseJsonUint(json, string.concat(p, ".mandate.assetCombine")));
-        m.windowSeconds = uint64(vm.parseJsonUint(json, string.concat(p, ".mandate.windowSeconds")));
-        m.validAfter = uint64(vm.parseJsonUint(json, string.concat(p, ".mandate.validAfter")));
-        m.validUntil = uint64(vm.parseJsonUint(json, string.concat(p, ".mandate.validUntil")));
-        m.salt = vm.parseJsonUint(json, string.concat(p, ".mandate.salt"));
-        m.renderingHash = vm.parseJsonBytes32(json, string.concat(p, ".mandate.renderingHash"));
+        m.principal = vm.parseJsonAddress(json, string.concat(p, ".grant.principal"));
+        m.delegate = vm.parseJsonAddress(json, string.concat(p, ".grant.delegate"));
+        m.recipientMode = uint8(vm.parseJsonUint(json, string.concat(p, ".grant.recipientMode")));
+        m.recipient = vm.parseJsonAddress(json, string.concat(p, ".grant.recipient"));
+        m.assetCombine = uint8(vm.parseJsonUint(json, string.concat(p, ".grant.assetCombine")));
+        m.windowSeconds = uint64(vm.parseJsonUint(json, string.concat(p, ".grant.windowSeconds")));
+        m.validAfter = uint64(vm.parseJsonUint(json, string.concat(p, ".grant.validAfter")));
+        m.validUntil = uint64(vm.parseJsonUint(json, string.concat(p, ".grant.validUntil")));
+        m.salt = vm.parseJsonUint(json, string.concat(p, ".grant.salt"));
+        m.renderingHash = vm.parseJsonBytes32(json, string.concat(p, ".grant.renderingHash"));
         m.assets = new AssetLimit[](nAssets);
         for (uint256 i = 0; i < nAssets; i++) {
-            string memory a = string.concat(p, ".mandate.assets[", vm.toString(i), "]");
+            string memory a = string.concat(p, ".grant.assets[", vm.toString(i), "]");
             m.assets[i] = AssetLimit({
                 asset: vm.parseJsonAddress(json, string.concat(a, ".asset")),
                 maxPerCall: vm.parseJsonUint(json, string.concat(a, ".maxPerCall")),

@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, Mandate, WAD} from "../src/MandateTypes.sol";
+import {AssetLimit, SpendGrant, WAD} from "../src/MandateTypes.sol";
 import {MandateHash} from "../src/MandateHash.sol";
 import {MandateRegistry} from "../src/MandateRegistry.sol";
 import {MockERC20} from "./MockERC20.sol";
@@ -17,8 +17,8 @@ contract MandateHandler is Test {
     address public delegate;
     address public recipient;
 
-    Mandate public andMandate;
-    Mandate public orMandate;
+    SpendGrant public andMandate;
+    SpendGrant public orMandate;
     bytes public andSig;
     bytes public orSig;
     bytes32 public andHash;
@@ -60,7 +60,7 @@ contract MandateHandler is Test {
     }
 
     function _consume(
-        Mandate memory m,
+        SpendGrant memory m,
         bytes memory sig,
         bytes32 h,
         bool pie,
@@ -98,7 +98,7 @@ contract MandateHandler is Test {
         registry.consume(m, sig, lim.asset, amount, m.recipient);
     }
 
-    function _build(uint8 combine, uint256 salt) internal view returns (Mandate memory m) {
+    function _build(uint8 combine, uint256 salt) internal view returns (SpendGrant memory m) {
         m.principal = principal;
         m.delegate = delegate;
         m.recipientMode = 0;
@@ -114,7 +114,7 @@ contract MandateHandler is Test {
         m.assets[1] = AssetLimit(address(token), 1e18, 10e18, 100e18);
     }
 
-    function _sign(Mandate memory m) internal view returns (bytes memory) {
+    function _sign(SpendGrant memory m) internal view returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(PRINCIPAL_PK, MandateHash.digest(block.chainid, address(registry), m));
         return abi.encodePacked(r, s, v);
