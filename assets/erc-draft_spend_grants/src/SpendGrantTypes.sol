@@ -25,7 +25,7 @@ struct SpendGrant {
 /// @dev Align names with ERC-8226 where they match. Extra codes are this ERC's.
 enum Reason {
     OK,
-    INVALID_MANDATE,
+    INVALID_GRANT,
     BAD_SIGNATURE,
     NOT_YET_VALID,
     EXPIRED,
@@ -39,10 +39,10 @@ enum Reason {
     UNAUTHORIZED_EXECUTOR
 }
 
-error MandateError(Reason reason);
+error SpendGrantError(Reason reason);
 
 bytes32 constant REASON_OK = "OK";
-bytes32 constant REASON_INVALID_MANDATE = "INVALID_MANDATE";
+bytes32 constant REASON_INVALID_GRANT = "INVALID_GRANT";
 bytes32 constant REASON_BAD_SIGNATURE = "BAD_SIGNATURE";
 bytes32 constant REASON_NOT_YET_VALID = "NOT_YET_VALID";
 bytes32 constant REASON_EXPIRED = "EXPIRED";

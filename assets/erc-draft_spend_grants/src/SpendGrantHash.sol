@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {AssetLimit, SpendGrant} from "./MandateTypes.sol";
+import {AssetLimit, SpendGrant} from "./SpendGrantTypes.sol";
 
 /// @dev EIP-712 hashing for Portable Spend Grants. encodeType is frozen in the ERC.
-library MandateHash {
+library SpendGrantHash {
     // Exact encodeType (no spaces) as specified.
     bytes32 internal constant SPEND_GRANT_TYPEHASH = keccak256(
         "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"

@@ -2,11 +2,11 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, SpendGrant} from "../src/MandateTypes.sol";
-import {MandateHash} from "../src/MandateHash.sol";
+import {AssetLimit, SpendGrant} from "../src/SpendGrantTypes.sol";
+import {SpendGrantHash} from "../src/SpendGrantHash.sol";
 import {HashHarness} from "./HashHarness.sol";
 
-contract MandateHashTest is Test {
+contract SpendGrantHashTest is Test {
     HashHarness internal harness;
 
     function setUp() public {
@@ -21,7 +21,7 @@ contract MandateHashTest is Test {
         m.assets = new AssetLimit[](1);
         m.assets[0] = AssetLimit(address(0), 1, 1, 1);
         // Touch library via hashStruct so the typehash is the one compiled in.
-        bytes32 structHash = MandateHash.hashStruct(m);
+        bytes32 structHash = SpendGrantHash.hashStruct(m);
         bytes32 rebuilt = keccak256(
             abi.encode(
                 expected,
@@ -31,7 +31,7 @@ contract MandateHashTest is Test {
                 m.recipient,
                 m.assetCombine,
                 m.windowSeconds,
-                MandateHash.hashAssets(m.assets),
+                SpendGrantHash.hashAssets(m.assets),
                 m.validAfter,
                 m.validUntil,
                 m.salt,
@@ -63,7 +63,7 @@ contract MandateHashTest is Test {
                 assets[1].maxTotal
             )
         );
-        assertEq(MandateHash.hashAssets(assets), keccak256(abi.encodePacked(h0, h1)));
+        assertEq(SpendGrantHash.hashAssets(assets), keccak256(abi.encodePacked(h0, h1)));
     }
 
     function test_goldenVectors() public {
@@ -87,7 +87,7 @@ contract MandateHashTest is Test {
             assertEq(harness.domainSeparator(registry), domain);
             assertEq(harness.hashStruct(m), structHash);
             assertEq(harness.digest(chainId, registry, m), digest_);
-            assertEq(MandateHash.digest(chainId, registry, m), digest_);
+            assertEq(SpendGrantHash.digest(chainId, registry, m), digest_);
 
             if (i == 3) {
                 bytes memory sig = vm.parseJsonBytes(json, string.concat(p, ".signature"));

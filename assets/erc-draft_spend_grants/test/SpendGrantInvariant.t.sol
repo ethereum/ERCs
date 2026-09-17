@@ -2,23 +2,23 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, SpendGrant, WAD} from "../src/MandateTypes.sol";
-import {MandateHash} from "../src/MandateHash.sol";
-import {MandateRegistry} from "../src/MandateRegistry.sol";
+import {AssetLimit, SpendGrant, WAD} from "../src/SpendGrantTypes.sol";
+import {SpendGrantHash} from "../src/SpendGrantHash.sol";
+import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {MockERC20} from "./MockERC20.sol";
 
-contract MandateHandler is Test {
+contract SpendGrantHandler is Test {
     uint256 internal constant PRINCIPAL_PK = 0xA11CE;
 
-    MandateRegistry public registry;
+    SpendGrantRegistry public registry;
     MockERC20 public token;
 
     address public principal;
     address public delegate;
     address public recipient;
 
-    SpendGrant public andMandate;
-    SpendGrant public orMandate;
+    SpendGrant public andGrant;
+    SpendGrant public orGrant;
     bytes public andSig;
     bytes public orSig;
     bytes32 public andHash;
@@ -29,33 +29,33 @@ contract MandateHandler is Test {
         delegate = vm.addr(0xB0B);
         recipient = vm.addr(0xC0C);
         token = new MockERC20();
-        registry = new MandateRegistry(address(this));
+        registry = new SpendGrantRegistry(address(this));
 
         vm.warp(1_700_000_100);
 
-        andMandate = _build(0, 1);
-        orMandate = _build(1, 2);
-        andSig = _sign(andMandate);
-        orSig = _sign(orMandate);
-        andHash = MandateHash.digest(block.chainid, address(registry), andMandate);
-        orHash = MandateHash.digest(block.chainid, address(registry), orMandate);
+        andGrant = _build(0, 1);
+        orGrant = _build(1, 2);
+        andSig = _sign(andGrant);
+        orSig = _sign(orGrant);
+        andHash = SpendGrantHash.digest(block.chainid, address(registry), andGrant);
+        orHash = SpendGrantHash.digest(block.chainid, address(registry), orGrant);
     }
 
     function consumeAnd(uint256 assetPick, uint256 amount, uint256 dt) external {
-        _consume(andMandate, andSig, andHash, false, assetPick, amount, dt);
+        _consume(andGrant, andSig, andHash, false, assetPick, amount, dt);
     }
 
     function consumeOr(uint256 assetPick, uint256 amount, uint256 dt) external {
-        _consume(orMandate, orSig, orHash, true, assetPick, amount, dt);
+        _consume(orGrant, orSig, orHash, true, assetPick, amount, dt);
     }
 
     function andCap(uint256 i) external view returns (address asset, uint256 maxPerWindow, uint256 maxTotal) {
-        AssetLimit memory a = andMandate.assets[i];
+        AssetLimit memory a = andGrant.assets[i];
         return (a.asset, a.maxPerWindow, a.maxTotal);
     }
 
     function orCap(uint256 i) external view returns (address asset, uint256 maxPerWindow, uint256 maxTotal) {
-        AssetLimit memory a = orMandate.assets[i];
+        AssetLimit memory a = orGrant.assets[i];
         return (a.asset, a.maxPerWindow, a.maxTotal);
     }
 
@@ -116,20 +116,20 @@ contract MandateHandler is Test {
 
     function _sign(SpendGrant memory m) internal view returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(PRINCIPAL_PK, MandateHash.digest(block.chainid, address(registry), m));
+            vm.sign(PRINCIPAL_PK, SpendGrantHash.digest(block.chainid, address(registry), m));
         return abi.encodePacked(r, s, v);
     }
 }
 
-contract MandateInvariantTest is Test {
-    MandateHandler internal handler;
+contract SpendGrantInvariantTest is Test {
+    SpendGrantHandler internal handler;
 
     function setUp() public {
-        handler = new MandateHandler();
+        handler = new SpendGrantHandler();
         targetContract(address(handler));
         bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = MandateHandler.consumeAnd.selector;
-        selectors[1] = MandateHandler.consumeOr.selector;
+        selectors[0] = SpendGrantHandler.consumeAnd.selector;
+        selectors[1] = SpendGrantHandler.consumeOr.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 

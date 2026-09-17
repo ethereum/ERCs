@@ -2,10 +2,10 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, IERC1271, SpendGrant, MandateError, Reason, WAD} from "../src/MandateTypes.sol";
-import {MandateHash} from "../src/MandateHash.sol";
-import {MandateRegistry} from "../src/MandateRegistry.sol";
-import {MandateExecutor} from "../src/MandateExecutor.sol";
+import {AssetLimit, IERC1271, SpendGrant, SpendGrantError, Reason, WAD} from "../src/SpendGrantTypes.sol";
+import {SpendGrantHash} from "../src/SpendGrantHash.sol";
+import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
+import {SpendGrantExecutor} from "../src/SpendGrantExecutor.sol";
 import {MockERC20} from "./MockERC20.sol";
 
 contract Mock1271 {
@@ -47,22 +47,22 @@ contract FalseERC20 {
     }
 }
 
-contract MandateRegistryTest is Test {
+contract SpendGrantRegistryTest is Test {
     uint256 internal constant PRINCIPAL_PK = 0xA11CE;
     uint256 internal constant DELEGATE_PK = 0xB0B;
 
-    MandateRegistry internal registry;
-    MandateRegistry internal execRegistry;
-    MandateExecutor internal executor;
+    SpendGrantRegistry internal registry;
+    SpendGrantRegistry internal execRegistry;
+    SpendGrantExecutor internal executor;
     MockERC20 internal token;
 
     address internal principal;
     address internal delegate;
     address internal recipient;
 
-    event GrantRevoked(address indexed principal, bytes32 indexed mandateHash);
+    event GrantRevoked(address indexed principal, bytes32 indexed grantHash);
     event GrantConsumed(
-        bytes32 indexed mandateHash, address indexed asset, uint256 amount, address indexed recipient
+        bytes32 indexed grantHash, address indexed asset, uint256 amount, address indexed recipient
     );
 
     function setUp() public {
@@ -71,12 +71,12 @@ contract MandateRegistryTest is Test {
         recipient = vm.addr(0xC0C);
 
         token = new MockERC20();
-        registry = new MandateRegistry(address(this));
+        registry = new SpendGrantRegistry(address(this));
 
         uint64 nonce = vm.getNonce(address(this));
         address predicted = vm.computeCreateAddress(address(this), nonce + 1);
-        execRegistry = new MandateRegistry(predicted);
-        executor = new MandateExecutor(execRegistry);
+        execRegistry = new SpendGrantRegistry(predicted);
+        executor = new SpendGrantExecutor(execRegistry);
         assertEq(address(executor), predicted);
 
         token.mint(principal, 1e24);
@@ -87,8 +87,8 @@ contract MandateRegistryTest is Test {
     }
 
     function test_revoke_emitsOnceAndBlocksConsume() public {
-        SpendGrant memory m = _andMandate();
-        bytes32 h = MandateHash.digest(block.chainid, address(registry), m);
+        SpendGrant memory m = _andGrant();
+        bytes32 h = SpendGrantHash.digest(block.chainid, address(registry), m);
 
         vm.prank(address(0xBEEF));
         registry.revoke(h);
@@ -113,14 +113,14 @@ contract MandateRegistryTest is Test {
     }
 
     function test_unauthorizedConsume() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         vm.prank(delegate);
         _expect(Reason.UNAUTHORIZED_EXECUTOR);
         registry.consume(m, _sig(m, address(registry)), address(0), 1 ether, recipient);
     }
 
     function test_timeBounds() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         uint256 validAfter = uint256(m.validAfter);
         uint256 validUntil = uint256(m.validUntil);
 
@@ -140,7 +140,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_wrongAssetAndRecipient() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         _expect(Reason.WRONG_ASSET);
         _consume(m, address(0x1234), 1, recipient);
 
@@ -153,7 +153,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_perCallWindowLifetime() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.assets[0] = AssetLimit(address(0), 10, 25, 30);
 
         _expect(Reason.OVER_TX_CAP);
@@ -178,7 +178,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_andIndependent() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         _consume(m, address(0), 1 ether, recipient);
         _consume(m, address(token), 1e18, recipient);
 
@@ -198,7 +198,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_orPieRoundUpExhaustion() public {
-        SpendGrant memory m = _orMandate();
+        SpendGrant memory m = _orGrant();
         m.assets[0] = AssetLimit(address(0), 1, 3, 3);
         m.assets[1] = AssetLimit(address(token), 1, 3, 3);
 
@@ -215,7 +215,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_orLifetimePieAfterWindowExpiry() public {
-        SpendGrant memory m = _orMandate();
+        SpendGrant memory m = _orGrant();
         m.assets[0] = AssetLimit(address(0), 1, 3, 6);
 
         _consume(m, address(0), 1, recipient);
@@ -243,7 +243,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_nativeAndErc20_executor() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         bytes memory sig = _sig(m, address(execRegistry));
 
         vm.deal(delegate, 2 ether);
@@ -258,12 +258,12 @@ contract MandateRegistryTest is Test {
         assertEq(token.balanceOf(principal), 1e24 - 1e18);
 
         vm.prank(principal);
-        vm.expectRevert(MandateExecutor.NotDelegate.selector);
+        vm.expectRevert(SpendGrantExecutor.NotDelegate.selector);
         executor.spend(m, sig, address(token), 1e18, recipient);
     }
 
     function test_executor_mode1_callerRecipient() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.recipientMode = 1;
         m.recipient = address(0);
         bytes memory sig = _sig(m, address(execRegistry));
@@ -277,57 +277,57 @@ contract MandateRegistryTest is Test {
 
     function test_executor_revertsIfTransferFails() public {
         RejectEther sink = new RejectEther();
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.recipient = address(sink);
         bytes memory sig = _sig(m, address(execRegistry));
 
         vm.deal(delegate, 1 ether);
         vm.prank(delegate);
-        vm.expectRevert(MandateExecutor.TransferFailed.selector);
+        vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
         executor.spend{value: 1 ether}(m, sig, address(0), 1 ether, address(sink));
 
-        (uint256 spent,) = execRegistry.usage(MandateHash.digest(block.chainid, address(execRegistry), m), address(0));
+        (uint256 spent,) = execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(0));
         assertEq(spent, 0);
     }
 
     function test_executor_unexpectedMsgValue() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         bytes memory sig = _sig(m, address(execRegistry));
 
         vm.deal(delegate, 2 ether);
         vm.prank(delegate);
-        vm.expectRevert(MandateExecutor.UnexpectedMsgValue.selector);
+        vm.expectRevert(SpendGrantExecutor.UnexpectedMsgValue.selector);
         executor.spend{value: 2 ether}(m, sig, address(0), 1 ether, recipient);
 
         vm.prank(delegate);
-        vm.expectRevert(MandateExecutor.UnexpectedMsgValue.selector);
+        vm.expectRevert(SpendGrantExecutor.UnexpectedMsgValue.selector);
         executor.spend{value: 1 ether}(m, sig, address(token), 1e18, recipient);
 
         (uint256 nativeSpent,) =
-            execRegistry.usage(MandateHash.digest(block.chainid, address(execRegistry), m), address(0));
+            execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(0));
         (uint256 tokenSpent,) =
-            execRegistry.usage(MandateHash.digest(block.chainid, address(execRegistry), m), address(token));
+            execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(token));
         assertEq(nativeSpent, 0);
         assertEq(tokenSpent, 0);
     }
 
     function test_executor_erc20FalseReturnRollsBack() public {
         FalseERC20 bad = new FalseERC20();
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.assets[1] = AssetLimit(address(bad), 1, 1, 1);
         bytes memory sig = _sig(m, address(execRegistry));
 
         vm.prank(delegate);
-        vm.expectRevert(MandateExecutor.TransferFailed.selector);
+        vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
         executor.spend(m, sig, address(bad), 1, recipient);
 
         (uint256 spent,) =
-            execRegistry.usage(MandateHash.digest(block.chainid, address(execRegistry), m), address(bad));
+            execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(bad));
         assertEq(spent, 0);
     }
 
     function test_windowExpiryAtExactAge() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.windowSeconds = 100;
         m.assets[0] = AssetLimit(address(0), 5, 5, 100);
 
@@ -352,7 +352,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_windowFullAt256LiveEvents() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.assets[0] = AssetLimit(address(0), 1, 10_000, 10_000);
         m.windowSeconds = 365 days;
 
@@ -373,7 +373,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_badSignatureAnd1271() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         bytes memory sig = _sig(m, address(registry));
         sig[0] = bytes1(uint8(sig[0]) ^ 1);
         _expect(Reason.BAD_SIGNATURE);
@@ -381,7 +381,7 @@ contract MandateRegistryTest is Test {
 
         Mock1271 wallet = new Mock1271();
         m.principal = address(wallet);
-        bytes32 digest_ = MandateHash.digest(block.chainid, address(registry), m);
+        bytes32 digest_ = SpendGrantHash.digest(block.chainid, address(registry), m);
         _expect(Reason.BAD_SIGNATURE);
         registry.consume(m, hex"11", address(0), 1, recipient);
 
@@ -389,104 +389,104 @@ contract MandateRegistryTest is Test {
         registry.consume(m, hex"11", address(0), 1, recipient);
     }
 
-    function test_invalidMandate() public {
-        SpendGrant memory m = _andMandate();
+    function test_invalidGrant() public {
+        SpendGrant memory m = _andGrant();
         m.delegate = principal;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.recipientMode = 2;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.recipientMode = 1;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.windowSeconds = 0;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets[1] = AssetLimit(address(0x1234), 1, 1, 1);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
     }
 
-    function test_invalidMandate_remainingStructure() public {
-        SpendGrant memory m = _andMandate();
+    function test_invalidGrant_remainingStructure() public {
+        SpendGrant memory m = _andGrant();
         m.principal = address(0);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.delegate = address(0);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.recipient = principal;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.recipient = address(0);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assetCombine = 2;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.validAfter = m.validUntil;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets = new AssetLimit[](0);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets[0].maxPerCall = 0;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets[0] = AssetLimit(address(0), 5, 4, 10);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets[0] = AssetLimit(address(0), 1, 10, 9);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets[0] = AssetLimit(address(token), 1, 1, 1);
         m.assets[1] = AssetLimit(address(0), 1, 1, 1);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(token), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         m.assets[1] = AssetLimit(address(0), 1, 1, 1);
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
     }
 
     function test_assets_oneToSixteen() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         AssetLimit[] memory one = new AssetLimit[](1);
         one[0] = AssetLimit(address(0), 1, 1, 1);
         m.assets = one;
         _consume(m, address(0), 1, recipient);
 
-        m = _andMandate();
+        m = _andGrant();
         AssetLimit[] memory max = new AssetLimit[](16);
         max[0] = AssetLimit(address(0), 1, 1, 1);
         for (uint256 i = 1; i < 16; i++) {
@@ -507,13 +507,13 @@ contract MandateRegistryTest is Test {
         }
         m.assets = tooMany;
         m.salt = 100;
-        _expect(Reason.INVALID_MANDATE);
+        _expect(Reason.INVALID_GRANT);
         _consume(m, address(0), 1, recipient);
     }
 
     function test_orPie_mixedAssetsNumericExample() public {
         // ERC: 50 of A (maxPerWindow 100) then 100 of B (maxPerWindow 200) fills the pie.
-        SpendGrant memory m = _orMandate();
+        SpendGrant memory m = _orGrant();
         m.assets[0] = AssetLimit(address(0), 50, 100, 1_000);
         m.assets[1] = AssetLimit(address(token), 100, 200, 1_000);
 
@@ -531,7 +531,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_signature_rejectsHighSBadVAndLength() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         bytes memory sig = _sig(m, address(registry));
 
         bytes32 highS = bytes32(uint256(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) + 1);
@@ -551,7 +551,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_1271_shortReturnRevertAndNoEcdsaFallback() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
 
         Short1271 shortWallet = new Short1271();
         m.principal = address(shortWallet);
@@ -571,7 +571,7 @@ contract MandateRegistryTest is Test {
     }
 
     function test_window_liveIfTimestampGoesBackwards() public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.windowSeconds = 100;
         m.assets[0] = AssetLimit(address(0), 5, 5, 100);
 
@@ -586,8 +586,8 @@ contract MandateRegistryTest is Test {
         _consume(m, address(0), 1, recipient);
     }
 
-    function test_consume_emitsMandateConsumed() public {
-        SpendGrant memory m = _andMandate();
+    function test_consume_emitsGrantConsumed() public {
+        SpendGrant memory m = _andGrant();
         bytes32 h = _hash(m);
         vm.expectEmit(true, true, true, true);
         emit GrantConsumed(h, address(0), 1 ether, recipient);
@@ -595,7 +595,7 @@ contract MandateRegistryTest is Test {
     }
 
     function testFuzz_consumeNeverExceedsCaps(uint256 amount, uint256 warpBy, uint8 nCalls) public {
-        SpendGrant memory m = _andMandate();
+        SpendGrant memory m = _andGrant();
         m.assets[0] = AssetLimit(address(0), 100, 1_000, 5_000);
         nCalls = uint8(bound(nCalls, 1, 40));
         bytes32 h = _hash(m);
@@ -635,7 +635,7 @@ contract MandateRegistryTest is Test {
     }
 
     function testFuzz_orPieNeverExceedsWad(uint256 amount, uint256 warpBy, uint8 nCalls) public {
-        SpendGrant memory m = _orMandate();
+        SpendGrant memory m = _orGrant();
         m.assets[0] = AssetLimit(address(0), 50, 200, 800);
         nCalls = uint8(bound(nCalls, 1, 40));
         bytes32 h = _hash(m);
@@ -673,7 +673,7 @@ contract MandateRegistryTest is Test {
         assertLe(rolling, m.assets[0].maxPerWindow);
     }
 
-    function _andMandate() internal view returns (SpendGrant memory m) {
+    function _andGrant() internal view returns (SpendGrant memory m) {
         m.principal = principal;
         m.delegate = delegate;
         m.recipientMode = 0;
@@ -689,18 +689,18 @@ contract MandateRegistryTest is Test {
         m.assets[1] = AssetLimit(address(token), 1e18, 5e18, 10e18);
     }
 
-    function _orMandate() internal view returns (SpendGrant memory m) {
-        m = _andMandate();
+    function _orGrant() internal view returns (SpendGrant memory m) {
+        m = _andGrant();
         m.assetCombine = 1;
         m.salt = 2;
     }
 
     function _hash(SpendGrant memory m) internal view returns (bytes32) {
-        return MandateHash.digest(block.chainid, address(registry), m);
+        return SpendGrantHash.digest(block.chainid, address(registry), m);
     }
 
     function _sig(SpendGrant memory m, address reg) internal view returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRINCIPAL_PK, MandateHash.digest(block.chainid, reg, m));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRINCIPAL_PK, SpendGrantHash.digest(block.chainid, reg, m));
         return abi.encodePacked(r, s, v);
     }
 
@@ -709,6 +709,6 @@ contract MandateRegistryTest is Test {
     }
 
     function _expect(Reason r) internal {
-        vm.expectRevert(abi.encodeWithSelector(MandateError.selector, r));
+        vm.expectRevert(abi.encodeWithSelector(SpendGrantError.selector, r));
     }
 }

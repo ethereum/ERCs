@@ -311,7 +311,7 @@ interface ISpendGrantRegistry {
 `consume` MUST revert unless all of the following hold, checked in this order, using the reason names in [Reason names](#reason-names):
 
 1. `msg.sender == executor` (`UNAUTHORIZED_EXECUTOR`).
-1. The grant is structurally valid, including the execution-time code check on nonzero assets (`INVALID_MANDATE`).
+1. The grant is structurally valid, including the execution-time code check on nonzero assets (`INVALID_GRANT`).
 1. The signature is valid for `grant.principal` over `grantHash` (`BAD_SIGNATURE`).
 1. `block.timestamp >= grant.validAfter` (`NOT_YET_VALID`).
 1. `block.timestamp < grant.validUntil` (`EXPIRED`).
@@ -332,7 +332,7 @@ View behavior:
 - `rollingUsage` returns the same pair recomputed over unexpired debits only.
 - `pieUsed` returns `(0, 0)` when the grant's `assetCombine == 0` or when no or-mode debit exists. When `assetCombine == 1`, `lifetimeWad` is the sum of all `lifetimeConsume` values and `windowWad` is the sum of unexpired `windowConsume` values. Both are at most `WAD`. `windowWad` MUST be recomputed at the queried block.
 
-If `pieUsed` is queried without the mandate body, the registry MUST return values consistent with recorded debits: and-mode debits do not advance pies; or-mode debits do.
+If `pieUsed` is queried without the grant body, the registry MUST return values consistent with recorded debits: and-mode debits do not advance pies; or-mode debits do.
 
 ### Reason names
 
@@ -341,7 +341,7 @@ These names are the normative vocabulary. Encoding of revert data is implementat
 | Name | Condition |
 | --- | --- |
 | `OK` | Success |
-| `INVALID_MANDATE` | Structural validation failed, including a nonzero asset with no code |
+| `INVALID_GRANT` | Structural validation failed, including a nonzero asset with no code |
 | `BAD_SIGNATURE` | EOA recovery or ERC-1271 validation failed |
 | `NOT_YET_VALID` | `block.timestamp < validAfter` |
 | `EXPIRED` | `block.timestamp >= validUntil` |

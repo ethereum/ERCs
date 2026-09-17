@@ -6,15 +6,15 @@ import {
     IERC1271,
     ISpendGrantRegistry,
     SpendGrant,
-    MandateError,
+    SpendGrantError,
     MAX_ASSETS,
     MAX_LIVE_DEBITS,
     Reason,
     WAD
-} from "./MandateTypes.sol";
-import {MandateHash} from "./MandateHash.sol";
+} from "./SpendGrantTypes.sol";
+import {SpendGrantHash} from "./SpendGrantHash.sol";
 
-contract MandateRegistry is ISpendGrantRegistry {
+contract SpendGrantRegistry is ISpendGrantRegistry {
     struct Debit {
         uint64 time;
         uint256 amount;
@@ -40,24 +40,24 @@ contract MandateRegistry is ISpendGrantRegistry {
         executor = executor_;
     }
 
-    function revoke(bytes32 mandateHash) external {
-        if (revoked[msg.sender][mandateHash]) return;
-        revoked[msg.sender][mandateHash] = true;
-        emit GrantRevoked(msg.sender, mandateHash);
+    function revoke(bytes32 grantHash) external {
+        if (revoked[msg.sender][grantHash]) return;
+        revoked[msg.sender][grantHash] = true;
+        emit GrantRevoked(msg.sender, grantHash);
     }
 
-    function usage(bytes32 mandateHash, address asset) external view returns (uint256 spent, uint256 calls) {
-        AssetUsage storage u = _usage[mandateHash][asset];
+    function usage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls) {
+        AssetUsage storage u = _usage[grantHash][asset];
         return (u.spent, u.calls);
     }
 
-    function rollingUsage(bytes32 mandateHash, address asset) external view returns (uint256 spent, uint256 calls) {
-        return _rolling(_usage[mandateHash][asset], _windowSeconds[mandateHash]);
+    function rollingUsage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls) {
+        return _rolling(_usage[grantHash][asset], _windowSeconds[grantHash]);
     }
 
-    function pieUsed(bytes32 mandateHash) external view returns (uint256 lifetimeWad, uint256 windowWad) {
-        lifetimeWad = _lifetimePie[mandateHash];
-        windowWad = _windowPie(mandateHash, _windowSeconds[mandateHash]);
+    function pieUsed(bytes32 grantHash) external view returns (uint256 lifetimeWad, uint256 windowWad) {
+        lifetimeWad = _lifetimePie[grantHash];
+        windowWad = _windowPie(grantHash, _windowSeconds[grantHash]);
     }
 
     function consume(
@@ -67,89 +67,89 @@ contract MandateRegistry is ISpendGrantRegistry {
         uint256 amount,
         address recipient
     ) external {
-        if (msg.sender != executor) revert MandateError(Reason.UNAUTHORIZED_EXECUTOR);
+        if (msg.sender != executor) revert SpendGrantError(Reason.UNAUTHORIZED_EXECUTOR);
 
         _assertStructure(grant);
 
-        bytes32 mandateHash = MandateHash.digest(block.chainid, address(this), grant);
-        if (!_validSignature(grant.principal, mandateHash, grantSignature)) {
-            revert MandateError(Reason.BAD_SIGNATURE);
+        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(this), grant);
+        if (!_validSignature(grant.principal, grantHash, grantSignature)) {
+            revert SpendGrantError(Reason.BAD_SIGNATURE);
         }
 
-        if (block.timestamp < grant.validAfter) revert MandateError(Reason.NOT_YET_VALID);
-        if (block.timestamp >= grant.validUntil) revert MandateError(Reason.EXPIRED);
-        if (revoked[grant.principal][mandateHash]) revert MandateError(Reason.REVOKED);
+        if (block.timestamp < grant.validAfter) revert SpendGrantError(Reason.NOT_YET_VALID);
+        if (block.timestamp >= grant.validUntil) revert SpendGrantError(Reason.EXPIRED);
+        if (revoked[grant.principal][grantHash]) revert SpendGrantError(Reason.REVOKED);
 
         if (grant.recipientMode == 0) {
-            if (recipient != grant.recipient) revert MandateError(Reason.WRONG_RECIPIENT);
+            if (recipient != grant.recipient) revert SpendGrantError(Reason.WRONG_RECIPIENT);
         }
 
         AssetLimit calldata limit = _asset(grant, asset);
 
-        if (amount == 0 || amount > limit.maxPerCall) revert MandateError(Reason.OVER_TX_CAP);
+        if (amount == 0 || amount > limit.maxPerCall) revert SpendGrantError(Reason.OVER_TX_CAP);
 
         uint64 windowSeconds = grant.windowSeconds;
-        if (_windowSeconds[mandateHash] == 0) _windowSeconds[mandateHash] = windowSeconds;
+        if (_windowSeconds[grantHash] == 0) _windowSeconds[grantHash] = windowSeconds;
 
-        AssetUsage storage u = _usage[mandateHash][asset];
+        AssetUsage storage u = _usage[grantHash][asset];
         _compact(u, windowSeconds);
-        if (u.window.length >= MAX_LIVE_DEBITS) revert MandateError(Reason.WINDOW_FULL);
+        if (u.window.length >= MAX_LIVE_DEBITS) revert SpendGrantError(Reason.WINDOW_FULL);
 
         uint256 windowPieWad;
         if (grant.assetCombine == 0) {
             (uint256 rollingSpent,) = _rolling(u, windowSeconds);
             if (rollingSpent >= limit.maxPerWindow || amount > limit.maxPerWindow - rollingSpent) {
-                revert MandateError(Reason.OVER_WINDOW_CAP);
+                revert SpendGrantError(Reason.OVER_WINDOW_CAP);
             }
             if (u.spent >= limit.maxTotal || amount > limit.maxTotal - u.spent) {
-                revert MandateError(Reason.OVER_CUMULATIVE_CAP);
+                revert SpendGrantError(Reason.OVER_CUMULATIVE_CAP);
             }
         } else {
             windowPieWad = _ceilWad(amount, limit.maxPerWindow);
             uint256 lifetimePieWad = _ceilWad(amount, limit.maxTotal);
-            uint256 usedWindow = _windowPie(mandateHash, windowSeconds);
-            uint256 usedLifetime = _lifetimePie[mandateHash];
-            if (usedWindow >= WAD || windowPieWad > WAD - usedWindow) revert MandateError(Reason.OVER_WINDOW_CAP);
+            uint256 usedWindow = _windowPie(grantHash, windowSeconds);
+            uint256 usedLifetime = _lifetimePie[grantHash];
+            if (usedWindow >= WAD || windowPieWad > WAD - usedWindow) revert SpendGrantError(Reason.OVER_WINDOW_CAP);
             if (usedLifetime >= WAD || lifetimePieWad > WAD - usedLifetime) {
-                revert MandateError(Reason.OVER_CUMULATIVE_CAP);
+                revert SpendGrantError(Reason.OVER_CUMULATIVE_CAP);
             }
-            _lifetimePie[mandateHash] = usedLifetime + lifetimePieWad;
-            _touch(mandateHash, asset);
+            _lifetimePie[grantHash] = usedLifetime + lifetimePieWad;
+            _touch(grantHash, asset);
         }
 
         u.window.push(Debit({time: uint64(block.timestamp), amount: amount, windowPieWad: windowPieWad}));
         u.spent += amount;
         u.calls += 1;
 
-        emit GrantConsumed(mandateHash, asset, amount, recipient);
+        emit GrantConsumed(grantHash, asset, amount, recipient);
     }
 
     function _assertStructure(SpendGrant calldata m) internal view {
         if (m.principal == address(0) || m.delegate == address(0) || m.delegate == m.principal) {
-            revert MandateError(Reason.INVALID_MANDATE);
+            revert SpendGrantError(Reason.INVALID_GRANT);
         }
-        if (m.recipientMode > 1 || m.assetCombine > 1) revert MandateError(Reason.INVALID_MANDATE);
+        if (m.recipientMode > 1 || m.assetCombine > 1) revert SpendGrantError(Reason.INVALID_GRANT);
         if (m.recipientMode == 0) {
-            if (m.recipient == address(0) || m.recipient == m.principal) revert MandateError(Reason.INVALID_MANDATE);
+            if (m.recipient == address(0) || m.recipient == m.principal) revert SpendGrantError(Reason.INVALID_GRANT);
         } else if (m.recipient != address(0)) {
-            revert MandateError(Reason.INVALID_MANDATE);
+            revert SpendGrantError(Reason.INVALID_GRANT);
         }
-        if (m.windowSeconds == 0 || m.validAfter >= m.validUntil) revert MandateError(Reason.INVALID_MANDATE);
+        if (m.windowSeconds == 0 || m.validAfter >= m.validUntil) revert SpendGrantError(Reason.INVALID_GRANT);
 
         uint256 n = m.assets.length;
-        if (n == 0 || n > MAX_ASSETS) revert MandateError(Reason.INVALID_MANDATE);
+        if (n == 0 || n > MAX_ASSETS) revert SpendGrantError(Reason.INVALID_GRANT);
 
         uint160 prev;
         for (uint256 i = 0; i < n; i++) {
             AssetLimit calldata a = m.assets[i];
             uint160 key = uint160(a.asset);
-            if (i > 0 && key <= prev) revert MandateError(Reason.INVALID_MANDATE);
+            if (i > 0 && key <= prev) revert SpendGrantError(Reason.INVALID_GRANT);
             prev = key;
-            if (a.maxPerCall == 0 || a.maxPerWindow == 0 || a.maxTotal == 0) revert MandateError(Reason.INVALID_MANDATE);
+            if (a.maxPerCall == 0 || a.maxPerWindow == 0 || a.maxTotal == 0) revert SpendGrantError(Reason.INVALID_GRANT);
             if (a.maxPerCall > a.maxPerWindow || a.maxPerWindow > a.maxTotal) {
-                revert MandateError(Reason.INVALID_MANDATE);
+                revert SpendGrantError(Reason.INVALID_GRANT);
             }
-            if (a.asset != address(0) && a.asset.code.length == 0) revert MandateError(Reason.INVALID_MANDATE);
+            if (a.asset != address(0) && a.asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
         }
     }
 
@@ -158,7 +158,7 @@ contract MandateRegistry is ISpendGrantRegistry {
         for (uint256 i = 0; i < n; i++) {
             if (m.assets[i].asset == asset) return m.assets[i];
         }
-        revert MandateError(Reason.WRONG_ASSET);
+        revert SpendGrantError(Reason.WRONG_ASSET);
     }
 
     function _validSignature(address principal, bytes32 digest, bytes calldata sig) internal view returns (bool) {
@@ -222,11 +222,11 @@ contract MandateRegistry is ISpendGrantRegistry {
         }
     }
 
-    function _windowPie(bytes32 mandateHash, uint64 windowSeconds) internal view returns (uint256 windowWad) {
-        address[] storage assets = _touchedAssets[mandateHash];
+    function _windowPie(bytes32 grantHash, uint64 windowSeconds) internal view returns (uint256 windowWad) {
+        address[] storage assets = _touchedAssets[grantHash];
         uint256 n = assets.length;
         for (uint256 i = 0; i < n; i++) {
-            Debit[] storage window = _usage[mandateHash][assets[i]].window;
+            Debit[] storage window = _usage[grantHash][assets[i]].window;
             uint256 m = window.length;
             for (uint256 j = 0; j < m; j++) {
                 if (_live(window[j].time, windowSeconds)) windowWad += window[j].windowPieWad;
@@ -234,16 +234,16 @@ contract MandateRegistry is ISpendGrantRegistry {
         }
     }
 
-    function _touch(bytes32 mandateHash, address asset) internal {
-        if (_touched[mandateHash][asset]) return;
-        _touched[mandateHash][asset] = true;
-        _touchedAssets[mandateHash].push(asset);
+    function _touch(bytes32 grantHash, address asset) internal {
+        if (_touched[grantHash][asset]) return;
+        _touched[grantHash][asset] = true;
+        _touchedAssets[grantHash].push(asset);
     }
 
     /// @dev ceil(amount * WAD / denom).
     function _ceilWad(uint256 amount, uint256 denom) internal pure returns (uint256) {
         if (amount == 0) return 0;
-        if (denom == 0) revert MandateError(Reason.INVALID_MANDATE);
+        if (denom == 0) revert SpendGrantError(Reason.INVALID_GRANT);
         return _mulDivUp(amount, WAD, denom);
     }
 
@@ -261,7 +261,7 @@ contract MandateRegistry is ISpendGrantRegistry {
         }
         uint256 q = hi == 0 ? lo / d : _div512(lo, hi, d);
         if (rem == 0) return q;
-        if (q == type(uint256).max) revert MandateError(Reason.INVALID_MANDATE);
+        if (q == type(uint256).max) revert SpendGrantError(Reason.INVALID_GRANT);
         unchecked {
             return q + 1;
         }
@@ -269,7 +269,7 @@ contract MandateRegistry is ISpendGrantRegistry {
 
     /// @dev floor((hi * 2^256 + lo) / d) with hi < d so the quotient fits in uint256.
     function _div512(uint256 lo, uint256 hi, uint256 d) internal pure returns (uint256 z) {
-        if (d == 0 || hi >= d) revert MandateError(Reason.INVALID_MANDATE);
+        if (d == 0 || hi >= d) revert SpendGrantError(Reason.INVALID_GRANT);
         uint256 r = hi;
         for (uint256 i = 0; i < 256;) {
             uint256 bit = lo >> 255;

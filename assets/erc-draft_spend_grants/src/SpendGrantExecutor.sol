@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {ISpendGrantRegistry, SpendGrant, MandateError, Reason} from "./MandateTypes.sol";
+import {ISpendGrantRegistry, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
 
-contract MandateExecutor {
+contract SpendGrantExecutor {
     error NotDelegate();
     error UnexpectedMsgValue();
     error TransferFailed();
@@ -12,7 +12,7 @@ contract MandateExecutor {
 
     constructor(ISpendGrantRegistry registry_) {
         registry = registry_;
-        if (registry_.executor() != address(this)) revert MandateError(Reason.UNAUTHORIZED_EXECUTOR);
+        if (registry_.executor() != address(this)) revert SpendGrantError(Reason.UNAUTHORIZED_EXECUTOR);
     }
 
     function spend(
