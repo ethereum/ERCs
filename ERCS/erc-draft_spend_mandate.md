@@ -1,5 +1,5 @@
 ---
-title: Portable Spend Grants
+title: Portable Spend Mandates
 description: Signed multi-asset spend grants with rolling and lifetime caps
 author: Chris Madison (@tankcdr)
 discussions-to: https://ethereum-magicians.org/t/placeholder
@@ -12,7 +12,7 @@ requires: 20, 712, 1271
 
 ## Abstract
 
-This specification defines a portable spend grant: a typed, signed grant from a principal to a delegate that authorizes repeated spending of one or more assets under per-call, trailing-window, and lifetime caps. Native currency of the execution chain is identified by the zero address; every other asset is an [ERC-20](./eip-20.md) contract. The principal signs an [EIP-712](./eip-712.md) digest bound to the execution chain and to an immutable revocation registry. The registry stores remaining usage and does not move funds. A separate executor, selected by signing that registry as the domain verifying contract, calls `consume` in the same transaction as the value movement. Contract principals validate signatures with [ERC-1271](./eip-1271.md). Caps never treat zero as unlimited. This document is an unnumbered working draft.
+This specification defines a portable spend mandate: a typed, signed grant from a principal to a delegate that authorizes repeated spending of one or more assets under per-call, trailing-window, and lifetime caps. Native currency of the execution chain is identified by the zero address; every other asset is an [ERC-20](./eip-20.md) contract. The principal signs an [EIP-712](./eip-712.md) digest bound to the execution chain and to an immutable revocation registry. The registry stores remaining usage and does not move funds. A separate executor, selected by signing that registry as the domain verifying contract, calls `consume` in the same transaction as the value movement. Contract principals validate signatures with [ERC-1271](./eip-1271.md). Caps never treat zero as unlimited. This document is an unnumbered working draft.
 
 ## Motivation
 
@@ -26,18 +26,18 @@ Existing tokens and native currency should not have to opt into a hook in order 
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
-Bytes are hashed with Ethereum Keccak-256. `grantHash` denotes the complete [EIP-712](./eip-712.md) digest defined below. Amounts are raw asset units (wei for native currency, token `decimals` units for [ERC-20](./eip-20.md)). This specification does not define compilation into other permission systems.
+Bytes are hashed with Ethereum Keccak-256. `mandateHash` denotes the complete [EIP-712](./eip-712.md) digest defined below. Amounts are raw asset units (wei for native currency, token `decimals` units for [ERC-20](./eip-20.md)). This specification does not define compilation into other permission systems.
 
 ### Terms
 
-- **Principal:** the address that signs the grant and whose assets are spent.
+- **Principal:** the address that signs the mandate and whose assets are spent.
 - **Delegate:** the address named in the signed terms as the grantee. `consume` does not require `msg.sender` to equal `delegate`.
 - **Executor:** the immutable address returned by the registry `executor()` function. Only this address may call `consume`.
 - **Recipient:** the payee of a single `consume`.
-- **Registry:** the immutable contract that verifies grants, records remaining, and records revocations. It NEVER transfers assets.
+- **Registry:** the immutable contract that verifies mandates, records remaining, and records revocations. It NEVER transfers assets.
 - **Window:** a trailing `lookback` of `windowSeconds` seconds, not a UTC calendar day.
 
-### Grant object
+### Mandate object
 
 The exact types, field order, and integer widths are:
 
@@ -49,7 +49,7 @@ struct AssetLimit {
     uint256 maxTotal;      // lifetime, never resets
 }
 
-struct SpendGrant {
+struct Mandate {
     address principal;
     address delegate;
     uint8   recipientMode; // 0 = one address, 1 = any
@@ -64,14 +64,14 @@ struct SpendGrant {
 }
 ```
 
-All fields are required. `salt` distinguishes otherwise identical grants; it is not an execution nonce. Reusing a grant permits additional executions only within remaining limits.
+All fields are required. `salt` distinguishes otherwise identical grants; it is not an execution nonce. Reusing a mandate permits additional executions only within remaining limits.
 
 ### Encode type
 
-The exact `encodeType` for `SpendGrant` is the following single string, including the concatenated `AssetLimit` definition and with no spaces:
+The exact `encodeType` for `Mandate` is the following single string, including the concatenated `AssetLimit` definition and with no spaces:
 
 ```
-SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)
+Mandate(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)
 ```
 
 The `AssetLimit` `encodeType` is:
@@ -80,11 +80,11 @@ The `AssetLimit` `encodeType` is:
 AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)
 ```
 
-`SPENDGRANT_TYPEHASH` is `keccak256` of the SpendGrant `encodeType` bytes. `ASSETLIMIT_TYPEHASH` is `keccak256` of the `AssetLimit` `encodeType` bytes.
+`MANDATE_TYPEHASH` is `keccak256` of the Mandate `encodeType` bytes. `ASSETLIMIT_TYPEHASH` is `keccak256` of the `AssetLimit` `encodeType` bytes.
 
 ### Domain and digest
 
-The domain uses exactly four fields: `name = "SpendGrant"`, `version = "1"`, `chainId` equal to the execution chain ID, and `verifyingContract` equal to the registry address. The domain MUST NOT include `salt` or additional fields. The registry MUST be deployed on the execution chain. A change of chain, registry, or executor requires a new grant and a new signature.
+The domain uses exactly four fields: `name = "Mandate"`, `version = "1"`, `chainId` equal to the execution chain ID, and `verifyingContract` equal to the registry address. The domain MUST NOT include `salt` or additional fields. The registry MUST be deployed on the execution chain. A change of chain, registry, or executor requires a new mandate and a new signature.
 
 ```
 EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
@@ -94,7 +94,7 @@ EIP712Domain(string name,string version,uint256 chainId,address verifyingContrac
 domainSeparator = keccak256(
     abi.encode(
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-        keccak256("SpendGrant"),
+        keccak256("Mandate"),
         keccak256("1"),
         chainId,
         registry
@@ -121,9 +121,9 @@ hashStruct(AssetLimit) = keccak256(
 The `assets` array hash is `keccak256` of the concatenation of those 32-byte element hashes in signed order. There MUST NOT be an ABI offset, a length prefix, or any other padding between element hashes. That 32-byte array hash occupies the `assets` word in the primary struct hash.
 
 ```
-hashStruct(SpendGrant) = keccak256(
+hashStruct(Mandate) = keccak256(
     abi.encode(
-        SPENDGRANT_TYPEHASH,
+        MANDATE_TYPEHASH,
         principal,
         delegate,
         recipientMode,
@@ -139,17 +139,17 @@ hashStruct(SpendGrant) = keccak256(
 )
 ```
 
-Atomic types are encoded as 32-byte ABI words (uint8 and uint64 are zero-extended). `grantHash` is the digest the principal signs:
+Atomic types are encoded as 32-byte ABI words (uint8 and uint64 are zero-extended). `mandateHash` is the digest the principal signs:
 
 ```
-grantHash = keccak256(0x1901 || domainSeparator || hashStruct(SpendGrant))
+mandateHash = keccak256(0x1901 || domainSeparator || hashStruct(Mandate))
 ```
 
-`0x1901` is a two-byte prefix. Implementations MUST NOT substitute `hashStruct(SpendGrant)` or the domain separator for `grantHash`.
+`0x1901` is a two-byte prefix. Implementations MUST NOT substitute `hashStruct(Mandate)` or the domain separator for `mandateHash`.
 
 ### Structural validation
 
-A grant is structurally valid only if every condition below holds. Unknown future values of `recipientMode` and `assetCombine` MUST fail closed. Zero MUST NOT be interpreted as unlimited.
+A mandate is structurally valid only if every condition below holds. Unknown future values of `recipientMode` and `assetCombine` MUST fail closed. Zero MUST NOT be interpreted as unlimited.
 
 - `principal` and `delegate` are nonzero, and `delegate != principal`.
 - `recipientMode` is `0` or `1`.
@@ -169,7 +169,7 @@ A single `consume` spends exactly one asset. `amount` MUST be greater than zero 
 
 **And (`assetCombine == 0`).** Each listed asset has independent remaining window and lifetime. Spending one asset MUST NOT reduce another asset's remaining. For the selected asset, let `windowSpent` be the sum of unexpired debit `amount`s and `lifetimeSpent` be the sum of all debit `amount`s. `consume` MUST revert if `windowSpent + amount > maxPerWindow` or `lifetimeSpent + amount > maxTotal`.
 
-**Or (`assetCombine == 1`).** The grant has two shared pies, each of capacity `WAD = 10**18`: a rolling window pie and a lifetime pie. Let `maxPerWindow_i` and `maxTotal_i` be the signed caps of the selected asset. For a spend of `amount`:
+**Or (`assetCombine == 1`).** The mandate has two shared pies, each of capacity `WAD = 10**18`: a rolling window pie and a lifetime pie. Let `maxPerWindow_i` and `maxTotal_i` be the signed caps of the selected asset. For a spend of `amount`:
 
 ```
 windowConsume   = ceil(amount * WAD / maxPerWindow_i)
@@ -180,7 +180,7 @@ lifetimeConsume = ceil(amount * WAD / maxTotal_i)
 
 Rounding is toward the principal (up). Example: `amount = 1`, `maxPerWindow_i = 3` yields `windowConsume = ceil(10**18 / 3) = 333333333333333334`, not `333333333333333333`.
 
-Let `windowWad` be the sum of `windowConsume` over unexpired debits of every asset on the grant, and `lifetimeWad` the sum of `lifetimeConsume` over all debits of every asset. `consume` MUST revert if `windowWad + windowConsume > WAD` or `lifetimeWad + lifetimeConsume > WAD`. Equality with `WAD` is permitted and exhausts that pie.
+Let `windowWad` be the sum of `windowConsume` over unexpired debits of every asset on the mandate, and `lifetimeWad` the sum of `lifetimeConsume` over all debits of every asset. `consume` MUST revert if `windowWad + windowConsume > WAD` or `lifetimeWad + lifetimeConsume > WAD`. Equality with `WAD` is permitted and exhausts that pie.
 
 Numeric example. Asset A has `maxPerWindow = 100`; asset B has `maxPerWindow = 200`. A spend of `50` of A consumes `5e17` window pie. A subsequent spend of `100` of B consumes another `5e17`. The window pie is then `WAD`; a further windowed spend reverts even if each asset's raw `maxPerWindow` still has room.
 
@@ -190,15 +190,15 @@ A debit recorded at timestamp `s` (the `block.timestamp` of the successful `cons
 
 Exact rolling requires timestamped debits. Views MUST recompute unexpired totals at the queried block and MUST NOT return a stale stored window counter.
 
-An implementation MAY bound the number of live (unexpired) stored debits per `(grantHash, asset)`. The reference bound is 256. If a bound is in force and a further debit would exceed it, `consume` MUST revert. That bound is an implementation limit, not a signed call cap. Expired debits MAY be dropped from storage; they MUST remain excluded from window checks and rolling views.
+An implementation MAY bound the number of live (unexpired) stored debits per `(mandateHash, asset)`. The reference bound is 256. If a bound is in force and a further debit would exceed it, `consume` MUST revert. That bound is an implementation limit, not a signed call cap. Expired debits MAY be dropped from storage; they MUST remain excluded from window checks and rolling views.
 
 ### Signatures
 
-The principal signs `grantHash`.
+The principal signs `mandateHash`.
 
-If the principal has no code at the evaluated block, the signature MUST be exactly 65 bytes `r || s || v` of secp256k1 over `grantHash`, with `v` equal to `27` or `28`, `s` in the lower half of the curve order (`s <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`), and recovered signer equal to `principal`.
+If the principal has no code at the evaluated block, the signature MUST be exactly 65 bytes `r || s || v` of secp256k1 over `mandateHash`, with `v` equal to `27` or `28`, `s` in the lower half of the curve order (`s <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0`), and recovered signer equal to `principal`.
 
-If the principal has code at the evaluated block, the signature MUST be validated with [ERC-1271](./eip-1271.md) `isValidSignature(grantHash, grantSignature)` against execution-time state. The call MUST return exactly 32 bytes equal to the 32-byte word `0x1626ba7e` left-aligned (28 trailing zero bytes). A raw four-byte return, a revert, a malformed return, or any other value is invalid. Implementations MUST NOT fall back to ECDSA recovery for a code-bearing principal.
+If the principal has code at the evaluated block, the signature MUST be validated with [ERC-1271](./eip-1271.md) `isValidSignature(mandateHash, mandateSignature)` against execution-time state. The call MUST return exactly 32 bytes equal to the 32-byte word `0x1626ba7e` left-aligned (28 trailing zero bytes). A raw four-byte return, a revert, a malformed return, or any other value is invalid. Implementations MUST NOT fall back to ECDSA recovery for a code-bearing principal.
 
 A cached ERC-1271 success MUST NOT replace execution-time validation.
 
@@ -211,7 +211,7 @@ The rendering is ASCII (hence UTF-8), uses LF (`0x0a`) line endings, and contain
 `i` in budget lines is the 0-based index in signed `assets` order. Budget lines are repeated for each asset in that order. Labels and spacing are exact:
 
 ```
-Spend grant v1
+Spend mandate v1
 Chain: {chainId}
 Revocation registry: {revocationRegistry}
 Principal: {principal}
@@ -234,13 +234,13 @@ The canonical rendering does not include the executor address. A wallet SHOULD a
 
 ### JSON interchange
 
-The interchange object contains exactly `chainId`, `revocationRegistry`, and `grant`. `grant` contains exactly the SpendGrant fields: `principal`, `delegate`, `recipientMode`, `recipient`, `assetCombine`, `windowSeconds`, `assets`, `validAfter`, `validUntil`, `salt`, `renderingHash`. Each element of `assets` contains exactly `asset`, `maxPerCall`, `maxPerWindow`, `maxTotal`.
+The interchange object contains exactly `chainId`, `revocationRegistry`, and `mandate`. `mandate` contains exactly the Mandate fields: `principal`, `delegate`, `recipientMode`, `recipient`, `assetCombine`, `windowSeconds`, `assets`, `validAfter`, `validUntil`, `salt`, `renderingHash`. Each element of `assets` contains exactly `asset`, `maxPerCall`, `maxPerWindow`, `maxTotal`.
 
-When hashing a grant from interchange JSON, implementations MUST use `chainId` as the domain `chainId` and `revocationRegistry` as `verifyingContract`.
+When hashing a mandate from interchange JSON, implementations MUST use `chainId` as the domain `chainId` and `revocationRegistry` as `verifyingContract`.
 
 Unsigned integers MUST be JSON strings in canonical decimal form as defined for rendering, and MUST fit the field width (`uint8`, `uint64`, or `uint256`). Addresses MUST be lowercase `0x` plus 40 hex digits. `renderingHash` MUST be lowercase `0x` plus 64 hex digits. Hex MUST use `[0-9a-f]` only.
 
-Implementations MUST reject extra fields, missing fields, duplicate JSON member names (rejected before object conversion), JSON numbers in place of integer strings, uppercase hex, leading zeros other than the value `0`, out-of-range values, wrong types, `null`, and trailing commas. Object property order and insignificant white space are not signed. Implementations MUST NOT use a JSON byte hash in place of `grantHash`.
+Implementations MUST reject extra fields, missing fields, duplicate JSON member names (rejected before object conversion), JSON numbers in place of integer strings, uppercase hex, leading zeros other than the value `0`, out-of-range values, wrong types, `null`, and trailing commas. Object property order and insignificant white space are not signed. Implementations MUST NOT use a JSON byte hash in place of `mandateHash`.
 
 Illustrative shape (values are examples, not vectors):
 
@@ -248,7 +248,7 @@ Illustrative shape (values are examples, not vectors):
 {
   "chainId": "1",
   "revocationRegistry": "0x1111111111111111111111111111111111111111",
-  "grant": {
+  "mandate": {
     "principal": "0x2222222222222222222222222222222222222222",
     "delegate": "0x3333333333333333333333333333333333333333",
     "recipientMode": "0",
@@ -276,25 +276,25 @@ Illustrative shape (values are examples, not vectors):
 The registry is immutable: no admin, no pause, no upgrade, no `unrevoke`, and no proxy. The executor address is set in the constructor to a nonzero value and NEVER changes. The principal binds that executor by signing this registry as `verifyingContract`.
 
 ```solidity
-interface ISpendGrantRegistry {
-    event GrantRevoked(address indexed principal, bytes32 indexed grantHash);
-    event GrantConsumed(
-        bytes32 indexed grantHash,
+interface IMandateRegistry {
+    event MandateRevoked(address indexed principal, bytes32 indexed mandateHash);
+    event MandateConsumed(
+        bytes32 indexed mandateHash,
         address indexed asset,
         uint256 amount,
         address indexed recipient
     );
 
     function executor() external view returns (address);
-    function revoke(bytes32 grantHash) external;
-    function revoked(address principal, bytes32 grantHash) external view returns (bool);
-    function usage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls);
-    function rollingUsage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls);
-    function pieUsed(bytes32 grantHash) external view returns (uint256 lifetimeWad, uint256 windowWad);
+    function revoke(bytes32 mandateHash) external;
+    function revoked(address principal, bytes32 mandateHash) external view returns (bool);
+    function usage(bytes32 mandateHash, address asset) external view returns (uint256 spent, uint256 calls);
+    function rollingUsage(bytes32 mandateHash, address asset) external view returns (uint256 spent, uint256 calls);
+    function pieUsed(bytes32 mandateHash) external view returns (uint256 lifetimeWad, uint256 windowWad);
 
     function consume(
-        SpendGrant calldata grant,
-        bytes calldata grantSignature,
+        Mandate calldata mandate,
+        bytes calldata mandateSignature,
         address asset,
         uint256 amount,
         address recipient
@@ -302,41 +302,41 @@ interface ISpendGrantRegistry {
 }
 ```
 
-`revoke` sets `revoked[msg.sender][grantHash] = true`. It is idempotent and MUST emit `GrantRevoked` only on the first change. Anyone MAY revoke in their own namespace. A revocation MUST NOT affect another principal. `consume` consults `revoked[grant.principal][grantHash]`. There is no `unrevoke`.
+`revoke` sets `revoked[msg.sender][mandateHash] = true`. It is idempotent and MUST emit `MandateRevoked` only on the first change. Anyone MAY revoke in their own namespace. A revocation MUST NOT affect another principal. `consume` consults `revoked[mandate.principal][mandateHash]`. There is no `unrevoke`.
 
 `executor()` returns the immutable executor. `consume` MUST revert unless `msg.sender == executor()`.
 
-`consume` MUST validate, then record the debit, then emit `GrantConsumed`, then return. It MUST NOT move tokens, send native currency, or call the selected asset for transfer. Recording before return applies to storage of the debit; signature validation MAY call the principal under ERC-1271 before recording.
+`consume` MUST validate, then record the debit, then emit `MandateConsumed`, then return. It MUST NOT move tokens, send native currency, or call the selected asset for transfer. Recording before return applies to storage of the debit; signature validation MAY call the principal under ERC-1271 before recording.
 
 `consume` MUST revert unless all of the following hold, checked in this order, using the reason names in [Reason names](#reason-names):
 
 1. `msg.sender == executor` (`UNAUTHORIZED_EXECUTOR`).
-1. The grant is structurally valid, including the execution-time code check on nonzero assets (`INVALID_MANDATE`).
-1. The signature is valid for `grant.principal` over `grantHash` (`BAD_SIGNATURE`).
-1. `block.timestamp >= grant.validAfter` (`NOT_YET_VALID`).
-1. `block.timestamp < grant.validUntil` (`EXPIRED`).
-1. `revoked[grant.principal][grantHash]` is false (`REVOKED`).
-1. If `recipientMode == 0`, the `recipient` argument equals `grant.recipient`; if `recipientMode == 1`, this check does not constrain the argument (`WRONG_RECIPIENT`).
-1. `asset` equals `grant.assets[j].asset` for exactly one `j` (`WRONG_ASSET`).
-1. `amount > 0` and `amount <= grant.assets[j].maxPerCall` (`OVER_TX_CAP`).
+1. The mandate is structurally valid, including the execution-time code check on nonzero assets (`INVALID_MANDATE`).
+1. The signature is valid for `mandate.principal` over `mandateHash` (`BAD_SIGNATURE`).
+1. `block.timestamp >= mandate.validAfter` (`NOT_YET_VALID`).
+1. `block.timestamp < mandate.validUntil` (`EXPIRED`).
+1. `revoked[mandate.principal][mandateHash]` is false (`REVOKED`).
+1. If `recipientMode == 0`, the `recipient` argument equals `mandate.recipient`; if `recipientMode == 1`, this check does not constrain the argument (`WRONG_RECIPIENT`).
+1. `asset` equals `assets[j].asset` for exactly one `j` (`WRONG_ASSET`).
+1. `amount > 0` and `amount <= assets[j].maxPerCall` (`OVER_TX_CAP`).
 1. The spend does not exceed the window cap or window pie as defined in [Caps and pies](#caps-and-pies) (`OVER_WINDOW_CAP`).
 1. The spend does not exceed the lifetime cap or lifetime pie (`OVER_CUMULATIVE_CAP`).
 1. Recording the debit does not exceed the live-debit bound, if any (`WINDOW_FULL`).
 
-On success the registry appends a timestamped debit for `(grantHash, asset)` with the consumed `amount` and, when `assetCombine == 1`, the pie consumes. `calls` counts successful `consume` executions for that `(grantHash, asset)` and is observation only; it is not a signed cap.
+On success the registry appends a timestamped debit for `(mandateHash, asset)` with the consumed `amount` and, when `assetCombine == 1`, the pie consumes. `calls` counts successful `consume` executions for that `(mandateHash, asset)` and is observation only; it is not a signed cap.
 
 View behavior:
 
-- `revoked(principal, grantHash)` is true if that principal has revoked that hash in this registry.
+- `revoked(principal, mandateHash)` is true if that principal has revoked that hash in this registry.
 - `usage` returns lifetime raw `spent` (sum of `amount` over every successful consume of that asset, including those that have left the window) and lifetime `calls`.
 - `rollingUsage` returns the same pair recomputed over unexpired debits only.
-- `pieUsed` returns `(0, 0)` when the grant's `assetCombine == 0` or when no or-mode debit exists. When `assetCombine == 1`, `lifetimeWad` is the sum of all `lifetimeConsume` values and `windowWad` is the sum of unexpired `windowConsume` values. Both are at most `WAD`. `windowWad` MUST be recomputed at the queried block.
+- `pieUsed` returns `(0, 0)` when the mandate's `assetCombine == 0` or when no or-mode debit exists. When `assetCombine == 1`, `lifetimeWad` is the sum of all `lifetimeConsume` values and `windowWad` is the sum of unexpired `windowConsume` values. Both are at most `WAD`. `windowWad` MUST be recomputed at the queried block.
 
 If `pieUsed` is queried without the mandate body, the registry MUST return values consistent with recorded debits: and-mode debits do not advance pies; or-mode debits do.
 
 ### Reason names
 
-These names are the normative vocabulary. Encoding of revert data is implementation-defined. `consume` returns with no reason on success. On failure it MUST revert and MUST correspond to exactly one name other than `OK`. `OK` denotes success for simulators; it is not a `consume` return value. A view helper that returns `(bool, reason)` is not part of `ISpendGrantRegistry`.
+These names are the normative vocabulary. Encoding of revert data is implementation-defined. `consume` returns with no reason on success. On failure it MUST revert and MUST correspond to exactly one name other than `OK`. `OK` denotes success for simulators; it is not a `consume` return value. A view helper that returns `(bool, reason)` is not part of `IMandateRegistry`.
 
 | Name | Condition |
 | --- | --- |
@@ -345,8 +345,8 @@ These names are the normative vocabulary. Encoding of revert data is implementat
 | `BAD_SIGNATURE` | EOA recovery or ERC-1271 validation failed |
 | `NOT_YET_VALID` | `block.timestamp < validAfter` |
 | `EXPIRED` | `block.timestamp >= validUntil` |
-| `REVOKED` | Principal has revoked `grantHash` |
-| `WRONG_ASSET` | `asset` is not in `grant.assets` |
+| `REVOKED` | Principal has revoked `mandateHash` |
+| `WRONG_ASSET` | `asset` is not in `mandate.assets` |
 | `WRONG_RECIPIENT` | `recipientMode == 0` and `recipient` is not the signed recipient |
 | `OVER_TX_CAP` | `amount == 0` or `amount > maxPerCall` |
 | `OVER_WINDOW_CAP` | Trailing-window raw cap or window pie would be exceeded |
@@ -372,7 +372,7 @@ This proposal is the signed **terms** of a spend grant plus an on-chain **remain
 
 The Bounded Agent Actions draft (ERC-8312, still an open ERCs pull request at the time of writing) meters remaining of an opaque `capabilityRoot`. It does not enforce the capability. This proposal defines the capability. A future profile may store remaining in an 8312 cursor; this registry is the v1 remaining store.
 
-Discussion of asset-enforced spend on Magicians argued that general spend belongs at the account layer so existing ERC-20 contracts and native currency need not opt in, and that token hooks are for issuer-controlled assets. This proposal follows that split: the registry never moves funds, and tokens need not implement a spend hook.
+Discussion of asset-enforced spend on Magicians argued that general spend belongs at the account layer so existing ERC-20 contracts and native currency need not opt in, and that token hooks are for issuer-controlled assets. This proposal follows that split: the registry never moves funds, and tokens need not implement a mandate hook.
 
 A widely deployed smart-wallet spend permission (not an ERC) is one token with a recurring period allowance. Its native sentinel is `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`, not `address(0)`. This proposal uses `address(0)` for native currency, forbids rewriting it to a wrapped token, allows up to sixteen assets, and uses a trailing lookback rather than a period reset.
 
@@ -392,11 +392,11 @@ This proposal adds a new typed-data domain, JSON shape, and registry interface. 
 
 ## Test Cases
 
-Golden vectors are in [../assets/erc-draft_spend_grants/vectors/v1.json](../assets/erc-draft_spend_grants/vectors/v1.json). They include domain separator, struct hash, digest, canonical rendering bytes, and an EOA signature. An implementation of the Specification reproduces those values. No additional requirements are defined here.
+Golden vectors are in [../assets/erc-draft_spend_mandate/vectors/v1.json](../assets/erc-draft_spend_mandate/vectors/v1.json). They include domain separator, struct hash, digest, canonical rendering bytes, and an EOA signature. An implementation of the Specification reproduces those values. No additional requirements are defined here.
 
 ## Reference Implementation
 
-A non-normative Solidity reference lives under [../assets/erc-draft_spend_grants/](../assets/erc-draft_spend_grants/). It is an aid to implementers. The Specification is authoritative. Hashing, rendering, JSON interchange, validation, pies, and rolling expiry are implementable from this document without those sources.
+A non-normative Solidity reference lives under [../assets/erc-draft_spend_mandate/](../assets/erc-draft_spend_mandate/). It is an aid to implementers. The Specification is authoritative. Hashing, rendering, JSON interchange, validation, pies, and rolling expiry are implementable from this document without those sources.
 
 ## Security Considerations
 
@@ -406,7 +406,7 @@ The registry never moves funds. Safety of the principal's assets depends on the 
 
 Revocation is per principal and permanent. It does not pause the executor. A `consume` already in flight in the same block as `revoke` races on transaction order. There is no admin to freeze a stolen delegate; the principal revokes hashes they signed, and remaining caps bound a stolen delegate until then.
 
-Code-bearing principals are ERC-1271 only. An implementation that falls back to ECDSA when `isValidSignature` fails would treat a contract with an `owner` key as that key. ERC-1271 is evaluated at execution, so a principal that rotates its validation logic can invalidate outstanding grants without the registry's help.
+Code-bearing principals are ERC-1271 only. An implementation that falls back to ECDSA when `isValidSignature` fails would treat a contract with an `owner` key as that key. ERC-1271 is evaluated at execution, so a principal that rotates its validation logic can invalidate outstanding mandates without the registry's help.
 
 The 256-live-debit bound (or any similar bound) is a grief surface: many small in-window consumes can fill the window and force `WINDOW_FULL` until the oldest debit expires. Or-mode ceiling division can exhaust a pie before raw sums reach the signed caps. Both are intentional fail-closed behaviors.
 
@@ -416,7 +416,7 @@ Reentrant `consume` during an ERC-1271 callback, or during a later token hook in
 
 The registry cannot be paused or upgraded. A bug in remaining arithmetic is permanent for that deployment. A new registry is a new domain and requires new signatures.
 
-Salt reuse with identical terms is the same grant. It does not reset remaining. Distinct grants need a distinct salt or a distinct field.
+Salt reuse with identical terms is the same mandate. It does not reset remaining. Distinct grants need a distinct salt or a distinct field.
 
 ## Copyright
 
