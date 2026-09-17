@@ -79,7 +79,7 @@ contract SpendGrantHashTest is Test {
             string memory rendering = vm.parseJsonString(json, string.concat(p, ".rendering"));
 
             uint256 nAssets = (i == 0 || i == 3) ? 1 : 2;
-            SpendGrant memory m = _mandateFromJson(json, p, nAssets);
+            SpendGrant memory m = _grantFromJson(json, p, nAssets);
             assertEq(keccak256(bytes(rendering)), renderingHash);
             assertEq(m.renderingHash, renderingHash);
 
@@ -124,7 +124,7 @@ contract SpendGrantHashTest is Test {
         assertTrue(a != b && a != c && b != c);
     }
 
-    function _mandateFromJson(string memory json, string memory p, uint256 nAssets)
+    function _grantFromJson(string memory json, string memory p, uint256 nAssets)
         internal
         view
         returns (SpendGrant memory m)
