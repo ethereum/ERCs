@@ -3,7 +3,9 @@
   "types": {
     "experienceDelta": "ExperienceDelta(bytes32 spaceId,uint64 sequence,bytes32 prevStateRoot,bytes32 deltaCommitment,bytes32 provenanceCommitment,bytes32 profileId,bytes32 locatorCommitment)",
     "memoryState": "MemoryState(bytes32 prevStateRoot,bytes32 transitionId)",
-    "memorySpace": "MemorySpace(address initialController,bytes32 salt)"
+    "memorySpace": "MemorySpace(address initialController,bytes32 salt)",
+    "spaceRegistration": "SpaceRegistration(bytes32 spaceId,address controller,address authorizer)",
+    "spaceAuthorization": "SpaceAuthorization(bytes32 spaceId,address newController,address newAuthorizer,uint64 nonce)"
   },
   "commitment": {
     "payload": "{\"op\":\"upsert\",\"resourceId\":\"memory-42\",\"value\":\"prefers dark mode\"}",
@@ -47,6 +49,8 @@
     "authorizer": "0x3333333333333333333333333333333333333333",
     "spaceSalt": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "registrationId": "0x7bea30aa6018c9c8a3e66bd9573377af482dc791994af8c50698e3fc9d4e5d64",
+    "newController": "0x2222222222222222222222222222222222222222",
+    "newAuthorizer": "0x3333333333333333333333333333333333333333",
     "updateNonce": "1",
     "authorizationId": "0xa1fef7a8e52a533f7839f51962fa6e3ef9f8a8081efbac1eb13651801f4d1a92"
   }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
 /// @title Agent Memory State
@@ -72,21 +72,25 @@ interface IAgentMemoryState {
         view
         returns (address controller, address authorizer, uint64 configNonce);
 
+    /// @dev Optional, non-normative convenience; not required for ERC-8350 conformance.
     function transition(bytes32 transitionId)
         external
         view
         returns (bytes32 spaceId, bytes32 nextStateRoot, uint64 sequence, uint64 committedAt);
 
+    /// @dev Optional, non-normative convenience; not required for ERC-8350 conformance.
     function hashExperienceDelta(ExperienceDelta calldata delta)
         external
         pure
         returns (bytes32 transitionId);
 
+    /// @dev Optional, non-normative convenience; not required for ERC-8350 conformance.
     function computeNextStateRoot(bytes32 prevStateRoot, bytes32 transitionId)
         external
         pure
         returns (bytes32 nextStateRoot);
 
+    /// @dev Optional, non-normative convenience; not required for ERC-8350 conformance.
     function signingDigest(bytes32 structHash) external view returns (bytes32 digest);
 
     function deriveSpaceId(address initialController, bytes32 salt)
