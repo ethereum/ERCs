@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import {AssetLimit, Mandate} from "./MandateTypes.sol";
 
-/// @dev EIP-712 hashing for Portable Spend Mandates. encodeType is frozen in SPEC.md.
+/// @dev EIP-712 hashing for Portable Spend Mandates. encodeType is frozen in the ERC.
 library MandateHash {
     // Exact encodeType (no spaces) as specified.
     bytes32 internal constant MANDATE_TYPEHASH = keccak256(

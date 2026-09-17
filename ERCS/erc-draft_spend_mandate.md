@@ -16,7 +16,7 @@ This specification defines a portable spend mandate: a typed, signed grant from 
 
 ## Motivation
 
-Approvals and one-shot signatures do not give wallets, agents, and relying parties a shared object for bounded spend. An [ERC-20](./eip-20.md) allowance is usually a single-asset, uncapped, non-expiring debit right. Recurring allowances that reset at a UTC day or calendar period allow two full spends on either side of midnight. Multi-asset agents need either independent per-asset remaining or one shared budget that several assets draw down.
+Approvals and one-shot signatures do not give wallets, applications, and relying parties a shared object for bounded spend. An [ERC-20](./eip-20.md) allowance is usually a single-asset, uncapped, non-expiring debit right. Recurring allowances that reset at a UTC day or calendar period allow two full spends on either side of midnight. Multi-asset grants need either independent per-asset remaining or one shared budget that several assets draw down.
 
 Delegation and permission RPCs exist, but they leave the meaning of the permission opaque. Two implementations can show the same hash and still disagree on window arithmetic, native-currency encoding, or whether a second asset has its own remaining. Principals also need a revocation path that does not depend on the delegate continuing to cooperate.
 
@@ -372,7 +372,7 @@ This proposal is the signed **terms** of a spend grant plus an on-chain **remain
 
 The Bounded Agent Actions draft (ERC-8312, still an open ERCs pull request at the time of writing) meters remaining of an opaque `capabilityRoot`. It does not enforce the capability. This proposal defines the capability. A future profile may store remaining in an 8312 cursor; this registry is the v1 remaining store.
 
-Discussion of asset-enforced spend on Magicians argued that general agent spend belongs at the account layer so existing ERC-20 contracts and native currency need not opt in, and that token hooks are for issuer-controlled assets. This proposal follows that split: the registry never moves funds, and tokens need not implement a mandate hook.
+Discussion of asset-enforced spend on Magicians argued that general spend belongs at the account layer so existing ERC-20 contracts and native currency need not opt in, and that token hooks are for issuer-controlled assets. This proposal follows that split: the registry never moves funds, and tokens need not implement a mandate hook.
 
 A widely deployed smart-wallet spend permission (not an ERC) is one token with a recurring period allowance. Its native sentinel is `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`, not `address(0)`. This proposal uses `address(0)` for native currency, forbids rewriting it to a wrapped token, allows up to sixteen assets, and uses a trailing lookback rather than a period reset.
 

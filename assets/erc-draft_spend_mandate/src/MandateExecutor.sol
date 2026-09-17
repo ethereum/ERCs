@@ -32,8 +32,8 @@ contract MandateExecutor {
 
         if (asset == address(0)) {
             // Reference limitation: native value is supplied by the delegate
-            // (`msg.value`), not pulled from the principal. Debiting an EOA
-            // principal's ETH requires an account adapter (e.g. EIP-7702).
+            // (`msg.value`), not pulled from the principal. Debiting the
+            // principal's native balance needs an account adapter.
             if (msg.value != amount) revert UnexpectedMsgValue();
             (bool ok,) = payable(to).call{value: amount}("");
             if (!ok) revert TransferFailed();
