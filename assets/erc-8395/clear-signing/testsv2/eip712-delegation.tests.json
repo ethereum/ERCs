@@ -1,0 +1,466 @@
+{
+  "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-tests-v2.schema.json",
+  "descriptor": "../eip712-delegation.json",
+  "tests": [
+    {
+      "description": "P-256 HTTP delegation with all constraints visible",
+      "data": {
+        "domain": {
+          "name": "ERC-8128 Delegation",
+          "version": "1",
+          "chainId": 31337,
+          "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        "types": {
+          "Delegation": [
+            {
+              "name": "issuer",
+              "type": "string"
+            },
+            {
+              "name": "delegate",
+              "type": "string"
+            },
+            {
+              "name": "audiences",
+              "type": "string[]"
+            },
+            {
+              "name": "id",
+              "type": "bytes32"
+            },
+            {
+              "name": "epoch",
+              "type": "uint64"
+            },
+            {
+              "name": "validAfter",
+              "type": "uint64"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint64"
+            },
+            {
+              "name": "maxRequestValiditySeconds",
+              "type": "uint32"
+            },
+            {
+              "name": "remainingDelegations",
+              "type": "uint32"
+            },
+            {
+              "name": "delegateProfile",
+              "type": "string"
+            },
+            {
+              "name": "requireNonReplayable",
+              "type": "bool"
+            },
+            {
+              "name": "requiredComponents",
+              "type": "string[]"
+            },
+            {
+              "name": "permissions",
+              "type": "string[]"
+            },
+            {
+              "name": "parentGrantHash",
+              "type": "bytes32"
+            }
+          ]
+        },
+        "primaryType": "Delegation",
+        "message": {
+          "issuer": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
+          "audiences": [
+            "https://api.example"
+          ],
+          "id": "0x3333333333333333333333333333333333333333333333333333333333333333",
+          "epoch": "7",
+          "validAfter": "1699999000",
+          "validUntil": "1700003600",
+          "maxRequestValiditySeconds": 60,
+          "remainingDelegations": 2,
+          "delegateProfile": "ecdsa-p256-sha256",
+          "requireNonReplayable": true,
+          "requiredComponents": [
+            "@authority"
+          ],
+          "permissions": [
+            "resource:read"
+          ],
+          "parentGrantHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "expected": {
+        "intent": "Authorize delegated HTTP requests",
+        "owner": "ERC-8395 Delegation",
+        "fields": [
+          {
+            "label": "Authorizing identity",
+            "value": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Delegate public key or account",
+            "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
+          },
+          {
+            "label": "Allowed service origins",
+            "value": "https://api.example"
+          },
+          {
+            "label": "Service-defined permissions",
+            "value": "resource:read"
+          },
+          {
+            "label": "Valid from",
+            "value": "2023-11-14 21:56:40Z"
+          },
+          {
+            "label": "Expires at",
+            "value": "2023-11-14 23:13:20Z"
+          },
+          {
+            "label": "Maximum lifetime of each request",
+            "value": "00:01:00"
+          },
+          {
+            "label": "Further delegation levels allowed",
+            "value": "2"
+          },
+          {
+            "label": "Delegate signature algorithm",
+            "value": "ecdsa-p256-sha256"
+          },
+          {
+            "label": "Single-use requests required",
+            "value": "true"
+          },
+          {
+            "label": "Additional required signed request components",
+            "value": "@authority"
+          },
+          {
+            "label": "Revocation epoch",
+            "value": "7"
+          },
+          {
+            "label": "Grant identifier",
+            "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          {
+            "label": "Parent grant hash (zero for a root grant)",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      }
+    },
+    {
+      "description": "Multiple services and permissions, with no additional required components",
+      "data": {
+        "domain": {
+          "name": "ERC-8128 Delegation",
+          "version": "1",
+          "chainId": 31337,
+          "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        "types": {
+          "Delegation": [
+            {
+              "name": "issuer",
+              "type": "string"
+            },
+            {
+              "name": "delegate",
+              "type": "string"
+            },
+            {
+              "name": "audiences",
+              "type": "string[]"
+            },
+            {
+              "name": "id",
+              "type": "bytes32"
+            },
+            {
+              "name": "epoch",
+              "type": "uint64"
+            },
+            {
+              "name": "validAfter",
+              "type": "uint64"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint64"
+            },
+            {
+              "name": "maxRequestValiditySeconds",
+              "type": "uint32"
+            },
+            {
+              "name": "remainingDelegations",
+              "type": "uint32"
+            },
+            {
+              "name": "delegateProfile",
+              "type": "string"
+            },
+            {
+              "name": "requireNonReplayable",
+              "type": "bool"
+            },
+            {
+              "name": "requiredComponents",
+              "type": "string[]"
+            },
+            {
+              "name": "permissions",
+              "type": "string[]"
+            },
+            {
+              "name": "parentGrantHash",
+              "type": "bytes32"
+            }
+          ]
+        },
+        "primaryType": "Delegation",
+        "message": {
+          "issuer": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "delegate": "eip155:31337:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+          "audiences": [
+            "https://api.example",
+            "https://backup.example"
+          ],
+          "id": "0x3333333333333333333333333333333333333333333333333333333333333333",
+          "epoch": "7",
+          "validAfter": "1699999000",
+          "validUntil": "1700003600",
+          "maxRequestValiditySeconds": 60,
+          "remainingDelegations": 2,
+          "delegateProfile": "erc8128-eoa",
+          "requireNonReplayable": true,
+          "requiredComponents": [],
+          "permissions": [
+            "resource:read",
+            "resource:write"
+          ],
+          "parentGrantHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "expected": {
+        "intent": "Authorize delegated HTTP requests",
+        "owner": "ERC-8395 Delegation",
+        "fields": [
+          {
+            "label": "Authorizing identity",
+            "value": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Delegate public key or account",
+            "value": "eip155:31337:0x6813eb9362372eef6200f3b1dbc3f819671cba69"
+          },
+          {
+            "label": "Allowed service origins",
+            "value": "https://api.example"
+          },
+          {
+            "label": "Allowed service origins",
+            "value": "https://backup.example"
+          },
+          {
+            "label": "Service-defined permissions",
+            "value": "resource:read"
+          },
+          {
+            "label": "Service-defined permissions",
+            "value": "resource:write"
+          },
+          {
+            "label": "Valid from",
+            "value": "2023-11-14 21:56:40Z"
+          },
+          {
+            "label": "Expires at",
+            "value": "2023-11-14 23:13:20Z"
+          },
+          {
+            "label": "Maximum lifetime of each request",
+            "value": "00:01:00"
+          },
+          {
+            "label": "Further delegation levels allowed",
+            "value": "2"
+          },
+          {
+            "label": "Delegate signature algorithm",
+            "value": "erc8128-eoa"
+          },
+          {
+            "label": "Single-use requests required",
+            "value": "true"
+          },
+          {
+            "label": "Revocation epoch",
+            "value": "7"
+          },
+          {
+            "label": "Grant identifier",
+            "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          {
+            "label": "Parent grant hash (zero for a root grant)",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      }
+    },
+    {
+      "description": "Empty permission set, no further delegation, replay not prohibited by this grant",
+      "data": {
+        "domain": {
+          "name": "ERC-8128 Delegation",
+          "version": "1",
+          "chainId": 31337,
+          "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        "types": {
+          "Delegation": [
+            {
+              "name": "issuer",
+              "type": "string"
+            },
+            {
+              "name": "delegate",
+              "type": "string"
+            },
+            {
+              "name": "audiences",
+              "type": "string[]"
+            },
+            {
+              "name": "id",
+              "type": "bytes32"
+            },
+            {
+              "name": "epoch",
+              "type": "uint64"
+            },
+            {
+              "name": "validAfter",
+              "type": "uint64"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint64"
+            },
+            {
+              "name": "maxRequestValiditySeconds",
+              "type": "uint32"
+            },
+            {
+              "name": "remainingDelegations",
+              "type": "uint32"
+            },
+            {
+              "name": "delegateProfile",
+              "type": "string"
+            },
+            {
+              "name": "requireNonReplayable",
+              "type": "bool"
+            },
+            {
+              "name": "requiredComponents",
+              "type": "string[]"
+            },
+            {
+              "name": "permissions",
+              "type": "string[]"
+            },
+            {
+              "name": "parentGrantHash",
+              "type": "bytes32"
+            }
+          ]
+        },
+        "primaryType": "Delegation",
+        "message": {
+          "issuer": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
+          "audiences": [
+            "https://api.example"
+          ],
+          "id": "0x3333333333333333333333333333333333333333333333333333333333333333",
+          "epoch": "7",
+          "validAfter": "1699999000",
+          "validUntil": "1700003600",
+          "maxRequestValiditySeconds": 60,
+          "remainingDelegations": 0,
+          "delegateProfile": "ecdsa-p256-sha256",
+          "requireNonReplayable": false,
+          "requiredComponents": [],
+          "permissions": [],
+          "parentGrantHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "expected": {
+        "intent": "Authorize delegated HTTP requests",
+        "owner": "ERC-8395 Delegation",
+        "fields": [
+          {
+            "label": "Authorizing identity",
+            "value": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Delegate public key or account",
+            "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
+          },
+          {
+            "label": "Allowed service origins",
+            "value": "https://api.example"
+          },
+          {
+            "label": "Valid from",
+            "value": "2023-11-14 21:56:40Z"
+          },
+          {
+            "label": "Expires at",
+            "value": "2023-11-14 23:13:20Z"
+          },
+          {
+            "label": "Maximum lifetime of each request",
+            "value": "00:01:00"
+          },
+          {
+            "label": "Further delegation levels allowed",
+            "value": "0"
+          },
+          {
+            "label": "Delegate signature algorithm",
+            "value": "ecdsa-p256-sha256"
+          },
+          {
+            "label": "Single-use requests required",
+            "value": "false"
+          },
+          {
+            "label": "Revocation epoch",
+            "value": "7"
+          },
+          {
+            "label": "Grant identifier",
+            "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          {
+            "label": "Parent grant hash (zero for a root grant)",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      }
+    }
+  ]
+}

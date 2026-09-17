@@ -1,0 +1,106 @@
+{
+  "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+  "context": {
+    "eip712": {
+      "domain": {
+        "name": "ERC-8128 Delegation",
+        "version": "1",
+        "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+      },
+      "deployments": [
+        {
+          "chainId": 31337,
+          "address": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "owner": "ERC-8395 Delegation"
+  },
+  "display": {
+    "formats": {
+      "Delegation(string issuer,string delegate,string[] audiences,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,string[] permissions,bytes32 parentGrantHash)": {
+        "intent": "Authorize delegated HTTP requests",
+        "fields": [
+          {
+            "path": "issuer",
+            "label": "Authorizing identity",
+            "format": "raw"
+          },
+          {
+            "path": "delegate",
+            "label": "Delegate public key or account",
+            "format": "raw"
+          },
+          {
+            "path": "audiences.[]",
+            "label": "Allowed service origins",
+            "format": "raw"
+          },
+          {
+            "path": "permissions.[]",
+            "label": "Service-defined permissions",
+            "format": "raw"
+          },
+          {
+            "path": "validAfter",
+            "label": "Valid from",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "validUntil",
+            "label": "Expires at",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "maxRequestValiditySeconds",
+            "label": "Maximum lifetime of each request",
+            "format": "duration"
+          },
+          {
+            "path": "remainingDelegations",
+            "label": "Further delegation levels allowed",
+            "format": "raw"
+          },
+          {
+            "path": "delegateProfile",
+            "label": "Delegate signature algorithm",
+            "format": "raw"
+          },
+          {
+            "path": "requireNonReplayable",
+            "label": "Single-use requests required",
+            "format": "raw"
+          },
+          {
+            "path": "requiredComponents.[]",
+            "label": "Additional required signed request components",
+            "format": "raw"
+          },
+          {
+            "path": "epoch",
+            "label": "Revocation epoch",
+            "format": "raw"
+          },
+          {
+            "path": "id",
+            "label": "Grant identifier",
+            "format": "raw"
+          },
+          {
+            "path": "parentGrantHash",
+            "label": "Parent grant hash (zero for a root grant)",
+            "format": "raw"
+          }
+        ]
+      }
+    }
+  }
+}
