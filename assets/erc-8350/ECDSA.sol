@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
 /// @notice Minimal, dependency-free ECDSA recovery with malleability guard.
