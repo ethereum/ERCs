@@ -1,7 +1,5 @@
 # ERC-8128 signer and verifier pseudocode
 
-Section references refer to [ERC-8128](../../ERCS/erc-8128.md).
-
 The reference implementation signs the RFC 9421 signature base `M`, covering `@scheme`, `@authority`, `@method`, `@path`, and `@query`, plus the content fields required by Section 3.1.1. The signer computes an ERC-191 signature over `M`, and the verifier applies Universal Account verification.
 
 ## Signer (client)

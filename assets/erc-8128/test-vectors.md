@@ -1,7 +1,5 @@
 # ERC-8128 test vectors
 
-Test vectors for [ERC-8128](../../ERCS/erc-8128.md).
-
 The fixed private key is public and MUST NOT hold assets:
 
 | Role | Private key | Account ID |
