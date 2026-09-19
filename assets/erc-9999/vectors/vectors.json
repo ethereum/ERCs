@@ -1,0 +1,169 @@
+{
+  "_comment": "Deterministic vectors for ERC-KYA (placeholder number 9999). Regenerate with `node tools/vectors.js`.",
+  "subjectTypes": {
+    "erc8004": "0xb126d82eb3261515f478c495d152d01425c0b2efa0a1ac1715bb26c2755b65cb",
+    "account": "0xd844bb55167ab332117049e2ccd3d8863d241bcc80f46302310a6d942a90e851",
+    "erc721": "0x0e23893281f878f0088dd044e35b03661018bff448ff89faadef02011e687deb",
+    "did": "0x9cb4777bc61baeb5c84f2ed7e7dc586e5e21f1c1194bf295bc2430cbabe5eeae"
+  },
+  "subject": {
+    "chainId": "11155111",
+    "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "agentId": "22",
+    "subjectType": "0xb126d82eb3261515f478c495d152d01425c0b2efa0a1ac1715bb26c2755b65cb",
+    "subjectData": "0x0000000000000000000000000000000000000000000000000000000000aa36a70000000000000000000000008004a818bfb912233c491871b3d84c89a494bd9e0000000000000000000000000000000000000000000000000000000000000016",
+    "subjectKey": "0x782d83168799d65b4fd438524964d8e506ce0524248efa9e3968e497b71bdbf7"
+  },
+  "scheme": {
+    "controller": "0x1111111111111111111111111111111111111111",
+    "schemeHash": "0xcf7bba3ddc048341a4d75785a566a30ca236b477fca33f1cf1ffd6d337004209",
+    "nonce": "0",
+    "schemeId": "0xfc07345ddcb3f1e873480b8629be4c404e3adbdbfc496076b947a2d2c787510f",
+    "descriptorKeccak": "keccak256 of the raw bytes of example-scheme.json"
+  },
+  "assertion": {
+    "issuer": "0x2222222222222222222222222222222222222222",
+    "issuerNonce": "0",
+    "assertionId": "0x0693f39048b2052ae9c8a2194d26f176ed810c6191ebe6409b109166a800ba89",
+    "provedIssuer": "0x3333333333333333333333333333333333333333",
+    "provedAssertionId": "0xce243ab17bcada6140c7c91f5a76a32c82af5e9024f0e771e861ce6c690633e5"
+  },
+  "zk": {
+    "layout": "kya-public-v1",
+    "signalOrder": "[nullifier.hi, nullifier.lo, subjectKey.hi, subjectKey.lo, level, claimDigest.hi, claimDigest.lo, expiresAt, issuerSetRoot.hi, issuerSetRoot.lo, schemeId.hi, schemeId.lo, epoch]",
+    "proverSecret": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+    "epoch": "0",
+    "nullifier": "0x5ecd4961a7be33565a26723df4994bb6a95ef4fa6d8b2b9487798060101b7e6a",
+    "claimDigest": "0x44377fc6ed42398cddfb46b1752939aae0c5f0c5635b726aaad07f8bfa21717f",
+    "issuerSetRoot": "0xcfe631ae5a05fd7cd3fb8e50a6e7706244f806df313d48c7700f2f428cf56452",
+    "expiresAt": "1900000000",
+    "publicInputs": "0x782d83168799d65b4fd438524964d8e506ce0524248efa9e3968e497b71bdbf75ecd4961a7be33565a26723df4994bb6a95ef4fa6d8b2b9487798060101b7e6a000000000000000000000000000000000000000000000000000000000000000444377fc6ed42398cddfb46b1752939aae0c5f0c5635b726aaad07f8bfa21717f00000000000000000000000000000000000000000000000000000000713fb300cfe631ae5a05fd7cd3fb8e50a6e7706244f806df313d48c7700f2f428cf564520000000000000000000000000000000000000000000000000000000000000000",
+    "evidenceHash": "0x18fd45cddfe39edb4084547428a50e6c78f71bc4455bd8c89795e75b7b7be9cb",
+    "groth16Signals": [
+      "126013340812728497151886337971060296630",
+      "225132575941239088452585008425047129706",
+      "159743671633468079921497635619690830053",
+      "9045085403143849831065186181656075255",
+      "4",
+      "90675671667217544668693239151729392042",
+      "298774836953954976823590032580316066175",
+      "1900000000",
+      "276345431056572345033906109855245496418",
+      "91675332711867632845910232882123990098",
+      "335002863137631289739285366731981081664",
+      "103985396165768178025724297001721876751",
+      "0"
+    ]
+  },
+  "policy": {
+    "owner": "0x5555555555555555555555555555555555555555",
+    "policyHash": "0xbcfd1917e4ef8fd07c15fbdb7dd14328f71cbce57e9eb9155f3858bd1328e7be",
+    "nonce": "0",
+    "policyId": "0xb5ae099740957229f076820b205950b7a7547af9f2f6a42e3f7280c04d9320dc"
+  },
+  "bridge8004": {
+    "requestType": "0x85315338ad9dfcd88a21d511b4684f865ccf8cd30766a803deed258455043e1f",
+    "bridge": "0x5555555555555555555555555555555555555555",
+    "requestHashPreimage": "abi.encode(requestType, chainId, identityRegistry, bridge, agentId, schemeId)",
+    "requestHash": "0x3d2ba4e2a09eded33a703233ee9219555f3d83d335b3eab9cf7ace5a4f22560c",
+    "tag": "kya:fc07345d",
+    "metadataKey": "kya",
+    "metadataValue": "0x000000000000000000000000444444444444444444444444444444444444444400000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001fc07345ddcb3f1e873480b8629be4c404e3adbdbfc496076b947a2d2c787510f"
+  },
+  "eip712": {
+    "domain": {
+      "name": "KYA",
+      "version": "1",
+      "chainId": 11155111,
+      "verifyingContract": "0x4444444444444444444444444444444444444444"
+    },
+    "types": {
+      "KYAChallenge": [
+        {
+          "name": "verifierSubjectKey",
+          "type": "bytes32"
+        },
+        {
+          "name": "proverSubjectKey",
+          "type": "bytes32"
+        },
+        {
+          "name": "schemeIds",
+          "type": "bytes32[]"
+        },
+        {
+          "name": "policyId",
+          "type": "bytes32"
+        },
+        {
+          "name": "nonce",
+          "type": "bytes32"
+        },
+        {
+          "name": "expiry",
+          "type": "uint64"
+        }
+      ],
+      "KYAPresentation": [
+        {
+          "name": "challengeHash",
+          "type": "bytes32"
+        },
+        {
+          "name": "assertionIds",
+          "type": "bytes32[]"
+        },
+        {
+          "name": "proofSchemeId",
+          "type": "bytes32"
+        },
+        {
+          "name": "publicInputs",
+          "type": "bytes"
+        },
+        {
+          "name": "proof",
+          "type": "bytes"
+        }
+      ]
+    },
+    "challenge": {
+      "verifierSubjectKey": "0xe36a9d6529469401cc2d137b6fbf9fc01478b03a00fafee209a62319c75b12f2",
+      "proverSubjectKey": "0x782d83168799d65b4fd438524964d8e506ce0524248efa9e3968e497b71bdbf7",
+      "schemeIds": [
+        "0xfc07345ddcb3f1e873480b8629be4c404e3adbdbfc496076b947a2d2c787510f"
+      ],
+      "policyId": "0xb5ae099740957229f076820b205950b7a7547af9f2f6a42e3f7280c04d9320dc",
+      "nonce": "0x9c6230254ac733f54ec47298f0a5ddaf93dc9efe6e05fb726dcb6faf10ddece2",
+      "expiry": 1800003600
+    },
+    "challengeHash": "0x695390cdde09aac5e297644f8c6a41bee2891311db745376ea1170fd49524224",
+    "presentation": {
+      "challengeHash": "0x695390cdde09aac5e297644f8c6a41bee2891311db745376ea1170fd49524224",
+      "assertionIds": [
+        "0x0693f39048b2052ae9c8a2194d26f176ed810c6191ebe6409b109166a800ba89"
+      ],
+      "proofSchemeId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "publicInputs": "0x",
+      "proof": "0x"
+    },
+    "presentationHash": "0xb2c173ff87d1989297e86bc113adb22334318c74fa737e282204c35b81a1c13a",
+    "zkPresentation": {
+      "challengeHash": "0x695390cdde09aac5e297644f8c6a41bee2891311db745376ea1170fd49524224",
+      "assertionIds": [],
+      "proofSchemeId": "0xfc07345ddcb3f1e873480b8629be4c404e3adbdbfc496076b947a2d2c787510f",
+      "publicInputs": "0x782d83168799d65b4fd438524964d8e506ce0524248efa9e3968e497b71bdbf75ecd4961a7be33565a26723df4994bb6a95ef4fa6d8b2b9487798060101b7e6a000000000000000000000000000000000000000000000000000000000000000444377fc6ed42398cddfb46b1752939aae0c5f0c5635b726aaad07f8bfa21717f00000000000000000000000000000000000000000000000000000000713fb300cfe631ae5a05fd7cd3fb8e50a6e7706244f806df313d48c7700f2f428cf564520000000000000000000000000000000000000000000000000000000000000000",
+      "proof": "0x"
+    },
+    "zkPresentationHash": "0xb30fc2165dc3e9f0f1462719fd7c1660c8ffdf1dca80932c0a203be4c91c5506",
+    "signer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "presentationSignature": "0x6d3b56847bb7099b8de64f76d50bf80968fe394041af761069aadec333bf7be27f81129b028abe022ccea2ad3a80d9f6b8be7f0a181a121053319fdc3bd554f61b"
+  },
+  "interfaceIds": {
+    "IKYASchemeRegistry": "0xb80345a1",
+    "IKYARegistry": "0x5da7d5cf",
+    "IKYAPolicyRegistry": "0x1cf9e558",
+    "IKYAPolicyEvaluator": "0x234f3d87",
+    "IKYAVerifier": "0x5bf48e3a"
+  }
+}
