@@ -1,0 +1,25 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-9999#kya-scheme-v1",
+  "name": "Accountable Operator (ZK) v1",
+  "description": "Proves, without disclosure, that an identified legal entity in an allow-listed jurisdiction set stands behind the agent's ERC-8004 registration and controls its agentWallet.",
+  "version": "1.0.0",
+  "mode": "proved",
+  "dimensions": ["controller-binding", "accountability", "compliance"],
+  "levels": {
+    "0": { "label": "not verified", "erc8004Response": 0 },
+    "2": { "label": "controller-linked", "description": "agentWallet and operator keys bound to one controller", "erc8004Response": 50 },
+    "4": { "label": "accountable", "description": "identified legal entity backs the controller", "erc8004Response": 100 }
+  },
+  "evidenceKinds": ["zk-proof", "vc-jwt", "erc8004-validation"],
+  "issuerPolicy": { "kind": "verifier-only" },
+  "circuit": {
+    "system": "groth16",
+    "vkHash": "0x9f1c7e2d5b3a4c6e8f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6",
+    "publicInputLayout": ["subjectKey", "nullifier", "level", "claimDigest", "expiresAt", "issuerSetRoot"],
+    "publicInputAbi": ["bytes32", "bytes32", "uint8", "bytes32", "uint64", "bytes32"],
+    "nullifierScope": "scheme-epoch",
+    "epochSeconds": 2592000,
+    "issuerHiding": true
+  },
+  "documentation": "https://example.org/kya/accountable-operator-v1"
+}
