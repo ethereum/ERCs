@@ -25,6 +25,29 @@
     },
     "require": {
       "$ref": "#/$defs/node"
+    },
+    "onchain": {
+      "type": "object",
+      "required": [
+        "rulesHash"
+      ],
+      "additionalProperties": false,
+      "description": "Present iff the policy is registered with an executable projection (IKYAPolicyEvaluator). rulesHash MUST equal keccak256(abi.encode(Rule[] allOf)) of the registered projection, and the projection MUST be the document's top-level allOf restricted to ordered-level rules with minLevel and issuers. If the document contains conditions the projection cannot express (anyOf, level equality, anchors), `sufficient` MUST be false.",
+      "properties": {
+        "evaluator": {
+          "type": "string",
+          "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$"
+        },
+        "rulesHash": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "sufficient": {
+          "type": "boolean",
+          "default": true,
+          "description": "true iff on-chain evaluate() of the projection is equivalent to evaluating the whole document."
+        }
+      }
     }
   },
   "$defs": {

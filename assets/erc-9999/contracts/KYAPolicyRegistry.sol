@@ -11,6 +11,7 @@ contract KYAPolicyRegistry is IKYAPolicyRegistry, IKYAPolicyEvaluator, IERC165 {
         address owner;
         string policyURI;
         bytes32 policyHash;
+        bytes32 rulesHash;
         bool exists;
     }
 
@@ -25,24 +26,35 @@ contract KYAPolicyRegistry is IKYAPolicyRegistry, IKYAPolicyEvaluator, IERC165 {
     }
 
     function registerPolicy(string calldata policyURI, bytes32 policyHash) external returns (bytes32 policyId) {
-        policyId = _register(policyURI, policyHash);
+        policyId = _register(policyURI, policyHash, bytes32(0));
     }
 
     function registerPolicyWithRules(string calldata policyURI, bytes32 policyHash, Rule[] calldata allOf)
         external
         returns (bytes32 policyId)
     {
-        policyId = _register(policyURI, policyHash);
+        if (allOf.length == 0) revert KYA_NoOnchainRules(bytes32(0));
         for (uint256 i = 0; i < allOf.length; i++) {
             if (allOf[i].issuers.length == 0) revert KYA_EmptyIssuers();
+        }
+        policyId = _register(policyURI, policyHash, rulesHashOf(allOf));
+        for (uint256 i = 0; i < allOf.length; i++) {
             _rules[policyId].push(allOf[i]);
         }
     }
 
-    function getPolicy(bytes32 policyId) external view returns (address owner, string memory policyURI, bytes32 policyHash) {
+    function rulesHashOf(Rule[] calldata allOf) public pure returns (bytes32) {
+        return keccak256(abi.encode(allOf));
+    }
+
+    function getPolicy(bytes32 policyId)
+        external
+        view
+        returns (address owner, string memory policyURI, bytes32 policyHash, bytes32 rulesHash)
+    {
         PolicyRec storage p = _policies[policyId];
         if (!p.exists) revert KYA_PolicyNotFound(policyId);
-        return (p.owner, p.policyURI, p.policyHash);
+        return (p.owner, p.policyURI, p.policyHash, p.rulesHash);
     }
 
     function getRules(bytes32 policyId) external view returns (Rule[] memory) {
@@ -59,11 +71,11 @@ contract KYAPolicyRegistry is IKYAPolicyRegistry, IKYAPolicyEvaluator, IERC165 {
         return true;
     }
 
-    function _register(string calldata policyURI, bytes32 policyHash) internal returns (bytes32 policyId) {
+    function _register(string calldata policyURI, bytes32 policyHash, bytes32 rulesHash) internal returns (bytes32 policyId) {
         uint256 nonce = _nonces[msg.sender]++;
-        policyId = keccak256(abi.encode(msg.sender, policyHash, nonce));
-        _policies[policyId] = PolicyRec({owner: msg.sender, policyURI: policyURI, policyHash: policyHash, exists: true});
-        emit PolicyRegistered(policyId, msg.sender, policyURI, policyHash);
+        policyId = keccak256(abi.encode(msg.sender, policyHash, rulesHash, nonce));
+        _policies[policyId] = PolicyRec({owner: msg.sender, policyURI: policyURI, policyHash: policyHash, rulesHash: rulesHash, exists: true});
+        emit PolicyRegistered(policyId, msg.sender, policyURI, policyHash, rulesHash);
     }
 
     function supportsInterface(bytes4 interfaceId) public pure virtual returns (bool) {

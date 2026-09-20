@@ -29,13 +29,14 @@ contract KYABridge8004 {
     error BadResponseMap();
     error LevelNotMapped(bytes32 schemeId, uint8 level);
 
-    event SchemeConfigured(bytes32 indexed schemeId, address[] trustedIssuers, uint8[] responseMap);
-    event Synced(uint256 indexed agentId, bytes32 indexed schemeId, bytes32 indexed requestHash, uint8 level, uint8 response, bytes32 assertionId);
+    event SchemeConfigured(bytes32 indexed schemeId, bytes32 indexed configHash, address[] trustedIssuers, uint8[] responseMap);
+    event Synced(uint256 indexed agentId, bytes32 indexed schemeId, bytes32 indexed requestHash, bytes32 configHash, uint8 level, uint8 response, bytes32 assertionId);
     event OwnerTransferred(address indexed from, address indexed to);
 
     struct SchemeConfig {
         address[] trustedIssuers;
         uint8[] responseMap; // index = level; a resolved level >= length makes sync revert (never guess upward)
+        bytes32 configHash;  // keccak256(abi.encode(schemeId, trustedIssuers, responseMap)) — the interpretation identity
         bool configured;
     }
 
@@ -77,22 +78,32 @@ contract KYABridge8004 {
         SchemeConfig storage c = _configs[schemeId];
         c.trustedIssuers = trustedIssuers;
         c.responseMap = responseMap;
+        c.configHash = configHashOf(schemeId, trustedIssuers, responseMap);
         c.configured = true;
-        emit SchemeConfigured(schemeId, trustedIssuers, responseMap);
+        // NOTE: reconfiguring changes configHash and therefore requestHashFor(); existing requests filed
+        // under the old configuration can no longer be synced — a new interpretation needs a new request.
+        emit SchemeConfigured(schemeId, c.configHash, trustedIssuers, responseMap);
     }
 
-    function getSchemeConfig(bytes32 schemeId) external view returns (address[] memory, uint8[] memory, bool) {
+    function getSchemeConfig(bytes32 schemeId) external view returns (address[] memory, uint8[] memory, bytes32, bool) {
         SchemeConfig storage c = _configs[schemeId];
-        return (c.trustedIssuers, c.responseMap, c.configured);
+        return (c.trustedIssuers, c.responseMap, c.configHash, c.configured);
+    }
+
+    /// @notice Interpretation identity of a bridge configuration.
+    function configHashOf(bytes32 schemeId, address[] memory trustedIssuers, uint8[] memory responseMap) public pure returns (bytes32) {
+        return keccak256(abi.encode(schemeId, trustedIssuers, responseMap));
     }
 
     // ---------------------------------------------------------------- helpers
 
-    /// @notice The requestHash an agent MUST use in `validationRequest` for this (agentId, schemeId).
-    ///         Domain-separated by chain, identity registry AND this bridge, so two bridges mirroring
-    ///         the same scheme for the same agent never collide.
+    /// @notice The requestHash an agent MUST use in `validationRequest` for this (agentId, schemeId) under
+    ///         the bridge's CURRENT configuration. Domain-separated by chain, identity registry, this bridge
+    ///         and the configuration identity, so neither another bridge nor a reconfigured one shares it.
     function requestHashFor(uint256 agentId, bytes32 schemeId) public view returns (bytes32) {
-        return keccak256(abi.encode(REQUEST_TYPE, block.chainid, identityRegistry, address(this), agentId, schemeId));
+        SchemeConfig storage c = _configs[schemeId];
+        if (!c.configured) revert SchemeNotConfigured(schemeId);
+        return keccak256(abi.encode(REQUEST_TYPE, block.chainid, identityRegistry, address(this), c.configHash, agentId, schemeId));
     }
 
     function subjectFor(uint256 agentId) public view returns (IKYATypes.Subject memory) {
@@ -102,12 +113,12 @@ contract KYABridge8004 {
         });
     }
 
-    /// @notice "kya:" + first 8 lowercase hex chars of schemeId.
+    /// @notice "kya:" + the full schemeId as 64 lowercase hex chars (collision-resistant tag).
     function tagFor(bytes32 schemeId) public pure returns (string memory) {
         bytes memory hexChars = "0123456789abcdef";
-        bytes memory out = new bytes(12);
+        bytes memory out = new bytes(68);
         out[0] = "k"; out[1] = "y"; out[2] = "a"; out[3] = ":";
-        for (uint256 i = 0; i < 4; i++) {
+        for (uint256 i = 0; i < 32; i++) {
             uint8 b = uint8(schemeId[i]);
             out[4 + 2 * i] = hexChars[b >> 4];
             out[5 + 2 * i] = hexChars[b & 0x0f];
@@ -127,8 +138,8 @@ contract KYABridge8004 {
         if (level >= c.responseMap.length) revert LevelNotMapped(schemeId, level);
         response = c.responseMap[level];
 
-        _respond(requestHash, response, keccak256(abi.encode(assertionId, level, c.trustedIssuers)), schemeId);
-        emit Synced(agentId, schemeId, requestHash, level, response, assertionId);
+        _respond(requestHash, response, keccak256(abi.encode(assertionId, level, c.configHash)), schemeId);
+        emit Synced(agentId, schemeId, requestHash, c.configHash, level, response, assertionId);
     }
 
     function _checkRequest(uint256 agentId, bytes32 schemeId) internal view returns (bytes32 requestHash) {

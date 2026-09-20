@@ -5,11 +5,17 @@ import {IKYARegistry} from "./interfaces/IKYARegistry.sol";
 import {IKYASchemeRegistry} from "./interfaces/IKYASchemeRegistry.sol";
 import {IKYAVerifier} from "./interfaces/IKYAVerifier.sol";
 import {IERC165} from "./interfaces/IERC165.sol";
+import {IERC8004IdentityRegistry} from "./interfaces/IERC8004Validation.sol";
 
 /// @title KYARegistry — reference implementation
 /// @notice Stores assertion skeletons only; evidence lives off-chain (URI emitted, never stored).
 contract KYARegistry is IKYARegistry, IERC165 {
+    bytes32 public constant SUBJECT_TYPE_ERC8004 = keccak256("erc8004");
+
     IKYASchemeRegistry public immutable schemeRegistry;
+    // assertionId => subject bytes (needed to re-evaluate the binding predicate later)
+    mapping(bytes32 => bytes) private _subjectData;
+    mapping(bytes32 => bytes32) private _subjectType;
 
     mapping(bytes32 => Assertion) private _assertions;
     mapping(bytes32 => bool) private _exists;
@@ -51,6 +57,22 @@ contract KYARegistry is IKYARegistry, IERC165 {
         view
         returns (uint8 level, uint64 expiresAt, bytes32 assertionId)
     {
+        return _resolve(subject, schemeId, issuers, true);
+    }
+
+    function resolveLocal(Subject calldata subject, bytes32 schemeId, address[] calldata issuers)
+        public
+        view
+        returns (uint8 level, uint64 expiresAt, bytes32 assertionId)
+    {
+        return _resolve(subject, schemeId, issuers, false);
+    }
+
+    function _resolve(Subject calldata subject, bytes32 schemeId, address[] calldata issuers, bool complete)
+        internal
+        view
+        returns (uint8 level, uint64 expiresAt, bytes32 assertionId)
+    {
         if (issuers.length == 0) revert KYA_EmptyIssuers();
         bytes32 subjectKey = subjectKeyOf(subject);
         uint64 bestIssuedAt = 0;
@@ -60,6 +82,10 @@ contract KYARegistry is IKYARegistry, IERC165 {
             Assertion storage a = _assertions[id];
             if (a.status != uint8(AssertionStatus.ACTIVE)) continue;
             if (a.expiresAt != 0 && a.expiresAt <= block.timestamp) continue;
+            if (complete) {
+                uint8 bs = _bindingStatus(id, a);
+                if (bs == uint8(BindingStatus.VIOLATED) || bs == uint8(BindingStatus.UNEVALUABLE)) continue;
+            }
             if (assertionId == bytes32(0) || a.level > level || (a.level == level && a.issuedAt > bestIssuedAt)) {
                 level = a.level;
                 expiresAt = a.expiresAt;
@@ -67,6 +93,53 @@ contract KYARegistry is IKYARegistry, IERC165 {
                 bestIssuedAt = a.issuedAt;
             }
         }
+    }
+
+    // ------------------------------------------------------------ binding
+
+    function bindingStatus(bytes32 assertionId) external view returns (uint8) {
+        if (!_exists[assertionId]) revert KYA_AssertionNotFound(assertionId);
+        return _bindingStatus(assertionId, _assertions[assertionId]);
+    }
+
+    /// @dev Evaluates the scheme's binding predicate for a recorded assertion against CURRENT state.
+    function _bindingStatus(bytes32 assertionId, Assertion storage a) internal view returns (uint8) {
+        uint8 binding = schemeRegistry.getScheme(a.schemeId).binding;
+        if (binding == uint8(BindingKind.IDENTITY)) return uint8(BindingStatus.NOT_APPLICABLE);
+        if (binding == uint8(BindingKind.INSTANCE)) {
+            // the instance commitment is the claimDigest itself; relying parties compare it to the
+            // instance they interact with. From the registry's view it is satisfied by construction.
+            return uint8(BindingStatus.SATISFIED);
+        }
+        // CONTROLLER
+        if (a.bindingWitness == bytes32(0)) return uint8(BindingStatus.UNEVALUABLE);
+        (bytes32 w, bool ok) = _controllerWitness(_subjectType[assertionId], _subjectData[assertionId]);
+        if (!ok) return uint8(BindingStatus.UNEVALUABLE);
+        return w == a.bindingWitness ? uint8(BindingStatus.SATISFIED) : uint8(BindingStatus.VIOLATED);
+    }
+
+    /// @dev Native controller witness: supported for `erc8004` subjects on this chain.
+    ///      witness = keccak256(abi.encode(ownerOf(agentId))). Returns ok=false when it cannot be
+    ///      evaluated here (foreign chain, unknown subject type, ownerOf reverting).
+    function _controllerWitness(bytes32 subjectType, bytes memory subjectData) internal view returns (bytes32 w, bool ok) {
+        if (subjectType != SUBJECT_TYPE_ERC8004 || subjectData.length != 96) return (bytes32(0), false);
+        (uint256 chainId, address identityRegistry, uint256 agentId) = abi.decode(subjectData, (uint256, address, uint256));
+        if (chainId != block.chainid || identityRegistry.code.length == 0) return (bytes32(0), false);
+        try IERC8004IdentityRegistry(identityRegistry).ownerOf(agentId) returns (address owner) {
+            if (owner == address(0)) return (bytes32(0), false);
+            return (keccak256(abi.encode(owner)), true);
+        } catch {
+            return (bytes32(0), false);
+        }
+    }
+
+    /// @dev Witness captured at issuance according to the scheme's binding kind.
+    function _witnessAtIssuance(Subject calldata subject, uint8 binding, bytes32 claimDigest) internal view returns (bytes32) {
+        if (binding == uint8(BindingKind.IDENTITY)) return bytes32(0);
+        if (binding == uint8(BindingKind.INSTANCE)) return claimDigest;
+        (bytes32 w, bool ok) = _controllerWitness(subject.subjectType, subject.subjectData);
+        if (!ok) revert KYA_BindingUnevaluable(subjectKeyOf(subject), binding);
+        return w;
     }
 
     function check(Subject calldata subject, bytes32 schemeId, uint8 minLevel, address[] calldata issuers)
@@ -99,7 +172,9 @@ contract KYARegistry is IKYARegistry, IERC165 {
         a.claimDigest = claimDigest;
         a.expiresAt = expiresAt;
         a.evidenceHash = evidenceHash;
+        a.bindingWitness = _witnessAtIssuance(subject, s.binding, claimDigest);
         assertionId = _record(a, schemeId, msg.sender, evidenceURI);
+        _storeSubject(assertionId, subject);
     }
 
     function attestWithProof(
@@ -109,17 +184,28 @@ contract KYARegistry is IKYARegistry, IERC165 {
         bytes calldata proof,
         string calldata evidenceURI
     ) external returns (bytes32 assertionId) {
-        address verifier = _provedVerifier(schemeId);
+        (address verifier, uint8 binding) = _provedVerifier(schemeId);
         Assertion memory a = _verify(verifier, subjectKeyOf(subject), schemeId, publicInputs, proof);
+        a.bindingWitness = _witnessAtIssuance(subject, binding, a.claimDigest);
 
         assertionId = _record(a, schemeId, verifier, evidenceURI);
+        _storeSubject(assertionId, subject);
     }
 
-    function _provedVerifier(bytes32 schemeId) internal view returns (address verifier) {
+    function _provedVerifier(bytes32 schemeId) internal view returns (address verifier, uint8 binding) {
         Scheme memory s = _loadScheme(schemeId);
         if (s.mode != uint8(SchemeMode.PROVED)) revert KYA_ModeMismatch(schemeId, uint8(SchemeMode.PROVED), s.mode);
         if (s.verifier == address(0)) revert KYA_VerifierRequired();
+        // semantic immutability: the verifier's code must be the code that was registered
+        bytes32 ch = s.verifier.codehash;
+        if (ch != s.verifierCodehash) revert KYA_VerifierCodeChanged(schemeId, s.verifierCodehash, ch);
         verifier = s.verifier;
+        binding = s.binding;
+    }
+
+    function _storeSubject(bytes32 assertionId, Subject calldata subject) internal {
+        _subjectType[assertionId] = subject.subjectType;
+        _subjectData[assertionId] = subject.subjectData;
     }
 
     /// @dev Runs the verifier, enforces subject binding + nullifier, returns a partially filled Assertion.
@@ -189,7 +275,7 @@ contract KYARegistry is IKYARegistry, IERC165 {
 
     function _emitAsserted(bytes32 assertionId, Assertion memory a, string calldata evidenceURI) internal {
         emit Asserted(
-            assertionId, a.subjectKey, a.schemeId, a.issuer, a.level, a.claimDigest, a.expiresAt, evidenceURI, a.evidenceHash, a.anchor
+            assertionId, a.subjectKey, a.schemeId, a.issuer, a.level, a.claimDigest, a.expiresAt, evidenceURI, a.evidenceHash, a.anchor, a.bindingWitness
         );
     }
 

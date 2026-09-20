@@ -12,7 +12,9 @@ interface IKYASchemeRegistry is IKYATypes {
         bytes32 indexed schemeId,
         address indexed controller,
         uint8 mode,
+        uint8 binding,
         address verifier,
+        bytes32 verifierCodehash,
         string schemeURI,
         bytes32 schemeHash,
         bytes32 predecessor
@@ -21,17 +23,21 @@ interface IKYASchemeRegistry is IKYATypes {
     event SchemeFrozen(bytes32 indexed schemeId);
     event SchemeControllerTransferred(bytes32 indexed schemeId, address indexed from, address indexed to);
 
-    /// @notice Register a new scheme. schemeId = keccak256(abi.encode(msg.sender, schemeHash, nonce)).
-    ///         schemeHash, mode, verifier and predecessor are immutable for the life of the schemeId.
+    /// @notice Register a new scheme.
+    ///         schemeId = keccak256(abi.encode(block.chainid, address(this), msg.sender, schemeHash, nonce)),
+    ///         so a schemeId is unique across chains and registries and can serve as a proof domain separator.
+    ///         schemeHash, mode, binding, verifier (address AND code hash) and predecessor are immutable.
     /// @param schemeURI   URI of the Scheme Descriptor JSON.
     /// @param schemeHash  keccak256 of the descriptor bytes. MUST be non-zero.
     /// @param mode        SchemeMode (0 = ATTESTED, 1 = PROVED).
-    /// @param verifier    IKYAVerifier address; MUST be non-zero iff mode == PROVED.
+    /// @param binding     BindingKind (0 = IDENTITY, 1 = CONTROLLER, 2 = INSTANCE).
+    /// @param verifier    IKYAVerifier address; MUST be a contract iff mode == PROVED. Its EXTCODEHASH is pinned.
     /// @param predecessor Previous version's schemeId (same controller) or 0x0.
     function registerScheme(
         string calldata schemeURI,
         bytes32 schemeHash,
         uint8 mode,
+        uint8 binding,
         address verifier,
         bytes32 predecessor
     ) external returns (bytes32 schemeId);
