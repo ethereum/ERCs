@@ -90,10 +90,20 @@ A `subjectKey` names a record, not necessarily the party that matters to a relyi
 | `controller` | the party controlling the subject at `issuedAt` | a change of controller (for `erc8004`: an ERC-721 transfer) |
 | `instance` | a specific code, model or configuration of the subject, identified by `claimDigest` | any change to that instance |
 
+The binding kind is scheme-level semantics and is recorded on-chain in the `Scheme` (Section 3); it MUST NOT vary per assertion. Each assertion carries a **binding witness** — the committed binding state at issuance — and each resolution evaluates a **binding predicate** against current state. Conceptually `valid(A, now) = ACTIVE ∧ unexpired ∧ bindingPredicate(A, now)`.
+
+| `binding` | witness captured at issuance | predicate at resolution |
+|---|---|---|
+| `identity` | `0x0` | always satisfied (NOT_APPLICABLE) |
+| `controller` | `keccak256(abi.encode(controller))` — for `erc8004`: `ownerOf(agentId)` read from the identity registry named in `subjectData` | current controller's witness equals the recorded one; otherwise VIOLATED |
+| `instance` | `claimDigest` | satisfied from the registry's view; relying parties MUST compare `claimDigest` to the instance they interact with |
+
 Rules:
 
-- The registry does not track controller changes. For a `controller`-bound scheme, relying parties MUST treat an assertion as invalid if the subject's controller changed after the assertion's `issuedAt` (for `erc8004`: `Transfer` events of the identity registry, or a comparison of `ownerOf(agentId)` against evidence the issuer published), and issuers SHOULD set short `expiresAt` values.
-- For an `instance`-bound scheme, `claimDigest` MUST commit to the instance identifier defined by the descriptor, and relying parties MUST compare it to the instance they are about to interact with.
+- A registry MUST capture the witness at issuance according to the scheme's binding kind. For `controller`-bound schemes it MUST evaluate the witness natively for `erc8004` subjects on its own chain (`subjectData.chainId == block.chainid`, `ownerOf` on the named identity registry). If it cannot evaluate the witness for a subject (foreign chain, other subject types without a resolver), it MUST refuse to record the assertion (`KYA_BindingUnevaluable`) rather than record one whose binding it can never check.
+- Complete resolution (`resolve`, `check`, and any on-chain policy evaluation built on them) MUST evaluate the binding predicate and MUST exclude assertions whose predicate is VIOLATED or UNEVALUABLE. Registry-local resolution (`resolveLocal`) ignores the predicate and MUST NOT be presented as complete policy satisfaction. `bindingStatus(assertionId)` exposes the predicate's result.
+- A scheme MAY legitimately depend on state that changes under rules it declares (a revocation list, an issuer set with a declared rotation mechanism, authenticated chain state); such updates are part of the scheme's meaning, not a change of it. What MUST NOT change under one `schemeId` is the meaning, the authority or the interpretation of those rules (Section 3).
+- Issuers of `controller`-bound schemes SHOULD keep `expiresAt` short and MAY re-attest to the new controller after a transfer; the new assertion carries the new witness.
 - Assertions carry no interaction context. A relying party that needs "trusted for this counterparty / this amount / this task" expresses it in a Policy (Section 7) or in the handshake challenge (Section 6), never by reinterpreting `level`.
 
 ### 3. Scheme Registry
@@ -102,24 +112,29 @@ Rules:
 interface IKYASchemeRegistry /* is IERC165 */ {
     enum SchemeMode { ATTESTED, PROVED }   // uint8; values >= 2 reserved
 
-    struct Scheme {                // schemeHash, mode, verifier and predecessor are IMMUTABLE
+    enum BindingKind { IDENTITY, CONTROLLER, INSTANCE }   // uint8; values >= 3 reserved
+
+    struct Scheme {                    // everything but schemeURI/controller/frozen is IMMUTABLE
         address controller;
-        string  schemeURI;         // may be re-pointed to another copy of the same bytes
-        bytes32 schemeHash;        // keccak256 of the descriptor bytes; non-zero
+        string  schemeURI;             // may be re-pointed to another copy of the same bytes
+        bytes32 schemeHash;            // keccak256 of the descriptor bytes; non-zero
         uint8   mode;
-        address verifier;      // non-zero iff mode == PROVED
-        bytes32 predecessor;   // previous version's schemeId, or 0x0
+        uint8   binding;               // BindingKind (Section 2.1)
+        address verifier;              // non-zero iff mode == PROVED
+        bytes32 verifierCodehash;      // EXTCODEHASH of verifier at registration; pinned
+        bytes32 predecessor;           // previous version's schemeId, or 0x0
         bool    frozen;
     }
 
-    event SchemeRegistered(bytes32 indexed schemeId, address indexed controller, uint8 mode, address verifier,
-                           string schemeURI, bytes32 schemeHash, bytes32 predecessor);
+    event SchemeRegistered(bytes32 indexed schemeId, address indexed controller, uint8 mode, uint8 binding,
+                           address verifier, bytes32 verifierCodehash, string schemeURI, bytes32 schemeHash,
+                           bytes32 predecessor);
     event SchemeURIUpdated(bytes32 indexed schemeId, string schemeURI);
     event SchemeFrozen(bytes32 indexed schemeId);
     event SchemeControllerTransferred(bytes32 indexed schemeId, address indexed from, address indexed to);
 
-    function registerScheme(string calldata schemeURI, bytes32 schemeHash, uint8 mode, address verifier,
-                            bytes32 predecessor) external returns (bytes32 schemeId);
+    function registerScheme(string calldata schemeURI, bytes32 schemeHash, uint8 mode, uint8 binding,
+                            address verifier, bytes32 predecessor) external returns (bytes32 schemeId);
     function setSchemeURI(bytes32 schemeId, string calldata schemeURI) external;
     function freezeScheme(bytes32 schemeId) external;
     function transferSchemeController(bytes32 schemeId, address newController) external;
@@ -132,10 +147,11 @@ interface IKYASchemeRegistry /* is IERC165 */ {
 
 Rules:
 
-- `schemeId` MUST equal `keccak256(abi.encode(msg.sender, schemeHash, nonce))` where `nonce` is a per-controller counter starting at 0 and incremented on every successful `registerScheme`.
-- `mode` MUST be 0 or 1; any other value MUST revert. For `PROVED`, `verifier` MUST be non-zero. For `ATTESTED`, implementations MUST store `verifier` as the zero address.
+- `schemeId` MUST equal `keccak256(abi.encode(block.chainid, address(registry), msg.sender, schemeHash, nonce))` where `nonce` is a per-controller counter starting at 0 and incremented on every successful `registerScheme`. Including the chain and the registry makes a `schemeId` globally unique, so that a proof or credential bound to a `schemeId` (Section 5) is thereby bound to one chain and one registry.
+- `mode` MUST be 0 or 1 and `binding` MUST be 0, 1 or 2; any other value MUST revert. For `PROVED`, `verifier` MUST be a contract (non-empty code) and its `EXTCODEHASH` MUST be recorded as `verifierCodehash`. For `ATTESTED`, implementations MUST store `verifier` as the zero address.
 - `predecessor`, when non-zero, MUST reference an existing scheme whose `controller` is `msg.sender`.
-- **Semantic immutability.** `schemeHash`, `mode`, `verifier` and `predecessor` MUST NOT change after registration; the interface exposes no entry point that changes them. Any change to what a scheme checks, how it expresses results or which verifier admits proofs MUST be registered as a new scheme with `predecessor` set. Consequently a `schemeId` denotes exactly one meaning for its whole life, and a policy that pins a `schemeId` cannot be repointed underneath it.
+- **Semantic immutability.** `schemeHash`, `mode`, `binding`, `verifier`, `verifierCodehash` and `predecessor` MUST NOT change after registration; the interface exposes no entry point that changes them. Any change to what a scheme checks, what it binds to, how it expresses results or which verifier admits proofs MUST be registered as a new scheme with `predecessor` set. Consequently a `schemeId` denotes exactly one meaning for its whole life, and a policy that pins a `schemeId` cannot be repointed underneath it.
+- **Verifier immutability.** The meaning of a PROVED scheme includes the verifier's behaviour. Every code path, verification key, pinned issuer set or other dependency capable of changing which proofs the verifier admits MUST be semantically immutable for the life of the `schemeId`; a verifier that is an upgradeable proxy, or that reads admission parameters from mutable storage not governed by rules the descriptor declares, MUST NOT be registered. Registries MUST refuse admission (`KYA_VerifierCodeChanged`) when the code at `verifier` no longer matches `verifierCodehash`; this catches redeployment behind the address but not delegation, which is why the normative rule is needed in addition. Upgradeable infrastructure remains free to exist — it simply cannot retroactively change an already-registered scheme; the upgrade is a successor scheme.
 - `setSchemeURI` MUST revert unless called by the controller, MUST revert on a frozen scheme, and MUST NOT alter `schemeHash`; clients MUST verify the fetched descriptor against `schemeHash`. `freezeScheme` MUST revert unless called by the controller; a frozen scheme accepts no further `setSchemeURI`.
 - `schemeHash` MUST be the keccak256 of the descriptor bytes and MUST be non-zero (`KYA_SchemeHashRequired`), including for content-addressed URIs.
 - Implementations MUST support [ERC-165](./eip-165.md) and MUST return `true` for the `IKYASchemeRegistry` interface id.
@@ -177,7 +193,7 @@ Rules:
 
 - `result.kind` is `"ordered-level"` (the Ordered-Level Profile: `level` is totally ordered, higher is stronger, `minLevel` is meaningful), `"categorical"` (`level` is an opaque code from `result.codes`, comparison is equality) or `"opaque"` (`level` MUST be `0`; the result is whatever `claimDigest` commits to, as defined by `result.description`).
 - Under `"ordered-level"`, `levels` MUST contain key `"0"`, whose meaning is "not verified / failed". Each level MAY carry `erc8004Response` (0–100), the value a KYA Bridge (Section 8) SHOULD mirror for that level.
-- `binding` is one of `identity`, `controller`, `instance` (Section 2.1).
+- `binding` is one of `identity`, `controller`, `instance` (Section 2.1) and MUST equal the `binding` recorded on-chain for the scheme (`0`, `1`, `2` respectively); the on-chain value is authoritative for resolution.
 - For proved schemes, `circuit.epochSeconds` and `circuit.epochGrace` define the verifier's time window (Section 5) and `circuit.issuerSetRoot`, when present, is the anchor the verifier pins.
 - `dimensions` and `evidenceKinds` are open vocabularies; Section 11 registers initial values.
 - `issuerPolicy` is declarative. The framework does not enforce who may issue; relying parties enforce it by choosing `issuers` (Section 4).
@@ -199,11 +215,15 @@ interface IKYARegistry /* is IERC165 */ {
         uint64  expiresAt;      // 0 = no expiry (NOT RECOMMENDED)
         bytes32 evidenceHash;
         bytes32 anchor;         // PROVED: verifier-reported trust anchor; ATTESTED: 0x0
+        bytes32 bindingWitness; // committed binding state at issuance (Section 2.1)
         uint8   status;
     }
 
+    enum BindingStatus { NOT_APPLICABLE, SATISFIED, VIOLATED, UNEVALUABLE }
+
     event Asserted(bytes32 indexed assertionId, bytes32 indexed subjectKey, bytes32 indexed schemeId, address issuer,
-                   uint8 level, bytes32 claimDigest, uint64 expiresAt, string evidenceURI, bytes32 evidenceHash, bytes32 anchor);
+                   uint8 level, bytes32 claimDigest, uint64 expiresAt, string evidenceURI, bytes32 evidenceHash,
+                   bytes32 anchor, bytes32 bindingWitness);
     event Revoked(bytes32 indexed assertionId, bytes32 indexed subjectKey, address indexed revoker, uint16 reasonCode);
     event Superseded(bytes32 indexed previousAssertionId, bytes32 indexed newAssertionId);
 
@@ -225,23 +245,28 @@ interface IKYARegistry /* is IERC165 */ {
     function subjectKeyOf(Subject calldata subject) external pure returns (bytes32);
 
     // Resolution (Ordered-Level Profile) — `issuers` MUST be non-empty
-    function resolve(Subject calldata subject, bytes32 schemeId, address[] calldata issuers)
+    function resolve(Subject calldata subject, bytes32 schemeId, address[] calldata issuers)          // COMPLETE
+        external view returns (uint8 level, uint64 expiresAt, bytes32 assertionId);
+    function resolveLocal(Subject calldata subject, bytes32 schemeId, address[] calldata issuers)     // registry-local
         external view returns (uint8 level, uint64 expiresAt, bytes32 assertionId);
     function check(Subject calldata subject, bytes32 schemeId, uint8 minLevel, address[] calldata issuers)
         external view returns (bool);
+    function bindingStatus(bytes32 assertionId) external view returns (uint8);
 }
 ```
 
 Rules:
 
-- `attest` MUST revert if the scheme does not exist or its `mode` is not `ATTESTED`. `attestWithProof` MUST revert if the scheme does not exist, its `mode` is not `PROVED`, or its `verifier` is zero.
+- `attest` MUST revert if the scheme does not exist or its `mode` is not `ATTESTED`. `attestWithProof` MUST revert if the scheme does not exist, its `mode` is not `PROVED`, its `verifier` is zero, or the code at `verifier` no longer matches the scheme's `verifierCodehash`.
+- Both MUST capture `bindingWitness` per Section 2.1 and MUST revert with `KYA_BindingUnevaluable` when the scheme's binding cannot be evaluated for the subject.
 - `assertionId` MUST equal `keccak256(abi.encode(subjectKey, schemeId, issuer, issuerNonce))` where `issuerNonce` is a per-issuer counter starting at 0 and incremented on every successful record.
 - A non-zero `expiresAt` that is not in the future MUST revert.
 - Recording a new assertion for a `(subjectKey, schemeId, issuer)` triple that already has an ACTIVE assertion MUST mark the previous one `SUPERSEDED` and emit `Superseded`. `latestAssertion` MUST return the most recently recorded id for the triple regardless of status.
 - `revoke` MUST revert unless the caller is the assertion's `issuer` or the scheme's current `controller`, and MUST revert if the assertion is not ACTIVE.
-- `resolve` MUST revert if `issuers` is empty. It MUST consider, for each listed issuer, only that issuer's latest assertion for the pair, and only if it is ACTIVE and unexpired (`expiresAt == 0 || expiresAt > block.timestamp`). It MUST return the highest `level` among them, breaking ties by latest `issuedAt`; when none qualifies it MUST return `(0, 0, 0x0)`. This "highest wins" rule is the Ordered-Level Profile; for `categorical` or `opaque` schemes the caller MUST NOT interpret the returned `level` as a rank and SHOULD read the specific assertions (`latestAssertion` + `getAssertion`) instead.
-- `check` MUST return `true` iff `resolve` returns a non-zero `assertionId` with `level >= minLevel`. A subject with no qualifying assertion therefore fails `check` even for `minLevel == 0`. `check` is only meaningful for `ordered-level` schemes.
-- `evidenceURI` MUST be emitted and MUST NOT be stored. For proved assertions the registry MUST set `evidenceHash = keccak256(publicInputs)` and `anchor` to the value returned by the verifier; for attested assertions `anchor` MUST be `0x0`.
+- `resolve` MUST revert if `issuers` is empty. It MUST consider, for each listed issuer, only that issuer's latest assertion for the pair, and only if it is ACTIVE, unexpired (`expiresAt == 0 || expiresAt > block.timestamp`) and its binding predicate evaluates SATISFIED or NOT_APPLICABLE. It MUST return the highest `level` among them, breaking ties by latest `issuedAt`; when none qualifies it MUST return `(0, 0, 0x0)`. A non-zero result from `resolve` therefore means every condition the registry can know about — status, expiry and the scheme's declared binding — was evaluated and holds. This "highest wins" rule is the Ordered-Level Profile; for `categorical` or `opaque` schemes the caller MUST NOT interpret the returned `level` as a rank and SHOULD read the specific assertions (`latestAssertion` + `getAssertion`) instead.
+- `resolveLocal` MUST behave as `resolve` without the binding predicate. Its result is registry-local and MUST NOT be presented as complete policy satisfaction; it exists for indexers and for consumers that evaluate binding themselves.
+- `check` MUST return `true` iff `resolve` (complete) returns a non-zero `assertionId` with `level >= minLevel`. A subject with no qualifying assertion therefore fails `check` even for `minLevel == 0`. `check` is only meaningful for `ordered-level` schemes.
+- `evidenceURI` MUST be emitted and MUST NOT be stored. For proved assertions the registry MUST set `evidenceHash = keccak256(publicInputs)` and `anchor` to the value returned by the verifier; for attested assertions `anchor` MUST be `0x0`. The registry MUST retain enough of the subject (its type and data) to re-evaluate the binding predicate later.
 - Registries MUST support the `erc8004` subject type and MUST return `true` from `supportsInterface` for the `IKYARegistry` interface id.
 
 ### 5. ZK-KYA Profile (PROVED mode)
@@ -273,8 +298,8 @@ Binding requirements on any circuit and verifier used under this profile. These 
 - **Subject binding.** The public inputs MUST include `subjectKey`, or a commitment the verifier can open to it. A verifier MUST NOT derive `subjectKey` from anything outside the proof's public inputs.
 - **Scheme binding.** The statement a proof verifies MUST be bound to the `schemeId` the verifier was called with: adapters MUST feed that `schemeId` into the circuit as a public input (or equivalent), so that a proof made for one scheme is not accepted under another. In addition, where a signed object carries a *pre-made verdict under a scheme* (a credential issued at a given level; Section 5.1, credential pattern), the signed object itself MUST include the `schemeId` and the circuit MUST constrain the two to be equal — otherwise a credential issued under a lenient scheme is presentable under a strict one that accepts the same issuer set (cross-scheme replay). This second requirement does not apply to signed *inputs* that carry no verdict (a bank statement, an exchange export, a task-registry record): such data may legitimately predate and be reused across schemes, and its binding to the scheme is provided by the computation the circuit performs, not by the data's signature.
 - **Replay resistance.** The public inputs MUST include a `nullifier` scoped at minimum to `schemeId`. Schemes SHOULD scope it to `(schemeId, epoch)` so a subject can re-prove periodically; the descriptor's `circuit.nullifierScope`, `epochSeconds` and `epochGrace` declare which.
-- **Time window.** The prover MUST NOT be trusted to choose `epoch`. A verifier for an epoch-scoped scheme MUST compute `current = floor(block.timestamp / epochSeconds)` and MUST reject a proof unless `current - epochGrace <= epoch <= current`; for `nullifierScope == "scheme"` it MUST require `epoch == 0`. A credential is thus presentable once per epoch; revocation of the fact issuer's credential takes effect at the next epoch boundary, and a scheme chooses `epochSeconds` as its maximum revocation latency.
-- **Domain separation (RECOMMENDED).** Circuits SHOULD additionally bind `chainId` and the registry address so a proof for one registry is not valid at another.
+- **Time window.** The authority over the replay domain is the invariant: the prover MUST NOT control the epoch that determines replay eligibility; the verifier MUST derive it from system state. For the `scheme-epoch` profile the mechanism is `current = floor(block.timestamp / epochSeconds)` and a proof MUST be rejected unless `current - epochGrace <= epoch <= current`; for `nullifierScope == "scheme"` the verifier MUST require `epoch == 0`. Future profiles MAY derive the epoch differently (block ranges, finalised periods) provided the authority rule holds; the mechanism is profile-defined, the authority is not descriptor-optional. A credential is thus presentable once per epoch; revocation of the fact issuer's credential takes effect at the next epoch boundary, and a scheme chooses `epochSeconds` as its maximum revocation latency.
+- **Domain separation (registry admission).** For admission into a registry, a proof MUST be bound to one chain and one registry. Because `schemeId` embeds `chainId` and the registry address (Section 3) and adapters MUST feed the `schemeId` into the circuit as a public input, this binding is provided by construction: the same controller registering the same descriptor on another registry obtains a different `schemeId`, so a proof for one is not valid for the other and nullifier scopes are disjoint by design. Ephemeral peer-to-peer presentations (below) are bound to a request rather than to a registry and are a separate concern; portability of a proof across registries, if ever wanted, is an explicit profile, not an omission.
 - **Issuer hiding (OPTIONAL).** A circuit MAY prove membership of the underlying attestor in an issuer set committed to by `issuerSetRoot`. The on-chain `issuer` is then the verifier address, the real attestor is not disclosed, and the verifier MUST return `issuerSetRoot` as `anchor`. Verifiers SHOULD pin a required `issuerSetRoot`; a rotation of the issuer set is a new verifier and therefore a new scheme version.
 - **Selective disclosure.** `claimDigest` MUST be the only claim-bearing output; the scheme descriptor defines what it commits to.
 - **Canonical decomposition.** Where 256-bit values are carried as field elements, the split MUST be unique (alias-checked), or a prover can present two encodings of one nullifier.
@@ -347,10 +372,12 @@ Partial satisfaction is a policy question: a presentation that covers some but n
 
 ```solidity
 interface IKYAPolicyRegistry /* is IERC165 */ {          // REQUIRED for policy registries
-    event PolicyRegistered(bytes32 indexed policyId, address indexed owner, string policyURI, bytes32 policyHash);
+    event PolicyRegistered(bytes32 indexed policyId, address indexed owner, string policyURI, bytes32 policyHash,
+                           bytes32 rulesHash);
 
     function registerPolicy(string calldata policyURI, bytes32 policyHash) external returns (bytes32 policyId);
-    function getPolicy(bytes32 policyId) external view returns (address owner, string memory policyURI, bytes32 policyHash);
+    function getPolicy(bytes32 policyId) external view
+        returns (address owner, string memory policyURI, bytes32 policyHash, bytes32 rulesHash);
 }
 
 interface IKYAPolicyEvaluator /* is IERC165 */ {         // OPTIONAL extension
@@ -359,13 +386,14 @@ interface IKYAPolicyEvaluator /* is IERC165 */ {         // OPTIONAL extension
     function registerPolicyWithRules(string calldata policyURI, bytes32 policyHash, Rule[] calldata allOf)
         external returns (bytes32 policyId);
     function getRules(bytes32 policyId) external view returns (Rule[] memory);
+    function rulesHashOf(Rule[] calldata allOf) external pure returns (bytes32);
     function evaluate(Subject calldata subject, bytes32 policyId) external view returns (bool);
 }
 ```
 
-- `policyId` MUST equal `keccak256(abi.encode(msg.sender, policyHash, nonce))` with a per-owner counter.
-- `policyURI` MUST resolve to a document conforming to [`kya-policy.schema.json`](../assets/eip-9999/schemas/kya-policy.schema.json): a tree of `allOf` / `anyOf` nodes over rules `{schemeId, minLevel, issuers[], anchors[]?}`; `issuers` MUST be non-empty in every rule. Rules over `ordered-level` schemes use `minLevel`; rules over `categorical` schemes use `level` (equality); `anchors`, when present, restricts proved assertions to the listed trust anchors.
-- On-chain evaluation is OPTIONAL and lives in `IKYAPolicyEvaluator`, so a client can detect via ERC-165 whether a registry evaluates or merely stores. An implementation that offers it MUST evaluate the stored `allOf` rules as a conjunction of `IKYARegistry.check` calls and MUST revert if no rules are stored for the policy. Off-chain evaluation over the full `allOf`/`anyOf` tree is the general case.
+- `policyId` MUST equal `keccak256(abi.encode(msg.sender, policyHash, rulesHash, nonce))` with a per-owner counter, where `rulesHash` is the commitment to the executable projection registered with the policy, or `0x0` when none is. One `policyId` therefore identifies one policy document and one exact executable projection; a stricter document cannot share an id with a weaker projection.
+- `policyURI` MUST resolve to a document conforming to [`kya-policy.schema.json`](../assets/eip-9999/schemas/kya-policy.schema.json): a tree of `allOf` / `anyOf` nodes over rules `{schemeId, minLevel | level, issuers[], anchors[]?}`; `issuers` MUST be non-empty in every rule. Rules over `ordered-level` schemes use `minLevel`; rules over `categorical` schemes use `level` (equality); `anchors`, when present, restricts proved assertions to the listed trust anchors.
+- **Executable projection.** On-chain evaluation is OPTIONAL and lives in `IKYAPolicyEvaluator`, so a client can detect via ERC-165 whether a registry evaluates or merely stores. The projection this interface can express is exactly: a top-level conjunction of rules over `ordered-level` schemes, each with a `minLevel` and a non-empty issuer list. `rulesHash` MUST equal `keccak256(abi.encode(allOf))` over the canonical ABI encoding of the `Rule[]`. A descriptor that advertises an on-chain projection MUST carry the same `rulesHash` (schema member `onchain.rulesHash`) and MUST NOT contain conditions the projection cannot express (`anyOf`, `level` equality, `anchors`) unless it also states that on-chain `evaluate` is a necessary-but-not-sufficient check. Committing two hashes does not by itself make document and projection equivalent; the correspondence is the descriptor author's claim, verifiable by anyone who compares the document's top-level `allOf` with `getRules`. `evaluate` MUST compute the stored rules as a conjunction of complete `IKYARegistry.check` calls (so binding predicates are included) and MUST revert if no rules are stored. Off-chain evaluation over the full tree is the general case.
 
 ### 8. ERC-8004 Binding Profile
 
@@ -373,26 +401,26 @@ interface IKYAPolicyEvaluator /* is IERC165 */ {         // OPTIONAL extension
 2. **Registration file.** The ERC-8004 registration file's `supportedTrust` array MAY include `"kya"` and `"zk-kya"`. Its `services` array MAY include `{ "name": "KYA", "endpoint": "https://…/.well-known/kya.json", "version": "v1" }`.
 3. **On-chain metadata.** The ERC-8004 metadata key `"kya"` is RECOMMENDED, set via `setMetadata(agentId, "kya", abi.encode(address kyaRegistry, bytes32[] advertisedSchemeIds))`.
 4. **Mirror into the Validation Registry (MAY).** A *KYA Bridge* is a contract that acts as an ERC-8004 validator and mirrors KYA outcomes. The mirror is an OPTIONAL, LOSSY SNAPSHOT: it exports one 0–100 number per `(agent, scheme)` at the moment of `sync`, carries no expiry, revocation, binding or anchor information, and is only as fresh as its last sync. The KYA Registry remains the authoritative source; the bridge exists so that ERC-8004-only clients get a usable approximation without new code.
-   - The bridge's operator configures, per scheme, the `issuers` it trusts and a `responseMap` from level to the 0–100 ERC-8004 scale (taken from the descriptor's `erc8004Response` values; `responseMap[0]` SHOULD be 0).
-   - The agent owner or operator calls ERC-8004 `validationRequest(bridge, agentId, requestURI, requestHash)` with `requestHash = keccak256(abi.encode(keccak256("erc-kya-request-v1"), chainId, identityRegistry, bridge, agentId, schemeId))`. Including the bridge address means two bridges mirroring the same scheme for the same agent never share a request. `requestURI` SHOULD resolve to a JSON document repeating those six fields.
-   - Anyone MAY call `bridge.sync(agentId, schemeId)`. The bridge MUST verify that the request exists and names the bridge as validator, resolve the subject under the configured issuers, and call `validationResponse(requestHash, responseMap[level], "", responseHash, tag)` with `tag = "kya:" || <first 8 lowercase hex characters of schemeId>` and `responseHash = keccak256(abi.encode(assertionId, level, issuers))`. A revoked or expired assertion resolves to level 0 and therefore drives the mirrored response to `responseMap[0]`. A resolved level that the map does not cover MUST make `sync` revert — a bridge MUST NOT guess upward. Bridges SHOULD only be configured for `ordered-level` schemes.
-   - Because the mirror is a snapshot, an ERC-721 transfer of the agent after `sync` leaves a `controller`-bound conclusion visible in the Validation Registry until someone re-syncs; ERC-8004 clients that care about binding MUST consult the KYA Registry.
+   - The bridge's operator configures, per scheme, the `issuers` it trusts and a `responseMap` from level to the 0–100 ERC-8004 scale (taken from the descriptor's `erc8004Response` values; `responseMap[0]` SHOULD be 0). Each configuration has an **interpretation identity** `configHash = keccak256(abi.encode(schemeId, trustedIssuers, responseMap))`. Reconfiguring produces a new `configHash`; it MUST NOT change the meaning of requests filed under the old one.
+   - The agent owner or operator calls ERC-8004 `validationRequest(bridge, agentId, requestURI, requestHash)` with `requestHash = keccak256(abi.encode(keccak256("erc-kya-request-v1"), chainId, identityRegistry, bridge, configHash, agentId, schemeId))`. Including the bridge address and the configuration identity means neither another bridge nor a reconfigured one shares a request. `requestURI` SHOULD resolve to a JSON document repeating those seven fields.
+   - Anyone MAY call `bridge.sync(agentId, schemeId)`. The bridge MUST recompute `requestHash` under its *current* configuration, verify that the request exists and names the bridge as validator, resolve the subject under the configured issuers using complete resolution (`resolve`, so binding predicates apply), and call `validationResponse(requestHash, responseMap[level], "", responseHash, tag)` with `tag = "kya:" || <full schemeId as 64 lowercase hex characters>` and `responseHash = keccak256(abi.encode(assertionId, level, configHash))`. A revoked, expired or binding-violated assertion resolves to level 0 and therefore drives the mirrored response to `responseMap[0]`. A resolved level that the map does not cover MUST make `sync` revert — a bridge MUST NOT guess upward. A request filed under a superseded configuration cannot be synced; the agent files a new one. Bridges SHOULD only be configured for `ordered-level` schemes.
+   - Because the mirror is a snapshot, an ERC-721 transfer of the agent after `sync` leaves a `controller`-bound conclusion visible in the Validation Registry until someone re-syncs (at which point complete resolution drives it to `responseMap[0]`); ERC-8004 clients that care about binding MUST consult the KYA Registry.
    - ERC-8004-only clients read KYA outcomes through `getSummary(agentId, [bridge], tag)` and `getValidationStatus(requestHash)`.
 5. **Reputation as evidence (MAY).** Schemes MAY declare `erc8004-reputation` and `erc8004-validation` as evidence kinds. ERC-8004 signals are inputs to KYA; KYA assertions are conclusions. Neither replaces the other.
 6. **Credential view (OPTIONAL).** A registry MAY additionally expose a single-key credential resolution function where `key = "kya:" || hex(schemeId)` returns `abi.encode(Assertion)` for the resolving subject, for clients that speak a generic credential-resolution interface.
 
 ### 9. Errors
 
-Implementations SHOULD use these custom errors: `KYA_SchemeNotFound(bytes32)`, `KYA_ModeMismatch(bytes32,uint8,uint8)`, `KYA_InvalidMode(uint8)`, `KYA_VerifierRequired()`, `KYA_SchemeHashRequired()`, `KYA_VerifierRejected()`, `KYA_SubjectMismatch(bytes32,bytes32)`, `KYA_NullifierUsed(bytes32,bytes32)`, `KYA_EmptyIssuers()`, `KYA_Frozen(bytes32)`, `KYA_NotController(bytes32,address)`, `KYA_NotIssuer(bytes32,address)`, `KYA_AssertionNotFound(bytes32)`, `KYA_AssertionNotActive(bytes32)`, `KYA_BadPredecessor(bytes32)`, `KYA_Expired(uint64)`, `KYA_PolicyNotFound(bytes32)`, `KYA_NoOnchainRules(bytes32)`.
+Implementations SHOULD use these custom errors: `KYA_SchemeNotFound(bytes32)`, `KYA_ModeMismatch(bytes32,uint8,uint8)`, `KYA_InvalidMode(uint8)`, `KYA_InvalidBinding(uint8)`, `KYA_VerifierRequired()`, `KYA_VerifierNotContract(address)`, `KYA_VerifierCodeChanged(bytes32,bytes32,bytes32)`, `KYA_BindingUnevaluable(bytes32,uint8)`, `KYA_SchemeHashRequired()`, `KYA_VerifierRejected()`, `KYA_SubjectMismatch(bytes32,bytes32)`, `KYA_NullifierUsed(bytes32,bytes32)`, `KYA_EmptyIssuers()`, `KYA_Frozen(bytes32)`, `KYA_NotController(bytes32,address)`, `KYA_NotIssuer(bytes32,address)`, `KYA_AssertionNotFound(bytes32)`, `KYA_AssertionNotActive(bytes32)`, `KYA_BadPredecessor(bytes32)`, `KYA_Expired(uint64)`, `KYA_PolicyNotFound(bytes32)`, `KYA_NoOnchainRules(bytes32)`.
 
 ### 10. Interface identifiers
 
 | interface | ERC-165 id |
 |---|---|
-| `IKYASchemeRegistry` | `0xb80345a1` |
-| `IKYARegistry` | `0x5da7d5cf` |
+| `IKYASchemeRegistry` | `0x50cb46d8` |
+| `IKYARegistry` | `0x9cdd4647` |
 | `IKYAPolicyRegistry` | `0x1cf9e558` |
-| `IKYAPolicyEvaluator` | `0x234f3d87` |
+| `IKYAPolicyEvaluator` | `0x173ff2b6` |
 | `IKYAVerifier` | `0x5bf48e3a` |
 
 ### 11. Initial vocabulary (informative)
@@ -432,13 +460,15 @@ Schemes are free to define their own ladders; this table is a shared reference s
 
 **`level` as `uint8` with scheme-scoped semantics, ordering as a profile.** A single numeric axis gives contracts a cheap comparison (`level >= minLevel`) while leaving meaning to the descriptor. Not every KYA result is a rank, however: a sanctions screen is pass/fail, a jurisdiction is a category. Rather than force those into a ladder, the total-order assumption behind `resolve`'s "highest wins", `check`'s `minLevel` and the bridge's `responseMap` is isolated as the Ordered-Level Profile, and other result kinds use `level` as a code or leave it `0` with the result in `claimDigest`. Section 12 offers a common ladder so ordered schemes converge, but comparing levels across schemes without reading descriptors is unsafe and the specification says so.
 
-**Binding.** The framework cannot know whether "this agent is accountable" survives the agent's sale to a new owner. Instead of guessing, each scheme states what it binds to, and relying parties get a rule they can implement (check for transfers since `issuedAt`). The registry stays ignorant of ERC-721 mechanics, which keeps it usable for `account` and `did` subjects.
+**Binding, and why the registry evaluates it.** The framework cannot know whether "this agent is accountable" survives the agent's sale to a new owner, so each scheme states what it binds to. An earlier draft left the transfer check entirely to relying parties, which review showed produces two answers to "does this subject satisfy policy P?" from one registry state: a compliant relying party says no after a transfer while the on-chain evaluator still says yes. Revision 3 therefore splits binding into scheme-level *kind*, assertion-level *witness* and resolution-time *predicate*, and makes complete resolution evaluate the predicate. The registry evaluates it natively only for the subject type it is required to support (`erc8004` on its own chain) and refuses to record controller-bound assertions it could never check, rather than pretending; other subject types can add resolvers in follow-ups. A registry-local view remains for indexers, explicitly labelled as not complete.
+
+**Identities commit what executes.** Three identifiers were tightened for the same reason: a `policyId` now commits the executable projection (`rulesHash`), a bridge request commits the configuration that will interpret it (`configHash`), and a `schemeId` commits the chain and registry it lives in. In each case the earlier derivation allowed an executable path — different rules, a different response map, a second registry — to exercise authority its committed identity did not name.
 
 **Two registries, co-deployable.** Schemes and assertions have different governance: schemes are curated by controllers and rarely change; assertions are written constantly by many issuers. Separate interfaces let them be upgraded or governed independently; nothing prevents one contract from implementing both, mirroring ERC-8004's three-registry design.
 
 **Mirroring into Validation, not Reputation.** ERC-8004 Validation is third-party judgement on a 0–100 scale posted by a designated validator — exactly the shape of a mirrored KYA conclusion. Reputation is client feedback and would misrepresent an issuer's verdict as a customer's opinion. Requiring the agent to file the `validationRequest` preserves ERC-8004's rule that only the agent may invite a validator, while letting anyone trigger `sync` keeps mirrored state fresh after revocations.
 
-**Deterministic `requestHash`.** Deriving the bridge's request hash from `(chainId, identityRegistry, bridge, agentId, schemeId)` lets any observer verify that a mirrored validation corresponds to a specific scheme without fetching `requestURI`, prevents one request from being synced under a different scheme, and keeps two bridges from colliding.
+**Deterministic `requestHash`.** Deriving the bridge's request hash from `(chainId, identityRegistry, bridge, configHash, agentId, schemeId)` lets any observer verify that a mirrored validation corresponds to a specific scheme under a specific interpretation without fetching `requestURI`, prevents one request from being synced under a different scheme or a changed response map, and keeps two bridges from colliding. The tag carries the full `schemeId` because a 32-bit prefix is cheap to collide deliberately, and consumers aggregate by tag.
 
 **Relationship to prior work.** Single-function credential-resolution interfaces answer "how do I fetch a credential by key"; general attestation services answer "how do I store a typed attestation". Neither provides a subject abstraction spanning ERC-8004 agents and other agent forms, a level with scheme-scoped semantics, verifier-gated admission, per-issuer supersession and revocation, or a normative mirror into ERC-8004. Both can serve as storage or access layers *beneath* this ERC — an implementation may persist assertions in an attestation service and expose the credential view of Section 8.6 — which is why this ERC defines the KYA semantic layer rather than another generic attestation primitive.
 
@@ -448,9 +478,9 @@ No changes to ERC-8004 contracts are required. All ERC-8004 interactions use the
 
 ## Test Cases
 
-Deterministic vectors are provided in [`vectors.json`](../assets/eip-9999/vectors/vectors.json) and regenerated by `tools/vectors.js`. They cover: `subjectType` hashes; `subjectKey` for an `erc8004` subject; `schemeId`, `assertionId` and `policyId` derivations; the canonical `kya-public-v1` public-input encoding, its `evidenceHash`, and its thirteen-signal Groth16 split; the bridge `requestHash`, `tag` and metadata value; EIP-712 digests for `KYAChallenge`, an assertion-based `KYAPresentation` and an ephemeral ZK `KYAPresentation`, with a signature from a well-known test key; and the four ERC-165 interface ids.
+Deterministic vectors are provided in [`vectors.json`](../assets/eip-9999/vectors/vectors.json) and regenerated by `tools/vectors.js`. They cover: `subjectType` hashes; `subjectKey` for an `erc8004` subject; `schemeId` (with chain and registry), `assertionId`, `rulesHash` and `policyId` derivations; a controller binding witness; the canonical `kya-public-v1` public-input encoding, its `evidenceHash`, and its thirteen-signal Groth16 split; the bridge `configHash`, `requestHash`, `responseHash`, `tag` and metadata value; EIP-712 digests for `KYAChallenge`, an assertion-based `KYAPresentation` and an ephemeral ZK `KYAPresentation`, with a signature from a well-known test key; and the four ERC-165 interface ids.
 
-An executable end-to-end suite (`test/kya.test.js`) exercises the reference implementation on an in-process EVM: scheme lifecycle, semantic immutability and access control; attested recording, supersession, revocation and expiry; resolution ordering and the non-empty-issuers rule; proved admission with subject-mismatch, replay and mode-mismatch rejections; the Groth16 adapter including `issuerSetRoot` pinning and the epoch window under time travel; on-chain policy evaluation; and the full ERC-8004 bridge flow from `validationRequest` through `sync`, revocation, re-sync and the unmapped-level rejection. A companion suite with a real Groth16 circuit adds adversarial cases: prover-chosen future or stale epochs, cross-scheme replay of a credential, tampered public inputs, aliased field-element encodings, and an attestor outside the pinned issuer set.
+An executable end-to-end suite (`test/kya.test.js`) exercises the reference implementation on an in-process EVM: scheme lifecycle, semantic immutability and access control; attested recording, supersession, revocation and expiry; resolution ordering and the non-empty-issuers rule; proved admission with subject-mismatch, replay and mode-mismatch rejections; the Groth16 adapter including `issuerSetRoot` pinning and the epoch window under time travel; on-chain policy evaluation; and the full ERC-8004 bridge flow from `validationRequest` through `sync`, revocation, re-sync and the unmapped-level rejection. Six regression cases cover the identity invariants of revision 3: a strict policy document and a weaker executable projection cannot share a `policyId`; a controller-bound assertion stops satisfying complete `check`/`evaluate` after an ERC-721 transfer while remaining visible to `resolveLocal`; changing a bridge's issuers or response map changes `configHash` and `requestHash` and leaves old responses untouched; a changed verifier code hash is refused at admission; distinct `schemeId`s sharing a 32-bit prefix produce distinct tags; and a scheme registered with identical inputs on a second registry has a different `schemeId`, so its proofs and nullifiers do not carry over. A companion suite with a real Groth16 circuit adds adversarial cases: prover-chosen future or stale epochs, cross-scheme replay of a credential, tampered public inputs, aliased field-element encodings, and an attestor outside the pinned issuer set.
 
 ## Reference Implementation
 
@@ -469,7 +499,7 @@ Schemas for the scheme, policy and discovery documents: [`kya-scheme.schema.json
 
 **Subject substitution.** A proof that verifies but binds a different `subjectKey` must never be recorded for the presented subject; rule 3 of Section 5 is therefore mandatory and verifiers MUST derive `subjectKey` from the proof's public inputs alone. Ephemeral presentations require the relying party to perform the same check.
 
-**Proof replay.** Nullifier consumption is per scheme within one registry. Without domain separation a proof recorded on one chain or registry could be replayed at another; circuits SHOULD bind `chainId` and registry address, and relying parties accepting ephemeral proofs SHOULD track nullifiers themselves. Epoch-scoped nullifiers deliberately permit re-proving after an epoch boundary; schemes choose the epoch length to balance revocation latency against linkability. The epoch MUST be enforced by the verifier from `block.timestamp` — a prover who can pick the epoch can pick a fresh nullifier at will, which reduces replay protection to nothing.
+**Proof replay.** Nullifier consumption is per scheme within one registry. Because `schemeId` embeds the chain and the registry and is a public input to the proof, a proof admitted at one registry is not valid at another (Section 5, domain separation); relying parties accepting ephemeral proofs SHOULD track nullifiers themselves. Epoch-scoped nullifiers deliberately permit re-proving after an epoch boundary; schemes choose the epoch length to balance revocation latency against linkability. The epoch MUST be enforced by the verifier from `block.timestamp` — a prover who can pick the epoch can pick a fresh nullifier at will, which reduces replay protection to nothing.
 
 **Cross-scheme replay.** If a credential carrying a pre-made verdict does not name the scheme, the same credential is presentable under every scheme whose verifier accepts that issuer, and a level meant under a lenient ladder is read under a strict one. The scheme-binding rule of Section 5 closes this; adapters that receive `schemeId` from the registry and feed it into the circuit as a public signal make it unforgeable by the prover. Signed inputs without a verdict are exempt from the credential half of the rule; their reuse across schemes is intended, and what prevents misuse is that the circuit, not the data, encodes the rule.
 
@@ -477,7 +507,9 @@ Schemas for the scheme, policy and discovery documents: [`kya-scheme.schema.json
 
 **Verifier and issuer-set choice.** A verifier's meaning is fixed by its circuit, verification key and accepted issuer set. Since scheme semantics are immutable, changing any of these is a new scheme; relying parties SHOULD pin `schemeId` and, for proved schemes, the expected `anchor`, and treat a new `predecessor` chain entry as a trust decision rather than an upgrade to accept automatically.
 
-**Binding and transfer.** An `erc8004` subject can be sold. A `controller`-bound assertion recorded before the sale says nothing about the buyer, yet remains ACTIVE in the registry. Relying parties MUST apply the binding rule of Section 2.1; issuers of controller-bound schemes SHOULD keep `expiresAt` short and MAY revoke on observing a transfer. Bridges mirror snapshots and do not help here.
+**Binding and transfer.** An `erc8004` subject can be sold. A `controller`-bound assertion recorded before the sale says nothing about the buyer, yet remains ACTIVE in the registry. Complete resolution excludes it once the controller witness no longer matches; registry-local resolution does not, and consumers of `resolveLocal` or of raw events MUST apply the predicate themselves. Issuers of controller-bound schemes SHOULD keep `expiresAt` short and MAY re-attest to the new controller. Bridges mirror snapshots: a mirrored value is stale until the next `sync`.
+
+**Verifier mutation.** A PROVED scheme's meaning includes its verifier's behaviour. Code-hash pinning at registration detects a different contract appearing at the verifier's address; it cannot detect a proxy whose implementation changes, so the prohibition on upgradeable or externally parameterised verifiers is normative and relying parties SHOULD inspect a verifier's code before trusting a scheme. Declared, rule-governed state (a revocation source, a rotation mechanism) is not mutation; undeclared authority to change admission is.
 
 **Controller revocation power.** Scheme controllers may revoke any assertion under their scheme. This is intended (a scheme operator withdrawing a compromised issuer's verdicts) but concentrates power; policies that cannot tolerate it SHOULD reference frozen schemes whose controller is a multisig or governance contract.
 
