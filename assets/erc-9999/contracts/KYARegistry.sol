@@ -12,6 +12,9 @@ import {IERC8004IdentityRegistry} from "./interfaces/IERC8004Validation.sol";
 contract KYARegistry is IKYARegistry, IERC165 {
     bytes32 public constant SUBJECT_TYPE_ERC8004 = keccak256("erc8004");
 
+    /// @dev Domain-separation tag for registry admission (Section 5).
+    bytes32 public constant REGISTRY_ADMISSION_TYPE = keccak256("erc-kya-registry-admission-v1");
+
     IKYASchemeRegistry public immutable schemeRegistry;
     // assertionId => subject bytes (needed to re-evaluate the binding predicate later)
     mapping(bytes32 => bytes) private _subjectData;
@@ -33,6 +36,12 @@ contract KYARegistry is IKYARegistry, IERC165 {
 
     function getSchemeRegistry() external view returns (address) {
         return address(schemeRegistry);
+    }
+
+    /// @notice The admission domain this registry binds every admitted proof to. Derived from the
+    ///         registry's own state (chain, scheme catalogue, self) — never from the submitter.
+    function admissionDomain() public view returns (bytes32) {
+        return keccak256(abi.encode(REGISTRY_ADMISSION_TYPE, block.chainid, address(schemeRegistry), address(this)));
     }
 
     function subjectKeyOf(Subject calldata subject) public pure returns (bytes32) {
@@ -217,7 +226,7 @@ contract KYARegistry is IKYARegistry, IERC165 {
         bytes32 provedSubjectKey;
         bytes32 nullifier;
         (ok, provedSubjectKey, nullifier, a.level, a.claimDigest, a.expiresAt, a.anchor) =
-            IKYAVerifier(verifier).verify(schemeId, publicInputs, proof);
+            IKYAVerifier(verifier).verify(schemeId, admissionDomain(), publicInputs, proof);
         if (!ok) revert KYA_VerifierRejected();
         if (provedSubjectKey != subjectKey) revert KYA_SubjectMismatch(subjectKey, provedSubjectKey);
         if (_nullifiers[schemeId][nullifier]) revert KYA_NullifierUsed(schemeId, nullifier);

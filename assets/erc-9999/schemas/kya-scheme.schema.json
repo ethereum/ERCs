@@ -206,7 +206,19 @@
             "scheme",
             "scheme-epoch"
           ],
-          "default": "scheme"
+          "default": "scheme",
+          "description": "Both scopes are additionally bound to the admission domain the verifier is called with (Section 5): 'scheme' = (schemeId, admissionDomain), 'scheme-epoch' = (schemeId, admissionDomain, epoch)."
+        },
+        "proofBinding": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Context the PROOF (not the credential) is bound to via public inputs the caller supplies to verify(). MUST include schemeId and admissionDomain.",
+          "default": [
+            "schemeId",
+            "admissionDomain"
+          ]
         },
         "epochSeconds": {
           "type": "integer",

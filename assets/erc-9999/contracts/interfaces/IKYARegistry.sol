@@ -24,6 +24,10 @@ interface IKYARegistry is IKYATypes {
 
     function getSchemeRegistry() external view returns (address);
 
+    /// @notice keccak256(abi.encode(REGISTRY_ADMISSION_TYPE, block.chainid, schemeRegistry, address(this))):
+    ///         the admission domain every proof admitted here MUST be bound to (passed to IKYAVerifier.verify).
+    function admissionDomain() external view returns (bytes32);
+
     /// @notice ATTESTED mode. Caller is the issuer. Reverts if scheme.mode != ATTESTED.
     function attest(
         Subject calldata subject,

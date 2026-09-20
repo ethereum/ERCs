@@ -59,6 +59,10 @@
       "uint64"
     ],
     "nullifierScope": "scheme-epoch",
+    "proofBinding": [
+      "schemeId",
+      "admissionDomain"
+    ],
     "epochSeconds": 2592000,
     "issuerHiding": true,
     "epochGrace": 1,

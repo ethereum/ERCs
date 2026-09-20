@@ -80,8 +80,9 @@ contract KYABridge8004 {
         c.responseMap = responseMap;
         c.configHash = configHashOf(schemeId, trustedIssuers, responseMap);
         c.configured = true;
-        // NOTE: reconfiguring changes configHash and therefore requestHashFor(); existing requests filed
-        // under the old configuration can no longer be synced — a new interpretation needs a new request.
+        // NOTE: reconfiguring changes configHash but NOT requestHashFor(): the ERC-8004 request is the
+        // continuing mirror of (bridge, agent, scheme); the next sync overwrites the same record and its
+        // responseHash names the configuration that produced it.
         emit SchemeConfigured(schemeId, c.configHash, trustedIssuers, responseMap);
     }
 
@@ -97,13 +98,12 @@ contract KYABridge8004 {
 
     // ---------------------------------------------------------------- helpers
 
-    /// @notice The requestHash an agent MUST use in `validationRequest` for this (agentId, schemeId) under
-    ///         the bridge's CURRENT configuration. Domain-separated by chain, identity registry, this bridge
-    ///         and the configuration identity, so neither another bridge nor a reconfigured one shares it.
+    /// @notice The requestHash an agent MUST use in `validationRequest` for this (agentId, schemeId).
+    ///         Stable over the life of (bridge, agent, scheme): domain-separated by chain, identity registry
+    ///         and this bridge, NOT by configuration — a reconfiguration updates the same ERC-8004 record
+    ///         (its responseHash carries the configHash), so getSummary never averages across configurations.
     function requestHashFor(uint256 agentId, bytes32 schemeId) public view returns (bytes32) {
-        SchemeConfig storage c = _configs[schemeId];
-        if (!c.configured) revert SchemeNotConfigured(schemeId);
-        return keccak256(abi.encode(REQUEST_TYPE, block.chainid, identityRegistry, address(this), c.configHash, agentId, schemeId));
+        return keccak256(abi.encode(REQUEST_TYPE, block.chainid, identityRegistry, address(this), agentId, schemeId));
     }
 
     function subjectFor(uint256 agentId) public view returns (IKYATypes.Subject memory) {

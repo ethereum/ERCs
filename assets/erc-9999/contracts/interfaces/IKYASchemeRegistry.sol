@@ -25,7 +25,10 @@ interface IKYASchemeRegistry is IKYATypes {
 
     /// @notice Register a new scheme.
     ///         schemeId = keccak256(abi.encode(block.chainid, address(this), msg.sender, schemeHash, nonce)),
-    ///         so a schemeId is unique across chains and registries and can serve as a proof domain separator.
+    ///         so a schemeId is unique across chains and scheme registries. It names a RULE, not a place of use:
+    ///         the KYA Registry that admits a proof under the scheme enters the proof's admission domain
+    ///         (IKYAVerifier.verify's admissionDomain), not the scheme identity, so one scheme can be adopted by
+    ///         several KYA Registries sharing this catalogue.
     ///         schemeHash, mode, binding, verifier (address AND code hash) and predecessor are immutable.
     /// @param schemeURI   URI of the Scheme Descriptor JSON.
     /// @param schemeHash  keccak256 of the descriptor bytes. MUST be non-zero.
