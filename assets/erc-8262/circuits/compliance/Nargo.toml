@@ -1,0 +1,8 @@
+[package]
+name = "compliance"
+type = "bin"
+authors = ["DROO", "Bloo"]
+compiler_version = ">=1.0.0"
+
+[dependencies]
+erc8262_shared = { path = "../shared" }
