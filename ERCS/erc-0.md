@@ -577,11 +577,7 @@ These tests were performed using an earlier version of the implementation under 
 
 ## Reference Implementation
 
-A reference implementation is available at:
-
-[UniversalSolver.sol](https://github.com/Helkomine/UniversalSolver/blob/main/UniversalSolver.sol?utm_source=)
-
-(It will switch to the asset file when got ERC number).
+A reference implementation is available at: `https://github.com/Helkomine/ERCs/tree/erc-draft/assets/erc-0`
 
 ## Security Considerations
 
