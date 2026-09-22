@@ -40,7 +40,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 ### Definitions
 
-- **Solver**: A contract implementing this standard. A Solver does not require persistent execution state between transactions. Its execution state for a resolve call MAY be held in transient storage. A Solver is publicly deployable, and protocols MAY independently choose whether to trust or use a particular Solver deployment.
+- **Solver**: A contract implementing this standard. A Solver does not require persistent execution state between transactions. Its execution state for a `resolve()` call MAY be held in transient storage. A Solver is publicly deployable, and protocols MAY independently choose whether to trust or use a particular Solver deployment.
 - **Semi Tx**: An envelope transaction whose execution by the Sender is intentionally incomplete unless it is executed through the Solver flow and successfully performs the required Solver callback.
 - **User (Requester)**: The party that specifies an Intent requiring resolution.
 - **Resolver**: The party that constructs and submits a Solution for a User's Intent.
@@ -49,8 +49,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - **Sender**: The User's smart wallet or other account responsible for validating the Intent and acknowledging the execution envelope during the Validation phase.
 - **Delegator**: A contract that executes on behalf of a User and MAY act as a Sender in the Solver flow.
 - **Executor**: The address that identifies the execution logic responsible for interpreting and executing an Intent. The Executor therefore represents the execution scope to which the Intent is committed.
-- **Initiator**: The address that initiates a resolve call on the Solver.
-- **Envelope Tx**: The transaction envelope submitted to a Sender or Delegator during the Validation phase. The Solver extracts an execution envelope from a specified contiguous slice of the envelopeTx and interprets that execution envelope as executor || intent.
+- **Initiator**: The address that initiates a `resolve()` call on the Solver.
+- **Envelope Tx**: The transaction envelope submitted to a Sender or Delegator during the Validation phase. The Solver extracts an execution envelope from a specified contiguous slice of the `envelopeTx` and interprets that execution envelope as `executor || intent`.
 - **Context**: Data collected before or during execution and retained by the Solver for use by an Executor.
 - `||`: The byte concatenation operator.
 
@@ -60,7 +60,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 The Resolver SHOULD simulate the proposed Solution against the relevant state before submitting it to the Solver.
 
-The Resolver then submits a transaction to the Solver containing the UserEnvelopeTx objects required to execute the Solution.
+The Resolver then submits a transaction to the Solver containing the `UserEnvelopeTx` objects required to execute the Solution.
 
 #### Onchain
 
@@ -152,6 +152,67 @@ where `executor` is exactly 20 bytes.
 
 The following is a reference implementation illustrating how a `UserEnvelopeTx` can be decoded into the conceptual `UserIntent` representation:
 
+```
+function getUserIntent(
+    UserEnvelopeTx calldata userEnvelopeTx
+) internal pure returns (UserIntent memory userIntent) {
+    (uint256 offset, uint256 length) =
+        _getOffsetAndLength(userEnvelopeTx.sliceInfo);
+
+    (address executor, bytes calldata intent) =
+        _decodeIntentInfo(
+            _sliceEnvelopeTx(
+                offset,
+                length,
+                userEnvelopeTx.envelopeTx
+            )
+        );
+
+    return UserIntent({
+        sender: userEnvelopeTx.sender,
+        executor: executor,
+        intent: intent
+    });
+}
+
+function _decodeIntentInfo(
+    bytes calldata intentInfo
+) internal pure returns (
+    address executor,
+    bytes calldata intent
+) {
+    return (
+        address(bytes20(intentInfo[0:20])),
+        intentInfo[20:]
+    );
+}
+
+function _sliceEnvelopeTx(
+    uint256 offset,
+    uint256 length,
+    bytes calldata envelopeTx
+) internal pure returns (
+    bytes calldata intentInfo
+) {
+    return envelopeTx[offset:offset + length];
+}
+
+function _getOffsetAndLength(
+    uint256 sliceInfo
+) internal pure returns (
+    uint256 offset,
+    uint256 length
+) {
+    return (
+        sliceInfo >> 128,
+        sliceInfo & type(uint128).max
+    );
+}
+```
+
+This decoding method is provided as a reference implementation only. Implementations MAY use a different mechanism provided that they satisfy the normative requirements of this standard.
+
+The mapping from `UserEnvelopeTx` to `UserIntent` is intentionally non-invertible. A `UserIntent` does not contain sufficient information to reconstruct the original `UserEnvelopeTx`, because the latter may contain additional transaction data required by the Sender's existing execution and authorization mechanism.
 
 ## Rationale
 
