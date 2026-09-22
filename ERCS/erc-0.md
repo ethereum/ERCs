@@ -447,9 +447,9 @@ In such cases, a Delegator MAY be used to execute on behalf of the User and act 
 
 This standard only describes the role and high-level interaction of a Delegator. It does not require Delegators to implement a particular interface. The concrete Delegator design SHOULD be defined by an Intent protocol or a separate standard.
 
-For the purposes of this section, **Entry Point** refers to any trusted contract that serves as an execution entry point for a smart wallet. It does not necessarily refer to the ERC-4337 EntryPoint contract.
+For the purposes of this section, **Entry Point** refers to any trusted contract that serves as an execution entry point for a smart wallet. It does not necessarily refer to the [ERC-4337]((./eip-4337.md)) EntryPoint contract.
 
-A Delegator as described in this standard MUST NOT be confused with an EIP-7702 delegation contract that supplies code for an EOA.
+A Delegator as described in this standard MUST NOT be confused with an [EIP-7702](./eip-7702.md) delegation contract that supplies code for an EOA.
 
 ##### Restricted Wallets with a Trusted Entry Point Path
 
@@ -579,7 +579,9 @@ These tests were performed using an earlier version of the implementation under 
 
 A reference implementation is available at:
 
-[UniversalSolver.sol](https://github.com/Helkomine/UniversalSolver/blob/main/UniversalSolver.sol?utm_source=chatgpt.com)
+[UniversalSolver.sol](https://github.com/Helkomine/UniversalSolver/blob/main/UniversalSolver.sol?utm_source=)
+
+(It will switch to the asset file when got ERC number).
 
 ## Security Considerations
 
