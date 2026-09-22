@@ -481,64 +481,115 @@ Nevertheless, such a Delegator provides a mechanism for integrating wallets that
 
 ## Rationale
 
-<!--
-  The rationale fleshes out the specification by describing what motivated the design and why particular design decisions were made. It should describe alternate designs that were considered and related work, e.g. how the feature is supported in other languages.
+### Why Use a Slice of `UserEnvelopeTx`
 
-  The current placeholder is acceptable for a draft.
+Slicing `UserEnvelopeTx` is intended to represent a minimal capability that can be supported by a broad range of existing wallets.
 
-  TODO: Remove this comment before submitting
--->
+For example, a typical smart wallet may expose an `execute*` function that accepts one or more `bytes[]` arguments. Such byte arrays can contain a contiguous byte sequence from which a Solver can extract the execution envelope.
 
-TBD
+This provides the basis for the slicing approach used by this standard: the Solver does not require the wallet to understand the `UserIntent` structure. Instead, it extracts the `executor || intent` sequence from an existing wallet transaction envelope while preserving the wallet's existing execution and authorization mechanism.
 
-## Backwards Compatibility
+### Why Must the Sender Perform a Callback
 
-<!--
+From the Sender's perspective, an `envelopeTx` can be viewed as a sequence of calls that the Sender is authorized to execute and for which it expects valid responses from the called contracts.
 
-  This section is optional.
+An implicit property of such execution is that the Sender generally calls only contracts that it considers authorized or trusted. For example, a Sender may execute a call to an ERC-20 contract to transfer a balance as part of an authorized operation.
 
-  All EIPs that introduce backwards incompatibilities must include a section describing these incompatibilities and their severity. The EIP must explain how the author proposes to deal with these incompatibilities. EIP submissions without a sufficient backwards compatibility treatise may be rejected outright.
+The Solver therefore needs a mechanism by which the Sender can explicitly acknowledge that the execution envelope currently being processed is authorized by the Sender, without requiring the Sender to abandon or otherwise restructure its existing execution flow.
 
-  The current placeholder is acceptable for a draft.
+A callback provides such an acknowledgement while preserving compatibility with existing wallet execution mechanisms. The callback is performed as part of the Sender's existing execution flow rather than requiring a separate authorization transaction or a new authorization interface.
 
-  TODO: Remove this comment before submitting
--->
+### Atomic Execution of a Batch of `UserEnvelopeTx`
 
-No backward compatibility issues found.
+This standard is intended to support existing wallets that satisfy the requirements described above. The Validation phase may therefore include operations that prepare the execution environment for the subsequent Execution phase.
+
+Such preparation may be difficult to introduce through a separate authorization call, particularly for existing wallets whose execution interfaces cannot be extended. It is therefore important that preparation performed during Validation can be reverted if the corresponding execution does not complete successfully.
+
+Otherwise, a failure in the Execution phase after successful Validation could leave persistent effects produced during Validation. This could result in an irreversible loss or other unintended state change for the User.
+
+For this reason, the execution of a batch of `UserEnvelopeTx` is atomic. A failure in any Context, Validation, or Execution operation reverts the entire `resolve()` call and all state changes produced within that call.
+
+Revert propagation provides an atomic failure signal that cannot be accidentally ignored while preserving the EVM's rollback semantics.
+
+### Caching `UserEnvelopeTx`
+
+The Solver caches the original `UserEnvelopeTx` batch so that Executors and related contracts can access the complete transaction envelopes without explicitly copying and forwarding the batch through each execution call.
+
+This introduces an accounting trade-off compared with loading the original calldata into memory and passing only the required data directly to an Executor. Caching incurs the cost of writing and reading data from transient storage, whereas direct access can make use of calldata-to-memory copies.
+
+When an Executor accesses the same data frequently, repeated transient-storage reads may cost more than loading the required data into memory once and reading it from memory. Conversely, caching may be preferable when the data is accessed infrequently but a uniform context-access interface is desirable across different Executors and related contracts.
+
+The caching mechanism also preserves the original raw envelope. This allows Executors to remain compatible with existing wallet calldata formats without requiring the Solver to reinterpret or reconstruct wallet-specific transaction encodings.
+
+Implementations MAY expose additional getter functions for querying individual pieces of execution context. Such getters can avoid the cost of returning and ABI-decoding the complete `UserEnvelopeTx` batch through `context()` when a caller requires only a subset of the available context.
+
+### The Data Returned by `context()`
+
+The `context()` function provides a generic interface through which any caller can access the complete execution context required by the standard without requiring authorization.
+
+This is intended to provide a common context-access mechanism across different Executors and related contracts, while allowing implementations to expose more specialized getters where appropriate.
+
+`currentIndex` explicitly identifies the `UserEnvelopeTx` currently being processed. This avoids requiring Executors or related contracts to infer the active execution from the contents of the batch and provides an explicit reference to the execution whose context is currently being observed.
+
+`currentIndex` may also be useful for execution logic or auxiliary proofs whose validity depends on the currently active batch item.
+
+### Why Use `STATICCALL` During the Context Phase
+
+The Context phase is intended to provide Executors with a snapshot of the state preceding Validation and Execution. An Executor may use this information to establish assertions about the state in which an Intent is subsequently executed. For example, a wallet may use pre-context information to verify whether a balance delta satisfies a condition imposed by the Intent.
+
+If an Executor were permitted to modify state during the Context phase, the context collection itself could change the state before Validation begins. In that case, the resulting pre-context would no longer represent the state against which the Intent was initially evaluated.
+
+The Context phase therefore uses `STATICCALL` to prevent state-changing operations in the Executor call tree. This provides a simple EVM-level mechanism for limiting side effects and ensuring that context collection does not modify state before Validation.
+
+### Why Does the Standard Not Support Additional Advanced Configurations
+
+An important property of this standard is that it does not require a global trust relationship between Senders and Solvers. A Sender may choose whether to authorize a particular Solver for a given execution, after which the Solver session terminates when `resolve()` completes.
+
+Consequently, the standard does not need to serve as a universal execution entry point incorporating every possible advanced feature or trust model. Keeping the core abstraction small allows implementations to be deployed without requiring substantial changes to established wallet infrastructure.
+
+Additional functionality can instead be introduced through separate extensions or standards that build on compatible abstractions. This also reduces the need for existing wallets to migrate their established execution infrastructure when new functionality is introduced.
+
+## Backward Compatibility
+
+This standard is designed to be compatible with existing execution protocols and wallets deployed on those protocols.
+
+Integrating a Solver does not require an existing wallet to understand or directly implement the `UserIntent` structure. Instead, the Solver uses `UserEnvelopeTx` to leverage the execution and authorization capabilities already exposed by the Sender.
+
+The standard encourages extensions through proposals that share compatible goals or abstractions. Such extensions are not required to be fully compatible with the specific design or execution flow defined by this standard.
 
 ## Test Cases
 
-<!--
-  This section is optional for non-Core EIPs.
+Three example transactions were tested on the Sepolia test network using a Safe wallet. All three transactions executed successfully.
 
-  The Test Cases section should include expected input/output pairs, but may include a succinct set of executable tests. It should not include project build files. No new requirements may be introduced here (meaning an implementation following only the Specification section should pass all tests here.)
-  If the test suite is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed
+These tests were performed using an earlier version of the implementation under the name `UniversalSolver`. Equivalent tests using the current contract name are planned separately.
 
-  TODO: Remove this comment before submitting
--->
+### Tx1 — Two-Party Token Swap
+
+[Tenderly Transaction 1](https://dashboard.tenderly.co/tx/0x5a457e36d507e95f60b51435479e6be644137f3e8d412020890673bcee630071?action=)
+
+### Tx2 — Three-Party Token Swap
+
+[Tenderly Transaction 2](https://dashboard.tenderly.co/tx/0xd2ae06a5b203dac7724f0f454faa63e7d5f6a74cc0968829537daa289b8c57ea?action=)
+
+### Tx3 — POL-to-ETH Swap Order
+
+[Tenderly Transaction 3](https://dashboard.tenderly.co/tx/0x8777be765b1fe1f694c830d7a95fb52b4147ae17784c956d69bf3b254c9859f7?action=)
 
 ## Reference Implementation
 
-<!--
-  This section is optional.
+A reference implementation is available at:
 
-  The Reference Implementation section should include a minimal implementation that assists in understanding or implementing this specification. It should not include project build files. The reference implementation is not a replacement for the Specification section, and the proposal should still be understandable without it.
-  If the reference implementation is too large to reasonably be included inline, then consider adding it as one or more files in `../assets/eip-####/`. External links will not be allowed.
-
-  TODO: Remove this comment before submitting
--->
+[UniversalSolver.sol](https://github.com/Helkomine/UniversalSolver/blob/main/UniversalSolver.sol?utm_source=chatgpt.com)
 
 ## Security Considerations
 
-<!--
-  All EIPs must contain a section that discusses the security implications/considerations relevant to the proposed change. Include information that might be important for security discussions, surfaces risks and can be used throughout the life cycle of the proposal. For example, include security-relevant design decisions, concerns, important discussions, implementation-specific guidance and pitfalls, an outline of threats and risks and how they are being addressed. EIP submissions missing the "Security Considerations" section will be rejected. An EIP cannot proceed to status "Final" without a Security Considerations discussion deemed sufficient by the reviewers.
+### Error Simulation Notifications in User Interfaces
 
-  The current placeholder is acceptable for a draft.
+Because this standard requires `envelopeTx` to be a Semi Tx, execution of an `envelopeTx` outside the intended Solver execution flow may revert. Wallet interfaces and other transaction simulation infrastructure may therefore report the transaction as failed during simulation.
 
-  TODO: Remove this comment before submitting
--->
+This behavior is a consequence of the Semi Tx design and does not necessarily indicate that the corresponding Solver execution will fail.
 
-Needs discussion.
+Handling such simulation results is primarily an infrastructure and user-interface concern. It does not require the on-chain execution flow defined by this standard to be modified.
 
 ## Copyright
 
