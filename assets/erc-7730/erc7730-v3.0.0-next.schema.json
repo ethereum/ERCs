@@ -1006,6 +1006,17 @@
                         "blockheight",
                         "timestamp"
                     ]
+                },
+                "specialValues": {
+                    "title": "Special Values",
+                    "type": "object",
+                    "description": "Map of exact integer values, written as decimal strings, to the text to display instead of a date. Use it when a contract gives a sentinel value a meaning, for example 0 for 'no deadline'.",
+                    "propertyNames": {
+                        "pattern": "^[0-9]+$"
+                    },
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             },
             "required": [
