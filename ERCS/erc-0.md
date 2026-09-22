@@ -1,6 +1,6 @@
 ---
 title: AA-Compatible Solver
-description: <Description is one full (short) sentence>
+description: A standard for AA-compatible Solver contracts that orchestrate existing account execution and authorization capabilities to support Intent-based execution without modifying existing smart wallets
 author: Helkomine (@Helkomine)
 discussions-to: <URL>
 status: Draft
