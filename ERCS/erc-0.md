@@ -76,7 +76,7 @@ The Solver MUST execute the complete batch atomically. Any failure during the Co
 
 During the Context phase, the Solver collects the context required by the Executors and stores the resulting data for subsequent execution.
 
-The Solver SHOULD use transient storage, as defined by [EIP-1153], when supported by the network, to avoid persistent state and reduce the cost of storing data that is only required during the current transaction.
+The Solver SHOULD use transient storage, as defined by [EIP-1153](./eip-1153.md), when supported by the network, to avoid persistent state and reduce the cost of storing data that is only required during the current transaction.
 
 Each Executor MUST be invoked using `STATICCALL` during the Context phase. Consequently, the Executor and the entire downstream static-call tree MUST NOT perform state-changing operations during this phase.
 
@@ -213,6 +213,161 @@ function _getOffsetAndLength(
 This decoding method is provided as a reference implementation only. Implementations MAY use a different mechanism provided that they satisfy the normative requirements of this standard.
 
 The mapping from `UserEnvelopeTx` to `UserIntent` is intentionally non-invertible. A `UserIntent` does not contain sufficient information to reconstruct the original `UserEnvelopeTx`, because the latter may contain additional transaction data required by the Sender's existing execution and authorization mechanism.
+
+#### Interface
+
+A contract conforming to this standard MUST implement the following interface:
+
+```
+interface ICompatibleSolver {
+    enum Phase {
+        INACTIVE,
+        CONTEXT,
+        VALIDATION,
+        EXECUTION
+    }
+
+    struct UserEnvelopeTx {
+        address sender;
+        uint256 sliceInfo;
+        bytes envelopeTx;
+    }
+
+    function resolve(
+        UserEnvelopeTx[] calldata userEnvelopeTxs
+    ) external;
+
+    function senderCallback(
+        bytes calldata intentInfo
+    ) external;
+
+    function context() external view returns (
+        Phase phase,
+        uint256 currentIndex,
+        address initiator,
+        bytes32[] memory executionHash,
+        UserEnvelopeTx[] memory userEnvelopeTxs,
+        bytes[] memory executorPreContext,
+        bytes[] memory executorPostContext
+    );
+}
+```
+
+#### Behavior
+
+A CompatibleSolver MUST only process a batch when `resolve()` is invoked. A Resolver SHOULD construct and order the `UserEnvelopeTx` batch according to the proposed Solution before invoking `resolve()`.
+
+The `resolve()` function MUST execute the Context, Validation, and Execution phases described below. The complete batch MUST be processed atomically. Any failure during the Context, Validation, or Execution phase MUST revert the entire `resolve()` call and therefore revert all effects produced during the batch.
+
+#### Context Phase
+
+During the Context phase, the Solver MUST invoke each Executor using `STATICCALL`.
+
+Consequently, the Executor and the entire downstream static-call tree MUST NOT perform state-changing operations during the Context phase.
+
+The Solver itself is not subject to this restriction and MAY use state-changing operations to record or cache Context, including transient storage where supported by the execution environment.
+
+The Context phase MUST complete before the Solver proceeds to the Validation phase.
+
+#### Validation Phase
+
+During the Validation phase, the Solver MUST invoke each Sender in batch order using the corresponding `envelopeTx`.
+
+The Solver MUST revert if a Sender invocation reverts or if the execution envelope extracted from the `UserEnvelopeTx` is invalid.
+
+During its invocation, the Sender MAY prepare the execution environment required by the Intent and MUST validate the execution envelope by invoking `senderCallback()` on the Solver as specified below.
+
+The Sender MAY interleave the callback with other validation and environment-preparation operations. This standard does not impose an ordering between the callback and such operations.
+
+#### Execution Phase
+
+During the Execution phase, the Solver MUST invoke each Executor in batch order using the `intent` extracted from the corresponding execution envelope.
+
+For each Executor invocation, the Solver MUST record the returned `executorPostContext`, except that the Solver MAY omit the post-context of the final Executor because no subsequent batch item can observe it.
+
+The execution envelope used by the Executor MUST be the same execution envelope that was acknowledged by the Sender during the Validation phase.
+
+A CompatibleSolver implementation MUST ensure that state belonging to a previous `resolve()` execution cannot be observed by a subsequent `resolve()` execution.
+
+#### Envelope Transaction
+
+This standard does not require existing wallets to be upgraded or replaced. Instead, it is designed to reuse the data encoding and execution mechanisms already supported by the Sender. Integrating a Solver therefore primarily requires constructing the transaction data used by the existing Sender such that it also satisfies the requirements of this standard.
+
+A conforming `envelopeTx` MUST satisfy all of the following requirements:
+
+1. It MUST be validly authorized and executable by the Sender.
+2. It MUST be a Semi Tx.
+3. It MUST contain a contiguous byte sequence from which the Solver can extract an execution envelope in the form `executor || intent`.
+4. During its execution by the Sender, it MUST invoke `senderCallback()` on the Solver with `executor || intent` as the argument.
+
+The Sender SHOULD propagate a revert from `senderCallback()` to its enclosing execution frame.
+
+For security reasons, an `envelopeTx` SHOULD contain only one distinct execution-envelope slice when a slice is used as the execution envelope. An `envelopeTx` containing multiple identical execution-envelope slices SHOULD be considered by a separate standard.
+
+The Sender receives the `envelopeTx` from the Solver during the Validation phase. During this invocation, the Sender MAY prepare the execution environment required by the Intent. For example, it MAY transfer tokens required for a subsequent swap to an address involved in the execution.
+
+This standard does not require the Sender to invoke `senderCallback()` before or after its other validation and preparation operations. The Sender MAY interleave the callback with any number of validation or environment-preparation operations.
+
+#### Callback and Execution-Envelope Validation
+
+During the Validation phase, the Sender MUST invoke `senderCallback()` on the Solver.
+The `senderCallback()` function MUST revert unless all of the following conditions are satisfied:
+
+1. The Solver is currently processing a batch.
+2. `msg.sender` is the Sender currently being invoked by the Solver during the Validation phase.
+3. The `intentInfo` argument exactly matches the `executor || intent` execution envelope extracted from the `UserEnvelopeTx` currently being validated.
+4. The callback has not already been successfully accepted for the current Sender invocation.
+
+The Solver MUST associate the callback with the Sender that it is currently invoking. An implementation MAY establish this association by recording the expected Sender before invoking the Sender and comparing `msg.sender` against the recorded address when the callback is received.
+
+The exact equality of `intentInfo` with the execution envelope is sufficient for the Solver to establish that the Sender has acknowledged the specific execution envelope that the Solver is authorized to execute.
+
+This callback does not replace the Sender's own authorization mechanism. The Sender remains responsible for validating the `envelopeTx` according to its existing authorization and execution mechanism.
+
+The Solver MUST ensure that at most one valid callback is accepted for each Sender invocation associated with each `UserEnvelopeTx`. Reentrant callback attempts that are reverted MUST NOT count as successful callbacks.
+
+#### Context Retrieval
+
+The standard provides access to Solver execution context through the `context()` function.
+
+The `context()` function MUST return a tuple containing the following information:
+
+| Type | Name | Description |
+| --- | --- | --- |
+| `Phase` | `phase` | The current phase of the Solver execution |
+| `uint256` | `currentIndex` | The index of the `UserEnvelopeTx` currently being processed |
+| `address` | `initiator` | The address that initiated the current `resolve()` call |
+| `bytes32[]` | `executionHash` | The execution-envelope commitments for the batch. Each element is `keccak256(executor || intent)` |
+| `UserEnvelopeTx[]` | `UserEnvelopeTxs` | The complete `UserEnvelopeTx` batch supplied to the Solver for the current `resolve()` call |
+| `bytes[]` | `executorPreContext` | Context collected from Executor invocations during the Context phase |
+| `bytes[]` | `executorPostContext` | Context produced by Executor invocations during the Execution phase |
+
+`currentIndex` is meaningful only while the Solver is processing a batch.
+
+Each element of `executionHash` MUST be defined as:
+
+`keccak256(executor || intent)`
+
+The Solver MAY use these commitments to verify that the `intentInfo` supplied by a Sender through `senderCallback()` corresponds exactly to the execution envelope associated with the current `UserEnvelopeTx`.
+
+The `executionHash` is a commitment used to verify the execution envelope acknowledged by the Sender. It does not replace or define the Sender's authorization mechanism.
+
+The `Phase` values are defined as follows:
+
+| Value | Phase | Description |
+| --- | --- | --- |
+| 0 | `INACTIVE` | The Solver is not currently processing a batch |
+| 1 | `CONTEXT` | Executors are invoked to collect pre-execution context |
+| 2 | `VALIDATION` | Senders are invoked to validate and acknowledge execution envelopes |
+| 3 | `EXECUTION` | Executors are invoked to execute Intents |
+
+Because the Context and Execution phases invoke the same Executor with the same `executor || intent` execution envelope, the Solver MUST expose sufficient execution context for an Executor to distinguish the current phase and select the corresponding execution path.
+
+The `phase` field returned by `context()` provides this phase distinction.
+
+The `initiator` MUST remain unchanged throughout the execution of `resolve()` and MUST equal the address that invoked `resolve()`.
+
+The `initiator` identifies the caller of the current Solver execution and MUST NOT be changed by nested calls made during the execution of `resolve()`.
 
 ## Rationale
 
