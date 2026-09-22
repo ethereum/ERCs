@@ -110,7 +110,7 @@ Conceptually, a User submits a `UserIntent` when expressing an Intent. The struc
 
 The conceptual Solidity representation is:
 
-```
+```solidity
 struct UserIntent {
     address sender;
     address executor;
@@ -130,7 +130,7 @@ Instead, the User submits a backwards-compatible `UserEnvelopeTx` structure that
 
 The Solidity representation is:
 
-```
+```solidity
 struct UserEnvelopeTx {
     address sender;
     uint256 sliceInfo;
@@ -140,7 +140,9 @@ struct UserEnvelopeTx {
 
 The `offset` and `length` values encoded in `sliceInfo` are `uint128` values and MUST satisfy:
 
-`offset + length <= envelopeTx.length`
+```solidity
+offset + length <= envelopeTx.length
+```
 
 The extracted slice MUST contain at least 20 bytes.
 
@@ -152,7 +154,7 @@ where `executor` is exactly 20 bytes.
 
 The following is a reference implementation illustrating how a `UserEnvelopeTx` can be decoded into the conceptual `UserIntent` representation:
 
-```
+```solidity
 function getUserIntent(
     UserEnvelopeTx calldata userEnvelopeTx
 ) internal pure returns (UserIntent memory userIntent) {
@@ -218,7 +220,7 @@ The mapping from `UserEnvelopeTx` to `UserIntent` is intentionally non-invertibl
 
 A contract conforming to this standard MUST implement the following interface:
 
-```
+```solidity
 interface ICompatibleSolver {
     enum Phase {
         INACTIVE,
@@ -337,7 +339,7 @@ The `context()` function MUST return a tuple containing the following informatio
 | `Phase` | `phase` | The current phase of the Solver execution |
 | `uint256` | `currentIndex` | The index of the `UserEnvelopeTx` currently being processed |
 | `address` | `initiator` | The address that initiated the current `resolve()` call |
-| `bytes32[]` | `executionHash` | The execution-envelope commitments for the batch. Each element is `keccak256(executor || intent)` |
+| `bytes32[]` | `executionHash` | The execution-envelope commitments for the batch. Each element is `keccak256(executor \|\| intent)` |
 | `UserEnvelopeTx[]` | `UserEnvelopeTxs` | The complete `UserEnvelopeTx` batch supplied to the Solver for the current `resolve()` call |
 | `bytes[]` | `executorPreContext` | Context collected from Executor invocations during the Context phase |
 | `bytes[]` | `executorPostContext` | Context produced by Executor invocations during the Execution phase |
@@ -368,6 +370,114 @@ The `phase` field returned by `context()` provides this phase distinction.
 The `initiator` MUST remain unchanged throughout the execution of `resolve()` and MUST equal the address that invoked `resolve()`.
 
 The `initiator` identifies the caller of the current Solver execution and MUST NOT be changed by nested calls made during the execution of `resolve()`.
+
+### Extensions
+
+#### Blob
+
+Some Intent designs may carry `UserEnvelopeTx` objects that are used only as supplemental execution data rather than representing an actual Sender. This standard can support such use cases indirectly by using a `UserEnvelopeTx` with an empty `intent`.
+
+In this case, the `Sender` and `Executor` serve only technical roles for introducing the blob data into the Solver flow and do not necessarily represent entities that participate in the actual Intent execution.
+
+An implementation MAY use one or two addresses for these roles. When two addresses are used, one address serves as `NO_OP_SENDER` and the other as `NO_OP_EXECUTOR`. The two roles MAY also be implemented by the same contract if that contract can satisfy both roles.
+
+The Solver itself MAY be used for both roles:
+
+```text
+NO_OP_SENDER   = Solver
+NO_OP_EXECUTOR = Solver
+```
+
+In this configuration, during the Validation phase the Solver can perform a self-call to `senderCallback()`:
+
+```text
+Solver -> Solver
+```
+
+instead of the following flow:
+
+```text
+Solver -> NO_OP_SENDER -> Solver
+```
+
+This requires only a minor implementation change to the Solver: the Solver MUST provide a no-op `fallback()` or equivalent execution path so that the self-call does not revert.
+
+This does not change the execution flow or semantics defined by this standard. The `UserEnvelopeTx` is still processed through the same Context, Validation, and Execution phases.
+
+For example, when the Solver is used as both `NO_OP_SENDER` and `NO_OP_EXECUTOR`, a `UserEnvelopeTx` carrying blob data MAY be constructed as follows:
+
+```solidity
+address immutable NO_OP_SENDER = address(this);
+address immutable NO_OP_EXECUTOR = address(this);
+
+uint256 sliceInfo = (36 << 128) | 20; // offset = 36, length = 20
+bytes memory blob = anyBlob;
+
+/*
+    Calldata layout:
+
+    0x00 -> 0x03: function selector
+    0x04 -> 0x23: ABI offset
+    0x24 -> 0x43: ABI length/data area containing NO_OP_EXECUTOR
+    0x44 -> ... : blob
+*/
+
+bytes memory envelopeTx = bytes.concat(
+    abi.encodeCall(
+        ICompatibleSolver.senderCallback,
+        (abi.encodePacked(NO_OP_EXECUTOR))
+    ),
+    blob
+);
+
+UserEnvelopeTx memory userBlob = UserEnvelopeTx({
+    sender: NO_OP_SENDER,
+    sliceInfo: sliceInfo,
+    envelopeTx: envelopeTx
+});
+```
+
+This approach may introduce additional execution overhead compared with passing blob data directly. Its benefit is that blob data can reuse the same `UserEnvelopeTx` processing flow without requiring a separate execution path in the Solver.
+
+#### Delegator
+
+A wallet may not be able to directly coordinate its execution with a Solver. Examples include EOAs without executable code and smart wallets that exclusively accept execution through a trusted Entry Point without providing an alternative entry point.
+
+In such cases, a Delegator MAY be used to execute on behalf of the User and act as the Sender within the Solver flow.
+
+This standard only describes the role and high-level interaction of a Delegator. It does not require Delegators to implement a particular interface. The concrete Delegator design SHOULD be defined by an Intent protocol or a separate standard.
+
+For the purposes of this section, **Entry Point** refers to any trusted contract that serves as an execution entry point for a smart wallet. It does not necessarily refer to the ERC-4337 EntryPoint contract.
+
+A Delegator as described in this standard MUST NOT be confused with an EIP-7702 delegation contract that supplies code for an EOA.
+
+##### Restricted Wallets with a Trusted Entry Point Path
+
+Some wallets have restricted access and only trust a particular Entry Point, while the Entry Point itself does not restrict which contracts may invoke it. In such a configuration, a Delegator MAY establish an execution path through the trusted Entry Point:
+
+```text
+Solver -> Delegator -> Entry Point -> Wallet -> Delegator -> Solver
+```
+
+The Wallet MUST be capable of invoking the Delegator as part of this execution path.
+
+The Delegator SHOULD verify that the execution path between the Delegator and the Solver callback contains only the expected Entry Point and Wallet, as applicable to the implementation, and does not introduce an untrusted contract into the path.
+
+The Delegator SHOULD cross-check the expected Entry Point and the Wallet that performs the callback. This design may require the Delegator to trust the Entry Point as part of its security model. This standard does not prescribe how such trust should be established or managed.
+
+##### Restricted Wallets without a Trusted Entry Point Path
+
+Some wallets cannot be reached through a Delegator via their trusted Entry Point. This includes EOAs without executable code and smart wallets that restrict access to a trusted Entry Point using conditions such as:
+
+```solidity
+msg.sender == tx.origin
+```
+
+A Delegator MAY instead collect and validate the wallet's authorization, such as a signature, and perform the execution on behalf of the wallet. Depending on the implementation, execution MAY occur directly on the Delegator or through an Executor.
+
+This approach may provide the wallet with less access to auxiliary execution capabilities. For example, operations such as an ERC-20 `approve()` may require a separate execution path or may not be available through the Delegator.
+
+Nevertheless, such a Delegator provides a mechanism for integrating wallets that cannot otherwise expose a compatible execution path to the Solver. The concrete authorization, delegation, and execution mechanism is outside the scope of this standard.
 
 ## Rationale
 
