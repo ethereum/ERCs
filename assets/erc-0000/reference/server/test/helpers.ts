@@ -1,0 +1,94 @@
+import type { Express } from "express";
+import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
+import type { Address } from "viem";
+
+import { defaultConfig, type ServerConfig } from "../src/config.js";
+import { createNonceStore } from "../src/nonceStore.js";
+import { eoaSignatureVerifier } from "../src/verifiers.js";
+import { createPassStore, type PassStore } from "../src/passStore.js";
+import type { ChainReader } from "../src/chainReader.js";
+import { createApp } from "../src/app.js";
+
+/// A controllable clock so tests can move "now" forward across the transfer and
+///  expiry windows the standard cares about. Its default start is the instant
+///  in the spec's worked example, 2026-08-07T15:04:05Z.
+export function createClock(startMs: number = Date.UTC(2026, 7, 7, 15, 4, 5)) {
+  let t = startMs;
+  return {
+    now: () => t,
+    set: (value: number) => {
+      t = value;
+    },
+    advance: (ms: number) => {
+      t += ms;
+    },
+  };
+}
+
+/// A fake owner map that stands in for a chain. Tests set ownership, and can
+///  flip or clear it between challenge issuance and action to drive the
+///  fresh-read check. An unset token reads as nonexistent (throws), exactly as
+///  `ownerOf` would for a token that was never minted or was burned.
+export class FakeChainReader implements ChainReader {
+  private owners = new Map<string, Address>();
+
+  setOwner(contract: Address, tokenId: string, owner: Address): void {
+    this.owners.set(this.key(contract, tokenId), owner);
+  }
+
+  clearOwner(contract: Address, tokenId: string): void {
+    this.owners.delete(this.key(contract, tokenId));
+  }
+
+  async ownerOf(contract: Address, tokenId: string): Promise<Address> {
+    const owner = this.owners.get(this.key(contract, tokenId));
+    if (!owner) {
+      throw new Error(`nonexistent token ${tokenId}`);
+    }
+    return owner;
+  }
+
+  private key(contract: Address, tokenId: string): string {
+    return `${contract.toLowerCase()}:${tokenId}`;
+  }
+}
+
+/// A throwaway signing account, generated at runtime. No private key literal
+///  ever appears in the source.
+export function newSigner(): PrivateKeyAccount {
+  return privateKeyToAccount(generatePrivateKey());
+}
+
+export interface Harness {
+  app: Express;
+  config: ServerConfig;
+  chain: FakeChainReader;
+  passStore: PassStore;
+  clock: ReturnType<typeof createClock>;
+}
+
+/// Assemble the server with the test collaborators: the EOA-only verifier (so
+///  no chain is needed to check signatures), a fake chain reader, and a
+///  controllable clock shared by the app and its authorization logic.
+export function buildHarness(configOverrides: Partial<ServerConfig> = {}): Harness {
+  const config = defaultConfig(configOverrides);
+  const clock = createClock();
+  const chain = new FakeChainReader();
+  const passStore = createPassStore(config, clock.now);
+  const app = createApp({
+    config,
+    nonces: createNonceStore(),
+    verifier: eoaSignatureVerifier(),
+    chain,
+    passStore,
+    now: clock.now,
+  });
+  return { app, config, chain, passStore, clock };
+}
+
+/// Pull a capability token out of an acquisition URL of the form
+///  https://issuer.example/passes/apple/<token>.
+export function capabilityTokenFromUrl(url: string): string {
+  const parts = url.split("/");
+  return parts[parts.length - 1] ?? "";
+}
