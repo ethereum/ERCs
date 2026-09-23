@@ -6,7 +6,7 @@ These notes describe how one production deployment implements this proposal: its
 
 - ERC-721 tokens on a public test network, live since July 2026. Holders onboard with an email address; their accounts use an embedded signer, and state-changing transactions are gas-sponsored.
 - Each token carries one Apple Wallet pass and one Google Wallet pass. Pass content (status, countdown, balances) reflects on-chain state and changes several times a day.
-- Its token contract implements `IERC721WalletPass`, and its server resolves `passURI` to a manifest. At the time of writing this contract release is built and tested but not yet deployed to the test network; earlier releases delivered the same passes without the on-chain interface.
+- Its token contract, deployed on chain id 46630 at `0x96100112afec4a034270d96a133c8952e8c63f45`, implements `IERC721WalletPass`: `supportsInterface(0xef5f1e71)` returns `true`, and `passURI` reverts for unminted ids. Its server resolves `passURI` to a manifest. Earlier releases delivered the same passes without the on-chain interface.
 - Acquisition URLs are also delivered in the mint response, the post-transfer claim response, and a receipt email.
 - It documents itself as operating the gated configuration. Pass action links run in the capability configuration, bounded as described under [Authorization](#authorization-as-deployed).
 
