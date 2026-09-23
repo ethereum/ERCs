@@ -3,7 +3,7 @@
 | Path | Contents |
 | --- | --- |
 | [`reference/`](./reference/README.md) | Reference implementation (CC0): a minimal ERC-721 implementing `IERC721WalletPass` with Foundry tests, and an off-chain server implementing the challenge floor, both manifest configurations, and capability URL rotation, with vitest tests. |
-| [`implementation-notes.md`](./implementation-notes.md) | Non-normative deployment notes: how a production deployment delivered passes on Apple Wallet and Google Wallet and applied the authorization requirements, with lessons learned. |
+| [`implementation-notes.md`](./implementation-notes.md) | Non-normative deployment notes: how a production deployment implements the interface and a gated manifest endpoint, delivers passes on Apple Wallet and Google Wallet, and applies the authorization requirements, with lessons learned. |
 | [`screenshots/`](./screenshots/README.md) | Screenshots of a live deployment on both platforms. |
 
 ## Running the reference tests

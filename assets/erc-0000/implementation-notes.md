@@ -1,13 +1,40 @@
 # Deployment Notes (non-normative)
 
-These notes describe how one production deployment delivered NFT-bound wallet passes on Apple Wallet and Google Wallet, and how it applied the authorization requirements of this proposal. Nothing here is normative. The specification defines discovery and authorization; everything below sits in the delivery pipeline the specification leaves out of scope, and is recorded because every implementer meets the same platform constraints.
+These notes describe how one production deployment implements this proposal: its on-chain interface, its gated manifest endpoint, how it delivers NFT-bound passes on Apple Wallet and Google Wallet, and how it applies the authorization requirements. Nothing here is normative. Much of what follows sits in the delivery pipeline the specification leaves out of scope, and is recorded because every implementer meets the same platform constraints.
 
 ## Deployment profile
 
 - ERC-721 tokens on a public test network, live since July 2026. Holders onboard with an email address; their accounts use an embedded signer, and state-changing transactions are gas-sponsored.
 - Each token carries one Apple Wallet pass and one Google Wallet pass. Pass content (status, countdown, balances) reflects on-chain state and changes several times a day.
-- Acquisition URLs are delivered in the mint response, the post-transfer claim response, and a receipt email. The deployment predates the on-chain interface: its token contract does not implement `passURI`, and push updates are driven by server-observed state changes rather than `PassUpdate` events. The [reference implementation](./reference/README.md) covers the on-chain half.
-- It operates the gated configuration. Pass action links run in the capability configuration, bounded as described under [Authorization](#authorization-as-deployed).
+- Its token contract implements `IERC721WalletPass`, and its server resolves `passURI` to a manifest. At the time of writing this contract release is built and tested but not yet deployed to the test network; earlier releases delivered the same passes without the on-chain interface.
+- Acquisition URLs are also delivered in the mint response, the post-transfer claim response, and a receipt email.
+- It documents itself as operating the gated configuration. Pass action links run in the capability configuration, bounded as described under [Authorization](#authorization-as-deployed).
+
+## On-chain interface
+
+**`passURI`.** Reverts for a nonexistent token, otherwise returns an owner-settable base followed by the decimal token id. The base encodes the chain and contract, in the form `<origin>/wallet-pass/eip155/<chainId>/<contract>/`, so one server can serve several collections and networks without ambiguity. `supportsInterface` returns `true` for `0xef5f1e71`.
+
+**`PassUpdate`.** Emitted from the token's transfer hook, so mint, transfer, and burn are all covered without separate call sites. Most pass-rendered state lives in a separate application contract. Because the specification places the events on the token contract, the application contract asks the token contract to emit them through an emit-only signal function, callable only by the application contract, the owner, and registered signalers. Each action taken from a pass, and each prize or residual payment to a single token, emits `PassUpdate` for that token.
+
+**`BatchPassUpdate`.** Emitted for collection-wide changes (the start or end of a round) over the full minted range, and once per reward distribution over the inclusive range from the lowest to the highest paid token id. Unpaid ids inside that range receive a redundant refresh, which is cheaper than one event per token.
+
+**Signals never block state changes.** Every signal call is wrapped so that a failure to emit cannot revert the action or settlement that caused it.
+
+**Passive state has no event.** State that changes with time rather than by transaction (a deadline lapsing) emits nothing. The pass covers it with a relative date field that the device counts down on its own.
+
+**Gas.** Signaling adds about 4,100 gas per state-changing action and about 1,200 per mint.
+
+**Push remains server-driven.** The server still triggers APNs pushes and Google Wallet updates from the state changes it observes. The events serve other pass distributors and indexers, which have no access to that server.
+
+## Manifest endpoint
+
+**Gated resolution.** An unauthenticated request to the `passURI` address returns `401` with an error naming the gated configuration, and no acquisition URL. A request that proves control of the owning account returns `200` with the manifest (`formats.apple` a capability `.pkpass` URL, `formats.google` a Save to Google Wallet link, and `updatedAt`), sent with `Cache-Control: no-store`.
+
+**Proof of control.** Either of two proofs is accepted. The first is an ERC-4361 challenge fetched from a `challenge` endpoint beneath the `passURI` address, signed, and returned in request headers. It follows the recommended serialization: the first resource is the CAIP-19 identifier of the token, the second is `urn:wallet-pass:action:acquire`, and the statement names the acquire action, with a single-use nonce, an expiration, the domain line, and the claimed account in the address line. The second is a session token from the embedded signer used by email-onboarded holders.
+
+**Rotation at first claim.** When a proven owner is not the owner of record, the server rotates the per-pass secret before minting any acquisition URL. This is the gated configuration's rotation upon the new owner's first claim.
+
+**No metadata mirror.** The optional `wallet_pass` property in token metadata is deliberately not served. `tokenURI` is public, so mirroring a gated manifest there would publish its capability URLs.
 
 ## Apple Wallet
 
@@ -47,10 +74,10 @@ These notes describe how one production deployment delivered NFT-bound wallet pa
 
 ## Authorization as deployed
 
-- **Fresh read.** Every state-changing request reads `ownerOf` at request time, bypassing the ownership cache that read-only views use. If the RPC read fails, the guard falls back to the last successful read, and fails closed when no read is available while real value is at stake.
+- **Fresh read.** Every state-changing request (action taps, session key installation and revocation, pass link issuance, claims, challenge verification, and manifest resolution) reads `ownerOf` at request time. On failure it retries once after 250 ms, then refuses with a retryable `503` (`Retry-After: 5`). It never falls back to a cached or last-known-good owner; only read-only views use the cache. Making this strict also closed a path where a claim could proceed on the owner of record when the chain read failed.
 - **Pass action links.** Holders onboard by email and are never prompted per action, so no per-action signature exists at tap time: the capability configuration. Each link is a capability URL bound to the pass and the action. A tap resolves the link, performs the fresh read, and submits the action with a session key the owner authorized once with a signature. The session key's authority is scoped on chain to the single state-changing function the pass exposes. The forwarding residual the specification discloses therefore stays bounded: a forwarded link can repeat that action for the owner, and cannot transfer the token or reach any other function.
 - **Fallback.** When no usable session key exists, the link redirects to a page where the owner signs the action directly.
-- **Transfer.** A new owner claims with a signature over a server-issued single-use nonce. The claim rotates the per-pass secret, which invalidates every action link and pass download URL derived from it and triggers the keepsake behavior described above.
+- **Transfer.** A new owner claims with a signature over a server-issued single-use nonce. The claim, like a proven manifest request from a new owner, rotates the per-pass secret, which invalidates every action link and pass download URL derived from it and triggers the keepsake behavior described above.
 
 ## Lessons
 
@@ -65,4 +92,4 @@ These notes describe how one production deployment delivered NFT-bound wallet pa
 
 ## Screenshots
 
-Screenshots from the current test network season are tracked in [`screenshots/`](./screenshots/README.md).
+Screenshots from the current test network deployment are tracked in [`screenshots/`](./screenshots/README.md).
