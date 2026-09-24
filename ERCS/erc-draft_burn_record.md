@@ -1,8 +1,9 @@
 ---
+eip: 8423
 title: ERC-721 Burn Record Extension
 description: An ERC-721 extension that lets contracts read the address recorded as the owner of a token when it was burned
 author: Antonio Ferraioli (@antferr)
-discussions-to: https://ethereum-magicians.org/t/erc-721-burn-record-extension/29732
+discussions-to: https://ethereum-magicians.org/t/erc-8423-erc-721-burn-record-extension/29732
 status: Draft
 type: Standards Track
 category: ERC
