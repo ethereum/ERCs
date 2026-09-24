@@ -1,11 +1,9 @@
 # Typed-data signature requests
 
 This document specifies the `typed_data_signature_request` type in ERC-8410.
-It is the single additional document type alongside `execution_plan`, sharing
-its reference envelope but keeping a separate body and request digest. This
-is not a generic artifact extension mechanism. Supporting this type is optional;
-the requirements below apply to implementations that support it. Existing
-execution-plan v1 documents and digests are unchanged.
+It shares the execution plan's reference envelope and has a separate body and
+request digest. Support is optional; the requirements below apply to consumers
+that implement this type.
 
 ## Motivation
 
@@ -14,11 +12,9 @@ and only then construct an order for another signing round. A solver may settle
 the order without the wallet broadcasting any transaction. A gasless supply
 flow may instead return a transaction after receiving a permit signature.
 
-These flows need portable, concrete signing requests. They do not require a
-workflow language inside an execution plan. The producer constructs each next
-request after receiving the preceding results; the wallet evaluates each new
-request independently. An execution plan is returned only when there are actual
-calls for the wallet to execute.
+The producer constructs each request after receiving the preceding results,
+and the wallet evaluates each request independently. An execution plan is
+returned when there are calls for the wallet to execute.
 
 ## Specification
 
@@ -183,9 +179,9 @@ Omitting `delivery` allows the wallet to return raw signature bytes to its
 caller. The wallet MUST treat this as release to the caller: producer prose
 cannot constrain where that caller forwards the bytes.
 
-When `delivery` is present, it is a requirement, not a hint. A consumer that
-cannot enforce this profile MUST reject the request. It MUST NOT fall back to
-returning the signature to the agent. It MAY return a wallet-local opaque handle
+When `delivery` is present, a consumer that cannot enforce this profile MUST
+reject the request. It MUST NOT fall back to returning the signature to the
+caller. It MAY return a wallet-local opaque handle
 or a delivery receipt; any handle MUST be scoped to the caller, account, and
 request, and MUST NOT permit raw signature export or destination substitution.
 Handles are not public artifact references.
@@ -274,15 +270,13 @@ state, query or retry the same request, and MUST NOT assume it is safe to sign a
 replacement order. Submission retries remain subject to `valid_until`; status
 lookups do not release a signature and MAY continue after that cutoff.
 
-This profile deliberately starts with producer proxying. Direct third-party
-delivery and MCP-native result injection may be specified separately. DNS
-resolution alone cannot authorize a recipient, and this profile makes no claim
-that the producer cannot forward a signature after receiving it.
+This profile supports delivery to the producer only. It does not restrict the
+producer's subsequent use or forwarding of the signature.
 
-### Re-enterable flows
+### Multi-round signing
 
-The following names illustrate tool behavior, not required MCP method names or
-a claim about a deployed producer API:
+The following example illustrates a multi-round workflow. Method names are
+illustrative and are not part of the standard:
 
 ```text
 prepare_order(inputs)
@@ -331,7 +325,7 @@ simulation is not evidence of a later order's safety. Limits on cumulative
 authority must account for outstanding signatures and concurrent requests,
 not only mined spend.
 
-### No rollback or recipient restriction on use
+### Signature release
 
 Several signatures are not an atomic batch. An earlier permit may remain usable
 if a later signature is denied or the workflow stops. Before releasing any
@@ -352,18 +346,6 @@ Changing a wallet cutoff requires a new request digest and reevaluation. A
 digest-excluded freshness estimate may guide scheduling outside the artifact,
 but MUST NOT extend a bound deadline or grant signing authority. No expiry
 field or new extension semantics are added to execution-plan v1.
-
-## Interoperability review
-
-- Does one concrete message per artifact, with multiple references per tool
-  response, cover the producer's approval batches and second signing round?
-- Is the optional same-origin HTTPS delivery profile useful now, or should the
-  first integration return raw results through existing MCP tool calls?
-- Which account formats and protocol-specific validations must the first
-  integration support? The wire format alone cannot establish verifier support.
-
-These questions guide review of this draft; they do not change the
-requirements of the proposed profile above.
 
 ## Validation assets
 
