@@ -2,6 +2,31 @@
 
 These notes describe how one production deployment implements this proposal: its on-chain interface, its gated manifest endpoint, how it delivers NFT-bound passes on Apple Wallet and Google Wallet, and how it applies the authorization requirements. Nothing here is normative. Much of what follows sits in the delivery pipeline the specification leaves out of scope, and is recorded because every implementer meets the same platform constraints.
 
+## Technology stack
+
+| Layer | Standard or mechanism | Role |
+| --- | --- | --- |
+| Token | ERC-721 with this extension (`passURI`, `PassUpdate`, `BatchPassUpdate`, ERC-165 id `0xef5f1e71`) | The token advertises its pass endpoint and signals pass staleness on chain. |
+| Token | ERC-6551 token-bound accounts | Each token owns an account that holds its balance; actions spend from the token's own account. |
+| Token | ERC-2981 | Royalty information for secondary sales. |
+| Token | ERC-721C creator-token transfer validator | A creator-definable transfer validation hook, discoverable by marketplaces. |
+| Account | EIP-7702 delegation to Alchemy SemiModularAccount7702 | Email-onboarded embedded-signer EOAs become smart accounts at their existing address, so `ownerOf` never changes. |
+| Account | ERC-4337 user operations with a paymaster policy and a server-side approval webhook | Holders pay no gas; the webhook approves only the calls the application expects. |
+| Account | Scoped session keys (`wallet_createSession` permission grant) | One owner signature authorizes a key limited on chain to the single function pass links invoke, enabling one-tap actions. |
+| Authorization | ERC-4361 challenge floor with a CAIP-19 token binding | Proof of control naming token, action, single-use nonce, expiration, verifier, and account. |
+| Authorization | ERC-1271 | Signature verification for contract accounts. |
+| Authorization | Fresh `ownerOf` read, fail closed | Entitlement checked at request time on every state-changing request; never a cached owner. |
+| Apple delivery | Signed PKPass bundles (Pass Type ID certificate issued by Apple, WWDR G4 chain) | The pass artifact. |
+| Apple delivery | PassKit web service protocol (device registration, serials since tag, latest pass, log) | Installed passes fetch updated content. |
+| Apple delivery | APNs background push | Tells devices a pass changed. |
+| Apple delivery | Relative date fields | Live countdowns rendered on device between pushes. |
+| Google delivery | Google Wallet REST API (loyalty class and objects) | The pass class and one object per token, upserted by the server. |
+| Google delivery | Thin Save to Google Wallet JWTs referencing upserted objects | Short, reliable save links. |
+| Google delivery | Object PATCH, `addMessage`, `linksModuleData` | Content updates, notifications, and tappable action links. |
+| Discovery and freshness | Gated manifest behind `passURI` | Acquisition URLs only for a proven owner. |
+| Discovery and freshness | Capability URL rotation on transfer | Previous owners' links and downloads stop working. |
+| Discovery and freshness | On-chain `PassUpdate` and `BatchPassUpdate` | Staleness signal for any pass distributor or indexer. |
+
 ## Deployment profile
 
 - ERC-721 tokens on a public test network, live since July 2026. Holders onboard with an email address; their accounts use an embedded signer, and state-changing transactions are gas-sponsored.
@@ -38,7 +63,7 @@ These notes describe how one production deployment implements this proposal: its
 
 ## Apple Wallet
 
-**Signing.** Passes are signed with an Apple-issued Pass Type ID certificate chained to the Apple WWDR G4 intermediate. Apple has no review step for passes; possession of the signing certificate is the only gate.
+**Signing.** Passes are signed with a Pass Type ID certificate issued by Apple, chained to the Apple WWDR G4 intermediate. The certificate is issued to an enrolled developer organization; Apple does not review individual passes or pass designs.
 
 **PassKit web service.** The deployment serves the standard pass web service endpoints: device registration and unregistration, the list of serials updated since a tag, the latest pass for a serial (honoring `If-Modified-Since` with `304`), and the device log endpoint. Each pass carries its own authentication token, compared in constant time.
 
