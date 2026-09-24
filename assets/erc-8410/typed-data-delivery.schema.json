@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8410/typed-data-delivery.schema.json",
+  "title": "Typed-data delivery operation",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "request_id",
+        "result"
+      ],
+      "properties": {
+        "action": {
+          "const": "submit"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])"
+        },
+        "result": {
+          "$ref": "typed-data-result.schema.json"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "request_id",
+        "request_digest"
+      ],
+      "properties": {
+        "action": {
+          "const": "status"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])"
+        },
+        "request_digest": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}(?![\\s\\S])"
+        }
+      }
+    }
+  ]
+}
