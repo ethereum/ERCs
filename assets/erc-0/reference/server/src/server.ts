@@ -22,6 +22,7 @@ function main(): void {
     chainId: process.env.CHAIN_ID ? Number(process.env.CHAIN_ID) : undefined,
     contract: process.env.CONTRACT ? getAddress(process.env.CONTRACT) : undefined,
     manifestMode: (process.env.MANIFEST_MODE as ManifestMode | undefined) ?? undefined,
+    capabilityActions: process.env.CAPABILITY_ACTIONS ? process.env.CAPABILITY_ACTIONS.split(",") : undefined,
   });
 
   let verifier: SignatureVerifier;

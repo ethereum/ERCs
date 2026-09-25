@@ -2,17 +2,11 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import type { PrivateKeyAccount } from "viem/accounts";
 
-import { buildHarness, createClock, newSigner, capabilityTokenFromUrl, type Harness } from "./helpers.js";
+import { buildHarness, createClock, newSigner, capabilityTokenFromUrl, encodeProof, type Harness } from "./helpers.js";
 import { createPassStore } from "../src/passStore.js";
 import { defaultConfig } from "../src/config.js";
 
 const TOKEN_ID = "412";
-
-/// Base64url-encode a SIWE message for transport in a request header, since a
-///  header cannot carry the message's line breaks. Mirrors checkGatedProof.
-function encodeProof(message: string): string {
-  return Buffer.from(message, "utf8").toString("base64url");
-}
 
 /// The full gated acquisition round trip for one account: fetch an acquire
 ///  challenge from the token's challenge endpoint, sign it, and present it.

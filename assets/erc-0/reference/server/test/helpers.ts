@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import { expect } from "vitest";
+import request from "supertest";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import type { Address } from "viem";
 
@@ -96,4 +98,33 @@ export function buildHarness(configOverrides: Partial<ServerConfig> = {}): Harne
 export function capabilityTokenFromUrl(url: string): string {
   const parts = url.split("/");
   return parts[parts.length - 1] ?? "";
+}
+
+/// Base64url-encode a SIWE message for transport in a request header, since a
+///  header cannot carry the message's line breaks. Mirrors checkGatedProof.
+export function encodeProof(message: string): string {
+  return Buffer.from(message, "utf8").toString("base64url");
+}
+
+/// Fetch a token's challenge for `account` from the challenge endpoint a gated
+///  401 points at (acquire by default; the rotate action on request) and sign
+///  it, returning the proof a test presents in headers.
+export async function signChallenge(
+  h: Harness,
+  account: PrivateKeyAccount,
+  tokenId: string,
+  action?: string,
+): Promise<{ message: string; signature: string }> {
+  const query = action ? `&action=${action}` : "";
+  const res = await request(h.app).get(`/manifest/${tokenId}/challenge?address=${account.address}${query}`);
+  expect(res.status).toBe(200);
+  const message = res.body.message as string;
+  const signature = await account.signMessage({ message });
+  return { message, signature };
+}
+
+/// Attach a signed proof to a request in the two headers Gated acquisition
+///  defines.
+export function withProof(req: request.Test, message: string, signature: string): request.Test {
+  return req.set("X-Wallet-Pass-Proof", encodeProof(message)).set("X-Wallet-Pass-Signature", signature);
 }

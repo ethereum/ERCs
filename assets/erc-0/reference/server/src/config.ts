@@ -49,6 +49,20 @@ export interface ServerConfig {
   /// The action name used by the gated manifest flow, surfaced in the challenge
   ///  as `urn:wallet-pass:action:acquire`.
   acquireAction: string;
+
+  /// The action name a signed rotation request carries, surfaced as
+  ///  `urn:wallet-pass:action:rotate`. It is its own action rather than a reuse
+  ///  of the acquire proof because "an acquire proof MUST NOT authorize any
+  ///  other action" (Gated acquisition), and rotating every live URL is another
+  ///  action.
+  rotateAction: string;
+
+  /// The actions a pass may expose as capability links in the gated
+  ///  configuration (The capability configuration). Each installed pass gets
+  ///  one unguessable link per action here, bound to its token. The acquire
+  ///  and rotate actions are never in this list: they always take a signed
+  ///  proof.
+  capabilityActions: string[];
 }
 
 /// A ready-to-use configuration. The chain id and contract mirror the values in
@@ -65,6 +79,8 @@ export function defaultConfig(overrides: Partial<ServerConfig> = {}): ServerConf
     nonceTtlSeconds: 600,
     manifestMode: "public",
     acquireAction: "acquire",
+    rotateAction: "rotate",
+    capabilityActions: ["feed", "water"],
   };
   // Apply only the overrides that are actually set, so an unset environment
   // variable never clobbers a default with undefined.

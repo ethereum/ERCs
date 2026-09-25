@@ -26,10 +26,35 @@ export interface CapabilityBinding {
   format: PassFormat;
 }
 
+/// What an action capability (a link embedded in an installed pass) resolves
+///  to. The capability configuration requires the URL to be "bound to the
+///  specific token and action it reaches"; `issuedTo` is the account passes
+///  were last issued to when the link was minted, which the fresh entitlement
+///  read is compared against when the link is followed.
+export interface ActionBinding {
+  tokenId: string;
+  action: string;
+  issuedTo: Address | undefined;
+}
+
 export interface PassStore {
   getManifest(tokenId: string): PassManifest;
   resolveCapability(token: string): CapabilityBinding | null;
+  /// The action links a pass generator embeds in this token's pass, keyed by
+  ///  action: one capability URL per configured action. Minted alongside the
+  ///  download capabilities and rotated with them.
+  actionLinks(tokenId: string): Record<string, string>;
+  resolveActionCapability(token: string): ActionBinding | null;
+  /// Rotate every capability for the token (download and action links alike)
+  ///  because a transfer was observed, whether by a transfer watcher or at the
+  ///  new owner's first claim. Acquisition URLs "MUST rotate upon the
+  ///  implementation observing a transfer or upon the new owner's first claim".
   rotateOnTransfer(tokenId: string): PassManifest;
+  /// The same rotation on the owner's explicit request ("Implementations
+  ///  SHOULD rotate acquisition URLs on explicit owner request"). Different
+  ///  trigger, same effect: a link that leaked while ownership was unchanged,
+  ///  the case rotation on transfer cannot reach, stops resolving.
+  rotateOnOwnerRequest(tokenId: string): PassManifest;
   /// The account the implementation last issued passes to for this token, or
   ///  undefined before the first issuance. Gated acquisition defines a claim
   ///  by a proven account other than this one as that account's first claim,
@@ -41,6 +66,8 @@ export interface PassStore {
 interface TokenPasses {
   apple: string;
   google: string;
+  /// action -> its current capability token.
+  actions: Record<string, string>;
   updatedAt: number;
 }
 
@@ -62,24 +89,43 @@ function newCapabilityToken(): string {
 ///  generation, signing, and delivery out; only discovery and rotation live
 ///  here.
 export function createPassStore(config: ServerConfig, now: () => number = Date.now): PassStore {
+  // The acquire and rotate actions always take a signed proof; a capability
+  // link for either would let a bearer URL stand in where the standard
+  // requires a signature.
+  for (const reserved of [config.acquireAction, config.rotateAction]) {
+    if (config.capabilityActions.includes(reserved)) {
+      throw new Error(`capabilityActions must not include the reserved action "${reserved}"`);
+    }
+  }
+
   // tokenId -> its current capability tokens.
   const passesByToken = new Map<string, TokenPasses>();
   // capability token -> what it resolves to. Rotation deletes the old entries,
   // which is what makes a previous owner's URL stop resolving.
   const bindings = new Map<string, CapabilityBinding>();
+  // action capability token -> what it resolves to. Rotated with the above.
+  const actionBindings = new Map<string, ActionBinding>();
   // tokenId -> the account passes were last issued to (gated configuration).
   const issuedTo = new Map<string, Address>();
 
   // Mint fresh capability tokens. `updatedAt` is the manifest's content
   // freshness timestamp and says nothing about acquisition URL validity, so a
   // rotation passes the previous value through unchanged; only a first mint
-  // stamps the current time.
+  // stamps the current time. Action links are bound to the account passes are
+  // issued to at this moment, so a link outlives its holder's ownership only
+  // until the fresh read notices.
   function mint(tokenId: string, updatedAt: number = Math.floor(now() / 1000)): TokenPasses {
     const apple = newCapabilityToken();
     const google = newCapabilityToken();
     bindings.set(apple, { tokenId, format: "apple" });
     bindings.set(google, { tokenId, format: "google" });
-    const passes: TokenPasses = { apple, google, updatedAt };
+    const actions: Record<string, string> = {};
+    for (const action of config.capabilityActions) {
+      const token = newCapabilityToken();
+      actionBindings.set(token, { tokenId, action, issuedTo: issuedTo.get(tokenId) });
+      actions[action] = token;
+    }
+    const passes: TokenPasses = { apple, google, actions, updatedAt };
     passesByToken.set(tokenId, passes);
     return passes;
   }
@@ -94,6 +140,23 @@ export function createPassStore(config: ServerConfig, now: () => number = Date.n
     };
   }
 
+  // Invalidate every capability the token currently has, download and action
+  // links alike, and mint replacements. A pass held by the previous owner, or
+  // a link that leaked, stops resolving. The standard requires this in the
+  // gated configuration and RECOMMENDS it wherever a pass exposes action links.
+  function rotate(tokenId: string): PassManifest {
+    const id = normalizeTokenId(tokenId);
+    const previous = passesByToken.get(id);
+    if (previous) {
+      bindings.delete(previous.apple);
+      bindings.delete(previous.google);
+      for (const token of Object.values(previous.actions)) {
+        actionBindings.delete(token);
+      }
+    }
+    return toManifest(mint(id, previous?.updatedAt));
+  }
+
   return {
     getManifest(tokenId) {
       const id = normalizeTokenId(tokenId);
@@ -105,17 +168,26 @@ export function createPassStore(config: ServerConfig, now: () => number = Date.n
       return bindings.get(token) ?? null;
     },
 
-    rotateOnTransfer(tokenId) {
+    actionLinks(tokenId) {
       const id = normalizeTokenId(tokenId);
-      const previous = passesByToken.get(id);
-      if (previous) {
-        // Invalidate the old capability tokens so a pass held by the previous
-        // owner stops resolving. The standard requires this in the gated
-        // configuration and RECOMMENDS it wherever a pass exposes action links.
-        bindings.delete(previous.apple);
-        bindings.delete(previous.google);
+      const passes = passesByToken.get(id) ?? mint(id);
+      const links: Record<string, string> = {};
+      for (const [action, token] of Object.entries(passes.actions)) {
+        links[action] = `${config.baseUrl}/links/${token}`;
       }
-      return toManifest(mint(id, previous?.updatedAt));
+      return links;
+    },
+
+    resolveActionCapability(token) {
+      return actionBindings.get(token) ?? null;
+    },
+
+    rotateOnTransfer(tokenId) {
+      return rotate(tokenId);
+    },
+
+    rotateOnOwnerRequest(tokenId) {
+      return rotate(tokenId);
     },
 
     lastIssuedTo(tokenId) {
