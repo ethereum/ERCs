@@ -1,0 +1,16 @@
+{
+  "overrides": [
+    {
+      "files": "*.js",
+      "options": {
+        "semi": false
+      }
+    },
+    {
+      "files": "*.sol",
+      "options": {
+        "tabWidth": 2
+      }
+    }
+  ]
+}
