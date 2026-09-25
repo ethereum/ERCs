@@ -114,7 +114,3 @@ These notes describe how one production deployment implements this proposal: its
 6. **Treat a Google `409` as "exists, now PATCH".**
 7. **Keep WWDR out of the runtime CA store** when connecting to APNs.
 8. **Notification throttling must not swallow time-critical warnings.** Quiet-hour suppression is fine for routine updates and wrong for warnings whose deadline falls inside the quiet window.
-
-## Screenshots
-
-Screenshots from the current test network deployment are tracked in [`screenshots/`](./screenshots/README.md).
