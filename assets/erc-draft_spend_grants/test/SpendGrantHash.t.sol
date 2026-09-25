@@ -40,7 +40,7 @@ contract SpendGrantHashTest is Test {
         assertEq(structHash, rebuilt);
     }
 
-    function test_arrayHash_isConcatOfElementHashes() public {
+    function test_arrayHash_isConcatOfElementHashes() public pure {
         AssetLimit[] memory assets = new AssetLimit[](2);
         assets[0] = AssetLimit(address(0), 1, 2, 3);
         assets[1] = AssetLimit(address(uint160(1)), 4, 5, 6);
@@ -106,7 +106,7 @@ contract SpendGrantHashTest is Test {
         }
     }
 
-    function test_digest_dependsOnChainAndRegistry() public {
+    function test_digest_dependsOnChainAndRegistry() public view {
         SpendGrant memory m;
         m.principal = address(0x1);
         m.delegate = address(0x2);
@@ -125,7 +125,7 @@ contract SpendGrantHashTest is Test {
 
     function _grantFromJson(string memory json, string memory p, uint256 nAssets)
         internal
-        view
+        pure
         returns (SpendGrant memory m)
     {
         m.principal = vm.parseJsonAddress(json, string.concat(p, ".grant.principal"));
