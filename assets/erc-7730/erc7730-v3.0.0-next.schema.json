@@ -914,12 +914,12 @@
                 "threshold": {
                     "title": "Unlimited Threshold",
                     "type": "string",
-                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
+                    "description": "The threshold at or above which the amount should be displayed using the message parameter rather than the real amount. The message is displayed when the amount is greater than or equal to the threshold."
                 },
                 "message": {
                     "title": "Unlimited Message",
                     "type": "string",
-                    "description": "The message to display when the amount is above the threshold."
+                    "description": "The message to display when the amount is greater than or equal to the threshold."
                 },
                 "chainId": {
                     "title": "Chain ID",
