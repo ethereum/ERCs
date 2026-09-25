@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" role="img" aria-labelledby="title desc">
+  <title id="title">Subscription Billing Cycle — Signed Execution with Hook Enforcement</title>
+  <desc id="desc">Sequence diagram showing a billing cycle: the service provider signs an ExecuteRequest with key S, a relayer submits it to child account Sub, the validator verifies S and the target, the spending-limit hook checks the periodic cap, the whitelist hook confirms the target, and the payment reaches the subscription contract. A revert path shows what happens if any check fails.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a8a9a"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4c7a62"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45d42"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .provider { fill: #fff0ec; }
+    .relayer { fill: #eef3ff; }
+    .account { fill: #fff3db; }
+    .target { fill: #eaf7ef; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .pass-box { fill: #eaf7ef; stroke: #4c7a62; stroke-width: 2; rx: 14; ry: 14; }
+    .fail-box { fill: #fff0ec; stroke: #b45d42; stroke-width: 2; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .life { stroke: #98a6b3; stroke-width: 2.4; stroke-dasharray: 8 7; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .offchain { stroke: #7a8a9a; stroke-width: 3; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow-gray); }
+    .edge-ok { stroke: #4c7a62; stroke-width: 3.2; fill: none; marker-end: url(#arrow-green); }
+    .edge-fail { stroke: #b45d42; stroke-width: 3; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow-red); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="960"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Subscription Billing Cycle — Signed Execution with Hook Enforcement</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Each billing cycle, the provider signs a payment request. The validator and hooks independently enforce policy.</text>
+
+  <!-- Entity boxes -->
+  <rect class="box provider" x="40" y="120" width="240" height="90"/>
+  <text class="title2" x="160" y="158" text-anchor="middle">Service Provider</text>
+  <text class="body" x="160" y="188" text-anchor="middle">holds signing key S</text>
+
+  <rect class="box relayer" x="370" y="120" width="220" height="90"/>
+  <text class="title2" x="480" y="158" text-anchor="middle">Relayer</text>
+  <text class="body" x="480" y="188" text-anchor="middle">submits ordinary tx</text>
+
+  <rect class="box account" x="660" y="120" width="380" height="90"/>
+  <text class="title2" x="850" y="158" text-anchor="middle">Child Account (Sub)</text>
+  <text class="mono" x="850" y="188" text-anchor="middle">ownerOf(T_Sub) = P</text>
+
+  <rect class="box target" x="1140" y="120" width="240" height="90"/>
+  <text class="title2" x="1260" y="158" text-anchor="middle">Subscription Contract</text>
+  <text class="body" x="1260" y="188" text-anchor="middle">authorized target</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="160" y1="210" x2="160" y2="700"/>
+  <line class="life" x1="480" y1="210" x2="480" y2="700"/>
+  <line class="life" x1="850" y1="210" x2="850" y2="700"/>
+  <line class="life" x1="1260" y1="210" x2="1260" y2="700"/>
+
+  <!-- 1. Provider signs -->
+  <text class="label" x="160" y="250" text-anchor="middle">1. S signs ExecuteRequest</text>
+  <text class="body" x="160" y="272" text-anchor="middle">target = subscription contract, data = pay()</text>
+
+  <!-- 2. Off-chain handoff -->
+  <text class="label" x="320" y="310" text-anchor="middle">2. Off-chain handoff</text>
+  <path class="offchain" d="M 160 328 L 480 328"/>
+
+  <!-- 3. Relayer submits -->
+  <text class="label" x="665" y="370" text-anchor="middle">3. executeWithSignature(...)</text>
+  <path class="edge" d="M 480 388 L 850 388"/>
+
+  <!-- 4. Validator checks -->
+  <text class="label" x="850" y="428" text-anchor="middle">4. Signature validation</text>
+
+  <rect class="pass-box" x="720" y="444" width="260" height="50"/>
+  <text class="mono" x="850" y="466" text-anchor="middle">validator: S is authorized</text>
+  <text class="mono" x="850" y="486" text-anchor="middle">target = allowed contract ✓</text>
+
+  <!-- 5. Hooks enforce policy -->
+  <text class="label" x="850" y="524" text-anchor="middle">5. Execution hooks (beforeExecute)</text>
+
+  <rect class="pass-box" x="720" y="538" width="260" height="36"/>
+  <text class="mono" x="850" y="561" text-anchor="middle">spending-limit: within cap ✓</text>
+
+  <rect class="pass-box" x="720" y="584" width="260" height="36"/>
+  <text class="mono" x="850" y="607" text-anchor="middle">whitelist: target allowed ✓</text>
+
+  <!-- 6. Payment call -->
+  <text class="label" x="1055" y="648" text-anchor="middle">6. CALL pay()</text>
+  <path class="edge" d="M 850 664 L 1260 664"/>
+
+  <!-- 7. Result -->
+  <text class="label" x="1055" y="694" text-anchor="middle">7. Success</text>
+  <path class="edge-ok" d="M 1260 700 L 850 700"/>
+
+  <!-- Revert scenarios — right side panel -->
+  <rect class="fail-box" x="1100" y="428" width="300" height="196"/>
+  <text class="label" x="1250" y="456" text-anchor="middle" style="fill: #b45d42;">Revert conditions</text>
+  <text class="body" x="1250" y="486" text-anchor="middle" style="fill: #b45d42;">S revoked (controlVersion changed)</text>
+  <text class="body" x="1250" y="512" text-anchor="middle" style="fill: #b45d42;">Target ≠ subscription contract</text>
+  <text class="body" x="1250" y="538" text-anchor="middle" style="fill: #b45d42;">Function ≠ pay()</text>
+  <text class="body" x="1250" y="564" text-anchor="middle" style="fill: #b45d42;">Periodic spend limit exceeded</text>
+  <text class="body" x="1250" y="590" text-anchor="middle" style="fill: #b45d42;">Insufficient balance (EVM enforced)</text>
+
+  <!-- Dashed arrow from Sub to revert panel -->
+  <path class="edge-fail" d="M 980 540 L 1100 540"/>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="750" width="420" height="130"/>
+  <text class="label" x="280" y="788" text-anchor="middle">Defense in Depth</text>
+  <text class="body" x="280" y="818" text-anchor="middle">Validator checks who signed and what target.</text>
+  <text class="body" x="280" y="840" text-anchor="middle">Hooks check spend limits and target whitelist.</text>
+  <text class="body" x="280" y="862" text-anchor="middle">EVM enforces the balance ceiling.</text>
+
+  <rect class="note" x="530" y="750" width="380" height="130"/>
+  <text class="label" x="720" y="788" text-anchor="middle">Scoped to Signed Execution</text>
+  <text class="body" x="720" y="818" text-anchor="middle">Hooks fire only on signed execution</text>
+  <text class="body" x="720" y="840" text-anchor="middle">(scope = 2). Alice's direct execution</text>
+  <text class="body" x="720" y="862" text-anchor="middle">through P is unconstrained.</text>
+
+  <rect class="warn" x="950" y="750" width="420" height="130"/>
+  <text class="label" x="1160" y="788" text-anchor="middle">Each Check Is Independent</text>
+  <text class="body" x="1160" y="818" text-anchor="middle">Any single check can revert the call.</text>
+  <text class="body" x="1160" y="840" text-anchor="middle">Validator, spending hook, whitelist hook,</text>
+  <text class="body" x="1160" y="862" text-anchor="middle">and EVM balance are separate guarantees.</text>
+</svg>

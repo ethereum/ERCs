@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 920" role="img" aria-labelledby="title desc">
+  <title id="title">Public Mempool and VOPS Alignment</title>
+  <desc id="desc">Comparison diagram showing that this ERC's direct-owner path remains an ordinary transaction compatible with public-mempool inclusion mechanisms, while EIP-8141 frame transactions require mempool-side validation-prefix simulation.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .top { fill: #eef3ff; }
+    .left { fill: #eaf7ef; }
+    .right { fill: #fff3db; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff7f0; stroke: #c5963d; stroke-width: 2; rx: 18; ry: 18; }
+    .neutral { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 23px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .line { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 8 7; }
+    .pill { fill: #ffffff; stroke: #9fb0bf; stroke-width: 1.8; rx: 16; ry: 16; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="920"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Public Mempool and VOPS Alignment</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">FOCIL builds inclusion lists from the public mempool.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">VOPS favors validation that stays close to ordinary transaction checks.</text>
+
+  <rect class="box top" x="330" y="140" width="780" height="120"/>
+  <text class="title2" x="720" y="180" text-anchor="middle">Public Mempool / FOCIL / VOPS Context</text>
+  <text class="body" x="720" y="212" text-anchor="middle">Nodes track pending transactions and test omitted transactions for includability.</text>
+  <text class="mono" x="720" y="240" text-anchor="middle">Key checks: sender, nonce, balance, gas, and limited local state</text>
+
+  <rect class="box left" x="90" y="335" width="570" height="335"/>
+  <text class="title2" x="375" y="375" text-anchor="middle">This ERC: Direct-Owner Path</text>
+  <text class="mono" x="375" y="406" text-anchor="middle">ordinary transaction - ordinary sender</text>
+
+  <rect class="good" x="125" y="440" width="500" height="112"/>
+  <text class="label" x="375" y="472" text-anchor="middle">Transaction Shape</text>
+  <text class="body" x="375" y="500" text-anchor="middle">Current owner sends a normal transaction.</text>
+  <text class="body" x="375" y="524" text-anchor="middle">The account is the destination, not a new sender type.</text>
+
+  <rect class="pill" x="175" y="575" width="140" height="34"/>
+  <rect class="pill" x="335" y="575" width="140" height="34"/>
+  <rect class="pill" x="495" y="575" width="95" height="34"/>
+  <text class="body" x="245" y="597" text-anchor="middle">sender</text>
+  <text class="body" x="405" y="597" text-anchor="middle">nonce + balance</text>
+  <text class="body" x="542" y="597" text-anchor="middle">gas</text>
+
+  <rect class="neutral" x="125" y="650" width="500" height="48"/>
+  <text class="body" x="375" y="680" text-anchor="middle">Baseline path needs no new mempool-side EVM validation model.</text>
+
+  <rect class="good" x="145" y="735" width="460" height="110"/>
+  <text class="label" x="375" y="770" text-anchor="middle">Why It Fits VOPS &amp; FOCIL Better</text>
+  <text class="body" x="375" y="800" text-anchor="middle">Validity stays close to ordinary transaction checks.</text>
+  <text class="body" x="375" y="824" text-anchor="middle">That keeps public-mempool object simpler to track and include.</text>
+
+  <rect class="box right" x="780" y="335" width="570" height="335"/>
+  <text class="title2" x="1065" y="375" text-anchor="middle">EIP-8141: Frame Transaction Path</text>
+  <text class="mono" x="1065" y="406" text-anchor="middle">programmable validation prefix</text>
+
+  <rect class="warn" x="815" y="440" width="500" height="112"/>
+  <text class="label" x="1065" y="472" text-anchor="middle">Mempool Validation Shape</text>
+  <text class="body" x="1065" y="500" text-anchor="middle">Nodes may need to simulate validation code before inclusion.</text>
+  <text class="body" x="1005" y="524" text-anchor="middle">Prefix runs until</text>
+  <text class="mono" x="1147" y="524" text-anchor="middle">payer_approved = true</text>
+
+  <rect class="pill" x="835" y="575" width="150" height="34"/>
+  <rect class="pill" x="1000" y="575" width="165" height="34"/>
+  <rect class="pill" x="1180" y="575" width="110" height="34"/>
+  <text class="body" x="910" y="597" text-anchor="middle">simulate prefix</text>
+  <text class="body" x="1082" y="597" text-anchor="middle">MAX_VERIFY_GAS</text>
+  <text class="body" x="1235" y="597" text-anchor="middle">opcode rules</text>
+
+  <rect class="neutral" x="815" y="650" width="500" height="48"/>
+  <text class="body" x="1065" y="680" text-anchor="middle">Disallowed reads or banned opcodes can invalidate the mempool object.</text>
+
+  <rect class="warn" x="835" y="735" width="460" height="110"/>
+  <text class="label" x="1065" y="770" text-anchor="middle">What This Means</text>
+  <text class="body" x="1065" y="800" text-anchor="middle">Validation can depend on executing EVM logic in the mempool.</text>
+  <text class="body" x="1065" y="824" text-anchor="middle">That is the comparison point, not a claim of total incompatibility.</text>
+
+  <line class="line" x1="620" y1="260" x2="430" y2="335"/>
+  <line class="line" x1="820" y1="260" x2="1010" y2="335"/>
+</svg>
