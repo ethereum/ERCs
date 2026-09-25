@@ -93,6 +93,12 @@ export function createApp(deps: AppDeps): Express {
   // POST /action: redeem a signed challenge to execute an action. The target
   // (what the caller intends to run) is declared here and checked against what
   // the signed message authorizes.
+  // Note that the generic challenge endpoint above issues a challenge for any
+  // chain, contract, token, and action it is asked for. The floor is enforced
+  // where a proof is redeemed, never where a challenge is issued: /action and
+  // the gated manifest path check the chain id and contract against this
+  // server's configuration, so a challenge for a token this server does not
+  // serve is refused when presented, whoever issued it.
   app.post(
     "/action",
     wrap(async (req, res) => {
