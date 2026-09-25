@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0",
+  "name": "daily-finance-brief-production",
+  "taskVersion": "1.0.0",
+  "summary": "Produce one edition of the FinChip daily global finance brief per the committed spec.",
+  "specPath": "spec/brief-request.yaml",
+  "taskType": "content-production",
+  "tags": ["finance", "report", "agent-task"],
+  "standard": "TASK-KERNEL v1.0"
+}
