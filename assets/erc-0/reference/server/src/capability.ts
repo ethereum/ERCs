@@ -56,9 +56,10 @@ export function resolveActionLink(capability: string, deps: CapabilityDeps): Act
 }
 
 /// Authorize an action reached through a capability link. This is the weaker
-///  configuration the standard permits where the pass user experience cannot
-///  carry a signature: the capability URL "MAY stand in for check (1)", and
-///  check (2), the fresh entitlement read, "remains in force unconditionally".
+///  configuration the standard permits where the product does not prompt for
+///  a per-action signature: the capability URL "MAY stand in for check (1)",
+///  and check (2), the fresh entitlement read, "remains in force
+///  unconditionally".
 ///  The steps mirror `authorize` for the signed path, condition by condition.
 export async function authorizeCapabilityAction(
   input: { capability: string; requestedAction?: string },
