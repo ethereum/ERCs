@@ -1,0 +1,568 @@
+{
+ "profile": "pq_key_binding.v1/cutoff-enforcement",
+ "description": "Cutoff enforcement, v1. Admit an artifact iff PROVEN ANCHORED BEFORE the consumer cutoff, OR it carries a VALID PQ companion under the pq_pubkey of the binding IN FORCE at the artifact's anchor time (cutoff by ANCHOR TIME, consumer policy). v1 over v0: (1) an artifact anchored before the baseline's effective activation boundary B is admitted classical-only but NOT governed (resolved=null, pre_baseline) rather than retro-invalidated — the baseline governs only from B, no binding claims retroactive authority; (2) the verdict is tri-state — evidence in {verified, refuted, unverifiable}, decision a derived projection. A REVOCATION still ends authority at its anchor time: a post-revocation artifact is REFUTED even pre-cutoff, distinct from an innocent pre-baseline artifact. Each case asserts the resolution step, the evidence, the rule, AND the decision.",
+ "v1_changes_from_v0": "(1) pre_baseline: an artifact anchored before the baseline's OWN anchor B is admitted classical-only but NOT governed (resolved=null, resolution_reason=pre_baseline, rule=pre_baseline_legacy_admit) — the baseline governs only from B, no binding claims retroactive authority; emitted fail-closed, only after the chain and B resolve. (2) tri-state evidence {verified, refuted, unverifiable}; decision is a derived projection. A revocation still ends authority at its anchor (post-revocation refused, distinct from pre_baseline). B is the EFFECTIVE ACTIVATION BOUNDARY: a binding's own anchor, or a later activated_at (delayed activation / pre-registration), clamped to >= binding_anchor_time. pre_baseline = anchored before B (including the dormant gap between a delayed binding's anchor and its activated_at); an activated_at < binding_anchor_time is malformed/unverifiable. An UN-ANCHORED binding (binding_anchor_time null) has no reproducible activation boundary and cannot govern: if no binding in the chain carries an immutable anchor the verdict is unverifiable/binding_anchor_unavailable/REJECT (derivability is not anchored authority); an un-anchored binding beside an anchored one is simply ignored.",
+ "bindings": [
+  {
+   "name": "kya-l4-genesis",
+   "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+   "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+   "algorithm": "SLH-DSA-SHA2-192s",
+   "binding_anchor_time": 1785423299,
+   "note": "The live production KYA-L4 baseline binding. Baseline => governs from its effective activation boundary B (its own anchor); an artifact anchored before B is pre_baseline (admitted classical-only, resolved=null, NOT governed). Chain length one; the enforcer resolves it from the chain regardless."
+  }
+ ],
+ "consumer_cutoff": 1790000000,
+ "cases": [
+  {
+   "name": "pre-cutoff anchored (after baseline registration), no companion",
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "namespace opacity — binding under a FOREIGN schema namespace enforces IDENTICALLY (schema is opaque to the enforcer)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 1785423299,
+     "schema": "unknown-vendor.pq_key_binding.v99"
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   },
+   "note": "Identical to the first pre-cutoff case except the binding carries a foreign, unregistered `schema` namespace. Deployments namespace their binding statements independently (e.g. Fede's live `invinoveritas.pq_key_binding.v1` at api.babyblueviper.com vs our KYA-L4 `kya.pq_key_binding.v0`). The verdict MUST NOT change: the cutoff enforcer keys only on anchored times, content address, and pq_pubkey — never on `schema`. An enforcer that branches on the schema namespace reds exactly this case."
+  },
+  {
+   "name": "post-cutoff, valid companion under in-force key",
+   "artifact": {
+    "anchor_time": 1790500000,
+    "anchored": true,
+    "pq_companion": {
+     "present": true,
+     "valid": true,
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa"
+    }
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "valid_pq_companion",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "post-cutoff, no companion",
+   "artifact": {
+    "anchor_time": 1790500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "post_cutoff_no_valid_companion",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "post-cutoff, companion present and CHECKED-invalid (refuted)",
+   "artifact": {
+    "anchor_time": 1790500000,
+    "anchored": true,
+    "pq_companion": {
+     "present": true,
+     "valid": false,
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa"
+    }
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "post_cutoff_no_valid_companion",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "post-cutoff, valid companion but under a NON-in-force key",
+   "artifact": {
+    "anchor_time": 1790500000,
+    "anchored": true,
+    "pq_companion": {
+     "present": true,
+     "valid": true,
+     "pq_pubkey": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead"
+    }
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "post_cutoff_no_valid_companion",
+    "evidence": "refuted",
+    "decision": "REJECT",
+    "refuted_because": "companion_under_wrong_key"
+   }
+  },
+  {
+   "name": "post-cutoff, companion present but UNCHECKED (unverifiable, not refuted)",
+   "artifact": {
+    "anchor_time": 1790500000,
+    "anchored": true,
+    "pq_companion": {
+     "present": true,
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa"
+    }
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "post_cutoff_companion_unchecked",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "pre_baseline — artifact anchored BEFORE the baseline's own anchor B (admitted classical-only, NOT governed)",
+   "artifact": {
+    "anchor_time": 1785000000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "pre_baseline",
+    "rule": "pre_baseline_legacy_admit",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "revocation slot — artifact anchored BEFORE revocation still governed (stays valid)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 1785423299,
+     "revoked_at": 1786000000
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "revocation slot — artifact anchored AT/AFTER revocation no longer governed (REFUTED even pre-cutoff)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 1785423299,
+     "revoked_at": 1786000000
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1786500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "no_in_force_binding",
+    "rule": "no_in_force_binding",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "boundary t == B-1 — one second before the baseline anchor: pre_baseline (resolved null, legacy admit)",
+   "artifact": {
+    "anchor_time": 1785423298,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "pre_baseline",
+    "rule": "pre_baseline_legacy_admit",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "boundary t == B — at the baseline anchor: in_force (activation inclusive; baseline governs FROM B, not before)",
+   "artifact": {
+    "anchor_time": 1785423299,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "fail-closed — UNAVAILABLE chain (bindings=null, dependency unresolved) is unverifiable, never a silent admit",
+   "bindings": null,
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "chain_unavailable",
+    "rule": "chain_unavailable",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "successor non-retroactivity — artifact before the successor's anchor resolves to the BASELINE, not the successor",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 1785423299
+    },
+    {
+     "name": "kya-l4-successor",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+     "binding_anchor_time": 1786000000
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1785700000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "boundary t == R-1 — one second before revocation: still governed by the baseline (revocation exclusive on the pre side)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 1785423299,
+     "revoked_at": 1786000000
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1785999999,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "boundary t == R — at the revocation anchor: authority_revoked, refused (NOT pre_baseline: t >= B)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 1785423299,
+     "revoked_at": 1786000000
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1786000000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "no_in_force_binding",
+    "rule": "no_in_force_binding",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "resolved-empty chain (bindings=[], agent has zero bindings) — determinate refuse, NOT pre_baseline, distinct from unavailable",
+   "bindings": [],
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "no_bindings_in_chain",
+    "rule": "no_bindings_in_chain",
+    "evidence": "refuted",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "malformed — activated_at (0) BEFORE the binding's own anchor (100) cannot reopen retroactive authority: t=50 is unverifiable, NOT baseline/ADMIT",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 100,
+     "activated_at": 0
+    }
+   ],
+   "artifact": {
+    "anchor_time": 50,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "chain_malformed",
+    "rule": "chain_malformed",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "delayed activation — DORMANT GAP: binding anchored at 100 but activated_at=200; artifact at t=150 is pre_baseline (not yet governed), NOT in_force",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 100,
+     "activated_at": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 150,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "pre_baseline",
+    "rule": "pre_baseline_legacy_admit",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "delayed activation boundary t == activated_at-1 (199): still pre_baseline — before the effective activation boundary B=200",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 100,
+     "activated_at": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 199,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "pre_baseline",
+    "rule": "pre_baseline_legacy_admit",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "delayed activation boundary t == activated_at (200): in_force — governance begins at B=activated_at, inclusive (B = effective boundary, not the anchor)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 100,
+     "activated_at": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 200,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "unavailable-anchor — a derived key with NO immutable anchor (binding_anchor_time null) has no reproducible boundary B: unverifiable/REJECT, never a from-always admit (derivability != anchored authority)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": null
+    }
+   ],
+   "artifact": {
+    "anchor_time": 1785500000,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "binding_anchor_unavailable",
+    "rule": "binding_anchor_unavailable",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "later-anchor-transition (BEFORE anchor) — the baseline while still unanchored: unverifiable/REJECT",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": null
+    }
+   ],
+   "artifact": {
+    "anchor_time": 150,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "binding_anchor_unavailable",
+    "rule": "binding_anchor_unavailable",
+    "evidence": "unverifiable",
+    "decision": "REJECT"
+   }
+  },
+  {
+   "name": "later-anchor-transition (AFTER anchor, t < B) — once anchored at 200, an artifact at 150 is pre_baseline, NOT retroactively governed by the now-anchored key",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 150,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "pre_baseline",
+    "rule": "pre_baseline_legacy_admit",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "later-anchor-transition (AFTER anchor, t >= B) — an artifact at 200 is in_force under the now-anchored key",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 200,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": "kya-l4-genesis",
+    "resolution_reason": "resolved_at_anchor_time",
+    "rule": "anchored_before_cutoff",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  },
+  {
+   "name": "unanchored binding ignored — un-anchored baseline + anchored successor(@200); artifact at 150 (before successor B) is pre_baseline, the un-anchored key never governs (not unverifiable, an anchored binding exists)",
+   "bindings": [
+    {
+     "name": "kya-l4-genesis",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+     "binding_anchor_time": null
+    },
+    {
+     "name": "kya-l4-successor",
+     "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+     "pq_pubkey": "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+     "binding_anchor_time": 200
+    }
+   ],
+   "artifact": {
+    "anchor_time": 150,
+    "anchored": true,
+    "pq_companion": null
+   },
+   "expected": {
+    "resolved": null,
+    "resolution_reason": "pre_baseline",
+    "rule": "pre_baseline_legacy_admit",
+    "evidence": "verified",
+    "decision": "ADMIT"
+   }
+  }
+ ]
+}
