@@ -17,7 +17,7 @@ This proposal extends [ERC-721](./eip-721.md) so that a token contract can adver
 
 ## Motivation
 
-Native wallet passes are a programmable surface that ships by default on nearly every smartphone. A pass can display live state, link into web experiences, and receive platform push updates, all without the holder installing an application. Production systems already bind NFTs to wallet passes (memberships, tickets, loyalty balances, and interactive experiences whose state lives on chain), but each one builds a proprietary bridge. As a result:
+Native wallet passes are a programmable surface that ships by default on nearly every smartphone. A pass can display live state, link into web experiences, and receive platform push updates, all without the holder installing an application. Production systems already bind NFTs to wallet passes (memberships, tickets, loyalty balances, and interactive experiences whose state lives on chain), but each one builds a proprietary bridge. The same seam serves any token whose state a holder would want on a card they already carry, from tickets and memberships today to tokenized real-world assets and credentials. As a result:
 
 - Wallets, marketplaces, and indexers cannot discover that a token has a pass representation, so the capability stays invisible outside the issuer's own site.
 - Pass distributors have no shared signal that a token's pass content is stale.
