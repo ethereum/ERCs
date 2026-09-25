@@ -14,7 +14,7 @@ requires: 1153, 7702, 7819, 7843, 7951, 8037, 8141, 8250
 
 [EIP-8141](./eip-8141.md) defines a new [EIP-2718](./eip-2718.md) transaction type and a set of rules such transactions need to follow in the canonical public mempool.
 These canonical mempool rules are chosen to be relatively simple and universal in a way that enables a number of high priority use cases.
-Other rulesets can serve use cases made impossible by the canonical mempool rules, but without a public mempool such transactions require a private submission mechanisms.
+Other rulesets can exist to serve use cases made impossible by the canonical mempool rules, however without a public mempool such transactions would require a private submission mechanisms.
 This document defines a framework for alternative mempools with customized validation rulesets for [EIP-8141](./eip-8141.md) Frame Transactions.
 The rulesets define which transactions a node may admit to the mempool, which it rejects, and how it tracks the entities that form a transaction's validation process.
 
@@ -26,30 +26,9 @@ A frame transaction replaces a hard-coded signature check with EVM code that run
 
 [ERC-4337](./eip-4337.md) relies on rules defined in [ERC-7562](./eip-7562.md) to solve the same problem for `UserOperation`s.
 Frame Transactions differ from `UserOperation`s in ways that make defining a shared rule set inconvenient.
-This document defines the Frame Transaction specific mempool rules in a way that maintains a full backward compatibility with use cases that existed in ERC-4337, like autonomous [ERC-20](./erc-20.md) Token Paymasters, privacy pool withdrawals an more.
+This document defines the Frame Transaction specific mempool rules in a way that maintains a full backward compatibility with use cases that existed in ERC-4337, like autonomous [ERC-20](./erc-20.md) Token Paymasters, privacy pool withdrawals and more.
 
 ## Specification
-
-### Relationship to Other Mempools
-
-This document addresses three distinct named rulesets for Frame Transaction mempools:
-
-1. The **canonical public mempool**, as defined by EIP-8141 in the [Mempool](./eip-8141.md#Mempool) section.
-2. The **standard alternative mempool**, as defined by this document.
-3. The **non-standard alternative mempools**, which are defined by third party mempool operators as defined in [Alternative Mempools](#alternative-mempools) section.
-
-A transaction that violates a canonical public mempool rule MUST NOT be propagated over the public mempool, as EIP-8141 requires. It may only be propagated over the appropriate alternative mempool's own transport if it satisfies its rules. One transaction may be propagated over multiple alternative mempools if it satisfies all of their rules.
-
-### Rule Types
-
-Pulbic transaction mempools are shared by multiple nodes in a peer-to-peer network, while each node maintains its own view of the mempool and participant reputations at all times.
-Therefore, there are two types of validation rule: **network-wide rules** and **local node rules**.
-
-A violation of any rule by a frame transaction results in the transaction being dropped from the mempool and excluded from any block the node builds.
-
-A peer-to-peer mempool networks rely on participant reputations to limit the threat of mass transaction invalidation. A **network-wide rule** is a rule whose violation by a transaction damages the reputation of the peer that sent that transaction into the standard mempool. A peer with critically low standing is treated as a **spammer** according to the  [Propagation Rules](#propagation-propagation).
-
-A **local rule** depends on a node's own mempool contents and opinions on entities' reputations. Different nodes may hold different mempool contents, so no consensus is possible and peers are never penalised for a local rule violation. Local rules are marked *(Local)* and all other rule are network-wide.
 
 ### Constants
 
@@ -73,30 +52,55 @@ A **local rule** depends on a node's own mempool contents and opinions on entiti
 | `MAX_TXS_ALLOWED_UNSTAKED_ENTITY` | `10000` | Upper bound on `included` when computing the allowance of an unstaked sponsoring payer. |
 | `STAKING_REGISTRY_ADDRESS` | per-chain | Address of the Staking Registry contract (see [Staking Registry Contract](#staking-registry-contract)). |
 
+### Mempool Types
+
+This document relates to three distinct types of mempool rulesets for Frame Transaction mempools:
+
+1. The **canonical public mempool**, as defined by EIP-8141 in the [Mempool](./eip-8141.md#Mempool) section.
+2. The **standard alternative mempool**, as defined by this document.
+3. The **non-standard alternative mempools**, which are defined by third party mempool operators as defined in [Alternative Mempools](#alternative-mempools) section.
+
+A transaction that violates a canonical public mempool rule MUST NOT be propagated over the public mempool, as EIP-8141 requires. It may only be propagated over the appropriate alternative mempool's own transport if it satisfies its rules. One transaction may be propagated over multiple alternative mempools if it satisfies all of their rules.
+
+### Rule Types
+
+Public transaction mempools are distributed among multiple nodes in a peer-to-peer network, while each node maintains its own view of the mempool and participant reputations at all times. Additionally, certain nodes may choose to act as solo submission channels with custom rules but without a connection to a peer-to-peer network.
+Therefore, there are two types of validation rules: **network-wide rules** and **local node rules**.
+
+A violation of any rule by a frame transaction results in the transaction being rejected from submission or dropped from the mempool if necessary, and therefore prevented from being included in future blocks.
+
+A peer-to-peer mempool networks rely on participant reputations to limit the threat of mass transaction invalidation. A **network-wide rule** is a rule whose violation by a transaction damages the reputation of the peer that sent that transaction into the standard mempool. A peer with critically low standing is treated as a **spammer** according to the [Propagation Rules](#propagation-propagation).
+
+A **local rule** depends on a node's own mempool contents and its local tracking of entities' reputations. Different nodes may hold different mempool contents, so no consensus is possible and peers are never penalised for a local rule violation. Local rules are marked *(Local)* and all other rule are network-wide.
+
 ### Definitions
 
-1. **Validation prefix**: the shortest prefix of a transaction's frames whose successful execution sets `payer`, as defined by EIP-8141. Frames after the prefix belong to the **execution body** of the Frame Transaction and are largely outside this document's scope.
-2. **Validation frame**: a frame in the validation prefix.
-3. **Frame subclasses**: a heuristic classification of a call frame within a Frame Transactgion based on its role and behaviour.
+1. **Validation prefix**: the shortest prefix of a transaction's frames whose successful execution sets `payer`, as defined by EIP-8141. All Frames that appear after the **validation prefix** regardless of their type belong to the **execution body** of the Frame Transaction and are largely outside this document's scope.
+2. **Validation frame**: a frame in the validation prefix regardless of its mode, type or scope.
+3. **Frame Subclasses**: a heuristic classification of a Validation Frame within a Frame Transactgion based on its role and behaviour in the transacion validation process.
    The EIP-8141 mode subclassifications defines the following subclasses: `self_verify`, `only_verify`, `pay`, `expiry_verify` and `deploy`; the `pre_verify` subclass is additionally defined in this document.
-4. **Entity**: an address that a validation frame executes as, attributed by role:
+4. **Entity**: a smart contract that a Validation Frame executes directly. Entities are defined by their role in a transaction, similarly to Frame Subclasses:
     - The **sender** is `tx.sender`. It runs the `self_verify` or `only_verify` frame.
-    - The **payer** is the resolved target of the frame that calls `APPROVE` with a payment scope. It runs the `pay` frame or the `self_verify` frame.
+    - The **payer** is the resolved target of the frame that calls `APPROVE` with a payment scope. It runs the `pay` frame, or the `self_verify` frame if **sender** and **payer** is the same entity.
     - The **factory** is the resolved target of the `deploy` frame.
-
    Every validation frame is attributed to exactly one entity. An `expiry_verify` frame is attributed to no entity as its code is protocol-defined.
 5. **Default-code entity**: an entity whose account has the empty code hash and therefore executes EIP-8141's default code. It has no bytecode to trace, is never staked, and is exempt from the opcode, call and storage rules.
 6. **Staked entity**: an entity that has a stake of at least `MIN_STAKE_VALUE` and an unstake delay of at least `MIN_UNSTAKE_DELAY`, as reported by the **Staking Registry** smart contract, and whose stake is not being withdrawn.
-7. **Associated storage**: a storage slot of any contract is *associated* with address `A` according to the [Associated Storage Rules](#associated-storage-rules-assoc).
+7. **Associated storage**: a storage slot of any contract is *associated* with a givne address according to the [Associated Storage Rules](#associated-storage-rules-assoc).
 9. **Canonical paymaster**: a contract whose runtime code exactly matches the canonical paymaster implementation defined by EIP-8141.
 10. **Admission validation**: the simulation a node performs before it first accepts a transaction.
 11. **Revalidation**: a re-simulation of a pending transaction against a newer head or a candidate block, as described in [Replacement, Eviction and Revalidation](#replacement-eviction-and-revalidation-lifecycle).
-12. **Spammer**: a peer that attempts to exhaust the mempool network by sending a large number of transactions that were never valid. See [PROPAGATION-050](#propagation-propagation).
-13. **Mass invalidation attack**: a series of actions by which a large number of transactions, having passed admission validation and propagated through the mempool network, later become invalid and ineligible for inclusion. There are three ways to carry it out:
-    * submitting transactions that pass admission validation and fail revalidation;
-    * submitting transactions that are valid alone but become invalid when several of them are included together;
-    * front-running valid transactions with an economically viable state change that invalidates them.
-14. **Nonce key**: the `key` component of a transaction's [EIP-8250](./eip-8250.md) two-dimensional `nonce`. Transactions sharing a `(sender, key)` pair form one nonce lane, ordered by their `sequence` component; transactions with different keys belong to independent lanes and carry no ordering relationship to each other.
+12. **Spammer**: a peer that attempts to exhaust the mempool network by sending a large number of transactions that were never valid.
+13. **Mass invalidation attack**: a series of actions by which a large number of transactions, having passed admission validation and propagated through the mempool network, later become invalid and ineligible for inclusion.
+
+### Execution Model
+
+`VERIFY` frames run in static mode.
+The non-static `DEFAULT` mode frames in the validation prefix are allowed for two subclasses:
+- The `deploy` frame as defined in EIP-8141
+- The `pre_verify` frame
+
+Rules in this document that mention writes, contract creation or value calls consequently take effect only in those frames.
 
 ### Associated Storage Rules (ASSOC)
 
@@ -104,24 +108,19 @@ Several rules below grant an entity broader access to storage that is *associate
 
 * **[ASSOC-010]** A storage slot of any contract is associated with address `A` if the slot's own value equals `A`.
 * **[ASSOC-020]** A storage slot of any contract is associated with address `A` if the slot was computed as `keccak256(A || x) + n`, where `x` is a `bytes32` value and `n` is an integer in the range 0 to 128. This covers the common Solidity mapping and dynamic array layouts keyed or indexed by `A`, together with a fixed run of slots reachable from them.
-* **[ASSOC-030]** A node determines association by testing the slots a validation frame actually accesses against [ASSOC-010] and [ASSOC-020]; a contract need not prove or register which of its slots are associated with `A`.
 
-This is the same rule ERC-7562 uses to determine associated storage for `UserOperation`s. [STORAGE-020], [STORAGE-030] and [STORAGE-120] rely on it to decide which storage outside a contract's own account a transaction may touch.
-
-### Execution Model
-
-`VERIFY` frames run in static mode. Only `APPROVE` may change state or transaction context in them. Storage writes, transient storage writes, logs, contract creation and value-carrying calls are therefore unavailable inside a `VERIFY` frame at the EVM level, regardless of any mempool rule. The non-static frames in the validation prefix are the `deploy` frame defined in EIP-8141 and the newly defined `pre_verify` frame, both of which run in `DEFAULT` mode. Rules in this document that mention writes, contract creation or value calls consequently take effect only in those frames. A failed `DEFAULT`-mode frame does not invalidate a transaction. Only the failure of a `VERIFY` frame does.
+A node determines storage association by testing the slots a validation frame has actually accessed using specialized simulation and tracing interfaces.
 
 ### Validation Prefix and Structure (PREFIX)
 
-* **[PREFIX-010]** The validation prefix MUST match one of the following shapes, where a leading `expiry_verify?` denotes an optional single `expiry_verify` frame. A transaction whose prefix matches none of them MUST be rejected.
-    * `[expiry_verify?, self_verify]`
-    * `[expiry_verify?, deploy, self_verify]`
-    * `[expiry_verify?, only_verify, pay]`
-    * `[expiry_verify?, deploy, only_verify, pay]`
+* **[PREFIX-010]** The validation prefix MUST match one of the following shapes. A transaction whose prefix does not match any of them MUST be rejected.
+    * `[self_verify]`
+    * `[deploy, self_verify]`
+    * `[only_verify, pay]`
+    * `[deploy, only_verify, pay]`
 
-  In every shape, each approving frame (`self_verify`, `only_verify` or `pay`) MAY be immediately preceded by one `pre_verify` frame, as [PREFIX-110] describes.
-* **[PREFIX-020]** If a `deploy` frame is present it MUST be the first frame of the prefix, not counting a leading `expiry_verify` frame. There is at most one `deploy` frame.
+  In every shape, each approving frame (`self_verify`, `only_verify` or `pay`) MAY be immediately preceded by one `pre_verify` frame, as [PREFIX-110] describes. An optional single `expiry_verify` frame is always allowed as the first frame of the validation prefix.
+* **[PREFIX-020]** If a `deploy` frame is present it MUST be the first frame of the prefix, not counting a leading `expiry_verify` frame. There is at most one `deploy` frame. The `deploy` frame MUST result in successful deployment of the `tx.sender` contract.
 * **[PREFIX-030]** A `self_verify` or `only_verify` frame MUST run in `VERIFY` mode, MUST target `tx.sender` (explicitly or with a null target), and MUST successfully call `APPROVE` with the scope its `flags` declare: `APPROVE_EXECUTION_AND_PAYMENT` for `self_verify`, `APPROVE_EXECUTION` for `only_verify`. A `pay` frame MUST run in `VERIFY` mode, MUST have `flags` equal to `APPROVE_PAYMENT`, and MUST successfully call `APPROVE(APPROVE_PAYMENT)`.
 * **[PREFIX-040]** No frame in the validation prefix may carry `ATOMIC_BATCH_FLAG`.
 * **[PREFIX-050]** No `VERIFY` frame may follow the validation prefix. If one did, a failure after the payer had already been committed would invalidate the whole transaction.
