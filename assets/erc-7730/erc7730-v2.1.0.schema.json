@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "version": "3.0.0-next",
+    "version": "2.1.0",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -349,15 +349,7 @@
                     "description": "The list includes formatting info for each field of a structure. For contract bindings, entries are keyed by the full function signature with parameter names; for EIP712 bindings, entries are keyed by the string returned by EIP 712 encodeType on the primary type.",
                     "type": "object",
                     "propertyNames": {
-                        "anyOf": [
-                            {
-                                "pattern": "^[A-Za-z_][A-Za-z0-9_:]*\\(\\s*(?:(?:(?:(?:tuple)?\\s*\\((?:[^()]|\\([^()]*\\))*\\)|[A-Za-z0-9_:]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*(?:(?:(?:tuple)?\\s*\\((?:[^()]|\\([^()]*\\))*\\)|[A-Za-z0-9_:]+)(?:\\[[0-9]*\\])*(?:\\s+(?:memory|calldata|storage))?\\s+[A-Za-z_][A-Za-z0-9_]*))*\\s*)?\\)$"
-                            },
-                            {
-                                "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*(?:\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(\\s*(?:[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:,\\s*[A-Za-z_][A-Za-z0-9_:]*(?:\\[\\])?\\s+[A-Za-z_][A-Za-z0-9_]*\\s*)*)?\\)\\s*)*$"
-                            }
-                        ]
-                        
+                        "pattern": "^\\s*[A-Za-z_][A-Za-z0-9_:]*\\s*\\(.*\\)$"
                     },
 
                     "additionalProperties": {
@@ -585,6 +577,14 @@
                     "then": {
                         "properties": {
                             "params": { "$ref": "#/$format/calldataParameters" }
+                        }
+                    }
+                },
+                {
+                    "if": { "properties": { "format": { "const": "amount" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/amountParameters" }
                         }
                     }
                 },
@@ -877,6 +877,23 @@
             ],
             "additionalProperties": false
         },
+        "amountParameters": {
+            "title": "Amount Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "threshold": {
+                    "title": "All Threshold",
+                    "type": "string",
+                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
+                },
+                "message": {
+                    "title": "All Message",
+                    "type": "string",
+                    "description": "The message to display when the amount is above the threshold. Defaults to \"All\"."
+                }
+            },
+            "additionalProperties": false
+        },
         "tokenAmountParameters": {
             "title": "Token Amount Formatting Parameters",
             "type": "object",
@@ -914,12 +931,12 @@
                 "threshold": {
                     "title": "Unlimited Threshold",
                     "type": "string",
-                    "description": "The threshold at or above which the amount should be displayed using the message parameter rather than the real amount. The message is displayed when the amount is greater than or equal to the threshold."
+                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
                 },
                 "message": {
                     "title": "Unlimited Message",
                     "type": "string",
-                    "description": "The message to display when the amount is greater than or equal to the threshold."
+                    "description": "The message to display when the amount is above the threshold."
                 },
                 "chainId": {
                     "title": "Chain ID",
