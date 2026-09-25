@@ -39,6 +39,11 @@ other party's outcome-key material. These explicit arguments let each contract r
 agreement with its immutable inception, so separate inception and confirmation hashes are
 unnecessary.
 
+Every successful token lock emits `TokenLocked(id)` exactly once, after the token has actually
+been locked. This provides one flow-independent completion signal for both classic confirmation
+and generated-key completion. Failed, pending, cancelled, and idempotent no-op attempts do not
+emit it.
+
 The asynchronous extension uses one `inceptTransfer` signature with an optional callback parameter.
 After storing the generated keys and emitting `TransferIncepted`, the decryption contract
 passes the unique transfer `id` to a nonzero callback. The callback reads the immutable context

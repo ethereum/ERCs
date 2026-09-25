@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -581,6 +581,14 @@
                     }
                 },
                 {
+                    "if": { "properties": { "format": { "const": "amount" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/amountParameters" }
+                        }
+                    }
+                },
+                {
                     "if": { "properties": { "format": { "const": "tokenAmount" } } },
                     "then": {
                         "properties": {
@@ -869,6 +877,23 @@
             ],
             "additionalProperties": false
         },
+        "amountParameters": {
+            "title": "Amount Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "threshold": {
+                    "title": "All Threshold",
+                    "type": "string",
+                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
+                },
+                "message": {
+                    "title": "All Message",
+                    "type": "string",
+                    "description": "The message to display when the amount is above the threshold. Defaults to \"All\"."
+                }
+            },
+            "additionalProperties": false
+        },
         "tokenAmountParameters": {
             "title": "Token Amount Formatting Parameters",
             "type": "object",
@@ -906,12 +931,12 @@
                 "threshold": {
                     "title": "Unlimited Threshold",
                     "type": "string",
-                    "description": "The threshold above which the amount should be displayed using the message parameter rather than the real amount."
+                    "description": "The threshold at or above which the amount should be displayed using the message parameter rather than the real amount. The message is displayed when the amount is greater than or equal to the threshold."
                 },
                 "message": {
                     "title": "Unlimited Message",
                     "type": "string",
-                    "description": "The message to display when the amount is above the threshold."
+                    "description": "The message to display when the amount is greater than or equal to the threshold."
                 },
                 "chainId": {
                     "title": "Chain ID",
