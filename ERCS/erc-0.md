@@ -27,6 +27,8 @@ A small shared discovery interface lets any client (a marketplace, a wallet app,
 
 ## Specification
 
+This specification has three parts: a discovery interface and pass manifest, a freshness signal, and the authorization a pass-reachable action requires. Only the first two touch the chain; the third exists because a pass is a bearer artifact and any action it can trigger must be authorized independently of it.
+
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
 ### Contract interface
@@ -84,7 +86,7 @@ The URI returned by `passURI` MUST resolve to a JSON document (the pass manifest
 
 ### Metadata mirror (OPTIONAL)
 
-The JSON returned by `tokenURI` MAY include a top-level `wallet_pass` property whose value is the pass manifest object defined above. This lets metadata-only consumers surface an add-to-wallet action without an extra fetch. When both are present, the manifest reachable through `passURI` is authoritative.
+The JSON returned by `tokenURI` MAY include a top-level `wallet_pass` property whose value is the pass manifest object defined above. This lets metadata-only consumers surface an add-to-wallet action without an extra fetch. When both are present, the manifest reachable through `passURI` is authoritative. Because `tokenURI` is public, the mirror is appropriate only in the public configuration defined under Acquisition URLs; an implementation in the gated configuration MUST NOT mirror acquisition URLs into metadata.
 
 ### Acquisition URLs
 
