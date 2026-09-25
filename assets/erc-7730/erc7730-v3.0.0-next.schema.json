@@ -621,6 +621,14 @@
                     }
                 },
                 {
+                    "if": { "properties": { "format": { "const": "duration" } } },
+                    "then": {
+                        "properties": {
+                            "params": { "$ref": "#/$format/durationParameters" }
+                        }
+                    }
+                },
+                {
                     "if": { "properties": { "format": { "const": "unit" } } },
                     "then": {
                         "properties": {
@@ -740,7 +748,7 @@
                 {
                     "title": "integer format",
                     "const": "duration",
-                    "description": "The field should be displayed as a duration in HH:MM:ss form. Value is interpreted as a number of seconds."
+                    "description": "The field should be displayed as a time duration. The value is interpreted as a number of seconds and rendered as <days>d<hh>h<mm>m<ss>s, where days is unbounded and hours, minutes and seconds are zero-padded to two digits (e.g. 864000 -> 10d00h00m00s, 8250 -> 0d02h17m30s). The optional specialValues parameter maps sentinel values to a message rendered in place of the duration, e.g. {\"0\": \"Immediate\"}; type(uint256).max (2^256-1) maps to \"Forever\" unless an explicit entry overrides it. The optional approximation parameter appends an approximate calendar duration in parentheses, e.g. \"1856d00h00m00s (approx. 5 years and 1 month)\"; see durationParameters."
                 },
                 {
                     "title": "integer format",
@@ -1011,6 +1019,32 @@
             "required": [
                 "encoding"
             ],
+            "additionalProperties": false
+        },
+
+        "durationParameters": {
+            "title": "Duration Formatting Parameters",
+            "type": "object",
+            "properties": {
+                "specialValues": {
+                    "title": "Special Values",
+                    "type": "object",
+                    "description": "Optional. Maps sentinel duration values to the message displayed in place of the formatted duration, e.g. {\"0\": \"Immediate\"}. Keys are written in decimal, or in hexadecimal when prefixed with 0x, and are compared to the field value numerically, so \"0\", \"0x0\" and \"0x00\" all designate zero; two keys of equal numeric value MUST NOT be present. When the field value matches a key, the corresponding message is displayed alone, without the exact duration and without an approximation suffix. Unless an explicit entry overrides it, type(uint256).max (2^256-1) maps to \"Forever\". No default message is assigned to 0, because its meaning is contract specific: a zero timelock delay reads as \"Immediate\", whereas a zero expiry commonly means an unbounded duration. Absent an entry, 0 renders as 0d00h00m00s.",
+                    "propertyNames": {
+                        "pattern": "^(0|[1-9][0-9]*|0x[0-9a-fA-F]+)$"
+                    },
+                    "additionalProperties": {
+                        "type": "string",
+                        "minLength": 1
+                    }
+                },
+                "approximation": {
+                    "title": "Approximation Suffix",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true, an approximate calendar duration is appended in parentheses after the exact duration, e.g. \"1856d00h00m00s (approx. 5 years and 1 month)\". The value is rounded to the nearest month (one month is 30.4375 days, so twelve months are exactly one Julian year of 365.25 days) and zero year or month components are omitted. Only relevant for values of at least one month (2629800 seconds): below that, no suffix is appended. A matched specialValues entry takes precedence, so its message is rendered alone without a suffix. Defaults to false."
+                }
+            },
             "additionalProperties": false
         },
 
