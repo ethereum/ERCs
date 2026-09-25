@@ -2,7 +2,7 @@
 title: Portable Spend Grants
 description: Signed multi-asset spend grants with rolling and lifetime caps
 author: Chris Madison (@tankcdr)
-discussions-to: https://ethereum-magicians.org/t/placeholder
+discussions-to: https://ethereum-magicians.org/t/erc-tbd-portable-spend-grants/29776
 status: Draft
 type: Standards Track
 category: ERC
