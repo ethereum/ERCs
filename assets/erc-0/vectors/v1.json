@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "encodeType": "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)",
+  "domain": {
+    "name": "SpendGrant",
+    "version": "1"
+  },
+  "vectors": [
+    {
+      "name": "one-asset-locked-recipient",
+      "chainId": "31337",
+      "revocationRegistry": "0x4444444444444444444444444444444444444444",
+      "grant": {
+        "principal": "0x1111111111111111111111111111111111111111",
+        "delegate": "0x2222222222222222222222222222222222222222",
+        "recipientMode": "0",
+        "recipient": "0x3333333333333333333333333333333333333333",
+        "assetCombine": "0",
+        "windowSeconds": "86400",
+        "assets": [
+          {
+            "asset": "0x00000000000000000000000000000000000000a0",
+            "maxPerCall": "10",
+            "maxPerWindow": "100",
+            "maxTotal": "1000"
+          }
+        ],
+        "validAfter": "1700000000",
+        "validUntil": "1800000000",
+        "salt": "1"
+      },
+      "domainSeparator": "0x1040f75f67e75ef60a477f90720cc26434a4d3c1b0cb792b9acfbb39e591eeae",
+      "structHash": "0x17dc908df6dec4fbe8d92184a25919ecbdf0f3bf23161690485d8ab8f4516b9c",
+      "digest": "0x04c4583db88be0bb60d71e9e0ec4b6cc40378ba6dff9f2a58e19b4174fc09139",
+      "rendering": "Spend grant v1\nChain: 31337\nRevocation registry: 0x4444444444444444444444444444444444444444\nPrincipal: 0x1111111111111111111111111111111111111111\nDelegate: 0x2222222222222222222222222222222222222222\nRecipient mode: 0\nRecipient: 0x3333333333333333333333333333333333333333\nAsset combine: 0\nWindow seconds: 86400\nBudget count: 1\nBudget 0 asset: 0x00000000000000000000000000000000000000a0\nBudget 0 maximum per call (raw units): 10\nBudget 0 maximum per window (raw units): 100\nBudget 0 maximum total (raw units): 1000\nValid after (inclusive Unix seconds): 1700000000\nValid until (exclusive Unix seconds): 1800000000\nSalt: 1\n"
+    },
+    {
+      "name": "two-asset-and-native-erc20",
+      "chainId": "31337",
+      "revocationRegistry": "0x4444444444444444444444444444444444444444",
+      "grant": {
+        "principal": "0x1111111111111111111111111111111111111111",
+        "delegate": "0x2222222222222222222222222222222222222222",
+        "recipientMode": "1",
+        "recipient": "0x0000000000000000000000000000000000000000",
+        "assetCombine": "0",
+        "windowSeconds": "86400",
+        "assets": [
+          {
+            "asset": "0x00000000000000000000000000000000000000a0",
+            "maxPerCall": "10",
+            "maxPerWindow": "100",
+            "maxTotal": "1000"
+          },
+          {
+            "asset": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "maxPerCall": "1",
+            "maxPerWindow": "5",
+            "maxTotal": "20"
+          }
+        ],
+        "validAfter": "1700000000",
+        "validUntil": "1800000000",
+        "salt": "2"
+      },
+      "domainSeparator": "0x1040f75f67e75ef60a477f90720cc26434a4d3c1b0cb792b9acfbb39e591eeae",
+      "structHash": "0x3c6e2a0234ae1388d45cf2dc9366a3b90daa55369a60df508c8af27cef425746",
+      "digest": "0x7940d957c8919d08655e7a894510946917e532518a74318d50fbdec066d1347b",
+      "rendering": "Spend grant v1\nChain: 31337\nRevocation registry: 0x4444444444444444444444444444444444444444\nPrincipal: 0x1111111111111111111111111111111111111111\nDelegate: 0x2222222222222222222222222222222222222222\nRecipient mode: 1\nRecipient: 0x0000000000000000000000000000000000000000\nAsset combine: 0\nWindow seconds: 86400\nBudget count: 2\nBudget 0 asset: 0x00000000000000000000000000000000000000a0\nBudget 0 maximum per call (raw units): 10\nBudget 0 maximum per window (raw units): 100\nBudget 0 maximum total (raw units): 1000\nBudget 1 asset: 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\nBudget 1 maximum per call (raw units): 1\nBudget 1 maximum per window (raw units): 5\nBudget 1 maximum total (raw units): 20\nValid after (inclusive Unix seconds): 1700000000\nValid until (exclusive Unix seconds): 1800000000\nSalt: 2\n"
+    },
+    {
+      "name": "eoa-signed",
+      "chainId": "31337",
+      "revocationRegistry": "0x4444444444444444444444444444444444444444",
+      "grant": {
+        "principal": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "delegate": "0x2222222222222222222222222222222222222222",
+        "recipientMode": "0",
+        "recipient": "0x3333333333333333333333333333333333333333",
+        "assetCombine": "0",
+        "windowSeconds": "86400",
+        "assets": [
+          {
+            "asset": "0x00000000000000000000000000000000000000a0",
+            "maxPerCall": "10",
+            "maxPerWindow": "100",
+            "maxTotal": "1000"
+          }
+        ],
+        "validAfter": "1700000000",
+        "validUntil": "1800000000",
+        "salt": "4"
+      },
+      "domainSeparator": "0x1040f75f67e75ef60a477f90720cc26434a4d3c1b0cb792b9acfbb39e591eeae",
+      "structHash": "0xeba170ad875d976128725374770856b70085f42ad64f535bfc0b6e18008f2a64",
+      "digest": "0xdefd61fdb6eed8eeaaae1fa664a787e955aed6a26771426467973ee0ac504890",
+      "rendering": "Spend grant v1\nChain: 31337\nRevocation registry: 0x4444444444444444444444444444444444444444\nPrincipal: 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266\nDelegate: 0x2222222222222222222222222222222222222222\nRecipient mode: 0\nRecipient: 0x3333333333333333333333333333333333333333\nAsset combine: 0\nWindow seconds: 86400\nBudget count: 1\nBudget 0 asset: 0x00000000000000000000000000000000000000a0\nBudget 0 maximum per call (raw units): 10\nBudget 0 maximum per window (raw units): 100\nBudget 0 maximum total (raw units): 1000\nValid after (inclusive Unix seconds): 1700000000\nValid until (exclusive Unix seconds): 1800000000\nSalt: 4\n",
+      "signer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+      "signature": "0xaffb881542af958e33e4339f144716470ef7d17e42431501522517854771429d557d293412619a17024bf4ee936dd81f7bb87567cc2cbbbe20304dc168ebfb7d1b"
+    }
+  ]
+}
