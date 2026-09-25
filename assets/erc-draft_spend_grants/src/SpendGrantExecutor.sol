@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {ISpendGrantRegistry, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
+import {ISpendGrantRegistry, NATIVE, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
 
 contract SpendGrantExecutor {
     error NotDelegate();
     error UnexpectedMsgValue();
     error TransferFailed();
 
-    ISpendGrantRegistry public immutable registry;
+    ISpendGrantRegistry internal immutable REGISTRY;
 
     constructor(ISpendGrantRegistry registry_) {
-        registry = registry_;
+        REGISTRY = registry_;
         if (registry_.executor() != address(this)) revert SpendGrantError(Reason.UNAUTHORIZED_EXECUTOR);
+    }
+
+    function registry() external view returns (ISpendGrantRegistry) {
+        return REGISTRY;
     }
 
     function spend(
@@ -28,9 +32,9 @@ contract SpendGrantExecutor {
 
         // Record the debit first so a recipient callback cannot double-spend; movement
         // still shares the transaction and reverts with consume if either step fails.
-        registry.consume(grant, grantSignature, asset, amount, to);
+        REGISTRY.consume(grant, grantSignature, asset, amount, to);
 
-        if (asset == address(0)) {
+        if (asset == NATIVE) {
             // Reference limitation: native value is supplied by the delegate
             // (`msg.value`), not pulled from the principal. Debiting the
             // principal's native balance needs an account adapter.

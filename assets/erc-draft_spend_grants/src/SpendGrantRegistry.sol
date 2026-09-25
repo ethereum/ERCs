@@ -9,35 +9,37 @@ import {
     SpendGrantError,
     MAX_ASSETS,
     MAX_LIVE_DEBITS,
-    Reason,
-    WAD
+    NATIVE,
+    Reason
 } from "./SpendGrantTypes.sol";
 import {SpendGrantHash} from "./SpendGrantHash.sol";
 
 contract SpendGrantRegistry is ISpendGrantRegistry {
-    struct Debit {
-        uint64 time;
-        uint256 amount;
-        uint256 windowPieWad;
-    }
+    /// @dev Low bits of a ring slot hold the amount; the high 64 bits hold the timestamp.
+    uint256 internal constant AMOUNT_BITS = 192;
 
+    /// @dev Each ring slot packs `time (uint64) << 192 | amount (uint192)` into one storage word.
     struct AssetUsage {
+        uint64 head;
+        uint64 tail;
+        uint64 calls;
         uint256 spent;
-        uint256 calls;
-        Debit[] window;
+        uint256 windowSpent;
+        uint256[MAX_LIVE_DEBITS] ring;
     }
 
-    address public immutable executor;
+    address internal immutable EXECUTOR;
 
     mapping(address => mapping(bytes32 => bool)) public revoked;
     mapping(bytes32 => mapping(address => AssetUsage)) internal _usage;
-    mapping(bytes32 => uint256) internal _lifetimePie;
     mapping(bytes32 => uint64) internal _windowSeconds;
-    mapping(bytes32 => address[]) internal _touchedAssets;
-    mapping(bytes32 => mapping(address => bool)) internal _touched;
 
     constructor(address executor_) {
-        executor = executor_;
+        EXECUTOR = executor_;
+    }
+
+    function executor() external view returns (address) {
+        return EXECUTOR;
     }
 
     function revoke(bytes32 grantHash) external {
@@ -52,12 +54,25 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
     }
 
     function rollingUsage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls) {
-        return _rolling(_usage[grantHash][asset], _windowSeconds[grantHash]);
-    }
+        AssetUsage storage u = _usage[grantHash][asset];
+        uint64 windowSeconds = _windowSeconds[grantHash];
 
-    function pieUsed(bytes32 grantHash) external view returns (uint256 lifetimeWad, uint256 windowWad) {
-        lifetimeWad = _lifetimePie[grantHash];
-        windowWad = _windowPie(grantHash, _windowSeconds[grantHash]);
+        uint64 head = u.head;
+        uint64 tail = u.tail;
+        uint256 expiredAmount;
+        uint256 expiredCount;
+        while (head < tail) {
+            (uint64 time, uint256 amount) = _unpack(u.ring[head % MAX_LIVE_DEBITS]);
+            if (_live(time, windowSeconds)) break;
+            expiredAmount += amount;
+            unchecked {
+                ++expiredCount;
+                ++head;
+            }
+        }
+
+        spent = u.windowSpent - expiredAmount;
+        calls = uint256(tail - u.head) - expiredCount;
     }
 
     function consume(
@@ -67,7 +82,7 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         uint256 amount,
         address recipient
     ) external {
-        if (msg.sender != executor) revert SpendGrantError(Reason.UNAUTHORIZED_EXECUTOR);
+        if (msg.sender != EXECUTOR) revert SpendGrantError(Reason.UNAUTHORIZED_EXECUTOR);
 
         _assertStructure(grant);
 
@@ -84,41 +99,58 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
             if (recipient != grant.recipient) revert SpendGrantError(Reason.WRONG_RECIPIENT);
         }
 
-        AssetLimit calldata limit = _asset(grant, asset);
+        _debit(grantHash, grant.windowSeconds, _asset(grant, asset), asset, amount, recipient);
+    }
 
-        if (amount == 0 || amount > limit.maxPerCall) revert SpendGrantError(Reason.OVER_TX_CAP);
+    /// @dev `windowSeconds` must equal the value already signed into this grant (what `consume`
+    /// passes through from `grant.windowSeconds`). It is only written to `_windowSeconds` on the
+    /// first debit for `grantHash`; `rollingUsage` always reads that stored value, so a caller
+    /// (e.g. a derived contract calling `_debit` directly) that passes a different value here
+    /// makes `rollingUsage`/eviction disagree with what `consume` would have done.
+    function _debit(
+        bytes32 grantHash,
+        uint64 windowSeconds,
+        AssetLimit memory limit,
+        address asset,
+        uint256 amount,
+        address recipient
+    ) internal {
+        if (amount == 0 || amount > limit.maxPerCall || amount > type(uint192).max) {
+            revert SpendGrantError(Reason.OVER_TX_CAP);
+        }
 
-        uint64 windowSeconds = grant.windowSeconds;
         if (_windowSeconds[grantHash] == 0) _windowSeconds[grantHash] = windowSeconds;
 
         AssetUsage storage u = _usage[grantHash][asset];
-        _compact(u, windowSeconds);
-        if (u.window.length >= MAX_LIVE_DEBITS) revert SpendGrantError(Reason.WINDOW_FULL);
 
-        uint256 windowPieWad;
-        if (grant.assetCombine == 0) {
-            (uint256 rollingSpent,) = _rolling(u, windowSeconds);
-            if (rollingSpent >= limit.maxPerWindow || amount > limit.maxPerWindow - rollingSpent) {
-                revert SpendGrantError(Reason.OVER_WINDOW_CAP);
+        uint64 head = u.head;
+        uint64 tail = u.tail;
+        uint256 windowSpent = u.windowSpent;
+        uint256 evicted;
+        while (head < tail) {
+            (uint64 time, uint256 evictedAmount) = _unpack(u.ring[head % MAX_LIVE_DEBITS]);
+            if (_live(time, windowSeconds)) break;
+            evicted += evictedAmount;
+            unchecked {
+                ++head;
             }
-            if (u.spent >= limit.maxTotal || amount > limit.maxTotal - u.spent) {
-                revert SpendGrantError(Reason.OVER_CUMULATIVE_CAP);
-            }
-        } else {
-            windowPieWad = _ceilWad(amount, limit.maxPerWindow);
-            uint256 lifetimePieWad = _ceilWad(amount, limit.maxTotal);
-            uint256 usedWindow = _windowPie(grantHash, windowSeconds);
-            uint256 usedLifetime = _lifetimePie[grantHash];
-            if (usedWindow >= WAD || windowPieWad > WAD - usedWindow) revert SpendGrantError(Reason.OVER_WINDOW_CAP);
-            if (usedLifetime >= WAD || lifetimePieWad > WAD - usedLifetime) {
-                revert SpendGrantError(Reason.OVER_CUMULATIVE_CAP);
-            }
-            _lifetimePie[grantHash] = usedLifetime + lifetimePieWad;
-            _touch(grantHash, asset);
         }
+        windowSpent -= evicted;
+        u.head = head;
 
-        u.window.push(Debit({time: uint64(block.timestamp), amount: amount, windowPieWad: windowPieWad}));
-        u.spent += amount;
+        if (windowSpent >= limit.maxPerWindow || amount > limit.maxPerWindow - windowSpent) {
+            revert SpendGrantError(Reason.OVER_WINDOW_CAP);
+        }
+        uint256 spent = u.spent;
+        if (spent >= limit.maxTotal || amount > limit.maxTotal - spent) {
+            revert SpendGrantError(Reason.OVER_CUMULATIVE_CAP);
+        }
+        if (tail - head == MAX_LIVE_DEBITS) revert SpendGrantError(Reason.WINDOW_FULL);
+
+        u.ring[tail % MAX_LIVE_DEBITS] = _pack(uint64(block.timestamp), amount);
+        u.tail = tail + 1;
+        u.windowSpent = windowSpent + amount;
+        u.spent = spent + amount;
         u.calls += 1;
 
         emit GrantConsumed(grantHash, asset, amount, recipient);
@@ -128,7 +160,7 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         if (m.principal == address(0) || m.delegate == address(0) || m.delegate == m.principal) {
             revert SpendGrantError(Reason.INVALID_GRANT);
         }
-        if (m.recipientMode > 1 || m.assetCombine > 1) revert SpendGrantError(Reason.INVALID_GRANT);
+        if (m.recipientMode > 1 || m.assetCombine != 0) revert SpendGrantError(Reason.INVALID_GRANT);
         if (m.recipientMode == 0) {
             if (m.recipient == address(0) || m.recipient == m.principal) revert SpendGrantError(Reason.INVALID_GRANT);
         } else if (m.recipient != address(0)) {
@@ -145,11 +177,14 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
             uint160 key = uint160(a.asset);
             if (i > 0 && key <= prev) revert SpendGrantError(Reason.INVALID_GRANT);
             prev = key;
-            if (a.maxPerCall == 0 || a.maxPerWindow == 0 || a.maxTotal == 0) revert SpendGrantError(Reason.INVALID_GRANT);
+            if (a.maxPerCall == 0 || a.maxPerWindow == 0 || a.maxTotal == 0) {
+                revert SpendGrantError(Reason.INVALID_GRANT);
+            }
             if (a.maxPerCall > a.maxPerWindow || a.maxPerWindow > a.maxTotal) {
                 revert SpendGrantError(Reason.INVALID_GRANT);
             }
-            if (a.asset != address(0) && a.asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
+            if (a.asset == address(0)) revert SpendGrantError(Reason.INVALID_GRANT);
+            if (a.asset != NATIVE && a.asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
         }
     }
 
@@ -161,13 +196,30 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         revert SpendGrantError(Reason.WRONG_ASSET);
     }
 
+    /// @dev A principal with a 23-byte EIP-7702 delegation designator (0xef0100 || implementation)
+    /// tries strict ECDSA first (the designator authorizes the EOA's own key), then falls back to
+    /// ERC-1271 against the delegate implementation. Any other code-bearing principal is ERC-1271
+    /// only; a principal with no code is ECDSA only.
     function _validSignature(address principal, bytes32 digest, bytes calldata sig) internal view returns (bool) {
-        if (principal.code.length > 0) {
-            (bool ok, bytes memory ret) =
-                principal.staticcall(abi.encodeCall(IERC1271.isValidSignature, (digest, sig)));
-            if (!ok || ret.length != 32) return false;
-            return abi.decode(ret, (bytes32)) == bytes32(IERC1271.isValidSignature.selector);
+        uint256 codeLen = principal.code.length;
+        if (codeLen == 0) {
+            return _validEcdsaSignature(principal, digest, sig);
         }
+        if (codeLen == 23 && _isDelegationDesignator(principal.code)) {
+            if (_validEcdsaSignature(principal, digest, sig)) return true;
+        }
+        (bool ok, bytes memory ret) = principal.staticcall(abi.encodeCall(IERC1271.isValidSignature, (digest, sig)));
+        if (!ok || ret.length != 32) return false;
+        return abi.decode(ret, (bytes32)) == bytes32(IERC1271.isValidSignature.selector);
+    }
+
+    /// @dev EIP-7702 delegation designator: exactly 23 bytes, 0xef0100 prefix. Caller must have
+    /// already checked code.length == 23 via EXTCODESIZE before paying for this EXTCODECOPY.
+    function _isDelegationDesignator(bytes memory code) internal pure returns (bool) {
+        return code[0] == 0xef && code[1] == 0x01 && code[2] == 0x00;
+    }
+
+    function _validEcdsaSignature(address principal, bytes32 digest, bytes calldata sig) internal pure returns (bool) {
         if (sig.length != 65) return false;
         bytes32 r;
         bytes32 s;
@@ -192,102 +244,13 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         return (ts - s) < uint256(windowSeconds);
     }
 
-    function _compact(AssetUsage storage u, uint64 windowSeconds) internal {
-        Debit[] storage window = u.window;
-        uint256 n = window.length;
-        uint256 w;
-        for (uint256 i = 0; i < n; i++) {
-            if (_live(window[i].time, windowSeconds)) {
-                if (w != i) window[w] = window[i];
-                unchecked {
-                    ++w;
-                }
-            }
-        }
-        while (window.length > w) {
-            window.pop();
-        }
+    /// @dev Packs a ring slot: time in the high 64 bits, amount (fits uint192) in the low 192 bits.
+    function _pack(uint64 time, uint256 amount) internal pure returns (uint256) {
+        return (uint256(time) << AMOUNT_BITS) | amount;
     }
 
-    function _rolling(AssetUsage storage u, uint64 windowSeconds) internal view returns (uint256 spent, uint256 calls) {
-        Debit[] storage window = u.window;
-        uint256 n = window.length;
-        for (uint256 i = 0; i < n; i++) {
-            if (_live(window[i].time, windowSeconds)) {
-                spent += window[i].amount;
-                unchecked {
-                    ++calls;
-                }
-            }
-        }
-    }
-
-    function _windowPie(bytes32 grantHash, uint64 windowSeconds) internal view returns (uint256 windowWad) {
-        address[] storage assets = _touchedAssets[grantHash];
-        uint256 n = assets.length;
-        for (uint256 i = 0; i < n; i++) {
-            Debit[] storage window = _usage[grantHash][assets[i]].window;
-            uint256 m = window.length;
-            for (uint256 j = 0; j < m; j++) {
-                if (_live(window[j].time, windowSeconds)) windowWad += window[j].windowPieWad;
-            }
-        }
-    }
-
-    function _touch(bytes32 grantHash, address asset) internal {
-        if (_touched[grantHash][asset]) return;
-        _touched[grantHash][asset] = true;
-        _touchedAssets[grantHash].push(asset);
-    }
-
-    /// @dev ceil(amount * WAD / denom).
-    function _ceilWad(uint256 amount, uint256 denom) internal pure returns (uint256) {
-        if (amount == 0) return 0;
-        if (denom == 0) revert SpendGrantError(Reason.INVALID_GRANT);
-        return _mulDivUp(amount, WAD, denom);
-    }
-
-    function _mulDivUp(uint256 x, uint256 y, uint256 d) internal pure returns (uint256) {
-        uint256 rem = mulmod(x, y, d);
-        uint256 lo;
-        uint256 hi;
-        assembly {
-            lo := mul(x, y)
-            let mm := mulmod(x, y, not(0))
-            hi := sub(sub(mm, lo), lt(mm, lo))
-            let borrow := lt(lo, rem)
-            lo := sub(lo, rem)
-            hi := sub(hi, borrow)
-        }
-        uint256 q = hi == 0 ? lo / d : _div512(lo, hi, d);
-        if (rem == 0) return q;
-        if (q == type(uint256).max) revert SpendGrantError(Reason.INVALID_GRANT);
-        unchecked {
-            return q + 1;
-        }
-    }
-
-    /// @dev floor((hi * 2^256 + lo) / d) with hi < d so the quotient fits in uint256.
-    function _div512(uint256 lo, uint256 hi, uint256 d) internal pure returns (uint256 z) {
-        if (d == 0 || hi >= d) revert SpendGrantError(Reason.INVALID_GRANT);
-        uint256 r = hi;
-        for (uint256 i = 0; i < 256;) {
-            uint256 bit = lo >> 255;
-            lo <<= 1;
-            z <<= 1;
-            bool overflow = r > (type(uint256).max >> 1);
-            unchecked {
-                r = (r << 1) | bit;
-            }
-            if (overflow || r >= d) {
-                unchecked {
-                    r -= d;
-                }
-                z |= 1;
-            }
-            unchecked {
-                ++i;
-            }
-        }
+    function _unpack(uint256 word) internal pure returns (uint64 time, uint256 amount) {
+        time = uint64(word >> AMOUNT_BITS);
+        amount = uint256(uint192(word));
     }
 }

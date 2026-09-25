@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, SpendGrant, WAD} from "../src/SpendGrantTypes.sol";
+import {AssetLimit, MAX_LIVE_DEBITS, NATIVE, SpendGrant} from "../src/SpendGrantTypes.sol";
 import {SpendGrantHash} from "../src/SpendGrantHash.sol";
 import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {MockERC20} from "./MockERC20.sol";
@@ -18,11 +18,16 @@ contract SpendGrantHandler is Test {
     address public recipient;
 
     SpendGrant public andGrant;
-    SpendGrant public orGrant;
     bytes public andSig;
-    bytes public orSig;
     bytes32 public andHash;
-    bytes32 public orHash;
+
+    // A second grant with a small window and a maxPerCall of 1, so the fuzzer actually churns
+    // the ring through frequent eviction. At the configured invariant depth (16 calls per run,
+    // foundry.toml [invariant]) this cannot fill or wrap a 1024-slot ring; exhaustive fill/wrap
+    // coverage lives in test/SpendGrantRing.t.sol, not here.
+    SpendGrant public ringGrant;
+    bytes public ringSig;
+    bytes32 public ringHash;
 
     constructor() {
         principal = vm.addr(PRINCIPAL_PK);
@@ -33,20 +38,21 @@ contract SpendGrantHandler is Test {
 
         vm.warp(1_700_000_100);
 
-        andGrant = _build(0, 1);
-        orGrant = _build(1, 2);
+        andGrant = _build(1);
         andSig = _sign(andGrant);
-        orSig = _sign(orGrant);
         andHash = SpendGrantHash.digest(block.chainid, address(registry), andGrant);
-        orHash = SpendGrantHash.digest(block.chainid, address(registry), orGrant);
+
+        ringGrant = _buildRing(2);
+        ringSig = _sign(ringGrant);
+        ringHash = SpendGrantHash.digest(block.chainid, address(registry), ringGrant);
     }
 
     function consumeAnd(uint256 assetPick, uint256 amount, uint256 dt) external {
-        _consume(andGrant, andSig, andHash, false, assetPick, amount, dt);
+        _consume(andGrant, andSig, andHash, assetPick, amount, dt);
     }
 
-    function consumeOr(uint256 assetPick, uint256 amount, uint256 dt) external {
-        _consume(orGrant, orSig, orHash, true, assetPick, amount, dt);
+    function consumeRing(uint256 assetPick, uint256 dt) external {
+        _consume(ringGrant, ringSig, ringHash, assetPick, 1, dt);
     }
 
     function andCap(uint256 i) external view returns (address asset, uint256 maxPerWindow, uint256 maxTotal) {
@@ -54,20 +60,14 @@ contract SpendGrantHandler is Test {
         return (a.asset, a.maxPerWindow, a.maxTotal);
     }
 
-    function orCap(uint256 i) external view returns (address asset, uint256 maxPerWindow, uint256 maxTotal) {
-        AssetLimit memory a = orGrant.assets[i];
+    function ringCap(uint256 i) external view returns (address asset, uint256 maxPerWindow, uint256 maxTotal) {
+        AssetLimit memory a = ringGrant.assets[i];
         return (a.asset, a.maxPerWindow, a.maxTotal);
     }
 
-    function _consume(
-        SpendGrant memory m,
-        bytes memory sig,
-        bytes32 h,
-        bool pie,
-        uint256 assetPick,
-        uint256 amount,
-        uint256 dt
-    ) internal {
+    function _consume(SpendGrant memory m, bytes memory sig, bytes32 h, uint256 assetPick, uint256 amount, uint256 dt)
+        internal
+    {
         uint256 ts = vm.getBlockTimestamp();
         dt = bound(dt, 0, uint256(m.windowSeconds) * 2);
         uint256 next = ts + dt;
@@ -80,38 +80,47 @@ contract SpendGrantHandler is Test {
         amount = bound(amount, 1, lim.maxPerCall);
 
         (, uint256 liveCalls) = registry.rollingUsage(h, lim.asset);
-        if (liveCalls >= 256) return;
+        if (liveCalls >= MAX_LIVE_DEBITS) return;
 
-        if (pie) {
-            (uint256 lifePie, uint256 winPie) = registry.pieUsed(h);
-            uint256 wAdd = (amount * WAD + lim.maxPerWindow - 1) / lim.maxPerWindow;
-            uint256 tAdd = (amount * WAD + lim.maxTotal - 1) / lim.maxTotal;
-            if (winPie + wAdd > WAD) return;
-            if (lifePie + tAdd > WAD) return;
-        } else {
-            (uint256 spent,) = registry.usage(h, lim.asset);
-            (uint256 rolling,) = registry.rollingUsage(h, lim.asset);
-            if (rolling + amount > lim.maxPerWindow) return;
-            if (spent + amount > lim.maxTotal) return;
-        }
+        (uint256 spent,) = registry.usage(h, lim.asset);
+        (uint256 rolling,) = registry.rollingUsage(h, lim.asset);
+        if (rolling + amount > lim.maxPerWindow) return;
+        if (spent + amount > lim.maxTotal) return;
 
         registry.consume(m, sig, lim.asset, amount, m.recipient);
     }
 
-    function _build(uint8 combine, uint256 salt) internal view returns (SpendGrant memory m) {
+    function _build(uint256 salt) internal view returns (SpendGrant memory m) {
         m.principal = principal;
         m.delegate = delegate;
         m.recipientMode = 0;
         m.recipient = recipient;
-        m.assetCombine = combine;
+        m.assetCombine = 0;
         m.windowSeconds = 86400;
         m.validAfter = 1_700_000_000;
         m.validUntil = 1_900_000_000;
         m.salt = salt;
-        m.renderingHash = bytes32(salt);
         m.assets = new AssetLimit[](2);
-        m.assets[0] = AssetLimit(address(0), 1 ether, 10 ether, 100 ether);
-        m.assets[1] = AssetLimit(address(token), 1e18, 10e18, 100e18);
+        m.assets[0] = AssetLimit(address(token), 1e18, 10e18, 100e18);
+        m.assets[1] = AssetLimit(NATIVE, 1 ether, 10 ether, 100 ether);
+    }
+
+    /// @dev maxPerCall 1, small windowSeconds: unlike `_build`'s wide per-call caps, this shape
+    /// drives real eviction traffic through the ring at invariant depth. It does not reach a full
+    /// ring (1024 live) or a wrap at depth 16; see test/SpendGrantRing.t.sol for that coverage.
+    function _buildRing(uint256 salt) internal view returns (SpendGrant memory m) {
+        m.principal = principal;
+        m.delegate = delegate;
+        m.recipientMode = 0;
+        m.recipient = recipient;
+        m.assetCombine = 0;
+        m.windowSeconds = 8;
+        m.validAfter = 1_700_000_000;
+        m.validUntil = 1_900_000_000;
+        m.salt = salt;
+        m.assets = new AssetLimit[](2);
+        m.assets[0] = AssetLimit(address(token), 1, 2000, type(uint192).max);
+        m.assets[1] = AssetLimit(NATIVE, 1, 2000, type(uint192).max);
     }
 
     function _sign(SpendGrant memory m) internal view returns (bytes memory) {
@@ -129,42 +138,48 @@ contract SpendGrantInvariantTest is Test {
         targetContract(address(handler));
         bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = SpendGrantHandler.consumeAnd.selector;
-        selectors[1] = SpendGrantHandler.consumeOr.selector;
+        selectors[1] = SpendGrantHandler.consumeRing.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
     function invariant_spentLeMaxTotal() public view {
         _assertSpent(handler.andHash(), false);
-        _assertSpent(handler.orHash(), true);
+        _assertSpent(handler.ringHash(), true);
     }
 
     function invariant_rollingLeMaxPerWindow() public view {
         _assertRolling(handler.andHash(), false);
-        _assertRolling(handler.orHash(), true);
+        _assertRolling(handler.ringHash(), true);
     }
 
-    function invariant_pieUsedLeWad() public view {
-        (uint256 lifePie, uint256 winPie) = handler.registry().pieUsed(handler.orHash());
-        assertLe(lifePie, WAD);
-        assertLe(winPie, WAD);
-        (lifePie, winPie) = handler.registry().pieUsed(handler.andHash());
-        assertEq(lifePie, 0);
-        assertEq(winPie, 0);
+    function invariant_liveCallsNeverExceedsMaxLiveDebits() public view {
+        _assertLiveBound(handler.andHash(), false);
+        _assertLiveBound(handler.ringHash(), true);
     }
 
-    function _assertSpent(bytes32 h, bool orCombine) internal view {
+    function _assertSpent(bytes32 h, bool ring) internal view {
         for (uint256 i = 0; i < 2; i++) {
-            (address asset,, uint256 maxTotal) = orCombine ? handler.orCap(i) : handler.andCap(i);
+            (address asset,, uint256 maxTotal) = ring ? handler.ringCap(i) : handler.andCap(i);
             (uint256 spent,) = handler.registry().usage(h, asset);
             assertLe(spent, maxTotal);
         }
     }
 
-    function _assertRolling(bytes32 h, bool orCombine) internal view {
+    function _assertRolling(bytes32 h, bool ring) internal view {
         for (uint256 i = 0; i < 2; i++) {
-            (address asset, uint256 maxPerWindow,) = orCombine ? handler.orCap(i) : handler.andCap(i);
+            (address asset, uint256 maxPerWindow,) = ring ? handler.ringCap(i) : handler.andCap(i);
             (uint256 rolling,) = handler.registry().rollingUsage(h, asset);
             assertLe(rolling, maxPerWindow);
+        }
+    }
+
+    function _assertLiveBound(bytes32 h, bool ring) internal view {
+        for (uint256 i = 0; i < 2; i++) {
+            (address asset,,) = ring ? handler.ringCap(i) : handler.andCap(i);
+            (uint256 rolling, uint256 liveCalls) = handler.registry().rollingUsage(h, asset);
+            assertLe(liveCalls, MAX_LIVE_DEBITS);
+            (uint256 spent,) = handler.registry().usage(h, asset);
+            assertLe(rolling, spent);
         }
     }
 }

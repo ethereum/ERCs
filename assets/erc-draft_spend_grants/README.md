@@ -1,5 +1,6 @@
 # Assets for Portable Spend Grants
 
 - `vectors/v1.json` — golden hashes, rendering, and an EOA signature
-- `src/` — compact Solidity reference (CC0)
-- `test/` — Foundry tests for the reference. They import `../src/` and read vectors at `assets/erc-draft_spend_grants/vectors/v1.json` when run from a Foundry project that has this directory at that path.
+- `erc7730/spend-grant.json` — non-normative ERC-7730 display descriptor for the reference registry deployment
+- `src/` — compact Solidity reference (CC0): SpendGrantExecutor.sol, SpendGrantHash.sol, SpendGrantRegistry.sol, SpendGrantTypes.sol
+- `test/` — Foundry tests for the reference (HashHarness.sol, Inheritance.t.sol, MockERC20.sol, SpendGrantHash.t.sol, SpendGrantInvariant.t.sol, SpendGrantRegistry.t.sol, SpendGrantRing.t.sol). They import `../src/` and read vectors at `assets/erc-draft_spend_grants/vectors/v1.json` when run from a Foundry project that has this directory at that path.

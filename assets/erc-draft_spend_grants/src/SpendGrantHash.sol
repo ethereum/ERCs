@@ -7,7 +7,7 @@ import {AssetLimit, SpendGrant} from "./SpendGrantTypes.sol";
 library SpendGrantHash {
     // Exact encodeType (no spaces) as specified.
     bytes32 internal constant SPEND_GRANT_TYPEHASH = keccak256(
-        "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"
+        "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"
     );
 
     bytes32 internal constant ASSET_LIMIT_TYPEHASH =
@@ -53,8 +53,7 @@ library SpendGrantHash {
                 hashAssets(m.assets),
                 m.validAfter,
                 m.validUntil,
-                m.salt,
-                m.renderingHash
+                m.salt
             )
         );
     }

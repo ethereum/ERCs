@@ -15,7 +15,7 @@ contract SpendGrantHashTest is Test {
 
     function test_encodeType_matchesSpec() public pure {
         bytes32 expected = keccak256(
-            "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt,bytes32 renderingHash)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"
+            "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)"
         );
         SpendGrant memory m;
         m.assets = new AssetLimit[](1);
@@ -34,8 +34,7 @@ contract SpendGrantHashTest is Test {
                 SpendGrantHash.hashAssets(m.assets),
                 m.validAfter,
                 m.validUntil,
-                m.salt,
-                m.renderingHash
+                m.salt
             )
         );
         assertEq(structHash, rebuilt);
@@ -68,20 +67,20 @@ contract SpendGrantHashTest is Test {
 
     function test_goldenVectors() public {
         string memory json = vm.readFile("assets/erc-draft_spend_grants/vectors/v1.json");
-        for (uint256 i = 0; i < 4; i++) {
+        // Pin the vector count to exactly 3 so an appended vector can't silently go unchecked
+        // by the fixed loop bound below.
+        assertTrue(vm.keyExistsJson(json, ".vectors[2]"));
+        assertFalse(vm.keyExistsJson(json, ".vectors[3]"));
+        for (uint256 i = 0; i < 3; i++) {
             string memory p = string.concat(".vectors[", vm.toString(i), "]");
             uint256 chainId = vm.parseJsonUint(json, string.concat(p, ".chainId"));
             address registry = vm.parseJsonAddress(json, string.concat(p, ".revocationRegistry"));
             bytes32 domain = vm.parseJsonBytes32(json, string.concat(p, ".domainSeparator"));
             bytes32 structHash = vm.parseJsonBytes32(json, string.concat(p, ".structHash"));
             bytes32 digest_ = vm.parseJsonBytes32(json, string.concat(p, ".digest"));
-            bytes32 renderingHash = vm.parseJsonBytes32(json, string.concat(p, ".grant.renderingHash"));
-            string memory rendering = vm.parseJsonString(json, string.concat(p, ".rendering"));
 
-            uint256 nAssets = (i == 0 || i == 3) ? 1 : 2;
+            uint256 nAssets = (i == 0 || i == 2) ? 1 : 2;
             SpendGrant memory m = _grantFromJson(json, p, nAssets);
-            assertEq(keccak256(bytes(rendering)), renderingHash);
-            assertEq(m.renderingHash, renderingHash);
 
             vm.chainId(chainId);
             assertEq(harness.domainSeparator(registry), domain);
@@ -89,7 +88,7 @@ contract SpendGrantHashTest is Test {
             assertEq(harness.digest(chainId, registry, m), digest_);
             assertEq(SpendGrantHash.digest(chainId, registry, m), digest_);
 
-            if (i == 3) {
+            if (i == 2) {
                 bytes memory sig = vm.parseJsonBytes(json, string.concat(p, ".signature"));
                 assertEq(sig.length, 65);
                 bytes32 r;
@@ -138,7 +137,6 @@ contract SpendGrantHashTest is Test {
         m.validAfter = uint64(vm.parseJsonUint(json, string.concat(p, ".grant.validAfter")));
         m.validUntil = uint64(vm.parseJsonUint(json, string.concat(p, ".grant.validUntil")));
         m.salt = vm.parseJsonUint(json, string.concat(p, ".grant.salt"));
-        m.renderingHash = vm.parseJsonBytes32(json, string.concat(p, ".grant.renderingHash"));
         m.assets = new AssetLimit[](nAssets);
         for (uint256 i = 0; i < nAssets; i++) {
             string memory a = string.concat(p, ".grant.assets[", vm.toString(i), "]");

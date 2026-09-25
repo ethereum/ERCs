@@ -1,0 +1,150 @@
+{
+  "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
+  "context": {
+    "$id": "Portable Spend Grants",
+    "eip712": {
+      "domain": {
+        "name": "SpendGrant",
+        "version": "1"
+      },
+      "deployments": [
+        {
+          "chainId": 5042002,
+          "address": "0xE3591E35c6473FB2A9D2f7370d1FE3454864fb32"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "owner": "Portable Spend Grants reference registry",
+    "contractName": "SpendGrantRegistry",
+    "info": {
+      "url": "https://github.com/tankcdr/ERCs/blob/erc-draft-spend-grants/ERCS/erc-draft_spend_grants.md"
+    },
+    "constants": {
+      "native": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+    },
+    "enums": {
+      "recipientMode": {
+        "0": "One recipient",
+        "1": "Any recipient"
+      }
+    }
+  },
+  "display": {
+    "definitions": {
+      "cap": {
+        "format": "tokenAmount",
+        "params": {
+          "tokenPath": "asset",
+          "nativeCurrencyAddress": "$.metadata.constants.native"
+        }
+      }
+    },
+    "formats": {
+      "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)": {
+        "$id": "SpendGrant",
+        "intent": "Grant spending",
+        "fields": [
+          {
+            "path": "delegate",
+            "label": "Delegate",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "eoa",
+                "contract"
+              ]
+            }
+          },
+          {
+            "path": "recipientMode",
+            "label": "Pays to",
+            "format": "enum",
+            "params": {
+              "$ref": "$.metadata.enums.recipientMode"
+            }
+          },
+          {
+            "path": "recipient",
+            "label": "Recipient",
+            "format": "addressName",
+            "visible": {
+              "ifNotIn": [
+                "0x0000000000000000000000000000000000000000"
+              ]
+            }
+          },
+          {
+            "path": "windowSeconds",
+            "label": "Rolling window",
+            "format": "duration"
+          },
+          {
+            "path": "assets.[]",
+            "fields": [
+              {
+                "path": "maxPerCall",
+                "label": "Max per payment",
+                "$ref": "$.display.definitions.cap"
+              },
+              {
+                "path": "maxPerWindow",
+                "label": "Max per window",
+                "$ref": "$.display.definitions.cap"
+              },
+              {
+                "path": "maxTotal",
+                "label": "Max in total",
+                "$ref": "$.display.definitions.cap"
+              },
+              {
+                "path": "asset",
+                "visible": "never"
+              }
+            ]
+          },
+          {
+            "path": "validAfter",
+            "label": "Valid from",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "validUntil",
+            "label": "Valid until",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "principal",
+            "label": "Spending from",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "eoa",
+                "contract"
+              ]
+            }
+          },
+          {
+            "path": "assetCombine",
+            "visible": {
+              "mustMatch": [
+                0
+              ]
+            }
+          },
+          {
+            "path": "salt",
+            "visible": "never"
+          }
+        ]
+      }
+    }
+  }
+}
