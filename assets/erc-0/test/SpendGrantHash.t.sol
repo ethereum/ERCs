@@ -66,7 +66,7 @@ contract SpendGrantHashTest is Test {
     }
 
     function test_goldenVectors() public {
-        string memory json = vm.readFile("assets/erc-draft_spend_grants/vectors/v1.json");
+        string memory json = vm.readFile("assets/erc-0/vectors/v1.json");
         // Pin the vector count to exactly 3 so an appended vector can't silently go unchecked
         // by the fixed loop bound below.
         assertTrue(vm.keyExistsJson(json, ".vectors[2]"));

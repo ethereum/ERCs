@@ -19,7 +19,7 @@
     "owner": "Portable Spend Grants reference registry",
     "contractName": "SpendGrantRegistry",
     "info": {
-      "url": "https://github.com/tankcdr/ERCs/blob/erc-draft-spend-grants/ERCS/erc-draft_spend_grants.md"
+      "url": "https://github.com/tankcdr/ERCs/blob/erc-draft-spend-grants/ERCS/erc-0.md"
     },
     "constants": {
       "native": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
