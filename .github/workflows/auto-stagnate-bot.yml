@@ -3,22 +3,40 @@ on:
     # A job that runs every sunday at 00:00
     - cron:  '0 0 * * 0'
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Report what would change without opening, merging or closing anything'
+        type: boolean
+        default: true
 
 name: Auto Stagnant Bot
+
+permissions:
+  contents: read
+
 jobs:
-  auto_merge_bot:
-    if: github.repository == 'ethereum/ERCs' || github.repository == 'ethereum/EIPs'
+  auto_stagnant_bot:
+    if: github.repository == 'ethereum/ERCs'
     runs-on: ubuntu-latest
     name: Auto Stagnant Bot
     steps:
       - name: Checkout
         uses: actions/checkout@47fbe2df0ad0e27efb67a70beac3555f192b062f
-      - name: Setup Node.js Environment
-        uses: actions/setup-node@d98fa1113850e562f83c7fc3a89c0ecd7a87fbed
         with:
-          node-version: '14'
-      - name: auto-stagnant-bot
-        uses: ethereum/EIP-Bot@b3ac0ba3600aea27157fc68d1e36c08cc5a6db77 # mark-eips-stale
+          # Last edited dates are read from the commit log rather than the API.
+          fetch-depth: 0
+      - name: Auto Stagnant Bot
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         id: auto-stagnant-bot
+        env:
+          DRY_RUN: ${{ inputs.dry-run }}
         with:
-          GITHUB-TOKEN: ${{ secrets.TOKEN }}
+          github-token: ${{ secrets.TOKEN }}
+          script: |
+            const markStagnant = require('${{ github.workspace }}/.github/scripts/mark-stagnant-ercs.js')
+            await markStagnant({
+              github,
+              context,
+              core,
+              dryRun: process.env.DRY_RUN === 'true'
+            })
