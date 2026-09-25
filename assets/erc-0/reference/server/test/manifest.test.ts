@@ -191,6 +191,23 @@ describe("GET /manifest/:tokenId", () => {
     expect(notHex.body.error).toBe("invalid_request");
   });
 
+  it("answers a failed ownership read on the gated path as retryable, not as a refusal", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    const challenge = await request(h.app).get(`/manifest/${TOKEN_ID}/challenge?address=${account.address}`);
+    const message = challenge.body.message as string;
+    const signature = await account.signMessage({ message });
+
+    h.chain.failReads(true);
+    const res = await presentProof(h, message, signature);
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe("read_failed");
+    expect(res.headers["retry-after"]).toBe("5");
+    expect(res.body.formats).toBeUndefined();
+  });
+
   it("rotates acquisition URLs on a new owner's first claim, not on a repeat claim", async () => {
     const h = buildHarness({ manifestMode: "gated" });
     const seller = newSigner();

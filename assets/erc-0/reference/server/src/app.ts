@@ -139,7 +139,13 @@ export function createApp(deps: AppDeps): Express {
 
       const result = await authorize({ message, signature, target }, deps);
       if (!result.ok) {
-        res.status(statusFor(result.error)).json({ error: result.error });
+        const status = statusFor(result.error);
+        if (status === 503) {
+          // The fresh read could not be taken. The client may retry; the
+          // server never answers from a cached owner instead.
+          res.set("Retry-After", "5");
+        }
+        res.status(status).json({ error: result.error });
         return;
       }
 
@@ -194,6 +200,9 @@ export function createApp(deps: AppDeps): Express {
       if (config.manifestMode === "gated") {
         const gate = await checkGatedProof(req, tokenId, deps);
         if (!gate.ok) {
+          if (gate.status === 503) {
+            res.set("Retry-After", "5");
+          }
           res.status(gate.status).json(gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error });
           return;
         }

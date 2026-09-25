@@ -36,7 +36,7 @@ npm install
 npx vitest run
 ```
 
-The server suite exercises the floor property by property: replayed nonce rejected, expired challenge rejected, wrong verifier domain rejected, proof for one action or token refused for another, a proof for a chain or contract other than the configured one refused, an acquire proof refused as an action, a malformed signature refused without a crash, ownership transfer between challenge and action refused by the fresh read, gated manifest refused without a control proof (and every gated 401 points at the challenge endpoint), acquisition URLs rotated on a new owner's first claim and left alone on a repeat claim, rotated capability URLs stop resolving, and a full happy path in which a runtime-generated key signs a real challenge.
+The server suite exercises the floor property by property: replayed nonce rejected, expired challenge rejected, wrong verifier domain rejected, proof for one action or token refused for another, a proof for a chain or contract other than the configured one refused, an acquire proof refused as an action, a malformed signature refused without a crash, ownership transfer between challenge and action refused by the fresh read, a token with no owner refused as not the owner while a failed read is answered as retryable (503 with Retry-After) and never from a cached owner, gated manifest refused without a control proof (and every gated 401 points at the challenge endpoint), acquisition URLs rotated on a new owner's first claim and left alone on a repeat claim, rotated capability URLs stop resolving, and a full happy path in which a runtime-generated key signs a real challenge.
 
 ## Reference simplifications
 

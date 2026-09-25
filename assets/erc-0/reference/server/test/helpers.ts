@@ -27,10 +27,16 @@ export function createClock(startMs: number = Date.UTC(2026, 7, 7, 15, 4, 5)) {
 
 /// A fake owner map that stands in for a chain. Tests set ownership, and can
 ///  flip or clear it between challenge issuance and action to drive the
-///  fresh-read check. An unset token reads as nonexistent (throws), exactly as
-///  `ownerOf` would for a token that was never minted or was burned.
+///  fresh-read check. An unset token reads as having no owner (null), which is
+///  how the production reader reports a token that was never minted or was
+///  burned. `failReads` makes every read throw, standing in for an RPC outage.
 export class FakeChainReader implements ChainReader {
   private owners = new Map<string, Address>();
+  private failing = false;
+
+  failReads(failing: boolean): void {
+    this.failing = failing;
+  }
 
   setOwner(contract: Address, tokenId: string, owner: Address): void {
     this.owners.set(this.key(contract, tokenId), owner);
@@ -40,12 +46,11 @@ export class FakeChainReader implements ChainReader {
     this.owners.delete(this.key(contract, tokenId));
   }
 
-  async ownerOf(contract: Address, tokenId: string): Promise<Address> {
-    const owner = this.owners.get(this.key(contract, tokenId));
-    if (!owner) {
-      throw new Error(`nonexistent token ${tokenId}`);
+  async ownerOf(contract: Address, tokenId: string): Promise<Address | null> {
+    if (this.failing) {
+      throw new Error("rpc unavailable");
     }
-    return owner;
+    return this.owners.get(this.key(contract, tokenId)) ?? null;
   }
 
   private key(contract: Address, tokenId: string): string {

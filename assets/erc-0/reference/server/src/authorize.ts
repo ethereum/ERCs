@@ -18,7 +18,8 @@ export type AuthError =
   | "challenge_expired" // Expiration Time missing or in the past
   | "binding_mismatch" // resources do not bind this exact token and action
   | "signature_invalid" // signature not valid for the claimed account
-  | "not_owner"; // claimed account is not the current owner (fresh read)
+  | "not_owner" // claimed account is not the current owner (fresh read)
+  | "read_failed"; // the fresh ownership read could not be taken
 
 /// What the caller intends to execute, declared independently of the message.
 ///  The whole point of the binding check is that this target must match what
@@ -51,8 +52,10 @@ export type AuthorizeResult =
   | { ok: false; error: AuthError };
 
 /// Map each rejection reason to an HTTP status: malformed or mis-scoped input
-///  is a 400, a failed possession or freshness check is 401, and a valid proof
-///  from someone who is not the owner is a 403.
+///  is a 400, a failed possession or freshness check is 401, a valid proof
+///  from someone who is not the owner is a 403, and a fresh read that could
+///  not be taken is a 503. The 403 is reserved for the entitlement refusal
+///  (Gated acquisition), so a read failure never borrows it.
 export function statusFor(error: AuthError): number {
   switch (error) {
     case "invalid_message":
@@ -65,6 +68,8 @@ export function statusFor(error: AuthError): number {
       return 401;
     case "not_owner":
       return 403;
+    case "read_failed":
+      return 503;
   }
 }
 
@@ -138,15 +143,18 @@ export async function authorize(input: AuthorizeInput, deps: AuthorizeDeps): Pro
   // 7. A fresh read of ownership at this moment. This is what closes the
   //    transfer window: a token sold after the challenge was issued stops
   //    acting immediately, however many valid-looking passes remain installed.
-  //    A read that throws (nonexistent or burned token, or an RPC failure)
-  //    yields no owner equal to the claimant, so the action is refused.
-  let owner: Address;
+  //    The read fails closed either way, but the two failures are told apart:
+  //    a token with no owner (never minted, or burned) is a refusal of the
+  //    claimant, while a read that could not be taken is refused as retryable
+  //    and never as "not the owner". No cached or last-known owner is ever
+  //    consulted in its place.
+  let owner: Address | null;
   try {
     owner = await deps.chain.ownerOf(target.contract, target.tokenId);
   } catch {
-    return { ok: false, error: "not_owner" };
+    return { ok: false, error: "read_failed" };
   }
-  if (!isAddressEqual(owner, parsed.address)) {
+  if (owner === null || !isAddressEqual(owner, parsed.address)) {
     return { ok: false, error: "not_owner" };
   }
 

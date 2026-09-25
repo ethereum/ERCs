@@ -248,6 +248,33 @@ describe("POST /action", () => {
     expect(res.body.executed).toBeUndefined();
   });
 
+  it("refuses a token with no owner as not_owner, and a failed read as retryable", async () => {
+    const h = buildHarness();
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    // Burned (or never minted) between challenge and action: the fresh read
+    // answers "no owner", and the claimant is refused as not the owner.
+    const burned = await issueChallenge(h.app, account, h.config.contract);
+    const burnedSignature = await account.signMessage({ message: burned });
+    h.chain.clearOwner(h.config.contract, TOKEN_ID);
+    const gone = await submitAction(h.app, burned, burnedSignature, h.config.contract);
+    expect(gone.status).toBe(403);
+    expect(gone.body.error).toBe("not_owner");
+
+    // The read could not be taken at all: fail closed, but as retryable, and
+    // never as a verdict on ownership. The 403 stays reserved for entitlement.
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+    const message = await issueChallenge(h.app, account, h.config.contract);
+    const signature = await account.signMessage({ message });
+    h.chain.failReads(true);
+    const outage = await submitAction(h.app, message, signature, h.config.contract);
+    expect(outage.status).toBe(503);
+    expect(outage.body.error).toBe("read_failed");
+    expect(outage.headers["retry-after"]).toBe("5");
+    expect(outage.body.executed).toBeUndefined();
+  });
+
   it("refuses a malformed signature without crashing", async () => {
     const h = buildHarness();
 
