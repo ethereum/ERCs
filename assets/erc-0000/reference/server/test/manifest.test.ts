@@ -34,6 +34,40 @@ describe("GET /manifest/:tokenId", () => {
     expect(res.body.error).toBe("proof_required");
   });
 
+  it("points a refused gated fetch at the challenge endpoint, whose acquire challenge resolves the manifest", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    const refused = await request(h.app).get(`/manifest/${TOKEN_ID}`);
+    expect(refused.status).toBe(401);
+    expect(refused.body.error).toBe("proof_required");
+    expect(refused.body.challenge).toBe(`${h.config.baseUrl}/manifest/${TOKEN_ID}/challenge`);
+    expect(refused.body.formats).toBeUndefined();
+
+    const path = new URL(refused.body.challenge as string).pathname;
+    const challenge = await request(h.app).get(`${path}?address=${account.address}`);
+    expect(challenge.status).toBe(200);
+    const message = challenge.body.message as string;
+    expect(message).toContain("urn:wallet-pass:action:acquire");
+    expect(message).toContain(`/${TOKEN_ID}`);
+
+    const signature = await account.signMessage({ message });
+    const res = await request(h.app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("X-Wallet-Pass-Proof", encodeProof(message))
+      .set("X-Wallet-Pass-Signature", signature);
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toBe("no-store");
+    expect(res.body.formats.apple).toContain("/passes/apple/");
+  });
+
+  it("refuses the challenge endpoint without a valid claimed address", async () => {
+    const { app } = buildHarness({ manifestMode: "gated" });
+    const res = await request(app).get(`/manifest/${TOKEN_ID}/challenge`);
+    expect(res.status).toBe(400);
+  });
+
   it("serves a gated manifest with a valid acquire proof", async () => {
     const h = buildHarness({ manifestMode: "gated" });
     const account = newSigner();

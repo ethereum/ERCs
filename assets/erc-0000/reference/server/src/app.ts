@@ -37,6 +37,31 @@ export function createApp(deps: AppDeps): Express {
   const app = express();
   app.use(express.json());
 
+  // Issue a challenge for one (account, token, action) with a fresh single-use
+  // nonce and a short expiry. Shared by POST /challenge and the gated
+  // manifest's challenge endpoint.
+  const issueChallenge = (input: {
+    account: Address;
+    contract: Address;
+    chainId: number;
+    tokenId: string;
+    action: string;
+  }) => {
+    const nonce = generateSiweNonce();
+    const issuedAt = new Date(now());
+    const expirationTime = new Date(now() + config.challengeTtlSeconds * 1000);
+    deps.nonces.issue(nonce, now() + config.nonceTtlSeconds * 1000);
+    const message = buildChallengeMessage({
+      domain: config.domain,
+      uri: config.uri,
+      ...input,
+      nonce,
+      issuedAt,
+      expirationTime,
+    });
+    return { message, nonce, expiresAt: expirationTime.toISOString() };
+  };
+
   // POST /challenge: issue a Sign-In with Ethereum challenge that binds a
   // token and an action, with a fresh single-use nonce and a short expiry.
   app.post(
@@ -61,25 +86,7 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
-      const nonce = generateSiweNonce();
-      const issuedAt = new Date(now());
-      const expirationTime = new Date(now() + config.challengeTtlSeconds * 1000);
-      deps.nonces.issue(nonce, now() + config.nonceTtlSeconds * 1000);
-
-      const message = buildChallengeMessage({
-        domain: config.domain,
-        uri: config.uri,
-        account,
-        chainId,
-        contract,
-        tokenId,
-        action,
-        nonce,
-        issuedAt,
-        expirationTime,
-      });
-
-      res.status(200).json({ message, nonce, expiresAt: expirationTime.toISOString() });
+      res.status(200).json(issueChallenge({ account, contract, chainId, tokenId, action }));
     }),
   );
 
@@ -122,6 +129,35 @@ export function createApp(deps: AppDeps): Express {
     }),
   );
 
+  // GET /manifest/:tokenId/challenge?address=<account>: the challenge endpoint
+  // a gated manifest's 401 response points at (Gated acquisition). It issues
+  // the acquire challenge for this token, bound to the server's chain and
+  // contract, for the claimed account.
+  app.get(
+    "/manifest/:tokenId/challenge",
+    wrap(async (req, res) => {
+      let tokenId: string;
+      let account: Address;
+      try {
+        tokenId = normalizeTokenId(String(req.params.tokenId));
+        account = getAddress(String(req.query.address ?? ""));
+      } catch {
+        res.status(400).json({ error: "invalid_request" });
+        return;
+      }
+      res.setHeader("Cache-Control", "no-store");
+      res.status(200).json(
+        issueChallenge({
+          account,
+          contract: config.contract,
+          chainId: config.chainId,
+          tokenId,
+          action: config.acquireAction,
+        }),
+      );
+    }),
+  );
+
   // GET /manifest/:tokenId: serve the pass manifest. In the public
   // configuration it is served to anyone; in the gated configuration it
   // requires a verified control proof for the acquire action, carried in
@@ -140,11 +176,13 @@ export function createApp(deps: AppDeps): Express {
       if (config.manifestMode === "gated") {
         const gate = await checkGatedProof(req, tokenId, deps);
         if (!gate.ok) {
-          res.status(gate.status).json({ error: gate.error });
+          res.status(gate.status).json(gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error });
           return;
         }
       }
 
+      // Clients MUST NOT durably cache acquisition URLs (Client requirements).
+      res.setHeader("Cache-Control", "no-store");
       res.status(200).json(passStore.getManifest(tokenId));
     }),
   );
@@ -178,6 +216,8 @@ interface GateFail {
   ok: false;
   status: number;
   error: string;
+  /// Present on a 401: the URI of the challenge endpoint for the token.
+  challenge?: string;
 }
 
 /// Verify the control proof required to resolve a gated manifest. The proof
@@ -192,7 +232,13 @@ async function checkGatedProof(req: Request, tokenId: string, deps: AppDeps): Pr
   const encoded = req.get("x-wallet-pass-proof");
   const signature = req.get("x-wallet-pass-signature");
   if (!encoded || !signature) {
-    return { ok: false, status: 401, error: "proof_required" };
+    // Gated acquisition: point the client at the challenge endpoint for this token.
+    return {
+      ok: false,
+      status: 401,
+      error: "proof_required",
+      challenge: `${deps.config.baseUrl}/manifest/${tokenId}/challenge`,
+    };
   }
 
   let message: string;
