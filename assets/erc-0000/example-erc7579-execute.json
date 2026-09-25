@@ -1,0 +1,164 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "ERC-7579 Account Execute",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 8453,
+                    "address": "0x510a1274373c8120DE634dB372723edcBE899994"
+                },
+                {
+                    "chainId": 8453,
+                    "address": "0xE8cCb14989F0dB3f51A71876195D5867F7fa943d"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Biconomy",
+        "contractName": "Nexus",
+        "info": {
+            "url": "https://github.com/bcnmy/nexus"
+        }
+    },
+    "display": {
+        "formats": {
+            "execute(bytes32 mode,bytes executionCalldata)": {
+                "$id": "ERC-7579 Execute",
+                "intent": "Execute",
+                "fields": [
+                    {
+                        "path": "mode",
+                        "label": "Mode",
+                        "customEncoding": {
+                            "type": "object",
+                            "fields": [
+                                {
+                                    "name": "callType",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 1
+                                    }
+                                },
+                                {
+                                    "name": "execType",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 1
+                                    }
+                                },
+                                {
+                                    "name": "unused",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 4
+                                    }
+                                },
+                                {
+                                    "name": "modeSelector",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 4
+                                    }
+                                },
+                                {
+                                    "name": "modePayload",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 22
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "path": "executionCalldata",
+                        "label": "Execution",
+                        "switch": {
+                            "expression": {
+                                "path": "mode.callType"
+                            },
+                            "cases": {
+                                "0x00": {
+                                    "customEncoding": {
+                                        "type": "object",
+                                        "fields": [
+                                            {
+                                                "name": "target",
+                                                "schema": {
+                                                    "type": "address"
+                                                }
+                                            },
+                                            {
+                                                "name": "value",
+                                                "schema": {
+                                                    "type": "uint",
+                                                    "bytes": 32
+                                                }
+                                            },
+                                            {
+                                                "name": "callData",
+                                                "schema": {
+                                                    "type": "bytes"
+                                                },
+                                                "label": "Execution",
+                                                "format": "calldata",
+                                                "params": {
+                                                    "calleePath": "target",
+                                                    "amountPath": "value"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0x01": {
+                                    "(address target,uint256 value,bytes callData)[]": {
+                                        "intent": "Execute batch",
+                                        "fields": [
+                                            {
+                                                "path": ".[].callData",
+                                                "label": "Batched call data",
+                                                "format": "calldata",
+                                                "params": {
+                                                    "calleePath": ".[].target",
+                                                    "amountPath": ".[].value"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0xff": {
+                                    "customEncoding": {
+                                        "type": "object",
+                                        "fields": [
+                                            {
+                                                "name": "target",
+                                                "schema": {
+                                                    "type": "address"
+                                                }
+                                            },
+                                            {
+                                                "name": "callData",
+                                                "schema": {
+                                                    "type": "bytes"
+                                                },
+                                                "label": "Execution",
+                                                "format": "calldata",
+                                                "params": {
+                                                    "calleePath": "target",
+                                                    "operation": "DELEGATECALL"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "$default": "reject"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Safe MultiSendCallOnly 1.3.0",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Safe",
+        "contractName": "MultiSendCallOnly",
+        "info": {
+            "url": "https://github.com/safe-global/safe-smart-account"
+        }
+    },
+    "display": {
+        "formats": {
+            "multiSend(bytes transactions)": {
+                "$id": "MultiSend Batch",
+                "intent": "Execute batch",
+                "fields": [
+                    {
+                        "path": "transactions",
+                        "label": "Batched calls",
+                        "customEncoding": {
+                            "type": "sequence",
+                            "element": {
+                                "type": "object",
+                                "fields": [
+                                    {
+                                        "name": "operation",
+                                        "schema": {
+                                            "type": "uint",
+                                            "bytes": 1
+                                        }
+                                    },
+                                    {
+                                        "name": "to",
+                                        "schema": {
+                                            "type": "address"
+                                        }
+                                    },
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "uint",
+                                            "bytes": 32
+                                        }
+                                    },
+                                    {
+                                        "name": "dataLength",
+                                        "schema": {
+                                            "type": "uint",
+                                            "bytes": 32
+                                        }
+                                    },
+                                    {
+                                        "name": "data",
+                                        "schema": {
+                                            "type": "bytes",
+                                            "lengthFrom": "dataLength"
+                                        },
+                                        "label": "Batched call data",
+                                        "format": "calldata",
+                                        "params": {
+                                            "calleePath": "to",
+                                            "amountPath": "value",
+                                            "operation": {
+                                                "expression": "operation",
+                                                "cases": {
+                                                    "0x01": "DELEGATECALL",
+                                                    "$default": "CALL"
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

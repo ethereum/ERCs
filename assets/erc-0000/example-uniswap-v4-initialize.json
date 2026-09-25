@@ -1,0 +1,85 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Uniswap v4 PoolManager",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x000000000004444c5dc75cB358380D2e3dE08A90"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Uniswap Labs",
+        "contractName": "PoolManager",
+        "info": {
+            "url": "https://github.com/Uniswap/v4-core"
+        }
+    },
+    "display": {
+        "formats": {
+            "initialize((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) key,uint160 sqrtPriceX96)": {
+                "$id": "Initialize Pool",
+                "intent": "Create pool",
+                "fields": [
+                    {
+                        "path": "key.currency0",
+                        "label": "Token 0",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "key.currency1",
+                        "label": "Token 1",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "key.fee",
+                        "label": "Fee tier",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "key.tickSpacing",
+                        "label": "Tick spacing",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "key.hooks",
+                        "label": "Hooks contract",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "key.hooks",
+                        "label": "Hook permissions",
+                        "customEncoding": {
+                            "type": "bitfield",
+                            "bytes": 20,
+                            "fields": [
+                                { "name": "beforeInitialize", "bit": 13 },
+                                { "name": "afterInitialize",  "bit": 12 },
+                                { "name": "beforeAddLiquidity",  "bit": 11 },
+                                { "name": "afterAddLiquidity",   "bit": 10 },
+                                { "name": "beforeRemoveLiquidity", "bit": 9 },
+                                { "name": "afterRemoveLiquidity",  "bit": 8 },
+                                { "name": "beforeSwap", "bit": 7 },
+                                { "name": "afterSwap",  "bit": 6 },
+                                { "name": "beforeDonate", "bit": 5 },
+                                { "name": "afterDonate",  "bit": 4 },
+                                { "name": "beforeSwapReturnDelta", "bit": 3 },
+                                { "name": "afterSwapReturnDelta",  "bit": 2 },
+                                { "name": "afterAddLiquidityReturnDelta",    "bit": 1 },
+                                { "name": "afterRemoveLiquidityReturnDelta", "bit": 0 }
+                            ]
+                        }
+                    },
+                    {
+                        "path": "sqrtPriceX96",
+                        "label": "Initial price (sqrtPriceX96)",
+                        "format": "raw"
+                    }
+                ]
+            }
+        }
+    }
+}
