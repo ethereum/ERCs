@@ -53,7 +53,7 @@ These notes describe how one production deployment implements this proposal: its
 
 ## Manifest endpoint
 
-**Gated resolution.** An unauthenticated request to the `passURI` address returns `401` with an error naming the gated configuration, and no acquisition URL. A request that proves control of the owning account returns `200` with the manifest (`formats.apple` a capability `.pkpass` URL, `formats.google` a Save to Google Wallet link, and `updatedAt`), sent with `Cache-Control: no-store`.
+**Gated resolution.** An unauthenticated request to the `passURI` address returns `401` with a JSON body whose `error` is `proof_required` and whose `challenge` is the URI of the challenge endpoint for that token, and no acquisition URL. A request that proves control of the owning account returns `200` with the manifest (`formats.apple` a capability `.pkpass` URL, `formats.google` a Save to Google Wallet link, and `updatedAt`), sent with `Cache-Control: no-store`.
 
 **Proof of control.** Either of two proofs is accepted. The first is an ERC-4361 challenge fetched from a `challenge` endpoint beneath the `passURI` address, signed, and returned in request headers. It follows the recommended serialization: the first resource is the CAIP-19 identifier of the token, the second is `urn:wallet-pass:action:acquire`, and the statement names the acquire action, with a single-use nonce, an expiration, the domain line, and the claimed account in the address line. The second is a session token from the embedded signer used by email-onboarded holders.
 
