@@ -1,0 +1,14 @@
+{
+    "$schema": "./erc8346-v3.0.0-next.schema.json",
+    "$locale": "fr",
+    "descriptorHash": "0x14da251e322186245d812ff3fd0b1e9b404c5896964f9dbce2bd2bd898abbe84",
+    "includes": {
+        "erc20": [
+            { "uri": "./example-erc20.fr.json" }
+        ]
+    },
+    "translations": {
+        "mytoken.transfer.interpolated_intent": "Envoyer {value} à {to}",
+        "erc20.transfer.to_label":              "Bénéficiaire"
+    }
+}
