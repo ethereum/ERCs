@@ -1,9 +1,9 @@
 ---
-eip: xxxx
+eip: 8424
 title: Confidential Real World Asset Token
 description: Compliance checks, spendable balances, and transfer enforcement for confidential tokens representing real world assets.
 author: Aryeh Greenberg (@arr00)
-discussions-to: https://ethereum-magicians.org/t/new-erc-confidential-real-world-asset-token/29771
+discussions-to: https://ethereum-magicians.org/t/erc-8424-confidential-real-world-asset-token/29771
 status: Draft
 type: Standards Track
 category: ERC
