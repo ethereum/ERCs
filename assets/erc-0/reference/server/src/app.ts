@@ -1,5 +1,5 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
-import { getAddress, type Address, type Hex } from "viem";
+import { getAddress, isAddressEqual, isHex, type Address } from "viem";
 
 import type { ServerConfig } from "./config.js";
 import type { NonceStore } from "./nonceStore.js";
@@ -98,7 +98,9 @@ export function createApp(deps: AppDeps): Express {
     wrap(async (req, res) => {
       const message = req.body?.message;
       const signature = req.body?.signature;
-      if (typeof message !== "string" || typeof signature !== "string") {
+      // The signature must at least be a hex string before it reaches a
+      // verifier; its length is the verifier's call (see SignatureVerifier).
+      if (typeof message !== "string" || typeof signature !== "string" || !isHex(signature)) {
         res.status(400).json({ error: "invalid_request" });
         return;
       }
@@ -119,7 +121,23 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
-      const result = await authorize({ message, signature: signature as Hex, target }, deps);
+      // The floor's chain id and contract are checked against the verifier's
+      // own configuration, never against the request: a caller who could name
+      // the chain and contract would have the message verified against values
+      // it chose, while the ownership read only ever answers for the token
+      // this server serves. The acquire action is reserved for gated manifest
+      // resolution ("an acquire proof MUST NOT authorize any other action"),
+      // so it is refused here before it could reach executeAction.
+      if (
+        target.chainId !== config.chainId ||
+        getAddress(target.contract) !== getAddress(config.contract) ||
+        target.action === config.acquireAction
+      ) {
+        res.status(400).json({ error: "invalid_request" });
+        return;
+      }
+
+      const result = await authorize({ message, signature, target }, deps);
       if (!result.ok) {
         res.status(statusFor(result.error)).json({ error: result.error });
         return;
@@ -179,6 +197,16 @@ export function createApp(deps: AppDeps): Express {
           res.status(gate.status).json(gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error });
           return;
         }
+        // Gated acquisition: a proven account that is not the account passes
+        // were last issued to is making its first claim, so the acquisition
+        // URLs rotate before the manifest is returned. The very first claim
+        // for a token only records the account; there is no earlier holder
+        // whose URLs need retiring, so nothing rotates.
+        const last = passStore.lastIssuedTo(tokenId);
+        if (last !== undefined && !isAddressEqual(last, gate.account)) {
+          passStore.rotateOnTransfer(tokenId);
+        }
+        passStore.recordIssuance(tokenId, gate.account);
       }
 
       // Clients MUST NOT durably cache acquisition URLs (Client requirements).
@@ -211,12 +239,17 @@ export function createApp(deps: AppDeps): Express {
 
 interface GateOk {
   ok: true;
+  /// The proven account, so the manifest handler can tell a first claim by a
+  ///  new owner from a repeat claim by the account passes were last issued to.
+  account: Address;
 }
 interface GateFail {
   ok: false;
   status: number;
   error: string;
-  /// Present on a 401: the URI of the challenge endpoint for the token.
+  /// Present on every 401: the URI of the challenge endpoint for the token.
+  ///  Whether the proof was missing, expired, replayed, or badly signed, the
+  ///  client's next step is the same fresh challenge.
   challenge?: string;
 }
 
@@ -229,16 +262,16 @@ interface GateFail {
 ///  signature in `X-Wallet-Pass-Signature`. This keeps manifest resolution a
 ///  GET while still carrying a full challenge.
 async function checkGatedProof(req: Request, tokenId: string, deps: AppDeps): Promise<GateOk | GateFail> {
+  const challenge = `${deps.config.baseUrl}/manifest/${tokenId}/challenge`;
   const encoded = req.get("x-wallet-pass-proof");
   const signature = req.get("x-wallet-pass-signature");
   if (!encoded || !signature) {
     // Gated acquisition: point the client at the challenge endpoint for this token.
-    return {
-      ok: false,
-      status: 401,
-      error: "proof_required",
-      challenge: `${deps.config.baseUrl}/manifest/${tokenId}/challenge`,
-    };
+    return { ok: false, status: 401, error: "proof_required", challenge };
+  }
+  // As on /action: hex or nothing, with the length left to the verifier.
+  if (!isHex(signature)) {
+    return { ok: false, status: 400, error: "invalid_request" };
   }
 
   let message: string;
@@ -254,9 +287,12 @@ async function checkGatedProof(req: Request, tokenId: string, deps: AppDeps): Pr
     tokenId,
     action: deps.config.acquireAction,
   };
-  const result = await authorize({ message, signature: signature as Hex, target }, deps);
+  const result = await authorize({ message, signature, target }, deps);
   if (!result.ok) {
-    return { ok: false, status: statusFor(result.error), error: result.error };
+    const status = statusFor(result.error);
+    return status === 401
+      ? { ok: false, status, error: result.error, challenge }
+      : { ok: false, status, error: result.error };
   }
-  return { ok: true };
+  return { ok: true, account: result.account };
 }

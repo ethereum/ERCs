@@ -14,6 +14,12 @@ import {
 ///  "as with contract account signatures verified per ERC-1271". A production
 ///  server injects the public-client verifier below, which does exactly that.
 ///  Tests inject the EOA-only verifier so they need no chain.
+///
+///  `signature` is any hex string; the handlers check only that it is hex. An
+///  EOA signature is exactly 65 bytes (132 hex characters), but an ERC-1271
+///  contract-account signature may be longer, so the length is left for the
+///  verifier to judge. A verifier MAY throw on a signature it cannot decode;
+///  `authorize` treats a throw as a signature that did not verify.
 export interface SignatureVerifier {
   verify(input: { address: Address; message: string; signature: Hex }): Promise<boolean>;
 }

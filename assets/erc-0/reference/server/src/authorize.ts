@@ -117,12 +117,20 @@ export async function authorize(input: AuthorizeInput, deps: AuthorizeDeps): Pro
   }
 
   // 6. The signature is valid for the claimed account, through a verifier that
-  //    supports both EOA and ERC-1271 contract-account signatures.
-  const signatureValid = await deps.verifier.verify({
-    address: parsed.address,
-    message: input.message,
-    signature: input.signature,
-  });
+  //    supports both EOA and ERC-1271 contract-account signatures. A verifier
+  //    that throws (a signature of the wrong length, an unrecoverable point, or
+  //    a failed contract-account call) has not validated the signature, so the
+  //    throw is refused as a bad signature rather than surfacing as a crash.
+  let signatureValid: boolean;
+  try {
+    signatureValid = await deps.verifier.verify({
+      address: parsed.address,
+      message: input.message,
+      signature: input.signature,
+    });
+  } catch {
+    signatureValid = false;
+  }
   if (!signatureValid) {
     return { ok: false, error: "signature_invalid" };
   }

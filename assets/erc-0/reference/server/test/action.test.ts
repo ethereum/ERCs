@@ -16,10 +16,11 @@ async function issueChallenge(
   contract: string,
   tokenId = TOKEN_ID,
   action = ACTION,
+  chainId = 1,
 ) {
   const res = await request(app).post("/challenge").send({
     account: account.address,
-    chainId: 1,
+    chainId,
     contract,
     tokenId,
     action,
@@ -36,11 +37,12 @@ async function submitAction(
   contract: string,
   tokenId = TOKEN_ID,
   action = ACTION,
+  chainId = 1,
 ) {
   return request(app).post("/action").send({
     message,
     signature,
-    chainId: 1,
+    chainId,
     contract,
     tokenId,
     action,
@@ -193,5 +195,73 @@ describe("POST /action", () => {
     const res = await submitAction(h.app, message, signature, h.config.contract);
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("invalid_message");
+  });
+
+  it("refuses a challenge issued and signed for a different chain id", async () => {
+    const h = buildHarness();
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    // Message and target agree with each other on chain 137, so the binding
+    // check alone would pass. The chain id is checked against the server's
+    // configuration, not the request, and the ownership read only answers for
+    // the configured chain.
+    const message = await issueChallenge(h.app, account, h.config.contract, TOKEN_ID, ACTION, 137);
+    const signature = await account.signMessage({ message });
+
+    const res = await submitAction(h.app, message, signature, h.config.contract, TOKEN_ID, ACTION, 137);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_request");
+  });
+
+  it("refuses a challenge issued and signed for a different contract", async () => {
+    const h = buildHarness();
+    const account = newSigner();
+    const otherContract = newSigner().address;
+    // The signer owns the token on the other contract too, so only the
+    // configuration check can refuse this.
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+    h.chain.setOwner(otherContract, TOKEN_ID, account.address);
+
+    const message = await issueChallenge(h.app, account, otherContract);
+    const signature = await account.signMessage({ message });
+
+    const res = await submitAction(h.app, message, signature, otherContract);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_request");
+  });
+
+  it("refuses an acquire proof presented as an action", async () => {
+    const h = buildHarness();
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    // A valid acquire proof for the owner. "An acquire proof MUST NOT
+    // authorize any other action", and here it is refused as an action at all.
+    const acquire = h.config.acquireAction;
+    const message = await issueChallenge(h.app, account, h.config.contract, TOKEN_ID, acquire);
+    const signature = await account.signMessage({ message });
+
+    const res = await submitAction(h.app, message, signature, h.config.contract, TOKEN_ID, acquire);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_request");
+    expect(res.body.executed).toBeUndefined();
+  });
+
+  it("refuses a malformed signature without crashing", async () => {
+    const h = buildHarness();
+
+    // Hex, but not a signature: the verifier throws and that is a bad
+    // signature, not a server error.
+    const truncated = await primed(h);
+    const short = await submitAction(h.app, truncated.message, "0xdeadbeef", h.config.contract);
+    expect(short.status).toBe(401);
+    expect(short.body.error).toBe("signature_invalid");
+
+    // Not hex at all: refused before any verifier sees it.
+    const garbage = await primed(h);
+    const notHex = await submitAction(h.app, garbage.message, "nothex", h.config.contract);
+    expect(notHex.status).toBe(400);
+    expect(notHex.body.error).toBe("invalid_request");
   });
 });

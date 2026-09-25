@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { getAddress, type Address } from "viem";
 
 import type { ServerConfig } from "./config.js";
 import { normalizeTokenId } from "./caip.js";
@@ -29,6 +30,12 @@ export interface PassStore {
   getManifest(tokenId: string): PassManifest;
   resolveCapability(token: string): CapabilityBinding | null;
   rotateOnTransfer(tokenId: string): PassManifest;
+  /// The account the implementation last issued passes to for this token, or
+  ///  undefined before the first issuance. Gated acquisition defines a claim
+  ///  by a proven account other than this one as that account's first claim,
+  ///  which is what triggers rotation there.
+  lastIssuedTo(tokenId: string): Address | undefined;
+  recordIssuance(tokenId: string, account: Address): void;
 }
 
 interface TokenPasses {
@@ -60,13 +67,19 @@ export function createPassStore(config: ServerConfig, now: () => number = Date.n
   // capability token -> what it resolves to. Rotation deletes the old entries,
   // which is what makes a previous owner's URL stop resolving.
   const bindings = new Map<string, CapabilityBinding>();
+  // tokenId -> the account passes were last issued to (gated configuration).
+  const issuedTo = new Map<string, Address>();
 
-  function mint(tokenId: string): TokenPasses {
+  // Mint fresh capability tokens. `updatedAt` is the manifest's content
+  // freshness timestamp and says nothing about acquisition URL validity, so a
+  // rotation passes the previous value through unchanged; only a first mint
+  // stamps the current time.
+  function mint(tokenId: string, updatedAt: number = Math.floor(now() / 1000)): TokenPasses {
     const apple = newCapabilityToken();
     const google = newCapabilityToken();
     bindings.set(apple, { tokenId, format: "apple" });
     bindings.set(google, { tokenId, format: "google" });
-    const passes: TokenPasses = { apple, google, updatedAt: Math.floor(now() / 1000) };
+    const passes: TokenPasses = { apple, google, updatedAt };
     passesByToken.set(tokenId, passes);
     return passes;
   }
@@ -102,7 +115,15 @@ export function createPassStore(config: ServerConfig, now: () => number = Date.n
         bindings.delete(previous.apple);
         bindings.delete(previous.google);
       }
-      return toManifest(mint(id));
+      return toManifest(mint(id, previous?.updatedAt));
+    },
+
+    lastIssuedTo(tokenId) {
+      return issuedTo.get(normalizeTokenId(tokenId));
+    },
+
+    recordIssuance(tokenId, account) {
+      issuedTo.set(normalizeTokenId(tokenId), getAddress(account));
     },
   };
 }
