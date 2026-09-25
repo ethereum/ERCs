@@ -11,3 +11,6 @@ vendor
 
 # Secrets
 .vercel
+
+# Local backups
+_backups/
