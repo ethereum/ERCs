@@ -1,5 +1,5 @@
 ---
-eip: 0000
+eip: 0
 title: Wallet Pass Extension for NFTs
 description: Lets tokens advertise and deliver native mobile wallet passes, such as Apple Wallet and Google Wallet passes
 author: Hunt (@huntclubhero) <hunt@halldon.com>
@@ -64,7 +64,7 @@ The range in `BatchPassUpdate` is inclusive of both `fromTokenId` and `toTokenId
 
 ### Pass manifest
 
-The URI returned by `passURI` MUST resolve to a JSON document (the pass manifest) with the following shape:
+The URI returned by `passURI` MUST resolve to a JSON document (the pass manifest) with the following shape. In the gated configuration defined under Acquisition URLs, the manifest is returned only to a request that carries a control proof; the response to any other request is defined under Gated acquisition.
 
 ```json
 {
@@ -90,7 +90,7 @@ The JSON returned by `tokenURI` MAY include a top-level `wallet_pass` property w
 
 Acquisition URLs SHOULD be capability URLs: unguessable, high-entropy, and not derivable from public data such as `tokenId`, pass serial numbers, or metadata fields. When an installed pass exposes links that can trigger state-changing actions, acquisition URLs MUST be capability URLs. Action links embedded in an installed pass are capability URLs in this sense and follow the same rules.
 
-An implementation operates in one of two configurations and SHOULD document which:
+An implementation operates in one of two configurations, and a client learns which from the manifest response: a manifest returned to a request without a control proof is the public configuration, and the 401 response defined under Gated acquisition is the gated configuration.
 
 - **Public configuration.** The manifest is served without access control. Because `passURI` is a public view function, its acquisition URLs are public data, one chain read away from anyone able to enumerate token ids: unguessability does not survive publication. A capability URL here is hygiene (it limits scraping and accidental sharing) and MUST NOT be treated as a proof of possession or ownership.
 - **Gated configuration.** Manifest resolution or pass acquisition is gated behind proof of control of the owning account. Only in this configuration may possession of an acquisition URL serve as a possession proof, and acquisition URLs MUST rotate upon the implementation observing a transfer or upon the new owner's first claim, whichever comes first.
@@ -108,7 +108,7 @@ So that a client can acquire a pass from a gated manifest without out-of-band kn
 - A request for the manifest that carries no control proof MUST be answered with HTTP status 401 and a JSON body whose `error` member is `"proof_required"` and whose `challenge` member is the URI of the challenge endpoint for that token. The body MUST NOT contain acquisition URLs.
 - The challenge endpoint MUST accept a GET request carrying the claimed account in the `address` query parameter, and MUST return a JSON body whose `message` member is a challenge for that account that meets the floor defined under Authorization of pass-reachable actions, with the action identified as `urn:wallet-pass:action:acquire`. Because the nonce is single-use, every request MUST issue a fresh challenge.
 - To resolve the manifest, the client repeats the manifest request with two headers: `X-Wallet-Pass-Proof`, the signed message encoded as base64url, and `X-Wallet-Pass-Signature`, the signature as a hex string. Encoding the message keeps the multi-line challenge inside a header and keeps manifest resolution a GET.
-- The verifier MUST check the proof against the floor and MUST take the fresh entitlement read of check (2). An `acquire` proof MUST NOT authorize any other action, and no other action's proof MUST resolve the manifest. A proof from an account that is not entitled MUST be refused with HTTP status 403. A verified request MUST be answered with the manifest and the header `Cache-Control: no-store`.
+- The verifier MUST check the proof against the floor and MUST take the fresh entitlement read of check (2). An `acquire` proof MUST NOT authorize any other action, and a proof for any other action MUST NOT resolve the manifest. A proof from an account that is not entitled MUST be refused with HTTP status 403. A verified request MUST be answered with the manifest and the header `Cache-Control: no-store`.
 - Acquisition by a proven account that is not the account the implementation last issued passes to is that account's first claim: acquisition URLs MUST rotate before the manifest is returned, per the rotation requirement above.
 
 ### Authorization of pass-reachable actions
@@ -216,13 +216,13 @@ Application to [ERC-1155](./eip-1155.md) is out of scope: fungible balances and 
 
 ## Test Cases
 
-The reference implementation carries executable tests. The [contract suite](../assets/eip-0000/reference/contracts/test/ERC721WalletPass.t.sol) asserts that `type(IERC721WalletPass).interfaceId` equals `0xef5f1e71` and covers `passURI` and both events. The [action suite](../assets/eip-0000/reference/server/test/action.test.ts) and the [manifest suite](../assets/eip-0000/reference/server/test/manifest.test.ts) exercise the authorization floor one property at a time: a replayed nonce, an expired challenge, a different verifier, a proof for another action or token, a signature from the wrong account, and an ownership change between challenge and action are each rejected; a gated manifest is refused without a control proof and its response points at the challenge endpoint, whose acquire challenge then resolves the manifest; and a rotated capability URL stops resolving.
+The reference implementation carries executable tests. The [contract suite](../assets/eip-0/reference/contracts/test/ERC721WalletPass.t.sol) asserts that `type(IERC721WalletPass).interfaceId` equals `0xef5f1e71` and covers `passURI` and both events. The [action suite](../assets/eip-0/reference/server/test/action.test.ts) and the [manifest suite](../assets/eip-0/reference/server/test/manifest.test.ts) exercise the authorization floor one property at a time: a replayed nonce, an expired challenge, a different verifier, a proof for another action or token, a signature from the wrong account, and an ownership change between challenge and action are each rejected; a gated manifest is refused without a control proof and its response points at the challenge endpoint, whose acquire challenge then resolves the manifest; and a rotated capability URL stops resolving.
 
 ## Reference Implementation
 
-A [reference implementation](../assets/eip-0000/README.md) is included in the assets directory under CC0. It consists of a minimal ERC-721 implementing the interface ([`ERC721WalletPass.sol`](../assets/eip-0000/reference/contracts/src/ERC721WalletPass.sol)) and an off-chain server that issues and verifies ERC-4361 challenges against the floor ([`authorize.ts`](../assets/eip-0000/reference/server/src/authorize.ts)), serves the manifest in the public and gated configurations, and rotates capability URLs on transfer ([`passStore.ts`](../assets/eip-0000/reference/server/src/passStore.ts)).
+A [reference implementation](../assets/eip-0/README.md) is included in the assets directory under CC0. It consists of a minimal ERC-721 implementing the interface ([`ERC721WalletPass.sol`](../assets/eip-0/reference/contracts/src/ERC721WalletPass.sol)) and an off-chain server that issues and verifies ERC-4361 challenges against the floor ([`authorize.ts`](../assets/eip-0/reference/server/src/authorize.ts)), serves the manifest in the public and gated configurations, and rotates capability URLs on transfer ([`passStore.ts`](../assets/eip-0/reference/server/src/passStore.ts)).
 
-Non-normative [deployment notes](../assets/eip-0000/implementation-notes.md) describe a production deployment whose token contract implements this interface and whose server resolves `passURI` in the gated configuration, how it delivers passes on Apple Wallet and Google Wallet and applies the authorization requirements above, and the platform constraints that shaped it.
+Non-normative [deployment notes](../assets/eip-0/implementation-notes.md) describe a production deployment whose token contract implements this interface and whose server resolves `passURI` in the gated configuration, how it delivers passes on Apple Wallet and Google Wallet and applies the authorization requirements above, and the platform constraints that shaped it.
 
 ## Security Considerations
 
