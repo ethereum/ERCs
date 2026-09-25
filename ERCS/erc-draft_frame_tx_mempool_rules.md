@@ -72,6 +72,7 @@ A violation of any rule by a frame transaction results in the transaction being 
 A peer-to-peer mempool networks rely on participant reputations to limit the threat of mass transaction invalidation. A **network-wide rule** is a rule whose violation by a transaction damages the reputation of the peer that sent that transaction into the standard mempool. A peer with critically low standing is treated as a **spammer** according to the [Propagation Rules](#propagation-propagation).
 
 A **local rule** depends on a node's own mempool contents and its local tracking of entities' reputations. Different nodes may hold different mempool contents, so no consensus is possible and peers are never penalised for a local rule violation. Local rules are marked *(Local)* and all other rule are network-wide.
+TODO: I prefer to create a separate LOCAL-xxx category of rules, this feels awkward otherwise.
 
 ### Definitions
 
@@ -102,112 +103,20 @@ The non-static `DEFAULT` mode frames in the validation prefix are allowed for tw
 
 Rules in this document that mention writes, contract creation or value calls consequently take effect only in those frames.
 
-### Associated Storage Rules (ASSOC)
+#### The `pre_verify` frame subclass
 
-Several rules below grant an entity broader access to storage that is *associated* with it, rather than only to a contract's own account storage. Associated storage identifies the slots a well-behaved contract is expected to use to track state for a specific address, such as an ERC-20 balance mapping keyed by that address, without requiring the contract to declare in advance which slots those are.
+A `pre_verify` frame is a `DEFAULT`-mode frame whose resolved target is the same as the resolved target of the approving `VERIFY` frame (`self_verify`, `only_verify`, `pay`) that **immediately follows it**. Each approving frame MAY be preceded by at most one `pre_verify` frame.
+A `pre_verify` frame is distinguishable from the `deploy` frame as it does not create code in the `tx.sender` address.
 
-* **[ASSOC-010]** A storage slot of any contract is associated with address `A` if the slot's own value equals `A`.
-* **[ASSOC-020]** A storage slot of any contract is associated with address `A` if the slot was computed as `keccak256(A || x) + n`, where `x` is a `bytes32` value and `n` is an integer in the range 0 to 128. This covers the common Solidity mapping and dynamic array layouts keyed or indexed by `A`, together with a fixed run of slots reachable from them.
+The code of an approving `VERIFY` frame that is preceded by a `pre_verify` frame MUST check the **status** of that `pre_verify` frame before it calls `APPROVE`, using the frame status parameter of `FRAMEPARAM`, and MUST NOT call `APPROVE` if that status is not success.
 
-A node determines storage association by testing the slots a validation frame has actually accessed using specialized simulation and tracing interfaces.
-
-### Validation Prefix and Structure (PREFIX)
-
-* **[PREFIX-010]** The validation prefix MUST match one of the following shapes. A transaction whose prefix does not match any of them MUST be rejected.
-    * `[self_verify]`
-    * `[deploy, self_verify]`
-    * `[only_verify, pay]`
-    * `[deploy, only_verify, pay]`
-
-  In every shape, each approving frame (`self_verify`, `only_verify` or `pay`) MAY be immediately preceded by one `pre_verify` frame, as [PREFIX-110] describes. An optional single `expiry_verify` frame is always allowed as the first frame of the validation prefix.
-* **[PREFIX-020]** If a `deploy` frame is present it MUST be the first frame of the prefix, not counting a leading `expiry_verify` frame. There is at most one `deploy` frame. The `deploy` frame MUST result in successful deployment of the `tx.sender` contract.
-* **[PREFIX-030]** A `self_verify` or `only_verify` frame MUST run in `VERIFY` mode, MUST target `tx.sender` (explicitly or with a null target), and MUST successfully call `APPROVE` with the scope its `flags` declare: `APPROVE_EXECUTION_AND_PAYMENT` for `self_verify`, `APPROVE_EXECUTION` for `only_verify`. A `pay` frame MUST run in `VERIFY` mode, MUST have `flags` equal to `APPROVE_PAYMENT`, and MUST successfully call `APPROVE(APPROVE_PAYMENT)`.
-* **[PREFIX-040]** No frame in the validation prefix may carry `ATOMIC_BATCH_FLAG`.
-* **[PREFIX-050]** No `VERIFY` frame may follow the validation prefix. If one did, a failure after the payer had already been committed would invalidate the whole transaction.
-* **[PREFIX-060]** A transaction MUST be rejected if, before `payer` is set, any validation frame reverts, or a `self_verify`, `only_verify` or `pay` frame exits without its required `APPROVE`.
-* **[PREFIX-070]** If a `deploy` frame is present, its execution MUST result in non-empty code at `tx.sender`, either contract code or an [EIP-7702](./eip-7702.md) delegation indicator. Otherwise the transaction MUST be rejected.
-* **[PREFIX-080]** An `expiry_verify` frame MAY appear only as the first frame of the transaction. A node MUST drop a transaction whose `expiry_verify` deadline is earlier than the node's view of the current block timestamp, at any time and not only at admission.
-* **[PREFIX-090]** A node SHOULD stop simulating once `payer` is set and the frame that set it has completed successfully.
-* **[PREFIX-100]** Three frame kinds have fully protocol-defined behaviour: a frame whose target is a default-code entity, an `expiry_verify` frame running the canonical runtime code at `EXPIRY_VERIFIER`, and a `pay` frame whose target is a canonical paymaster. These frames are admitted by identity and are exempt from the opcode, call and storage rules below. A node MAY evaluate them directly instead of simulating them. It MUST apply the same limits it would apply under simulation, including [BUDGET-010](#budgets-budget) and [SOLVENCY-010](#payer-solvency-solvency).
-* **[PREFIX-110]** A `pre_verify` frame is a `DEFAULT`-mode frame whose resolved target is the same as the resolved target of the approving frame (`self_verify`, `only_verify` or `pay`) that immediately follows it. Each approving frame MAY be preceded by at most one `pre_verify` frame. The target of a `pre_verify` frame MUST have deployed code. A `DEFAULT`-mode frame in the validation prefix that is neither the `deploy` frame nor a `pre_verify` frame MUST cause the transaction to be rejected. The first `DEFAULT`-mode frame is a `pre_verify` frame, not the `deploy` frame, if its resolved target equals that of the frame that follows it.
-* **[PREFIX-120]** The code of an approving frame that is preceded by a `pre_verify` frame MUST check the status of that `pre_verify` frame before it calls `APPROVE`, using the frame status parameter of `FRAMEPARAM`, and MUST NOT call `APPROVE` if that status is not success. A failed `DEFAULT`-mode frame does not invalidate the transaction, so without this check the approving frame would approve after the writes it depends on had been reverted. A node cannot verify this requirement in general. A node MUST reject at admission a transaction whose `pre_verify` frame does not succeed in simulation ([PREFIX-060]).
-
-### Budgets (BUDGET)
-
-* **[BUDGET-010]** A node MUST track the sum of `limits.execution` separately per entity, over that entity's own validation frames; a `pre_verify` frame counts toward the entity of the approving frame it immediately precedes, and the intrinsic cost of validating `tx.signatures` counts toward the sender. For an unstaked or default-code entity, that sum MUST NOT exceed `MAX_VERIFY_GAS`. For a staked entity, that sum MUST NOT exceed `MAX_VERIFY_GAS_STAKED_ENTITY` instead. Tracking the budget per entity, rather than once across the whole prefix, is what lets a staked entity use a higher limit without extending that allowance to the other, unstaked entities of the same transaction.
-* **[BUDGET-020]** The sum of `limits.state` across the validation prefix MUST NOT exceed `MAX_VERIFY_STATE_GAS`.
-
-### Signatures (SIGNATURE)
-
-* **[SIGNATURE-010]** Before simulating any frame, a node MUST validate every protocol-validated signature (`SECP256K1`, `P256`) against the transaction's signature hash. It MUST also check every `ARBITRARY` signature for structural validity. A transaction with any malformed or invalid signature MUST be rejected.
-* **[SIGNATURE-020]** The bytes of an `ARBITRARY` signature are witness data. They are authenticated only by EVM code running in a frame, so the frame that inspects them is fully subject to the rules below.
-
-### Opcode Rules (OPCODES)
-
-Opcodes that read the execution environment, which is anything outside storage and code, are blocked during the validation prefix. Their results are not fixed at the time of admission, so a transaction could succeed off-chain and fail on-chain.
-
-* **[OPCODES-010]** The following opcodes are blocked:
-    * `GASPRICE` (`0x3A`)
-    * `BLOCKHASH` (`0x40`)
-    * `COINBASE` (`0x41`)
-    * `TIMESTAMP` (`0x42`), except as [OPCODES-030](#opcode-rules-opcodes) allows
-    * `NUMBER` (`0x43`)
-    * `PREVRANDAO` / `DIFFICULTY` (`0x44`)
-    * `GASLIMIT` (`0x45`)
-    * `BASEFEE` (`0x48`)
-    * `BLOBBASEFEE` (`0x4A`)
-    * `SLOTNUM` (`0x4B`, [EIP-7843](./eip-7843.md))
-    * `INVALID` (`0xFE`)
-    * `SELFDESTRUCT` (`0xFF`)
-    * `CREATE` (`0xF0`), `CREATE2` (`0xF5`) and `SETDELEGATE` (`0xF6`, [EIP-7819](./eip-7819.md)), except as [CREATION-010](#contract-creation-creation) and [CREATION-020](#contract-creation-creation) allow
-* **[OPCODES-011]** `GAS` (`0x5A`) is allowed only when it is immediately followed by a `*CALL` instruction. This is the standard way to forward all remaining gas to a child call. The value is consumed from the stack at once and cannot be inspected.
-* **[OPCODES-012]** Any unassigned opcode is blocked.
-* **[OPCODES-020]** A revert on "out of gas" is forbidden, because it can leak the gas limit or the call-stack depth.
-* **[OPCODES-030]** `TIMESTAMP` is allowed only while an `expiry_verify` frame executes the canonical runtime code at `EXPIRY_VERIFIER`.
-* **[OPCODES-040]** `BALANCE` (`0x31`) and `SELFBALANCE` (`0x47`) are allowed only for a staked entity. Otherwise they are blocked.
-* **[OPCODES-050]** `APPROVE`, `TXPARAM`, `FRAMEDATALOAD`, `FRAMEDATACOPY`, `FRAMEPARAM`, `SIGPARAM` and `SIGDATACOPY` are allowed. Their results depend only on the transaction and on the earlier validation frames, both of which are fixed at admission. `ORIGIN` is also allowed, since it returns a protocol constant in `DEFAULT` and `VERIFY` frames.
-
-### Contract Creation (CREATION)
-
-* **[CREATION-010]** `CREATE`, `CREATE2` and `SETDELEGATE` are allowed only inside the `deploy` frame, and only to install code or an EIP-7702 delegation indicator at `tx.sender`. `CREATE2` may be executed at most once, and it MUST deploy the code for `tx.sender`. It may be executed by the factory itself or by a utility contract that the factory calls.
-* **[CREATION-020]** If the factory is a staked entity, it MAY additionally use `CREATE`, and it MAY use a utility contract that executes `CREATE`, to deploy `tx.sender`.
-
-### Calls and Code Access (CALLING)
-
-* **[CALLING-010]** Using an address that has no deployed code is forbidden. Exceptions: `tx.sender` may be used in the `deploy` frame, where the factory creates it, and `tx.sender`'s default-code behaviour is allowed. `CALLER` returns `ENTRY_POINT` and is allowed, but `ENTRY_POINT` itself holds no code, so it may not be called.
-* **[CALLING-020]** Using an address whose code is an EIP-7702 delegation indicator is forbidden, except for `tx.sender`'s default-code behaviour.
-* **[CALLING-030]** A `CALL` with non-zero `value` is forbidden. This can only occur in the `deploy` frame or in a `pre_verify` frame (see [Execution Model](#execution-model)).
-* **[CALLING-040]** Precompiles that access nothing in the blockchain state or environment are allowed. These include the core precompiles `0x01` to `0x11` and the `P256VERIFY` precompile defined by [EIP-7951](./eip-7951.md). A node MUST NOT accept any other precompile until it has verified that the precompile has this property.
-
-### Storage and State Access (STORAGE)
-
-Storage access by `SLOAD`, `SSTORE`, `TLOAD` and `TSTORE` is restricted as follows. Writes and transient writes are possible only in the `deploy` frame and in `pre_verify` frames (see [Execution Model](#execution-model)).
-
-* **[STORAGE-010]** Access to `tx.sender`'s own storage is always allowed.
-* **[STORAGE-020]** Access to storage associated with `tx.sender` in an external contract that is not an entity of the transaction is allowed if either:
-    * **[STORAGE-021]** the sender's account already exists, meaning the transaction has no `deploy` frame; or
-    * **[STORAGE-022]** the transaction has a `deploy` frame and the factory is a staked entity.
-* **[STORAGE-030]** If an entity, of any role, is a staked entity, it is additionally allowed:
-    * **[STORAGE-031]** access to its own storage;
-    * **[STORAGE-032]** read and write access to slots associated with the entity, in any contract that is not an entity of the transaction;
-    * **[STORAGE-033]** read-only access to any storage in a contract that is not an entity of the transaction.
-* **[STORAGE-040]** Transient storage ([EIP-1153](./eip-1153.md)) accessed with `TLOAD` and `TSTORE` is treated exactly like persistent storage accessed with `SLOAD` and `SSTORE`.
-* **[STORAGE-110]** *(Local)* A transaction MUST NOT use as its factory or its sponsoring payer an address that is `tx.sender` of another pending transaction in the mempool. A factory or paymaster contract can therefore not also serve as an account.
-* **[STORAGE-120]** *(Local)* A transaction MUST NOT use storage associated with its sender, or with a staked entity, in a contract that is `tx.sender` of another pending transaction in the mempool.
-
-The relaxation over the public mempool is [STORAGE-020] and [STORAGE-030]. The public mempool allows storage reads only from `tx.sender` and forbids every other storage access.
-
-### Stake (STAKING)
-
-* **[STAKING-010]** An entity is staked if the Staking Registry reports for it a stake of at least `MIN_STAKE_VALUE` and an unstake delay of at least `MIN_UNSTAKE_DELAY`, and `withdrawTime` is zero, meaning no withdrawal has been initiated.
-* **[STAKING-020]** A node reads stake information from the Staking Registry at `STAKING_REGISTRY_ADDRESS` against the state its validation runs against. If no registry is configured, every entity is unstaked.
-* **[STAKING-030]** A default-code entity is never staked.
-
-Stake is never slashed. It exists only for off-chain detection. The lock-up period raises the capital cost of creating new abusive entities.
+According to EIP-8141, a failed `DEFAULT` mode frame does not invalidate the transaction even if it is reverted in the validation prefix, so without this check the approving frame would approve after the **state writes it depends on had been reverted**. Although mempool nodes reject at admission a transaction whose `pre_verify` frame does not succeed in simulation, smart contracts cannot rely on mempool rules for their security.
 
 ### Staking Registry Contract
 
-Frame transactions have no `EntryPoint` contract to hold a stake ledger, and `ENTRY_POINT` holds no state. Stake is therefore kept in a separate contract at `STAKING_REGISTRY_ADDRESS`. It implements this interface:
+Stake is kept in a specialized designated contract at `STAKING_REGISTRY_ADDRESS`.
+
+It implements the following interface:
 
 ```solidity
 interface IStakingRegistry {
@@ -228,6 +137,105 @@ interface IStakingRegistry {
 }
 ```
 
+### Associated Storage Rules (ASSOC)
+
+Several rules below grant an entity broader access to storage that is *associated* with it, rather than only to a contract's own account storage. Associated storage identifies the slots a well-behaved contract is expected to use to track state for a specific address, such as an ERC-20 balance mapping keyed by that address, without requiring the contract to declare in advance which slots those are.
+
+* **[ASSOC-010]** A storage slot of any contract is associated with address `A` if the slot's own value equals `A`.
+* **[ASSOC-020]** A storage slot of any contract is associated with address `A` if the slot was computed as `keccak256(A || x) + n`, where `x` is a `bytes32` value and `n` is an integer in the range 0 to 128. This covers the common Solidity mapping and dynamic array layouts keyed or indexed by `A`, together with a fixed run of slots reachable from them.
+
+A node determines storage association by testing the slots a validation frame has actually accessed using specialized simulation and tracing interfaces.
+
+### Validation Prefix and Structure (PREFIX)
+
+* **[PREFIX-010]** The validation prefix MUST match one of the following shapes. A transaction whose prefix does not match any of them MUST be rejected.
+    * `[self_verify]`
+    * `[deploy, self_verify]`
+    * `[only_verify, pay]`
+    * `[deploy, only_verify, pay]`
+
+  In every shape, each approving frame (`self_verify`, `only_verify` or `pay`) MAY be immediately preceded by one `pre_verify` frame, as [PREFIX-110] describes. An optional single `expiry_verify` frame is always allowed as the first frame of the validation prefix.
+* **[PREFIX-020]** If a `deploy` frame is present it MUST be the first frame of the prefix, not counting a leading `expiry_verify` frame. There is at most one `deploy` frame. The `deploy` frame MUST result in a successful deployment of the `tx.sender` contract.
+* **[PREFIX-040]** No frame in the validation prefix may carry `ATOMIC_BATCH_FLAG`.
+* **[PREFIX-050]** No `VERIFY` frame may follow the validation prefix.
+* **[PREFIX-060]** A transaction MUST be rejected if any validation frame reverts, or a `VERIFY` frame exits without its required `APPROVE`.
+* **[PREFIX-080]** A node MUST reject or drop a transaction whose `expiry_verify` deadline is earlier than the node's view of the current block timestamp.
+* **[PREFIX-100]** The following types of frames are exempt from alt-mempool rules: frame whose target is a default code account, a canonical paymaster, or the `EXPIRY_VERIFIER` contract. A node MAY evaluate them directly instead of simulating them. It MUST still apply the same **limits** it would apply normally.
+* **[PREFIX-110]** The target of a `pre_verify` frame MUST have deployed code.
+* **[PREFIX-110]** The `DEFAULT` mode frame in the validation prefix that is neither the `deploy` frame nor a `pre_verify` frame MUST cause the transaction to be rejected. 
+
+### Budgets (BUDGET)
+
+* **[BUDGET-010]** A node MUST track the sum of `limits.execution` **separately per entity**, over that entity's own validation frames. The `pre_verify` frame counts toward the entity of the approving frame it immediately precedes. The intrinsic cost of validating `tx.signatures` counts toward the `tx.sender`.
+    For **unstaked entities**, that sum MUST NOT exceed `MAX_VERIFY_GAS`.
+    For **staked entities**, that sum MUST NOT exceed `MAX_VERIFY_GAS_STAKED_ENTITY`.
+* **[BUDGET-020]** The sum of `limits.state` across the validation prefix MUST NOT exceed `MAX_VERIFY_STATE_GAS`.
+TODO: SHOULDN'T WE TRACK STATE GAS PER ENTITY AT LEAST FOR CONSISTENCY ?
+
+### Signatures (SIGNATURE)
+
+* **[SIGNATURE-010]** Before simulating any frame, a node MUST validate every protocol-validated signature (`SECP256K1`, `P256`) against the transaction's signature hash. It MUST also check every `ARBITRARY` signature for structural validity. A transaction with any malformed or invalid signature MUST be rejected.
+
+### Opcode Rules (OPCODES)
+
+TODO: This part should only state what is DIFFERENT from the canonical mempool and refer to EIP-8141 for the opcode banning rules. We did 
+
+Opcodes that read the execution environment, which is anything outside storage and code, are blocked during the validation prefix. Their results are not fixed at the time of admission, so a transaction could succeed off-chain and fail on-chain.
+
+* **[OPCODES-010]** The following opcodes are blocked:
+    * `GASPRICE` (`0x3A`)
+    * `BLOCKHASH` (`0x40`)
+    * `COINBASE` (`0x41`)
+    * `TIMESTAMP` (`0x42`), except as [OPCODES-030](#opcode-rules-opcodes) allows
+    * `NUMBER` (`0x43`)
+    * `PREVRANDAO` / `DIFFICULTY` (`0x44`)
+    * `GASLIMIT` (`0x45`)
+    * `BASEFEE` (`0x48`)
+    * `BLOBBASEFEE` (`0x4A`)
+    * `SLOTNUM` (`0x4B`)
+    * `INVALID` (`0xFE`)
+    * `SELFDESTRUCT` (`0xFF`)
+    * `CREATE` (`0xF0`), `CREATE2` (`0xF5`) and `SETDELEGATE` (`0xF6`, [EIP-7819](./eip-7819.md)), except as [CREATION-010](#contract-creation-creation) and [CREATION-020](#contract-creation-creation) allow
+* **[OPCODES-011]** `GAS` (`0x5A`) is allowed only when it is immediately followed by a `*CALL` instruction. This is the standard way to forward all remaining gas to a child call. The value is consumed from the stack at once and cannot be inspected.
+* **[OPCODES-012]** Any unassigned opcode is blocked.
+* **[OPCODES-020]** A revert on "out of gas" is forbidden, because it can leak the gas limit or the call-stack depth.
+* **[OPCODES-030]** `TIMESTAMP` is allowed only while an `expiry_verify` frame executes the canonical runtime code at `EXPIRY_VERIFIER`.
+* **[OPCODES-040]** `BALANCE` (`0x31`) and `SELFBALANCE` (`0x47`) are allowed only for a staked entity. Otherwise they are blocked.
+* **[OPCODES-050]** `APPROVE`, `TXPARAM`, `FRAMEDATALOAD`, `FRAMEDATACOPY`, `FRAMEPARAM`, `SIGPARAM` and `SIGDATACOPY` are allowed. Their results depend only on the transaction and on the earlier validation frames, both of which are fixed at admission. `ORIGIN` is also allowed, since it returns a protocol constant in `DEFAULT` and `VERIFY` frames.
+
+### Contract Creation (CREATION)
+
+* **[CREATION-010]** `CREATE`, `CREATE2` and `SETDELEGATE` are allowed only inside the `deploy` frame, and only to install code at `tx.sender`. Any one of these opcodes may be executed at most once, and it MUST install code for `tx.sender`.
+
+### Calls and Code Access (CALLING)
+
+* **[CALLING-010]** Using an address that has no deployed or default code is forbidden. 
+* **[CALLING-040]** Precompiles that access nothing in the blockchain state or environment are allowed. These include the core precompiles `0x01` to `0x11` and the `P256VERIFY` precompile.
+
+### Storage and State Access (STORAGE)
+
+Storage access by `SLOAD`, `SSTORE`, `TLOAD` and `TSTORE` is restricted as follows. Note that storage writes are possible only in `deploy` and `pre_verify` frames. Transient storage ([EIP-1153](./eip-1153.md)) accessed with `TLOAD` and `TSTORE` is treated exactly like persistent storage accessed with `SLOAD` and `SSTORE`.
+
+* **[STORAGE-000]** Access to storage is always restricted unless allowed by one of the following rules.
+* **[STORAGE-010]** Access to `tx.sender`'s own storage is always allowed.
+* Access to storage associated with `tx.sender` in an external contract that is not an entity of the transaction is allowed if either:
+    * **[STORAGE-021]** the sender's account already exists, meaning the transaction has no `deploy` frame; or
+    * **[STORAGE-022]** the transaction has a `deploy` frame and the factory is a staked entity.
+* If an entity is staked it is additionally allowed:
+    * **[STORAGE-031]** access to its own storage;
+    * **[STORAGE-032]** read-only access to any storage in a contract that is not an entity of the transaction.
+    * **[STORAGE-033]** write access to slots associated with the entity address in any contract that is not an entity of the transaction;
+* **[STORAGE-110]** *(Local)* A transaction MUST NOT use as its factory or its sponsoring payer an address that is `tx.sender` of another pending transaction in the mempool. A factory or paymaster contract can therefore not also serve as an account.
+* **[STORAGE-120]** *(Local)* A transaction MUST NOT use storage associated with its sender, or with a staked entity, in a contract that is `tx.sender` of another pending transaction in the mempool.
+
+The relaxation over the public mempool is [STORAGE-020] and [STORAGE-030]. The public mempool allows storage reads only from `tx.sender` and forbids every other storage access.
+
+### Stake (STAKING)
+
+Stake is never slashed. It exists only for off-chain detection. The lock-up period raises the capital cost of creating new abusive entities.
+
+* **[STAKING-010]** An entity is staked if the Staking Registry reports for it a stake of at least `MIN_STAKE_VALUE` and an unstake delay of at least `MIN_UNSTAKE_DELAY`, and `withdrawTime` is zero, meaning no withdrawal has been initiated.
+* **[STAKING-020]** A node reads stake information from the Staking Registry at `STAKING_REGISTRY_ADDRESS` against the state its validation runs against. If no registry is configured, every entity is unstaked. TODO: rephrase this staking-020 rule it sounds confusing.
 `withdrawTime` is zero while no withdrawal has been initiated. A node applies [STAKING-010] to the values `getDepositInfo` returns.
 
 ### Payer Solvency (SOLVENCY)
