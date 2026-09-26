@@ -1,0 +1,13 @@
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Node
+node_modules/
+server/dist/
+server/coverage/
+
+# Editor / OS
+.DS_Store
+*.log
