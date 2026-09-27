@@ -1,0 +1,132 @@
+{
+  "name": "w-free-text-decision-rule",
+  "rule": "W",
+  "description": "decisionRule is prose, not an evaluable rule.",
+  "expect": {
+    "valid": false,
+    "violations": [
+      "W"
+    ]
+  },
+  "chainAccepts": true,
+  "chain": {
+    "chainId": 31337,
+    "registry": "0x8412000000000000000000000000000000008412",
+    "preregistrationId": "0xdcb86b638e7d66f1f7fbb2456346a49840ec7dd63945195dfd44a20327baee99",
+    "author": "0x96f2Cd020d378362228253F7fE82c35EfE73E149",
+    "criteriaDigest": "0x24a31e7238358c9a6862f105213241bf00bb8ca4cc89585ea67664a49711cfd5",
+    "taskRef": "0xf6f4e822c3f4948732183e8b04263a277e9f72331f0e02f33b6315e027f09be6",
+    "obligationCount": 3,
+    "obligationFlags": "0x70",
+    "expiry": 1788600000,
+    "registeredAt": 1788000000,
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "attestation": {
+      "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+      "bundleDigest": "0xeef569b011b2f68a98dbdd91ca498e4ffb222b6eb93ea193880a8a4903e2e37b",
+      "attestationDigest": "0x72edb2ebb2e912f4a1c651fc89e7ac5dfab2bcf2101874113d290fae3f7ad139",
+      "verdict": "Satisfied",
+      "obligationOutcomes": "0x60",
+      "attestedAt": 1788100000
+    }
+  },
+  "criteria": {
+    "version": "1",
+    "taskRef": "0xf6f4e822c3f4948732183e8b04263a277e9f72331f0e02f33b6315e027f09be6",
+    "supersedes": null,
+    "decisionRule": "looks good to the reviewer",
+    "obligations": [
+      {
+        "index": 0,
+        "type": "PHOTO",
+        "required": true,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp",
+            "geolocation"
+          ],
+          "geofence": {
+            "commitment": "0xa5b82e48fd49474d45545fc2ec5b239718f4a87825e45b29aaa81a5dc69e8031"
+          },
+          "notBefore": 1788000000,
+          "mediaType": "image/jpeg"
+        }
+      },
+      {
+        "index": 1,
+        "type": "DOCUMENT",
+        "required": true,
+        "waivable": true,
+        "constraints": {
+          "mediaType": "application/pdf"
+        }
+      },
+      {
+        "index": 2,
+        "type": "GPS_TRACE",
+        "required": false,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp"
+          ],
+          "sampleIntervalSeconds": 30
+        }
+      }
+    ],
+    "waiverAuthority": "0xBd3548FfAcC503E4F4e77Cb8993922931636517F",
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "verifierConstraint": {
+      "allowed": [
+        "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8"
+      ],
+      "maxRiskScore": 20
+    },
+    "expiry": 1788600000,
+    "terminalOnExpiry": "REFUND_WITH_RECORD"
+  },
+  "bundle": {
+    "version": "1",
+    "preregistrationId": "0xdcb86b638e7d66f1f7fbb2456346a49840ec7dd63945195dfd44a20327baee99",
+    "items": [
+      {
+        "obligationIndex": 0,
+        "preregistrationId": "0xdcb86b638e7d66f1f7fbb2456346a49840ec7dd63945195dfd44a20327baee99",
+        "digest": "0x50df873827644f58334700438fccad7314dee96abb823e3389fc13c74b8ab768",
+        "mediaType": "image/jpeg",
+        "locator": "ipfs://photo",
+        "captureMetadata": {
+          "timestamp": 1788003600,
+          "geolocation": "0xc110391af6113d14bc4a087efeffa3d1b1aa0bb0eab00c084ddd24cb541dd753"
+        }
+      },
+      {
+        "obligationIndex": 2,
+        "preregistrationId": "0xdcb86b638e7d66f1f7fbb2456346a49840ec7dd63945195dfd44a20327baee99",
+        "digest": "0x8102895cc14012450b5d941ca73a9acf37809aec215a6198455ab581ac51a923",
+        "mediaType": "application/geo+json",
+        "locator": "ipfs://gps",
+        "captureMetadata": {
+          "timestamp": 1788003700
+        }
+      }
+    ]
+  },
+  "attestation": {
+    "version": "1",
+    "preregistrationId": "0xdcb86b638e7d66f1f7fbb2456346a49840ec7dd63945195dfd44a20327baee99",
+    "bundleDigest": "0xeef569b011b2f68a98dbdd91ca498e4ffb222b6eb93ea193880a8a4903e2e37b",
+    "verdict": "Satisfied",
+    "obligationOutcomes": "0x60",
+    "waivers": [
+      {
+        "obligationIndex": 1,
+        "reasonDigest": "0xffa6b160725748e078dfc89bc35026fbf40d401605b40f6a5ca87cb910311171",
+        "signature": "0xac8f46e2a02c566d1262388860bd5e51f6147dbc9f1cc684f7550658c9539b45541dabb68e99f11ecda4f2fb09ba19497de2484864d4bf3747a5ab1100f9267d1b"
+      }
+    ],
+    "undecided": []
+  }
+}
