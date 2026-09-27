@@ -68,7 +68,10 @@ interface ILockingContractWithKeyGeneration is
      * asset and payment amounts are independent and need not match. It MUST
      * require explicit key availability, and make this transition one-shot and
      * idempotent.
-     * A direct onInceptionCompleted callback SHOULD invoke the same internal logic.
+     * The first successful locking transition MUST emit {TokenLocked} exactly once,
+     * after the token has been locked. Failed attempts, cancelled acknowledgements,
+     * and idempotent retries MUST NOT emit it. A direct onInceptionCompleted callback
+     * SHOULD invoke the same internal logic.
      * @param id Lifetime-unique identifier of this transfer leg.
      */
     function completeLock(uint256 id) external;
