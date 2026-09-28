@@ -38,7 +38,8 @@ enum Reason {
     OVER_WINDOW_CAP,
     OVER_CUMULATIVE_CAP,
     WINDOW_FULL,
-    UNAUTHORIZED_EXECUTOR
+    UNAUTHORIZED_EXECUTOR,
+    UNAUTHORIZED_DELEGATE
 }
 
 error SpendGrantError(Reason reason);
@@ -56,6 +57,7 @@ bytes32 constant REASON_OVER_WINDOW_CAP = "OVER_WINDOW_CAP";
 bytes32 constant REASON_OVER_CUMULATIVE_CAP = "OVER_CUMULATIVE_CAP";
 bytes32 constant REASON_WINDOW_FULL = "WINDOW_FULL";
 bytes32 constant REASON_UNAUTHORIZED_EXECUTOR = "UNAUTHORIZED_EXECUTOR";
+bytes32 constant REASON_UNAUTHORIZED_DELEGATE = "UNAUTHORIZED_DELEGATE";
 
 uint256 constant MAX_ASSETS = 16;
 uint256 constant MAX_LIVE_DEBITS = 1024;
@@ -77,6 +79,7 @@ interface ISpendGrantRegistry {
     function consume(
         SpendGrant calldata grant,
         bytes calldata grantSignature,
+        address authorizer,
         address asset,
         uint256 amount,
         address recipient

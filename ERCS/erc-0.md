@@ -13,7 +13,7 @@ requires: 20, 712, 1271, 7528, 7702
 
 ## Abstract
 
-This specification defines a portable spend grant: a typed, signed grant from a principal to a delegate that authorizes repeated spending of one or more assets under per-call, trailing-window, and lifetime caps. Native currency of the execution chain is identified by the [ERC-7528](./eip-7528.md) address; every other asset is an [ERC-20](./eip-20.md) contract. The principal signs an [EIP-712](./eip-712.md) digest bound to the execution chain and to an immutable revocation registry. The registry stores remaining usage and does not move funds. A separate executor, selected by signing that registry as the domain verifying contract, calls `consume` in the same transaction as the value movement. Contract principals validate signatures with [ERC-1271](./eip-1271.md); [EIP-7702](./eip-7702.md) delegated accounts also accept their own key's signature. Caps never treat zero as unlimited. The terms are portable: any wallet or tool can hash, render, and check them. A grant is bound to one chain and one registry, and through the registry to one executor; using a different one requires a new signature. This document is an unnumbered working draft.
+This specification defines a portable spend grant: a typed, signed grant from a principal to a delegate that authorizes repeated spending of one or more assets under per-call, trailing-window, and lifetime caps. Native currency of the execution chain is identified by the [ERC-7528](./eip-7528.md) address; every other asset is an [ERC-20](./eip-20.md) contract. The principal signs an [EIP-712](./eip-712.md) digest bound to the execution chain and to an immutable revocation registry. The registry stores remaining usage and does not move funds. A separate executor, selected by signing that registry as the domain verifying contract, checks that the delegate authorized each spend and calls `consume` in the same transaction as the value movement. Contract principals validate signatures with [ERC-1271](./eip-1271.md); [EIP-7702](./eip-7702.md) delegated accounts also accept their own key's signature. Caps never treat zero as unlimited. The terms are portable: any wallet or tool can hash, render, and check them. A grant is bound to one chain and one registry, and through the registry to one executor; using a different one requires a new signature. This document is an unnumbered working draft.
 
 ## Motivation
 
@@ -32,7 +32,7 @@ Bytes are hashed with Ethereum Keccak-256. `grantHash` denotes the complete [EIP
 ### Terms
 
 - **Principal:** the address that signs the grant and whose assets are spent.
-- **Delegate:** the address named in the signed terms as the grantee. `consume` does not require `msg.sender` to equal `delegate`.
+- **Delegate:** the address named in the signed terms as the grantee. Only the delegate may authorize a spend under the grant. The executor authenticates who authorized each spend and passes that address to `consume`, which rejects any address other than `delegate` (see [Executor](#executor)).
 - **Executor:** the immutable address returned by the registry `executor()` function. Only this address may call `consume`.
 - **Recipient:** the payee of a single `consume`.
 - **Registry:** the immutable contract that verifies grants, records remaining, and records revocations. It NEVER transfers assets.
@@ -220,7 +220,7 @@ Valid until (exclusive Unix seconds): {validUntil}
 Salt: {salt}
 ```
 
-The canonical rendering does not include the executor address. A wallet SHOULD also display `executor()` of `{revocationRegistry}` before signing, because `consume` authorizes that address.
+The canonical rendering does not include the executor address. A wallet SHOULD also display `executor()` of `{revocationRegistry}` before signing, because only that address can call `consume`, and it authenticates the delegate and moves the principal's funds.
 
 ### JSON interchange
 
@@ -283,6 +283,7 @@ interface ISpendGrantRegistry {
     function consume(
         SpendGrant calldata grant,
         bytes calldata grantSignature,
+        address authorizer,
         address asset,
         uint256 amount,
         address recipient
@@ -292,13 +293,14 @@ interface ISpendGrantRegistry {
 
 `revoke` sets `revoked[msg.sender][grantHash] = true`. It is idempotent and MUST emit `GrantRevoked` only on the first change. Anyone MAY revoke in their own namespace. A revocation MUST NOT affect another principal. `consume` consults `revoked[grant.principal][grantHash]`. There is no `unrevoke`.
 
-`executor()` returns the immutable executor. `consume` MUST revert unless `msg.sender == executor()`.
+`executor()` returns the immutable executor. `consume` MUST revert unless `msg.sender == executor()`. `authorizer` is the address the executor authenticated as authorizing this spend (see [Executor](#executor)); `consume` MUST revert unless `authorizer == grant.delegate`.
 
 `consume` MUST validate, then record the debit, then emit `GrantConsumed`, then return. It MUST NOT move tokens, send native currency, or call the selected asset for transfer. Recording before return applies to storage of the debit; signature validation MAY call the principal under ERC-1271 before recording.
 
 `consume` MUST revert unless all of the following hold, checked in this order, using the reason names in [Reason names](#reason-names):
 
 1. `msg.sender == executor` (`UNAUTHORIZED_EXECUTOR`).
+1. `authorizer == grant.delegate` (`UNAUTHORIZED_DELEGATE`).
 1. The grant is structurally valid, including the execution-time code check on nonzero assets (`INVALID_GRANT`).
 1. The signature is valid for `grant.principal` over `grantHash` (`BAD_SIGNATURE`).
 1. `block.timestamp >= grant.validAfter` (`NOT_YET_VALID`).
@@ -338,12 +340,21 @@ These names are the normative vocabulary. Encoding of revert data is implementat
 | `OVER_CUMULATIVE_CAP` | Lifetime cap would be exceeded |
 | `WINDOW_FULL` | Live unexpired debit bound would be exceeded |
 | `UNAUTHORIZED_EXECUTOR` | `msg.sender` is not the immutable executor |
+| `UNAUTHORIZED_DELEGATE` | `authorizer` is not `grant.delegate` |
 
 ### Executor
 
-A conformant executor MUST call `consume` in the same transaction as the value movement of `amount` of `asset` to `recipient`, and MUST revert the whole transaction if `consume` fails or the movement fails. Order of `consume` and movement is unspecified. This specification does not define account adapters, permission compilation, or how the delegate authorizes the executor.
+A conformant executor MUST call `consume` in the same transaction as the movement of `amount` of `asset` from `grant.principal` to `recipient`, and MUST revert the whole transaction if `consume` fails or the movement fails. The movement MUST come from `grant.principal`'s own balance; the executor MUST NOT fund it from its caller, its own balance, or any other account. Order of `consume` and movement is unspecified.
 
-For `asset == NATIVE`, movement is a native transfer of `amount` wei. For any other asset, movement is an ERC-20 transfer of `amount` raw units. The executor MUST NOT substitute a wrapped native token for `NATIVE`.
+Before calling `consume`, a conformant executor MUST authenticate who authorized this spend of `amount` of `asset` to `recipient`, and MUST pass the address that authentication produced as `authorizer`. Possession of `grant` and `grantSignature` is not authorization: both become public when the grant is first used. Whatever the mechanism, each successful `consume` MUST correspond to one authorization by the delegate that names that grant, `asset`, `amount`, and `recipient`, and an authorization MUST NOT produce more than one successful `consume`. Mechanisms include:
+
+- **Direct call.** The delegate calls the executor. `authorizer` is `msg.sender`.
+- **Signed authorization.** The delegate signs this spend and anyone may submit it. The signed message MUST include the `grantHash` of the `grant` passed to `consume`, which the executor computes itself and never takes from the submitter, together with `asset`, `amount`, `recipient`, and a nonce. It SHOULD include a deadline and SHOULD be [EIP-712](./eip-712.md) typed data whose `verifyingContract` is the executor. The executor MUST validate the signature by the rules in [Signatures](#signatures), applied to `grant.delegate` in place of the principal, MUST reject it at or after any deadline, and MUST record the nonce, not the signature bytes, so that the authorization succeeds at most once. It SHOULD let the delegate invalidate an unused nonce. `authorizer` is the signer the executor recovered, or, for a delegate with code, the address whose ERC-1271 validation succeeded.
+- **Delegation framework.** A delegation framework contract that the executor trusts by address, for example an [ERC-7710](./eip-7710.md) delegation manager or a caveat enforcer it calls, reports the redeemer it authenticated. `authorizer` is that redeemer. A redemption by a sub-delegate reports the sub-delegate, and `consume` rejects it.
+
+An executor MUST NOT pass as `authorizer` an address it has not authenticated for this spend. Passing `grant.delegate` is correct only when it is the address the executor just authenticated, for example the address whose ERC-1271 validation succeeded. This specification does not define account adapters, permission compilation, or which mechanism an executor uses.
+
+For `asset == NATIVE`, movement is a native transfer of `amount` wei from `grant.principal`. For any other asset, movement is an ERC-20 transfer of `amount` raw units from `grant.principal`. The executor MUST NOT substitute a wrapped native token for `NATIVE`. An executor MUST NOT call `consume` with `asset == NATIVE` unless the same transaction moves `amount` wei out of `grant.principal`'s balance, and MUST NOT pay a `NATIVE` spend from value supplied by its caller or from its own balance.
 
 ## Rationale
 
@@ -369,7 +380,7 @@ Trailing `lookback`: a UTC-day reset allows two full `maxPerWindow` spends acros
 
 `assetCombine` is reserved rather than removed. A shared budget across assets ("spend this much across A or B") is useful, but the only oracle-free form, dividing each spend by that asset's own cap, is not how principals budget; they budget in a unit of account, which needs a price reference this specification does not define. Keeping the field fixed at `0` means a later version can define another mode without changing `encodeType`, the type hash, the rendering, or the JSON shape, and fail-closed validation means registries built to this version reject such grants rather than misread them.
 
-`consume` is restricted to an immutable executor because a public debit function would let any caller fill the window, exhaust caps, or grief `WINDOW_FULL`. The principal selects that executor by choosing the registry. The delegate field remains in the terms for wallets and account-layer policy; the registry does not check it at `consume` time.
+`consume` is restricted to an immutable executor because a public debit function would let any caller fill the window, exhaust caps, or grief `WINDOW_FULL`. The principal selects that executor by choosing the registry. The executor, not the registry, authenticates the delegate: the registry's caller is always the executor, and delegates authorize in different ways (a direct call, a signed authorization that someone else relays, a redemption through a delegation framework such as [ERC-7710](./eip-7710.md)). The registry still requires the executor to name the address its authentication produced and rejects anything but `grant.delegate`. That catches an executor that authenticates a caller or signer but omits the comparison with the grant's delegate; it does not catch one that passes `grant.delegate` without authenticating anyone. It also gives conformance tests a value to check. Verifying a per-spend delegate signature in the registry was not chosen: it would impose one mechanism on every executor and add replay-protection storage to the core, and it fits better as an executor profile.
 
 The grant carries no hash of its rendering. The rendering is a function of the signed fields and the domain, so a hash of it would commit to nothing the signature does not already cover, and a wallet displays what it derives from the fields in any case. The canonical text is kept so that every text display of a grant is byte-identical. An application that needs to bind a grant to something outside it, such as a parent grant or an off-chain terms document, can derive `salt` from a commitment to that data, for example `salt = uint256(keccak256(abi.encode(parentGrantHash, index)))`, without a change to this specification. Sorted unique assets make the typed-data encoding canonical and prevent two disagreeing limits for one address. Fail-closed enumerations mean a future `recipientMode == 2` is invalid to old registries rather than silently treated as "any". No `unrevoke`: a principal who wants to spend again signs a new salt.
 
@@ -397,13 +408,24 @@ Two asset entries can denote the same underlying balance, for example a chain wh
 
 The registry never moves funds. Safety of the principal's assets depends on the executor calling `consume` in the same transaction as movement and reverting if either step fails. A dishonest executor that the principal bound by signing that registry can move value without a matching debit, or debit without moving. Choosing a registry is choosing an executor. Wallets that omit `executor()` from the pre-sign display hide that binding.
 
+A grant and its signature are not secret. They are calldata on the grant's first use, visible in the mempool before that, and usually handed to the delegate off-chain. The registry sees only the executor as its caller, so the delegate binding is exactly as strong as the executor's authorization check; `authorizer` catches an executor that authenticates a caller or signer but omits the comparison with `grant.delegate`; it does not catch one that passes `grant.delegate` without authenticating anyone. An executor that treats possession of a grant as authority lets anyone who has seen the grant spend under it:
+
+| `recipientMode` | What a third party can do with a copied grant |
+| --- | --- |
+| `0` | Pay the signed recipient at times the delegate did not choose (if the third party is the signed recipient, it is paying itself), exhaust the window and lifetime caps, or fill the live-debit bound with minimal debits |
+| `1` | Send the remaining budget to itself |
+
+An executor that lets one delegate-signed authorization succeed more than once lets anyone who has seen it repeat that payment, to the recipient the delegate named, until the caps are exhausted: the `recipientMode` `0` exposure above, whatever the grant's mode. An unused delegate authorization without a deadline stays usable until the grant expires or is revoked; the delegate cannot withdraw it except through the executor.
+
+One executor serves every principal that signs its registry, and those principals approve the executor itself. An executor that moved funds from any account other than `grant.principal` could therefore spend one principal's balance under another principal's grant; the movement source is fixed to `grant.principal` in [Executor](#executor) for that reason.
+
 `consume` is not payable-for-value and does not inspect balance deltas. Fee-on-transfer, elastic-supply, or malicious ERC-20 tokens can make the recorded `amount` differ from the principal's balance change. That is an executor and token-selection problem; the remaining store tracks the `amount` argument.
 
 Revocation is per principal and permanent. It does not pause the executor. A `consume` already in flight in the same block as `revoke` races on transaction order. There is no admin to freeze a stolen delegate; the principal revokes hashes they signed, and remaining caps bound a stolen delegate until then.
 
 Code-bearing principals other than EIP-7702 accounts are ERC-1271 only. An implementation that falls back to ECDSA when `isValidSignature` fails would treat a contract with an `owner` key as that key. The EIP-7702 exception is safe only because the designator identifies an account whose key already controls it; implementations MUST match the exact 23-byte designator rather than any code that begins with `0xef`. ERC-1271 is evaluated at execution, so a principal that rotates its validation logic can invalidate outstanding grants without the registry's help. An EIP-7702 principal cannot invalidate grants its key signed by changing its delegation; it revokes them.
 
-The 1024-live-debit bound (or any similar bound) is a grief surface: many small in-window consumes can fill the window and force `WINDOW_FULL` until the oldest debit expires. Only the executor can call `consume`, so the grief requires the executor or the delegate it serves. This is an intentional fail-closed behavior.
+The 1024-live-debit bound (or any similar bound) is a grief surface: many small in-window consumes can fill the window and force `WINDOW_FULL` until the oldest debit expires. Only the executor can call `consume`, and a conformant executor spends only with the delegate's authorization, so the grief requires the delegate itself or a non-conformant executor. This is an intentional fail-closed behavior.
 
 `block.timestamp` is proposer-influenced. Window and validity checks inherit that. Short `windowSeconds` values are more sensitive than lifetime caps.
 

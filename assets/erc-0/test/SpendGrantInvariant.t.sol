@@ -87,7 +87,7 @@ contract SpendGrantHandler is Test {
         if (rolling + amount > lim.maxPerWindow) return;
         if (spent + amount > lim.maxTotal) return;
 
-        registry.consume(m, sig, lim.asset, amount, m.recipient);
+        registry.consume(m, sig, m.delegate, lim.asset, amount, m.recipient);
     }
 
     function _build(uint256 salt) internal view returns (SpendGrant memory m) {

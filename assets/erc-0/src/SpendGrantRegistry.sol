@@ -34,7 +34,10 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
     mapping(bytes32 => mapping(address => AssetUsage)) internal _usage;
     mapping(bytes32 => uint64) internal _windowSeconds;
 
+    error ZeroExecutor();
+
     constructor(address executor_) {
+        if (executor_ == address(0)) revert ZeroExecutor();
         EXECUTOR = executor_;
     }
 
@@ -75,14 +78,18 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         calls = uint256(tail - u.head) - expiredCount;
     }
 
+    /// @dev `authorizer` is the address the executor authenticated as authorizing this spend.
+    /// Holding the grant and its signature is not authority: both are public after first use.
     function consume(
         SpendGrant calldata grant,
         bytes calldata grantSignature,
+        address authorizer,
         address asset,
         uint256 amount,
         address recipient
     ) external {
         if (msg.sender != EXECUTOR) revert SpendGrantError(Reason.UNAUTHORIZED_EXECUTOR);
+        if (authorizer != grant.delegate) revert SpendGrantError(Reason.UNAUTHORIZED_DELEGATE);
 
         _assertStructure(grant);
 

@@ -186,7 +186,7 @@ contract SpendGrantRingTest is Test {
     function _tryConsume(SpendGrant memory m, uint256 amount) internal returns (bool ok, Reason reason) {
         bytes memory sig = _sig(m);
         (bool callOk, bytes memory ret) =
-            address(registry).call(abi.encodeCall(registry.consume, (m, sig, NATIVE, amount, recipient)));
+            address(registry).call(abi.encodeCall(registry.consume, (m, sig, m.delegate, NATIVE, amount, recipient)));
         if (callOk) return (true, Reason.OK);
         if (ret.length == 36 && bytes4(ret) == SpendGrantError.selector) {
             reason = abi.decode(_slice(ret, 4), (Reason));

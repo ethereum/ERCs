@@ -4,8 +4,7 @@ pragma solidity 0.8.28;
 import {ISpendGrantRegistry, NATIVE, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
 
 contract SpendGrantExecutor {
-    error NotDelegate();
-    error UnexpectedMsgValue();
+    error NativeRequiresAccountAdapter();
     error TransferFailed();
 
     ISpendGrantRegistry internal immutable REGISTRY;
@@ -25,26 +24,19 @@ contract SpendGrantExecutor {
         address asset,
         uint256 amount,
         address recipient
-    ) external payable {
-        if (msg.sender != grant.delegate) revert NotDelegate();
-
-        address to = grant.recipientMode == 0 ? grant.recipient : recipient;
+    ) external {
+        // Moving native currency from the principal needs an account adapter, which the spec
+        // leaves out; the reference does not spend the delegate's own value.
+        if (asset == NATIVE) revert NativeRequiresAccountAdapter();
 
         // Record the debit first so a recipient callback cannot double-spend; movement
         // still shares the transaction and reverts with consume if either step fails.
-        REGISTRY.consume(grant, grantSignature, asset, amount, to);
+        // msg.sender is the caller the EVM authenticated, so it is the authorizer this executor passes.
+        // The recipient passes through unchanged, so the payee is the one the delegate named; in
+        // recipientMode 0 the registry rejects any other address with WRONG_RECIPIENT.
+        REGISTRY.consume(grant, grantSignature, msg.sender, asset, amount, recipient);
 
-        if (asset == NATIVE) {
-            // Reference limitation: native value is supplied by the delegate
-            // (`msg.value`), not pulled from the principal. Debiting the
-            // principal's native balance needs an account adapter.
-            if (msg.value != amount) revert UnexpectedMsgValue();
-            (bool ok,) = payable(to).call{value: amount}("");
-            if (!ok) revert TransferFailed();
-        } else {
-            if (msg.value != 0) revert UnexpectedMsgValue();
-            _safeTransferFrom(asset, grant.principal, to, amount);
-        }
+        _safeTransferFrom(asset, grant.principal, recipient, amount);
     }
 
     function _safeTransferFrom(address token, address from, address to, uint256 amount) internal {

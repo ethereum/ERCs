@@ -28,11 +28,8 @@ contract Mock1271 {
     }
 }
 
-contract RejectEther {
-    receive() external payable {
-        revert();
-    }
-}
+/// @dev Has code but no isValidSignature; a 7702 delegation target whose ERC-1271 call reverts.
+contract No1271 {}
 
 contract Short1271 {
     function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
@@ -52,6 +49,12 @@ contract Reverting1271 {
 contract FalseERC20 {
     function transferFrom(address, address, uint256) external pure returns (bool) {
         return false;
+    }
+}
+
+contract RevertingERC20 {
+    function transferFrom(address, address, uint256) external pure returns (bool) {
+        revert();
     }
 }
 
@@ -129,7 +132,77 @@ contract SpendGrantRegistryTest is Test {
         SpendGrant memory m = _andGrant();
         vm.prank(delegate);
         _expect(Reason.UNAUTHORIZED_EXECUTOR);
-        registry.consume(m, _sig(m, address(registry)), NATIVE, 1 ether, recipient);
+        registry.consume(m, _sig(m, address(registry)), m.delegate, NATIVE, 1 ether, recipient);
+    }
+
+    function test_consume_authorizerMustBeDelegate() public {
+        SpendGrant memory m = _andGrant();
+        bytes memory sig = _sig(m, address(registry));
+        bytes32 h = _hash(m);
+
+        address[3] memory badAuthorizers = [principal, vm.addr(0xBAD), address(0)];
+        for (uint256 i = 0; i < badAuthorizers.length; i++) {
+            _expect(Reason.UNAUTHORIZED_DELEGATE);
+            registry.consume(m, sig, badAuthorizers[i], NATIVE, 1 ether, recipient);
+        }
+
+        (uint256 spent, uint256 calls) = registry.usage(h, NATIVE);
+        assertEq(spent, 0);
+        assertEq(calls, 0);
+
+        registry.consume(m, sig, m.delegate, NATIVE, 1 ether, recipient);
+        (spent, calls) = registry.usage(h, NATIVE);
+        assertEq(spent, 1 ether);
+        assertEq(calls, 1);
+    }
+
+    function test_ordering_unauthorizedExecutorBeforeDelegate() public {
+        SpendGrant memory m = _andGrant();
+        bytes memory sig = _sig(m, address(registry));
+
+        vm.prank(vm.addr(0xBAD));
+        _expect(Reason.UNAUTHORIZED_EXECUTOR);
+        registry.consume(m, sig, vm.addr(0xBAD), NATIVE, 1, recipient);
+    }
+
+    function test_ordering_unauthorizedDelegateBeforeInvalidGrant() public {
+        SpendGrant memory m = _andGrant();
+        m.windowSeconds = 0;
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        registry.consume(m, _sig(m, address(registry)), vm.addr(0xBAD), NATIVE, 1, recipient);
+
+        m = _andGrant();
+        m.delegate = address(0);
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        registry.consume(m, _sig(m, address(registry)), vm.addr(0xBAD), NATIVE, 1, recipient);
+
+        m = _andGrant();
+        m.delegate = principal;
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        registry.consume(m, _sig(m, address(registry)), vm.addr(0xBAD), NATIVE, 1, recipient);
+    }
+
+    function test_ordering_invalidGrantWithRightAuthorizer() public {
+        SpendGrant memory m = _andGrant();
+        m.windowSeconds = 0;
+        _expect(Reason.INVALID_GRANT);
+        registry.consume(m, _sig(m, address(registry)), m.delegate, NATIVE, 1, recipient);
+
+        m = _andGrant();
+        m.delegate = address(0);
+        _expect(Reason.INVALID_GRANT);
+        registry.consume(m, _sig(m, address(registry)), address(0), NATIVE, 1, recipient);
+
+        m = _andGrant();
+        m.delegate = principal;
+        _expect(Reason.INVALID_GRANT);
+        registry.consume(m, _sig(m, address(registry)), principal, NATIVE, 1, recipient);
+    }
+
+    function test_ordering_unauthorizedDelegateBeforeBadSignature() public {
+        SpendGrant memory m = _andGrant();
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        registry.consume(m, hex"11", vm.addr(0xBAD), NATIVE, 1, recipient);
     }
 
     function test_timeBounds() public {
@@ -206,24 +279,22 @@ contract SpendGrantRegistryTest is Test {
         assertEq(tokenRoll, 1e18);
     }
 
-    function test_nativeAndErc20_executor() public {
+    function test_executor_erc20HappyPath() public {
         SpendGrant memory m = _andGrant();
         bytes memory sig = _sig(m, address(execRegistry));
+        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(execRegistry), m);
 
-        vm.deal(delegate, 2 ether);
-        vm.prank(delegate);
-        executor.spend{value: 1 ether}(m, sig, NATIVE, 1 ether, recipient);
-        assertEq(recipient.balance, 1 ether);
+        uint256 recipientBefore = token.balanceOf(recipient);
+        uint256 principalBefore = token.balanceOf(principal);
 
-        uint256 before = token.balanceOf(recipient);
         vm.prank(delegate);
         executor.spend(m, sig, address(token), 1e18, recipient);
-        assertEq(token.balanceOf(recipient) - before, 1e18);
-        assertEq(token.balanceOf(principal), 1e24 - 1e18);
 
-        vm.prank(principal);
-        vm.expectRevert(SpendGrantExecutor.NotDelegate.selector);
-        executor.spend(m, sig, address(token), 1e18, recipient);
+        assertEq(token.balanceOf(recipient) - recipientBefore, 1e18);
+        assertEq(principalBefore - token.balanceOf(principal), 1e18);
+        (uint256 spent, uint256 calls) = execRegistry.usage(grantHash, address(token));
+        assertEq(spent, 1e18);
+        assertEq(calls, 1);
     }
 
     function test_executor_mode1_callerRecipient() public {
@@ -233,46 +304,75 @@ contract SpendGrantRegistryTest is Test {
         bytes memory sig = _sig(m, address(execRegistry));
         address other = vm.addr(0xD0D);
 
-        vm.deal(delegate, 1 ether);
+        uint256 principalBefore = token.balanceOf(principal);
+
         vm.prank(delegate);
-        executor.spend{value: 1 ether}(m, sig, NATIVE, 1 ether, other);
-        assertEq(other.balance, 1 ether);
+        executor.spend(m, sig, address(token), 1e18, other);
+
+        assertEq(token.balanceOf(other), 1e18);
+        assertEq(principalBefore - token.balanceOf(principal), 1e18);
     }
 
     function test_executor_revertsIfTransferFails() public {
-        RejectEther sink = new RejectEther();
+        RevertingERC20 bad = new RevertingERC20();
         SpendGrant memory m = _andGrant();
-        m.recipient = address(sink);
+        AssetLimit[] memory assets = new AssetLimit[](1);
+        assets[0] = AssetLimit(address(bad), 1, 1, 1);
+        m.assets = assets;
         bytes memory sig = _sig(m, address(execRegistry));
 
-        vm.deal(delegate, 1 ether);
         vm.prank(delegate);
         vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
-        executor.spend{value: 1 ether}(m, sig, NATIVE, 1 ether, address(sink));
+        executor.spend(m, sig, address(bad), 1, recipient);
 
-        (uint256 spent,) = execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), NATIVE);
+        (uint256 spent, uint256 calls) =
+            execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(bad));
         assertEq(spent, 0);
+        assertEq(calls, 0);
     }
 
-    function test_executor_unexpectedMsgValue() public {
+    function test_executor_rejectsMsgValue() public {
         SpendGrant memory m = _andGrant();
         bytes memory sig = _sig(m, address(execRegistry));
+        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(execRegistry), m);
 
-        vm.deal(delegate, 2 ether);
+        vm.deal(delegate, 1 ether);
+        uint256 delegateBalanceBefore = delegate.balance;
+        // Funded, so an empty revert below is the non-payable dispatcher, not OutOfFunds.
+        assertEq(delegateBalanceBefore, 1 ether);
+        uint256 principalTokenBefore = token.balanceOf(principal);
+        uint256 recipientTokenBefore = token.balanceOf(recipient);
+
+        // spend is non-payable: the dispatcher reverts with empty data before the body runs, so
+        // neither the ERC-20 path nor the NATIVE guard (which reverts with a selector) is reached.
         vm.prank(delegate);
-        vm.expectRevert(SpendGrantExecutor.UnexpectedMsgValue.selector);
-        executor.spend{value: 2 ether}(m, sig, NATIVE, 1 ether, recipient);
+        (bool ok, bytes memory ret) =
+            address(executor).call{value: 1}(abi.encodeCall(executor.spend, (m, sig, address(token), 1e18, recipient)));
+        assertFalse(ok);
+        assertEq(ret.length, 0);
 
         vm.prank(delegate);
-        vm.expectRevert(SpendGrantExecutor.UnexpectedMsgValue.selector);
-        executor.spend{value: 1 ether}(m, sig, address(token), 1e18, recipient);
+        (bool okNative, bytes memory retNative) =
+            address(executor).call{value: 1}(abi.encodeCall(executor.spend, (m, sig, NATIVE, 1e18, recipient)));
+        assertFalse(okNative);
+        assertEq(retNative.length, 0);
 
-        (uint256 nativeSpent,) =
-            execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), NATIVE);
-        (uint256 tokenSpent,) =
-            execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(token));
-        assertEq(nativeSpent, 0);
+        (uint256 tokenSpent, uint256 tokenCalls) = execRegistry.usage(grantHash, address(token));
+        (uint256 nativeSpent, uint256 nativeCalls) = execRegistry.usage(grantHash, NATIVE);
         assertEq(tokenSpent, 0);
+        assertEq(tokenCalls, 0);
+        assertEq(nativeSpent, 0);
+        assertEq(nativeCalls, 0);
+        assertEq(token.balanceOf(principal), principalTokenBefore);
+        assertEq(token.balanceOf(recipient), recipientTokenBefore);
+        assertEq(delegate.balance, delegateBalanceBefore);
+
+        // Control: the same call without value succeeds, so the value alone caused the revert.
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+        (tokenSpent, tokenCalls) = execRegistry.usage(grantHash, address(token));
+        assertEq(tokenSpent, 1e18);
+        assertEq(tokenCalls, 1);
     }
 
     function test_executor_erc20FalseReturnRollsBack() public {
@@ -285,9 +385,204 @@ contract SpendGrantRegistryTest is Test {
         vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
         executor.spend(m, sig, address(bad), 1, recipient);
 
-        (uint256 spent,) =
+        (uint256 spent, uint256 calls) =
             execRegistry.usage(SpendGrantHash.digest(block.chainid, address(execRegistry), m), address(bad));
         assertEq(spent, 0);
+        assertEq(calls, 0);
+    }
+
+    function test_executor_rejectsNative() public {
+        vm.deal(delegate, 2 ether);
+        uint256 delegateBalanceBefore = delegate.balance;
+
+        SpendGrant memory m0 = _andGrant();
+        bytes memory sig0 = _sig(m0, address(execRegistry));
+        bytes32 grantHash0 = SpendGrantHash.digest(block.chainid, address(execRegistry), m0);
+        uint256 recipientBalanceBefore = recipient.balance;
+
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantExecutor.NativeRequiresAccountAdapter.selector);
+        executor.spend(m0, sig0, NATIVE, 1 ether, recipient);
+
+        (uint256 spent0, uint256 calls0) = execRegistry.usage(grantHash0, NATIVE);
+        (uint256 rolling0, uint256 rollingCalls0) = execRegistry.rollingUsage(grantHash0, NATIVE);
+        assertEq(spent0, 0);
+        assertEq(calls0, 0);
+        assertEq(rolling0, 0);
+        assertEq(rollingCalls0, 0);
+        assertEq(recipient.balance, recipientBalanceBefore);
+        assertEq(delegate.balance, delegateBalanceBefore);
+
+        SpendGrant memory m1 = _andGrant();
+        m1.recipientMode = 1;
+        m1.recipient = address(0);
+        bytes memory sig1 = _sig(m1, address(execRegistry));
+        bytes32 grantHash1 = SpendGrantHash.digest(block.chainid, address(execRegistry), m1);
+        address other = vm.addr(0xD0D);
+        uint256 otherBalanceBefore = other.balance;
+
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantExecutor.NativeRequiresAccountAdapter.selector);
+        executor.spend(m1, sig1, NATIVE, 1 ether, other);
+
+        (uint256 spent1, uint256 calls1) = execRegistry.usage(grantHash1, NATIVE);
+        (uint256 rolling1, uint256 rollingCalls1) = execRegistry.rollingUsage(grantHash1, NATIVE);
+        assertEq(spent1, 0);
+        assertEq(calls1, 0);
+        assertEq(rolling1, 0);
+        assertEq(rollingCalls1, 0);
+        assertEq(other.balance, otherBalanceBefore);
+        assertEq(delegate.balance, delegateBalanceBefore);
+    }
+
+    /// @dev The NATIVE guard runs before consume: each call below would otherwise fail inside
+    /// consume with a different reason (UNAUTHORIZED_DELEGATE, BAD_SIGNATURE, WRONG_ASSET).
+    function test_executor_rejectsNativeBeforeConsume() public {
+        SpendGrant memory m = _andGrant();
+        bytes memory sig = _sig(m, address(execRegistry));
+
+        vm.prank(vm.addr(0xBAD));
+        vm.expectRevert(SpendGrantExecutor.NativeRequiresAccountAdapter.selector);
+        executor.spend(m, sig, NATIVE, 1 ether, recipient);
+
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantExecutor.NativeRequiresAccountAdapter.selector);
+        executor.spend(m, hex"11", NATIVE, 1 ether, recipient);
+
+        SpendGrant memory tokenOnly = _andGrant();
+        AssetLimit[] memory one = new AssetLimit[](1);
+        one[0] = tokenOnly.assets[0];
+        tokenOnly.assets = one;
+        bytes memory tokenOnlySig = _sig(tokenOnly, address(execRegistry));
+
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantExecutor.NativeRequiresAccountAdapter.selector);
+        executor.spend(tokenOnly, tokenOnlySig, NATIVE, 1 ether, recipient);
+    }
+
+    /// @dev The delegate spends once (making the grant and signature public), then a third party
+    /// or the principal replays the same grant/signature through the executor. Snapshots every
+    /// balance and usage counter that must stay frozen across the blocked replay.
+    function _assertExecutorReplayBlocked(SpendGrant memory m, bytes memory sig, address caller, address recipientArg)
+        internal
+    {
+        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(execRegistry), m);
+        address effectiveRecipient = recipientArg;
+
+        uint256 principalBefore = token.balanceOf(principal);
+        uint256 recipientBefore = token.balanceOf(effectiveRecipient);
+        uint256 callerBefore = token.balanceOf(caller);
+        (uint256 spentBefore, uint256 callsBefore) = execRegistry.usage(grantHash, address(token));
+        (uint256 rollingBefore, uint256 rollingCallsBefore) = execRegistry.rollingUsage(grantHash, address(token));
+
+        vm.prank(caller);
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        executor.spend(m, sig, address(token), 1e18, recipientArg);
+
+        assertEq(token.balanceOf(principal), principalBefore);
+        assertEq(token.balanceOf(effectiveRecipient), recipientBefore);
+        assertEq(token.balanceOf(caller), callerBefore);
+        (uint256 spentAfter, uint256 callsAfter) = execRegistry.usage(grantHash, address(token));
+        (uint256 rollingAfter, uint256 rollingCallsAfter) = execRegistry.rollingUsage(grantHash, address(token));
+        assertEq(spentAfter, spentBefore);
+        assertEq(callsAfter, callsBefore);
+        assertEq(rollingAfter, rollingBefore);
+        assertEq(rollingCallsAfter, rollingCallsBefore);
+    }
+
+    function test_executor_replayByThirdParty_mode0() public {
+        SpendGrant memory m = _andGrant();
+        bytes memory sig = _sig(m, address(execRegistry));
+
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+
+        _assertExecutorReplayBlocked(m, sig, vm.addr(0xBAD), recipient);
+    }
+
+    function test_executor_replayByThirdParty_mode1() public {
+        SpendGrant memory m = _andGrant();
+        m.recipientMode = 1;
+        m.recipient = address(0);
+        bytes memory sig = _sig(m, address(execRegistry));
+
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+
+        address attacker = vm.addr(0xBAD);
+        _assertExecutorReplayBlocked(m, sig, attacker, attacker);
+    }
+
+    function test_executor_replayByPrincipal_mode0() public {
+        SpendGrant memory m = _andGrant();
+        bytes memory sig = _sig(m, address(execRegistry));
+
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+
+        _assertExecutorReplayBlocked(m, sig, principal, recipient);
+    }
+
+    function test_executor_replayByPrincipal_mode1() public {
+        SpendGrant memory m = _andGrant();
+        m.recipientMode = 1;
+        m.recipient = address(0);
+        bytes memory sig = _sig(m, address(execRegistry));
+
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+
+        _assertExecutorReplayBlocked(m, sig, principal, principal);
+    }
+
+    function test_executor_mode0_wrongRecipientReverts() public {
+        SpendGrant memory m = _andGrant();
+        bytes memory sig = _sig(m, address(execRegistry));
+        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(execRegistry), m);
+        address other = vm.addr(0xD0D);
+        uint256 principalBefore = token.balanceOf(principal);
+
+        vm.prank(delegate);
+        _expect(Reason.WRONG_RECIPIENT);
+        executor.spend(m, sig, address(token), 1e18, other);
+
+        assertEq(token.balanceOf(principal), principalBefore);
+        assertEq(token.balanceOf(other), 0);
+        (uint256 spent, uint256 calls) = execRegistry.usage(grantHash, address(token));
+        assertEq(spent, 0);
+        assertEq(calls, 0);
+
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+        assertEq(token.balanceOf(recipient), 1e18);
+    }
+
+    function test_registry_rejectsZeroExecutor() public {
+        vm.expectRevert(SpendGrantRegistry.ZeroExecutor.selector);
+        new SpendGrantRegistry(address(0));
+    }
+
+    function testFuzz_executor_onlyDelegateCanSpend(address caller, address to, bool mode1) public {
+        vm.assume(caller != delegate);
+        SpendGrant memory m = _andGrant();
+        if (mode1) {
+            m.recipientMode = 1;
+            m.recipient = address(0);
+        }
+        bytes memory sig = _sig(m, address(execRegistry));
+        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(execRegistry), m);
+
+        uint256 principalBefore = token.balanceOf(principal);
+        (uint256 spentBefore, uint256 callsBefore) = execRegistry.usage(grantHash, address(token));
+
+        vm.prank(caller);
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        executor.spend(m, sig, address(token), 1e18, to);
+
+        assertEq(token.balanceOf(principal), principalBefore);
+        (uint256 spentAfter, uint256 callsAfter) = execRegistry.usage(grantHash, address(token));
+        assertEq(spentAfter, spentBefore);
+        assertEq(callsAfter, callsBefore);
     }
 
     function test_windowExpiryAtExactAge() public {
@@ -341,16 +636,16 @@ contract SpendGrantRegistryTest is Test {
         bytes memory sig = _sig(m, address(registry));
         sig[0] = bytes1(uint8(sig[0]) ^ 1);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, sig, NATIVE, 1, recipient);
+        registry.consume(m, sig, m.delegate, NATIVE, 1, recipient);
 
         Mock1271 wallet = new Mock1271();
         m.principal = address(wallet);
         bytes32 digest_ = SpendGrantHash.digest(block.chainid, address(registry), m);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, hex"11", NATIVE, 1, recipient);
+        registry.consume(m, hex"11", m.delegate, NATIVE, 1, recipient);
 
         wallet.setAllowed(digest_);
-        registry.consume(m, hex"11", NATIVE, 1, recipient);
+        registry.consume(m, hex"11", m.delegate, NATIVE, 1, recipient);
     }
 
     function test_invalidGrant() public {
@@ -502,15 +797,15 @@ contract SpendGrantRegistryTest is Test {
             mstore(add(sig, 64), highS)
         }
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, sig, NATIVE, 1, recipient);
+        registry.consume(m, sig, m.delegate, NATIVE, 1, recipient);
 
         sig = _sig(m, address(registry));
         sig[64] = bytes1(uint8(26));
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, sig, NATIVE, 1, recipient);
+        registry.consume(m, sig, m.delegate, NATIVE, 1, recipient);
 
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, hex"11", NATIVE, 1, recipient);
+        registry.consume(m, hex"11", m.delegate, NATIVE, 1, recipient);
     }
 
     function test_1271_shortReturnRevertAndNoEcdsaFallback() public {
@@ -519,18 +814,18 @@ contract SpendGrantRegistryTest is Test {
         Short1271 shortWallet = new Short1271();
         m.principal = address(shortWallet);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, hex"11", NATIVE, 1, recipient);
+        registry.consume(m, hex"11", m.delegate, NATIVE, 1, recipient);
 
         Reverting1271 reverting = new Reverting1271();
         m.principal = address(reverting);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, hex"11", NATIVE, 1, recipient);
+        registry.consume(m, hex"11", m.delegate, NATIVE, 1, recipient);
 
         // Code-bearing principal must not fall back to ECDSA even with a 65-byte sig.
         m.principal = address(shortWallet);
         bytes memory eoaSig = _sig(m, address(registry));
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, eoaSig, NATIVE, 1, recipient);
+        registry.consume(m, eoaSig, m.delegate, NATIVE, 1, recipient);
     }
 
     function test_7702_delegatedPrincipal_strictEcdsaSucceeds() public {
@@ -544,7 +839,7 @@ contract SpendGrantRegistryTest is Test {
         m.principal = delegated;
         bytes32 digest_ = SpendGrantHash.digest(block.chainid, address(registry), m);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(delegatedPk, digest_);
-        registry.consume(m, abi.encodePacked(r, s, v), NATIVE, 1, recipient);
+        registry.consume(m, abi.encodePacked(r, s, v), m.delegate, NATIVE, 1, recipient);
 
         (uint256 spent,) = registry.usage(SpendGrantHash.digest(block.chainid, address(registry), m), NATIVE);
         assertEq(spent, 1);
@@ -562,14 +857,14 @@ contract SpendGrantRegistryTest is Test {
         Mock1271(delegated).setAllowed(digest_);
 
         // A signature that is not a valid 65-byte ECDSA triple, in a "different format".
-        registry.consume(m, hex"11", NATIVE, 1, recipient);
+        registry.consume(m, hex"11", m.delegate, NATIVE, 1, recipient);
     }
 
     function test_7702_delegatedPrincipal_wrongEcdsaAndNo1271_revertsBadSignature() public {
         uint256 delegatedPk = 0x7702C;
         uint256 wrongPk = 0x7702D;
         address delegated = vm.addr(delegatedPk);
-        RejectEther impl = new RejectEther();
+        No1271 impl = new No1271();
         vm.signAndAttachDelegation(address(impl), delegatedPk);
 
         SpendGrant memory m = _andGrant();
@@ -577,7 +872,7 @@ contract SpendGrantRegistryTest is Test {
         bytes32 digest_ = SpendGrantHash.digest(block.chainid, address(registry), m);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPk, digest_);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, abi.encodePacked(r, s, v), NATIVE, 1, recipient);
+        registry.consume(m, abi.encodePacked(r, s, v), m.delegate, NATIVE, 1, recipient);
     }
 
     function test_normalContractPrincipal_neverFallsBackToEcdsa() public {
@@ -591,7 +886,7 @@ contract SpendGrantRegistryTest is Test {
         bytes32 digest_ = SpendGrantHash.digest(block.chainid, address(registry), m);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPk, digest_);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, abi.encodePacked(r, s, v), NATIVE, 1, recipient);
+        registry.consume(m, abi.encodePacked(r, s, v), m.delegate, NATIVE, 1, recipient);
     }
 
     function test_23ByteCodeNotDesignator_treatedAsOrdinaryContract() public {
@@ -605,7 +900,7 @@ contract SpendGrantRegistryTest is Test {
         bytes32 digest_ = SpendGrantHash.digest(block.chainid, address(registry), m);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest_);
         _expect(Reason.BAD_SIGNATURE);
-        registry.consume(m, abi.encodePacked(r, s, v), NATIVE, 1, recipient);
+        registry.consume(m, abi.encodePacked(r, s, v), m.delegate, NATIVE, 1, recipient);
     }
 
     /// @dev End-to-end through SpendGrantExecutor.spend (ERC-20 via transferFrom): a treasury
@@ -627,7 +922,7 @@ contract SpendGrantRegistryTest is Test {
         assertEq(spent, 10);
 
         // 2a. Delegate to an implementation with no isValidSignature at all; same signature.
-        RejectEther implNo1271 = new RejectEther();
+        No1271 implNo1271 = new No1271();
         vm.signAndAttachDelegation(address(implNo1271), PRINCIPAL_PK);
         assertEq(principal.code.length, 23);
         vm.prank(delegate);
@@ -754,6 +1049,23 @@ contract SpendGrantRegistryTest is Test {
         assertLe(endRolling, m.assets[1].maxPerWindow);
     }
 
+    function test_reason_ordinalsStable() public pure {
+        assertEq(uint8(Reason.OK), 0);
+        assertEq(uint8(Reason.INVALID_GRANT), 1);
+        assertEq(uint8(Reason.BAD_SIGNATURE), 2);
+        assertEq(uint8(Reason.NOT_YET_VALID), 3);
+        assertEq(uint8(Reason.EXPIRED), 4);
+        assertEq(uint8(Reason.REVOKED), 5);
+        assertEq(uint8(Reason.WRONG_ASSET), 6);
+        assertEq(uint8(Reason.WRONG_RECIPIENT), 7);
+        assertEq(uint8(Reason.OVER_TX_CAP), 8);
+        assertEq(uint8(Reason.OVER_WINDOW_CAP), 9);
+        assertEq(uint8(Reason.OVER_CUMULATIVE_CAP), 10);
+        assertEq(uint8(Reason.WINDOW_FULL), 11);
+        assertEq(uint8(Reason.UNAUTHORIZED_EXECUTOR), 12);
+        assertEq(uint8(Reason.UNAUTHORIZED_DELEGATE), 13);
+    }
+
     function _andGrant() internal view returns (SpendGrant memory m) {
         m.principal = principal;
         m.delegate = delegate;
@@ -779,7 +1091,7 @@ contract SpendGrantRegistryTest is Test {
     }
 
     function _consume(SpendGrant memory m, address asset, uint256 amount, address to) internal {
-        registry.consume(m, _sig(m, address(registry)), asset, amount, to);
+        registry.consume(m, _sig(m, address(registry)), m.delegate, asset, amount, to);
     }
 
     function _expect(Reason r) internal {
