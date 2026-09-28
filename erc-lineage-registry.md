@@ -1,4 +1,5 @@
 ---
+eip: 8428
 title: ERC-721 Lineage Registry
 description: An ERC-721 extension for authorized parentage records with immutable chronology and optional genealogy operations.
 author: Henrique L. Alvim (@henriquelalvim)
