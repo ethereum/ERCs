@@ -2,7 +2,7 @@
 title: Onchain IP Asset and License Registry
 description: Policy-neutral registry for IP assets, content-addressed license terms, and verifiable license agreements with signed provenance.
 author: Jeroen Ost (@jeroost)
-discussions-to: 
+discussions-to: https://ethereum-magicians.org/t/onchain-ip-asset-and-license-registry/29792
 status: Draft
 type: Standards Track
 category: ERC
