@@ -1,4 +1,5 @@
 ---
+eip: 0
 title: Onchain IP Asset and License Registry
 description: Policy-neutral registry for IP assets, content-addressed license terms, and verifiable license agreements with signed provenance.
 author: Jeroen Ost (@jeroost)
@@ -1513,9 +1514,8 @@ signatures, and ERC-165 support.
 
 ## Reference Implementation
 
-The canonical interfaces are included in the Specification and, as Solidity
-source files, in [`assets/erc-0`](../assets/erc-0/). A non-normative
-reference implementation with its test suite will be published later. 
+The canonical interfaces are included in the Specification and as Solidity
+source files. A non-normative reference implementation with its test suite will be published later. 
 Neither defines requirements beyond this document; where they differ, this document prevails.
 
 ## Security Considerations
