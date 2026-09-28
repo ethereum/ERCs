@@ -1514,7 +1514,7 @@ signatures, and ERC-165 support.
 ## Reference Implementation
 
 The canonical interfaces are included in the Specification and, as Solidity
-source files, in [`assets/erc-XXXX`](../assets/erc-XXXX/). A non-normative
+source files, in [`assets/erc-0`](../assets/erc-0/). A non-normative
 reference implementation with its test suite will be published later. 
 Neither defines requirements beyond this document; where they differ, this document prevails.
 
