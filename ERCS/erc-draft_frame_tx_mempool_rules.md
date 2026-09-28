@@ -36,7 +36,6 @@ This document defines the Frame Transaction specific mempool rules in a way that
 |---|---|---|
 | `MAX_VERIFY_GAS` | `100_000` | Maximum execution gas budget for a single unstaked or default-code entity's validation frames. Same value as EIP-8141. |
 | `MAX_VERIFY_GAS_STAKED_ENTITY` | `1_000_000` | Maximum execution gas budget for a single staked entity's validation frames. |
-| `MAX_VERIFY_STATE_GAS` | `500_000` | Maximum state gas ([EIP-8037](./eip-8037.md)) budgeted across the validation prefix. Same value as EIP-8141. |
 | `MIN_UNSTAKE_DELAY` | `86400` | One day. A withdrawal delay long enough to deter most Sybil attacks. |
 | `MIN_STAKE_VALUE` | per-chain | A non-trivial but not excessive amount, roughly the equivalent of USD 1000 in the native token. |
 | `SAME_NONCE_KEY_MEMPOOL_COUNT` | `4` | Maximum pending transactions per `(sender, nonce key)` lane ([EIP-8250](./eip-8250.md)). |
@@ -71,8 +70,7 @@ A violation of any rule by a frame transaction results in the transaction being 
 
 A peer-to-peer mempool networks rely on participant reputations to limit the threat of mass transaction invalidation. A **network-wide rule** is a rule whose violation by a transaction damages the reputation of the peer that sent that transaction into the standard mempool. A peer with critically low standing is treated as a **spammer** according to the [Propagation Rules](#propagation-propagation).
 
-A **local rule** depends on a node's own mempool contents and its local tracking of entities' reputations. Different nodes may hold different mempool contents, so no consensus is possible and peers are never penalised for a local rule violation. Local rules are marked *(Local)* and all other rule are network-wide.
-TODO: I prefer to create a separate LOCAL-xxx category of rules, this feels awkward otherwise.
+A **local rule** depends on a node's own mempool contents and its local tracking of entities' reputations. Different nodes may hold different mempool contents, so no consensus is possible and peers are never penalised for a local rule violation. Local rules are collected in the [Local Rules](#local-rules-local) section, and all other rules are network-wide.
 
 ### Definitions
 
@@ -169,39 +167,18 @@ A node determines storage association by testing the slots a validation frame ha
 * **[BUDGET-010]** A node MUST track the sum of `limits.execution` **separately per entity**, over that entity's own validation frames. The `pre_verify` frame counts toward the entity of the approving frame it immediately precedes. The intrinsic cost of validating `tx.signatures` counts toward the `tx.sender`.
     For **unstaked entities**, that sum MUST NOT exceed `MAX_VERIFY_GAS`.
     For **staked entities**, that sum MUST NOT exceed `MAX_VERIFY_GAS_STAKED_ENTITY`.
-* **[BUDGET-020]** The sum of `limits.state` across the validation prefix MUST NOT exceed `MAX_VERIFY_STATE_GAS`.
-TODO: SHOULDN'T WE TRACK STATE GAS PER ENTITY AT LEAST FOR CONSISTENCY ?
-
 ### Signatures (SIGNATURE)
 
 * **[SIGNATURE-010]** Before simulating any frame, a node MUST validate every protocol-validated signature (`SECP256K1`, `P256`) against the transaction's signature hash. It MUST also check every `ARBITRARY` signature for structural validity. A transaction with any malformed or invalid signature MUST be rejected.
 
 ### Opcode Rules (OPCODES)
 
-TODO: This part should only state what is DIFFERENT from the canonical mempool and refer to EIP-8141 for the opcode banning rules. We did 
+Every validation frame is bound by the banned opcodes of EIP-8141's [Validation Trace Rules](./eip-8141.md#banned-opcodes), except for the frames [PREFIX-100] exempts. This section lists only the differences.
 
-Opcodes that read the execution environment, which is anything outside storage and code, are blocked during the validation prefix. Their results are not fixed at the time of admission, so a transaction could succeed off-chain and fail on-chain.
-
-* **[OPCODES-010]** The following opcodes are blocked:
-    * `GASPRICE` (`0x3A`)
-    * `BLOCKHASH` (`0x40`)
-    * `COINBASE` (`0x41`)
-    * `TIMESTAMP` (`0x42`), except as [OPCODES-030](#opcode-rules-opcodes) allows
-    * `NUMBER` (`0x43`)
-    * `PREVRANDAO` / `DIFFICULTY` (`0x44`)
-    * `GASLIMIT` (`0x45`)
-    * `BASEFEE` (`0x48`)
-    * `BLOBBASEFEE` (`0x4A`)
-    * `SLOTNUM` (`0x4B`)
-    * `INVALID` (`0xFE`)
-    * `SELFDESTRUCT` (`0xFF`)
-    * `CREATE` (`0xF0`), `CREATE2` (`0xF5`) and `SETDELEGATE` (`0xF6`, [EIP-7819](./eip-7819.md)), except as [CREATION-010](#contract-creation-creation) and [CREATION-020](#contract-creation-creation) allow
-* **[OPCODES-011]** `GAS` (`0x5A`) is allowed only when it is immediately followed by a `*CALL` instruction. This is the standard way to forward all remaining gas to a child call. The value is consumed from the stack at once and cannot be inspected.
-* **[OPCODES-012]** Any unassigned opcode is blocked.
-* **[OPCODES-020]** A revert on "out of gas" is forbidden, because it can leak the gas limit or the call-stack depth.
-* **[OPCODES-030]** `TIMESTAMP` is allowed only while an `expiry_verify` frame executes the canonical runtime code at `EXPIRY_VERIFIER`.
-* **[OPCODES-040]** `BALANCE` (`0x31`) and `SELFBALANCE` (`0x47`) are allowed only for a staked entity. Otherwise they are blocked.
-* **[OPCODES-050]** `APPROVE`, `TXPARAM`, `FRAMEDATALOAD`, `FRAMEDATACOPY`, `FRAMEPARAM`, `SIGPARAM` and `SIGDATACOPY` are allowed. Their results depend only on the transaction and on the earlier validation frames, both of which are fixed at admission. `ORIGIN` is also allowed, since it returns a protocol constant in `DEFAULT` and `VERIFY` frames.
+* **[OPCODES-010]** `BALANCE` (`0x31`) and `SELFBALANCE` (`0x47`) are allowed for a staked entity. They remain banned for every other entity.
+* **[OPCODES-020]** `SSTORE` is not banned outright. The [Storage and State Access](#storage-and-state-access-storage) rules decide which frames may write and where.
+* **[OPCODES-030]** Any unassigned opcode is blocked.
+* **[OPCODES-040]** A revert on "out of gas" is forbidden, because it can leak the gas limit or the call-stack depth.
 
 ### Contract Creation (CREATION)
 
@@ -225,18 +202,22 @@ Storage access by `SLOAD`, `SSTORE`, `TLOAD` and `TSTORE` is restricted as follo
     * **[STORAGE-031]** access to its own storage;
     * **[STORAGE-032]** read-only access to any storage in a contract that is not an entity of the transaction.
     * **[STORAGE-033]** write access to slots associated with the entity address in any contract that is not an entity of the transaction;
-* **[STORAGE-110]** *(Local)* A transaction MUST NOT use as its factory or its sponsoring payer an address that is `tx.sender` of another pending transaction in the mempool. A factory or paymaster contract can therefore not also serve as an account.
-* **[STORAGE-120]** *(Local)* A transaction MUST NOT use storage associated with its sender, or with a staked entity, in a contract that is `tx.sender` of another pending transaction in the mempool.
 
 The relaxation over the public mempool is [STORAGE-020] and [STORAGE-030]. The public mempool allows storage reads only from `tx.sender` and forbids every other storage access.
+
+### Local Rules (LOCAL)
+
+These rules depend on the other transactions in a node's own mempool. A node applies them when it admits a transaction. A transaction that violates one is rejected without any reputation change for the peer that sent it.
+
+* **[LOCAL-010]** A transaction MUST NOT use as its factory or its sponsoring payer an address that is `tx.sender` of another pending transaction in the mempool. A factory or paymaster contract can therefore not also serve as an account.
+* **[LOCAL-020]** A transaction MUST NOT use storage associated with its sender, or with a staked entity, in a contract that is `tx.sender` of another pending transaction in the mempool.
 
 ### Stake (STAKING)
 
 Stake is never slashed. It exists only for off-chain detection. The lock-up period raises the capital cost of creating new abusive entities.
 
 * **[STAKING-010]** An entity is staked if the Staking Registry reports for it a stake of at least `MIN_STAKE_VALUE` and an unstake delay of at least `MIN_UNSTAKE_DELAY`, and `withdrawTime` is zero, meaning no withdrawal has been initiated.
-* **[STAKING-020]** A node reads stake information from the Staking Registry at `STAKING_REGISTRY_ADDRESS` against the state its validation runs against. If no registry is configured, every entity is unstaked. TODO: rephrase this staking-020 rule it sounds confusing.
-`withdrawTime` is zero while no withdrawal has been initiated. A node applies [STAKING-010] to the values `getDepositInfo` returns.
+* **[STAKING-020]** If no `STAKING_REGISTRY_ADDRESS` is configured, no entity is staked.
 
 ### Payer Solvency (SOLVENCY)
 
@@ -328,11 +309,11 @@ The standard mempool is not the only possible rule set. Node operators may agree
 A node applies the rules in this order:
 
 1. Validate the signatures ([SIGNATURE-010]).
-2. Determine the validation prefix and check its structure ([PREFIX-010] to [PREFIX-080], [PREFIX-110], [PREFIX-120], [BUDGET-010], [BUDGET-020]).
+2. Determine the validation prefix and check its structure ([PREFIX-010] to [PREFIX-080], [PREFIX-110], [PREFIX-120], [BUDGET-010]).
 3. Resolve each entity's role, address and stake ([STAKING-010]) and check reputation ([REPUTATION-010], [REPUTATION-020], [REPUTATION-210], [REPUTATION-220]).
 4. Simulate the prefix and trace it, applying [OPCODES], [CREATION], [CALLING] and [STORAGE] to every validation frame that is not protocol-defined. Stop at [PREFIX-090].
 5. Check payer solvency and reserve the cost ([SOLVENCY-010] to [SOLVENCY-030]).
-6. Check the per-sender limit ([LIFECYCLE-010]), and, if the transaction is a replacement, the replacement rule ([LIFECYCLE-020]).
+6. Check the local rules ([LOCAL-010], [LOCAL-020]), the per-sender limit ([LIFECYCLE-010]), and, if the transaction is a replacement, the replacement rule ([LIFECYCLE-020]).
 7. If every check passes, record the dependency set ([LIFECYCLE-050]), admit the transaction and propagate it ([PROPAGATION-010]).
 
 ## Rationale
@@ -346,6 +327,10 @@ Because the standard mempool extends the public mempool rather than replacing it
 ### Rationale for per-entity verification gas budgets
 
 A single combined `MAX_VERIFY_GAS` budget for the whole validation prefix cannot be raised for a staked entity without also raising it for every unstaked entity in the same transaction, since the rule only sees one sum. [BUDGET-010] tracks the sum separately per entity instead, so a staked payer, sender or factory can be given `MAX_VERIFY_GAS_STAKED_ENTITY`, a materially higher allowance for more expensive validation logic such as signature aggregation or a Merkle proof check, while every unstaked entity of the transaction remains bound by `MAX_VERIFY_GAS`, exactly as it would be in a transaction with no staked entity at all.
+
+### No cap on state gas
+
+EIP-8141 caps `limits.state` at `MAX_VERIFY_STATE_GAS` across the validation prefix, but by its own account that cap bounds admitted state growth, not node work: simulating a write costs a node the same regardless of the state gas it declares. This document places no cap on state gas. A payer's solvency check already reserves the cost of every frame's declared `limits.state`, so a large budget is paid for, and the prefix structure already limits where state can be written: at most one `deploy` frame installing code at `tx.sender`, and `pre_verify` frames whose entity is subject to the execution gas budgets in [BUDGET-010]. A `deploy` frame that needs a large state gas budget for a code deposit can declare it without hitting a mempool-specific limit.
 
 ### Rationale for `pre_verify` frames
 
@@ -389,7 +374,7 @@ A node that implements only the public mempool of EIP-8141 remains compatible. E
 
 ## Security Considerations
 
-**Staking Registry.** The stake provisions depend on a registry contract outside the EIP-8141 protocol. Its correctness is not guaranteed by the protocol. A registry that reports stake incorrectly weakens [STORAGE-030], [OPCODES-040] and [CREATION-020].
+**Staking Registry.** The stake provisions depend on a registry contract outside the EIP-8141 protocol. Its correctness is not guaranteed by the protocol. A registry that reports stake incorrectly weakens [STORAGE-030], [OPCODES-010] and [CREATION-020].
 
 **Staked entities can still misbehave.** A staked entity can cause a bounded amount of invalidation before its reputation drops organically. The bound is `BAN_SLACK * MIN_INCLUSION_RATE_DENOMINATOR / 24` invalid transactions per hour, plus whatever throttling then allows. It is a rate limit, not a guarantee. A staked entity whose failure is instead caught at inclusion time is banned immediately for `BAN_DURATION_HOURS` regardless of its `seen`/`included` history ([REPUTATION-030]).
 
