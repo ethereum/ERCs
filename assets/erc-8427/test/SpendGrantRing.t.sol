@@ -74,6 +74,21 @@ contract NaiveModel {
     function usage() external view returns (uint256, uint256) {
         return (spent, calls);
     }
+
+    /// @dev Unexpired debits in insertion (oldest-first) order, by full scan.
+    function liveDebits() external view returns (uint256[] memory expiresAt, uint256[] memory amounts) {
+        uint256 n = _liveCount();
+        expiresAt = new uint256[](n);
+        amounts = new uint256[](n);
+        uint256 j;
+        for (uint256 i = 0; i < _debits.length; i++) {
+            if (_live(_debits[i].time)) {
+                expiresAt[j] = uint256(_debits[i].time) + uint256(windowSeconds);
+                amounts[j] = _debits[i].amount;
+                j++;
+            }
+        }
+    }
 }
 
 /// @dev A second, O(1)-amortized reference model for long-running differential runs (thousands
@@ -330,6 +345,41 @@ contract SpendGrantRingTest is Test {
             (uint256 regRolling, uint256 regLiveCalls) = registry.rollingUsage(h, NATIVE);
             assertEq(regRolling, modelRolling);
             assertEq(regLiveCalls, modelLiveCalls);
+
+            if (wideDt) _assertLiveDebitsMatchModel(h, model, regRolling, regLiveCalls, seed);
+        }
+    }
+
+    /// @dev liveDebits must equal the naive model's list exactly, agree with rollingUsage, and, for a
+    /// fuzzed maxCount in [0, n + 1], return exactly the model's oldest min(maxCount, n) entries.
+    function _assertLiveDebitsMatchModel(
+        bytes32 h,
+        address model,
+        uint256 regRolling,
+        uint256 regLiveCalls,
+        uint256 seed
+    ) internal view {
+        (bool success, bytes memory ret) = model.staticcall(abi.encodeWithSignature("liveDebits()"));
+        require(success, "model liveDebits failed");
+        (uint256[] memory modelExpiresAt, uint256[] memory modelAmounts) = abi.decode(ret, (uint256[], uint256[]));
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, type(uint256).max);
+        assertEq(expiresAt, modelExpiresAt);
+        assertEq(amounts, modelAmounts);
+        assertEq(amounts.length, regLiveCalls);
+        uint256 sum;
+        for (uint256 i = 0; i < amounts.length; i++) {
+            sum += amounts[i];
+        }
+        assertEq(sum, regRolling);
+
+        uint256 k = (seed >> 40) % (modelAmounts.length + 2);
+        uint256 m = k < modelAmounts.length ? k : modelAmounts.length;
+        (uint256[] memory someAt, uint256[] memory someAmt) = registry.liveDebits(h, NATIVE, k);
+        assertEq(someAt.length, m);
+        assertEq(someAmt.length, m);
+        for (uint256 i = 0; i < m; i++) {
+            assertEq(someAt[i], modelExpiresAt[i]);
+            assertEq(someAmt[i], modelAmounts[i]);
         }
     }
 
@@ -510,5 +560,200 @@ contract SpendGrantRingTest is Test {
         (bool ok, Reason reason) = _tryConsume(m, 1);
         assertFalse(ok);
         assertEq(uint8(reason), uint8(Reason.OVER_CUMULATIVE_CAP));
+    }
+
+    // -- liveDebits -----------------------------------------------------------------------------
+
+    function test_liveDebits_emptyBeforeAnyDebit() public view {
+        SpendGrant memory m = _grant(100, 10, 100, 1000, 21);
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(_hashOf(m), NATIVE, 10);
+        assertEq(expiresAt.length, 0);
+        assertEq(amounts.length, 0);
+    }
+
+    /// @dev Oldest first, exact expiry boundary (a debit is gone at block.timestamp == expiresAt),
+    /// same-block debits kept in order, and expired-but-not-yet-evicted debits skipped by the view.
+    function test_liveDebits_oldestFirstAndExactBoundary() public {
+        SpendGrant memory m = _grant(100, 10, 100, 1000, 22);
+        bytes32 h = _hashOf(m);
+        uint256 t0 = vm.getBlockTimestamp();
+
+        _mustConsume(m, 5);
+        vm.warp(t0 + 10);
+        _mustConsume(m, 7);
+        _mustConsume(m, 3);
+        vm.warp(t0 + 60);
+        _mustConsume(m, 9);
+
+        uint256[] memory wantAt = new uint256[](4);
+        uint256[] memory wantAmt = new uint256[](4);
+        (wantAt[0], wantAt[1], wantAt[2], wantAt[3]) = (t0 + 100, t0 + 110, t0 + 110, t0 + 160);
+        (wantAmt[0], wantAmt[1], wantAmt[2], wantAmt[3]) = (5, 7, 3, 9);
+        _assertLive(h, wantAt, wantAmt);
+
+        vm.warp(t0 + 99);
+        _assertLive(h, wantAt, wantAmt);
+
+        vm.warp(t0 + 100);
+        _assertLive(h, _drop(wantAt, 1), _drop(wantAmt, 1));
+
+        vm.warp(t0 + 110);
+        _assertLive(h, _drop(wantAt, 3), _drop(wantAmt, 3));
+
+        vm.warp(t0 + 160);
+        _assertLive(h, _drop(wantAt, 4), _drop(wantAmt, 4));
+    }
+
+    function test_liveDebits_maxCountTruncatesOldestFirst() public {
+        SpendGrant memory m = _grant(100, 10, 100, 1000, 23);
+        bytes32 h = _hashOf(m);
+        uint256 t0 = vm.getBlockTimestamp();
+        _mustConsume(m, 1);
+        vm.warp(t0 + 1);
+        _mustConsume(m, 2);
+        vm.warp(t0 + 2);
+        _mustConsume(m, 3);
+
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, 2);
+        assertEq(expiresAt.length, 2);
+        assertEq(amounts[0], 1);
+        assertEq(amounts[1], 2);
+        assertEq(expiresAt[0], t0 + 100);
+        assertEq(expiresAt[1], t0 + 101);
+
+        (expiresAt, amounts) = registry.liveDebits(h, NATIVE, 0);
+        assertEq(expiresAt.length, 0);
+        assertEq(amounts.length, 0);
+    }
+
+    /// @dev After the ring wraps, the view still returns the newest MAX_LIVE_DEBITS debits in order,
+    /// with each expiry equal to its own spend time plus the window.
+    function test_liveDebits_orderAcrossWrap() public {
+        uint64 windowSeconds = uint64(MAX_LIVE_DEBITS);
+        SpendGrant memory m = _grant(windowSeconds, 10, type(uint192).max, type(uint192).max, 24);
+        bytes32 h = _hashOf(m);
+        uint256 t0 = vm.getBlockTimestamp();
+        uint256 steps = MAX_LIVE_DEBITS + 476;
+        for (uint256 k = 0; k < steps; k++) {
+            vm.warp(t0 + k);
+            _mustConsume(m, 1 + (k % 7));
+        }
+
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, type(uint256).max);
+        assertEq(expiresAt.length, MAX_LIVE_DEBITS);
+        uint256 firstK = steps - MAX_LIVE_DEBITS;
+        uint256 sum;
+        for (uint256 i = 0; i < expiresAt.length; i++) {
+            uint256 k = firstK + i;
+            assertEq(expiresAt[i], t0 + k + windowSeconds);
+            assertEq(amounts[i], 1 + (k % 7));
+            sum += amounts[i];
+        }
+        (uint256 rolling, uint256 liveCalls) = registry.rollingUsage(h, NATIVE);
+        assertEq(sum, rolling);
+        assertEq(expiresAt.length, liveCalls);
+    }
+
+    /// @dev Stored head past MAX_LIVE_DEBITS with an expired-but-unevicted prefix whose skip crosses
+    /// physical slot 1023 -> 0, then maxCount below the live count while that prefix exists.
+    function test_liveDebits_prefixSkipAcrossWrapWithHeadPastCapacity() public {
+        uint64 w = 100;
+        SpendGrant memory m = _grant(w, 10, type(uint192).max, type(uint192).max, 25);
+        bytes32 h = _hashOf(m);
+        uint256 t = vm.getBlockTimestamp();
+
+        _consumeMany(m, MAX_LIVE_DEBITS, 1); // logical 0..1023 at t
+        vm.warp(t + 100);
+        _consumeMany(m, 1000, 2); // evicts the first batch: head = 1024; logical 1024..2023 at t+100
+        vm.warp(t + 150);
+        _consumeMany(m, 24, 3); // logical 2024..2047 (physical 1000..1023) at t+150; ring full
+        (bool ok, Reason why) = _tryConsume(m, 1);
+        assertFalse(ok);
+        assertEq(uint8(why), uint8(Reason.WINDOW_FULL));
+
+        vm.warp(t + 200);
+        _consumeMany(m, 500, 4); // evicts through logical 2023: head = 2024; logical 2048..2547 at t+200
+        vm.warp(t + 250); // logical 2024..2047 expired but not evicted; the skip crosses 1023 -> 0
+
+        (uint256[] memory at, uint256[] memory amt) = registry.liveDebits(h, NATIVE, type(uint256).max);
+        assertEq(at.length, 500);
+        for (uint256 i = 0; i < at.length; i++) {
+            assertEq(at[i], t + 300);
+            assertEq(amt[i], 4);
+        }
+        (uint256 rolling, uint256 calls) = registry.rollingUsage(h, NATIVE);
+        assertEq(rolling, 2000);
+        assertEq(calls, 500);
+
+        (at, amt) = registry.liveDebits(h, NATIVE, 1);
+        assertEq(at.length, 1);
+        assertEq(at[0], t + 300);
+        assertEq(amt[0], 4);
+
+        (at, amt) = registry.liveDebits(h, NATIVE, 0);
+        assertEq(at.length, 0);
+    }
+
+    /// @dev maxCount below the live count while an expired-but-unevicted prefix exists.
+    function test_liveDebits_truncateAfterExpiredPrefix() public {
+        SpendGrant memory m = _grant(100, 10, 100, 1000, 26);
+        bytes32 h = _hashOf(m);
+        uint256 t = vm.getBlockTimestamp();
+        _mustConsume(m, 5);
+        vm.warp(t + 50);
+        _mustConsume(m, 6);
+        vm.warp(t + 60);
+        _mustConsume(m, 7);
+        vm.warp(t + 100); // first debit expired, not evicted
+
+        (uint256[] memory at, uint256[] memory amt) = registry.liveDebits(h, NATIVE, 1);
+        assertEq(at.length, 1);
+        assertEq(amt[0], 6);
+        assertEq(at[0], t + 150);
+        (at, amt) = registry.liveDebits(h, NATIVE, 2);
+        assertEq(at.length, 2);
+        assertEq(amt[1], 7);
+    }
+
+    /// @dev An asset the grant never spent returns nothing, even when another asset has debits.
+    function test_liveDebits_unusedAssetIsEmpty() public {
+        SpendGrant memory m = _grant(100, 10, 100, 1000, 27);
+        _mustConsume(m, 5);
+        (uint256[] memory at, uint256[] memory amt) =
+            registry.liveDebits(_hashOf(m), address(0x1234), type(uint256).max);
+        assertEq(at.length, 0);
+        assertEq(amt.length, 0);
+    }
+
+    function _consumeMany(SpendGrant memory m, uint256 count, uint256 amount) internal {
+        for (uint256 i = 0; i < count; i++) {
+            _mustConsume(m, amount);
+        }
+    }
+
+    function _mustConsume(SpendGrant memory m, uint256 amount) internal {
+        (bool ok,) = _tryConsume(m, amount);
+        assertTrue(ok);
+    }
+
+    function _assertLive(bytes32 h, uint256[] memory wantAt, uint256[] memory wantAmt) internal view {
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, type(uint256).max);
+        assertEq(expiresAt, wantAt);
+        assertEq(amounts, wantAmt);
+        (uint256 rolling, uint256 liveCalls) = registry.rollingUsage(h, NATIVE);
+        uint256 sum;
+        for (uint256 i = 0; i < amounts.length; i++) {
+            sum += amounts[i];
+        }
+        assertEq(sum, rolling);
+        assertEq(amounts.length, liveCalls);
+    }
+
+    /// @dev Copy of `a` without its first `n` elements.
+    function _drop(uint256[] memory a, uint256 n) internal pure returns (uint256[] memory out) {
+        out = new uint256[](a.length - n);
+        for (uint256 i = 0; i < out.length; i++) {
+            out[i] = a[n + i];
+        }
     }
 }

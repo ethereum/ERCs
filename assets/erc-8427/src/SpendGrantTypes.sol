@@ -75,6 +75,10 @@ interface ISpendGrantRegistry {
     function revoked(address principal, bytes32 grantHash) external view returns (bool);
     function usage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls);
     function rollingUsage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls);
+    function liveDebits(bytes32 grantHash, address asset, uint256 maxCount)
+        external
+        view
+        returns (uint256[] memory expiresAt, uint256[] memory amounts);
 
     function consume(
         SpendGrant calldata grant,

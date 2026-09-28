@@ -78,6 +78,39 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         calls = uint256(tail - u.head) - expiredCount;
     }
 
+    /// @notice The oldest `min(maxCount, n)` of the `n` unexpired debits for `asset` under `grantHash`
+    /// at this block, in recording order. `amounts[i]` counts against the window while
+    /// `block.timestamp < expiresAt[i]`.
+    function liveDebits(bytes32 grantHash, address asset, uint256 maxCount)
+        external
+        view
+        returns (uint256[] memory expiresAt, uint256[] memory amounts)
+    {
+        AssetUsage storage u = _usage[grantHash][asset];
+        uint64 windowSeconds = _windowSeconds[grantHash];
+
+        uint64 head = u.head;
+        uint64 tail = u.tail;
+        // Timestamps are appended in order, so expired debits not yet evicted are a prefix.
+        while (head < tail) {
+            (uint64 time,) = _unpack(u.ring[head % MAX_LIVE_DEBITS]);
+            if (_live(time, windowSeconds)) break;
+            unchecked {
+                ++head;
+            }
+        }
+
+        uint256 n = tail - head;
+        if (n > maxCount) n = maxCount;
+        expiresAt = new uint256[](n);
+        amounts = new uint256[](n);
+        for (uint256 i = 0; i < n; i++) {
+            (uint64 time, uint256 amount) = _unpack(u.ring[(uint256(head) + i) % MAX_LIVE_DEBITS]);
+            expiresAt[i] = uint256(time) + uint256(windowSeconds);
+            amounts[i] = amount;
+        }
+    }
+
     /// @dev `authorizer` is the address the executor authenticated as authorizing this spend.
     /// Holding the grant and its signature is not authority: both are public after first use.
     function consume(
@@ -111,9 +144,9 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
 
     /// @dev `windowSeconds` must equal the value already signed into this grant (what `consume`
     /// passes through from `grant.windowSeconds`). It is only written to `_windowSeconds` on the
-    /// first debit for `grantHash`; `rollingUsage` always reads that stored value, so a caller
+    /// first debit for `grantHash`; `rollingUsage` and `liveDebits` always read that stored value, so a caller
     /// (e.g. a derived contract calling `_debit` directly) that passes a different value here
-    /// makes `rollingUsage`/eviction disagree with what `consume` would have done.
+    /// makes those views and eviction disagree with what `consume` would have done.
     function _debit(
         bytes32 grantHash,
         uint64 windowSeconds,
