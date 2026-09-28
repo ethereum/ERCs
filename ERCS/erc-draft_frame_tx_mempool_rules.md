@@ -231,7 +231,7 @@ This is the public mempool's reservation rule, applied to every payer, not only 
 
 #### Definitions
 
-1. **`seen`**: a per-entity counter of how many times this node received a unique valid transaction that references the entity. It counts transactions received over RPC and over the mempool network.
+1. **`seen`**: a per-entity counter of how many times this node received a unique valid transaction that references the entity. It counts transactions received over RPC and over the mempool network. Admitting a replacement for an existing pending transaction is not a new occurrence for this purpose; [REPUTATION-040] governs it instead.
 2. **`included`**: a per-entity counter of how many transactions that were previously counted in `seen` for that entity were included in a canonical block. A node determines this from the block's transactions and receipts.
 3. **Refresh rate**: every hour, both counters are updated as `value = value * 23 // 24`. The effect is a reduction to about 1% after four days.
 4. **`inclusionRate`**: the ratio of `included` to `seen`.
@@ -252,7 +252,7 @@ The following rules apply to all staked entities and to unstaked sponsoring paye
 
 * **[REPUTATION-010]** A `BANNED` address is not allowed into the mempool. Every pending transaction that references it is removed.
 * **[REPUTATION-020]** A `THROTTLED` address is limited to `THROTTLED_ENTITY_MEMPOOL_COUNT` entries in the mempool, to `THROTTLED_ENTITY_BLOCK_COUNT` transactions in a block the node builds, and to `THROTTLED_ENTITY_LIVE_BLOCKS` blocks of residency in the mempool.
-* **[REPUTATION-040]** When a transaction is replaced by one with higher fees and the replacement removes an entity, such as a sponsoring payer, from the mempool, the removed entity's `seen` is decremented by 1.
+* **[REPUTATION-040]** Admitting a replacement is not a new occurrence of `seen` for any entity. If the replacement changes the payer, the node decrements the old payer's `seen` by 1 and increments the new payer's `seen` by 1, atomically with the replacement.
 
 #### Staked entities
 
