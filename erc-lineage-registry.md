@@ -3,7 +3,7 @@ eip: 8428
 title: ERC-721 Lineage Registry
 description: An ERC-721 extension for authorized parentage records with immutable chronology and optional genealogy operations.
 author: Henrique L. Alvim (@henriquelalvim)
-discussions-to: https://ethereum-magicians.org/t/lineage-registry-an-erc-721-extension-for-on-chain-genealogical-trees/29441
+discussions-to: https://ethereum-magicians.org/t/erc8428-erc-721-lineage-registry/29441
 status: Draft
 type: Standards Track
 category: ERC
