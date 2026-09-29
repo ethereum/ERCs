@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {IERC8262Oracle} from "./interfaces/IERC8262Oracle.sol";
-import {IERC8262Verifier} from "./interfaces/IERC8262Verifier.sol";
+import {ERC8262Verifier} from "./ERC8262Verifier.sol";
 import {IUltraVerifier} from "./interfaces/IUltraVerifier.sol";
 import {IERC165} from "./interfaces/IERC165.sol";
 import {ProofTypes} from "./libraries/ProofTypes.sol";
@@ -23,7 +23,7 @@ import {EIP712CredentialRoot} from "./libraries/EIP712CredentialRoot.sol";
 ///      - owner: grant/revoke roles, transfer ownership
 contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     /// @notice The verifier contract used to validate proofs
-    IERC8262Verifier public immutable verifier;
+    ERC8262Verifier public immutable verifier;
 
     /// @notice Hash of the current provider weight configuration
     bytes32 internal _providerConfigHash;
@@ -261,7 +261,7 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         }
         if (initialConfigHash == bytes32(0)) revert InvalidConfigHash(bytes32(0));
 
-        verifier = IERC8262Verifier(_verifier);
+        verifier = ERC8262Verifier(_verifier);
         owner = initialOwner;
         _providerConfigHash = initialConfigHash;
         _attestationTTL = 24 hours;
@@ -985,13 +985,14 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     }
 
     /// @dev Verify the ZK proof and record replay protection.
-    ///      Resolves verifier address once to eliminate TOCTOU.
+    ///      Resolves the verifier address once (no TOCTOU between the address verified
+    ///      against and `verifierUsed`), via `resolveVerifier`, which reverts while the
+    ///      router is paused globally or for this proof type.
     function _verifyAndRecordProof(uint8 proofType, bytes calldata proof, bytes calldata publicInputs)
         internal
         returns (address verifierUsed, bytes32 proofHash)
     {
-        verifierUsed = verifier.getVerifier(proofType);
-        if (verifierUsed == address(0)) revert ProofVerificationFailed();
+        verifierUsed = verifier.resolveVerifier(proofType);
         ProofTypes.validatePublicInputs(proofType, publicInputs);
         bytes32[] memory inputs = ProofTypes.decodePublicInputs(publicInputs);
         bool valid = IUltraVerifier(verifierUsed).verify(proof, inputs);

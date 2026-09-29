@@ -143,6 +143,18 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
         return _verifiers[proofType];
     }
 
+    /// @notice Current verifier for `proofType`, for callers that call it directly and must
+    ///         record the address they verified against (the Oracle resolves once per
+    ///         submission). Honours the global and per-type pause exactly as `verifyProof`
+    ///         does, so pausing here stops every submission path, not only router calls.
+    /// @param proofType The proof type (0x01-0x09)
+    /// @return verifier The verifier contract address
+    function resolveVerifier(uint8 proofType) external view whenNotPaused returns (address verifier) {
+        if (_proofTypePaused[proofType]) revert ProofTypePaused(proofType);
+        verifier = _verifiers[proofType];
+        if (verifier == address(0)) revert VerifierNotSet(proofType);
+    }
+
     /// @inheritdoc IERC8262Verifier
     function verifyProofAtVersion(uint8 proofType, uint256 version, bytes calldata proof, bytes calldata publicInputs)
         external
