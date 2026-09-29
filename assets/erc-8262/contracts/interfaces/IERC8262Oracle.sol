@@ -65,6 +65,8 @@ interface IERC8262Oracle {
     ) external returns (ComplianceAttestation memory attestation);
 
     /// @notice Check if an address has a valid (non-expired) compliance attestation
+    /// @dev Reads the jurisdiction's compliance slot, which only COMPLIANCE_MULTI_SIGNED
+    ///      and, where the multi-provider floor is 1, COMPLIANCE / COMPLIANCE_SIGNED write.
     /// @param subject The address to check
     /// @param jurisdictionId The jurisdiction to check against
     /// @return valid Whether a valid attestation exists
@@ -74,7 +76,8 @@ interface IERC8262Oracle {
         view
         returns (bool valid, ComplianceAttestation memory attestation);
 
-    /// @notice Check compliance filtered by proof type
+    /// @notice Check the latest attestation of one proof type
+    /// @dev Every accepted proof writes its own (subject, jurisdiction, proofType) slot.
     /// @param subject The address to check
     /// @param jurisdictionId The jurisdiction to check against
     /// @param proofType The required proof type (0x01-0x09)
