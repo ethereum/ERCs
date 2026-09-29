@@ -235,7 +235,7 @@ Note that there are no penalization mechanisms in the alternative mempools proto
 3. **Refresh rate**: every hour, both counters are updated as `value = value * 23 // 24`. The effect is a practical reputation reset after four days of entity inactivity.
 4. **`inclusionRate`**: the ratio of `included` to `seen`.
 
-An `OK` staked entity faces no additional limit under the reputation rules. There is no cap on its pending transactions, or on its transactions in a block a node builds. An entity whose transactions are frequently not included loses its reputation, until declines below a certain threshold and gets additional limitations.
+An `ACTIVE` staked entity faces no additional limit under the reputation rules. There is no cap on its pending transactions, or on its transactions in a block a node builds. An entity whose transactions are frequently not included loses its reputation, until declines below a certain threshold and gets additional limitations.
 
 #### Calculation
 
@@ -243,9 +243,11 @@ Let `max_seen = seen // MIN_INCLUSION_RATE_DENOMINATOR`. The following condition
 
 * **BANNED**: `max_seen > included + BAN_SLACK`
 * **THROTTLED**: `included + THROTTLING_SLACK < max_seen <= included + BAN_SLACK`
-* **OK**: `max_seen <= included + THROTTLING_SLACK`
+* **ACTIVE**: `max_seen <= included + THROTTLING_SLACK`
 
-A new entity starts as `OK`. Reputation is tracked per entity address, not per role. The refresh rate limits an entity's organic climb toward `BANNED`, allowing a relatively small number of invalid transactions per hour without any penalties.
+A new entity starts as `ACTIVE`. Reputation is tracked per entity address, not per role. The refresh rate limits an entity's organic climb toward `BANNED`, allowing a relatively small number of invalid transactions per hour without any penalties.
+
+Let `opsAllowed = SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT + inclusionRate * min(included, MAX_TXS_ALLOWED_UNSTAKED_ENTITY)`, the pending-transaction allowance for an unstaked sponsoring payer ([REPUTATION-220]). For a new entity, with `included = 0`, this is `SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT`.
 
 #### General rules
 
@@ -258,14 +260,14 @@ The following rules apply to all staked entities and to unstaked sponsoring paye
 #### Unstaked entities
 
 * **[REPUTATION-210]** A `THROTTLED` sender is limited to `THROTTLED_ENTITY_MEMPOOL_COUNT` pending transactions in total, regardless of how many nonce keys it uses.
-* **[REPUTATION-220]** An unstaked sponsoring payer that is neither `THROTTLED` nor `BANNED` may have at most `opsAllowed` pending transactions in the mempool, where `opsAllowed = SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT + inclusionRate * min(included, MAX_TXS_ALLOWED_UNSTAKED_ENTITY)`. For a new entity this is `SAME_UNSTAKED_ENTITY_MEMPOOL_COUNT`.
+* **[REPUTATION-220]** An unstaked sponsoring payer that is neither `THROTTLED` nor `BANNED` may have at most `opsAllowed` pending transactions in the mempool.
 
 #### Blame attribution
 
 The alternative mempool system tracks which entity was the one responsible for a transaction that has been previously admitted to the mempool to become invalid. This is done by detecting the exact `VERIFY` frame in the validation prefix that changes its behaviour and no longer executes the expected `APPROVE` opcode call.
 
 * **[REPUTATION-310]** If a transaction fails revalidation because of the `factory` or the `sender` entities, the sponsoring `payer`'s `seen` is decremented by 1. A `payer` must not lose reputation because of another entity's failure.
-* **[REPUTATION-320]** If a staked `factory` is used and the `sender`'s validation frame fails, the failure is attributed to the `factory`, and the `factory`'s reputation is updated accordingly.
+* **[REPUTATION-320]** If a staked `factory` is used and the `sender`'s validation frame fails, the `factory`'s `seen` is not decremented under [REPUTATION-310]: it absorbs the failure in its own `inclusionRate`, exactly as if its own frame had failed.
 * **[REPUTATION-330]** If a staked `sender` is used, its reputation is affected by failures of **all other entities** of the transaction, even if those entities are staked.
 
 ### Replacement, Eviction and Revalidation (LIFECYCLE)
