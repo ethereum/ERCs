@@ -30,6 +30,9 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
     /// @notice Revoked verifier versions (cannot be used via verifyProofAtVersion)
     mapping(uint8 proofType => mapping(uint256 version => bool revoked)) internal _revokedVersions;
 
+    /// @notice Per proof type, verifier addresses with a revoked version (checks `verifierUsed`).
+    mapping(uint8 proofType => mapping(address verifier => bool revoked)) internal _revokedVerifiers;
+
     /// @notice Per-proof-type pause state for surgical incident response
     mapping(uint8 proofType => bool isPaused) internal _proofTypePaused;
 
@@ -50,6 +53,7 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
     error NoPendingProposal(uint8 proofType);
     error ProposalAlreadyPending(uint8 proofType);
     error VersionRevoked(uint8 proofType, uint256 version);
+    error VerifierAddressRevoked(uint8 proofType, address verifier);
     error CannotRevokeCurrentVersion(uint8 proofType);
     error AlreadyRevoked(uint8 proofType, uint256 version);
     error NotAContract(address addr);
@@ -143,10 +147,8 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
         return _verifiers[proofType];
     }
 
-    /// @notice Current verifier for `proofType`, for callers that call it directly and must
-    ///         record the address they verified against (the Oracle resolves once per
-    ///         submission). Honours the global and per-type pause exactly as `verifyProof`
-    ///         does, so pausing here stops every submission path, not only router calls.
+    /// @notice Current verifier for `proofType`, for callers that verify directly.
+    /// @dev Honours global and per-type pause like `verifyProof`, so pausing stops Oracle submissions.
     /// @param proofType The proof type (0x01-0x09)
     /// @return verifier The verifier contract address
     function resolveVerifier(uint8 proofType) external view whenNotPaused returns (address verifier) {
@@ -218,6 +220,7 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
         bytes32 actual = newVerifier.codehash;
         if (actual != expectedCodehash) revert CodehashMismatch(newVerifier, expectedCodehash, actual);
         if (_pendingVerifiers[proofType].proposedAt != 0) revert ProposalAlreadyPending(proofType);
+        if (_revokedVerifiers[proofType][newVerifier]) revert VerifierAddressRevoked(proofType, newVerifier);
 
         _pendingVerifiers[proofType] = VerifierProposal({
             newVerifier: newVerifier, proposedAt: block.timestamp, expectedCodehash: expectedCodehash
@@ -242,6 +245,9 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
         bytes32 actual = proposal.newVerifier.codehash;
         if (actual != proposal.expectedCodehash) {
             revert CodehashMismatch(proposal.newVerifier, proposal.expectedCodehash, actual);
+        }
+        if (_revokedVerifiers[proofType][proposal.newVerifier]) {
+            revert VerifierAddressRevoked(proofType, proposal.newVerifier);
         }
 
         address old = _verifiers[proofType];
@@ -352,8 +358,11 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
         if (version == 0 || version > history.length) revert InvalidVersion(proofType, version);
         if (version == history.length) revert CannotRevokeCurrentVersion(proofType);
         if (_revokedVersions[proofType][version]) revert AlreadyRevoked(proofType, version);
+        // Revoking an old version sharing the live address would revoke its live attestations.
+        if (history[version - 1] == _verifiers[proofType]) revert CannotRevokeCurrentVersion(proofType);
 
         _revokedVersions[proofType][version] = true;
+        _revokedVerifiers[proofType][history[version - 1]] = true;
         emit VerifierVersionRevoked(proofType, version, history[version - 1]);
     }
 
@@ -363,6 +372,14 @@ contract ERC8262Verifier is IERC8262Verifier, IERC165, AccessControl, Pausable {
     /// @return revoked Whether the version has been revoked
     function isVersionRevoked(uint8 proofType, uint256 version) external view returns (bool revoked) {
         return _revokedVersions[proofType][version];
+    }
+
+    /// @notice Check if a verifier address was registered under a version that has since been revoked
+    /// @param proofType The proof type (0x01-0x09)
+    /// @param verifier The verifier address, e.g. an attestation's `verifierUsed`
+    /// @return revoked Whether any revoked version of `proofType` points at `verifier`
+    function isVerifierRevoked(uint8 proofType, address verifier) external view returns (bool revoked) {
+        return _revokedVerifiers[proofType][verifier];
     }
 
     /// @notice Pause the contract, blocking all proof verification
