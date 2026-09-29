@@ -19,6 +19,8 @@ const PROPOSALS_DIR = "ERCS";
 const DEFAULT_BRANCH = "master";
 const STAGNATION_CUTOFF_MONTHS = 6;
 const MERGE_DELAY_WEEKS = 2;
+/** Stays under GitHub's secondary rate limit; the rest are picked up on later runs. */
+const MAX_NEW_PRS_PER_RUN = 50;
 const STAGNATABLE_STATUSES = ["draft", "review"];
 const STAGNANT = "Stagnant";
 
@@ -113,6 +115,7 @@ const fetchOpenPRs = async (github, context) => {
       detailed.push({
         num: pull.number,
         createdAt: new Date(pull.created_at),
+        branch: pull.head.ref,
         isBot: BOT_LABELS.every((label) => labels.includes(label)),
         paths: files[offset].map((file) => file.filename)
       });
@@ -121,13 +124,44 @@ const fetchOpenPRs = async (github, context) => {
   return detailed;
 };
 
-/** Squash merges this bot's pull requests once the notice period has elapsed. */
-const mergeElapsedPRs = async (github, context, core, botPRs) => {
+/** Deletes a branch this bot created. A branch left behind would block the next PR for that ERC. */
+const deleteBranch = async (github, context, core, branch) => {
+  try {
+    await github.rest.git.deleteRef({ ...context.repo, ref: `heads/${branch}` });
+  } catch (error) {
+    core.warning(`could not delete branch ${branch}: ${error.message}`);
+  }
+};
+
+/**
+ * Squash merges this bot's pull requests once the notice period has elapsed,
+ * unless the proposal was edited after the pull request was opened. An edit
+ * during the notice period means someone is working on it, so the pull request
+ * is closed instead of moving a revived proposal to Stagnant.
+ */
+const mergeElapsedPRs = async (github, context, core, botPRs, lastModifiedDates) => {
   const cutoff = weeksAgo(MERGE_DELAY_WEEKS);
   const elapsed = botPRs.filter((pr) => pr.createdAt < cutoff);
   core.info(`${elapsed.length} pull requests have passed the ${MERGE_DELAY_WEEKS} week notice period`);
 
   for (const pr of elapsed) {
+    const lastModified = lastModifiedDates.get(pr.paths[0]);
+    if (lastModified && new Date(lastModified) > pr.createdAt) {
+      try {
+        await github.rest.issues.createComment({
+          ...context.repo,
+          issue_number: pr.num,
+          body: `Closing: ${pr.paths[0]} was edited on ${lastModified.slice(0, 10)}, after this pull request was opened, so it is no longer stagnant.`
+        });
+        await github.rest.pulls.update({ ...context.repo, pull_number: pr.num, state: "closed" });
+        await deleteBranch(github, context, core, pr.branch);
+        core.info(`closed #${pr.num}: ${pr.paths[0]} was edited during the notice period`);
+      } catch (error) {
+        core.warning(`could not close #${pr.num}: ${error.message}`);
+      }
+      await sleep(WAIT_MS);
+      continue;
+    }
     try {
       await github.rest.pulls.merge({
         ...context.repo,
@@ -137,6 +171,7 @@ const mergeElapsedPRs = async (github, context, core, botPRs) => {
         commit_message: `Opened ${pr.createdAt.toISOString().slice(0, 10)}, more than ${MERGE_DELAY_WEEKS} weeks ago.`
       });
       core.info(`merged #${pr.num}`);
+      await deleteBranch(github, context, core, pr.branch);
     } catch (error) {
       // Typically a conflict or a failing check; left open for a human.
       core.warning(`could not merge #${pr.num}: ${error.message}`);
@@ -148,16 +183,36 @@ const mergeElapsedPRs = async (github, context, core, botPRs) => {
 const openStagnantPR = async (github, context, core, candidate, baseSha) => {
   const branch = `mark-erc-${candidate.erc}-stagnant`;
 
-  await github.rest.git.createRef({
-    ...context.repo,
-    ref: `refs/heads/${branch}`,
-    sha: baseSha
-  });
-
   const updated = setStatusToStagnant(candidate.contents);
   if (updated === candidate.contents)
     throw new Error(`failed to rewrite the status of ${candidate.file}`);
 
+  try {
+    await github.rest.git.createRef({
+      ...context.repo,
+      ref: `refs/heads/${branch}`,
+      sha: baseSha
+    });
+  } catch (error) {
+    // A branch left over from an earlier run: reset it to the current base.
+    if (error.status !== 422) throw error;
+    await github.rest.git.updateRef({
+      ...context.repo,
+      ref: `heads/${branch}`,
+      sha: baseSha,
+      force: true
+    });
+  }
+
+  try {
+    await createStagnantCommitAndPR(github, context, core, candidate, branch, updated);
+  } catch (error) {
+    await deleteBranch(github, context, core, branch);
+    throw error;
+  }
+};
+
+const createStagnantCommitAndPR = async (github, context, core, candidate, branch, updated) => {
   await github.rest.repos.createOrUpdateFileContents({
     ...context.repo,
     path: candidate.file,
@@ -195,14 +250,15 @@ module.exports = async ({ github, context, core, dryRun }) => {
   const openPRs = await fetchOpenPRs(github, context);
   core.info(`found ${openPRs.length} open pull requests`);
 
-  if (!dryRun) await mergeElapsedPRs(github, context, core, openPRs.filter((pr) => pr.isBot));
+  const lastModifiedDates = getLastModifiedDates();
+  if (!dryRun)
+    await mergeElapsedPRs(github, context, core, openPRs.filter((pr) => pr.isBot), lastModifiedDates);
 
   // Any file with an open pull request is left alone. This covers proposals with
   // active work in flight, and this bot's own pending pull requests, so nothing
   // is ever opened twice.
   const excluded = new Set(openPRs.flatMap((pr) => pr.paths));
   const stagnationCutoff = monthsAgo(STAGNATION_CUTOFF_MONTHS);
-  const lastModifiedDates = getLastModifiedDates();
 
   const candidates = [];
   for (const name of fs.readdirSync(PROPOSALS_DIR)) {
@@ -255,7 +311,11 @@ module.exports = async ({ github, context, core, dryRun }) => {
     branch: DEFAULT_BRANCH
   });
 
-  for (const candidate of candidates) {
+  const batch = candidates.slice(0, MAX_NEW_PRS_PER_RUN);
+  if (batch.length < candidates.length)
+    core.info(`opening ${batch.length} this run; the remaining ${candidates.length - batch.length} follow on later runs`);
+
+  for (const candidate of batch) {
     try {
       const { data: blob } = await github.rest.repos.getContent({
         ...context.repo,
