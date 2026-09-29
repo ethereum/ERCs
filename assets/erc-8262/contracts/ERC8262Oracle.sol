@@ -1421,14 +1421,15 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
 
     /// @dev Validate RISK_SCORE_SIGNED public inputs (audit I-1).
     ///      Identical semantic checks to _validateRiskScoreInputs but with an additional
-    ///      `signer_pubkey_hash` slot validated against the on-chain registry.
+    ///      `signer_pubkey_hash` slot validated against the on-chain registry, and the
+    ///      signed `timestamp` enforced within MAX_PROOF_AGE exactly as for
+    ///      COMPLIANCE_SIGNED. The circuit commits the timestamp to the provider's
+    ///      signature, so this bounds how long a signature can mint attestations.
     function _validateRiskScoreSignedInputs(bytes calldata publicInputs)
         internal
         view
         returns (uint256 proofTimestamp)
     {
-        // RISK_SCORE_SIGNED has no proof-internal timestamp; ratchet uses block.timestamp.
-        proofTimestamp = block.timestamp;
         // RISK_SCORE_SIGNED public inputs layout (each 32 bytes):
         //   [0]:  proof_type
         //   [1]:  direction
@@ -1437,25 +1438,28 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         //   [4]:  result
         //   [5]:  config_hash
         //   [6]:  provider_set_hash
-        //   [7]:  signer_pubkey_hash
-        //   [8]:  chain_id            (audit F-6)
-        //   [9]:  oracle_address      (audit F-6)
-        //   [10]: submitter
-        bytes32 proofSignerPubkeyHash = bytes32(publicInputs[224:256]);
+        //   [7]:  timestamp           (signed by the provider)
+        //   [8]:  signer_pubkey_hash
+        //   [9]:  chain_id            (audit F-6)
+        //   [10]: oracle_address      (audit F-6)
+        //   [11]: submitter
+        bytes32 proofSignerPubkeyHash = bytes32(publicInputs[256:288]);
 
         _assertResultPositive(bytes32(publicInputs[128:160]));
         _assertValidConfig(bytes32(publicInputs[160:192]));
         if (!_validSignerPubkeyHashes[proofSignerPubkeyHash]) {
             revert InvalidSignerPubkeyHash(proofSignerPubkeyHash);
         }
-        _assertChainAndOracleBinding(publicInputs, 256);
-        _assertSubmitter(bytes32(publicInputs[320:352]));
+        _assertChainAndOracleBinding(publicInputs, 288);
+        _assertSubmitter(bytes32(publicInputs[352:384]));
         _validateRiskBounds(
             uint256(bytes32(publicInputs[0:32])),
             uint256(bytes32(publicInputs[32:64])),
             uint256(bytes32(publicInputs[64:96])),
             uint256(bytes32(publicInputs[96:128]))
         );
+        proofTimestamp = uint256(bytes32(publicInputs[224:256]));
+        _validateProofTimestamp(proofTimestamp);
     }
 
     // -------------------------------------------------------------------------
