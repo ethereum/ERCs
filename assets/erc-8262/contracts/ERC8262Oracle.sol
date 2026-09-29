@@ -685,7 +685,8 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     /// @param proofType ProofTypes.MEMBERSHIP or ProofTypes.NON_MEMBERSHIP
     /// @param merkleRoot The merkle root to register
     function registerMerkleRoot(uint8 proofType, bytes32 merkleRoot) external onlyRole(REGISTRAR_ROLE) {
-        _addBoolEntry(_merkleRootSet(proofType), merkleRoot);
+        _assertSetProofType(proofType);
+        _addBoolEntry(_validMerkleRoots[proofType], merkleRoot);
         emit MerkleRootRegistered(proofType, merkleRoot);
     }
 
@@ -693,7 +694,8 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     /// @param proofType ProofTypes.MEMBERSHIP or ProofTypes.NON_MEMBERSHIP
     /// @param merkleRoot The merkle root to revoke
     function revokeMerkleRoot(uint8 proofType, bytes32 merkleRoot) external onlyRole(REGISTRAR_ROLE) {
-        _removeBoolEntry(_merkleRootSet(proofType), merkleRoot);
+        _assertSetProofType(proofType);
+        _removeBoolEntry(_validMerkleRoots[proofType], merkleRoot);
         emit MerkleRootRevoked(proofType, merkleRoot);
     }
 
@@ -705,12 +707,11 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         return _validMerkleRoots[proofType][merkleRoot];
     }
 
-    /// @dev Root set for a set-proof type; reverts for any other type.
-    function _merkleRootSet(uint8 proofType) internal view returns (mapping(bytes32 => bool) storage) {
+    /// @dev Reverts unless `proofType` uses the merkle-root registry.
+    function _assertSetProofType(uint8 proofType) internal pure {
         if (proofType != ProofTypes.MEMBERSHIP && proofType != ProofTypes.NON_MEMBERSHIP) {
             revert InvalidMerkleRootProofType(proofType);
         }
-        return _validMerkleRoots[proofType];
     }
 
     // -------------------------------------------------------------------------
