@@ -1067,9 +1067,11 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         }
     }
 
-    /// @dev Assert that the encoded submitter equals msg.sender.
+    /// @dev Assert that the encoded submitter equals msg.sender. Compares the full
+    ///      word: the circuit's `submitter` is a Field, so a value with bits above 160
+    ///      set is a different subject even though its low 160 bits match.
     function _assertSubmitter(bytes32 raw) internal view {
-        if (address(uint160(uint256(raw))) != msg.sender) revert SubmitterMismatch();
+        if (raw != bytes32(uint256(uint160(msg.sender)))) revert SubmitterMismatch();
     }
 
     /// @dev Assert that the encoded boolean result is canonical true.
