@@ -1,0 +1,42 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Zodiac Roles v2",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x9646fDAD06d3e24444381f44362a3B0eB343D337"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Zodiac Labs",
+        "contractName": "Roles",
+        "info": {
+            "url": "https://zodiac.eco"
+        }
+    },
+    "display": {
+        "formats": {
+            "scopeTarget(bytes32 roleKey,address targetAddress)": {
+                "$id": "Scope Target",
+                "intent": "Scope target",
+                "interpolatedIntent": "Scope {targetAddress} for role {roleKey}",
+                "fields": [
+                    {
+                        "path": "roleKey",
+                        "label": "Role",
+                        "customEncoding": { "type": "string" }
+                    },
+                    {
+                        "path": "targetAddress",
+                        "label": "Target",
+                        "format": "addressName"
+                    }
+                ]
+            }
+        }
+    }
+}
