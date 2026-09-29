@@ -210,9 +210,9 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     uint256 public constant MAX_CONFIG_HISTORY = 256;
 
     /// @notice Maximum number of proofs in a single batch submission.
-    /// @dev Calibrated against the per-proof gas baseline in `.gas-snapshot`
-    ///      (~2.83M for submitCompliance). 10 × 2.83M ≈ 28.3M, just under the
-    ///      30M mainnet block gas target. Audit F-3.
+    /// @dev A full 10-entry batch measures ~24.1M gas
+    ///      (`test_gas_batch_atMaxSize_fitsBlockGasTarget` in `.gas-snapshot`), which fits a
+    ///      30M-gas block with room for the surrounding transaction. Recalibrate per chain.
     uint256 public constant MAX_BATCH_SIZE = 10;
 
     /// @notice Minimum time window for PATTERN (anti-structuring) proofs in seconds

@@ -64,7 +64,7 @@ versions:
 | ----------------- | ---------------------- | ---------------- |
 | nargo (Noir)      | 1.0.0-beta.20          | MIT / Apache-2.0 |
 | bb (Barretenberg) | 4.0.0-nightly.20260120 | Apache-2.0       |
-| Foundry (forge)   | stable                 | MIT / Apache-2.0 |
+| Foundry (forge)   | 1.5.1                  | MIT / Apache-2.0 |
 
 ## Build
 

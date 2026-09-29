@@ -7,7 +7,7 @@ interface IERC8262Oracle {
     /// @notice A compliance attestation recorded on-chain
     struct ComplianceAttestation {
         address subject; // address that proved compliance
-        uint8 jurisdictionId; // jurisdiction (0=EU, 1=US, 2=UK, 3=SG)
+        uint8 jurisdictionId; // jurisdiction (0=EU, 1=US, 2=UK, 3=SG, 4=UAE)
         uint8 proofType; // which proof type generated this attestation (0x01-0x09)
         bool meetsThreshold; // whether risk score is below filing trigger
         uint256 timestamp; // block.timestamp when attestation was recorded
@@ -50,7 +50,7 @@ interface IERC8262Oracle {
     event ReportingThresholdRevoked(bytes32 indexed threshold);
 
     /// @notice Submit a compliance proof and record the attestation
-    /// @param jurisdictionId Target jurisdiction (0=EU, 1=US, 2=UK, 3=SG)
+    /// @param jurisdictionId Target jurisdiction (0=EU, 1=US, 2=UK, 3=SG, 4=UAE)
     /// @param proofType The proof type for verifier routing (0x01-0x09)
     /// @param proof The ZK proof data
     /// @param publicInputs Public inputs matching the circuit's pub parameters
@@ -114,7 +114,7 @@ interface IERC8262Oracle {
     function providerConfigHash() external view returns (bytes32 configHash);
 
     /// @notice Submit a batch of compliance proofs atomically
-    /// @param jurisdictionId Target jurisdiction for all entries (0=EU, 1=US, 2=UK, 3=SG)
+    /// @param jurisdictionId Target jurisdiction for all entries (0=EU, 1=US, 2=UK, 3=SG, 4=UAE)
     /// @param proofTypes The proof type for each entry (0x01-0x09)
     /// @param proofs The ZK proof data for each entry
     /// @param publicInputs Public inputs for each entry
