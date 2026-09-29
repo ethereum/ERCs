@@ -58,8 +58,12 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     /// @notice Permanently-revoked provider config hashes; cannot be re-registered
     mapping(bytes32 configHash => bool revoked) internal _revokedConfigs;
 
-    /// @notice Set of valid merkle roots for MEMBERSHIP/NON_MEMBERSHIP/ATTESTATION proofs
-    mapping(bytes32 merkleRoot => bool valid) internal _validMerkleRoots;
+    /// @notice Valid merkle roots, per proof type (MEMBERSHIP or NON_MEMBERSHIP).
+    /// @dev Keyed by type because both circuits use the same subject-bound leaf format:
+    ///      a root registered for one must not satisfy the other. Without the split, a
+    ///      denylist root registered for NON_MEMBERSHIP would also accept a MEMBERSHIP proof
+    ///      that the subject IS on the denylist.
+    mapping(uint8 proofType => mapping(bytes32 merkleRoot => bool valid)) internal _validMerkleRoots;
 
     /// @notice Registered reporting thresholds for PATTERN proofs (anti-structuring)
     /// @dev Maps threshold value (as bytes32) to validity. Prevents jurisdiction spoofing
@@ -143,6 +147,7 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
     error PublicInputMismatch();
     error InvalidConfigHash(bytes32 configHash);
     error InvalidMerkleRoot(bytes32 merkleRoot);
+    error InvalidMerkleRootProofType(uint8 proofType);
     error InvalidReportingThreshold(bytes32 threshold);
     error CannotRevokeCurrentConfig();
     error ProofResultNegative();
@@ -626,25 +631,36 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         set[key] = false;
     }
 
-    /// @notice Register a merkle root as valid for MEMBERSHIP/NON_MEMBERSHIP/ATTESTATION proofs
+    /// @notice Register a merkle root as valid for one set-proof type
+    /// @param proofType ProofTypes.MEMBERSHIP or ProofTypes.NON_MEMBERSHIP
     /// @param merkleRoot The merkle root to register
-    function registerMerkleRoot(bytes32 merkleRoot) external onlyRole(REGISTRAR_ROLE) {
-        _addBoolEntry(_validMerkleRoots, merkleRoot);
-        emit MerkleRootRegistered(merkleRoot);
+    function registerMerkleRoot(uint8 proofType, bytes32 merkleRoot) external onlyRole(REGISTRAR_ROLE) {
+        _addBoolEntry(_merkleRootSet(proofType), merkleRoot);
+        emit MerkleRootRegistered(proofType, merkleRoot);
     }
 
-    /// @notice Revoke a merkle root so proofs using it are no longer accepted
+    /// @notice Revoke a merkle root so proofs of that type using it are no longer accepted
+    /// @param proofType ProofTypes.MEMBERSHIP or ProofTypes.NON_MEMBERSHIP
     /// @param merkleRoot The merkle root to revoke
-    function revokeMerkleRoot(bytes32 merkleRoot) external onlyRole(REGISTRAR_ROLE) {
-        _removeBoolEntry(_validMerkleRoots, merkleRoot);
-        emit MerkleRootRevoked(merkleRoot);
+    function revokeMerkleRoot(uint8 proofType, bytes32 merkleRoot) external onlyRole(REGISTRAR_ROLE) {
+        _removeBoolEntry(_merkleRootSet(proofType), merkleRoot);
+        emit MerkleRootRevoked(proofType, merkleRoot);
     }
 
-    /// @notice Check if a merkle root is valid
+    /// @notice Check if a merkle root is valid for a set-proof type
+    /// @param proofType ProofTypes.MEMBERSHIP or ProofTypes.NON_MEMBERSHIP
     /// @param merkleRoot The merkle root to check
-    /// @return valid Whether the merkle root has been registered and not revoked
-    function isValidMerkleRoot(bytes32 merkleRoot) external view returns (bool valid) {
-        return _validMerkleRoots[merkleRoot];
+    /// @return valid Whether the root is registered for that type and not revoked
+    function isValidMerkleRoot(uint8 proofType, bytes32 merkleRoot) external view returns (bool valid) {
+        return _validMerkleRoots[proofType][merkleRoot];
+    }
+
+    /// @dev Root set for a set-proof type; reverts for any other type.
+    function _merkleRootSet(uint8 proofType) internal view returns (mapping(bytes32 => bool) storage) {
+        if (proofType != ProofTypes.MEMBERSHIP && proofType != ProofTypes.NON_MEMBERSHIP) {
+            revert InvalidMerkleRootProofType(proofType);
+        }
+        return _validMerkleRoots[proofType];
     }
 
     // -------------------------------------------------------------------------
@@ -1332,7 +1348,7 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         //   [3]: is_member
         //   [4]: submitter
         bytes32 merkleRoot = bytes32(publicInputs[0:32]);
-        if (!_validMerkleRoots[merkleRoot]) revert InvalidMerkleRoot(merkleRoot);
+        if (!_validMerkleRoots[ProofTypes.MEMBERSHIP][merkleRoot]) revert InvalidMerkleRoot(merkleRoot);
         proofTimestamp = uint256(bytes32(publicInputs[64:96]));
         _validateProofTimestamp(proofTimestamp);
         _assertResultPositive(bytes32(publicInputs[96:128]));
@@ -1349,7 +1365,7 @@ contract ERC8262Oracle is IERC8262Oracle, IERC165, AccessControl, Pausable {
         //   [3]: is_non_member
         //   [4]: submitter
         bytes32 merkleRoot = bytes32(publicInputs[0:32]);
-        if (!_validMerkleRoots[merkleRoot]) revert InvalidMerkleRoot(merkleRoot);
+        if (!_validMerkleRoots[ProofTypes.NON_MEMBERSHIP][merkleRoot]) revert InvalidMerkleRoot(merkleRoot);
         proofTimestamp = uint256(bytes32(publicInputs[64:96]));
         _validateProofTimestamp(proofTimestamp);
         _assertResultPositive(bytes32(publicInputs[96:128]));

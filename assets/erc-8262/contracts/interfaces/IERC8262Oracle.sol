@@ -37,11 +37,11 @@ interface IERC8262Oracle {
     /// @notice Emitted when a provider config hash is revoked
     event ConfigRevoked(bytes32 indexed configHash);
 
-    /// @notice Emitted when a merkle root is registered for membership proofs
-    event MerkleRootRegistered(bytes32 indexed merkleRoot);
+    /// @notice Emitted when a merkle root is registered for a set-proof type (MEMBERSHIP or NON_MEMBERSHIP)
+    event MerkleRootRegistered(uint8 indexed proofType, bytes32 indexed merkleRoot);
 
     /// @notice Emitted when a merkle root is revoked
-    event MerkleRootRevoked(bytes32 indexed merkleRoot);
+    event MerkleRootRevoked(uint8 indexed proofType, bytes32 indexed merkleRoot);
 
     /// @notice Emitted when a reporting threshold is registered for PATTERN proofs
     event ReportingThresholdRegistered(bytes32 indexed threshold);
