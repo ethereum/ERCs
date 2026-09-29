@@ -3,7 +3,7 @@ eip: 8431
 title: Holding-Time Auto Staking for NFTs
 description: Accrue staking time on ERC-721 tokens while they are held, without staking transactions or custody transfers.
 author: Kiwoong Kim (@helloing0119), Jeff Rhie (@jeff-rhie), Jay B (@DalecB)
-discussions-to: https://ethereum-magicians.org/t/erc-xxxx-holding-time-auto-staking-for-nfts/29787
+discussions-to: https://ethereum-magicians.org/t/erc-8431-holding-time-auto-staking-for-nfts/29787
 status: Draft
 type: Standards Track
 category: ERC
