@@ -108,18 +108,29 @@ describe("capability action links (The capability configuration)", () => {
     expect(refused.body.error).toBe("not_owner");
     expect((await follow(h, links.feed!)).status).toBe(200);
 
-    // The owner's rotate proof retires every link and download URL.
-    const before = await request(h.app).get(`/manifest/${TOKEN_ID}`);
+    // The owner's rotate proof retires every link and download URL, and the
+    // response resolves nothing: "a proof for any other action MUST NOT
+    // resolve the manifest".
+    const acquireBefore = await signChallenge(h, owner, TOKEN_ID);
+    const before = await withProof(request(h.app).get(`/manifest/${TOKEN_ID}`), acquireBefore.message, acquireBefore.signature);
+    expect(before.status).toBe(200);
     const rotate = await signChallenge(h, owner, TOKEN_ID, "rotate");
     const rotated = await withProof(request(h.app).post(rotatePath), rotate.message, rotate.signature);
     expect(rotated.status).toBe(200);
-    expect(rotated.body.rotated).toBe(true);
-    expect(rotated.body.formats.apple).toContain("/passes/apple/");
-    expect(rotated.body.formats.apple).not.toBe(before.body.formats?.apple);
+    expect(rotated.body).toEqual({ ok: true, rotated: true });
 
     const dead = await follow(h, links.feed!);
     expect(dead.status).toBe(404);
     expect(dead.body.error).toBe("unknown_capability");
+    const oldDownload = await request(h.app).get(new URL(before.body.formats.apple).pathname);
+    expect(oldDownload.status).toBe(404);
+
+    // The owner acquires the new pass through the manifest route, and its
+    // URLs are the rotated ones.
+    const acquireAfter = await signChallenge(h, owner, TOKEN_ID);
+    const after = await withProof(request(h.app).get(`/manifest/${TOKEN_ID}`), acquireAfter.message, acquireAfter.signature);
+    expect(after.status).toBe(200);
+    expect(after.body.formats.apple).not.toBe(before.body.formats.apple);
 
     // The fresh links are issued to the owner who rotated.
     const fresh = new URL(h.passStore.actionLinks(TOKEN_ID).feed!).pathname;

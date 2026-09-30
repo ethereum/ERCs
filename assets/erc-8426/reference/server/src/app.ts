@@ -286,11 +286,14 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
-      // The proven owner is who the fresh links are issued to.
+      // The proven owner is who the fresh links are issued to. The response
+      // carries no acquisition URL: "a proof for any other action MUST NOT
+      // resolve the manifest" (Gated acquisition), so the owner acquires the
+      // new pass through the manifest route with an acquire proof.
       passStore.recordIssuance(tokenId, gate.account);
-      const manifest = passStore.rotateOnOwnerRequest(tokenId);
+      passStore.rotateOnOwnerRequest(tokenId);
       res.setHeader("Cache-Control", "no-store");
-      res.status(200).json({ ok: true, rotated: true, ...manifest });
+      res.status(200).json({ ok: true, rotated: true });
     }),
   );
 
