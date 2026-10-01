@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/facet.schema.json",
+  "title": "AID Facet",
+  "description": "One provenance-tagged, time-windowed profile facet of an AID. Content-specific fields live in the referenced content document; this envelope is what the AID Document lists.",
+  "type": "object",
+  "required": ["facetType", "provenance", "issuer", "validUntil", "digest", "access", "resolver"],
+  "additionalProperties": false,
+  "properties": {
+    "facetType": { "type": "string", "pattern": "^aid:[a-z0-9-]+(/[a-z0-9-]+)*/v[0-9]+$", "description": "namespaced URI; on-chain key = keccak256(utf8(facetType))" },
+    "provenance": { "enum": ["SELF", "OBSERVED", "ATTESTED", "PROVED"] },
+    "issuer": { "type": "string", "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "validFrom": { "type": "integer", "minimum": 0 },
+    "validUntil": { "type": "integer", "minimum": 1 },
+    "observedAt": { "type": "integer", "minimum": 0 },
+    "digest": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$", "description": "keccak256 of canonical content, or a commitment when access.mode == ZK" },
+    "access": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": true,
+      "properties": {
+        "mode": { "enum": ["PUBLIC", "GATED", "ZK"] },
+        "policy": { "type": "string", "description": "GATED: URI of the disclosure policy" },
+        "verifier": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$", "description": "ZK: on-chain verifier (ERC-8419 PROVED scheme verifier)" },
+        "predicates": { "type": "array", "items": { "type": "string" }, "description": "ZK: predicate identifiers provable against the commitment" }
+      }
+    },
+    "resolver": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "properties": {
+        "kind": { "enum": ["erc8004-identity", "erc8004-reputation", "erc8004-validation", "erc8419-assertion", "erc8338", "erc8414", "uri"] },
+        "chainId": { "type": "integer" },
+        "registry": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "agentId": { "type": "integer" },
+        "schemeId": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+        "issuers": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" } },
+        "tag1": { "type": "string" },
+        "contracts": { "type": "array", "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" } },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "uri": { "type": "string" }
+      }
+    },
+    "uri": { "type": "string", "description": "where the content document lives (PUBLIC/GATED)" }
+  }
+}

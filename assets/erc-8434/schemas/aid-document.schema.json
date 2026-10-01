@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/aid-document.schema.json",
+  "title": "AID Document",
+  "description": "Off-chain descriptor of an Agent Identity (AID). digest = keccak256(JCS(document)) and MUST match AIDRegistry.documentURI(anchor).digest.",
+  "type": "object",
+  "required": ["version", "aid", "facets"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": "aid-document/v1" },
+    "aid": { "$ref": "#/$defs/caip10" },
+    "did": { "type": "string", "pattern": "^did:aid:eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "binding": {
+      "type": "object",
+      "required": ["registry", "agentId"],
+      "additionalProperties": false,
+      "properties": {
+        "registry": { "$ref": "#/$defs/address" },
+        "agentId": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "alsoKnownAs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "successor": { "$ref": "#/$defs/caip10" },
+    "livenessWindow": { "type": "integer", "minimum": 1, "description": "seconds; informative copy of the on-chain value" },
+    "facets": { "type": "array", "items": { "$ref": "facet.schema.json" } },
+    "updatedAt": { "$ref": "#/$defs/unix" }
+  },
+  "$defs": {
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "caip10": { "type": "string", "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "unix": { "type": "integer", "minimum": 0 }
+  }
+}
