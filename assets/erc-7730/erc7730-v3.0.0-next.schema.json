@@ -379,6 +379,9 @@
                                 "$ref": "#/$display/fields"
                             }
                         },
+                        "required": [
+                            "intent"
+                        ],
                         "additionalProperties": false
                     }
                 }
@@ -393,14 +396,20 @@
                 {
                     "title": "Simple intent message",
                     "description": "A description of the intent of the structured data signing, that will be displayed to the user.",
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "\\S"
                 },
                 {
                     "title": "Complex intent message",
                     "description": "A description of the intent of the structured data signing, that will be displayed to the user.",
                     "type": "object",
+                    "minProperties": 1,
+                    "propertyNames": {
+                        "pattern": "\\S"
+                    },
                     "additionalProperties": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "\\S"
                     }
                 }
 
