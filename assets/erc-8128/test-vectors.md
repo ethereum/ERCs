@@ -57,7 +57,9 @@ Each mutation starts from the positive vector, leaves signature bytes unchanged 
 | Replace the only `tag` with an unknown extension tag | `no_acceptable_signature` |
 | Replace `keyid` with a non-canonical CAIP-10 value | `invalid_keyid` |
 | Use a valid `keyid` on a chain the verifier does not serve | `unsupported_chain` before RPC |
-| Require EOA-only verification and present an ERC-6492 wrapper or an Account with code | `unsupported_account` |
+| Require EOA-only verification and present an ERC-6492 wrapper | `unsupported_account` before RPC |
+| Require EOA-only verification with a code lookup and give the Account code | `unsupported_account` |
+| Require EOA-only verification without a code lookup and make account-state RPC unavailable | positive vector authenticates; no RPC is performed |
 | Remove `created`, make it a String, or set `expires <= created` | `invalid_time` |
 | With `now=1699999969`, keep the displayed times and skew | `request_not_yet_valid` |
 | With `now=1700000091`, keep the displayed times and skew | `request_expired` |
