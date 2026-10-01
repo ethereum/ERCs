@@ -102,8 +102,27 @@
           }
         },
         "log": {
-          "type": "string",
-          "description": "OPTIONAL URI of the issuer's public append-only commitment log, enumerable per (issuer, subject, facetType, subjectWindow)"
+          "type": "object",
+          "required": [
+            "uri",
+            "position"
+          ],
+          "additionalProperties": false,
+          "description": "OPTIONAL reference to the issuer-declared append-only commitment log (see the reference profile): the log URI as declared by the issuer and the position of this facet's entry.",
+          "properties": {
+            "uri": {
+              "type": "string"
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "head": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$",
+              "description": "OPTIONAL head the entry was presented under"
+            }
+          }
         }
       }
     },

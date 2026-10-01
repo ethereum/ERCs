@@ -117,7 +117,10 @@
           "chainId": 11155111,
           "txHash": "0xabababababababababababababababababababababababababababababababab"
         },
-        "log": "https://example.invalid/commitments"
+        "log": {
+          "uri": "https://example.invalid/commitments",
+          "position": 264
+        }
       },
       "digest": "0x5f957f48696553707306f8780eac17fdd5f273de88b98330ae75eed5be0899df",
       "access": {

@@ -22,6 +22,11 @@
 //  - TIMING: a facet may be reported `timing: "pre-outcome"` only if it carries `committedAt` whose
 //    proof verifies to a time earlier than `subjectWindow.until`; otherwise `timing: "integrity-only"`
 //    (or "none" when no commitment is claimed). Timing is orthogonal to provenance.
+//  - EXCLUSIVITY (reference commitment-log profile): when the issuer's declared log can be read
+//    (ctx.issuerLogs / ctx.logEntries), `pre-outcome` additionally requires that the log was declared
+//    by the ISSUER before subjectWindow.until and holds exactly one entry for the facet's key
+//    tag = keccak256(abi.encode(subject, facetType, from, until)); otherwise the facet is downgraded to
+//    `integrity-only` with `exclusivity` = undeclared | missing | duplicate. Without log access: unchecked.
 const fs = require("fs");
 const { ethers } = require("ethers");
 const { canonicalize } = require("../jcs");
@@ -162,6 +167,34 @@ async function verifyCommitment(facet, ctx) {
   return null;
 }
 
+/** Key tag of a facet in an issuer commitment log. */
+function logTag(facet) {
+  const w = facet.subjectWindow || { from: 0, until: 0 };
+  return ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(["string", "string", "uint64", "uint64"], [facet.subject || facet.issuerSubject || "", facet.facetType, w.from || 0, w.until || 0]));
+}
+
+/**
+ * Exclusivity check against the issuer-declared log.
+ *  ctx.issuerLogs: { [issuerCaip10]: { uri, declaredAt } }   (from the issuer's AID Document `commitmentLog`)
+ *  ctx.logEntries: { [uri]: [{ tag, content }] }             (entries up to an anchored head, as read by the deployment)
+ * Returns { exclusivity: "unchecked" | "undeclared" | "missing" | "duplicate" | "unique" }.
+ */
+function exclusivityOf(facet, subject, ctx) {
+  const ref = facet.committedAt && facet.committedAt.log;
+  const declared = ctx.issuerLogs && ctx.issuerLogs[facet.issuer];
+  if (!ref || !declared) return { exclusivity: declared || ref ? "undeclared" : "unchecked" };
+  if (declared.uri !== ref.uri) return { exclusivity: "undeclared", exclusivityReason: "log not the issuer's declared log" };
+  if (facet.subjectWindow && declared.declaredAt >= facet.subjectWindow.until) return { exclusivity: "undeclared", exclusivityReason: "log declared after subjectWindow.until" };
+  const entries = ctx.logEntries && ctx.logEntries[ref.uri];
+  if (!entries) return { exclusivity: "unchecked" };
+  const tag = logTag({ ...facet, subject });
+  const hits = entries.filter((e) => e.tag.toLowerCase() === tag.toLowerCase());
+  if (hits.length === 0) return { exclusivity: "missing" };
+  if (hits.length > 1) return { exclusivity: "duplicate" };
+  if (hits[0].content.toLowerCase() !== facet.digest.toLowerCase()) return { exclusivity: "missing", exclusivityReason: "entry content differs from facet digest" };
+  return { exclusivity: "unique" };
+}
+
 function timingOf(facet, provenAt) {
   if (!facet.committedAt) return { timing: "none" };
   if (provenAt == null) return { timing: "integrity-only", timingReason: "commitment not verified" };
@@ -210,8 +243,13 @@ async function resolveSnapshot(snap, now, ctx = {}) {
     } else if (agentKeyed && intervals.length === 0 && snap.authorityIntervals) {
       facets.unattributable.push({ ...tag, reason: "no authority interval" }); continue;
     }
-    // timing (orthogonal to provenance)
+    // timing (orthogonal to provenance) + exclusivity against the issuer-declared log
     Object.assign(tag, timingOf(f, await verifyCommitment(f, ctx)));
+    if (tag.timing === "pre-outcome") {
+      const ex = exclusivityOf(f, snap.aid, ctx);
+      Object.assign(tag, ex);
+      if (["undeclared", "missing", "duplicate"].includes(ex.exclusivity)) { tag.timing = "integrity-only"; tag.timingReason = "exclusivity: " + ex.exclusivity; }
+    }
     if (f.validUntil <= now) { facets.history.push(tag); continue; }
     facets.current.push(tag);
   }
@@ -245,11 +283,11 @@ async function main() {
   const a = args();
   const now = a.now ? Number(a.now) : Math.floor(Date.now() / 1000);
   let snap; const ctx = {};
-  if (a.fixture) { snap = JSON.parse(fs.readFileSync(a.fixture, "utf8")); ctx.trustedTimestamps = snap.trustedTimestamps || null; }
+  if (a.fixture) { snap = JSON.parse(fs.readFileSync(a.fixture, "utf8")); ctx.trustedTimestamps = snap.trustedTimestamps || null; ctx.issuerLogs = snap.issuerLogs || null; ctx.logEntries = snap.logEntries || null; }
   else if (a.rpc && a.registry && a.anchor) { ctx.provider = new ethers.JsonRpcProvider(a.rpc); snap = await snapshotFromChain(ctx.provider, a.registry, a.anchor, typeof fetch === "function" ? fetch : null, a["from-block"] ? Number(a["from-block"]) : 0); }
   else { console.error("usage: --rpc <url> --registry <addr> --anchor <addr> [--from-block n] | --fixture <file>  [--now <unix>]"); process.exit(2); }
   console.log(JSON.stringify(await resolveSnapshot(snap, now, ctx), null, 2));
 }
 
-module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, STATE };
+module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, exclusivityOf, logTag, STATE };
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
