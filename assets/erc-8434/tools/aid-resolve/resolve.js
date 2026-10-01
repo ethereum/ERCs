@@ -1,23 +1,33 @@
 #!/usr/bin/env node
-// ERC-AID reference resolver.
+// ERC-8434 (AID) reference resolver.
 //
-//   node resolve.js --rpc <url> --registry <AIDRegistry> --anchor <address> [--now <unix>]
+//   node resolve.js --rpc <url> --registry <AIDRegistry> --anchor <address> [--now <unix>] [--from-block <n>]
 //   node resolve.js --fixture <fixture.json> [--now <unix>]
 //
-// Output: { onChainState, resolvedState, reasons[], binding, document, facets: { current, history, invalid } }
+// Output:
+//   { onChainState, resolvedState, reasons[], binding, authorityIntervals[], document,
+//     facets: { current, history, invalid, unattributable } }
 //
 // Rules implemented (normative in the ERC):
-//  - on-chain state is taken from AIDRegistry.state(anchor) (or recomputed from the fixture);
+//  - on-chain state is taken from AIDRegistry.state(anchor) (or from the fixture);
 //  - resolved state downgrades ACTIVE -> STALE when the ERC-8004 registration file says "active": false;
 //  - the AID Document digest MUST equal keccak256(JCS(document)); a mismatch invalidates the document;
 //  - facets past validUntil are history, never current; facets without validUntil are invalid;
-//  - credit-kind facets without a finite validUntil are invalid;
-//  - SELF facets are never reported as verified.
+//  - SELF facets are never reported as verified;
+//  - AUTHORITY INTERVALS: evidence keyed by agentId (erc8004-identity / -reputation / -validation)
+//    is attributable only if observed inside an interval in which the binding predicate held
+//    (ownerOf == anchor or agentWallet == anchor, binding record intact). Re-establishing the
+//    relation opens a new interval; it never authorizes the gap. Address-keyed evidence is kept
+//    and marked `attribution: "outside-interval"` when observed in a gap.
+//  - TIMING: a facet may be reported `timing: "pre-outcome"` only if it carries `committedAt` whose
+//    proof verifies to a time earlier than `subjectWindow.until`; otherwise `timing: "integrity-only"`
+//    (or "none" when no commitment is claimed). Timing is orthogonal to provenance.
 const fs = require("fs");
 const { ethers } = require("ethers");
 const { canonicalize } = require("../jcs");
 
 const STATE = ["DORMANT", "ACTIVE", "STALE", "RETIRED"];
+const AGENT_KEYED = new Set(["erc8004-identity", "erc8004-reputation", "erc8004-validation"]);
 const REG_ABI = [
   "function state(address) view returns (uint8)",
   "function bindingOf(address) view returns (tuple(address registry,uint256 agentId,uint64 boundAt))",
@@ -27,8 +37,14 @@ const REG_ABI = [
   "function facetTypesOf(address) view returns (bytes32[])",
   "function getFacet(address,bytes32) view returns (tuple(bytes32 digest,uint64 validFrom,uint64 validUntil,uint8 access,string uri))",
   "function successorOf(address) view returns (address)",
+  "event Bound(address indexed anchor, address indexed registry, uint256 indexed agentId)",
+  "event Unbound(address indexed anchor, address indexed registry, uint256 indexed agentId)",
 ];
-const ID_ABI = ["function tokenURI(uint256) view returns (string)"];
+const ID_ABI = [
+  "function tokenURI(uint256) view returns (string)",
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+  "event MetadataSet(uint256 indexed agentId, string indexed indexedMetadataKey, string metadataKey, bytes metadataValue)",
+];
 
 function args() {
   const a = {}; const v = process.argv.slice(2);
@@ -45,14 +61,128 @@ async function loadURI(uri, fetchImpl) {
   const r = await fetchImpl(uri); return r.ok ? r.json() : null;
 }
 
-/** Pure resolution over an already-fetched snapshot (used by both RPC and fixture modes). */
-function resolveSnapshot(snap, now) {
+// ---------------------------------------------------------------------------
+// Authority intervals
+// ---------------------------------------------------------------------------
+
+/** Intersect [boundAt, unboundAt) spans with predicate-true spans. Open end = null. */
+function intersectSpans(a, b) {
+  const out = [];
+  for (const x of a) for (const y of b) {
+    const from = Math.max(x.from, y.from);
+    const until = x.until == null ? y.until : y.until == null ? x.until : Math.min(x.until, y.until);
+    if (until == null || from < until) out.push({ from, until });
+  }
+  return out.sort((p, q) => p.from - q.from);
+}
+
+function inIntervals(ts, intervals) {
+  return intervals.some((i) => ts >= i.from && (i.until == null || ts < i.until));
+}
+
+/**
+ * Reconstruct authority intervals for `anchor` from on-chain history:
+ *  - AID registry Bound/Unbound events for the anchor  -> binding-record spans
+ *  - ERC-8004 Transfer + MetadataSet("agentWallet") for the agent -> predicate spans
+ * Only intervals for the agent currently (or last) bound are reconstructed per (registry, agentId).
+ */
+async function reconstructIntervals(p, reg, anchor, fromBlock) {
+  const bound = await reg.queryFilter(reg.filters.Bound(anchor), fromBlock, "latest");
+  const unbound = await reg.queryFilter(reg.filters.Unbound(anchor), fromBlock, "latest");
+  const tsCache = new Map();
+  const ts = async (bn) => { if (!tsCache.has(bn)) tsCache.set(bn, (await p.getBlock(bn)).timestamp); return tsCache.get(bn); };
+  const events = [...bound.map((e) => ({ t: "B", e })), ...unbound.map((e) => ({ t: "U", e }))]
+    .sort((x, y) => x.e.blockNumber - y.e.blockNumber || x.e.index - y.e.index);
+  const result = [];
+  let open = null;
+  for (const { t, e } of events) {
+    const at = await ts(e.blockNumber);
+    if (t === "B") open = { registry: e.args.registry, agentId: Number(e.args.agentId), from: at, until: null };
+    else if (open) { open.until = at; result.push(open); open = null; }
+  }
+  if (open) result.push(open);
+  // predicate spans per (registry, agentId)
+  const intervals = [];
+  for (const span of result) {
+    const id = new ethers.Contract(span.registry, ID_ABI, p);
+    const transfers = await id.queryFilter(id.filters.Transfer(null, null, span.agentId), fromBlock, "latest");
+    const walletKey = "agentWallet"; // ethers hashes indexed string filter values itself
+    const metas = (await id.queryFilter(id.filters.MetadataSet(span.agentId, walletKey), fromBlock, "latest"));
+    const timeline = [];
+    for (const e of transfers) timeline.push({ at: await ts(e.blockNumber), bn: e.blockNumber, ix: e.index, owner: e.args.to, wallet: ethers.ZeroAddress }); // transfer clears wallet (ERC-8004)
+    for (const e of metas) {
+      const raw = e.args.metadataValue; const hex = ethers.hexlify(raw);
+      const wallet = hex.length === 66 ? ethers.getAddress("0x" + hex.slice(26)) : hex.length === 42 ? ethers.getAddress(hex) : ethers.ZeroAddress;
+      timeline.push({ at: await ts(e.blockNumber), bn: e.blockNumber, ix: e.index, wallet });
+    }
+    timeline.sort((x, y) => x.bn - y.bn || x.ix - y.ix);
+    let owner = ethers.ZeroAddress, wallet = ethers.ZeroAddress, predFrom = null; const predSpans = [];
+    for (const ev of timeline) {
+      if (ev.owner !== undefined) { owner = ev.owner; wallet = ethers.ZeroAddress; }
+      if (ev.wallet !== undefined && ev.owner === undefined) wallet = ev.wallet;
+      const holds = owner.toLowerCase() === anchor.toLowerCase() || wallet.toLowerCase() === anchor.toLowerCase();
+      if (holds && predFrom == null) predFrom = ev.at;
+      if (!holds && predFrom != null) { predSpans.push({ from: predFrom, until: ev.at }); predFrom = null; }
+    }
+    if (predFrom != null) predSpans.push({ from: predFrom, until: null });
+    for (const i of intersectSpans([span], predSpans)) intervals.push({ ...i, registry: span.registry, agentId: span.agentId });
+  }
+  return intervals;
+}
+
+// ---------------------------------------------------------------------------
+// Timing commitments
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify a facet's `committedAt` and return the proven time, or null.
+ *  - kind "block": the facet digest must appear in the referenced transaction's calldata or logs on
+ *    `proof.chainId`; the proven time is that block's timestamp (RPC mode only).
+ *  - kinds "rfc3161" / "ots": not verified by this reference resolver; a deployment plugs in a verifier
+ *    via ctx.verifiers[kind](facet) -> unix time | null.
+ *  - fixture mode: ctx.trustedTimestamps[facetType] supplies the output of an external verifier.
+ */
+async function verifyCommitment(facet, ctx) {
+  const c = facet.committedAt;
+  if (!c || !c.anchor) return null;
+  if (ctx.trustedTimestamps && ctx.trustedTimestamps[facet.facetType] != null) return ctx.trustedTimestamps[facet.facetType];
+  if (ctx.verifiers && ctx.verifiers[c.anchor]) return ctx.verifiers[c.anchor](facet);
+  if (c.anchor === "block" && ctx.provider && c.proof && c.proof.txHash) {
+    try {
+      const net = await ctx.provider.getNetwork();
+      if (c.proof.chainId != null && Number(c.proof.chainId) !== Number(net.chainId)) return null;
+      const [tx, rc] = await Promise.all([ctx.provider.getTransaction(c.proof.txHash), ctx.provider.getTransactionReceipt(c.proof.txHash)]);
+      if (!tx || !rc) return null;
+      const needle = facet.digest.toLowerCase().slice(2);
+      const hay = [tx.data, ...rc.logs.flatMap((l) => [l.data, ...l.topics])].join("").toLowerCase();
+      if (!hay.includes(needle)) return null;
+      return (await ctx.provider.getBlock(rc.blockNumber)).timestamp;
+    } catch { return null; }
+  }
+  return null;
+}
+
+function timingOf(facet, provenAt) {
+  if (!facet.committedAt) return { timing: "none" };
+  if (provenAt == null) return { timing: "integrity-only", timingReason: "commitment not verified" };
+  if (!facet.subjectWindow || !Number.isFinite(facet.subjectWindow.until)) return { timing: "integrity-only", timingReason: "no subjectWindow", committedAtVerified: provenAt };
+  if (provenAt < facet.subjectWindow.until) return { timing: "pre-outcome", committedAtVerified: provenAt };
+  return { timing: "integrity-only", timingReason: "committed after subjectWindow.until", committedAtVerified: provenAt };
+}
+
+// ---------------------------------------------------------------------------
+// Resolution (pure, over a snapshot)
+// ---------------------------------------------------------------------------
+
+/** @param snap  snapshot (see snapshotFromChain / fixtures); @param now unix; @param ctx { provider?, verifiers?, trustedTimestamps? } */
+async function resolveSnapshot(snap, now, ctx = {}) {
   const reasons = [];
   const onChainState = STATE[snap.state];
   let resolvedState = onChainState;
   if (onChainState === "ACTIVE" && snap.registrationFile && snap.registrationFile.active === false) {
     resolvedState = "STALE"; reasons.push("registration file active=false");
   }
+  const intervals = snap.authorityIntervals || [];
   // document integrity
   let document = null;
   if (snap.document) {
@@ -61,25 +191,35 @@ function resolveSnapshot(snap, now) {
     else reasons.push(`document digest mismatch: computed ${digest}, on-chain ${snap.documentDigest}`);
     if (document && document.aid && snap.aid && document.aid.toLowerCase() !== snap.aid.toLowerCase()) { reasons.push("document.aid != anchor"); document = null; }
   }
-  const facets = { current: [], history: [], invalid: [] };
+  const facets = { current: [], history: [], invalid: [], unattributable: [] };
   const listed = document ? document.facets || [] : [];
   for (const f of listed) {
     const tag = { ...f, verified: f.provenance !== "SELF" ? undefined : false };
     if (!f.validUntil || !Number.isFinite(f.validUntil)) { facets.invalid.push({ ...tag, reason: "missing validUntil" }); continue; }
     if (f.validFrom && f.validFrom > now) { facets.invalid.push({ ...tag, reason: "not yet valid" }); continue; }
-    if (f.validUntil <= now) { facets.history.push(tag); continue; }
     // on-chain self facet record must agree with the document when present
     const key = ethers.keccak256(ethers.toUtf8Bytes(f.facetType));
     const oc = snap.onChainFacets && snap.onChainFacets[key];
     if (f.provenance === "SELF" && oc && oc.digest.toLowerCase() !== f.digest.toLowerCase()) { facets.invalid.push({ ...tag, reason: "on-chain digest mismatch" }); continue; }
+    // authority intervals
+    const observed = f.observedAt ?? f.validFrom ?? null;
+    const agentKeyed = f.resolver && AGENT_KEYED.has(f.resolver.kind);
+    if (intervals.length && observed != null) {
+      tag.attribution = inIntervals(observed, intervals) ? "in-interval" : "outside-interval";
+      if (agentKeyed && tag.attribution === "outside-interval") { facets.unattributable.push({ ...tag, reason: "observed outside every authority interval" }); continue; }
+    } else if (agentKeyed && intervals.length === 0 && snap.authorityIntervals) {
+      facets.unattributable.push({ ...tag, reason: "no authority interval" }); continue;
+    }
+    // timing (orthogonal to provenance)
+    Object.assign(tag, timingOf(f, await verifyCommitment(f, ctx)));
+    if (f.validUntil <= now) { facets.history.push(tag); continue; }
     facets.current.push(tag);
   }
-  // post-retirement rule
   if (onChainState === "RETIRED") reasons.push("RETIRED: activity after retirement MUST NOT be attributed to this AID; successor=" + (snap.successor || "none"));
-  return { onChainState, resolvedState, reasons, binding: snap.binding, lastSeen: snap.lastSeen, livenessWindow: snap.livenessWindow, document, facets };
+  return { onChainState, resolvedState, reasons, binding: snap.binding, lastSeen: snap.lastSeen, livenessWindow: snap.livenessWindow, authorityIntervals: intervals, document, facets };
 }
 
-async function snapshotFromChain(rpc, registry, anchor, fetchImpl) {
+async function snapshotFromChain(rpc, registry, anchor, fetchImpl, fromBlock = 0) {
   const p = typeof rpc === "string" ? new ethers.JsonRpcProvider(rpc) : rpc;
   const reg = new ethers.Contract(registry, REG_ABI, p);
   const net = await p.getNetwork();
@@ -92,23 +232,24 @@ async function snapshotFromChain(rpc, registry, anchor, fetchImpl) {
   if (b.registry !== ethers.ZeroAddress) {
     try { const id = new ethers.Contract(b.registry, ID_ABI, p); registrationFile = await loadURI(await id.tokenURI(b.agentId), fetchImpl); } catch {}
   }
+  const authorityIntervals = await reconstructIntervals(p, reg, anchor, fromBlock);
   return {
     aid: `eip155:${net.chainId}:${anchor}`, state: Number(st),
     binding: b.registry === ethers.ZeroAddress ? null : { registry: b.registry, agentId: Number(b.agentId), boundAt: Number(b.boundAt) },
     lastSeen: Number(ls), livenessWindow: Number(lw), successor: succ === ethers.ZeroAddress ? null : succ,
-    documentDigest: doc.digest, document: await loadURI(doc.uri, fetchImpl), onChainFacets, registrationFile,
+    documentDigest: doc.digest, document: await loadURI(doc.uri, fetchImpl), onChainFacets, registrationFile, authorityIntervals,
   };
 }
 
 async function main() {
   const a = args();
   const now = a.now ? Number(a.now) : Math.floor(Date.now() / 1000);
-  let snap;
-  if (a.fixture) snap = JSON.parse(fs.readFileSync(a.fixture, "utf8"));
-  else if (a.rpc && a.registry && a.anchor) snap = await snapshotFromChain(a.rpc, a.registry, a.anchor, typeof fetch === "function" ? fetch : null);
-  else { console.error("usage: --rpc <url> --registry <addr> --anchor <addr> | --fixture <file>  [--now <unix>]"); process.exit(2); }
-  console.log(JSON.stringify(resolveSnapshot(snap, now), null, 2));
+  let snap; const ctx = {};
+  if (a.fixture) { snap = JSON.parse(fs.readFileSync(a.fixture, "utf8")); ctx.trustedTimestamps = snap.trustedTimestamps || null; }
+  else if (a.rpc && a.registry && a.anchor) { ctx.provider = new ethers.JsonRpcProvider(a.rpc); snap = await snapshotFromChain(ctx.provider, a.registry, a.anchor, typeof fetch === "function" ? fetch : null, a["from-block"] ? Number(a["from-block"]) : 0); }
+  else { console.error("usage: --rpc <url> --registry <addr> --anchor <addr> [--from-block n] | --fixture <file>  [--now <unix>]"); process.exit(2); }
+  console.log(JSON.stringify(await resolveSnapshot(snap, now, ctx), null, 2));
 }
 
-module.exports = { resolveSnapshot, snapshotFromChain, STATE };
+module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, STATE };
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });

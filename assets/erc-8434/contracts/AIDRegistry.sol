@@ -90,9 +90,16 @@ contract AIDRegistry is IAIDRegistry, IERC165 {
 
     function _bind(address anchor, address registry, uint256 agentId) internal {
         if (_binding[anchor].registry != address(0)) revert AlreadyBound(anchor);
-        address by = _anchorOf[registry][agentId];
-        if (by != address(0)) revert AgentAlreadyBound(registry, agentId, by);
         if (!_isAgentOfAnchor(anchor, registry, agentId)) revert NotAgentOfAnchor(anchor, registry, agentId);
+        address by = _anchorOf[registry][agentId];
+        if (by != address(0)) {
+            // Takeover: a binding whose predicate no longer holds must not hold the agent hostage.
+            // If the old anchor still satisfies the predicate (owner and wallet may be different
+            // addresses, both qualify), the existing binding stands and the agent is genuinely taken.
+            if (_isAgentOfAnchor(by, registry, agentId)) revert AgentAlreadyBound(registry, agentId, by);
+            delete _binding[by];
+            emit Unbound(by, registry, agentId);
+        }
 
         _binding[anchor] = Binding({registry: registry, agentId: agentId, boundAt: uint64(block.timestamp)});
         _anchorOf[registry][agentId] = anchor;

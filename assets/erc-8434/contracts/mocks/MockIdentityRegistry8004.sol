@@ -4,6 +4,9 @@ pragma solidity ^0.8.20;
 /// @dev Minimal stand-in for an ERC-8004 Identity Registry: just enough ERC-721 + agentWallet
 ///      surface for AID tests. Not a conforming ERC-8004 implementation.
 contract MockIdentityRegistry8004 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event MetadataSet(uint256 indexed agentId, string indexed indexedMetadataKey, string metadataKey, bytes metadataValue);
+
     uint256 public nextId = 1;
     mapping(uint256 => address) private _owner;
     mapping(uint256 => address) private _wallet;
@@ -11,6 +14,7 @@ contract MockIdentityRegistry8004 {
     function register() external returns (uint256 agentId) {
         agentId = nextId++;
         _owner[agentId] = msg.sender;
+        emit Transfer(address(0), msg.sender, agentId);
     }
 
     function ownerOf(uint256 agentId) external view returns (address) {
@@ -27,17 +31,23 @@ contract MockIdentityRegistry8004 {
     function setAgentWallet(uint256 agentId, address wallet) external {
         require(_owner[agentId] == msg.sender, "not owner");
         _wallet[agentId] = wallet;
+        emit MetadataSet(agentId, "agentWallet", "agentWallet", abi.encode(wallet));
     }
 
+    /// @dev like ERC-8004: a transfer clears the agent wallet
     function transfer(uint256 agentId, address to) external {
         require(_owner[agentId] == msg.sender, "not owner");
         _owner[agentId] = to;
+        delete _wallet[agentId];
+        emit Transfer(msg.sender, to, agentId);
+        emit MetadataSet(agentId, "agentWallet", "agentWallet", abi.encode(address(0)));
     }
 
     function burn(uint256 agentId) external {
         require(_owner[agentId] == msg.sender, "not owner");
         delete _owner[agentId];
         delete _wallet[agentId];
+        emit Transfer(msg.sender, address(0), agentId);
     }
 }
 

@@ -107,6 +107,18 @@
       "issuer": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
       "validUntil": 1792592000,
       "observedAt": 1790000000,
+      "subjectWindow": {
+        "from": 1787400000,
+        "until": 1790000000
+      },
+      "committedAt": {
+        "anchor": "block",
+        "proof": {
+          "chainId": 11155111,
+          "txHash": "0xabababababababababababababababababababababababababababababababab"
+        },
+        "log": "https://example.invalid/commitments"
+      },
       "digest": "0x5f957f48696553707306f8780eac17fdd5f273de88b98330ae75eed5be0899df",
       "access": {
         "mode": "PUBLIC"

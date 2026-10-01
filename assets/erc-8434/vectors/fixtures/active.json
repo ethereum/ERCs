@@ -9,7 +9,7 @@
   "lastSeen": 1790000000,
   "livenessWindow": 7776000,
   "successor": null,
-  "documentDigest": "0x1038f51fbe049cf2d25d57465103957970444ea455004caca62674fc25acb677",
+  "documentDigest": "0xcbd21e8a2473af1d611c8f88812f6a0fbc747e0003ce9f0f0e4403cb60b2a45a",
   "document": {
     "version": "aid-document/v1",
     "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
@@ -119,6 +119,18 @@
         "issuer": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
         "validUntil": 1792592000,
         "observedAt": 1790000000,
+        "subjectWindow": {
+          "from": 1787400000,
+          "until": 1790000000
+        },
+        "committedAt": {
+          "anchor": "block",
+          "proof": {
+            "chainId": 11155111,
+            "txHash": "0xabababababababababababababababababababababababababababababababab"
+          },
+          "log": "https://example.invalid/commitments"
+        },
         "digest": "0x5f957f48696553707306f8780eac17fdd5f273de88b98330ae75eed5be0899df",
         "access": {
           "mode": "PUBLIC"
