@@ -3,12 +3,12 @@
   "descriptor": "../eip712-delegation.json",
   "tests": [
     {
-      "description": "P-256 HTTP delegation with all constraints visible",
+      "description": "P-256 HTTP delegation with all constraints visible (chain 1)",
       "data": {
         "domain": {
           "name": "ERC-8128 Delegation",
           "version": "1",
-          "chainId": 31337,
+          "chainId": 1,
           "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
         },
         "types": {
@@ -73,7 +73,7 @@
         },
         "primaryType": "Delegation",
         "message": {
-          "issuer": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "issuer": "eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
           "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
           "audiences": [
             "https://api.example"
@@ -96,23 +96,28 @@
         }
       },
       "expected": {
-        "intent": "Authorize delegated HTTP requests",
-        "owner": "ERC-8395 Delegation",
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow {\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"} to act on behalf of eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf at https://api.example, with the listed permissions, from 2023-11-14 21:56:40Z until 2023-11-14 23:13:20Z. Allow up to 2 further levels of delegation. Each request may remain valid for 00:01:00. This grant requires single-use requests: true. Additional signed request requirements and any parent authorization still apply.",
+        "owner": "ERC-8128 Delegation",
         "fields": [
           {
-            "label": "Authorizing identity",
-            "value": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits."
           },
           {
-            "label": "Delegate public key or account",
+            "label": "Authorizing identity",
+            "value": "eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Authorized delegate",
             "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
           },
           {
-            "label": "Allowed service origins",
+            "label": "Allowed services",
             "value": "https://api.example"
           },
           {
-            "label": "Service-defined permissions",
+            "label": "Permissions",
             "value": "resource:read"
           },
           {
@@ -124,47 +129,43 @@
             "value": "2023-11-14 23:13:20Z"
           },
           {
-            "label": "Maximum lifetime of each request",
-            "value": "00:01:00"
-          },
-          {
-            "label": "Further delegation levels allowed",
+            "label": "Re-delegation levels",
             "value": "2"
           },
           {
-            "label": "Delegate signature algorithm",
-            "value": "ecdsa-p256-sha256"
+            "label": "Request lifetime",
+            "value": "00:01:00"
           },
           {
-            "label": "Single-use requests required",
+            "label": "Single-use requests",
             "value": "true"
           },
           {
-            "label": "Additional required signed request components",
+            "label": "Signing method",
+            "value": "ecdsa-p256-sha256"
+          },
+          {
+            "label": "Signed request parts",
             "value": "@authority"
           },
           {
-            "label": "Revocation epoch",
-            "value": "7"
-          },
-          {
-            "label": "Grant identifier",
+            "label": "Authorization ID",
             "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
           },
           {
-            "label": "Parent grant hash (zero for a root grant)",
-            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+            "label": "Revocation version",
+            "value": "7"
           }
         ]
       }
     },
     {
-      "description": "Multiple services and permissions, with no additional required components",
+      "description": "Multiple services and permissions, with no additional required components (chain 10)",
       "data": {
         "domain": {
           "name": "ERC-8128 Delegation",
           "version": "1",
-          "chainId": 31337,
+          "chainId": 10,
           "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
         },
         "types": {
@@ -229,8 +230,8 @@
         },
         "primaryType": "Delegation",
         "message": {
-          "issuer": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
-          "delegate": "eip155:31337:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+          "issuer": "eip155:10:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "delegate": "eip155:10:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
           "audiences": [
             "https://api.example",
             "https://backup.example"
@@ -252,31 +253,36 @@
         }
       },
       "expected": {
-        "intent": "Authorize delegated HTTP requests",
-        "owner": "ERC-8395 Delegation",
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow eip155:10:0x6813eb9362372eef6200f3b1dbc3f819671cba69 to act on behalf of eip155:10:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf at https://api.example and https://backup.example, with the listed permissions, from 2023-11-14 21:56:40Z until 2023-11-14 23:13:20Z. Allow up to 2 further levels of delegation. Each request may remain valid for 00:01:00. This grant requires single-use requests: true. Additional signed request requirements and any parent authorization still apply.",
+        "owner": "ERC-8128 Delegation",
         "fields": [
           {
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits."
+          },
+          {
             "label": "Authorizing identity",
-            "value": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+            "value": "eip155:10:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
           },
           {
-            "label": "Delegate public key or account",
-            "value": "eip155:31337:0x6813eb9362372eef6200f3b1dbc3f819671cba69"
+            "label": "Authorized delegate",
+            "value": "eip155:10:0x6813eb9362372eef6200f3b1dbc3f819671cba69"
           },
           {
-            "label": "Allowed service origins",
+            "label": "Allowed services",
             "value": "https://api.example"
           },
           {
-            "label": "Allowed service origins",
+            "label": "Allowed services",
             "value": "https://backup.example"
           },
           {
-            "label": "Service-defined permissions",
+            "label": "Permissions",
             "value": "resource:read"
           },
           {
-            "label": "Service-defined permissions",
+            "label": "Permissions",
             "value": "resource:write"
           },
           {
@@ -288,43 +294,39 @@
             "value": "2023-11-14 23:13:20Z"
           },
           {
-            "label": "Maximum lifetime of each request",
-            "value": "00:01:00"
-          },
-          {
-            "label": "Further delegation levels allowed",
+            "label": "Re-delegation levels",
             "value": "2"
           },
           {
-            "label": "Delegate signature algorithm",
-            "value": "erc8128-eoa"
+            "label": "Request lifetime",
+            "value": "00:01:00"
           },
           {
-            "label": "Single-use requests required",
+            "label": "Single-use requests",
             "value": "true"
           },
           {
-            "label": "Revocation epoch",
-            "value": "7"
+            "label": "Signing method",
+            "value": "erc8128-eoa"
           },
           {
-            "label": "Grant identifier",
+            "label": "Authorization ID",
             "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
           },
           {
-            "label": "Parent grant hash (zero for a root grant)",
-            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+            "label": "Revocation version",
+            "value": "7"
           }
         ]
       }
     },
     {
-      "description": "Empty permission set, no further delegation, replay not prohibited by this grant",
+      "description": "Empty permission set, no further delegation, replay not prohibited by this grant (chain 8453)",
       "data": {
         "domain": {
           "name": "ERC-8128 Delegation",
           "version": "1",
-          "chainId": 31337,
+          "chainId": 8453,
           "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
         },
         "types": {
@@ -389,7 +391,7 @@
         },
         "primaryType": "Delegation",
         "message": {
-          "issuer": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "issuer": "eip155:8453:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
           "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
           "audiences": [
             "https://api.example"
@@ -408,19 +410,24 @@
         }
       },
       "expected": {
-        "intent": "Authorize delegated HTTP requests",
-        "owner": "ERC-8395 Delegation",
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow {\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"} to act on behalf of eip155:8453:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf at https://api.example, with the listed permissions, from 2023-11-14 21:56:40Z until 2023-11-14 23:13:20Z. Allow up to 0 further levels of delegation. Each request may remain valid for 00:01:00. This grant requires single-use requests: false. Additional signed request requirements and any parent authorization still apply.",
+        "owner": "ERC-8128 Delegation",
         "fields": [
           {
-            "label": "Authorizing identity",
-            "value": "eip155:31337:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits."
           },
           {
-            "label": "Delegate public key or account",
+            "label": "Authorizing identity",
+            "value": "eip155:8453:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Authorized delegate",
             "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
           },
           {
-            "label": "Allowed service origins",
+            "label": "Allowed services",
             "value": "https://api.example"
           },
           {
@@ -432,32 +439,503 @@
             "value": "2023-11-14 23:13:20Z"
           },
           {
-            "label": "Maximum lifetime of each request",
-            "value": "00:01:00"
-          },
-          {
-            "label": "Further delegation levels allowed",
+            "label": "Re-delegation levels",
             "value": "0"
           },
           {
-            "label": "Delegate signature algorithm",
-            "value": "ecdsa-p256-sha256"
+            "label": "Request lifetime",
+            "value": "00:01:00"
           },
           {
-            "label": "Single-use requests required",
+            "label": "Single-use requests",
             "value": "false"
           },
           {
-            "label": "Revocation epoch",
-            "value": "7"
+            "label": "Signing method",
+            "value": "ecdsa-p256-sha256"
           },
           {
-            "label": "Grant identifier",
+            "label": "Authorization ID",
             "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
           },
           {
-            "label": "Parent grant hash (zero for a root grant)",
-            "value": "0x0000000000000000000000000000000000000000000000000000000000000000"
+            "label": "Revocation version",
+            "value": "7"
+          }
+        ]
+      }
+    },
+    {
+      "description": "P-256 HTTP delegation with all constraints visible (chain 42161)",
+      "data": {
+        "domain": {
+          "name": "ERC-8128 Delegation",
+          "version": "1",
+          "chainId": 42161,
+          "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        "types": {
+          "Delegation": [
+            {
+              "name": "issuer",
+              "type": "string"
+            },
+            {
+              "name": "delegate",
+              "type": "string"
+            },
+            {
+              "name": "audiences",
+              "type": "string[]"
+            },
+            {
+              "name": "id",
+              "type": "bytes32"
+            },
+            {
+              "name": "epoch",
+              "type": "uint64"
+            },
+            {
+              "name": "validAfter",
+              "type": "uint64"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint64"
+            },
+            {
+              "name": "maxRequestValiditySeconds",
+              "type": "uint32"
+            },
+            {
+              "name": "remainingDelegations",
+              "type": "uint32"
+            },
+            {
+              "name": "delegateProfile",
+              "type": "string"
+            },
+            {
+              "name": "requireNonReplayable",
+              "type": "bool"
+            },
+            {
+              "name": "requiredComponents",
+              "type": "string[]"
+            },
+            {
+              "name": "permissions",
+              "type": "string[]"
+            },
+            {
+              "name": "parentGrantHash",
+              "type": "bytes32"
+            }
+          ]
+        },
+        "primaryType": "Delegation",
+        "message": {
+          "issuer": "eip155:42161:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
+          "audiences": [
+            "https://api.example"
+          ],
+          "id": "0x3333333333333333333333333333333333333333333333333333333333333333",
+          "epoch": "7",
+          "validAfter": "1699999000",
+          "validUntil": "1700003600",
+          "maxRequestValiditySeconds": 60,
+          "remainingDelegations": 2,
+          "delegateProfile": "ecdsa-p256-sha256",
+          "requireNonReplayable": true,
+          "requiredComponents": [
+            "@authority"
+          ],
+          "permissions": [
+            "resource:read"
+          ],
+          "parentGrantHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "expected": {
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow {\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"} to act on behalf of eip155:42161:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf at https://api.example, with the listed permissions, from 2023-11-14 21:56:40Z until 2023-11-14 23:13:20Z. Allow up to 2 further levels of delegation. Each request may remain valid for 00:01:00. This grant requires single-use requests: true. Additional signed request requirements and any parent authorization still apply.",
+        "owner": "ERC-8128 Delegation",
+        "fields": [
+          {
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits."
+          },
+          {
+            "label": "Authorizing identity",
+            "value": "eip155:42161:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Authorized delegate",
+            "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
+          },
+          {
+            "label": "Allowed services",
+            "value": "https://api.example"
+          },
+          {
+            "label": "Permissions",
+            "value": "resource:read"
+          },
+          {
+            "label": "Valid from",
+            "value": "2023-11-14 21:56:40Z"
+          },
+          {
+            "label": "Expires at",
+            "value": "2023-11-14 23:13:20Z"
+          },
+          {
+            "label": "Re-delegation levels",
+            "value": "2"
+          },
+          {
+            "label": "Request lifetime",
+            "value": "00:01:00"
+          },
+          {
+            "label": "Single-use requests",
+            "value": "true"
+          },
+          {
+            "label": "Signing method",
+            "value": "ecdsa-p256-sha256"
+          },
+          {
+            "label": "Signed request parts",
+            "value": "@authority"
+          },
+          {
+            "label": "Authorization ID",
+            "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          {
+            "label": "Revocation version",
+            "value": "7"
+          }
+        ]
+      }
+    },
+    {
+      "description": "Child authorization retains its nonzero parent hash (chain 10)",
+      "data": {
+        "domain": {
+          "name": "ERC-8128 Delegation",
+          "version": "1",
+          "chainId": 10,
+          "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        "types": {
+          "Delegation": [
+            {
+              "name": "issuer",
+              "type": "string"
+            },
+            {
+              "name": "delegate",
+              "type": "string"
+            },
+            {
+              "name": "audiences",
+              "type": "string[]"
+            },
+            {
+              "name": "id",
+              "type": "bytes32"
+            },
+            {
+              "name": "epoch",
+              "type": "uint64"
+            },
+            {
+              "name": "validAfter",
+              "type": "uint64"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint64"
+            },
+            {
+              "name": "maxRequestValiditySeconds",
+              "type": "uint32"
+            },
+            {
+              "name": "remainingDelegations",
+              "type": "uint32"
+            },
+            {
+              "name": "delegateProfile",
+              "type": "string"
+            },
+            {
+              "name": "requireNonReplayable",
+              "type": "bool"
+            },
+            {
+              "name": "requiredComponents",
+              "type": "string[]"
+            },
+            {
+              "name": "permissions",
+              "type": "string[]"
+            },
+            {
+              "name": "parentGrantHash",
+              "type": "bytes32"
+            }
+          ]
+        },
+        "primaryType": "Delegation",
+        "message": {
+          "issuer": "eip155:10:0x6813eb9362372eef6200f3b1dbc3f819671cba69",
+          "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
+          "audiences": [
+            "https://api.example"
+          ],
+          "id": "0x4444444444444444444444444444444444444444444444444444444444444444",
+          "epoch": "7",
+          "validAfter": "1699999000",
+          "validUntil": "1700003600",
+          "maxRequestValiditySeconds": 60,
+          "remainingDelegations": 1,
+          "delegateProfile": "ecdsa-p256-sha256",
+          "requireNonReplayable": true,
+          "requiredComponents": [
+            "@authority"
+          ],
+          "permissions": [
+            "resource:read"
+          ],
+          "parentGrantHash": "0x2b8db0e49021a4c4a05357c1807424fe6124664cdb773297b7f7f1316c864107"
+        }
+      },
+      "expected": {
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow {\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"} to act on behalf of eip155:10:0x6813eb9362372eef6200f3b1dbc3f819671cba69 at https://api.example, with the listed permissions, from 2023-11-14 21:56:40Z until 2023-11-14 23:13:20Z. Allow up to 1 further levels of delegation. Each request may remain valid for 00:01:00. This grant requires single-use requests: true. Additional signed request requirements and any parent authorization still apply.",
+        "owner": "ERC-8128 Delegation",
+        "fields": [
+          {
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits."
+          },
+          {
+            "label": "Authorizing identity",
+            "value": "eip155:10:0x6813eb9362372eef6200f3b1dbc3f819671cba69"
+          },
+          {
+            "label": "Authorized delegate",
+            "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
+          },
+          {
+            "label": "Allowed services",
+            "value": "https://api.example"
+          },
+          {
+            "label": "Permissions",
+            "value": "resource:read"
+          },
+          {
+            "label": "Valid from",
+            "value": "2023-11-14 21:56:40Z"
+          },
+          {
+            "label": "Expires at",
+            "value": "2023-11-14 23:13:20Z"
+          },
+          {
+            "label": "Re-delegation levels",
+            "value": "1"
+          },
+          {
+            "label": "Request lifetime",
+            "value": "00:01:00"
+          },
+          {
+            "label": "Single-use requests",
+            "value": "true"
+          },
+          {
+            "label": "Signing method",
+            "value": "ecdsa-p256-sha256"
+          },
+          {
+            "label": "Signed request parts",
+            "value": "@authority"
+          },
+          {
+            "label": "Authorization ID",
+            "value": "0x4444444444444444444444444444444444444444444444444444444444444444"
+          },
+          {
+            "label": "Revocation version",
+            "value": "7"
+          },
+          {
+            "label": "Parent grant hash",
+            "value": "0x2b8db0e49021a4c4a05357c1807424fe6124664cdb773297b7f7f1316c864107"
+          }
+        ]
+      }
+    },
+    {
+      "description": "Interpolated summary preserves zero depth and a false single-use requirement (chain 1)",
+      "data": {
+        "domain": {
+          "name": "ERC-8128 Delegation",
+          "version": "1",
+          "chainId": 1,
+          "verifyingContract": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        "types": {
+          "Delegation": [
+            {
+              "name": "issuer",
+              "type": "string"
+            },
+            {
+              "name": "delegate",
+              "type": "string"
+            },
+            {
+              "name": "audiences",
+              "type": "string[]"
+            },
+            {
+              "name": "id",
+              "type": "bytes32"
+            },
+            {
+              "name": "epoch",
+              "type": "uint64"
+            },
+            {
+              "name": "validAfter",
+              "type": "uint64"
+            },
+            {
+              "name": "validUntil",
+              "type": "uint64"
+            },
+            {
+              "name": "maxRequestValiditySeconds",
+              "type": "uint32"
+            },
+            {
+              "name": "remainingDelegations",
+              "type": "uint32"
+            },
+            {
+              "name": "delegateProfile",
+              "type": "string"
+            },
+            {
+              "name": "requireNonReplayable",
+              "type": "bool"
+            },
+            {
+              "name": "requiredComponents",
+              "type": "string[]"
+            },
+            {
+              "name": "permissions",
+              "type": "string[]"
+            },
+            {
+              "name": "parentGrantHash",
+              "type": "bytes32"
+            }
+          ]
+        },
+        "primaryType": "Delegation",
+        "message": {
+          "issuer": "eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf",
+          "delegate": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}",
+          "audiences": [
+            "https://api.example"
+          ],
+          "id": "0x3333333333333333333333333333333333333333333333333333333333333333",
+          "epoch": "7",
+          "validAfter": "1699999000",
+          "validUntil": "1700003600",
+          "maxRequestValiditySeconds": 60,
+          "remainingDelegations": 0,
+          "delegateProfile": "ecdsa-p256-sha256",
+          "requireNonReplayable": false,
+          "requiredComponents": [
+            "@authority"
+          ],
+          "permissions": [
+            "resource:read"
+          ],
+          "parentGrantHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      },
+      "expected": {
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow {\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"} to act on behalf of eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf at https://api.example, with the listed permissions, from 2023-11-14 21:56:40Z until 2023-11-14 23:13:20Z. Allow up to 0 further levels of delegation. Each request may remain valid for 00:01:00. This grant requires single-use requests: false. Additional signed request requirements and any parent authorization still apply.",
+        "owner": "ERC-8128 Delegation",
+        "fields": [
+          {
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits."
+          },
+          {
+            "label": "Authorizing identity",
+            "value": "eip155:1:0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"
+          },
+          {
+            "label": "Authorized delegate",
+            "value": "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"sBoXKnakYCyS0yQsuJfd4wJMdA3rshW0xrCq6Twikak\",\"y\":\"6FwQdDI32tVv7A4t-6cDeRwA93Acfha9_XxIU4_Hf-I\"}"
+          },
+          {
+            "label": "Allowed services",
+            "value": "https://api.example"
+          },
+          {
+            "label": "Permissions",
+            "value": "resource:read"
+          },
+          {
+            "label": "Valid from",
+            "value": "2023-11-14 21:56:40Z"
+          },
+          {
+            "label": "Expires at",
+            "value": "2023-11-14 23:13:20Z"
+          },
+          {
+            "label": "Re-delegation levels",
+            "value": "0"
+          },
+          {
+            "label": "Request lifetime",
+            "value": "00:01:00"
+          },
+          {
+            "label": "Single-use requests",
+            "value": "false"
+          },
+          {
+            "label": "Signing method",
+            "value": "ecdsa-p256-sha256"
+          },
+          {
+            "label": "Signed request parts",
+            "value": "@authority"
+          },
+          {
+            "label": "Authorization ID",
+            "value": "0x3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          {
+            "label": "Revocation version",
+            "value": "7"
           }
         ]
       }

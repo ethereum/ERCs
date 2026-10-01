@@ -60,19 +60,44 @@ Compile `DelegationVerifier.sol` with:
 - No constructor arguments, linked libraries, or immutables
 
 The init code is the compiled creation bytecode with no appended constructor
-arguments. These pins identify code and its deterministic address; they do not
-assert deployment on any public chain. Executing the helper requires a chain
-that supports its compiled bytecode and a deployment matching the runtime hash.
+arguments. Executing the helper requires a chain that supports its compiled
+bytecode and a deployment matching the runtime hash.
 
-## Display examples
+### Deployments
+
+The helper is deployed at `verifyingContract` with the pinned runtime code hash
+on:
+
+| Chain | Chain ID |
+| --- | --- |
+| Ethereum | `1` |
+| OP Mainnet | `10` |
+| Base | `8453` |
+| Arbitrum One | `42161` |
+
+Anyone can deploy it to another chain with the same CREATE2 inputs. Callers
+check the runtime code hash on each chain they use.
+
+## Clear signing
 
 - [ERC-7730 descriptor](clear-signing/eip712-delegation.json)
 - [Display fixtures](clear-signing/testsv2/eip712-delegation.tests.json)
 
-The snapshots target local Anvil chain `31337` and preserve the original relative
-fixture-to-descriptor link. They illustrate labels and formatting for every
-signed member, including generic issuer identifiers and canonical public JWKs.
-`remainingDelegations` is labelled **Further delegation levels allowed**, not a
-count of grants or requests. Permission tokens retain their service-defined
-meaning. Branding, supplementary descriptions, publication policy, and wallet
+The descriptor binds the `Delegation` type to the grant domain on each chain in
+[Deployments](#deployments). Wallets match it by the domain's chain ID and
+`verifyingContract`, so a grant whose Revocation Account is on another chain
+cannot be clear-signed until that chain is added.
+
+Wallets show an intent summary followed by grouped fields: access (issuer,
+delegate, Audiences, permissions), duration and sharing, request security, and
+signed request parts. The grant identifier and revocation epoch are optional
+details; the parent grant hash is shown only for child grants.
+`remainingDelegations` is labelled **Re-delegation levels**: the number of
+further delegation levels allowed, not a count of grants or requests.
+Permission tokens retain their service-defined meaning.
+
+The fixtures cover every signed member across the listed chains, including
+P-256 JWK and Ethereum delegates, a child grant, an empty permission set, and a
+grant that allows no further delegation and does not require single-use
+requests. Branding, supplementary descriptions, publication policy, and wallet
 trust decisions do not change the signed grant or protocol validation rules.

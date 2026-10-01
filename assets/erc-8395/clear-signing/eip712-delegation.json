@@ -9,95 +9,150 @@
       },
       "deployments": [
         {
-          "chainId": 31337,
+          "chainId": 1,
+          "address": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        {
+          "chainId": 10,
+          "address": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        {
+          "chainId": 8453,
+          "address": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
+        },
+        {
+          "chainId": 42161,
           "address": "0xE6ea89ebF649325c98E4B7CBc110ff611a1A054A"
         }
       ]
     }
   },
   "metadata": {
-    "owner": "ERC-8395 Delegation"
+    "owner": "ERC-8128 Delegation"
   },
   "display": {
     "formats": {
       "Delegation(string issuer,string delegate,string[] audiences,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,string[] permissions,bytes32 parentGrantHash)": {
-        "intent": "Authorize delegated HTTP requests",
+        "intent": "Authorize delegated access",
+        "interpolatedIntent": "Allow {delegate} to act on behalf of {issuer} at {audiences.[]}, with the listed permissions, from {validAfter} until {validUntil}. Allow up to {remainingDelegations} further levels of delegation. Each request may remain valid for {maxRequestValiditySeconds}. This grant requires single-use requests: {requireNonReplayable}. Additional signed request requirements and any parent authorization still apply.",
         "fields": [
           {
-            "path": "issuer",
-            "label": "Authorizing identity",
+            "label": "You are allowing",
+            "value": "The delegate to send requests on your behalf to the listed services, within the listed permissions and time limits.",
             "format": "raw"
           },
           {
-            "path": "delegate",
-            "label": "Delegate public key or account",
-            "format": "raw"
+            "$id": "access",
+            "label": "Access",
+            "fields": [
+              {
+                "path": "issuer",
+                "label": "Authorizing identity",
+                "format": "raw"
+              },
+              {
+                "path": "delegate",
+                "label": "Authorized delegate",
+                "format": "raw"
+              },
+              {
+                "path": "audiences.[]",
+                "label": "Allowed services",
+                "format": "raw"
+              },
+              {
+                "path": "permissions.[]",
+                "label": "Permissions",
+                "format": "raw"
+              }
+            ]
           },
           {
-            "path": "audiences.[]",
-            "label": "Allowed service origins",
-            "format": "raw"
+            "$id": "duration",
+            "label": "Duration and sharing",
+            "fields": [
+              {
+                "path": "validAfter",
+                "label": "Valid from",
+                "format": "date",
+                "params": {
+                  "encoding": "timestamp"
+                }
+              },
+              {
+                "path": "validUntil",
+                "label": "Expires at",
+                "format": "date",
+                "params": {
+                  "encoding": "timestamp"
+                }
+              },
+              {
+                "path": "remainingDelegations",
+                "label": "Re-delegation levels",
+                "format": "raw"
+              }
+            ]
           },
           {
-            "path": "permissions.[]",
-            "label": "Service-defined permissions",
-            "format": "raw"
+            "$id": "security",
+            "label": "Request security",
+            "fields": [
+              {
+                "path": "maxRequestValiditySeconds",
+                "label": "Request lifetime",
+                "format": "duration"
+              },
+              {
+                "path": "requireNonReplayable",
+                "label": "Single-use requests",
+                "format": "raw"
+              },
+              {
+                "path": "delegateProfile",
+                "label": "Signing method",
+                "format": "raw"
+              }
+            ]
           },
           {
-            "path": "validAfter",
-            "label": "Valid from",
-            "format": "date",
-            "params": {
-              "encoding": "timestamp"
-            }
+            "$id": "components",
+            "label": "Signed request parts",
+            "fields": [
+              {
+                "path": "requiredComponents.[]",
+                "label": "Signed request parts",
+                "format": "raw"
+              }
+            ]
           },
           {
-            "path": "validUntil",
-            "label": "Expires at",
-            "format": "date",
-            "params": {
-              "encoding": "timestamp"
-            }
-          },
-          {
-            "path": "maxRequestValiditySeconds",
-            "label": "Maximum lifetime of each request",
-            "format": "duration"
-          },
-          {
-            "path": "remainingDelegations",
-            "label": "Further delegation levels allowed",
-            "format": "raw"
-          },
-          {
-            "path": "delegateProfile",
-            "label": "Delegate signature algorithm",
-            "format": "raw"
-          },
-          {
-            "path": "requireNonReplayable",
-            "label": "Single-use requests required",
-            "format": "raw"
-          },
-          {
-            "path": "requiredComponents.[]",
-            "label": "Additional required signed request components",
-            "format": "raw"
-          },
-          {
-            "path": "epoch",
-            "label": "Revocation epoch",
-            "format": "raw"
-          },
-          {
-            "path": "id",
-            "label": "Grant identifier",
-            "format": "raw"
-          },
-          {
-            "path": "parentGrantHash",
-            "label": "Parent grant hash (zero for a root grant)",
-            "format": "raw"
+            "$id": "technical",
+            "label": "Technical details",
+            "fields": [
+              {
+                "path": "id",
+                "label": "Authorization ID",
+                "format": "raw",
+                "visible": "optional"
+              },
+              {
+                "path": "epoch",
+                "label": "Revocation version",
+                "format": "raw",
+                "visible": "optional"
+              },
+              {
+                "path": "parentGrantHash",
+                "label": "Parent grant hash",
+                "format": "raw",
+                "visible": {
+                  "ifNotIn": [
+                    "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  ]
+                }
+              }
+            ]
           }
         ]
       }
