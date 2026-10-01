@@ -27,6 +27,7 @@ type SignParams = {
   created: number;  // unix seconds
   expires: number;  // unix seconds
   nonce?: string;   // sf-string (recommend base64url)
+  mode?: "eoa";     // only when the keyid Account has no code
   label?: string;   // sf-key; defaults to "eth"
 };
 
@@ -56,6 +57,7 @@ export async function signRequest(
     nonce: p.nonce,
     keyid: p.keyid,
     tag: "erc8128",
+    mode: p.mode,
   });
 
   // RFC 9421: compute the signature base for the selected label
@@ -77,7 +79,7 @@ Steps:
 1. Parse the complete `Signature-Input` and `Signature` fields.
 2. Evaluate candidates in wire order under the limits in Section 3.5.
 3. Validate the served chain, request coverage, content, time, replay posture, and policy.
-4. Reconstruct `M` and apply Universal Account verification.
+4. Reconstruct `M` and apply Universal Account verification, honoring `mode="eoa"`.
 5. Atomically consume the winning nonce.
 
 ```ts
@@ -93,7 +95,10 @@ async function verifyRequest(req: Request, policy: Policy): Promise<AuthResult> 
 
     const M = rfc9421SignatureBase(req, candidate);
     const H = eth191Hash(M);
-    const proof = await verifyUniversalAccount(candidate.keyid, H, candidate.signature);
+    // mode="eoa": a locally recovering signature skips the code lookup; otherwise universal.
+    const proof = await verifyUniversalAccount(
+      candidate.keyid, H, candidate.signature, candidate.mode === "eoa",
+    );
     if (proof === "invalid") { failures.push("bad_signature"); continue; }
     if (proof === "unavailable") {
       failures.push("signature_verification_unavailable"); continue;
