@@ -31,6 +31,8 @@ Privacy sharpens the requirement. Many KYA facts — the controlling legal entit
 
 The relationship to ERC-8004 is the same as ERC-8004's relationship to [ERC-721](./eip-721.md): a registry, not a policy. ERC-721 records *who owns*; ERC-8004 records *what was signalled*; this ERC records *what was concluded and under which principle*. In the same way that token-bound extensions of ERC-721 add executable or task semantics without redefining the token, this ERC adds assurance semantics to ERC-8004 agents without redefining the agent.
 
+This ERC records conclusions about a *subject*. It does not authorise actions. A standard such as [ERC-8354](./eip-8354.md) answers "may this specific proposed action proceed?" for one action, one executor and one committed policy; this ERC answers "what has been concluded about this agent, under which scheme, by whom, until when?" The two compose — a KYA conclusion can be an input to an action policy, and an action verdict can be evidence under a declared scheme — but neither mapping is implicit: a subject-trust conclusion is not an execution authorisation, and one permitted action does not become a general trust conclusion by being encoded as a `level`. Likewise, a validation network that aggregates independent validators can *produce* KYA assertions through the ordinary attested path (the contract that calls `attest` is the recorded issuer) and its results can be cited as evidence; it does not need, and this ERC does not define, a separate admission mode for that.
+
 Illustrative flows this framework enables (informative):
 
 - A skill provider under a token-bound skill standard presents a KYA assertion before delivery; the buyer's contract calls `check(subject, schemeId, minLevel, issuers)` as a purchase precondition.
@@ -420,6 +422,7 @@ interface IKYAPolicyEvaluator /* is IERC165 */ {         // OPTIONAL extension
    - ERC-8004-only clients read KYA outcomes through `getSummary(agentId, [bridge], tag)` and `getValidationStatus(requestHash)`, filtering on the *current* bridge deployment. A superseded bridge's records remain in the Validation Registry under the same tag; the stability guarantee above is per bridge, and a query that lists several bridges as validators aggregates across them by the client's own choice.
 5. **Reputation as evidence (MAY).** Schemes MAY declare `erc8004-reputation` and `erc8004-validation` as evidence kinds. ERC-8004 signals are inputs to KYA; KYA assertions are conclusions. Neither replaces the other.
 6. **Credential view (OPTIONAL).** A registry MAY additionally expose a single-key credential resolution function where `key = "kya:" || hex(schemeId)` returns `abi.encode(Assertion)` for the resolving subject, for clients that speak a generic credential-resolution interface.
+7. **Scope of the `kya` names.** This ERC claims no global reservation of `kya`, `kya:` or `kya.*`. The metadata key, the `supportedTrust` values, the discovery document, the bridge tag and the optional credential-view key have their specified meaning only in the protocol context each is defined in above. Clients MUST NOT infer conformance to this ERC, or equivalence of levels, from the presence of `kya` or a level-like token in an identifier defined elsewhere; unrelated systems using such names do not collide with anything this ERC defines.
 
 ### 9. Errors
 
