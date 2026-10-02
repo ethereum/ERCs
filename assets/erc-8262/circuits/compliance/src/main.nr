@@ -39,10 +39,10 @@ fn main(
     num_providers: u32,          // how many providers are active (1-8)
 
     // --- Public inputs ---
-    jurisdiction_id: pub u8,     // 0=EU, 1=US, 2=UK, 3=SG
+    jurisdiction_id: pub u8,     // 0=EU, 1=US, 2=UK, 3=SG, 4=UAE
     provider_set_hash: pub Field, // commitment to providers used
     config_hash: pub Field,      // hash of the weight config version
-    timestamp: pub Field,        // block.timestamp for temporal binding
+    timestamp: pub Field,        // prover-chosen; Oracle enforces freshness
     meets_threshold: pub bool,   // the compliance result
     submitter: pub Field,        // authorized submitter address (oracle enforces == msg.sender)
 ) {
