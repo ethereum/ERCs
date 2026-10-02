@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0",
+  "mode": "replicated",
+  "maxCompletions": 10,
+  "teaming": { "allowed": true, "splitProfile": "x-erc1155-shares-v1" },
+  "subcontracting": { "allowed": true },
+  "eligibility": { "profile": "x-open-v1" },
+  "delivery": { "profile": "x-encrypted-to-authority-v1" }
+}

@@ -1,0 +1,21 @@
+{
+  "standard": "TASK-KERNEL v1.0",
+  "tdHash": "0x6ad6b032933bab0eea72722fa4145290c3065ec3904ba63b99aaf188882bef51",
+  "taskHash": "0x48b965c94e6f6148ed2c0957c11e39c7cf4ae98e66c3eaebb0455b9b282b2dab",
+  "rootCID_digest": "0x48b965c94e6f6148ed2c0957c11e39c7cf4ae98e66c3eaebb0455b9b282b2dab",
+  "version": 1,
+  "confidential": true,
+  "encryptedPaths": [
+    "acceptance/harness.py",
+    "spec/brief-request.yaml"
+  ],
+  "leaves": {
+    "TASK.md": "0x6ad6b032933bab0eea72722fa4145290c3065ec3904ba63b99aaf188882bef51",
+    "manifest.json": "0xabf323af5ab79045b93ba14b8aa48aeffc03f594ba3fce2999891692f5811cce",
+    "TERMS.md": "0x9b02b6748362746a15ce61c2700d455e6ffa37f71ce2b7b9780804b0f1f89bcb",
+    "acceptance/harness.py": "0x78c873ff064418920886afd7536cbb08735403710233c3f444e1c887857adf03",
+    "examples/report-format.md": "0x4d75e7f3113100c6c372f1d003db0e9c2a8dd99fba929ae3e37446b5e77aee15",
+    "fulfillment.json": "0xfd19a44ae12ca8ae353d110a580ed312dc99d36d52e27df05338dc32d50bb0f2",
+    "spec/brief-request.yaml": "0x37fa8ffdc95f08927f2ce70a2e433e0c35d83b9d587954cde0d6deb61fbadd7b"
+  }
+}
