@@ -6,7 +6,9 @@ policy_root = "0x053d4542d140ad2350a0ee79fae4a522821274e428bd881e7e803ecd816635a
 action_commitment = [124, 203, 122, 78, 157, 81, 18, 139, 149, 28, 190, 221, 239, 174, 193, 20, 1, 128, 163, 209, 63, 110, 174, 111, 6, 89, 109, 196, 50, 5, 124, 250]
 nullifier = "0x041271fcaf479f6ab927df3a03f74d3809e9f49d880cd7a9595c8dc0a58a5e03"
 decision = "1"
+policy_kind = "0"   # 0 = ALLOWED (was missing from this example — required public input)
 executor = "0xE0"
+expiry = "1900000000"
 chain_id = "1"
 target = "0x1234"
 value = "0"
