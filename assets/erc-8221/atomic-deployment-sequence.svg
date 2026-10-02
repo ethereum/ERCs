@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1060" role="img" aria-labelledby="title desc">
+  <title id="title">Atomic Deployment Sequence</title>
+  <desc id="desc">Sequence diagram showing the factory's atomic deployment flow: the caller invokes deployAccount, the factory computes the CREATE2 salt, deploys the account, derives the tokenId, validates control-graph invariants, mints the controller NFT to the initial owner, and emits AccountDeployed. A second lane shows the configured-deployment variant with initCalls.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4c7a62"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .caller { fill: #eef3ff; }
+    .factory { fill: #fff3db; }
+    .account-new { fill: #eaf7ef; }
+    .token { fill: #f8f2ff; }
+    .step { fill: #fff8e8; stroke: #c9a14d; stroke-width: 2; rx: 16; ry: 16; }
+    .config-step { fill: #f3f7ff; stroke: #8ea8c7; stroke-width: 2; rx: 16; ry: 16; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .life { stroke: #98a6b3; stroke-width: 2.4; stroke-dasharray: 8 7; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .edge-config { stroke: #4c7a62; stroke-width: 3; fill: none; marker-end: url(#arrow-green); }
+    .atomic { fill: none; stroke: #c9a14d; stroke-width: 2; stroke-dasharray: 10 6; rx: 12; ry: 12; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="1060"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Atomic Deployment Sequence</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Deployment is deterministic and atomic: CREATE2, mint, and optional initCalls in one transaction.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">No controller token exists and no account runtime code exists until the transaction completes.</text>
+
+  <!-- Entity boxes -->
+  <rect class="box caller" x="55" y="145" width="240" height="85"/>
+  <text class="title2" x="175" y="183" text-anchor="middle">Caller / Sponsor</text>
+  <text class="body" x="175" y="208" text-anchor="middle">pays deployment gas</text>
+
+  <rect class="box factory" x="390" y="145" width="260" height="85"/>
+  <text class="title2" x="520" y="183" text-anchor="middle">Factory</text>
+  <text class="mono" x="520" y="208" text-anchor="middle">CREATE2-based deployer</text>
+
+  <rect class="box token" x="730" y="145" width="260" height="85"/>
+  <text class="title2" x="860" y="183" text-anchor="middle">Controller Token</text>
+  <text class="body" x="860" y="208" text-anchor="middle">ERC-721 contract</text>
+
+  <rect class="box account-new" x="1100" y="145" width="280" height="85"/>
+  <text class="title2" x="1240" y="183" text-anchor="middle">Account (A)</text>
+  <text class="body" x="1240" y="208" text-anchor="middle">newly deployed at CREATE2 address</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="175" y1="230" x2="175" y2="800"/>
+  <line class="life" x1="520" y1="230" x2="520" y2="800"/>
+  <line class="life" x1="860" y1="230" x2="860" y2="800"/>
+  <line class="life" x1="1240" y1="230" x2="1240" y2="800"/>
+
+  <!-- Atomic boundary -->
+  <rect class="atomic" x="380" y="270" width="920" height="520"/>
+  <text class="label" x="840" y="296" text-anchor="middle">Single atomic transaction</text>
+
+  <!-- 1. deployAccount — arrow from Caller to Factory -->
+  <text class="label" x="348" y="328" text-anchor="middle">1. deployAccount(initialOwner)</text>
+  <path class="edge" d="M 175 345 L 520 345"/>
+
+  <!-- 2. Compute salt — internal step at Factory -->
+  <rect class="step" x="440" y="380" width="230" height="58"/>
+  <text class="label" x="555" y="406" text-anchor="middle">2. Compute salt</text>
+  <text class="body" x="555" y="428" text-anchor="middle">sender + nonce or user-salt</text>
+
+  <!-- 3. CREATE2 deploy — arrow from Factory to Account -->
+  <text class="label" x="877" y="468" text-anchor="middle">3. CREATE2 deploy account</text>
+  <path class="edge" d="M 520 484 L 1240 484"/>
+
+  <!-- 4. Derive tokenId — internal step at Factory -->
+  <rect class="step" x="440" y="516" width="310" height="42"/>
+  <text class="mono" x="595" y="543" text-anchor="middle">4. tokenId = uint256(uint160(A))</text>
+
+  <!-- 5. Validate graph + mint — arrow from Factory to Controller Token -->
+  <text class="label" x="690" y="590" text-anchor="middle">5. Validate graph + mint NFT</text>
+  <path class="edge" d="M 520 606 L 860 606"/>
+  <text class="body" x="690" y="628" text-anchor="middle">no self-ownership, no cycle, no max-depth violation</text>
+
+  <!-- 6. Emit event — internal step at Factory -->
+  <rect class="step" x="440" y="655" width="370" height="42"/>
+  <text class="mono" x="625" y="682" text-anchor="middle">6. emit AccountDeployed(tokenId, A, owner)</text>
+
+  <!-- Optional configured deployment — arrow from Token to Account -->
+  <text class="label" x="1050" y="724" text-anchor="middle">Optional: initCalls batch</text>
+  <path class="edge-config" d="M 860 740 L 1240 740"/>
+  <text class="body" x="1050" y="762" text-anchor="middle">validators, recovery, child accounts</text>
+
+  <rect class="config-step" x="1130" y="772" width="220" height="48"/>
+  <text class="body" x="1240" y="792" text-anchor="middle">Runs under recipient's</text>
+  <text class="body" x="1240" y="810" text-anchor="middle">control version. One-time only.</text>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="870" width="420" height="130"/>
+  <text class="label" x="280" y="908" text-anchor="middle">No Intermediate State</text>
+  <text class="body" x="280" y="936" text-anchor="middle">Before the transaction: no token, no code.</text>
+  <text class="body" x="280" y="958" text-anchor="middle">After: token minted, account deployed,</text>
+  <text class="body" x="280" y="980" text-anchor="middle">optional initCalls complete.</text>
+
+  <rect class="note" x="530" y="870" width="380" height="130"/>
+  <text class="label" x="720" y="908" text-anchor="middle">Deterministic Address</text>
+  <text class="body" x="720" y="936" text-anchor="middle">User-salt mode: same deployer, salt, and</text>
+  <text class="body" x="720" y="958" text-anchor="middle">factory produce the same address on</text>
+  <text class="body" x="720" y="980" text-anchor="middle">every chain. Cross-chain stable.</text>
+
+  <rect class="warn" x="950" y="870" width="420" height="130"/>
+  <text class="label" x="1160" y="908" text-anchor="middle">Configured Deploy Is Permissioned</text>
+  <text class="body" x="1160" y="936" text-anchor="middle">initCalls run under the recipient's version.</text>
+  <text class="body" x="1160" y="958" text-anchor="middle">Untrusted callers could pre-seed backdoor</text>
+  <text class="body" x="1160" y="980" text-anchor="middle">validators. Only authorized deployers.</text>
+</svg>
