@@ -1,0 +1,131 @@
+{
+  "name": "w-missing-required-constraint",
+  "rule": "W",
+  "description": "GPS_TRACE without sampleIntervalSeconds.",
+  "expect": {
+    "valid": false,
+    "violations": [
+      "W"
+    ]
+  },
+  "chainAccepts": true,
+  "chain": {
+    "chainId": 31337,
+    "registry": "0x8412000000000000000000000000000000008412",
+    "preregistrationId": "0x237666345b646174c522eefa5c0b85e990b062a3f962576a190f449056626ffa",
+    "author": "0x96f2Cd020d378362228253F7fE82c35EfE73E149",
+    "criteriaDigest": "0x34a14fda90f0fb1dc05a40e01cca2c6513c50af4ba2e3cad9b6ca2ac0bf13a29",
+    "taskRef": "0xf6f4e822c3f4948732183e8b04263a277e9f72331f0e02f33b6315e027f09be6",
+    "obligationCount": 3,
+    "obligationFlags": "0x70",
+    "expiry": 1788600000,
+    "registeredAt": 1788000000,
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "attestation": {
+      "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+      "bundleDigest": "0x1c963f83a8ad1d5c05681c9f91198a492d80579a013bf15cf4c44826d2790736",
+      "attestationDigest": "0xa9c848e78ca300887fa7f6f5b3d03e8662d7f7dee48318301c6ff5ae9d41f0c5",
+      "verdict": "Satisfied",
+      "obligationOutcomes": "0x60",
+      "attestedAt": 1788100000
+    }
+  },
+  "criteria": {
+    "version": "1",
+    "taskRef": "0xf6f4e822c3f4948732183e8b04263a277e9f72331f0e02f33b6315e027f09be6",
+    "supersedes": null,
+    "decisionRule": "ALL_REQUIRED",
+    "obligations": [
+      {
+        "index": 0,
+        "type": "PHOTO",
+        "required": true,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp",
+            "geolocation"
+          ],
+          "geofence": {
+            "commitment": "0xa5b82e48fd49474d45545fc2ec5b239718f4a87825e45b29aaa81a5dc69e8031"
+          },
+          "notBefore": 1788000000,
+          "mediaType": "image/jpeg"
+        }
+      },
+      {
+        "index": 1,
+        "type": "DOCUMENT",
+        "required": true,
+        "waivable": true,
+        "constraints": {
+          "mediaType": "application/pdf"
+        }
+      },
+      {
+        "index": 2,
+        "type": "GPS_TRACE",
+        "required": false,
+        "waivable": false,
+        "constraints": {
+          "captureMetadata": [
+            "timestamp"
+          ]
+        }
+      }
+    ],
+    "waiverAuthority": "0xBd3548FfAcC503E4F4e77Cb8993922931636517F",
+    "verifier": "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8",
+    "verifierConstraint": {
+      "allowed": [
+        "0x9F225e1f21ec382CaC048091B8fE1e0fd7311ad8"
+      ],
+      "maxRiskScore": 20
+    },
+    "expiry": 1788600000,
+    "terminalOnExpiry": "REFUND_WITH_RECORD"
+  },
+  "bundle": {
+    "version": "1",
+    "preregistrationId": "0x237666345b646174c522eefa5c0b85e990b062a3f962576a190f449056626ffa",
+    "items": [
+      {
+        "obligationIndex": 0,
+        "preregistrationId": "0x237666345b646174c522eefa5c0b85e990b062a3f962576a190f449056626ffa",
+        "digest": "0x50df873827644f58334700438fccad7314dee96abb823e3389fc13c74b8ab768",
+        "mediaType": "image/jpeg",
+        "locator": "ipfs://photo",
+        "captureMetadata": {
+          "timestamp": 1788003600,
+          "geolocation": "0xc110391af6113d14bc4a087efeffa3d1b1aa0bb0eab00c084ddd24cb541dd753"
+        }
+      },
+      {
+        "obligationIndex": 2,
+        "preregistrationId": "0x237666345b646174c522eefa5c0b85e990b062a3f962576a190f449056626ffa",
+        "digest": "0x8102895cc14012450b5d941ca73a9acf37809aec215a6198455ab581ac51a923",
+        "mediaType": "application/geo+json",
+        "locator": "ipfs://gps",
+        "captureMetadata": {
+          "timestamp": 1788003700
+        }
+      }
+    ]
+  },
+  "attestation": {
+    "version": "1",
+    "preregistrationId": "0x237666345b646174c522eefa5c0b85e990b062a3f962576a190f449056626ffa",
+    "bundleDigest": "0x1c963f83a8ad1d5c05681c9f91198a492d80579a013bf15cf4c44826d2790736",
+    "verdict": "Satisfied",
+    "obligationOutcomes": "0x60",
+    "waivers": [
+      {
+        "obligationIndex": 1,
+        "reasonDigest": "0xffa6b160725748e078dfc89bc35026fbf40d401605b40f6a5ca87cb910311171",
+        "signature": "0xf4aff70af9da71d609113d45830ca610d898fc5268ae9cb83342b708c3605dae27ef3b3d342c5c00d8569b9d21dee0c672eeb8657f29acf399679ecea328eb981b"
+      }
+    ],
+    "undecided": []
+  }
+}
