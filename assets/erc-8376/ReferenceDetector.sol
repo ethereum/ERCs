@@ -127,12 +127,15 @@ contract ReferenceDetector {
     ///      recognises and never the absence of one.
     function privilegedPowers(address token) public view returns (uint16) {
         (address impl, bool isProxy, bool resolved) = implementationOf(token);
-        if (isProxy && !resolved) return NA16;
 
         uint16 mask = scanCode(token);
         if (isProxy) {
+            // Delegation is upgradeability: whoever chooses the code that runs
+            // can grant themselves every other power later. That holds whether
+            // or not the implementation could be resolved, so the bit is set
+            // either way and only the implementation's own selectors are lost.
             mask |= UPGRADE;
-            if (impl != token && impl != address(0)) mask |= scanCode(impl);
+            if (resolved && impl != token && impl != address(0)) mask |= scanCode(impl);
         }
         return mask;
     }
