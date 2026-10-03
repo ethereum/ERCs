@@ -437,6 +437,37 @@ contract uRWA1155Test is Test {
         assertEq(token.getFrozenTokens(user1, TOKEN_ID_2), expectedNewFrozenAmount);
     }
 
+    function test_BurnBatch_DuplicateId_ReducesFrozenCumulatively() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+
+        uint256 frozenAmount = 60;
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, frozenAmount);
+
+        // Each element (40) is within the unfrozen balance (40), but the
+        // cumulative burn (80) consumes 40 frozen tokens as well, so the
+        // frozen amount must drop to 20, matching the remaining balance.
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 40;
+        amounts[1] = 40;
+
+        uint256 expectedNewFrozenAmount = frozenAmount - ((amounts[0] + amounts[1]) - (MINT_AMOUNT - frozenAmount));
+
+        vm.prank(user1);
+        vm.expectEmit(true, true, true, true);
+        emit IERC7943MultiToken.Frozen(user1, TOKEN_ID_1, expectedNewFrozenAmount);
+        vm.expectEmit(true, true, true, true);
+        emit IERC1155.TransferBatch(user1, user1, address(0), ids, amounts);
+        token.burnBatch(ids, amounts);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - amounts[0] - amounts[1]);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), expectedNewFrozenAmount);
+    }
+
     function test_Revert_BurnBatch_NotBurnerRole() public {
         uint256[] memory ids = new uint256[](2);
         ids[0] = TOKEN_ID_1;
@@ -811,6 +842,44 @@ contract uRWA1155Test is Test {
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, amounts[0], MINT_AMOUNT - FREEZE_AMOUNT));
         token.safeBatchTransferFrom(user1, user2, ids, amounts, "");
+    }
+
+    function test_Revert_SafeBatchTransfer_DuplicateId_InsufficientUnfrozenBalance() public {
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, FREEZE_AMOUNT);
+
+        // Each element (50) is within the unfrozen balance (60), but the
+        // cumulative amount for the repeated id (100) is not.
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 50;
+        amounts[1] = 50;
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, amounts[0] + amounts[1], MINT_AMOUNT - FREEZE_AMOUNT));
+        token.safeBatchTransferFrom(user1, user2, ids, amounts, "");
+    }
+
+    function test_SafeBatchTransfer_DuplicateId_Success_WithinUnfrozenBalance() public {
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, FREEZE_AMOUNT);
+
+        // Cumulative amount for the repeated id (60) equals the unfrozen balance.
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 30;
+        amounts[1] = 30;
+
+        vm.prank(user1);
+        token.safeBatchTransferFrom(user1, user2, ids, amounts, "");
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - 60);
+        assertEq(token.balanceOf(user2, TOKEN_ID_1), 60);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), FREEZE_AMOUNT);
     }
 
     // --- Enhanced Freeze/Unfreeze Tests ---
