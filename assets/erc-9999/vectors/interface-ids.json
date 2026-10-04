@@ -1,0 +1,7 @@
+{
+  "description": "ERC-165 interface identifiers (XOR of function selectors). Verified against type(I).interfaceId in test/ACDFVectors.t.sol.",
+  "ids": {
+    "IACDFPolicyRegistry": "0x734a2e40",
+    "IACDFRegistry": "0x6cb878d2"
+  }
+}
