@@ -3,7 +3,7 @@ eip: 9999
 title: Agent Collective Decision Framework
 description: Registries and composable decision policies through which authorized agents form collective decisions with procedural finality
 author: Gary Yang (@garyyang-finchip)
-discussions-to: https://ethereum-magicians.org/t/TBD
+discussions-to: https://ethereum-magicians.org/t/draft-erc-agent-collective-decision-framework-acdf-authorized-composable-collective-decisions-with-procedural-finality/29850
 status: Draft
 type: Standards Track
 category: ERC
