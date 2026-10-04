@@ -9,7 +9,7 @@
   "lastSeen": 1790000000,
   "livenessWindow": 7776000,
   "successor": null,
-  "documentDigest": "0x4e0cc8558fefea4a38c58c3f64e827733f73ea602b986a344bae5e55de00626e",
+  "documentDigest": "0xfd0b03eedac8a969fd54d7447ac661d4b0a68b0da396f022a1b7981f7ebca366",
   "document": {
     "version": "aid-document/v1",
     "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
@@ -67,6 +67,31 @@
           "kind": "erc8414",
           "chainId": 11155111
         }
+      },
+      {
+        "facetType": "aid:behavior/core/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790603600
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          }
+        },
+        "digest": "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        }
       }
     ]
   },
@@ -80,6 +105,7 @@
   },
   "trustedTimestamps": {
     "aid:tasks/erc8414/v1": 1790600000,
-    "aid:review/erc8004/v1": 1790600000
+    "aid:review/erc8004/v1": 1790600000,
+    "aid:behavior/core/v1": 1790600000
   }
 }

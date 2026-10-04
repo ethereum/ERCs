@@ -195,12 +195,22 @@ function exclusivityOf(facet, subject, ctx) {
   return { exclusivity: "unique" };
 }
 
+/** Clock tolerance of each anchor kind, in seconds (see the ERC, "timing"): the resolver subtracts it before deciding. */
+const ANCHOR_TOLERANCE = {
+  block: () => 12,                                                  // post-merge Ethereum: one slot
+  ots: () => 7200,                                                  // Bitcoin header time: within 2 h of network time
+  rfc3161: (facet) => { const a = facet.committedAt && facet.committedAt.proof && facet.committedAt.proof.accuracySeconds; return Number.isFinite(a) ? a : 60; },
+};
+function toleranceOf(facet) { const f = ANCHOR_TOLERANCE[facet.committedAt && facet.committedAt.anchor]; return f ? f(facet) : Infinity; }
+
 function timingOf(facet, provenAt) {
   if (!facet.committedAt) return { timing: "none" };
   if (provenAt == null) return { timing: "integrity-only", timingReason: "commitment not verified" };
   if (!facet.subjectWindow || !Number.isFinite(facet.subjectWindow.until)) return { timing: "integrity-only", timingReason: "no subjectWindow", committedAtVerified: provenAt };
-  if (provenAt < facet.subjectWindow.until) return { timing: "pre-outcome", committedAtVerified: provenAt };
-  return { timing: "integrity-only", timingReason: "committed after subjectWindow.until", committedAtVerified: provenAt };
+  const tol = toleranceOf(facet);
+  if (provenAt + tol < facet.subjectWindow.until) return { timing: "pre-outcome", committedAtVerified: provenAt, anchorTolerance: tol };
+  if (provenAt < facet.subjectWindow.until) return { timing: "integrity-only", timingReason: `subjectWindow.until within anchor tolerance (${tol}s) of the proven time`, committedAtVerified: provenAt, anchorTolerance: tol };
+  return { timing: "integrity-only", timingReason: "committed after subjectWindow.until", committedAtVerified: provenAt, anchorTolerance: tol };
 }
 
 // ---------------------------------------------------------------------------
@@ -289,5 +299,5 @@ async function main() {
   console.log(JSON.stringify(await resolveSnapshot(snap, now, ctx), null, 2));
 }
 
-module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, exclusivityOf, logTag, STATE };
+module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, logTag, STATE };
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
