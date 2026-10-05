@@ -259,15 +259,21 @@ contract SpendGrantRedemptionTest is Test {
     }
 
     function test_redemption_recordBoundToAnotherAccountIsNeverRead() public {
-        // The caveat sits on the leaf, whose delegator (the delegate) is not the account that executes.
+        // The redeemer is the grant's delegate, so the record names an acceptable authorizer. It sits
+        // on the leaf, whose delegator is an intermediary, not the account that executes, so the
+        // executor never finds it: the binding to the executing account alone causes the rejection.
+        address intermediary = vm.addr(0x1111);
         SpendGrant memory m = _grant(address(principalAccount), delegate);
         bytes memory sig = _sign(OWNER_PK, m);
+        bytes32 h = _hash(m);
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
-        chain[0] = _delegation(subDelegate, delegate, true);
-        chain[1] = _delegation(delegate, address(principalAccount), false);
+        chain[0] = _delegation(delegate, intermediary, true);
+        chain[1] = _delegation(intermediary, address(principalAccount), false);
 
-        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, subDelegate, chain, _execution(m, sig, 1e18, recipient));
+        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(m, sig, 1e18, recipient));
         _assertNothingSpent(m);
+        // The reverted redemption also rolled the record back.
+        assertEq(enforcer.recorded(intermediary, h, address(token), 1e18, recipient), address(0));
     }
 
     // ---------------------------------------------------------------- shape one: the delegate's account calls
