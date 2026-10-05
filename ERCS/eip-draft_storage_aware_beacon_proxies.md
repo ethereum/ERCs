@@ -1,0 +1,239 @@
+---
+title: Storage-Aware Beacon Proxies
+description: Beacon proxies that coordinate fleet-wide implementation upgrades with per-proxy storage upgrades
+author: Ashutosh Ukey (@ashutosh-ukey), Huawei Gu (@huaweigu), Andrew Klein (@andrewkleincircle), Weikang Song (@weikangsong)
+discussions-to: TBD
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-09-28
+requires: 1967
+---
+
+## Abstract
+
+This draft extends [ERC-1967](./erc-1967.md) beacon proxies so a beacon-governed fleet can upgrade between implementations that require different storage layouts. Each proxy tracks the layout initialized in its own storage and can migrate that storage before executing the new implementation. The beacon exposes a compact identifier for the target layout, and an upgrader supplies migration logic and storage-compatible fallback implementations for proxies that have not yet migrated.
+
+## Motivation
+
+Beacon proxies are a natural fit for operators that manage many similar state-holding contracts under shared implementation governance. Wallet providers are a useful example: a provider may deploy many independent account contracts, each with its own signers, policy state, module state, or account metadata, while still wanting one fleet-level upgrade point.
+
+ERC-1967 standardizes proxy metadata slots, including the beacon slot. In the beacon pattern, many proxies point to one beacon, and the beacon returns the implementation for the fleet. Changing one beacon can therefore change the implementation for many deployed proxies.
+
+ERC-1967 does not specify how beacon-proxy fleets should handle storage layout changes. Because a proxy's state lives in the proxy, not in the implementation, a beacon upgrade from one expected layout to another may require each proxy to upgrade its own storage before the new implementation can safely run.
+
+In practice, expecting every wallet implementation version to preserve the exact same fully compatible storage layout can be impractical as account features evolve. New wallet versions may need new initialized slots, renamed or repacked state, new module bookkeeping, or other layout changes that cannot be handled safely by simply pointing the fleet to a new implementation. Storage-aware upgrading can also initialize storage required by a new wallet or contract version as part of the first execution against that target layout.
+
+For ordinary ERC-1967 implementation proxies, projects commonly pair an implementation change with setup or storage-upgrade calldata through an upgrade-and-call or upgrade-to-and-call flow. This strategy fits ERC-1967 beacon proxies less cleanly. Requiring one storage-upgrade transaction per proxy also undercuts one of the main reasons to use a BeaconProxy in the first place: moving a fleet to a new implementation with a single beacon upgrade.
+
+Storage-Aware Beacon Proxies coordinate:
+
+- fleet-wide implementation discovery through a beacon;
+- per-proxy storage layout tracking;
+- automatic, lazy storage upgrades when a proxy first executes against a new layout;
+- efficient lookup of implementation and layout metadata in one beacon call; and
+- simulation of the next state-changing call against a proxy's migration path.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", and "MAY" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
+
+### Terms
+
+- Beacon: A contract that returns the implementation address used by one or more proxies. This term follows ERC-1967.
+- Storage-aware beacon: A beacon that tracks both an implementation address and the storage identifier expected by that implementation.
+- Storage-aware proxy: A proxy that tracks the storage identifier currently initialized in its own storage and compares it to the target storage identifier returned by the beacon.
+- Storage identifier: A fixed-size identifier for the persistent storage layout expected by an implementation.
+- Beacon proxy upgrader: A contract that provides storage-compatible fallback implementations and executes storage upgrade logic in the proxy's storage context.
+
+### Storage Layout Identifier
+
+This draft represents a storage layout identifier as `bytes12`.
+
+Projects SHOULD derive the identifier from a collision-resistant project-specific string, version, or schema commitment:
+
+```solidity
+bytes12(keccak256("example.account.single-owner.v1"))
+```
+
+This draft does not require a specific derivation formula. Implementations MAY align identifiers with [ERC-7201](./erc-7201.md) or other storage namespace schemes, but this proposal uses the layout identifier as a compact runtime compatibility tag rather than a full storage namespace declaration.
+
+### Beacon Storage Metadata
+
+A storage-aware beacon MUST track the storage identifier corresponding to its current implementation and MUST expose a packed 32-byte value:
+
+```text
+[ storageId: 12 bytes ][ implementation: 20 bytes ]
+```
+
+The low 20 bytes encode the implementation address. The high 12 bytes encode the implementation's expected storage identifier.
+
+This ordering preserves low-20-byte address decoding: `address(uint160(uint256(packed)))` still returns the implementation address when `packed` is formed as `(uint256(uint96(storageId)) << 160) | uint160(implementation)`. A legacy address-only value with high 12 bytes set to zero naturally represents storage ID `0x000000000000000000000000` plus the existing implementation address.
+
+The same packing convention applies to the proxy's ERC-1967 beacon slot: the low 20 bytes encode the beacon address, and the high 12 bytes encode the storage ID currently initialized in that proxy. Although the low 20 bytes remain address-decodable, the packed beacon word is a new storage-aware format and is not transparently compatible with every ERC-1967 consumer. In particular, current `@openzeppelin/upgrades-core` tooling does not parse the packed word as a conventional beacon address.
+
+### Beacon Interface
+
+A storage-aware beacon MUST expose the ERC-1967-compatible implementation getter, the packed implementation/storage getter, and the beacon proxy upgrader:
+
+```solidity
+interface IStorageAwareBeacon {
+    function implementation() external view returns (address);
+    function implementationAndStorageId() external view returns (bytes32);
+    function beaconProxyUpgrader() external view returns (address);
+}
+```
+
+- `implementation()` preserves the ERC-1967 beacon interface and MUST return the current implementation address.
+- `implementationAndStorageId()` MUST return the implementation address and storage identifier encoded as `[ storageId: 12 bytes ][ implementation: 20 bytes ]`.
+- `beaconProxyUpgrader()` MUST return the upgrader used to execute storage upgrades and resolve storage-compatible fallback implementations.
+
+Storage-aware proxies SHOULD prefer `implementationAndStorageId()` to retrieve both implementation address and storage identifier through one beacon lookup.
+
+### Proxy Layout Tracking
+
+A storage-aware proxy MUST track the storage identifier currently initialized in its own storage by packing it into the high 12 bytes of its ERC-1967 beacon slot:
+
+```text
+[ currentStorageId: 12 bytes ][ beacon: 20 bytes ]
+```
+
+The low 20 bytes MUST continue to encode the beacon address. The high 12 bytes MUST encode the proxy's current storage identifier.
+
+The proxy MUST initialize its current storage identifier during first initialization. Calls that require a current storage identifier MUST fail before initialization. The storage ID identifies the initialized variables and their layout. Implementations with the same semantic storage variables and layout SHOULD use the same storage ID.
+
+### Beacon Proxy Upgrader Interface
+
+A system SHOULD use a beacon proxy upgrader to keep storage-upgrade behavior out of the proxy and out of the beacon's critical implementation lookup path. Multiple beacons MAY share an upgrader when they share storage history.
+
+The upgrader SHOULD expose storage-compatible fallback implementations and a storage-upgrade entrypoint:
+
+```solidity
+interface IBeaconProxyUpgrader {
+    function fallbackImplForStorageId(bytes12 storageId) external view returns (address);
+    function upgradeStorage(bytes12 fromStorageId, bytes12 toStorageId, bytes calldata data) external;
+}
+```
+
+`fallbackImplForStorageId(storageId)` returns an implementation or reader that can safely execute against storage initialized with `storageId`. `upgradeStorage(fromStorageId, toStorageId, data)` performs the requested storage upgrade in the proxy's storage context. In most implementations, the proxy will `delegatecall` the upgrader.
+
+For each storage identifier that can remain active after a beacon upgrade, the upgrader MUST provide a nonzero `fallbackImplForStorageId(storageId)` value. If the storage upgrade cannot complete, the proxy MUST keep its current storage identifier unchanged and delegate to that current-storage implementation.
+
+`upgradeStorage` MUST revert if the `(fromStorageId, toStorageId)` pair is unsupported or the transition cannot complete. It MUST return normally only after the proxy's storage is compatible with `toStorageId`. This is the upgrader's conformance obligation; a generic proxy is not expected to validate application-specific initialization or authorization invariants independently.
+
+Because `upgradeStorage` is delegatecalled by the proxy, it MUST NOT rely on ordinary storage reads from the upgrader's own mappings during the delegatecall. Under `delegatecall`, `SLOAD` reads the proxy's storage. Policy or fallback lookups that need the upgrader's own storage should happen through normal calls such as `fallbackImplForStorageId`, not inside the delegatecalled storage-writing path.
+
+Implementations MAY expose an upgrade-to-and-call-style entrypoint or equivalent mechanism that supplies upgrade calldata to the upgrader. This is useful when a storage transition needs user-specific arguments or other data that the upgrader cannot derive automatically. A proxy MUST NOT mark the target storage identifier as initialized until the storage upgrade succeeds with the required data.
+
+A storage-aware proxy MUST emit `StorageUpgradeCompleted` once for every successfully completed per-proxy storage transition. The event MUST be emitted only after the proxy's storage is compatible with `toStorageId` and its current storage identifier has been updated. Failed migration attempts MUST NOT emit this event.
+
+```solidity
+event StorageUpgradeCompleted(
+    bytes12 indexed fromStorageId,
+    bytes12 indexed toStorageId
+);
+```
+
+### State-Changing Call Behavior
+
+For a non-static call, a storage-aware proxy SHOULD:
+
+1. Load the beacon address using the ERC-1967 beacon mechanism or an equivalent immutable beacon mechanism.
+2. Call `implementationAndStorageId()` on the beacon.
+3. Decode the implementation address and target storage identifier.
+4. Load the proxy's current storage identifier.
+5. If the identifiers match, delegate the original call to the implementation.
+6. If the identifiers differ, load the beacon proxy upgrader from the beacon.
+7. Delegatecall `upgradeStorage(currentStorageId, targetStorageId, data)` on the upgrader.
+8. If the storage upgrade succeeds, update the proxy's current storage identifier to the target identifier, emit `StorageUpgradeCompleted`, and delegate the original call to the target implementation.
+9. If the storage upgrade fails, keep the current storage identifier unchanged and delegate the original call to `fallbackImplForStorageId(currentStorageId)`.
+
+If `fallbackImplForStorageId(currentStorageId)` is unavailable, the system is misconfigured and the proxy MUST fail clearly. The proxy MUST NOT delegate to the target implementation while its current storage identifier differs from the target storage identifier.
+
+### Transaction Simulation
+
+This proposal works with standard non-static transaction simulation through `eth_call`. When `eth_call` simulates a state-changing transaction, the EVM can execute storage writes against ephemeral state and discard them afterward. A lazy storage upgrade can run during simulation, and later logic in the same simulated call can observe upgraded storage.
+
+A simulation of the next real state-changing transaction after a beacon upgrade can reflect the new implementation's post-upgrade behavior when the storage upgrade succeeds. If the storage upgrade cannot complete, the simulation should reflect the storage-compatible fallback path instead.
+
+### Static and Read-Only Calls
+
+`STATICCALL` is an EVM read-only call mode. Code executed under `STATICCALL` cannot perform `SSTORE`, so a storage-aware proxy cannot run a storage-writing upgrade during a strict static call.
+
+If a strict static/read-only call reaches a proxy whose current storage identifier differs from the beacon's target storage identifier, an attempted storage-writing upgrade will fail. The proxy MUST keep its current storage identifier unchanged and MUST NOT delegate to the beacon's target implementation while the storage identifiers differ.
+
+The default static-call path is the same safety path used after any failed storage upgrade: delegate to `fallbackImplForStorageId(currentStorageId)`. That fallback implementation must be compatible with the proxy's current storage. If no fallback implementation is available, the proxy MUST fail clearly.
+
+This proposal does not require every layout-breaking upgrade to provide immediate static-read compatibility with the beacon's target implementation. Until a non-static call successfully completes migration, strict static calls continue to use the implementation compatible with the proxy's current storage identifier and do not observe the target implementation's read behavior. Deployments MUST document this limitation for integrators and bundler simulations.
+
+A failed migration attempt may consume substantial gas before fallback is selected. Implementations SHOULD test worst-case migration paths with realistic production gas limits and document the gas headroom required for fallback execution.
+
+## Rationale
+
+### Extension of ERC-1967 Beacons
+
+This proposal extends the ERC-1967 beacon pattern. A storage-aware beacon still exposes `implementation()`, and the proxy still discovers its beacon through the ERC-1967 beacon mechanism or an equivalent immutable beacon reference.
+
+The extension adds a compact compatibility tag to the beacon's implementation pointer, giving proxies enough information to check whether their storage layout matches the target implementation.
+
+### Efficient Critical Path
+
+A beacon already returns the current implementation address. Since an address uses 20 bytes and an EVM storage slot is 32 bytes, implementations can store a 12-byte storage layout identifier in the unused high-order bytes of the same word. A storage-aware proxy can then fetch both values with one beacon call.
+
+This preserves efficient implementation discovery while adding enough metadata for safe storage-upgrade decisions.
+
+### Per-Proxy Storage Upgrade With Fleet-Wide Implementation Control
+
+Beacon proxies let one beacon control the implementation used by many proxies. Storage upgrades remain per-proxy because each proxy owns its own storage. This proposal keeps those responsibilities separate:
+
+- the beacon selects the target implementation and target layout for the fleet;
+
+- each proxy tracks and upgrades its own storage layout as needed.
+
+### Lazy Storage Upgrade
+
+Lazy storage upgrade avoids a separate transaction for every proxy immediately after a beacon upgrade. A proxy upgrades storage only when it first executes against a new layout. This reduces operational overhead and improves UX for large fleets where many proxies may be inactive at upgrade time.
+
+### Safe Fallback on Storage Upgrade Failure
+
+If storage upgrade cannot complete, the proxy may continue using the implementation registered for its current storage identifier. This preserves the last known-good execution path and keeps the proxy retryable: because the proxy does not update its storage identifier, a later call can attempt the same storage upgrade again.
+
+Fallback preserves storage safety only when its implementation is registered for the proxy's current storage identifier. The proxy cannot use the beacon's target implementation until the storage identifiers match.
+
+## Backwards Compatibility
+
+Existing ERC-1967 beacon proxies remain valid. Beacons that implement only `implementation()` are not storage-aware beacons. A storage-aware proxy should require the extended interface before applying storage-aware upgrade behavior. Existing tooling that calls `implementation()` can still discover the implementation address. Tooling that wants storage metadata can call `implementationAndStorageId()`.
+
+This proposal does not remove the need for upgrade-and-call-style flows. Some storage upgrades may require user-specific arguments or other calldata that cannot be derived automatically. In those cases, a proxy or beacon proxy upgrader can require explicit upgrade calldata before moving to the target layout. Storage-Aware Beacon Proxies target the common case where storage upgrade can be resolved automatically, or where a layout-compatible fallback keeps the proxy usable until explicit upgrade data is supplied.
+
+## Reference Implementation
+
+The [Solidity reference and test file](../assets/erc-0/StorageAwareBeaconReference.t.sol) demonstrates a beacon-governed fleet of toy accounts, a per-proxy storage migration, and fallback behavior for failed migrations and static reads. It uses Solidity 0.8.24, OpenZeppelin Contracts, and Foundry's `forge-std` test library. The example is illustrative and does not replace the Specification.
+
+## Security Considerations
+
+### Upgrader Safety
+
+Upgraders may execute in the proxy's storage context. An upgrader can corrupt proxy state if it writes incorrect slots, performs an unsupported storage upgrade, or makes unsafe external calls. The Specification requires rejection of unsupported `(fromStorageId, toStorageId)` pairs and prohibits reporting success for incomplete migrations.
+
+An implementation can require an expected success return value from the delegatecall to protect against an incorrect selector or permissive fallback that returns success without performing the migration. This is optional implementation hardening and is not required for the core ERC interface.
+
+The ERC does not prescribe a universal test suite. Each implementation should provide transition-specific tests and audit evidence demonstrating storage compatibility and preservation of initialization and authorization invariants. For a production wallet migration, a regression test should confirm that a migrated account rejects a second initialization attempt and preserves the original owner.
+
+### Governance and Operational Controls
+
+Beacon upgrades can affect an entire proxy fleet. Governance over storage-aware beacons needs strong access control, review, monitoring, and rollback planning. The beacon proxy upgrader controls which implementations are compatible with each storage identifier and how storage upgrades run. Incorrect upgrader logic or fallback entries can route proxies to incompatible code or unsafe storage-upgrade logic. Upgrader updates need the same access control, review, monitoring, and rollback planning as beacon implementation upgrades.
+
+### Fallback Visibility
+
+Fallback keeps proxies usable when storage upgrade cannot complete, but operators still need to know that a proxy remains on an older storage identifier. Non-static calls that fall back after a failed storage upgrade can emit an event that includes the current storage identifier, target storage identifier, and fallback implementation.
+
+Deployments using lazy migration should define how repeated migration failures are monitored, retried, escalated, and eventually retired. Without explicit observability and fallback-retirement criteria, a proxy may remain on old behavior indefinitely.
+
+### Layout Identifier Collisions
+
+Storage layout identifiers are compatibility tags. A collision or accidental reuse can make a proxy skip a required storage upgrade or apply the wrong storage upgrade. Projects should derive layout identifiers from explicit, project-specific, versioned layout names or schema commitments.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
