@@ -108,6 +108,10 @@ contract ACDFTaskTenderAdapter {
         input.effectYes = EFFECT_ACCEPT;
         input.effectNo = EFFECT_REJECT;
         input.disposition = DISPOSITION;
+        // Obligation scope: this authority owes one judgment per submission. The subject above
+        // freezes WHAT is judged (resultHash, cited taskVersion); the obligation says WHICH duty may
+        // have at most one unfinished Binding proceeding. Here they coincide by choice of the adapter.
+        input.obligationId = keccak256(abi.encode(address(task), tokenId, submissionId));
         input.consumerDeadline = consumerDeadline; // registry: admittedAt + maxTotalDuration <= deadline
         issueId = registry.file(input);
 

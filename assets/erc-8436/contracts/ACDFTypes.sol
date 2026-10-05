@@ -61,6 +61,7 @@ library ACDFTypes {
         uint64         appealWindow;     // seconds after a round's result during which an appeal may be filed
         uint8          appealable;       // bit0: Decided results appealable; bit1: NoDecision results appealable
         AppealStanding appealStanding;
+        AppealMode     appealMode;       // what an appeal round that ends in NoDecision means for the earlier decision
         uint64         maxTotalDuration; // hard cap from admission; must cover every round and appeal window
         uint64         ackWindow;        // POST_ACK acknowledgment window; 0 disables POST_ACK
         bool           allowAdvisory;    // may an unacknowledged POST_ACK issue be admitted as Advisory
@@ -68,6 +69,12 @@ library ACDFTypes {
     }
 
     // ------------------------------------------------------------------ issue
+
+    /// PRESERVE_UNLESS_OVERTURNED: an appeal that fails to reach a substantive decision leaves the
+    /// decision being appealed standing (challenge-style appeal). REQUIRE_FRESH_DECISION: opening
+    /// an appeal vacates the earlier decision; only the last round's own decision can be adopted,
+    /// otherwise the issue ends in NoDecision (de-novo appeal).
+    enum AppealMode { PRESERVE_UNLESS_OVERTURNED, REQUIRE_FRESH_DECISION }
 
     enum ProcedureState { None, Filed, Deciding, Provisional, Final, Withdrawn }
     enum OutcomeType    { None, Decided, NoDecision }
@@ -105,6 +112,7 @@ library ACDFTypes {
         bytes32        effectYes;        // CONSUMER_FILED: committed by the consumer; POST_ACK: proposal only
         bytes32        effectNo;
         bytes32        disposition;      // what the consumer does on NoDecision (opaque reference)
+        bytes32        obligationId;     // consumer-committed obligation scope; Binding issues require != 0 (POST_ACK: proposal only)
         uint64         consumerDeadline; // 0 = none; otherwise admission requires admittedAt + maxTotalDuration <= deadline
     }
 
@@ -116,6 +124,7 @@ library ACDFTypes {
         bytes32   effectYes;
         bytes32   effectNo;
         bytes32   disposition;
+        bytes32   obligationId;    // != 0: every issue under this acceptance shares this obligation; 0: obligation = keccak256(abi.encode(subject))
         uint64    validUntil;      // 0 = none
     }
 
@@ -132,7 +141,8 @@ library ACDFTypes {
         bytes32        effectYes;
         bytes32        effectNo;
         bytes32        disposition;
-        bytes32        obligationKey;
+        bytes32        obligationId;    // consumer-committed scope (0 while a POST_ACK issue awaits acknowledgment, and for Advisory)
+        bytes32        obligationKey;   // keccak256(abi.encode(consumer, obligationId, question)) for Binding issues
         uint64         filedAt;
         uint64         admittedAt;
         uint64         consumerDeadline;
@@ -187,5 +197,7 @@ library ACDFTypes {
         bytes32        effectYes;
         bytes32        effectNo;
         bytes32        disposition;
+        bytes32        obligationId;
+        bool           adoptedFromEarlierRound; // Decided result taken from a round before the last one (PRESERVE_UNLESS_OVERTURNED)
     }
 }

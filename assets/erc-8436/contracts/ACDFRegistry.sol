@@ -38,6 +38,7 @@ contract ACDFRegistry is IACDFRegistry {
         bytes32   effectYes;
         bytes32   effectNo;
         bytes32   disposition;
+        bytes32   obligationId;
         uint64    validUntil;
     }
 
@@ -79,6 +80,7 @@ contract ACDFRegistry is IACDFRegistry {
         a.effectYes = input.effectYes;
         a.effectNo = input.effectNo;
         a.disposition = input.disposition;
+        a.obligationId = input.obligationId;
         a.validUntil = input.validUntil;
         emit StandingAcceptanceRegistered(acceptanceId, msg.sender, input.policyId);
     }
@@ -109,10 +111,12 @@ contract ACDFRegistry is IACDFRegistry {
         if (input.mode == T.AcceptanceMode.CONSUMER_FILED) {
             require(input.consumer == msg.sender, "ACDF: consumer must file");
             require(input.effectYes != bytes32(0) && input.effectNo != bytes32(0), "ACDF: effects required");
+            require(input.obligationId != bytes32(0), "ACDF: obligation required");
             it.consumer = msg.sender;
             it.effectYes = input.effectYes;
             it.effectNo = input.effectNo;
             it.disposition = input.disposition;
+            it.obligationId = input.obligationId;
             emit IssueFiled(issueId, input.policyId, input.mode, msg.sender, msg.sender);
             _admit(issueId, T.EffectClass.Binding, input.consumerDeadline);
         } else if (input.mode == T.AcceptanceMode.STANDING_ACCEPTANCE) {
@@ -133,6 +137,9 @@ contract ACDFRegistry is IACDFRegistry {
             it.effectYes = a.effectYes;
             it.effectNo = a.effectNo;
             it.disposition = a.disposition;
+            // obligation scope committed by the consumer in the acceptance: one fixed scope, or
+            // one scope per exact subject when the consumer chose to key its obligation on the subject
+            it.obligationId = a.obligationId != bytes32(0) ? a.obligationId : keccak256(abi.encode(input.subject));
             emit IssueFiled(issueId, input.policyId, input.mode, msg.sender, a.consumer);
             _admit(issueId, T.EffectClass.Binding, 0);
         } else {
@@ -143,12 +150,13 @@ contract ACDFRegistry is IACDFRegistry {
             it.effectYes = input.effectYes;   // proposal only; frozen at acknowledgment
             it.effectNo = input.effectNo;
             it.disposition = input.disposition;
+            it.obligationId = input.obligationId; // proposal only; the consumer commits the scope at acknowledgment
             emit IssueFiled(issueId, input.policyId, input.mode, msg.sender, input.consumer);
         }
     }
 
-    function acknowledge(bytes32 issueId, bytes32 effectYes, bytes32 effectNo, bytes32 disposition, uint64 consumerDeadline)
-        external
+    function acknowledge(bytes32 issueId, bytes32 effectYes, bytes32 effectNo, bytes32 disposition,
+                         bytes32 obligationId, uint64 consumerDeadline) external
     {
         T.Issue storage it = _issues[issueId];
         require(it.mode == T.AcceptanceMode.POST_ACK, "ACDF: not POST_ACK");
@@ -156,9 +164,11 @@ contract ACDFRegistry is IACDFRegistry {
         require(msg.sender == it.consumer, "ACDF: not the named consumer");
         require(block.timestamp <= uint256(it.filedAt) + policies.timingOf(it.policyId).ackWindow, "ACDF: ack window closed");
         require(effectYes != bytes32(0) && effectNo != bytes32(0), "ACDF: effects required");
+        require(obligationId != bytes32(0), "ACDF: obligation required");
         it.effectYes = effectYes;
         it.effectNo = effectNo;
         it.disposition = disposition;
+        it.obligationId = obligationId;
         emit IssueAcknowledged(issueId, msg.sender);
         _admit(issueId, T.EffectClass.Binding, consumerDeadline);
     }
@@ -174,6 +184,7 @@ contract ACDFRegistry is IACDFRegistry {
         it.effectYes = bytes32(0);
         it.effectNo = bytes32(0);
         it.disposition = bytes32(0);
+        it.obligationId = bytes32(0);
         _admit(issueId, T.EffectClass.Advisory, 0);
     }
 
@@ -219,7 +230,7 @@ contract ACDFRegistry is IACDFRegistry {
         it.consumerDeadline = consumerDeadline;
         it.hardDeadline = hard;
         if (effectClass == T.EffectClass.Binding) {
-            bytes32 key = _obligationKey(it.consumer, it.subject, it.question);
+            bytes32 key = _obligationKey(it.consumer, it.obligationId, it.question);
             bytes32 existing = _activeIssue[it.consumer][key];
             if (existing != bytes32(0)) {
                 T.ProcedureState es = _issues[existing].state;
@@ -515,7 +526,11 @@ contract ACDFRegistry is IACDFRegistry {
         T.RoundState[] storage rounds = _rounds[issueId];
         uint256 n = rounds.length;
         bool found;
-        for (uint256 i = n; i > 0 && !found; i--) {
+        // PRESERVE_UNLESS_OVERTURNED: the latest substantive decision survives later rounds that
+        // ended without one. REQUIRE_FRESH_DECISION: only the last round's own decision counts;
+        // opening an appeal vacated whatever came before.
+        uint256 first = policies.timingOf(it.policyId).appealMode == T.AppealMode.REQUIRE_FRESH_DECISION ? n : 1;
+        for (uint256 i = n; i >= first && !found; i--) {
             T.RoundState storage r = rounds[i - 1];
             if (r.settled && (r.status == T.NodeStatus.Yes || r.status == T.NodeStatus.No)) {
                 it.outcomeType = T.OutcomeType.Decided;
@@ -576,6 +591,8 @@ contract ACDFRegistry is IACDFRegistry {
         res.effectYes = it.effectYes;
         res.effectNo = it.effectNo;
         res.disposition = it.disposition;
+        res.obligationId = it.obligationId;
+        res.adoptedFromEarlierRound = it.outcomeType == T.OutcomeType.Decided && it.sourceRound < it.roundCount;
     }
 
     function getIssue(bytes32 issueId) external view returns (T.Issue memory) { return _issues[issueId]; }
@@ -597,12 +614,12 @@ contract ACDFRegistry is IACDFRegistry {
         return _activeIssue[consumer][obligationKey];
     }
 
-    function obligationKeyOf(address consumer, T.Subject calldata subject, bytes32 question) external pure returns (bytes32) {
-        return _obligationKey(consumer, subject, question);
+    function obligationKeyOf(address consumer, bytes32 obligationId, bytes32 question) external pure returns (bytes32) {
+        return _obligationKey(consumer, obligationId, question);
     }
 
-    function _obligationKey(address consumer, T.Subject memory subject, bytes32 question) private pure returns (bytes32) {
-        return keccak256(abi.encode(consumer, subject, question));
+    function _obligationKey(address consumer, bytes32 obligationId, bytes32 question) private pure returns (bytes32) {
+        return keccak256(abi.encode(consumer, obligationId, question));
     }
 
     function getEnactment(bytes32 issueId, address consumer, bytes32 effectId) external view returns (T.Enactment memory) {

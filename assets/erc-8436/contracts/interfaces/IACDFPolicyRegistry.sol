@@ -19,6 +19,7 @@ interface IACDFPolicyRegistry {
         uint64           appealWindow;
         uint8            appealable;
         T.AppealStanding appealStanding;
+        T.AppealMode     appealMode;
         uint64           maxTotalDuration;
         uint64           ackWindow;
         bool             allowAdvisory;

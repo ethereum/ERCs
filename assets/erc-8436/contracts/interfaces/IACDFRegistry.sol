@@ -40,7 +40,7 @@ interface IACDFRegistry {
 
     // ------------------------------------------------------------------ issues
     function file(T.IssueInput calldata input) external returns (bytes32 issueId);
-    function acknowledge(bytes32 issueId, bytes32 effectYes, bytes32 effectNo, bytes32 disposition, uint64 consumerDeadline) external;
+    function acknowledge(bytes32 issueId, bytes32 effectYes, bytes32 effectNo, bytes32 disposition, bytes32 obligationId, uint64 consumerDeadline) external;
     function admitAdvisory(bytes32 issueId) external;
     function expireUnacknowledged(bytes32 issueId) external;
     function withdraw(bytes32 issueId) external;
@@ -69,7 +69,7 @@ interface IACDFRegistry {
     function nodeStatus(bytes32 issueId, uint32 round, uint32 node) external view returns (T.NodeStatus status, T.Reason reason, uint64 at);
     function hasVoted(bytes32 issueId, uint32 round, uint32 body, address voter) external view returns (bool);
     function activeIssueOf(address consumer, bytes32 obligationKey) external view returns (bytes32);
-    function obligationKeyOf(address consumer, T.Subject calldata subject, bytes32 question) external pure returns (bytes32);
+    function obligationKeyOf(address consumer, bytes32 obligationId, bytes32 question) external pure returns (bytes32);
     function getEnactment(bytes32 issueId, address consumer, bytes32 effectId) external view returns (T.Enactment memory);
     function ballotDigest(bytes32 issueId, uint32 round, uint32 body, address voter, bool approve) external view returns (bytes32);
 

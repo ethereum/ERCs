@@ -56,7 +56,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - **Consumer (relying contract)** — the contract or account that commits to accept an issue's result and to enforce its effects within its own authority.
 - **Acceptance mode** — how the consumer's commitment is established: `CONSUMER_FILED`, `STANDING_ACCEPTANCE` or `POST_ACK`.
 - **Binding / Advisory** — an issue with a verified consumer commitment is *Binding*; an issue with none is *Advisory* and produces a record without hard effect.
-- **Obligation key** — `keccak256(abi.encode(consumer, subject, question))`; at most one unfinished Binding issue exists per obligation key.
+- **Obligation** — the consumer-committed scope within which at most one unfinished Binding issue may exist. It is identified by an opaque `obligationId` chosen by the consumer; the **obligation key** is `keccak256(abi.encode(consumer, obligationId, question))`. The subject identifies *what* an issue evaluates; the obligation identifies *which duty* of the consumer the result discharges. The two may coincide by the consumer's choice, but the registry never equates them on its own.
 - **Body** — one deciding unit of a policy: a fixed roster with a K-of-N rule, or a single authorized submitter. A **body instance** is a body on one issue in one round.
 - **Body decision** — `Pending`, `Yes`, `No` or `NoDecision(reason)`.
 - **Composition** — the tree of combinators (`BODY`, `ALL`, `ANY`, `KOFM`, `VETO`) whose root value is the round's result.
@@ -87,6 +87,7 @@ library ACDFTypes {
     enum Combinator     { BODY, ALL, ANY, KOFM, VETO }
     enum VetoSilence    { PASS_THROUGH, REQUIRE_CLEARANCE }
     enum AppealStanding { ANYONE, CONSUMER_OR_FILER }
+    enum AppealMode     { PRESERVE_UNLESS_OVERTURNED, REQUIRE_FRESH_DECISION }
 
     struct BodySpec {
         BodyKind   kind;
@@ -117,6 +118,7 @@ library ACDFTypes {
         uint64         appealWindow;     // seconds after a round's formation instant
         uint8          appealable;       // bit0: Decided appealable; bit1: NoDecision appealable
         AppealStanding appealStanding;
+        AppealMode     appealMode;       // what an appeal round ending in NoDecision means for the decision under appeal
         uint64         maxTotalDuration; // hard cap from admission
         uint64         ackWindow;        // POST_ACK acknowledgment window; 0 disables POST_ACK
         bool           allowAdvisory;    // may an unacknowledged POST_ACK issue proceed as Advisory
@@ -149,7 +151,7 @@ The first policy registered under a `family` MUST have `previous == 0`; it claim
 interface IACDFPolicyRegistry /* is IERC165 */ {
     struct Timing {
         uint32 maxAppeals; uint64 appealWindow; uint8 appealable; ACDFTypes.AppealStanding appealStanding;
-        uint64 maxTotalDuration; uint64 ackWindow; bool allowAdvisory; uint64 roundDuration;
+        ACDFTypes.AppealMode appealMode; uint64 maxTotalDuration; uint64 ackWindow; bool allowAdvisory; uint64 roundDuration;
     }
 
     event PolicyRegistered(bytes32 indexed policyId, bytes32 indexed family, uint32 version, address indexed by);
@@ -192,6 +194,7 @@ struct IssueInput {
     bytes32        effectYes;        // opaque effect identifiers; CONSUMER_FILED: committed; POST_ACK: proposal only
     bytes32        effectNo;
     bytes32        disposition;      // opaque reference to the consumer's committed NoDecision disposition
+    bytes32        obligationId;     // consumer-committed obligation scope; CONSUMER_FILED: MUST be non-zero; POST_ACK: proposal only
     uint64         consumerDeadline; // 0 = none
 }
 
@@ -201,11 +204,12 @@ struct StandingAcceptanceInput {
     bytes32   question;       // 0 = any
     address[] filers;         // empty = anyone
     bytes32   effectYes; bytes32 effectNo; bytes32 disposition;
+    bytes32   obligationId;   // non-zero: one obligation shared by every issue under this acceptance; 0: one obligation per exact subject
     uint64    validUntil;     // 0 = none
 }
 ```
 
-Effect identifiers and the disposition are opaque to the registry. They name, for the consumer, the action that each outcome authorizes and what the consumer does when no decision forms; the registry never interprets or executes them.
+Effect identifiers, the disposition and the obligation identifier are opaque to the registry. The effects name, for the consumer, the action that each outcome authorizes; the disposition names what the consumer does when no decision forms; the obligation identifier names the duty whose unfinished Binding proceedings are limited to one. The registry never interprets or executes any of them.
 
 #### 5.2 Acceptance modes
 
@@ -213,20 +217,20 @@ An issue is **admitted** when its consumer binding (if any) has been verified, i
 
 - record `admittedAt` and `hardDeadline = admittedAt + maxTotalDuration`;
 - if `consumerDeadline != 0`, require `hardDeadline <= consumerDeadline` ("insufficient window"); the whole procedure including every appeal must fit the consumer's remaining window;
-- for a Binding issue, compute the obligation key and require that no other issue holds it unless that issue is `Final` or `Withdrawn` ("obligation active"), then record this issue as the obligation's active issue;
+- for a Binding issue, require a non-zero `obligationId` ("obligation required"), compute the obligation key `keccak256(abi.encode(consumer, obligationId, question))` and require that no other issue holds it unless that issue is `Final` or `Withdrawn` ("obligation active"), then record this issue as the obligation's active issue;
 - set the procedure state to `Deciding` and open round 1.
 
-**CONSUMER_FILED.** `file` MUST require `input.consumer == msg.sender` and non-zero `effectYes` and `effectNo`. The caller is the consumer; acceptance is implied and admission is atomic with filing. Calling as the consumer proves only that this account filed; an adapter acting for a business object MUST itself verify that it holds the authority it claims over that object before filing.
+**CONSUMER_FILED.** `file` MUST require `input.consumer == msg.sender`, non-zero `effectYes` and `effectNo`, and a non-zero `obligationId`. The caller is the consumer; acceptance is implied and admission is atomic with filing. Calling as the consumer proves only that this account filed; an adapter acting for a business object MUST itself verify that it holds the authority it claims over that object before filing.
 
-**STANDING_ACCEPTANCE.** A consumer registers, in advance, an acceptance record naming the exact policy version it accepts, an optional subject-target constraint, an optional question constraint, an optional list of permitted filers, the effects and disposition it commits to, and an optional expiry. `file` in this mode MUST require that the acceptance exists and is not revoked or expired, that `input.policyId` equals the accepted policy, that the subject target and question satisfy the constraints, and that `msg.sender` is a permitted filer when the list is non-empty. The issue's consumer, effects and disposition MUST be taken from the acceptance record; values supplied by the filer MUST be ignored. Admission is atomic with filing. Revoking an acceptance MUST stop new filings only; issues already admitted under it complete under their committed rules.
+**STANDING_ACCEPTANCE.** A consumer registers, in advance, an acceptance record naming the exact policy version it accepts, an optional subject-target constraint, an optional question constraint, an optional list of permitted filers, the effects and disposition it commits to, and an optional expiry. `file` in this mode MUST require that the acceptance exists and is not revoked or expired, that `input.policyId` equals the accepted policy, that the subject target and question satisfy the constraints, and that `msg.sender` is a permitted filer when the list is non-empty. The issue's consumer, effects and disposition MUST be taken from the acceptance record; values supplied by the filer MUST be ignored. The issue's `obligationId` MUST be the acceptance's `obligationId` when that is non-zero, and otherwise `keccak256(abi.encode(subject))`: either way the scope of exclusivity is committed by the consumer in advance, never chosen by the filer. Admission is atomic with filing. Revoking an acceptance MUST stop new filings only; issues already admitted under it complete under their committed rules.
 
-**POST_ACK.** `file` in this mode MUST require that the policy's `ackWindow` is non-zero and that `input.consumer` is non-zero. The issue remains in state `Filed`; no round is open and no ballot can be cast. Before `filedAt + ackWindow` the named consumer, and only it, MAY `acknowledge`, supplying the final effects and disposition and an optional consumer deadline; acknowledgment admits the issue as Binding. After the window, if the policy's `allowAdvisory` is true, anyone MAY `admitAdvisory`, which clears the consumer and effects and admits the issue as Advisory; otherwise anyone MAY `expireUnacknowledged`, which sets the state to `Withdrawn` with reason `NO_ACCEPTANCE`. An issue admitted as Advisory MUST NOT be converted to Binding afterwards; a party that later wishes to adopt its result MUST create a new acceptance or a new issue.
+**POST_ACK.** `file` in this mode MUST require that the policy's `ackWindow` is non-zero and that `input.consumer` is non-zero. The issue remains in state `Filed`; no round is open and no ballot can be cast. Before `filedAt + ackWindow` the named consumer, and only it, MAY `acknowledge`, supplying the final effects, disposition, a non-zero `obligationId` and an optional consumer deadline; the filer's values are proposals only. Acknowledgment admits the issue as Binding. After the window, if the policy's `allowAdvisory` is true, anyone MAY `admitAdvisory`, which clears the consumer and effects and admits the issue as Advisory; otherwise anyone MAY `expireUnacknowledged`, which sets the state to `Withdrawn` with reason `NO_ACCEPTANCE`. An issue admitted as Advisory MUST NOT be converted to Binding afterwards; a party that later wishes to adopt its result MUST create a new acceptance or a new issue.
 
 Advisory issues run the full procedure and produce a formal record. Their results carry no obligation for any consumer; `recordEnactment` MUST reject them.
 
 #### 5.3 Freezing
 
-The following MUST be fixed at admission and MUST NOT change afterwards: the policy version, subject, question, effect identifiers, disposition, consumer, effect class and every window. There is no function that changes them. Parameters whose evaluation legitimately depends on later state are not part of this ERC's kernel; a profile that introduces them MUST declare the dependency in the policy.
+The following MUST be fixed at admission and MUST NOT change afterwards: the policy version, subject, question, effect identifiers, disposition, obligation identifier, consumer, effect class and every window. There is no function that changes them. Parameters whose evaluation legitimately depends on later state are not part of this ERC's kernel; a profile that introduces them MUST declare the dependency in the policy.
 
 #### 5.4 Withdrawal
 
@@ -321,7 +325,12 @@ Composition in this ERC combines **decisions about the same issue and the same p
 
 `finalize` MUST be accepted only while `Provisional` and after `appealOpenUntil`. `enforceHardDeadline` MUST be accepted while `Deciding` or `Provisional` once the current time is after `hardDeadline`; if the current round's root is still `Pending` it is recorded as `NoDecision(TOTAL_TIMEOUT)`.
 
-**Adoption rule.** On finalization the registry MUST adopt the most recent round whose status is `Yes` or `No`: the outcome type becomes `Decided`, `outcomeYes` the round's status, `reason` the round's reason, `sourceRound` that round's number and `decidedAt` its formation instant. Only if no round produced `Yes` or `No` does the outcome type become `NoDecision`, with the last round's reason. A later round that ended without a decision therefore never erases an earlier decision; it is recorded, and `sourceRound` may be smaller than `roundCount`. `Final` is terminal: no later round of the same issue can replace the adopted result; a different conclusion requires a new, separately authorized issue.
+**Adoption rule.** What an appeal round that ends without a decision means is fixed by the policy's `appealMode`; the kernel has no default.
+
+- `PRESERVE_UNLESS_OVERTURNED` (challenge-style appeal): on finalization the registry MUST adopt the most recent round whose status is `Yes` or `No`: the outcome type becomes `Decided`, `outcomeYes` the round's status, `reason` the round's reason, `sourceRound` that round's number and `decidedAt` its formation instant. Only if no round produced `Yes` or `No` does the outcome type become `NoDecision`, with the last round's reason. A later round that ended without a decision therefore never erases the decision under appeal; it is recorded, and `sourceRound` may be smaller than `roundCount`.
+- `REQUIRE_FRESH_DECISION` (de-novo appeal): opening an appeal vacates every earlier decision. On finalization the registry MUST adopt the last round's own status when it is `Yes` or `No`, and otherwise MUST record `NoDecision` with the last round's reason; `sourceRound` always equals `roundCount`.
+
+In both modes `Final` is terminal: no later round of the same issue can replace the adopted result; a different conclusion requires a new, separately authorized issue.
 
 ### 10. Results, enactment and evidence
 
@@ -339,10 +348,13 @@ struct Result {
     uint64 decidedAt;       uint64 finalAt;          bytes32 policyId;
     uint32 roundCount;      uint32 sourceRound;      EffectClass effectClass;
     address consumer;       bytes32 effectYes;       bytes32 effectNo;  bytes32 disposition;
+    bytes32 obligationId;   bool adoptedFromEarlierRound;
 }
 ```
 
 `getResult` MUST return the three dimensions separately. A relying contract MUST check `state == Final` before enforcing an irreversible effect, MUST check `outcomeType == Decided` before applying either effect, and MUST apply its committed disposition — not a default of its own choosing at that moment — when `outcomeType == NoDecision`. Reasons identify why no decision formed and are not a verdict on the merits; `VETOED` is the reason of a decided `No`.
+
+A `Decided` result reached because a later appeal round ended in `NoDecision` and the earlier decision was preserved (finality by adoption) MUST be distinguishable from a `Decided` result formed by the last round itself (finality by substantive decision): `adoptedFromEarlierRound` MUST be true exactly when `outcomeType == Decided` and `sourceRound < roundCount`. A relying contract MAY commit to treat the two differently; the registry treats them alike.
 
 #### 10.2 Enactment log
 
@@ -376,7 +388,7 @@ interface IACDFRegistry /* is IERC165 */ {
     function revokeStandingAcceptance(bytes32 acceptanceId) external;
 
     function file(ACDFTypes.IssueInput calldata input) external returns (bytes32 issueId);
-    function acknowledge(bytes32 issueId, bytes32 effectYes, bytes32 effectNo, bytes32 disposition, uint64 consumerDeadline) external;
+    function acknowledge(bytes32 issueId, bytes32 effectYes, bytes32 effectNo, bytes32 disposition, bytes32 obligationId, uint64 consumerDeadline) external;
     function admitAdvisory(bytes32 issueId) external;
     function expireUnacknowledged(bytes32 issueId) external;
     function withdraw(bytes32 issueId) external;
@@ -401,7 +413,7 @@ interface IACDFRegistry /* is IERC165 */ {
     function nodeStatus(bytes32 issueId, uint32 round, uint32 node) external view returns (ACDFTypes.NodeStatus, ACDFTypes.Reason, uint64 at);
     function hasVoted(bytes32 issueId, uint32 round, uint32 body, address voter) external view returns (bool);
     function activeIssueOf(address consumer, bytes32 obligationKey) external view returns (bytes32);
-    function obligationKeyOf(address consumer, ACDFTypes.Subject calldata subject, bytes32 question) external pure returns (bytes32);
+    function obligationKeyOf(address consumer, bytes32 obligationId, bytes32 question) external pure returns (bytes32);
     function getEnactment(bytes32 issueId, address consumer, bytes32 effectId) external view returns (ACDFTypes.Enactment memory);
     function ballotDigest(bytes32 issueId, uint32 round, uint32 body, address voter, bool approve) external view returns (bytes32);
 
@@ -431,6 +443,7 @@ The following are **reserved**: this ERC names them so that implementations and 
 - *Eligibility profiles* binding rosters to identity, trust-assertion or reputation registries (for example ERC-8004 identities with asserted trust levels), including how an eligibility snapshot is produced and how conflicts of interest are excluded.
 - *Selection* other than a fixed roster: sortition with a verifiable randomness source, nomination with strikes, delegation.
 - *Weight* other than equal weight, including per-operator caps and independence conditions.
+- *Per-round timing*: appeal rounds with windows or hard caps different from the first round's; in this version every round of an issue uses the policy's body windows.
 - *Non-binary outcome spaces* (categorical, scalar, ranked) and *typed composition* over them, including intersection of allowed effect sets.
 - *Ordering dependencies* between bodies beyond the veto window.
 - *Executor modules* enforcing effects with delays on behalf of consumers; *fees and bonds*; *optimistic / challenge* procedures; *privacy* (zero-knowledge eligibility, anonymous ballots); *multi-consumer* issues; *cross-chain* carriage of results.
@@ -445,12 +458,12 @@ A relying contract names a registry instance and the exact policy versions it ac
 
 | interface | ERC-165 id |
 |---|---|
-| `IACDFPolicyRegistry` | `0x734a2e40` |
-| `IACDFRegistry` | `0x843ad5a8` |
+| `IACDFPolicyRegistry` | `0xb362eb4e` |
+| `IACDFRegistry` | `0xd31aae30` |
 
 ### 16. Errors
 
-Implementations SHOULD revert with the following reason strings (or equivalent custom errors) so that relying contracts and tests can distinguish causes. Policy validation: `ACDF: policy exists`, `ACDF: zero family`, `ACDF: zero version`, `ACDF: zero update authority`, `ACDF: first version has no previous`, `ACDF: not family authority`, `ACDF: previous != latest`, `ACDF: version not increasing`, `ACDF: bodies out of range`, `ACDF: nodes out of range`, `ACDF: zero window`, `ACDF: empty roster`, `ACDF: bad k`, `ACDF: roster acceptance`, `ACDF: zero member`, `ACDF: duplicate member`, `ACDF: submitter required`, `ACDF: submitter acceptance`, `ACDF: body index`, `ACDF: body node has children`, `ACDF: veto node has children`, `ACDF: veto target`, `ACDF: veto body index`, `ACDF: no children`, `ACDF: bad node k`, `ACDF: child index`, `ACDF: duplicate child`, `ACDF: root referenced`, `ACDF: node not in tree`, `ACDF: zero appeal window`, `ACDF: appealable mask`, `ACDF: maxTotalDuration too short`, `ACDF: maxTotalDuration too long`. Issues and acceptance: `ACDF: unknown policy`, `ACDF: effects required`, `ACDF: consumer must file`, `ACDF: acceptance unavailable`, `ACDF: acceptance expired`, `ACDF: policy not accepted`, `ACDF: subject not accepted`, `ACDF: question not accepted`, `ACDF: filer not accepted`, `ACDF: not acceptance owner`, `ACDF: POST_ACK disabled`, `ACDF: consumer required`, `ACDF: not POST_ACK`, `ACDF: not awaiting acknowledgment`, `ACDF: not the named consumer`, `ACDF: ack window closed`, `ACDF: ack window open`, `ACDF: advisory not allowed`, `ACDF: must admit as advisory`, `ACDF: insufficient window`, `ACDF: obligation active`, `ACDF: not withdrawable`, `ACDF: not filer`, `ACDF: evidence closed`. Voting: `ACDF: not deciding`, `ACDF: round mismatch`, `ACDF: body not on-chain tally`, `ACDF: body not signed ballots`, `ACDF: body not submitter`, `ACDF: batch shape`, `ACDF: bad signature`, `ACDF: body window closed`, `ACDF: not a member`, `ACDF: already voted`, `ACDF: body decided`, `ACDF: not the submitter`, `ACDF: status required`, `ACDF: already submitted`. Rounds and finality: `ACDF: pending`, `ACDF: not provisional`, `ACDF: appeal window closed`, `ACDF: appeal window open`, `ACDF: no standing`, `ACDF: not open`, `ACDF: before hard deadline`, `ACDF: round index`. Enactment: `ACDF: not final`, `ACDF: not the consumer`, `ACDF: unknown effect`, `ACDF: already enacted`.
+Implementations SHOULD revert with the following reason strings (or equivalent custom errors) so that relying contracts and tests can distinguish causes. Policy validation: `ACDF: policy exists`, `ACDF: zero family`, `ACDF: zero version`, `ACDF: zero update authority`, `ACDF: first version has no previous`, `ACDF: not family authority`, `ACDF: previous != latest`, `ACDF: version not increasing`, `ACDF: bodies out of range`, `ACDF: nodes out of range`, `ACDF: zero window`, `ACDF: empty roster`, `ACDF: bad k`, `ACDF: roster acceptance`, `ACDF: zero member`, `ACDF: duplicate member`, `ACDF: submitter required`, `ACDF: submitter acceptance`, `ACDF: body index`, `ACDF: body node has children`, `ACDF: veto node has children`, `ACDF: veto target`, `ACDF: veto body index`, `ACDF: no children`, `ACDF: bad node k`, `ACDF: child index`, `ACDF: duplicate child`, `ACDF: root referenced`, `ACDF: node not in tree`, `ACDF: zero appeal window`, `ACDF: appealable mask`, `ACDF: maxTotalDuration too short`, `ACDF: maxTotalDuration too long`. Issues and acceptance: `ACDF: unknown policy`, `ACDF: effects required`, `ACDF: consumer must file`, `ACDF: acceptance unavailable`, `ACDF: acceptance expired`, `ACDF: policy not accepted`, `ACDF: subject not accepted`, `ACDF: question not accepted`, `ACDF: filer not accepted`, `ACDF: not acceptance owner`, `ACDF: POST_ACK disabled`, `ACDF: consumer required`, `ACDF: not POST_ACK`, `ACDF: not awaiting acknowledgment`, `ACDF: not the named consumer`, `ACDF: ack window closed`, `ACDF: ack window open`, `ACDF: advisory not allowed`, `ACDF: must admit as advisory`, `ACDF: insufficient window`, `ACDF: obligation required`, `ACDF: obligation active`, `ACDF: not withdrawable`, `ACDF: not filer`, `ACDF: evidence closed`. Voting: `ACDF: not deciding`, `ACDF: round mismatch`, `ACDF: body not on-chain tally`, `ACDF: body not signed ballots`, `ACDF: body not submitter`, `ACDF: batch shape`, `ACDF: bad signature`, `ACDF: body window closed`, `ACDF: not a member`, `ACDF: already voted`, `ACDF: body decided`, `ACDF: not the submitter`, `ACDF: status required`, `ACDF: already submitted`. Rounds and finality: `ACDF: pending`, `ACDF: not provisional`, `ACDF: appeal window closed`, `ACDF: appeal window open`, `ACDF: no standing`, `ACDF: not open`, `ACDF: before hard deadline`, `ACDF: round index`. Enactment: `ACDF: not final`, `ACDF: not the consumer`, `ACDF: unknown effect`, `ACDF: already enacted`.
 
 ## Rationale
 
@@ -460,13 +473,13 @@ Implementations SHOULD revert with the following reason strings (or equivalent c
 
 **Why POST_ACK acknowledges before admission.** If a party could file, watch the vote, and acknowledge only when the result favoured it, the "binding" would be an option, not a commitment. Acknowledgment therefore precedes admission and voting, an unacknowledged issue proceeds only as advisory, and an advisory result can never be upgraded in place.
 
-**Why one unfinished Binding issue per obligation.** Without the obligation rule the same delivery could be sent to several panels and the favourable result executed. Different consumers deciding about the same fact remain separate obligations; the rule forbids verdict shopping on one execution obligation, not the use of one fact as evidence in several domains.
+**Why one unfinished Binding issue per obligation, and why the obligation is not the subject.** Without the obligation rule the same delivery could be sent to several panels and the favourable result executed. Different consumers deciding about the same fact remain separate obligations; the rule forbids verdict shopping on one execution obligation, not the use of one fact as evidence in several domains. The subject answers a different question from the obligation: the subject freezes exactly what a proceeding evaluates (evidence identity), while the obligation names which consumer duty may have at most one unfinished Binding proceeding (authority identity). A generic kernel cannot infer the second from the first, so the consumer commits the obligation scope explicitly — as a fixed identifier, or, for a standing acceptance, by electing the exact subject as the scope — and the ERC never silently makes evidence identity equal authority identity.
 
 **Why four-valued composition and no pooling of ballots.** "Technical chamber approves" and "economic chamber approves" compose by logic, not by adding votes: pooling lets the larger chamber swamp the smaller and dissolves the check the two chambers were meant to provide. `Pending`, `Yes`, `No` and `NoDecision` are kept distinct because "the second chamber failed to reach quorum" is neither "both approved" nor "one rejected", and relying contracts must be able to see which happened.
 
 **Why the veto window cannot be settled early.** If two chambers approve in the first hour of a 12-hour veto window and the result could be finalized at once, the veto right would be hollow. Treating the `VETO` node as `Pending` until the window closes or the veto body decides makes the result type a pure function of ballots and time and independent of who calls `settleRound` when.
 
-**Why NoDecision is a first-class outcome and why appeals keep earlier decisions.** Many procedures end without a decision: nobody shows up, a chamber misses quorum, a submitter stays silent. Dressing that up as "rejected" or "approved" would hand a default to whichever side benefits from paralysis. The consumer commits its disposition in advance, and the registry only reports why the procedure ended. For the same reason an appeal that fails to reach quorum cannot erase the decision being appealed: the most recent substantive decision is adopted and the failed round is recorded beside it.
+**Why NoDecision is a first-class outcome and why appeals keep earlier decisions.** Many procedures end without a decision: nobody shows up, a chamber misses quorum, a submitter stays silent. Dressing that up as "rejected" or "approved" would hand a default to whichever side benefits from paralysis. The consumer commits its disposition in advance, and the registry only reports why the procedure ended. What an appeal round that fails to decide means is not universal, so the policy says it. Under `PRESERVE_UNLESS_OVERTURNED` a challenge that fails to overturn leaves the decision under appeal standing and the failed round is recorded beside it; under `REQUIRE_FRESH_DECISION` opening the appeal vacates the earlier decision and only a fresh substantive decision can be adopted. Both are coherent; a kernel default would pick one for every deployment, and in particular a preserve rule paired with a short appeal round lets the clock, rather than the appeal body, confirm the challenged result. The mode is part of the hashed policy, so every participant sees it before the first ballot. The invariant behind the obligation scope, the appeal mode and the round binding of ballots is the same: evidence may survive a transition, authority crosses it only when the committed procedure says it does.
 
 **Why K-of-N is an approval rule.** Under 4-of-5, two blocks stop approval; that proves the proposition cannot reach four approvals, not that four members found the opposite true. Reading `No` as the opposite proposition is a relying-contract decision that must be made in its own commitment, which is why the registry exposes `outcomeYes` and a reason rather than a verdict on two propositions.
 
@@ -492,7 +505,7 @@ Deterministic vectors are provided under the assets of this proposal and regener
 - [`composition.json`](../assets/eip-8436/vectors/composition.json): 192 rows of `ALL`, `ANY` and 2-of-3 composition over every triple of child values in `{Yes, No, Pending, NoDecision}`;
 - [`interface-ids.json`](../assets/eip-8436/vectors/interface-ids.json): the ERC-165 identifiers of Section 15.
 
-The reference repository's Foundry suite (121 tests in eight files) exercises the reference implementation: minimal tally edge cases and policy validation; acceptance modes, freezing, withdrawal and the obligation rule; composition including every `VETO` branch and the independence of the result from settlement order; rounds, appeals, the adoption rule, hard deadlines and replay of earlier-round signatures; signed-ballot verification including ERC-1271 accounts, malleable signatures and favourable late batches; and an end-to-end adapter run against a vendored task-tender kernel covering acceptance, rejection, no-decision defaults, late execution and retry after a kernel refusal.
+The reference repository's Foundry suite (129 tests in eight files) exercises the reference implementation: minimal tally edge cases and policy validation; acceptance modes, freezing, withdrawal and the obligation rule; composition including every `VETO` branch and the independence of the result from settlement order; rounds, appeals, the adoption rule, hard deadlines and replay of earlier-round signatures; signed-ballot verification including ERC-1271 accounts, malleable signatures and favourable late batches; and an end-to-end adapter run against a vendored task-tender kernel covering acceptance, rejection, no-decision defaults, late execution and retry after a kernel refusal.
 
 ## Reference Implementation
 
@@ -509,7 +522,9 @@ The issue registry compiles to 23,514 bytes of runtime code under solc 0.8.24 wi
 
 **Authorization boundary.** A result binds only the consumer that committed to it, only for the effects it committed to. Relying contracts MUST derive the consumer binding from their own state (the adapter pattern of Section 14) and MUST NOT accept a caller's claim to act for an object they control. Nothing written into the registry grants power over any contract that did not itself file, pre-accept or acknowledge.
 
-**Verdict shopping.** The obligation rule (one unfinished Binding issue per `(consumer, subject, question)`) prevents filing the same obligation to several panels. Relying contracts whose business key is finer than `subject` (for example a submission's result hash and cited task version) SHOULD fold it into `subject.dataHash`, and SHOULD refuse to reopen an obligation that already reached a decision.
+**Verdict shopping.** The obligation rule (one unfinished Binding issue per `(consumer, obligationId, question)`) prevents filing the same obligation to several panels. The protection is only as good as the consumer's choice of scope: an obligation identifier that varies with incidental data (a timestamp, a fresh nonce) defeats the rule, and a scope that is too coarse blocks legitimately independent proceedings. Consumers SHOULD derive `obligationId` from the business object whose duty the result discharges, SHOULD keep the evidence that the proceeding evaluates (for example a submission's result hash and cited task version) in `subject`, and SHOULD refuse to reopen an obligation that already reached a decision.
+
+**Appeal rounds and the hard cap.** Under `PRESERVE_UNLESS_OVERTURNED`, an appeal round that times out confirms the challenged decision by the clock, not by the appeal body. Policies using that mode SHOULD size the appeal round's windows and `maxTotalDuration` for the real difficulty of an appeal, which is typically longer than a first round, or choose `REQUIRE_FRESH_DECISION` where a timed-out appeal should not confirm anything. Per-round durations are a reserved extension (Section 13); in this version every round uses the same body windows.
 
 **Option-like acknowledgment.** POST_ACK acknowledgment before admission, and the prohibition on upgrading an advisory issue, prevent a party from binding itself only after seeing how the vote goes. Implementations MUST NOT add an upgrade path.
 

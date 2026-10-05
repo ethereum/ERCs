@@ -136,6 +136,7 @@ contract ACDFPolicyRegistry is IACDFPolicyRegistry {
         p.appealWindow = spec.appealWindow;
         p.appealable = spec.appealable;
         p.appealStanding = spec.appealStanding;
+        p.appealMode = spec.appealMode;
         p.maxTotalDuration = spec.maxTotalDuration;
         p.ackWindow = spec.ackWindow;
         p.allowAdvisory = spec.allowAdvisory;
@@ -182,6 +183,7 @@ contract ACDFPolicyRegistry is IACDFPolicyRegistry {
         t.appealWindow = p.appealWindow;
         t.appealable = p.appealable;
         t.appealStanding = p.appealStanding;
+        t.appealMode = p.appealMode;
         t.maxTotalDuration = p.maxTotalDuration;
         t.ackWindow = p.ackWindow;
         t.allowAdvisory = p.allowAdvisory;

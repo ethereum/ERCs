@@ -4,7 +4,7 @@
   "title": "ACDF PolicySpec (off-chain descriptor mirror)",
   "description": "JSON mirror of the on-chain PolicySpec struct of the Agent Collective Decision Framework reference v0.2. The on-chain struct is the normative object: policyId = keccak256(abi.encode(PolicySpec)). This descriptor exists so that implementers in other languages can reproduce the encoding (see vectors/policy-id.json). Any field here that is not part of the hashed struct is marked informative.",
   "type": "object",
-  "required": ["family", "version", "previous", "updateAuthority", "bodies", "nodes", "maxAppeals", "appealWindow", "appealable", "appealStanding", "maxTotalDuration", "ackWindow", "allowAdvisory", "descriptorHash"],
+  "required": ["family", "version", "previous", "updateAuthority", "bodies", "nodes", "maxAppeals", "appealWindow", "appealable", "appealStanding", "appealMode", "maxTotalDuration", "ackWindow", "allowAdvisory", "descriptorHash"],
   "additionalProperties": false,
   "properties": {
     "family": { "$ref": "#/$defs/bytes32", "description": "Policy family id; the first version claims it and fixes who may publish later versions." },
@@ -24,6 +24,7 @@
     "appealWindow": { "$ref": "#/$defs/uint64", "description": "Seconds after a round's result instant during which an appeal may be filed. Must be > 0 when maxAppeals > 0." },
     "appealable": { "type": "integer", "minimum": 0, "maximum": 3, "description": "Bitmask: 1 = Decided results appealable, 2 = NoDecision results appealable." },
     "appealStanding": { "type": "string", "enum": ["ANYONE", "CONSUMER_OR_FILER"] },
+    "appealMode": { "type": "string", "enum": ["PRESERVE_UNLESS_OVERTURNED", "REQUIRE_FRESH_DECISION"], "description": "PRESERVE_UNLESS_OVERTURNED: an appeal round that ends in NoDecision leaves the decision under appeal standing. REQUIRE_FRESH_DECISION: opening an appeal vacates the earlier decision; only the last round's own decision can be adopted, otherwise the issue ends in NoDecision. No kernel default: every policy states its mode." },
     "maxTotalDuration": { "$ref": "#/$defs/uint64", "description": "Hard cap from admission, in seconds. Must be >= (maxAppeals + 1) * roundDuration + maxAppeals * appealWindow, where roundDuration is the longest body window." },
     "ackWindow": { "$ref": "#/$defs/uint64", "description": "POST_ACK acknowledgment window in seconds; 0 disables POST_ACK for this policy." },
     "allowAdvisory": { "type": "boolean", "description": "Whether an unacknowledged POST_ACK issue may be admitted as Advisory after the window." },
