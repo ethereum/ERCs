@@ -27,17 +27,15 @@ library SpendGrantHash {
         return keccak256(abi.encode(ASSET_LIMIT_TYPEHASH, a.asset, a.maxPerCall, a.maxPerWindow, a.maxTotal));
     }
 
-    /// @dev keccak256 of the concatenation of element struct hashes (no offset or length).
+    /// @dev keccak256 of the concatenation of element struct hashes (no offset or length), which is what
+    /// abi.encodePacked produces for a bytes32 array.
     function hashAssets(AssetLimit[] memory assets) internal pure returns (bytes32) {
         uint256 n = assets.length;
-        bytes memory packed = new bytes(n * 32);
+        bytes32[] memory hashes = new bytes32[](n);
         for (uint256 i = 0; i < n; i++) {
-            bytes32 elementHash = hashAssetLimit(assets[i]);
-            assembly {
-                mstore(add(add(packed, 32), mul(i, 32)), elementHash)
-            }
+            hashes[i] = hashAssetLimit(assets[i]);
         }
-        return keccak256(packed);
+        return keccak256(abi.encodePacked(hashes));
     }
 
     function hashStruct(SpendGrant memory m) internal pure returns (bytes32) {

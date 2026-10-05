@@ -78,6 +78,32 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         calls = uint256(tail - u.head) - expiredCount;
     }
 
+    /// @notice Drops up to `maxCount` expired debits from the front of the ring for `(grantHash, asset)`.
+    /// Anyone may call it. It changes nothing any check or view returns; it moves the cost of dropping
+    /// expired debits, which would otherwise fall on the next `consume` all at once, into calls of a
+    /// size the caller chooses.
+    function evict(bytes32 grantHash, address asset, uint256 maxCount) external {
+        AssetUsage storage u = _usage[grantHash][asset];
+        uint64 windowSeconds = _windowSeconds[grantHash];
+
+        uint64 head = u.head;
+        uint64 tail = u.tail;
+        uint256 evicted;
+        uint256 dropped;
+        while (head < tail && dropped < maxCount) {
+            (uint64 time, uint256 amount) = _unpack(u.ring[head % MAX_LIVE_DEBITS]);
+            if (_live(time, windowSeconds)) break;
+            evicted += amount;
+            unchecked {
+                ++head;
+                ++dropped;
+            }
+        }
+        if (dropped == 0) return;
+        u.head = head;
+        u.windowSpent -= evicted;
+    }
+
     /// @notice The oldest `min(maxCount, n)` of the `n` unexpired debits for `asset` under `grantHash`
     /// at this block, in recording order. `amounts[i]` counts against the window while
     /// `block.timestamp < expiresAt[i]`.
@@ -135,20 +161,26 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         if (block.timestamp >= grant.validUntil) revert SpendGrantError(Reason.EXPIRED);
         if (revoked[grant.principal][grantHash]) revert SpendGrantError(Reason.REVOKED);
 
-        // The payee is never nothing, the principal, this registry, or the executor: the first burns or
-        // misattributes, the second spends cap on a no-op, the last two strand the funds. This applies to
-        // the argument even when a mode 0 grant signed one of them, so such a grant fails closed.
+        // The payee is never nothing, the principal, this registry, the executor, or the asset itself: the
+        // first burns or misattributes, the second spends cap on a no-op, the rest strand the funds. This
+        // applies to the argument even when a mode 0 grant signed one of them, so such a grant fails closed.
         if (
             recipient == address(0) || recipient == grant.principal || recipient == address(this)
-                || recipient == EXECUTOR
+                || recipient == EXECUTOR || recipient == asset
         ) {
             revert SpendGrantError(Reason.WRONG_RECIPIENT);
         }
         if (grant.recipientMode == 0 && recipient != grant.recipient) revert SpendGrantError(Reason.WRONG_RECIPIENT);
 
         AssetLimit calldata limit = _asset(grant, asset);
-        // Only the asset being spent needs code; an unrelated listing without code does not block the grant.
-        if (asset != NATIVE && asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
+        // Only the asset being spent needs code, and code that is an EIP-7702 designator is an account, not
+        // a token; an unrelated listing without code does not block the grant.
+        if (asset != NATIVE) {
+            uint256 codeLen = asset.code.length;
+            if (codeLen == 0 || (codeLen == 23 && SpendGrantSignature.isDelegationDesignator(asset))) {
+                revert SpendGrantError(Reason.INVALID_GRANT);
+            }
+        }
 
         _debit(grantHash, grant.windowSeconds, limit, asset, amount);
         emit GrantConsumed(grantHash, grant.principal, asset, amount, recipient);

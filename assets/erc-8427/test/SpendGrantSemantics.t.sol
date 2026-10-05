@@ -25,6 +25,15 @@ contract SessionKeyAccount {
     }
 }
 
+/// @dev An ERC-1271 validator that returns a megabyte, trying to run the caller out of gas.
+contract Bomb1271 {
+    fallback() external {
+        assembly {
+            return(0, 0x100000)
+        }
+    }
+}
+
 /// @dev An ERC-1271 validator that writes state, which only a CALL could allow.
 contract Writing1271 {
     uint256 public hits;
@@ -104,6 +113,26 @@ contract SpendGrantSemanticsTest is Test {
         assertEq(token.balanceOf(address(executor)), 0);
     }
 
+    function test_recipient_theSpentAssetIsNotAPayee() public {
+        // Mode 1: the delegate names the token itself; the registry refuses.
+        SpendGrant memory m = _grant(address(execRegistry));
+        m.recipientMode = 1;
+        m.recipient = address(0);
+        bytes memory sig = _sign(PRINCIPAL_PK, m, address(execRegistry));
+        vm.prank(delegate);
+        _expect(Reason.WRONG_RECIPIENT);
+        executor.spend(m, sig, address(token), 1e18, address(token));
+
+        // Mode 0: a grant that signed the token as recipient is structurally valid and fails closed.
+        SpendGrant memory locked = _grant(address(execRegistry));
+        locked.recipient = address(token);
+        bytes memory lockedSig = _sign(PRINCIPAL_PK, locked, address(execRegistry));
+        vm.prank(delegate);
+        _expect(Reason.WRONG_RECIPIENT);
+        executor.spend(locked, lockedSig, address(token), 1e18, address(token));
+        assertEq(token.balanceOf(address(token)), 0);
+    }
+
     // ---------------------------------------------------------------- event
 
     function test_event_indexesGrantPrincipalAndRecipient() public {
@@ -143,6 +172,79 @@ contract SpendGrantSemanticsTest is Test {
         executor.spend(m, sig, address(0xD00D), 1, recipient);
     }
 
+    function test_codeCheck_rejectsAnEip7702AccountAsAsset() public {
+        // An EOA that delegated its code is an account, not a token, whatever its code length says.
+        address accountAsAsset = address(uint160(address(token)) - 1);
+        vm.etch(accountAsAsset, abi.encodePacked(hex"ef0100", address(0xC0DE1E55)));
+        assertEq(accountAsAsset.code.length, 23);
+        SpendGrant memory m = _grant(address(execRegistry));
+        m.assets = new AssetLimit[](2);
+        m.assets[0] = AssetLimit(accountAsAsset, 1, 1, 1);
+        m.assets[1] = AssetLimit(address(token), 1e18, 10e18, 100e18);
+        bytes memory sig = _sign(PRINCIPAL_PK, m, address(execRegistry));
+
+        vm.prank(delegate);
+        _expect(Reason.INVALID_GRANT);
+        executor.spend(m, sig, accountAsAsset, 1, recipient);
+
+        // Other assets of the same grant are unaffected.
+        vm.prank(delegate);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+        assertEq(token.balanceOf(recipient), 1e18);
+    }
+
+    // ---------------------------------------------------------------- eviction
+
+    function test_evict_dropsOnlyExpiredDebitsAndChangesNoView() public {
+        SpendGrant memory m = _grant(address(registry));
+        m.assets = new AssetLimit[](1);
+        m.assets[0] = AssetLimit(NATIVE, 10, 1e6, 1e6);
+        m.windowSeconds = 100;
+        bytes memory sig = _sign(PRINCIPAL_PK, m, address(registry));
+        bytes32 h = _hash(m, address(registry));
+
+        uint256 t0 = vm.getBlockTimestamp();
+        for (uint256 i = 0; i < 6; i++) {
+            vm.warp(t0 + i);
+            registry.consume(m, sig, delegate, NATIVE, 1 + i, recipient);
+        }
+        // Debits 0..2 expire at t0+100..t0+102; at t0+102 three are expired, three live.
+        vm.warp(t0 + 102);
+        (uint256 rollingBefore, uint256 liveBefore) = registry.rollingUsage(h, NATIVE);
+        assertEq(liveBefore, 3);
+        assertEq(rollingBefore, 4 + 5 + 6);
+
+        // Bounded by maxCount, callable by anyone, and never touching a live debit.
+        vm.prank(vm.addr(0xBAD));
+        registry.evict(h, NATIVE, 2);
+        (uint256 rollingMid, uint256 liveMid) = registry.rollingUsage(h, NATIVE);
+        assertEq(liveMid, 3);
+        assertEq(rollingMid, rollingBefore);
+        registry.evict(h, NATIVE, 100);
+        (uint256 rollingAfter, uint256 liveAfter) = registry.rollingUsage(h, NATIVE);
+        assertEq(liveAfter, 3);
+        assertEq(rollingAfter, rollingBefore);
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, 10);
+        assertEq(expiresAt.length, 3);
+        assertEq(amounts[0], 4);
+        (uint256 spent, uint256 calls) = registry.usage(h, NATIVE);
+        assertEq(spent, 1 + 2 + 3 + 4 + 5 + 6);
+        assertEq(calls, 6);
+
+        // Evicting again, or on an asset with nothing recorded, is a no-op.
+        registry.evict(h, NATIVE, 100);
+        registry.evict(h, address(token), 100);
+        (uint256 rollingFinal, uint256 liveFinal) = registry.rollingUsage(h, NATIVE);
+        assertEq(liveFinal, 3);
+        assertEq(rollingFinal, rollingBefore);
+
+        // The next consume behaves exactly as if nothing had been evicted.
+        registry.consume(m, sig, delegate, NATIVE, 7, recipient);
+        (uint256 rollingNext, uint256 liveNext) = registry.rollingUsage(h, NATIVE);
+        assertEq(liveNext, 4);
+        assertEq(rollingNext, rollingBefore + 7);
+    }
+
     // ---------------------------------------------------------------- ERC-1271 principals
 
     function test_erc1271_everyAcceptedSignerCanMintGrants() public {
@@ -163,6 +265,35 @@ contract SpendGrantSemanticsTest is Test {
         vm.prank(sessionKey);
         executor.spend(m, sig, address(token), 1e18, sessionKey);
         assertEq(token.balanceOf(sessionKey), 1e18);
+    }
+
+    function test_erc1271_returnBombStillYieldsAReason() public {
+        Bomb1271 p = new Bomb1271();
+        SpendGrant memory m = _grant(address(registry));
+        m.principal = address(p);
+
+        // Only one word of the return is copied, so the registry has gas left to name the failure.
+        (bool ok, bytes memory ret) = address(registry).call{gas: 400_000}(
+            abi.encodeCall(registry.consume, (m, hex"00", delegate, NATIVE, 1, recipient))
+        );
+        assertFalse(ok);
+        assertEq(ret, abi.encodeWithSelector(SpendGrantError.selector, Reason.BAD_SIGNATURE));
+    }
+
+    function test_signature_malleatedTwinIsRejected() public {
+        SpendGrant memory m = _grant(address(registry));
+        bytes32 h = _hash(m, address(registry));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRINCIPAL_PK, h);
+
+        // The twin (r, n - s, v') recovers the same key through the raw precompile.
+        bytes32 twinS = bytes32(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - uint256(s));
+        uint8 twinV = v == 27 ? 28 : 27;
+        assertEq(ecrecover(h, twinV, r, twinS), principal);
+
+        // The registry enforces low-s and rejects it.
+        _expect(Reason.BAD_SIGNATURE);
+        registry.consume(m, abi.encodePacked(r, twinS, twinV), delegate, NATIVE, 1, recipient);
+        registry.consume(m, abi.encodePacked(r, s, v), delegate, NATIVE, 1, recipient);
     }
 
     function test_erc1271_callIsStatic() public {

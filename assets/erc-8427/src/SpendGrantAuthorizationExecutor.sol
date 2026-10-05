@@ -67,6 +67,9 @@ contract SpendGrantAuthorizationExecutor is SpendGrantExecutor {
     ) external {
         if (asset == NATIVE) revert NativeRequiresAccountAdapter();
         if (block.timestamp >= deadline) revert AuthorizationExpired();
+        // A submitter that lost the race learns it here, before paying for the delegate's ERC-1271 call.
+        // Only the delegate's nonces can ever succeed, so this is the check that matters.
+        if (nonceUsed[grant.delegate][nonce]) revert NonceAlreadyUsed();
 
         // The grant hash is computed here, under the trusted registry, so the signed message binds this
         // grant and not whatever the submitter claims.
@@ -83,27 +86,28 @@ contract SpendGrantAuthorizationExecutor is SpendGrantExecutor {
         _move(asset, grant.principal, recipient, amount);
     }
 
-    /// @notice Invalidates one of the caller's unused nonces, so an authorization it signed can no longer succeed.
+    /// @notice Invalidates one of the caller's unused nonces, so an authorization it signed can no longer
+    /// succeed. A nonce that already executed or was already cancelled is rejected, so a successful call
+    /// proves that the authorization did not run and never will.
     function cancelNonce(uint256 nonce) external {
+        if (nonceUsed[msg.sender][nonce]) revert NonceAlreadyUsed();
         nonceUsed[msg.sender][nonce] = true;
         emit NonceCancelled(msg.sender, nonce);
     }
 
-    /// @dev The Signatures rules applied to `delegate` and the authorization digest. With no code the
-    /// recovered signer is the authorizer, whoever it is; the registry then compares it with the grant's
-    /// delegate. With code, the delegate is the authorizer only if its own key (EIP-7702) or its ERC-1271
-    /// accepts. Nothing authenticated is a revert, never a placeholder.
+    /// @notice The EIP-712 type hash of `SpendAuthorization`, for conformance checks against the vectors.
+    function authorizationTypehash() external pure returns (bytes32) {
+        return AUTHORIZATION_TYPEHASH;
+    }
+
+    /// @dev The Signatures rules applied to `delegate` and the authorization digest, through the same
+    /// library function the registry uses for the principal. With no code the recovered signer is the
+    /// authorizer, whoever it is; the registry then compares it with the grant's delegate. With code, the
+    /// delegate is the authorizer only if its own key (EIP-7702) or its ERC-1271 accepts. Nothing
+    /// authenticated is a revert, never a placeholder.
     function _authenticate(address delegate, bytes32 digest, bytes calldata sig) internal view returns (address) {
-        uint256 codeLen = delegate.code.length;
-        if (codeLen == 0) {
-            address signer = SpendGrantSignature.recover(digest, sig);
-            if (signer == address(0)) revert BadAuthorization();
-            return signer;
-        }
-        if (codeLen == 23 && SpendGrantSignature.isDelegationDesignator(delegate)) {
-            if (SpendGrantSignature.recover(digest, sig) == delegate) return delegate;
-        }
-        if (!SpendGrantSignature.isValidErc1271(delegate, digest, sig)) revert BadAuthorization();
-        return delegate;
+        address authorizer = SpendGrantSignature.authenticate(delegate, digest, sig);
+        if (authorizer == address(0)) revert BadAuthorization();
+        return authorizer;
     }
 }

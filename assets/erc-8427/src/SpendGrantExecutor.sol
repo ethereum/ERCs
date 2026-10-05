@@ -56,14 +56,27 @@ contract SpendGrantExecutor {
         return msg.sender;
     }
 
-    /// @dev Asks `token` to move `amount` raw units from `from` to `to`; a revert, a false return, or a
-    /// malformed return is a failed movement. An override MAY check the principal's balance change and
+    /// @dev Asks `token` to move `amount` raw units from `from` to `to`; a revert, a false return, a
+    /// malformed return, or no return from an address without code is a failed movement. Only the first
+    /// word of the return data is copied, so a token that returns a huge payload cannot push this call
+    /// out of gas and swallow the reason. An override MAY check the principal's balance change and
     /// revert, but MUST still request exactly `amount`.
     function _move(address token, address from, address to, uint256 amount) internal virtual {
-        (bool ok, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, from, to, amount));
+        bytes memory data = abi.encodeWithSelector(0x23b872dd, from, to, amount);
+        bool ok;
+        uint256 size;
+        bytes32 word;
+        assembly ("memory-safe") {
+            ok := call(gas(), token, 0, add(data, 32), mload(data), 0, 32)
+            size := returndatasize()
+            word := mload(0)
+        }
         if (!ok) revert TransferFailed();
-        if (data.length != 0) {
-            if (data.length != 32 || !abi.decode(data, (bool))) revert TransferFailed();
+        if (size == 0) {
+            // Tokens that return nothing are fine; an address with no code is not a token.
+            if (token.code.length == 0) revert TransferFailed();
+        } else if (size != 32 || word != bytes32(uint256(1))) {
+            revert TransferFailed();
         }
     }
 }

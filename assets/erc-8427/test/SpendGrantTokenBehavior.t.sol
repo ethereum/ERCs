@@ -38,6 +38,57 @@ contract RecipientFeeERC20 is MockERC20 {
     }
 }
 
+/// @dev Returns nothing from transferFrom, like USDT; moves funds unless told to revert.
+contract NoReturnERC20 is MockERC20 {
+    bool public shouldRevert;
+
+    function setRevert(bool v) external {
+        shouldRevert = v;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
+        if (shouldRevert) revert("no");
+        allowance[from][msg.sender] -= amount;
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+        assembly {
+            return(0, 0)
+        }
+    }
+}
+
+/// @dev Moves funds, then returns whatever shape it was told to: a word, a short blob, or a megabyte.
+contract OddReturnERC20 is MockERC20 {
+    uint256 public returnLength;
+    bytes32 public returnWord;
+
+    function configure(uint256 length, bytes32 word) external {
+        returnLength = length;
+        returnWord = word;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
+        allowance[from][msg.sender] -= amount;
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+        bytes32 word = returnWord;
+        uint256 length = returnLength;
+        assembly {
+            mstore(0, word)
+            return(0, length)
+        }
+    }
+}
+
+/// @dev Exposes the movement hook so it can be aimed at an address the registry would never let through.
+contract MoveHarness is SpendGrantExecutor {
+    constructor(ISpendGrantRegistry registry_) SpendGrantExecutor(registry_) {}
+
+    function move(address token, address from, address to, uint256 amount) external {
+        _move(token, from, to, amount);
+    }
+}
+
 interface IBalance {
     function balanceOf(address) external view returns (uint256);
 }
@@ -142,10 +193,84 @@ contract SpendGrantTokenBehaviorTest is Test {
         assertEq(1e24 - senderFee.balanceOf(principal), 3.15e18);
 
         // Once the window clears, the lifetime cap still counts the three requests.
-        vm.warp(block.timestamp + 86401);
+        vm.warp(vm.getBlockTimestamp() + 86401);
         vm.prank(delegate);
         vm.expectRevert(abi.encodeWithSelector(SpendGrantError.selector, Reason.OVER_CUMULATIVE_CAP));
         executor.spend(m, sig, address(senderFee), 1, recipient);
+    }
+
+    // ---------------------------------------------------------------- what the token returns
+
+    function test_noReturnToken_isAcceptedWhenItMoves() public {
+        NoReturnERC20 usdtLike = new NoReturnERC20();
+        _fund(usdtLike);
+        SpendGrant memory m = _grant(address(usdtLike));
+        bytes memory sig = _sign(m, registry);
+
+        vm.prank(delegate);
+        executor.spend(m, sig, address(usdtLike), 1e18, recipient);
+        assertEq(usdtLike.balanceOf(recipient), 1e18);
+        (uint256 spent,) = registry.usage(_hash(m, registry), address(usdtLike));
+        assertEq(spent, 1e18);
+
+        // The same token reverting is a failed movement with no debit left behind.
+        usdtLike.setRevert(true);
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
+        executor.spend(m, sig, address(usdtLike), 1e18, recipient);
+        (uint256 spentAfter,) = registry.usage(_hash(m, registry), address(usdtLike));
+        assertEq(spentAfter, 1e18);
+    }
+
+    function test_malformedReturns_areFailedMovements() public {
+        OddReturnERC20 odd = new OddReturnERC20();
+        _fund(odd);
+        SpendGrant memory m = _grant(address(odd));
+        bytes memory sig = _sign(m, registry);
+        bytes32 h = _hash(m, registry);
+
+        uint256[4] memory lengths = [uint256(1), 31, 64, 32];
+        bytes32[4] memory words = [bytes32(uint256(1)), bytes32(uint256(1)), bytes32(uint256(1)), bytes32(uint256(2))];
+        for (uint256 i = 0; i < 4; i++) {
+            odd.configure(lengths[i], words[i]);
+            vm.prank(delegate);
+            vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
+            executor.spend(m, sig, address(odd), 1e18, recipient);
+        }
+        (uint256 spent,) = registry.usage(h, address(odd));
+        assertEq(spent, 0);
+        assertEq(odd.balanceOf(recipient), 0);
+
+        // Exactly one word equal to true is the well-formed success.
+        odd.configure(32, bytes32(uint256(1)));
+        vm.prank(delegate);
+        executor.spend(m, sig, address(odd), 1e18, recipient);
+        assertEq(odd.balanceOf(recipient), 1e18);
+    }
+
+    function test_returnBomb_isAFailedMovementWithAReason() public {
+        OddReturnERC20 bomb = new OddReturnERC20();
+        _fund(bomb);
+        bomb.configure(0x100000, bytes32(uint256(1)));
+        SpendGrant memory m = _grant(address(bomb));
+        bytes memory sig = _sign(m, registry);
+
+        vm.prank(delegate);
+        (bool ok, bytes memory ret) = address(executor).call{gas: 500_000}(
+            abi.encodeCall(executor.spend, (m, sig, address(bomb), 1e18, recipient))
+        );
+        assertFalse(ok);
+        assertEq(ret, abi.encodeWithSelector(SpendGrantExecutor.TransferFailed.selector));
+    }
+
+    function test_move_emptyReturnFromAnAddressWithoutCodeFails() public {
+        uint64 nonce = vm.getNonce(address(this));
+        SpendGrantRegistry harnessRegistry = new SpendGrantRegistry(vm.computeCreateAddress(address(this), nonce + 1));
+        MoveHarness harness = new MoveHarness(harnessRegistry);
+
+        // A call to an address without code succeeds with no return data; the hook refuses to count it.
+        vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
+        harness.move(address(0xD00D), principal, recipient, 1);
     }
 
     // ---------------------------------------------------------------- the optional balance check

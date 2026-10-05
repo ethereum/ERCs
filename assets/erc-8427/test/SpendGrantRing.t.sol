@@ -322,7 +322,7 @@ contract SpendGrantRingTest is Test {
             } else {
                 dt = (seed >> 8) % 5 == 0 ? 1 : 0;
             }
-            vm.warp(block.timestamp + dt);
+            vm.warp(vm.getBlockTimestamp() + dt);
 
             uint256 amountPick = (seed >> 16) % 100;
             uint256 amount;
@@ -402,7 +402,7 @@ contract SpendGrantRingTest is Test {
         uint256[] memory batchTime = new uint256[](32);
         uint256[] memory batchCount = new uint256[](32);
         uint256 nBatches = 1;
-        batchTime[0] = block.timestamp;
+        batchTime[0] = vm.getBlockTimestamp();
 
         for (uint256 i = 0; i < MAX_LIVE_DEBITS; i++) {
             (bool ok,) = _tryConsume(m, 1);
@@ -420,21 +420,21 @@ contract SpendGrantRingTest is Test {
 
         // Warp a full window past the single (same-block) batch of MAX_LIVE_DEBITS debits above,
         // so every one of them expires at once (age == windowSeconds expires, per spec).
-        vm.warp(block.timestamp + windowSeconds);
+        vm.warp(vm.getBlockTimestamp() + windowSeconds);
         (, liveCalls) = registry.rollingUsage(h, NATIVE);
         assertEq(liveCalls, _expectedLive(batchTime, batchCount, nBatches, windowSeconds));
         assertEq(liveCalls, 0);
 
         uint256 totalCalls = MAX_LIVE_DEBITS;
-        batchTime[1] = block.timestamp;
+        batchTime[1] = vm.getBlockTimestamp();
         nBatches = 2;
         for (uint256 i = 0; i < 2 * MAX_LIVE_DEBITS + 10; i++) {
             if (i % (MAX_LIVE_DEBITS / 4) == 0 && i != 0) {
-                vm.warp(block.timestamp + windowSeconds);
+                vm.warp(vm.getBlockTimestamp() + windowSeconds);
                 (, uint256 liveAfterWarp) = registry.rollingUsage(h, NATIVE);
                 assertEq(liveAfterWarp, _expectedLive(batchTime, batchCount, nBatches, windowSeconds));
                 assertEq(liveAfterWarp, 0);
-                batchTime[nBatches] = block.timestamp;
+                batchTime[nBatches] = vm.getBlockTimestamp();
                 nBatches++;
             }
             (bool stepOk,) = _tryConsume(m, 1);
@@ -457,7 +457,7 @@ contract SpendGrantRingTest is Test {
         uint256 nBatches,
         uint64 windowSeconds
     ) internal view returns (uint256 live) {
-        uint256 ts = block.timestamp;
+        uint256 ts = vm.getBlockTimestamp();
         for (uint256 i = 0; i < nBatches; i++) {
             if (ts - batchTime[i] < windowSeconds) live += batchCount[i];
         }
@@ -478,7 +478,7 @@ contract SpendGrantRingTest is Test {
         uint256 sum;
 
         for (uint256 k = 0; k < totalSteps; k++) {
-            vm.warp(block.timestamp + 1);
+            vm.warp(vm.getBlockTimestamp() + 1);
             uint256 amount = (k % 997) + 1;
             amounts[k] = amount;
 
@@ -500,7 +500,7 @@ contract SpendGrantRingTest is Test {
             }
         }
 
-        vm.warp(block.timestamp + 2);
+        vm.warp(vm.getBlockTimestamp() + 2);
         sum -= amounts[totalSteps - MAX_LIVE_DEBITS];
         sum -= amounts[totalSteps - MAX_LIVE_DEBITS + 1];
         (uint256 rollingFinal, uint256 liveFinal) = registry.rollingUsage(h, NATIVE);
@@ -550,7 +550,7 @@ contract SpendGrantRingTest is Test {
         (bool ok0,) = _tryConsume(m, 10);
         assertTrue(ok0);
 
-        vm.warp(block.timestamp + windowSeconds);
+        vm.warp(vm.getBlockTimestamp() + windowSeconds);
 
         for (uint256 i = 0; i < MAX_LIVE_DEBITS; i++) {
             (bool stepOk,) = _tryConsume(m, 1);
@@ -571,7 +571,7 @@ contract SpendGrantRingTest is Test {
         assertEq(amounts.length, 0);
     }
 
-    /// @dev Oldest first, exact expiry boundary (a debit is gone at block.timestamp == expiresAt),
+    /// @dev Oldest first, exact expiry boundary (a debit is gone at vm.getBlockTimestamp() == expiresAt),
     /// same-block debits kept in order, and expired-but-not-yet-evicted debits skipped by the view.
     function test_liveDebits_oldestFirstAndExactBoundary() public {
         SpendGrant memory m = _grant(100, 10, 100, 1000, 22);

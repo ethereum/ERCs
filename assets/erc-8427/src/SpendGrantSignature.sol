@@ -6,20 +6,28 @@ import {IERC1271} from "./SpendGrantTypes.sol";
 /// @notice The Signatures rules of the ERC, shared by the registry (for the principal over `grantHash`)
 /// and by executors that accept delegate-signed authorizations (for the delegate over the authorization
 /// digest).
-/// @dev No code: a strict 65-byte secp256k1 signature that recovers `signer`. An EIP-7702 delegation
-/// designator (exactly 23 bytes, 0xef0100 prefix): strict ECDSA for the account's own key first, then
+/// @dev No code: a strict 65-byte secp256k1 signature, and the recovered signer is whoever it is. An
+/// EIP-7702 delegation designator (exactly 23 bytes, 0xef0100 prefix): the account's own key first, then
 /// ERC-1271 against the delegated code. Any other code: ERC-1271 only, never an ECDSA fallback. The
-/// ERC-1271 call is a STATICCALL and must return exactly the 32-byte left-aligned magic value.
+/// ERC-1271 call is a STATICCALL that copies at most one word back, and it must return exactly 32 bytes
+/// equal to the left-aligned magic value.
 library SpendGrantSignature {
     uint256 internal constant SECP256K1_HALF_ORDER = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
-    /// @notice Whether `sig` is valid for `signer` over `digest` under the Signatures rules.
+    /// @notice Whether `sig` authenticates `signer` over `digest` under the Signatures rules.
     function isValid(address signer, bytes32 digest, bytes calldata sig) internal view returns (bool) {
-        if (signer == address(0)) return false;
-        uint256 codeLen = signer.code.length;
-        if (codeLen == 0) return recover(digest, sig) == signer;
-        if (codeLen == 23 && isDelegationDesignator(signer) && recover(digest, sig) == signer) return true;
-        return isValidErc1271(signer, digest, sig);
+        return signer != address(0) && authenticate(signer, digest, sig) == signer;
+    }
+
+    /// @notice Who `sig` authenticates over `digest` when `expected` is the party that should have signed:
+    /// the recovered signer for an address without code (zero when the signature is malformed), or
+    /// `expected` itself when its own EIP-7702 key or its ERC-1271 accepts, else zero. A caller compares
+    /// the result with the party it needs, or passes it on to the registry to compare.
+    function authenticate(address expected, bytes32 digest, bytes calldata sig) internal view returns (address) {
+        uint256 codeLen = expected.code.length;
+        if (codeLen == 0) return recover(digest, sig);
+        if (codeLen == 23 && isDelegationDesignator(expected) && recover(digest, sig) == expected) return expected;
+        return isValidErc1271(expected, digest, sig) ? expected : address(0);
     }
 
     /// @notice Strict secp256k1 recovery: 65 bytes `r || s || v`, `v` in {27, 28}, `s` in the lower half.
@@ -29,7 +37,7 @@ library SpendGrantSignature {
         bytes32 r;
         bytes32 s;
         uint8 v;
-        assembly {
+        assembly ("memory-safe") {
             r := calldataload(sig.offset)
             s := calldataload(add(sig.offset, 32))
             v := byte(0, calldataload(add(sig.offset, 64)))
@@ -41,10 +49,19 @@ library SpendGrantSignature {
 
     /// @notice ERC-1271 `isValidSignature` over a STATICCALL; valid only on exactly 32 returned bytes equal
     /// to the left-aligned magic value.
+    /// @dev Only the first word of the return data is copied, into scratch space, so a validator that
+    /// returns a huge payload cannot push the caller out of gas and swallow its reason.
     function isValidErc1271(address signer, bytes32 digest, bytes calldata sig) internal view returns (bool) {
-        (bool ok, bytes memory ret) = signer.staticcall(abi.encodeCall(IERC1271.isValidSignature, (digest, sig)));
-        if (!ok || ret.length != 32) return false;
-        return abi.decode(ret, (bytes32)) == bytes32(IERC1271.isValidSignature.selector);
+        bytes memory data = abi.encodeCall(IERC1271.isValidSignature, (digest, sig));
+        bool ok;
+        uint256 size;
+        bytes32 word;
+        assembly ("memory-safe") {
+            ok := staticcall(gas(), signer, add(data, 32), mload(data), 0, 32)
+            size := returndatasize()
+            word := mload(0)
+        }
+        return ok && size == 32 && word == bytes32(IERC1271.isValidSignature.selector);
     }
 
     /// @notice Whether `account`'s code is exactly an EIP-7702 delegation designator.

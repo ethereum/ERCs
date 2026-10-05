@@ -11,10 +11,11 @@ import {SpendGrantRedemptionEnforcer} from "./SpendGrantRedemptionEnforcer.sol";
 /// - The caller is the grant's delegate: a direct call. The EVM authenticated it and it is the
 ///   authorizer, whatever drove that account to call; a sub-delegation it granted is its own access
 ///   control.
-/// - Any other caller is an account performing a redemption. It is authorized only by a record the
-///   trusted enforcer wrote for this exact spend and this caller, naming the redeemer the manager
-///   authenticated. Taking the record clears it, before `consume` and before movement. No record
-///   resolves to address(0), which `consume` rejects with UNAUTHORIZED_DELEGATE.
+/// - The caller is the grant's principal, performing an ERC-7710 execution. It is authorized only by a
+///   record the trusted enforcer wrote for this exact spend and this account, naming the redeemer the
+///   manager authenticated. Taking the record clears it, before `consume` and before movement. No record
+///   is a revert with UNAUTHORIZED_DELEGATE.
+/// - Any other caller is rejected with UNAUTHORIZED_DELEGATE before any record is consulted.
 contract SpendGrantRedemptionExecutor is SpendGrantExecutor {
     error EnforcerMismatch();
 
@@ -37,6 +38,10 @@ contract SpendGrantRedemptionExecutor is SpendGrantExecutor {
         returns (address)
     {
         if (msg.sender == grant.delegate) return msg.sender;
+        // The record path is for the principal's own account performing an ERC-7710 execution. Any other
+        // caller, such as an intermediate delegator in the chain, has no standing on it, whatever records
+        // exist: a record it could use would turn the delegate's one redemption into a second spend.
+        if (msg.sender != grant.principal) revert SpendGrantError(Reason.UNAUTHORIZED_DELEGATE);
         bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(REGISTRY), grant);
         address redeemer = ENFORCER.take(msg.sender, grantHash, asset, amount, recipient);
         // No record is no authorization. Reject here rather than pass an address nobody authenticated.

@@ -7,6 +7,7 @@ import {SpendGrantHash} from "../src/SpendGrantHash.sol";
 import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {SpendGrantExecutor} from "../src/SpendGrantExecutor.sol";
 import {SpendGrantAuthorizationExecutor} from "../src/SpendGrantAuthorizationExecutor.sol";
+import {SpendGrantSignature} from "../src/SpendGrantSignature.sol";
 import {MockERC20} from "./MockERC20.sol";
 
 /// @dev A contract delegate whose ERC-1271 accepts one digest at a time.
@@ -26,6 +27,13 @@ contract Allowlist1271 {
 contract Rejecting1271 {
     function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
         return 0xffffffff;
+    }
+}
+
+/// @dev Lets a test apply the library's recovery rule to calldata.
+contract SignatureHarness {
+    function recover(bytes32 digest, bytes calldata sig) external pure returns (address) {
+        return SpendGrantSignature.recover(digest, sig);
     }
 }
 
@@ -96,7 +104,7 @@ contract SpendGrantAuthorizationTest is Test {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
         bytes32 h = _hash(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory auth = _authorize(DELEGATE_PK, h, 1e18, recipient, 7, deadline);
 
         vm.expectEmit(true, true, false, false, address(executor));
@@ -114,7 +122,7 @@ contract SpendGrantAuthorizationTest is Test {
     function test_authorizationSucceedsAtMostOnce() public {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory auth = _authorize(DELEGATE_PK, _hash(m), 1e18, recipient, 7, deadline);
 
         vm.prank(relayer);
@@ -136,7 +144,7 @@ contract SpendGrantAuthorizationTest is Test {
         SpendGrant memory m = _grant(delegate);
         m.assets[0] = AssetLimit(address(hooked), 1e18, 10e18, 100e18);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(DELEGATE_PK, executor.authorizationDigest(_hash(m), address(hooked), 1e18, recipient, 7, deadline));
         bytes memory auth = abi.encodePacked(r, s, v);
@@ -159,7 +167,7 @@ contract SpendGrantAuthorizationTest is Test {
     function test_strangerSignatureIsNotTheDelegate() public {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory auth = _authorize(STRANGER_PK, _hash(m), 1e18, recipient, 1, deadline);
 
         // The recovered signer is passed as authorizer and the registry rejects it; nothing is recorded.
@@ -172,7 +180,7 @@ contract SpendGrantAuthorizationTest is Test {
     function test_tamperedAmountRecoversSomeoneElse() public {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory auth = _authorize(DELEGATE_PK, _hash(m), 1e17, recipient, 1, deadline);
 
         vm.prank(relayer);
@@ -184,7 +192,7 @@ contract SpendGrantAuthorizationTest is Test {
         SpendGrant memory a = _grant(delegate);
         SpendGrant memory b = _grant(delegate);
         b.salt = 2;
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory authForA = _authorize(DELEGATE_PK, _hash(a), 1e18, recipient, 1, deadline);
 
         // The executor hashes the grant it is given, so an authorization for A does not fit B.
@@ -196,23 +204,25 @@ contract SpendGrantAuthorizationTest is Test {
     function test_deadlineIsExclusive() public {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory auth = _authorize(DELEGATE_PK, _hash(m), 1e18, recipient, 1, deadline);
 
+        // One second before the deadline it is accepted.
+        vm.warp(deadline - 1);
+        vm.prank(relayer);
+        executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 1, deadline, auth);
+
+        // At the deadline it is rejected, and that check comes before the nonce is even looked at.
         vm.warp(deadline);
         vm.prank(relayer);
         vm.expectRevert(SpendGrantAuthorizationExecutor.AuthorizationExpired.selector);
-        executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 1, deadline, auth);
-
-        vm.warp(deadline - 1);
-        vm.prank(relayer);
         executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 1, deadline, auth);
     }
 
     function test_malformedSignatureIsRejectedOutright() public {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
 
         vm.prank(relayer);
         vm.expectRevert(SpendGrantAuthorizationExecutor.BadAuthorization.selector);
@@ -222,7 +232,7 @@ contract SpendGrantAuthorizationTest is Test {
     function test_delegateCancelsAnUnusedNonce() public {
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes memory auth = _authorize(DELEGATE_PK, _hash(m), 1e18, recipient, 9, deadline);
 
         vm.prank(delegate);
@@ -239,7 +249,7 @@ contract SpendGrantAuthorizationTest is Test {
         Allowlist1271 wallet = new Allowlist1271();
         SpendGrant memory m = _grant(address(wallet));
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
         bytes32 digest = executor.authorizationDigest(_hash(m), address(token), 1e18, recipient, 1, deadline);
 
         vm.prank(relayer);
@@ -258,7 +268,7 @@ contract SpendGrantAuthorizationTest is Test {
         vm.etch(delegate, abi.encodePacked(hex"ef0100", address(impl)));
         SpendGrant memory m = _grant(delegate);
         bytes memory sig = _sign(m);
-        uint256 deadline = block.timestamp + 600;
+        uint256 deadline = vm.getBlockTimestamp() + 600;
 
         // The account's own key authorizes even though the delegated code rejects everything.
         bytes memory auth = _authorize(DELEGATE_PK, _hash(m), 1e18, recipient, 1, deadline);
@@ -271,6 +281,132 @@ contract SpendGrantAuthorizationTest is Test {
         vm.prank(relayer);
         vm.expectRevert(SpendGrantAuthorizationExecutor.BadAuthorization.selector);
         executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 2, deadline, other);
+    }
+
+    function test_7702Delegate_delegatedCodeDecidesWhenItsKeyDidNotSign() public {
+        // Rule (b): the account's own key is silent, so the delegated code's ERC-1271 is asked.
+        Allowlist1271 impl = new Allowlist1271();
+        vm.etch(delegate, abi.encodePacked(hex"ef0100", address(impl)));
+        SpendGrant memory m = _grant(delegate);
+        bytes memory sig = _sign(m);
+        uint256 deadline = vm.getBlockTimestamp() + 600;
+        bytes32 digest = executor.authorizationDigest(_hash(m), address(token), 1e18, recipient, 1, deadline);
+
+        // The allowlist lives in the account's own storage, where the designated code runs.
+        Allowlist1271(delegate).allow(digest);
+        vm.prank(relayer);
+        executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 1, deadline, hex"00");
+        assertEq(token.balanceOf(recipient), 1e18);
+        assertTrue(executor.nonceUsed(delegate, 1));
+    }
+
+    function test_malleatedTwinIsNotAnAuthorization() public {
+        SpendGrant memory m = _grant(delegate);
+        bytes memory sig = _sign(m);
+        uint256 deadline = vm.getBlockTimestamp() + 600;
+        bytes32 digest = executor.authorizationDigest(_hash(m), address(token), 1e18, recipient, 1, deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(DELEGATE_PK, digest);
+        bytes32 twinS = bytes32(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - uint256(s));
+        uint8 twinV = v == 27 ? 28 : 27;
+        assertEq(ecrecover(digest, twinV, r, twinS), delegate);
+
+        vm.prank(relayer);
+        vm.expectRevert(SpendGrantAuthorizationExecutor.BadAuthorization.selector);
+        executor.spendWithAuthorization(
+            m, sig, address(token), 1e18, recipient, 1, deadline, abi.encodePacked(r, twinS, twinV)
+        );
+    }
+
+    function test_usedNonce_isRejectedBeforeTheDelegateIsAsked() public {
+        Allowlist1271 wallet = new Allowlist1271();
+        SpendGrant memory m = _grant(address(wallet));
+        bytes memory sig = _sign(m);
+        uint256 deadline = vm.getBlockTimestamp() + 600;
+        wallet.allow(executor.authorizationDigest(_hash(m), address(token), 1e18, recipient, 1, deadline));
+        vm.prank(relayer);
+        executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 1, deadline, hex"00");
+
+        // A submitter that lost the race pays for a storage read, not for the delegate's validation.
+        vm.expectCall(address(wallet), abi.encodeWithSelector(IERC1271.isValidSignature.selector), 0);
+        vm.prank(relayer);
+        vm.expectRevert(SpendGrantAuthorizationExecutor.NonceAlreadyUsed.selector);
+        executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 1, deadline, hex"00");
+    }
+
+    function test_cancelNonce_rejectsANonceThatRanOrWasCancelled() public {
+        SpendGrant memory m = _grant(delegate);
+        bytes memory sig = _sign(m);
+        uint256 deadline = vm.getBlockTimestamp() + 600;
+        bytes memory auth = _authorize(DELEGATE_PK, _hash(m), 1e18, recipient, 7, deadline);
+        vm.prank(relayer);
+        executor.spendWithAuthorization(m, sig, address(token), 1e18, recipient, 7, deadline, auth);
+
+        // A cancel that succeeds proves the authorization never ran; this one ran, so it fails.
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantAuthorizationExecutor.NonceAlreadyUsed.selector);
+        executor.cancelNonce(7);
+
+        vm.prank(delegate);
+        executor.cancelNonce(8);
+        vm.prank(delegate);
+        vm.expectRevert(SpendGrantAuthorizationExecutor.NonceAlreadyUsed.selector);
+        executor.cancelNonce(8);
+    }
+
+    function test_goldenAuthorizationVector() public {
+        string memory json = vm.readFile("assets/erc-8427/vectors/authorization-v1.json");
+        assertTrue(vm.keyExistsJson(json, ".vectors[0]"));
+        assertFalse(vm.keyExistsJson(json, ".vectors[1]"));
+        string memory p = ".vectors[0]";
+
+        // The encodeType in the file is what the contract hashes.
+        assertEq(keccak256(bytes(vm.parseJsonString(json, ".encodeType"))), executor.authorizationTypehash());
+
+        uint256 chainId = vm.parseJsonUint(json, string.concat(p, ".chainId"));
+        address vectorExecutor = vm.parseJsonAddress(json, string.concat(p, ".executor"));
+        bytes32 grantHash = vm.parseJsonBytes32(json, string.concat(p, ".authorization.grantHash"));
+        address asset = vm.parseJsonAddress(json, string.concat(p, ".authorization.asset"));
+        uint256 amount = vm.parseJsonUint(json, string.concat(p, ".authorization.amount"));
+        address to = vm.parseJsonAddress(json, string.concat(p, ".authorization.recipient"));
+        uint256 nonce = vm.parseJsonUint(json, string.concat(p, ".authorization.nonce"));
+        uint256 deadline = vm.parseJsonUint(json, string.concat(p, ".authorization.deadline"));
+        bytes32 domain = vm.parseJsonBytes32(json, string.concat(p, ".domainSeparator"));
+        bytes32 structHash = vm.parseJsonBytes32(json, string.concat(p, ".structHash"));
+        bytes32 digest = vm.parseJsonBytes32(json, string.concat(p, ".digest"));
+        bytes memory signature = vm.parseJsonBytes(json, string.concat(p, ".signature"));
+        address signer = vm.parseJsonAddress(json, string.concat(p, ".signer"));
+
+        // Rebuilt from the ERC's words alone, with the names the file states.
+        bytes32 expectedDomain = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes(vm.parseJsonString(json, ".domain.name"))),
+                keccak256(bytes(vm.parseJsonString(json, ".domain.version"))),
+                chainId,
+                vectorExecutor
+            )
+        );
+        assertEq(expectedDomain, domain);
+        assertEq(
+            keccak256(abi.encode(executor.authorizationTypehash(), grantHash, asset, amount, to, nonce, deadline)),
+            structHash
+        );
+        assertEq(keccak256(abi.encodePacked(hex"1901", domain, structHash)), digest);
+
+        // The deployed code, placed at the vector's address on the vector's chain, reproduces the digest.
+        vm.chainId(chainId);
+        vm.etch(vectorExecutor, address(executor).code);
+        assertEq(
+            SpendGrantAuthorizationExecutor(vectorExecutor).authorizationDigest(
+                grantHash, asset, amount, to, nonce, deadline
+            ),
+            digest
+        );
+
+        // And the signature a wallet produced recovers the signer under the Signatures rules.
+        SignatureHarness harness = new SignatureHarness();
+        assertEq(signature.length, 65);
+        assertEq(harness.recover(digest, signature), signer);
     }
 
     // ---------------------------------------------------------------- the direct path still exists

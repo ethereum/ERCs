@@ -138,6 +138,54 @@ contract MockDeleGator {
     }
 }
 
+/// @dev A hostile intermediate delegator that is also a caveat enforcer on its own delegation. During a
+/// hook it calls the executor itself with the execution's spend data, trying to ride the delegate's
+/// redemption for a second spend. Its ERC-1271 accepts anything so a manager can validate its delegation.
+contract EvilDelegator {
+    SpendGrantRedemptionExecutor internal immutable EXECUTOR;
+    bool internal immutable IN_BEFORE;
+
+    constructor(SpendGrantRedemptionExecutor executor_, bool inBefore) {
+        EXECUTOR = executor_;
+        IN_BEFORE = inBefore;
+    }
+
+    function beforeHook(bytes calldata, bytes calldata, bytes32, bytes calldata exec, bytes32, address, address)
+        external
+    {
+        if (IN_BEFORE) _strike(exec);
+    }
+
+    function afterHook(bytes calldata, bytes calldata, bytes32, bytes calldata exec, bytes32, address, address)
+        external
+    {
+        if (!IN_BEFORE) _strike(exec);
+    }
+
+    function beforeAllHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address)
+        external
+        pure
+    {}
+
+    function afterAllHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address)
+        external
+        pure
+    {}
+
+    function isValidSignature(bytes32, bytes calldata) external pure returns (bytes4) {
+        return IERC1271.isValidSignature.selector;
+    }
+
+    function _strike(bytes calldata exec) internal {
+        (bool ok, bytes memory ret) = address(EXECUTOR).call(exec[52:]);
+        if (!ok) {
+            assembly {
+                revert(add(ret, 32), mload(ret))
+            }
+        }
+    }
+}
+
 /// @dev An account that performs the execution twice: the second call must find no record left.
 contract DoubleExecDeleGator is MockDeleGator {
     constructor(address manager_, address owner_) MockDeleGator(manager_, owner_) {}
@@ -257,9 +305,8 @@ contract SpendGrantRedemptionTest is Test {
     }
 
     function test_redemption_recordBoundToAnotherAccountIsNeverRead() public {
-        // The redeemer is the grant's delegate, so the record names an acceptable authorizer. It sits
-        // on the leaf, whose delegator is an intermediary, not the account that executes, so the
-        // executor never finds it: the binding to the executing account alone causes the rejection.
+        // The redeemer is the grant's delegate. The caveat sits on the leaf, whose delegator is an
+        // intermediary, so the enforcer writes nothing, and the principal's account finds no record.
         address intermediary = vm.addr(0x1111);
         SpendGrant memory m = _grant(address(principalAccount), delegate);
         bytes memory sig = _sign(OWNER_PK, m);
@@ -270,8 +317,92 @@ contract SpendGrantRedemptionTest is Test {
 
         _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(m, sig, 1e18, recipient));
         _assertNothingSpent(m);
-        // The reverted redemption also rolled the record back.
         assertEq(enforcer.recorded(intermediary, h, address(token), 1e18, recipient), address(0));
+    }
+
+    function test_redemption_hostileIntermediaryCannotRideTheRedemption() public {
+        // Chain: principal -> evil (caveat), evil -> delegate (caveat + evil as its own enforcer). The
+        // delegate redeems once. In a hook, evil calls the executor with the same spend. The enforcer wrote
+        // no record for evil, and the executor rejects any record-path caller but the principal, so the
+        // strike reverts and takes the whole redemption with it.
+        for (uint256 variant = 0; variant < 2; variant++) {
+            EvilDelegator evil = new EvilDelegator(executor, variant == 0);
+            SpendGrant memory m = _grant(address(principalAccount), delegate);
+            m.salt = 100 + variant;
+            bytes memory sig = _sign(OWNER_PK, m);
+            MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
+            chain[0] = _delegation(delegate, address(evil), true);
+            chain[0].caveats = new MockDelegationManager.Caveat[](2);
+            chain[0].caveats[0] = MockDelegationManager.Caveat(address(enforcer), "", "");
+            chain[0].caveats[1] = MockDelegationManager.Caveat(address(evil), "", "");
+            chain[1] = _delegation(address(evil), address(principalAccount), true);
+
+            _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(m, sig, 1e18, recipient));
+            _assertNothingSpent(m);
+        }
+    }
+
+    function test_redemption_caveatOnOtherHopsIsInertAndLeavesNoRecord() public {
+        // Chain: principal -> intermediary (caveat), intermediary -> delegate (caveat). One redemption, one
+        // spend. No record exists for the intermediary afterwards, and it cannot spend on its own.
+        address intermediary = vm.addr(0x1111);
+        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        bytes memory sig = _sign(OWNER_PK, m);
+        bytes32 h = _hash(m);
+        MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
+        chain[0] = _delegation(delegate, intermediary, true);
+        chain[1] = _delegation(intermediary, address(principalAccount), true);
+
+        _redeem(delegate, chain, SINGLE_DEFAULT, _execution(m, sig, 1e18, recipient));
+
+        (uint256 spent, uint256 calls) = registry.usage(h, address(token));
+        assertEq(spent, 1e18);
+        assertEq(calls, 1);
+        assertEq(enforcer.recorded(intermediary, h, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+
+        vm.prank(intermediary);
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+    }
+
+    function test_recordPath_onlyThePrincipalMayUseIt() public {
+        // A record written for the principal does not help any other caller, even with the right spend.
+        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        bytes memory sig = _sign(OWNER_PK, m);
+        _writeRecord(m, address(principalAccount), delegate);
+
+        vm.expectCall(address(enforcer), abi.encodeWithSelector(enforcer.take.selector), 0);
+        vm.prank(stranger);
+        _expect(Reason.UNAUTHORIZED_DELEGATE);
+        executor.spend(m, sig, address(token), 1e18, recipient);
+    }
+
+    function test_afterHook_clearsWhatWasNotTaken() public {
+        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        bytes32 h = _hash(m);
+        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        _writeRecord(m, address(principalAccount), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), delegate);
+
+        vm.prank(stranger);
+        vm.expectRevert(SpendGrantRedemptionEnforcer.NotManager.selector);
+        enforcer.afterHook("", "", SINGLE_DEFAULT, execution, bytes32(0), address(principalAccount), delegate);
+
+        vm.prank(address(manager));
+        enforcer.afterHook("", "", SINGLE_DEFAULT, execution, bytes32(0), address(principalAccount), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+    }
+
+    function test_enforcer_rejectsVendorModeBytes() public {
+        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        // Call type and exec type are zero, but a vendor selector is set.
+        bytes32 vendorMode = bytes32(uint256(0xdeadbeef) << 176);
+
+        vm.prank(address(manager));
+        vm.expectRevert(SpendGrantRedemptionEnforcer.UnsupportedMode.selector);
+        enforcer.beforeHook("", "", vendorMode, execution, bytes32(0), address(principalAccount), delegate);
     }
 
     // ---------------------------------------------------------------- shape one: the delegate's account calls
