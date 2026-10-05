@@ -47,9 +47,9 @@ interface IACDFRegistry {
     function submitEvidence(bytes32 issueId, string calldata evidenceURI) external;
 
     // ------------------------------------------------------------------ voting
-    function castBallot(bytes32 issueId, uint32 body, bool approve) external;
+    function castBallot(bytes32 issueId, uint32 round, uint32 body, bool approve) external;
     function submitSignedBallots(bytes32 issueId, uint32 body, address[] calldata voters, bool[] calldata approves, bytes[] calldata signatures) external;
-    function submitBodyResult(bytes32 issueId, uint32 body, T.NodeStatus status) external;
+    function submitBodyResult(bytes32 issueId, uint32 round, uint32 body, T.NodeStatus status) external;
 
     // ------------------------------------------------------------------ rounds & finality
     function settleRound(bytes32 issueId) external;

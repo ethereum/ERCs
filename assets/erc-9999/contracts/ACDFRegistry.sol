@@ -245,9 +245,13 @@ contract ACDFRegistry is IACDFRegistry {
 
     // ================================================================== voting
 
-    function castBallot(bytes32 issueId, uint32 body, bool approve) external {
+    /// `round` binds the ballot to the round the voter intends, exactly as a signed ballot is
+    /// bound by its digest: a transaction that lands after the round it was meant for has been
+    /// settled and an appeal has opened the next one is refused, not counted in the new round.
+    function castBallot(bytes32 issueId, uint32 round, uint32 body, bool approve) external {
         T.Issue storage it = _issues[issueId];
         require(it.state == T.ProcedureState.Deciding, "ACDF: not deciding");
+        require(round == it.roundCount, "ACDF: round mismatch");
         T.BodySpec memory b = policies.bodyOf(it.policyId, body);
         require(b.kind == T.BodyKind.ROSTER_KOFN && b.acceptance == T.Acceptance.ON_CHAIN_TALLY,
                 "ACDF: body not on-chain tally");
@@ -306,14 +310,15 @@ contract ACDFRegistry is IACDFRegistry {
         emit BallotCast(issueId, round, body, voter, approve, signed);
     }
 
-    function submitBodyResult(bytes32 issueId, uint32 body, T.NodeStatus status) external {
+    /// Same round binding as castBallot: a submitter's report names the round it answers.
+    function submitBodyResult(bytes32 issueId, uint32 round, uint32 body, T.NodeStatus status) external {
         T.Issue storage it = _issues[issueId];
         require(it.state == T.ProcedureState.Deciding, "ACDF: not deciding");
+        require(round == it.roundCount, "ACDF: round mismatch");
         T.BodySpec memory b = policies.bodyOf(it.policyId, body);
         require(b.kind == T.BodyKind.AUTHORIZED_SUBMITTER, "ACDF: body not submitter");
         require(msg.sender == b.members[0], "ACDF: not the submitter");
         require(status != T.NodeStatus.Pending, "ACDF: status required");
-        uint32 round = it.roundCount;
         T.RoundState storage r = _rounds[issueId][round - 1];
         require(block.timestamp <= uint256(r.startedAt) + b.window, "ACDF: body window closed");
         T.BodyState storage bs = _bodies[issueId][round][body];

@@ -275,7 +275,7 @@ A ballot MUST be rejected if the caller or signer is not a member, has already v
 
 #### 7.2 On-chain tally
 
-For a body with `acceptance == ON_CHAIN_TALLY`, `castBallot(issueId, body, approve)` accepts a ballot from `msg.sender` while the issue is `Deciding`. Signed submissions to such a body MUST be rejected.
+For a body with `acceptance == ON_CHAIN_TALLY`, `castBallot(issueId, round, body, approve)` accepts a ballot from `msg.sender` while the issue is `Deciding` and `round` equals the issue's current `roundCount`; a ballot naming any other round MUST be rejected. The round argument gives an on-chain ballot the same authorization boundary as a signed ballot's digest: a transaction broadcast for one round that is included only after that round has settled and an appeal has opened the next one is refused rather than counted in a round the voter never addressed. Signed submissions to such a body MUST be rejected.
 
 #### 7.3 Signed ballots (normative-optional)
 
@@ -289,7 +289,7 @@ under the domain `EIP712Domain(string name,string version,uint256 chainId,addres
 
 #### 7.4 Authorized submitter (normative-optional)
 
-For an `AUTHORIZED_SUBMITTER` body, `submitBodyResult(issueId, body, status)` MUST be accepted only from the pinned member, only once per round, only within the body's window, with `status` in `{Yes, No, NoDecision}`. The body's status is the submitted value, formed at submission; if the window closes without a submission the status is `NoDecision(SUBMITTER_SILENT)`. The registry does not re-tally whatever process the submitter ran; it records only who submitted what, when, and whether that submitter was the one the policy pinned.
+For an `AUTHORIZED_SUBMITTER` body, `submitBodyResult(issueId, round, body, status)` MUST be accepted only from the pinned member, only for `round` equal to the issue's current `roundCount`, only once per round, only within the body's window, with `status` in `{Yes, No, NoDecision}`. The body's status is the submitted value, formed at submission; if the window closes without a submission the status is `NoDecision(SUBMITTER_SILENT)`. The registry does not re-tally whatever process the submitter ran; it records only who submitted what, when, and whether that submitter was the one the policy pinned.
 
 ### 8. Composition (normative-optional)
 
@@ -382,9 +382,9 @@ interface IACDFRegistry /* is IERC165 */ {
     function withdraw(bytes32 issueId) external;
     function submitEvidence(bytes32 issueId, string calldata evidenceURI) external;
 
-    function castBallot(bytes32 issueId, uint32 body, bool approve) external;
+    function castBallot(bytes32 issueId, uint32 round, uint32 body, bool approve) external;
     function submitSignedBallots(bytes32 issueId, uint32 body, address[] calldata voters, bool[] calldata approves, bytes[] calldata signatures) external;
-    function submitBodyResult(bytes32 issueId, uint32 body, ACDFTypes.NodeStatus status) external;
+    function submitBodyResult(bytes32 issueId, uint32 round, uint32 body, ACDFTypes.NodeStatus status) external;
 
     function settleRound(bytes32 issueId) external;
     function appeal(bytes32 issueId) external;
@@ -446,11 +446,11 @@ A relying contract names a registry instance and the exact policy versions it ac
 | interface | ERC-165 id |
 |---|---|
 | `IACDFPolicyRegistry` | `0x734a2e40` |
-| `IACDFRegistry` | `0x6cb878d2` |
+| `IACDFRegistry` | `0x843ad5a8` |
 
 ### 16. Errors
 
-Implementations SHOULD revert with the following reason strings (or equivalent custom errors) so that relying contracts and tests can distinguish causes. Policy validation: `ACDF: policy exists`, `ACDF: zero family`, `ACDF: zero version`, `ACDF: zero update authority`, `ACDF: first version has no previous`, `ACDF: not family authority`, `ACDF: previous != latest`, `ACDF: version not increasing`, `ACDF: bodies out of range`, `ACDF: nodes out of range`, `ACDF: zero window`, `ACDF: empty roster`, `ACDF: bad k`, `ACDF: roster acceptance`, `ACDF: zero member`, `ACDF: duplicate member`, `ACDF: submitter required`, `ACDF: submitter acceptance`, `ACDF: body index`, `ACDF: body node has children`, `ACDF: veto node has children`, `ACDF: veto target`, `ACDF: veto body index`, `ACDF: no children`, `ACDF: bad node k`, `ACDF: child index`, `ACDF: duplicate child`, `ACDF: root referenced`, `ACDF: node not in tree`, `ACDF: zero appeal window`, `ACDF: appealable mask`, `ACDF: maxTotalDuration too short`, `ACDF: maxTotalDuration too long`. Issues and acceptance: `ACDF: unknown policy`, `ACDF: effects required`, `ACDF: consumer must file`, `ACDF: acceptance unavailable`, `ACDF: acceptance expired`, `ACDF: policy not accepted`, `ACDF: subject not accepted`, `ACDF: question not accepted`, `ACDF: filer not accepted`, `ACDF: not acceptance owner`, `ACDF: POST_ACK disabled`, `ACDF: consumer required`, `ACDF: not POST_ACK`, `ACDF: not awaiting acknowledgment`, `ACDF: not the named consumer`, `ACDF: ack window closed`, `ACDF: ack window open`, `ACDF: advisory not allowed`, `ACDF: must admit as advisory`, `ACDF: insufficient window`, `ACDF: obligation active`, `ACDF: not withdrawable`, `ACDF: not filer`, `ACDF: evidence closed`. Voting: `ACDF: not deciding`, `ACDF: body not on-chain tally`, `ACDF: body not signed ballots`, `ACDF: body not submitter`, `ACDF: batch shape`, `ACDF: bad signature`, `ACDF: body window closed`, `ACDF: not a member`, `ACDF: already voted`, `ACDF: body decided`, `ACDF: not the submitter`, `ACDF: status required`, `ACDF: already submitted`. Rounds and finality: `ACDF: pending`, `ACDF: not provisional`, `ACDF: appeal window closed`, `ACDF: appeal window open`, `ACDF: no standing`, `ACDF: not open`, `ACDF: before hard deadline`, `ACDF: round index`. Enactment: `ACDF: not final`, `ACDF: not the consumer`, `ACDF: unknown effect`, `ACDF: already enacted`.
+Implementations SHOULD revert with the following reason strings (or equivalent custom errors) so that relying contracts and tests can distinguish causes. Policy validation: `ACDF: policy exists`, `ACDF: zero family`, `ACDF: zero version`, `ACDF: zero update authority`, `ACDF: first version has no previous`, `ACDF: not family authority`, `ACDF: previous != latest`, `ACDF: version not increasing`, `ACDF: bodies out of range`, `ACDF: nodes out of range`, `ACDF: zero window`, `ACDF: empty roster`, `ACDF: bad k`, `ACDF: roster acceptance`, `ACDF: zero member`, `ACDF: duplicate member`, `ACDF: submitter required`, `ACDF: submitter acceptance`, `ACDF: body index`, `ACDF: body node has children`, `ACDF: veto node has children`, `ACDF: veto target`, `ACDF: veto body index`, `ACDF: no children`, `ACDF: bad node k`, `ACDF: child index`, `ACDF: duplicate child`, `ACDF: root referenced`, `ACDF: node not in tree`, `ACDF: zero appeal window`, `ACDF: appealable mask`, `ACDF: maxTotalDuration too short`, `ACDF: maxTotalDuration too long`. Issues and acceptance: `ACDF: unknown policy`, `ACDF: effects required`, `ACDF: consumer must file`, `ACDF: acceptance unavailable`, `ACDF: acceptance expired`, `ACDF: policy not accepted`, `ACDF: subject not accepted`, `ACDF: question not accepted`, `ACDF: filer not accepted`, `ACDF: not acceptance owner`, `ACDF: POST_ACK disabled`, `ACDF: consumer required`, `ACDF: not POST_ACK`, `ACDF: not awaiting acknowledgment`, `ACDF: not the named consumer`, `ACDF: ack window closed`, `ACDF: ack window open`, `ACDF: advisory not allowed`, `ACDF: must admit as advisory`, `ACDF: insufficient window`, `ACDF: obligation active`, `ACDF: not withdrawable`, `ACDF: not filer`, `ACDF: evidence closed`. Voting: `ACDF: not deciding`, `ACDF: round mismatch`, `ACDF: body not on-chain tally`, `ACDF: body not signed ballots`, `ACDF: body not submitter`, `ACDF: batch shape`, `ACDF: bad signature`, `ACDF: body window closed`, `ACDF: not a member`, `ACDF: already voted`, `ACDF: body decided`, `ACDF: not the submitter`, `ACDF: status required`, `ACDF: already submitted`. Rounds and finality: `ACDF: pending`, `ACDF: not provisional`, `ACDF: appeal window closed`, `ACDF: appeal window open`, `ACDF: no standing`, `ACDF: not open`, `ACDF: before hard deadline`, `ACDF: round index`. Enactment: `ACDF: not final`, `ACDF: not the consumer`, `ACDF: unknown effect`, `ACDF: already enacted`.
 
 ## Rationale
 
@@ -472,6 +472,8 @@ Implementations SHOULD revert with the following reason strings (or equivalent c
 
 **Why signed ballots carry no nonce and share the on-chain tally.** A nonce would let one voter produce several "fresh" ballots; keying de-duplication on the voter's identity per issue, round and body makes additional signatures worthless. Counting signed and on-chain ballots under one rule prevents a relayer from presenting a favourable batch as the round's result: a batch adds to the same counts and a decided body refuses further ballots.
 
+**Why on-chain ballots and submitter reports name their round.** A signed ballot is bound to a round by its digest, so a round-1 signature can never count in round 2. Without an explicit round argument an on-chain ballot would lack that boundary: a transaction broadcast during round 1 but included after the round settled and an appeal opened round 2 would be counted in round 2, and since ballots cannot be changed the voter could not undo it. Requiring the round and rejecting a mismatch makes the two acceptance paths equally bound; the cost is one `uint32` of calldata and a comparison. The same applies to an authorized submitter's report.
+
 **Why the kernel never executes effects.** A decision registry that could move assets would need the authority of every relying contract; separating decision from execution, as governors with timelocks do, keeps the registry's trust footprint to its records and lets each relying contract decide how much of a result it enforces and when.
 
 **Why the appeal window runs from the formation instant.** Anchoring it to the settlement transaction would let any party stretch a procedure by not calling `settleRound`; anchoring it to the instant the ballots determined the result makes the deadline a property of the record, not of who acted when.
@@ -490,7 +492,7 @@ Deterministic vectors are provided under the assets of this proposal and regener
 - [`composition.json`](../assets/eip-9999/vectors/composition.json): 192 rows of `ALL`, `ANY` and 2-of-3 composition over every triple of child values in `{Yes, No, Pending, NoDecision}`;
 - [`interface-ids.json`](../assets/eip-9999/vectors/interface-ids.json): the ERC-165 identifiers of Section 15.
 
-The reference repository's Foundry suite (119 tests in eight files) exercises the reference implementation: minimal tally edge cases and policy validation; acceptance modes, freezing, withdrawal and the obligation rule; composition including every `VETO` branch and the independence of the result from settlement order; rounds, appeals, the adoption rule, hard deadlines and replay of earlier-round signatures; signed-ballot verification including ERC-1271 accounts, malleable signatures and favourable late batches; and an end-to-end adapter run against a vendored task-tender kernel covering acceptance, rejection, no-decision defaults, late execution and retry after a kernel refusal.
+The reference repository's Foundry suite (121 tests in eight files) exercises the reference implementation: minimal tally edge cases and policy validation; acceptance modes, freezing, withdrawal and the obligation rule; composition including every `VETO` branch and the independence of the result from settlement order; rounds, appeals, the adoption rule, hard deadlines and replay of earlier-round signatures; signed-ballot verification including ERC-1271 accounts, malleable signatures and favourable late batches; and an end-to-end adapter run against a vendored task-tender kernel covering acceptance, rejection, no-decision defaults, late execution and retry after a kernel refusal.
 
 ## Reference Implementation
 
@@ -519,7 +521,7 @@ The issue registry compiles to 23,514 bytes of runtime code under solc 0.8.24 wi
 
 **Timing.** Deadlines are arrival deadlines: a ballot or result counts only if the registry receives it in time, and an adapter's enactment counts only if the target contract receives it before the target's own deadline. Relying contracts SHOULD size `consumerDeadline` with an execution margin and from the earliest of their own clocks. Appeal windows anchored to formation instants cannot be extended by delaying settlement.
 
-**Signature handling.** Signed ballots bind chain id, registry, issue, round, body, voter and position; they carry no nonce by design (Section 7.3). ERC-1271 validity may depend on the signing contract's state at submission time; a contract voter that changes its validation logic can change whether its ballot is accepted, never whether an already accepted ballot counts. EIP-712 provides no replay protection by itself; the per-voter, per-round, per-body key does.
+**Signature handling.** Signed ballots bind chain id, registry, issue, round, body, voter and position; they carry no nonce by design (Section 7.3). On-chain ballots and submitter reports are bound to a round by the explicit `round` argument (Sections 7.2 and 7.4), so a pending transaction cannot drift into a later round. ERC-1271 validity may depend on the signing contract's state at submission time; a contract voter that changes its validation logic can change whether its ballot is accepted, never whether an already accepted ballot counts. EIP-712 provides no replay protection by itself; the per-voter, per-round, per-body key does.
 
 **Correlated participants and Sybil rosters.** This ERC does not establish that roster members are independent or that they are who a policy author believes them to be; a roster of N addresses controlled by one operator is one voter with N ballots. Eligibility profiles (reserved) are where identity, trust assertions, per-operator caps and conflict exclusion belong. Policy authors SHOULD disclose what their rosters assume.
 
