@@ -311,6 +311,9 @@ contract SpendGrantRedemptionTest is Test {
         SpendGrant memory m = _grant(address(principalAccount), delegate);
         bytes memory sig = _sign(OWNER_PK, m);
 
+        // The executor rejects before the registry is reached: no record is no authorization, and it
+        // never passes a placeholder authorizer.
+        vm.expectCall(address(registry), abi.encodeWithSelector(registry.consume.selector), 0);
         vm.prank(stranger);
         _expect(Reason.UNAUTHORIZED_DELEGATE);
         executor.spend(m, sig, address(token), 1e18, recipient);

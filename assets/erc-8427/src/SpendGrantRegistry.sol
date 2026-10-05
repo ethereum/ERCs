@@ -135,11 +135,23 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         if (block.timestamp >= grant.validUntil) revert SpendGrantError(Reason.EXPIRED);
         if (revoked[grant.principal][grantHash]) revert SpendGrantError(Reason.REVOKED);
 
-        if (grant.recipientMode == 0) {
-            if (recipient != grant.recipient) revert SpendGrantError(Reason.WRONG_RECIPIENT);
+        // The payee is never nothing, the principal, this registry, or the executor: the first burns or
+        // misattributes, the second spends cap on a no-op, the last two strand the funds. This applies to
+        // the argument even when a mode 0 grant signed one of them, so such a grant fails closed.
+        if (
+            recipient == address(0) || recipient == grant.principal || recipient == address(this)
+                || recipient == EXECUTOR
+        ) {
+            revert SpendGrantError(Reason.WRONG_RECIPIENT);
         }
+        if (grant.recipientMode == 0 && recipient != grant.recipient) revert SpendGrantError(Reason.WRONG_RECIPIENT);
 
-        _debit(grantHash, grant.windowSeconds, _asset(grant, asset), asset, amount, recipient);
+        AssetLimit calldata limit = _asset(grant, asset);
+        // Only the asset being spent needs code; an unrelated listing without code does not block the grant.
+        if (asset != NATIVE && asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
+
+        _debit(grantHash, grant.windowSeconds, limit, asset, amount, recipient);
+        emit GrantConsumed(grantHash, grant.principal, asset, amount, recipient);
     }
 
     /// @dev `windowSeconds` must equal the value already signed into this grant (what `consume`
@@ -192,8 +204,6 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         u.windowSpent = windowSpent + amount;
         u.spent = spent + amount;
         u.calls += 1;
-
-        emit GrantConsumed(grantHash, asset, amount, recipient);
     }
 
     function _assertStructure(SpendGrant calldata m) internal view {
@@ -224,7 +234,6 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
                 revert SpendGrantError(Reason.INVALID_GRANT);
             }
             if (a.asset == address(0)) revert SpendGrantError(Reason.INVALID_GRANT);
-            if (a.asset != NATIVE && a.asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
         }
     }
 

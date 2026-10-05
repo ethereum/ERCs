@@ -68,7 +68,9 @@ interface IERC1271 {
 
 interface ISpendGrantRegistry {
     event GrantRevoked(address indexed principal, bytes32 indexed grantHash);
-    event GrantConsumed(bytes32 indexed grantHash, address indexed asset, uint256 amount, address indexed recipient);
+    event GrantConsumed(
+        bytes32 indexed grantHash, address indexed principal, address asset, uint256 amount, address indexed recipient
+    );
 
     function executor() external view returns (address);
     function revoke(bytes32 grantHash) external;

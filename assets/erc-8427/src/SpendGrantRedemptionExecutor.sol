@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {ISpendGrantRegistry, SpendGrant} from "./SpendGrantTypes.sol";
+import {ISpendGrantRegistry, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
 import {SpendGrantHash} from "./SpendGrantHash.sol";
 import {SpendGrantExecutor} from "./SpendGrantExecutor.sol";
 import {SpendGrantRedemptionEnforcer} from "./SpendGrantRedemptionEnforcer.sol";
@@ -38,6 +38,9 @@ contract SpendGrantRedemptionExecutor is SpendGrantExecutor {
     {
         if (msg.sender == grant.delegate) return msg.sender;
         bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(REGISTRY), grant);
-        return ENFORCER.take(msg.sender, grantHash, asset, amount, recipient);
+        address redeemer = ENFORCER.take(msg.sender, grantHash, asset, amount, recipient);
+        // No record is no authorization. Reject here rather than pass an address nobody authenticated.
+        if (redeemer == address(0)) revert SpendGrantError(Reason.UNAUTHORIZED_DELEGATE);
+        return redeemer;
     }
 }

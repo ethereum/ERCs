@@ -79,7 +79,9 @@ contract SpendGrantRegistryTest is Test {
     address internal recipient;
 
     event GrantRevoked(address indexed principal, bytes32 indexed grantHash);
-    event GrantConsumed(bytes32 indexed grantHash, address indexed asset, uint256 amount, address indexed recipient);
+    event GrantConsumed(
+        bytes32 indexed grantHash, address indexed principal, address asset, uint256 amount, address indexed recipient
+    );
 
     function setUp() public {
         principal = vm.addr(PRINCIPAL_PK);
@@ -1003,7 +1005,7 @@ contract SpendGrantRegistryTest is Test {
         SpendGrant memory m = _andGrant();
         bytes32 h = _hash(m);
         vm.expectEmit(true, true, true, true);
-        emit GrantConsumed(h, NATIVE, 1 ether, recipient);
+        emit GrantConsumed(h, principal, NATIVE, 1 ether, recipient);
         _consume(m, NATIVE, 1 ether, recipient);
     }
 
