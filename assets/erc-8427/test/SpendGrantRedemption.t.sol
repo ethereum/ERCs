@@ -2,9 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {
-    AssetLimit, IERC1271, ISpendGrantRegistry, SpendGrant, SpendGrantError, Reason
-} from "../src/SpendGrantTypes.sol";
+import {AssetLimit, IERC1271, SpendGrant, SpendGrantError, Reason} from "../src/SpendGrantTypes.sol";
 import {SpendGrantHash} from "../src/SpendGrantHash.sol";
 import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {SpendGrantExecutor} from "../src/SpendGrantExecutor.sol";
