@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import {
     AssetLimit,
-    IERC1271,
     ISpendGrantRegistry,
     SpendGrant,
     SpendGrantError,
@@ -13,6 +12,7 @@ import {
     Reason
 } from "./SpendGrantTypes.sol";
 import {SpendGrantHash} from "./SpendGrantHash.sol";
+import {SpendGrantSignature} from "./SpendGrantSignature.sol";
 
 contract SpendGrantRegistry is ISpendGrantRegistry {
     /// @dev Low bits of a ring slot hold the amount; the high 64 bits hold the timestamp.
@@ -150,7 +150,7 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         // Only the asset being spent needs code; an unrelated listing without code does not block the grant.
         if (asset != NATIVE && asset.code.length == 0) revert SpendGrantError(Reason.INVALID_GRANT);
 
-        _debit(grantHash, grant.windowSeconds, limit, asset, amount, recipient);
+        _debit(grantHash, grant.windowSeconds, limit, asset, amount);
         emit GrantConsumed(grantHash, grant.principal, asset, amount, recipient);
     }
 
@@ -159,14 +159,9 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
     /// first debit for `grantHash`; `rollingUsage` and `liveDebits` always read that stored value, so a caller
     /// (e.g. a derived contract calling `_debit` directly) that passes a different value here
     /// makes those views and eviction disagree with what `consume` would have done.
-    function _debit(
-        bytes32 grantHash,
-        uint64 windowSeconds,
-        AssetLimit memory limit,
-        address asset,
-        uint256 amount,
-        address recipient
-    ) internal {
+    function _debit(bytes32 grantHash, uint64 windowSeconds, AssetLimit memory limit, address asset, uint256 amount)
+        internal
+    {
         if (amount == 0 || amount > limit.maxPerCall || amount > type(uint192).max) {
             revert SpendGrantError(Reason.OVER_TX_CAP);
         }
@@ -206,7 +201,7 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         u.calls += 1;
     }
 
-    function _assertStructure(SpendGrant calldata m) internal view {
+    function _assertStructure(SpendGrant calldata m) internal pure {
         if (m.principal == address(0) || m.delegate == address(0) || m.delegate == m.principal) {
             revert SpendGrantError(Reason.INVALID_GRANT);
         }
@@ -245,45 +240,11 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         revert SpendGrantError(Reason.WRONG_ASSET);
     }
 
-    /// @dev A principal with a 23-byte EIP-7702 delegation designator (0xef0100 || implementation)
-    /// tries strict ECDSA first (the designator authorizes the EOA's own key), then falls back to
-    /// ERC-1271 against the delegate implementation. Any other code-bearing principal is ERC-1271
-    /// only; a principal with no code is ECDSA only.
+    /// @dev The Signatures rules, shared with executors through SpendGrantSignature: no code is strict
+    /// ECDSA; an EIP-7702 designator tries the account's own key first, then ERC-1271; any other code
+    /// is ERC-1271 only; the ERC-1271 call is a STATICCALL.
     function _validSignature(address principal, bytes32 digest, bytes calldata sig) internal view returns (bool) {
-        uint256 codeLen = principal.code.length;
-        if (codeLen == 0) {
-            return _validEcdsaSignature(principal, digest, sig);
-        }
-        if (codeLen == 23 && _isDelegationDesignator(principal.code)) {
-            if (_validEcdsaSignature(principal, digest, sig)) return true;
-        }
-        (bool ok, bytes memory ret) = principal.staticcall(abi.encodeCall(IERC1271.isValidSignature, (digest, sig)));
-        if (!ok || ret.length != 32) return false;
-        return abi.decode(ret, (bytes32)) == bytes32(IERC1271.isValidSignature.selector);
-    }
-
-    /// @dev EIP-7702 delegation designator: exactly 23 bytes, 0xef0100 prefix. Caller must have
-    /// already checked code.length == 23 via EXTCODESIZE before paying for this EXTCODECOPY.
-    function _isDelegationDesignator(bytes memory code) internal pure returns (bool) {
-        return code[0] == 0xef && code[1] == 0x01 && code[2] == 0x00;
-    }
-
-    function _validEcdsaSignature(address principal, bytes32 digest, bytes calldata sig) internal pure returns (bool) {
-        if (sig.length != 65) return false;
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-        assembly {
-            r := calldataload(sig.offset)
-            s := calldataload(add(sig.offset, 32))
-            v := byte(0, calldataload(add(sig.offset, 64)))
-        }
-        if (v != 27 && v != 28) return false;
-        if (uint256(s) == 0 || uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
-            return false;
-        }
-        address recovered = ecrecover(digest, v, r, s);
-        return recovered != address(0) && recovered == principal;
+        return SpendGrantSignature.isValid(principal, digest, sig);
     }
 
     function _live(uint64 stamped, uint64 windowSeconds) internal view returns (bool) {

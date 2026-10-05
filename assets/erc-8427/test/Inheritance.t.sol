@@ -21,10 +21,9 @@ contract DerivedRegistry is SpendGrantRegistry {
         uint64 windowSeconds,
         AssetLimit memory limit,
         address asset,
-        uint256 amount,
-        address recipient
+        uint256 amount
     ) external {
-        _debit(grantHash, windowSeconds, limit, asset, amount, recipient);
+        _debit(grantHash, windowSeconds, limit, asset, amount);
     }
 }
 
@@ -95,7 +94,7 @@ contract InheritanceTest is Test {
     function test_derivedRegistry_exposesInternalDebit() public {
         SpendGrant memory m = _grant();
         bytes32 h = SpendGrantHash.digest(block.chainid, address(registry), m);
-        registry.debitDirect(h, m.windowSeconds, m.assets[0], address(token), 1e18, recipient);
+        registry.debitDirect(h, m.windowSeconds, m.assets[0], address(token), 1e18);
         (uint256 spent, uint256 calls) = registry.usage(h, address(token));
         assertEq(spent, 1e18);
         assertEq(calls, 1);
