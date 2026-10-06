@@ -9,7 +9,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 enum TrustLevel {
     Unknown, // 0: No trust relationship established
     None, // 1: Explicitly distrusted
-    Marginal, // 2: Partial trust - accepted when minEdgeTrust is Marginal
+    Marginal, // 2: Partial trust - accepted on an edge when minEdgeTrust <= Marginal
     Full // 3: Complete trust - satisfies any minEdgeTrust
 }
 
