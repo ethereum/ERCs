@@ -1090,9 +1090,10 @@
 
         "integerValueOrMap": {
             "title": "Integer Value or Map Reference",
-            "description": "An integer, or a map reference resolving to an integer.",
+            "description": "An integer, a path to a constant in the ERC 7730 file, or a map reference resolving to an integer.",
             "anyOf": [
                 { "type": "integer" },
+                { "type": "string", "pattern": "^\\$\\.metadata\\.constants\\." },
                 { "$ref": "#/$format/mapReference" }
             ]
         },
