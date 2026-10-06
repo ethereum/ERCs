@@ -1,25 +1,80 @@
 {
     "$schema": "./erc7730-v3.0.0-next.schema.json",
-
-    "$comment": "A complete ERC-7730 file using maps. Two pools live on chain 1 and one on chain 137, so the underlying token and the share token are keyed on the called contract address (`@.to`): the chain id alone cannot tell the two chain 1 pools apart. The native currency sentinel differs per chain, so it is keyed on the chain id (`@.chainId`). Address keys are ERC-55 checksummed and matched ignoring the case of the digits against the value resolved from `@.to`, which carries no casing guarantee.",
-
+    "$comment": "A complete ERC-7730 file exercising maps and constants. Two pools live on chain 1 and one on chain 137, so anything that differs per pool is keyed on the called contract address (`@.to`), and anything that differs per chain on the chain id (`@.chainId`). Address keys are ERC-55 checksummed and matched ignoring the case of the digits against the value resolved from `@.to`, which carries no casing guarantee. The map references below are only meant to show where they are accepted: contractName, owner, intent, interpolatedIntent, label, value, token, nativeCurrencyAddress, threshold, message, senderAddress, and unit base and decimals. A constant reference is used for the integer `decimals` of the `referralBps` field.",
     "context": {
         "$id": "Example Maps for Pools",
         "contract": {
             "deployments": [
-                { "chainId": 1, "address": "0x00112233445566778899AABbCCdDeeFf00112233" },
-                { "chainId": 1, "address": "0xAAbbCCDdeEFf00112233445566778899aABBcCDd" },
-                { "chainId": 137, "address": "0x5566778899AaBbcCddeeFf001122334455667788" }
+                {
+                    "chainId": 1,
+                    "address": "0x00112233445566778899AABbCCdDeeFf00112233"
+                },
+                {
+                    "chainId": 1,
+                    "address": "0xAAbbCCDdeEFf00112233445566778899aABBcCDd"
+                },
+                {
+                    "chainId": 137,
+                    "address": "0x5566778899AaBbcCddeeFf001122334455667788"
+                }
             ]
         }
     },
-
     "metadata": {
-        "owner": "Example",
+        "owner": {
+            "map": "$.metadata.maps.ownerName",
+            "keyPath": "@.chainId"
+        },
+        "contractName": {
+            "map": "$.metadata.maps.poolName",
+            "keyPath": "@.to"
+        },
         "info": {
             "url": "https://example.io/"
         },
+        "constants": {
+            "bpsDecimals": 0
+        },
         "maps": {
+            "poolName": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "USDC Pool",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "ETH Pool",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "Polygon USDC Pool"
+                }
+            },
+            "ownerName": {
+                "$keyType": "Chain ID",
+                "values": {
+                    "1": "Example Labs",
+                    "137": "Example Labs (Polygon)"
+                }
+            },
+            "depositIntent": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "Deposit USDC",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "Deposit ETH",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "Deposit USDC on Polygon"
+                }
+            },
+            "depositSummary": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "Deposit {amount} to get at least {minShares}",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "Deposit {amount} ETH to get at least {minShares}",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "Deposit {amount} to get at least {minShares} on Polygon"
+                }
+            },
+            "amountLabel": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "Deposit Amount (USDC)",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "Deposit Amount (ETH)",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "Deposit Amount (USDC)"
+                }
+            },
             "underlyingToken": {
                 "$keyType": "Called pool contract address",
                 "values": {
@@ -42,19 +97,74 @@
                     "1": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
                     "137": "0x0000000000000000000000000000000000001010"
                 }
+            },
+            "maxDeposit": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "1000000000000",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "1000000000000000000000000",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "1000000000000"
+                }
+            },
+            "maxDepositMessage": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "No limit (USDC)",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "No limit (ETH)",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "No limit (USDC)"
+                }
+            },
+            "feeBase": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "bps",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "%",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "bps"
+                }
+            },
+            "feeDecimals": {
+                "$keyType": "Called pool contract address",
+                "values": {
+                    "0x00112233445566778899AABbCCdDeeFf00112233": 0,
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": 16,
+                    "0x5566778899AaBbcCddeeFf001122334455667788": 0
+                }
+            },
+            "senderSentinel": {
+                "$keyType": "Chain ID",
+                "values": {
+                    "1": "0x0000000000000000000000000000000000000000",
+                    "137": "0x000000000000000000000000000000000000dEaD"
+                }
             }
         }
     },
-
     "display": {
         "formats": {
-            "deposit(uint256 amount,uint256 minShares)": {
-                "intent": "Deposit",
-                "interpolatedIntent": "Deposit {amount} to get at least {minShares}",
+            "deposit(uint256 amount,uint256 minShares,uint256 maxFee,uint256 referralBps,address receiver)": {
+                "intent": {
+                    "map": "$.metadata.maps.depositIntent",
+                    "keyPath": "@.to"
+                },
+                "interpolatedIntent": {
+                    "map": "$.metadata.maps.depositSummary",
+                    "keyPath": "@.to"
+                },
                 "fields": [
                     {
+                        "label": "Pool",
+                        "value": {
+                            "map": "$.metadata.maps.poolName",
+                            "keyPath": "@.to"
+                        },
+                        "format": "raw"
+                    },
+                    {
                         "path": "amount",
-                        "label": "Deposit Amount",
+                        "label": {
+                            "map": "$.metadata.maps.amountLabel",
+                            "keyPath": "@.to"
+                        },
                         "format": "tokenAmount",
                         "params": {
                             "token": {
@@ -64,6 +174,14 @@
                             "nativeCurrencyAddress": {
                                 "map": "$.metadata.maps.nativeCurrency",
                                 "keyPath": "@.chainId"
+                            },
+                            "threshold": {
+                                "map": "$.metadata.maps.maxDeposit",
+                                "keyPath": "@.to"
+                            },
+                            "message": {
+                                "map": "$.metadata.maps.maxDepositMessage",
+                                "keyPath": "@.to"
                             }
                         }
                     },
@@ -75,6 +193,44 @@
                             "token": {
                                 "map": "$.metadata.maps.shareToken",
                                 "keyPath": "@.to"
+                            }
+                        }
+                    },
+                    {
+                        "path": "maxFee",
+                        "label": "Max Fee",
+                        "format": "unit",
+                        "params": {
+                            "base": {
+                                "map": "$.metadata.maps.feeBase",
+                                "keyPath": "@.to"
+                            },
+                            "decimals": {
+                                "map": "$.metadata.maps.feeDecimals",
+                                "keyPath": "@.to"
+                            }
+                        }
+                    },
+                    {
+                        "path": "referralBps",
+                        "label": "Referral Fee",
+                        "format": "unit",
+                        "params": {
+                            "base": "bps",
+                            "decimals": "$.metadata.constants.bpsDecimals"
+                        }
+                    },
+                    {
+                        "path": "receiver",
+                        "label": "Receiver",
+                        "format": "addressName",
+                        "params": {
+                            "types": [
+                                "eoa"
+                            ],
+                            "senderAddress": {
+                                "map": "$.metadata.maps.senderSentinel",
+                                "keyPath": "@.chainId"
                             }
                         }
                     }

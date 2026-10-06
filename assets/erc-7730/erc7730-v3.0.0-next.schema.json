@@ -396,7 +396,7 @@
             "additionalProperties": false
         },
         "intent": {
-            "oneOf": [
+            "anyOf": [
                 {
                     "title": "Simple intent message",
                     "description": "A description of the intent of the structured data signing, that will be displayed to the user.",
