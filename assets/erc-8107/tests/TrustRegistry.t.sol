@@ -47,6 +47,13 @@ contract MockENS is IENS {
         _operators[msg.sender][operator] = approved;
     }
 
+    /// @dev ERC-137 setSubnodeOwner: the parent's owner may (re)assign any subname
+    function setSubnodeOwner(bytes32 parent, bytes32 label, address newOwner) external returns (bytes32 node) {
+        require(msg.sender == _owners[parent], "not parent owner");
+        node = keccak256(abi.encodePacked(parent, label));
+        _owners[node] = newOwner;
+    }
+
     function owner(bytes32 node) external view override returns (address) {
         return _owners[node];
     }
@@ -405,6 +412,42 @@ contract TrustRegistryTest is Test {
 
         vm.expectRevert(InvalidSignature.selector);
         registry.setTrust(att, sig);
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Parent-controlled subnames
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev DOCUMENTED BEHAVIOUR (see Security Considerations, "Parent-Controlled
+    ///      Subnames"). An unwrapped parent can reassign a subname at any time; the new
+    ///      controller attests as the subname and inherits trust placed in it.
+    function test_ParentReassignsSubname_NewControllerAttests() public {
+        bytes32 label = keccak256("worker");
+        vm.prank(alice);
+        bytes32 sub = ens.setSubnodeOwner(ALICE, label, bob);
+
+        TrustAttestation memory att = _att(sub, CAROL, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(bobKey, att));
+        _grant(carolKey, CAROL, sub, TrustLevel.Full, UNIVERSAL, 1);
+
+        // The parent takes the subname back and hands it to mallory, without bob
+        vm.prank(alice);
+        ens.setSubnodeOwner(ALICE, label, mallory);
+
+        att = _att(sub, DAVE, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(att, _sign(malloryKey, att));
+        (TrustLevel level,) = registry.getTrust(sub, DAVE, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "new controller attests as the subname");
+
+        att = _att(sub, BOB, TrustLevel.Full, UNIVERSAL, 0, 3);
+        bytes memory oldHolderSig = _sign(bobKey, att);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, oldHolderSig);
+
+        assertTrue(
+            registry.verifyPath(_path(_nodes2(CAROL, sub)), _defaultParams()),
+            "trust placed in the subname carries over"
+        );
     }
 
     // ───────────────────────────────────────────────────────────────────────────
