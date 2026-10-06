@@ -194,8 +194,8 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
 
         record.level = TrustLevel.None;
-        // Implementation choice: explicit distrust does not expire. The record is
-        // retained (not deleted) so the distrust remains observable.
+        // Explicit distrust does not expire: getTrust returns (None, 0). The record
+        // is retained (not deleted) so the distrust remains observable.
         record.expiry = 0;
         record.setAt = uint64(block.timestamp);
 

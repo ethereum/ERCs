@@ -576,6 +576,32 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(level), uint8(TrustLevel.None), "explicit distrust must be retained, not deleted");
     }
 
+    /// @dev Revocation clears a previously stored expiry, singly and in a batch
+    function test_Revoke_ClearsExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, expiry, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+        att = _att(ALICE, BOB, TrustLevel.Full, DEFI, expiry, 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        (TrustLevel level, uint64 stored) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(stored, expiry, "expiry stored before revocation");
+
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+        (level, stored) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.None));
+        assertEq(stored, 0, "revokeTrust clears expiry");
+
+        bytes32[] memory scopes = new bytes32[](1);
+        scopes[0] = DEFI;
+        vm.prank(alice);
+        registry.revokeTrustBatch(ALICE, BOB, scopes, bytes32(0));
+        (level, stored) = registry.getTrust(ALICE, BOB, DEFI);
+        assertEq(uint8(level), uint8(TrustLevel.None));
+        assertEq(stored, 0, "revokeTrustBatch clears expiry");
+    }
+
     function test_RevokeTrust_ApprovedOperatorMaySubmit() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
 
