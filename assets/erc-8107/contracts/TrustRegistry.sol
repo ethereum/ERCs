@@ -369,8 +369,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     }
 
     /// @inheritdoc ITrustRegistry
-    /// @dev An unconfigured gate is OPEN. Integrators that require an explicit gate
-    ///      MUST check `getIdentityGate(...).enabled` themselves.
+    /// @dev Reverts with GateNotFound when no gate is enabled, so a wrong coordinator
+    ///      address or mistyped coordination type fails loudly instead of admitting
+    ///      every participant.
     function validateParticipantWithPath(
         address coordinator,
         bytes32 coordinationType,
@@ -378,7 +379,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         TrustPath calldata path
     ) external view override returns (bool isValid) {
         IdentityGate storage gate = _gates[coordinator][coordinationType];
-        if (!gate.enabled) return true;
+        if (!gate.enabled) revert GateNotFound(coordinationType);
 
         if (!_pathStartsAtGatekeeper(path, gate.gatekeeperNode)) return false;
 
@@ -392,6 +393,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @inheritdoc ITrustRegistry
     /// @dev The ERC-8001 hook. ERC-8001 lists participants by address, so the terminal
     ///      node is bound to `participant` through its ERC-137 forward address record.
+    ///      Reverts with GateNotFound when no gate is enabled.
     function validateParticipantAddress(
         address coordinator,
         bytes32 coordinationType,
@@ -399,7 +401,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         TrustPath calldata path
     ) external view override returns (bool isValid) {
         IdentityGate storage gate = _gates[coordinator][coordinationType];
-        if (!gate.enabled) return true;
+        if (!gate.enabled) revert GateNotFound(coordinationType);
 
         // Guards against an unresolvable node matching a zero participant address
         if (participant == address(0)) return false;
