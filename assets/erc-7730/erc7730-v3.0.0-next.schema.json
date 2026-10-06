@@ -128,10 +128,10 @@
 
                             "properties": {
                                 "name": {
-                                    "type": "string"
+                                    "$ref": "#/$definitions/stringValueOrMap"
                                 },
                                 "version": {
-                                    "type": "string"
+                                    "$ref": "#/$definitions/stringValueOrMap"
                                 },
                                 "chainId": {
                                     "type": "integer",
@@ -190,13 +190,13 @@
 
                 "owner": {
                     "title": "Owner display name",
-                    "type": "string",
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The display name of the owner or target of the contract / message to be clear signed."
                 },
 
                 "contractName": {
                     "title": "Contract Name",
-                    "type": "string",
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The name of the contract targeted by the transaction or message."
                 },
 
@@ -214,6 +214,10 @@
 
                 "enums": {
                     "$ref": "#/$metadata/enums"
+                },
+
+                "maps": {
+                    "$ref": "#/$metadata/maps"
                 }
             }
 
@@ -320,9 +324,9 @@
                         "additionalProperties": {
                             "type": ["string", "integer", "number", "boolean", "null"]
                         }
-                    },
-                    "unresolvedProperties": false
-                }
+                    }
+                },
+                "additionalProperties": false
             }
         }
     },
@@ -411,14 +415,18 @@
                         "type": "string",
                         "pattern": "\\S"
                     }
+                },
+                {
+                    "title": "Map-resolved intent message",
+                    "description": "A map reference resolving to the intent, based on the context of the structured data.",
+                    "$ref": "#/$format/mapReference"
                 }
-
             ]
         },
         "interpolatedIntent": {
             "title": "Interpolated intent message",
             "description": "An optional intent string with embedded field values using {path} interpolation syntax. This provides a dynamic, contextual description by embedding actual transaction/message values directly in the intent string. Wallets should prefer displaying interpolatedIntent when available and fall back to intent if interpolation fails. See the specification for detailed formatting behavior and security considerations.",
-            "type": "string"
+            "$ref": "#/$definitions/stringValueOrMap"
         },
         "fields": {
             "title": "Field Formats set",
@@ -526,7 +534,7 @@
         },
         "value": {
             "title": "Value",
-            "type": ["string", "integer", "number", "boolean"],
+            "$ref": "#/$definitions/scalarValueOrMap",
             "description": "A literal value on which the format should be applied instead of looking up a field in the structured data."
         },
 
@@ -551,7 +559,7 @@
                 "label": {
                     "title": "Field Label",
                     "description": "The label of the field, that will be displayed to the user in front of the formatted field value.",
-                    "type": "string"
+                    "$ref": "#/$definitions/stringValueOrMap"
                 },
                 "format": {
                     "title": "Field Format",
@@ -701,7 +709,9 @@
                     "type": "string",
                     "description": "The path to the key used to resolve a value using the referenced map."
                 }
-            }
+            },
+            "required": ["map", "keyPath"],
+            "additionalProperties": false
         },
         "names": {
             "anyOf": [
@@ -796,19 +806,8 @@
                 },
                 "senderAddress": {
                     "title": "Sender Address",
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "An address equal to this value is interpreted as the sender referenced by `@.from`."
-                        },
-                        {
-                            "type": "array",
-                            "description": "An array of addresses, any of which are interpreted as the sender referenced by `@.from`.",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
+                    "$ref": "#/$definitions/stringOrArrayValueOrMap",
+                    "description": "An address, or an array of addresses, any of which are interpreted as the sender referenced by `@.from`."
                 }
             },
             "additionalProperties": false
@@ -819,11 +818,7 @@
             "properties": {
                 "callee": {
                     "title": "Callee Address",
-                    "type": ["string", "object"],
-                    "anyOf": [
-                        { "type": "string" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The address of the contract being called by this embedded calldata."
                 },
                 "calleePath": {
@@ -833,11 +828,7 @@
                 },
                 "selector": {
                     "title": "Called Selector (Optional)",
-                    "type": ["string", "object"],
-                    "anyOf": [
-                        { "type": "string" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The selector being called, if not contained in the calldata. Hex string representation."
                 },
                 "selectorPath": {
@@ -847,11 +838,7 @@
                 },
                 "amount": {
                     "title": "Amount (Optional)",
-                    "type": ["integer", "object"],
-                    "anyOf": [
-                        { "type": "integer" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/integerValueOrMap",
                     "description": "The associated amount in native currency, if the calldata can be associated with a container value."
                 },
                 "amountPath": {
@@ -861,11 +848,7 @@
                 },
                 "spender": {
                     "title": "Spender Path (Optional)",
-                    "type": ["string", "object"],
-                    "anyOf": [
-                        { "type": "string" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The associated spender, if the calldata can be associated with a container value."
                 },
                 "spenderPath": {
@@ -892,11 +875,7 @@
             "properties": {
                 "token": {
                     "title": "Token",
-                    "type": ["string", "object"],
-                    "anyOf": [
-                        { "type": "string" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The token address, or a path to a constant in the ERC 7730 file."
                 },
                 "tokenPath": {
@@ -906,37 +885,22 @@
                 },
                 "nativeCurrencyAddress": {
                     "title": "Native Currency Address",
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "An address equal to this value is interpreted as an amount in native currency rather than a token."
-                        },
-                        {
-                            "type": "array",
-                            "description": "An array of addresses, any of which are interpreted as an amount in native currency rather than a token.",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
+                    "$ref": "#/$definitions/stringOrArrayValueOrMap",
+                    "description": "An address, or an array of addresses, any of which are interpreted as an amount in native currency rather than a token."
                 },
                 "threshold": {
                     "title": "Unlimited Threshold",
-                    "type": "string",
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The threshold at or above which the amount should be displayed using the message parameter rather than the real amount. The message is displayed when the amount is greater than or equal to the threshold."
                 },
                 "message": {
                     "title": "Unlimited Message",
-                    "type": "string",
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The message to display when the amount is greater than or equal to the threshold."
                 },
                 "chainId": {
                     "title": "Chain ID",
-                    "type": ["integer", "object"],
-                    "anyOf": [
-                        { "type": "integer" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/integerValueOrMap",
                     "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve token metadata (ticker, decimals) for this chain. Useful for cross-chain swap clear signing where the same token address may refer to different chains."
                 },
                 "chainIdPath": {
@@ -957,11 +921,7 @@
             "properties": {
                 "chainId": {
                     "title": "Chain ID",
-                    "type": ["integer", "object"],
-                    "anyOf": [
-                        { "type": "integer" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/integerValueOrMap",
                     "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve the token ticker for this chain. Useful for cross-chain swap clear signing."
                 },
                 "chainIdPath": {
@@ -981,11 +941,7 @@
             "properties": {
                 "collection": {
                     "title": "Collection Address",
-                    "type": ["string", "object"],
-                    "anyOf": [
-                        { "type": "string" },
-                        { "$ref": "#/$format/mapReference" }
-                    ],
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The collection address, or a path to a constant in the ERC 7730 file."
                 },
                 "collectionPath": {
@@ -1087,19 +1043,8 @@
                 },
                 "senderAddress": {
                     "title": "Sender Address",
-                    "oneOf": [
-                        {
-                            "type": "string",
-                            "description": "An address equal to this value is interpreted as the sender referenced by `@.from`."
-                        },
-                        {
-                            "type": "array",
-                            "description": "An array of addresses, any of which are interpreted as the sender referenced by `@.from`.",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
-                    ]
+                    "$ref": "#/$definitions/stringOrArrayValueOrMap",
+                    "description": "An address, or an array of addresses, any of which are interpreted as the sender referenced by `@.from`."
                 }
             },
             "additionalProperties": false
@@ -1132,6 +1077,43 @@
             "title": "ID",
             "type": "string",
             "description": "An internal identifier that can be used either for clarity specifying what the element is or as a reference in device specific sections."
+        },
+
+        "stringValueOrMap": {
+            "title": "String Value or Map Reference",
+            "description": "A string, which can be a path to a constant in the ERC 7730 file, or a map reference resolving to a string.",
+            "anyOf": [
+                { "type": "string" },
+                { "$ref": "#/$format/mapReference" }
+            ]
+        },
+
+        "integerValueOrMap": {
+            "title": "Integer Value or Map Reference",
+            "description": "An integer, or a map reference resolving to an integer.",
+            "anyOf": [
+                { "type": "integer" },
+                { "$ref": "#/$format/mapReference" }
+            ]
+        },
+
+        "scalarValueOrMap": {
+            "title": "Scalar Value or Map Reference",
+            "description": "A string, number, integer or boolean, or a map reference resolving to one.",
+            "anyOf": [
+                { "type": ["string", "integer", "number", "boolean"] },
+                { "$ref": "#/$format/mapReference" }
+            ]
+        },
+
+        "stringOrArrayValueOrMap": {
+            "title": "String, Array of Strings, or Map Reference",
+            "description": "A string, an array of strings, or a map reference resolving to a string.",
+            "anyOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" } },
+                { "$ref": "#/$format/mapReference" }
+            ]
         }
     }
 }
