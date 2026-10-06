@@ -1,20 +1,15 @@
 {
     "$schema": "./erc7730-v3.0.0-next.schema.json",
 
-    "$comment": "A complete ERC-7730 file mixing the two ways a map can be keyed: `underlyingToken` is keyed on the deployment chain id (`@.chainId`), while `shareToken` is keyed on the called contract address (`@.to`). The address keys are ERC-55 checksummed and are matched case-insensitively against the value resolved from `@.to`, which carries no casing guarantee.",
+    "$comment": "A complete ERC-7730 file using maps. Two pools live on chain 1 and one on chain 137, so the underlying token and the share token are keyed on the called contract address (`@.to`): the chain id alone cannot tell the two chain 1 pools apart. The native currency sentinel differs per chain, so it is keyed on the chain id (`@.chainId`). Address keys are ERC-55 checksummed and matched ignoring the case of the digits against the value resolved from `@.to`, which carries no casing guarantee.",
 
     "context": {
         "$id": "Example Maps for Pools",
         "contract": {
             "deployments": [
-                {
-                    "chainId": 1,
-                    "address": "0x00112233445566778899AABbCCdDeeFf00112233"
-                },
-                {
-                    "chainId": 137,
-                    "address": "0xAAbbCCDdeEFf00112233445566778899aABBcCDd"
-                }
+                { "chainId": 1, "address": "0x00112233445566778899AABbCCdDeeFf00112233" },
+                { "chainId": 1, "address": "0xAAbbCCDdeEFf00112233445566778899aABBcCDd" },
+                { "chainId": 137, "address": "0x5566778899AaBbcCddeeFf001122334455667788" }
             ]
         }
     },
@@ -26,17 +21,26 @@
         },
         "maps": {
             "underlyingToken": {
-                "$keyType": "Chain ID",
+                "$keyType": "Called pool contract address",
                 "values": {
-                    "1": "0x00000000000000000000000000000000deadbeef",
-                    "137": "0x00000000000000000000000000000000feedface"
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "0x00000000000000000000000000000000DeaDBeef",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "0x00000000000000000000000000000000FEeDfAce"
                 }
             },
             "shareToken": {
                 "$keyType": "Called pool contract address",
                 "values": {
-                    "0x00112233445566778899AABbCCdDeeFf00112233": "0x00000000000000000000000000000000ABCDEF01",
-                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "0x00000000000000000000000000000000ABCDEF02"
+                    "0x00112233445566778899AABbCCdDeeFf00112233": "0x00000000000000000000000000000000ABcDEf01",
+                    "0xAAbbCCDdeEFf00112233445566778899aABBcCDd": "0x00000000000000000000000000000000ABCdef02",
+                    "0x5566778899AaBbcCddeeFf001122334455667788": "0x00000000000000000000000000000000abcdef03"
+                }
+            },
+            "nativeCurrency": {
+                "$keyType": "Chain ID",
+                "values": {
+                    "1": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                    "137": "0x0000000000000000000000000000000000001010"
                 }
             }
         }
@@ -55,6 +59,10 @@
                         "params": {
                             "token": {
                                 "map": "$.metadata.maps.underlyingToken",
+                                "keyPath": "@.to"
+                            },
+                            "nativeCurrencyAddress": {
+                                "map": "$.metadata.maps.nativeCurrency",
                                 "keyPath": "@.chainId"
                             }
                         }
