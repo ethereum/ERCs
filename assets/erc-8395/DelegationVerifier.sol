@@ -11,10 +11,15 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 /// attenuation, validity, revocation, request signatures and service permissions.
 /// No constructor arguments, storage or immutables: CREATE2 code is chain invariant.
 contract DelegationVerifier {
+    struct AudiencePermission {
+        string audience;
+        string[] permissions;
+    }
+
     struct Delegation {
         string issuer;
         string delegate;
-        string[] audiences;
+        AudiencePermission[] audiencePermissions;
         bytes32 id;
         uint64 epoch;
         uint64 validAfter;
@@ -24,13 +29,14 @@ contract DelegationVerifier {
         string delegateProfile;
         bool requireNonReplayable;
         string[] requiredComponents;
-        string[] permissions;
         bytes32 parentGrantHash;
     }
 
     bytes32 public constant DELEGATION_TYPEHASH = keccak256(
-        "Delegation(string issuer,string delegate,string[] audiences,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,string[] permissions,bytes32 parentGrantHash)"
+        "Delegation(string issuer,string delegate,AudiencePermission[] audiencePermissions,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,bytes32 parentGrantHash)AudiencePermission(string audience,string[] permissions)"
     );
+    bytes32 public constant AUDIENCE_PERMISSION_TYPEHASH =
+        keccak256("AudiencePermission(string audience,string[] permissions)");
     bytes32 private constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 private constant NAME_HASH = keccak256("ERC-8128 Delegation");
@@ -56,11 +62,11 @@ contract DelegationVerifier {
 
     function hashGrantStruct(Delegation calldata g) public pure returns (bytes32) {
         // Fixed-width words avoid stack pressure without changing EIP-712 encoding.
-        bytes32[15] memory words;
+        bytes32[14] memory words;
         words[0] = DELEGATION_TYPEHASH;
         words[1] = keccak256(bytes(g.issuer));
         words[2] = keccak256(bytes(g.delegate));
-        words[3] = _hashStrings(g.audiences);
+        words[3] = _hashAudiencePermissions(g.audiencePermissions);
         words[4] = g.id;
         words[5] = bytes32(uint256(g.epoch));
         words[6] = bytes32(uint256(g.validAfter));
@@ -70,8 +76,7 @@ contract DelegationVerifier {
         words[10] = keccak256(bytes(g.delegateProfile));
         words[11] = bytes32(uint256(g.requireNonReplayable ? 1 : 0));
         words[12] = _hashStrings(g.requiredComponents);
-        words[13] = _hashStrings(g.permissions);
-        words[14] = g.parentGrantHash;
+        words[13] = g.parentGrantHash;
         return keccak256(abi.encode(words));
     }
 
@@ -163,6 +168,20 @@ contract DelegationVerifier {
         )
     {
         return (0x0f, "ERC-8128 Delegation", "1", block.chainid, address(this), bytes32(0), new uint256[](0));
+    }
+
+    function _hashAudiencePermissions(AudiencePermission[] calldata entries) private pure returns (bytes32) {
+        bytes32[] memory hashes = new bytes32[](entries.length);
+        for (uint256 i; i < entries.length; ++i) {
+            hashes[i] = keccak256(
+                abi.encode(
+                    AUDIENCE_PERMISSION_TYPEHASH,
+                    keccak256(bytes(entries[i].audience)),
+                    _hashStrings(entries[i].permissions)
+                )
+            );
+        }
+        return keccak256(abi.encodePacked(hashes));
     }
 
     function _hashStrings(string[] calldata values) private pure returns (bytes32) {
