@@ -25,7 +25,8 @@ import {
     TooManyRequiredAnchors,
     BatchTrustorMismatch,
     BatchNonceNotIncreasing,
-    EmptyScopeList
+    EmptyScopeList,
+    NonceJumpTooLarge
 } from "../contracts/ITrustRegistry.sol";
 
 /// @notice Mock ENS registry
@@ -1228,6 +1229,46 @@ contract TrustRegistryTest is Test {
         registry.invalidateNonces(ALICE, 100);
 
         assertEq(registry.getNonce(ALICE), 100);
+    }
+
+    function test_InvalidateNonces_JumpTooLarge_Reverts() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(NonceJumpTooLarge.selector, uint64(1 + 2 ** 32 + 1), uint64(1 + 2 ** 32))
+        );
+        registry.invalidateNonces(ALICE, 1 + 2 ** 32 + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, type(uint64).max, uint64(1 + 2 ** 32)));
+        registry.invalidateNonces(ALICE, type(uint64).max);
+
+        assertEq(registry.getNonce(ALICE), 1, "floor unchanged");
+    }
+
+    function test_InvalidateNonces_MaxAllowedJump_Succeeds() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 1 + 2 ** 32);
+        assertEq(registry.getNonce(ALICE), 1 + 2 ** 32);
+
+        // The bound is relative to the current floor, so the call can be repeated
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 1 + 2 * 2 ** 32);
+        assertEq(registry.getNonce(ALICE), 1 + 2 * 2 ** 32);
+    }
+
+    /// @dev A floor within 2**32 of type(uint64).max caps the bound at the maximum
+    ///      rather than wrapping to a small value
+    function test_InvalidateNonces_NearUint64Max_NoOverflow() public {
+        uint64 nearMax = type(uint64).max - 10;
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, nearMax);
+
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, type(uint64).max);
+        assertEq(registry.getNonce(ALICE), type(uint64).max);
     }
 
     function test_InvalidateNonces_RevertsOnNonIncreasing() public {

@@ -59,6 +59,7 @@ error TooManyRequiredAnchors(uint256 provided);
 error BatchTrustorMismatch();
 error BatchNonceNotIncreasing();
 error EmptyScopeList();
+error NonceJumpTooLarge(uint64 provided, uint64 max);
 
 /// @title ENS Trust Registry Interface
 /// @notice Web of trust validation using ENS names for ERC-8001 coordination
@@ -144,7 +145,7 @@ interface ITrustRegistry is IERC165 {
     ///      Revocation alone does NOT invalidate attestations the trustor already signed
     ///      but has not yet submitted; this does.
     /// @param trustorNode The trustor's ENS namehash
-    /// @param newNonce The new nonce floor; MUST exceed the current nonce
+    /// @param newNonce The new nonce floor; MUST exceed the current nonce by at most 2**32
     function invalidateNonces(bytes32 trustorNode, uint64 newNonce) external;
 
     /// @notice Get trust record between two agents in a specific scope

@@ -24,7 +24,8 @@ import {
     TooManyRequiredAnchors,
     BatchTrustorMismatch,
     BatchNonceNotIncreasing,
-    EmptyScopeList
+    EmptyScopeList,
+    NonceJumpTooLarge
 } from "./ITrustRegistry.sol";
 
 /// @notice Minimal ENS registry interface (ERC-137)
@@ -67,6 +68,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
     /// @dev Upper bound on `ValidationParams.requiredAnchors.length`
     uint256 internal constant MAX_REQUIRED_ANCHORS = 10;
+
+    /// @dev Upper bound on how far one `invalidateNonces` call may raise the floor
+    uint64 internal constant MAX_NONCE_JUMP = 2 ** 32;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STORAGE
@@ -183,6 +187,10 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
         uint64 current = _nonces[trustorNode];
         if (newNonce <= current) revert NonceTooLow(newNonce, current + 1);
+
+        // Bounded so one call cannot exhaust the nonce space; caps rather than wraps
+        uint64 max = current > type(uint64).max - MAX_NONCE_JUMP ? type(uint64).max : current + MAX_NONCE_JUMP;
+        if (newNonce > max) revert NonceJumpTooLarge(newNonce, max);
 
         _nonces[trustorNode] = newNonce;
         emit NoncesInvalidated(trustorNode, newNonce);
