@@ -985,12 +985,12 @@
             "properties": {
                 "base": {
                     "title": "Unit base symbol",
-                    "type": "string",
+                    "$ref": "#/$definitions/stringValueOrMap",
                     "description": "The base symbol of the unit, displayed after the converted value. It can be an SI unit symbol or acceptable dimensionless symbols like % or bps."
                 },
                 "decimals": {
                     "title": "Decimals",
-                    "type": "integer",
+                    "$ref": "#/$definitions/integerValueOrMap",
                     "description": "The number of decimals of the value, used to convert to a float."
                 },
                 "prefix": {
