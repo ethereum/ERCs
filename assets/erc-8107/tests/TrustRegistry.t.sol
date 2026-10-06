@@ -91,6 +91,17 @@ contract MockNameWrapper is INameWrapper {
     }
 }
 
+/// @notice NameWrapper whose ownerOf reverts, standing in for a faulty wrapper
+contract RevertingNameWrapper is INameWrapper {
+    function ownerOf(uint256) external pure override returns (address) {
+        revert("ownerOf");
+    }
+
+    function isApprovedForAll(address, address) external pure override returns (bool) {
+        return false;
+    }
+}
+
 /// @notice Mock ERC-137 forward resolver
 contract MockResolver is IAddrResolver {
     mapping(bytes32 => address) private _addrs;
@@ -667,6 +678,21 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(level), uint8(TrustLevel.None));
     }
 
+    /// @dev A name with no registry owner has no controller, so nobody may revoke for it
+    function test_RevokeTrust_RevertsForUnregisteredName() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, GHOST, mallory));
+        registry.revokeTrust(GHOST, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    /// @dev An expired wrapped name has a registry owner but no controller
+    function test_RevokeTrust_RevertsForExpiredWrappedName() public {
+        _wrapName(WRAPPED, address(0));
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+    }
+
     function test_RevokeTrust_RevertsForStranger() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
 
@@ -1106,6 +1132,16 @@ contract TrustRegistryTest is Test {
                 coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
             )
         );
+    }
+
+    function test_ValidateParticipant_RejectsPathShorterThanTwoNodes() public {
+        _setGate(_defaultParams());
+        _bindAddr(ALICE, alice);
+        bytes32[] memory one = new bytes32[](1);
+        one[0] = ALICE;
+
+        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, ALICE, _path(one)));
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, alice, _path(one)));
     }
 
     function test_ValidateParticipant_RejectsPathNotStartingAtGatekeeper() public {
@@ -1552,6 +1588,19 @@ contract TrustRegistryTest is Test {
     /// @dev Only the pinned wrapper is unwrapped. A name held by a successor wrapper
     ///      resolves to that wrapper contract as a raw controller, which has no
     ///      EIP-1271, so even the successor's token holder cannot attest.
+    /// @dev A pinned NameWrapper whose ownerOf reverts yields no controller
+    function test_NameWrapper_RevertingOwnerOfHasNoAuthority() public {
+        RevertingNameWrapper faulty = new RevertingNameWrapper();
+        TrustRegistry r = new TrustRegistry(address(ens), address(faulty));
+        ens.setOwner(WRAPPED, address(faulty));
+
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _signWith(r, aliceKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        r.setTrust(att, sig);
+    }
+
     function test_NameWrapper_UnpinnedWrapperHasNoAuthority() public {
         MockNameWrapper successor = new MockNameWrapper();
         ens.setOwner(WRAPPED, address(successor));
