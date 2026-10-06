@@ -841,9 +841,9 @@ contract TrustRegistryTest is Test {
         assertTrue(enabled);
     }
 
-    /// @dev Reading a gate under the wrong coordinator yields an unconfigured gate,
-    ///      and an unconfigured gate is OPEN
-    function test_UnknownCoordinatorGateIsOpen() public {
+    /// @dev Reading a gate under the wrong coordinator finds no gate, and an
+    ///      unconfigured gate reverts rather than admitting the participant
+    function test_ValidateParticipant_WrongCoordinatorReverts() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_anchored()); // this gate would reject the path below
 
@@ -851,10 +851,9 @@ contract TrustRegistryTest is Test {
             registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB))),
             "the configured gate rejects"
         );
-        assertTrue(
-            registry.validateParticipantWithPath(otherCoordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB))),
-            "an unconfigured coordinator namespace is open"
-        );
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(otherCoordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB)));
     }
 
     function test_SetIdentityGate_RevertsOnInvalidParams() public {
@@ -888,8 +887,25 @@ contract TrustRegistryTest is Test {
     // Regression: the verdict is bound to participantNode
     // ───────────────────────────────────────────────────────────────────────────
 
-    function test_ValidateParticipant_OpenWhenNoGate() public view {
-        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, _path(_nodes2(ALICE, DAVE))));
+    function test_ValidateParticipant_RevertsWhenNoGate() public {
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, _path(_nodes2(ALICE, DAVE)));
+    }
+
+    /// @dev Removing a gate does not reopen the coordination type
+    function test_ValidateParticipant_RevertsAfterGateRemoved() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _setGate(_defaultParams());
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB))),
+            "the configured gate admits"
+        );
+
+        vm.prank(coordinator);
+        registry.removeIdentityGate(MEV_COORDINATION);
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB)));
     }
 
     function test_ValidateParticipant_AcceptsGatedPath() public {
@@ -1271,6 +1287,21 @@ contract TrustRegistryTest is Test {
         plain.setTrust(att, sig);
     }
 
+    /// @dev Only the pinned wrapper is unwrapped. A name held by a successor wrapper
+    ///      resolves to that wrapper contract as a raw controller, which has no
+    ///      EIP-1271, so even the successor's token holder cannot attest.
+    function test_NameWrapper_UnpinnedWrapperHasNoAuthority() public {
+        MockNameWrapper successor = new MockNameWrapper();
+        ens.setOwner(WRAPPED, address(successor));
+        successor.setWrappedOwner(WRAPPED, alice);
+
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(aliceKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
     // ───────────────────────────────────────────────────────────────────────────
     // Agent address resolution
     // ───────────────────────────────────────────────────────────────────────────
@@ -1377,14 +1408,11 @@ contract TrustRegistryTest is Test {
         );
     }
 
-    function test_ValidateParticipantAddress_OpenWhenNoGate() public {
+    function test_ValidateParticipantAddress_RevertsWhenNoGate() public {
         _bindAddr(CAROL, carol);
 
-        assertTrue(
-            registry.validateParticipantAddress(
-                otherCoordinator, MEV_COORDINATION, carol, _path(_nodes3(ALICE, BOB, CAROL))
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantAddress(otherCoordinator, MEV_COORDINATION, carol, _path(_nodes3(ALICE, BOB, CAROL)));
     }
 
     // ───────────────────────────────────────────────────────────────────────────
