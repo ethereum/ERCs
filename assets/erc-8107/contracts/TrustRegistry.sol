@@ -271,13 +271,8 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
         // Verify each edge
         for (uint256 i = 0; i < path.nodes.length - 1; i++) {
-            // Try scoped trust first
-            (TrustLevel level, uint64 expiry) = _getTrust(path.nodes[i], path.nodes[i + 1], params.scope);
-
-            // Fall back to universal scope if scoped trust not found
-            if (level == TrustLevel.Unknown && params.scope != bytes32(0)) {
-                (level, expiry) = _getTrust(path.nodes[i], path.nodes[i + 1], bytes32(0));
-            }
+            // Universal distrust, then a stored scoped record, then universal trust
+            (TrustLevel level, uint64 expiry) = _edgeTrust(path.nodes[i], path.nodes[i + 1], params.scope);
 
             // Edge must meet minimum trust level
             if (level < params.minEdgeTrust) return false;
@@ -303,6 +298,26 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
         // Anchors are part of the verdict, not a separate advisory signal
         return foundAnchor;
+    }
+
+    /// @dev The trust that applies to one edge when verifying in `scope`
+    function _edgeTrust(bytes32 from, bytes32 to, bytes32 scope)
+        internal
+        view
+        returns (TrustLevel level, uint64 expiry)
+    {
+        (TrustLevel u, uint64 uExp) = _getTrust(from, to, bytes32(0));
+        if (scope == bytes32(0)) return (u, uExp);
+
+        // 1. Universal distrust voids the edge in every scope
+        if (u == TrustLevel.None) return (TrustLevel.None, uExp);
+
+        // 2. Any stored scoped record is authoritative, expired or not
+        (TrustLevel s, uint64 sExp) = _getTrust(from, to, scope);
+        if (s != TrustLevel.Unknown) return (s, sExp);
+
+        // 3. Otherwise universal applies
+        return (u, uExp);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

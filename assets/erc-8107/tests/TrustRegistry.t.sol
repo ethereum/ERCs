@@ -728,7 +728,7 @@ contract TrustRegistryTest is Test {
         );
     }
 
-    function test_VerifyPath_ScopedRevocationOverridesUniversalTrust() public {
+    function test_ScopedRevoke_StillBlocksUniversalFallback() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 2);
 
@@ -737,6 +737,52 @@ contract TrustRegistryTest is Test {
 
         ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
         assertFalse(registry.verifyPath(_path(_nodes2(ALICE, BOB)), defi));
+        assertTrue(registry.verifyPath(_path(_nodes2(ALICE, BOB)), _defaultParams()), "universal scope unaffected");
+    }
+
+    /// @dev A universal revocation (e.g. COMPROMISED) voids the edge in every scope,
+    ///      including scopes holding a stored grant
+    function test_UniversalRevoke_BlocksScopedGrant() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
+
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, keccak256("COMPROMISED"));
+
+        ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
+        assertFalse(registry.verifyPath(_path(_nodes2(ALICE, BOB)), defi), "universal None overrides scoped Full");
+
+        // getTrust stays literal: the scoped record itself is unchanged
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, DEFI);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev Re-attesting at universal scope lifts the override, and the stored scoped
+    ///      record applies again
+    function test_UniversalReattest_RestoresScopedPath() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, keccak256("COMPROMISED"));
+
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 2);
+
+        ValidationParams memory strictDefi = _params(5, TrustLevel.Full, DEFI, true, new bytes32[](0));
+        assertTrue(
+            registry.verifyPath(_path(_nodes2(ALICE, BOB)), strictDefi),
+            "scoped Full applies once universal is not None"
+        );
+    }
+
+    /// @dev An expired scoped record is authoritative: the edge fails rather than
+    ///      widening to universal trust
+    function test_ExpiredScoped_DoesNotFallBack() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, DEFI, uint64(block.timestamp + 1 days), 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        vm.warp(block.timestamp + 2 days);
+
+        ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
+        assertFalse(registry.verifyPath(_path(_nodes2(ALICE, BOB)), defi), "expired scoped record must not fall back");
         assertTrue(registry.verifyPath(_path(_nodes2(ALICE, BOB)), _defaultParams()), "universal scope unaffected");
     }
 
