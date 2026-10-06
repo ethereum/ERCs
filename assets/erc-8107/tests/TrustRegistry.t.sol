@@ -1352,11 +1352,44 @@ contract TrustRegistryTest is Test {
     /// @dev A floor within 2**32 of type(uint64).max caps the bound at the maximum
     ///      rather than wrapping to a small value
     function test_InvalidateNonces_NearUint64Max_NoOverflow() public {
-        uint64 nearMax = type(uint64).max - 10;
-        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, nearMax);
+        _setNonceFloor(ALICE, type(uint64).max - 10);
 
         vm.prank(alice);
         registry.invalidateNonces(ALICE, type(uint64).max);
+        assertEq(registry.getNonce(ALICE), type(uint64).max);
+    }
+
+    /// @dev Places a nonce floor directly in storage. A floor near type(uint64).max
+    ///      cannot be reached through the bounded entry points in any practical number
+    ///      of calls, so overflow tests start from it. `_nonces` is at slot 3, after the
+    ///      two EIP712 fallback strings and `_trust`.
+    function _setNonceFloor(bytes32 node, uint64 floor) internal {
+        vm.store(address(registry), keccak256(abi.encode(node, uint256(3))), bytes32(uint256(floor)));
+        assertEq(registry.getNonce(node), floor, "storage slot for _nonces");
+    }
+
+    function test_SetTrust_NonceJumpTooLarge_Reverts() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        TrustAttestation memory att = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        bytes memory sig = _sign(aliceKey, att);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, type(uint64).max, uint64(1 + 2 ** 32)));
+        registry.setTrust(att, sig);
+
+        assertEq(registry.getNonce(ALICE), 1, "floor unchanged");
+    }
+
+    function test_SetTrust_MaxAllowedNonceJump_Succeeds() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 1 + 2 ** 32);
+        assertEq(registry.getNonce(ALICE), 1 + 2 ** 32);
+    }
+
+    /// @dev Near type(uint64).max the attestation bound caps rather than wrapping
+    function test_SetTrust_NearUint64Max_NoOverflow() public {
+        _setNonceFloor(ALICE, type(uint64).max - 10);
+
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, type(uint64).max);
         assertEq(registry.getNonce(ALICE), type(uint64).max);
     }
 
@@ -1804,9 +1837,15 @@ contract TrustRegistryTest is Test {
         registry.setTrust(att, hex"dead");
     }
 
+    function test_RevertOrder_SetTrust_6_NonceJumpTooLarge() public {
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2 ** 32 + 1);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, uint64(2 ** 32 + 1), uint64(2 ** 32)));
+        registry.setTrust(att, hex"dead");
+    }
+
     /// @dev An expired wrapped name has a registry owner (the NameWrapper), so it
-    ///      passes row 4 and fails at the signature: controllerOf returns zero
-    function test_RevertOrder_SetTrust_6_InvalidSignature() public {
+    ///      passes rows 4-6 and fails at the signature: controllerOf returns zero
+    function test_RevertOrder_SetTrust_7_InvalidSignature() public {
         _wrapName(WRAPPED, address(0));
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         bytes memory sig = _sign(aliceKey, att);

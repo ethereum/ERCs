@@ -71,7 +71,8 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @dev Upper bound on `ValidationParams.requiredAnchors.length`
     uint256 internal constant MAX_REQUIRED_ANCHORS = 10;
 
-    /// @dev Upper bound on how far one `invalidateNonces` call may raise the floor
+    /// @dev Upper bound on how far one attestation or `invalidateNonces` call may
+    ///      raise the nonce floor
     uint64 internal constant MAX_NONCE_JUMP = 2 ** 32;
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -197,8 +198,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         uint64 current = _nonces[trustorNode];
         if (newNonce <= current) revert NonceTooLow(newNonce, current + 1);
 
-        // Bounded so one call cannot exhaust the nonce space; caps rather than wraps
-        uint64 max = current > type(uint64).max - MAX_NONCE_JUMP ? type(uint64).max : current + MAX_NONCE_JUMP;
+        uint64 max = _maxNonce(current);
         if (newNonce > max) revert NonceJumpTooLarge(newNonce, max);
 
         _nonces[trustorNode] = newNonce;
@@ -509,6 +509,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         uint64 currentNonce = _nonces[attestation.trustorNode];
         if (attestation.nonce <= currentNonce) revert NonceTooLow(attestation.nonce, currentNonce + 1);
 
+        uint64 maxNonce = _maxNonce(currentNonce);
+        if (attestation.nonce > maxNonce) revert NonceJumpTooLarge(attestation.nonce, maxNonce);
+
         // Covers an expired wrapped name too: controllerOf returns address(0)
         if (!verifySignature(attestation.trustorNode, hashAttestation(attestation), signature)) {
             revert InvalidSignature();
@@ -581,6 +584,13 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         }
 
         return ens.isApprovedForAll(controller, caller);
+    }
+
+    /// @dev Highest nonce the floor may move to from `current` in one step. Bounded so
+    ///      no single signature or call can exhaust the nonce space; caps at
+    ///      type(uint64).max rather than wrapping.
+    function _maxNonce(uint64 current) internal pure returns (uint64) {
+        return current > type(uint64).max - MAX_NONCE_JUMP ? type(uint64).max : current + MAX_NONCE_JUMP;
     }
 
     /// @dev Controller only - authority for trustor-wide operations

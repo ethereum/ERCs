@@ -116,6 +116,7 @@ interface ITrustRegistry is IERC165 {
     /// @dev Signature MUST be from the name controller (controllerOf), or validate via
     ///      ERC-1271 when that controller is a contract.
     ///      `level` MUST be Marginal or Full; distrust goes through revokeTrust.
+    ///      `nonce` MUST exceed the current nonce by at most 2**32.
     /// @param attestation The trust attestation
     /// @param signature EIP-712 signature from the trustor's name controller (controllerOf)
     function setTrust(TrustAttestation calldata attestation, bytes calldata signature) external;
