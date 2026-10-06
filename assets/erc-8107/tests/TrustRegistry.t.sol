@@ -187,12 +187,7 @@ contract TrustRegistryTest is Test {
         returns (TrustAttestation memory)
     {
         return TrustAttestation({
-            trustorNode: trustor,
-            trusteeNode: trustee,
-            level: level,
-            scope: scope,
-            expiry: expiry,
-            nonce: nonce
+            trustorNode: trustor, trusteeNode: trustee, level: level, scope: scope, expiry: expiry, nonce: nonce
         });
     }
 
@@ -251,11 +246,7 @@ contract TrustRegistryTest is Test {
         (n[0], n[1], n[2], n[3]) = (a, b, c, d);
     }
 
-    function _signWith(TrustRegistry r, uint256 key, TrustAttestation memory att)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _signWith(TrustRegistry r, uint256 key, TrustAttestation memory att) internal view returns (bytes memory) {
         (uint8 v, bytes32 rr, bytes32 ss) = vm.sign(key, r.hashAttestation(att));
         return abi.encodePacked(rr, ss, v);
     }
@@ -794,7 +785,8 @@ contract TrustRegistryTest is Test {
         );
         _setGate(_defaultParams());
 
-        (bytes32 gatekeeper, ValidationParams memory p, bool enabled) = registry.getIdentityGate(coordinator, MEV_COORDINATION);
+        (bytes32 gatekeeper, ValidationParams memory p, bool enabled) =
+            registry.getIdentityGate(coordinator, MEV_COORDINATION);
         assertEq(gatekeeper, ALICE);
         assertEq(p.maxPathLength, 5);
         assertTrue(enabled);
@@ -913,14 +905,20 @@ contract TrustRegistryTest is Test {
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_defaultParams());
 
-        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))));
+        assertTrue(
+            registry.validateParticipantWithPath(
+                coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
+            )
+        );
     }
 
     function test_ValidateParticipant_RejectsPathNotStartingAtGatekeeper() public {
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_defaultParams());
 
-        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes2(BOB, CAROL))));
+        assertFalse(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes2(BOB, CAROL)))
+        );
     }
 
     /// @dev Core regression. A sound path from the gatekeeper to CAROL says nothing
@@ -932,7 +930,9 @@ contract TrustRegistryTest is Test {
 
         TrustPath memory soundPath = _path(_nodes3(ALICE, BOB, CAROL));
 
-        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, soundPath), "valid for CAROL");
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, soundPath), "valid for CAROL"
+        );
         assertFalse(
             registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, soundPath),
             "the same path must not admit DAVE"
@@ -944,7 +944,11 @@ contract TrustRegistryTest is Test {
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_anchored());
 
-        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))));
+        assertFalse(
+            registry.validateParticipantWithPath(
+                coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
+            )
+        );
     }
 
     function test_ValidateParticipant_RejectsRevokedParticipant() public {
@@ -955,7 +959,11 @@ contract TrustRegistryTest is Test {
         vm.prank(bob);
         registry.revokeTrust(BOB, CAROL, UNIVERSAL, keccak256("MISBEHAVIOR"));
 
-        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))));
+        assertFalse(
+            registry.validateParticipantWithPath(
+                coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
+            )
+        );
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -1101,7 +1109,7 @@ contract TrustRegistryTest is Test {
     /// @dev Controller-only. An approved operator may revoke relationships, whose effect
     ///      is bounded to one trustee, but MUST NOT void the trustor's entire
     ///      outstanding attestation set.
-    function test_InvalidateNonces_RejectsApprovedOperator() public {
+    function test_Operator_CannotInvalidateNonces() public {
         vm.prank(alice);
         ens.setApprovalForAll(mallory, true);
 
@@ -1412,7 +1420,9 @@ contract TrustRegistryTest is Test {
         _bindAddr(CAROL, carol);
 
         vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
-        registry.validateParticipantAddress(otherCoordinator, MEV_COORDINATION, carol, _path(_nodes3(ALICE, BOB, CAROL)));
+        registry.validateParticipantAddress(
+            otherCoordinator, MEV_COORDINATION, carol, _path(_nodes3(ALICE, BOB, CAROL))
+        );
     }
 
     // ───────────────────────────────────────────────────────────────────────────

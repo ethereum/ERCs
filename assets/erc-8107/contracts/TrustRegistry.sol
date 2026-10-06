@@ -142,7 +142,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     }
 
     /// @inheritdoc ITrustRegistry
-    /// @dev Revocation is caller-authorised (ENS owner or approved operator), not
+    /// @dev Revocation is caller-authorised (name controller or approved operator), not
     ///      signature-authorised. Approvals may submit revocations but can never
     ///      forge an attestation signature.
     function revokeTrust(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode)
