@@ -512,7 +512,12 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         record.setAt = uint64(block.timestamp);
 
         emit TrustSet(
-            attestation.trustorNode, attestation.trusteeNode, attestation.level, attestation.scope, attestation.expiry
+            attestation.trustorNode,
+            attestation.trusteeNode,
+            attestation.level,
+            attestation.scope,
+            attestation.expiry,
+            attestation.nonce
         );
     }
 

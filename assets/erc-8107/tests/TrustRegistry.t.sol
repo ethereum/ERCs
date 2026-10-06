@@ -301,7 +301,7 @@ contract TrustRegistryTest is Test {
         TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
 
         vm.expectEmit(true, true, true, true);
-        emit ITrustRegistry.TrustSet(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0);
+        emit ITrustRegistry.TrustSet(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         registry.setTrust(att, _sign(aliceKey, att));
 
         (TrustLevel level, uint64 expiry) = registry.getTrust(ALICE, BOB, UNIVERSAL);
@@ -516,6 +516,12 @@ contract TrustRegistryTest is Test {
             sigs[i] = _sign(aliceKey, atts[i]);
         }
 
+        for (uint256 i = 0; i < 3; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit ITrustRegistry.TrustSet(
+                atts[i].trustorNode, atts[i].trusteeNode, atts[i].level, atts[i].scope, 0, atts[i].nonce
+            );
+        }
         registry.setTrustBatch(atts, sigs);
 
         assertEq(registry.getNonce(ALICE), 3);
