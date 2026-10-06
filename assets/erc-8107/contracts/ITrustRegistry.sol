@@ -56,6 +56,8 @@ error GateNotFound(bytes32 coordinationType);
 error InvalidMaxPathLength(uint8 provided);
 error InvalidMinEdgeTrust(TrustLevel provided);
 error TooManyRequiredAnchors(uint256 provided);
+error BatchLengthMismatch();
+error EmptyBatch();
 error BatchTrustorMismatch();
 error BatchNonceNotIncreasing();
 error EmptyScopeList();

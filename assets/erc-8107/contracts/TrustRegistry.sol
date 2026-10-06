@@ -22,6 +22,8 @@ import {
     InvalidMaxPathLength,
     InvalidMinEdgeTrust,
     TooManyRequiredAnchors,
+    BatchLengthMismatch,
+    EmptyBatch,
     BatchTrustorMismatch,
     BatchNonceNotIncreasing,
     EmptyScopeList,
@@ -134,13 +136,20 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @inheritdoc ITrustRegistry
     function setTrustBatch(TrustAttestation[] calldata attestations, bytes[] calldata signatures) external override {
         uint256 n = attestations.length;
-        if (n != signatures.length) revert BatchTrustorMismatch();
-        if (n == 0) return;
+        if (n != signatures.length) revert BatchLengthMismatch();
+        if (n == 0) revert EmptyBatch();
 
+        // Batch-level checks run over the whole batch, in the specified order, before
+        // any item is applied
         bytes32 trustor = attestations[0].trustorNode;
-        for (uint256 i = 0; i < n; i++) {
+        for (uint256 i = 1; i < n; i++) {
             if (attestations[i].trustorNode != trustor) revert BatchTrustorMismatch();
-            if (i > 0 && attestations[i].nonce <= attestations[i - 1].nonce) revert BatchNonceNotIncreasing();
+        }
+        for (uint256 i = 1; i < n; i++) {
+            if (attestations[i].nonce <= attestations[i - 1].nonce) revert BatchNonceNotIncreasing();
+        }
+
+        for (uint256 i = 0; i < n; i++) {
             _setTrust(attestations[i], signatures[i]);
         }
     }
@@ -491,15 +500,16 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
             revert InvalidAttestationLevel(attestation.level);
         }
 
-        uint64 currentNonce = _nonces[attestation.trustorNode];
-        if (attestation.nonce <= currentNonce) revert NonceTooLow(attestation.nonce, currentNonce + 1);
-
         if (attestation.expiry != 0 && attestation.expiry <= block.timestamp) {
             revert AttestationExpired(attestation.expiry, uint64(block.timestamp));
         }
 
-        if (controllerOf(attestation.trustorNode) == address(0)) revert ENSNameNotFound(attestation.trustorNode);
+        if (ens.owner(attestation.trustorNode) == address(0)) revert ENSNameNotFound(attestation.trustorNode);
 
+        uint64 currentNonce = _nonces[attestation.trustorNode];
+        if (attestation.nonce <= currentNonce) revert NonceTooLow(attestation.nonce, currentNonce + 1);
+
+        // Covers an expired wrapped name too: controllerOf returns address(0)
         if (!verifySignature(attestation.trustorNode, hashAttestation(attestation), signature)) {
             revert InvalidSignature();
         }

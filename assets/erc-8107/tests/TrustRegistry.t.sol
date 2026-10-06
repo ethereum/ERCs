@@ -23,6 +23,8 @@ import {
     InvalidMaxPathLength,
     InvalidMinEdgeTrust,
     TooManyRequiredAnchors,
+    BatchLengthMismatch,
+    EmptyBatch,
     BatchTrustorMismatch,
     BatchNonceNotIncreasing,
     EmptyScopeList,
@@ -581,7 +583,7 @@ contract TrustRegistryTest is Test {
         atts[1] = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, 2);
         sigs[0] = _sign(aliceKey, atts[0]);
 
-        vm.expectRevert(BatchTrustorMismatch.selector);
+        vm.expectRevert(BatchLengthMismatch.selector);
         registry.setTrustBatch(atts, sigs);
     }
 
@@ -1482,7 +1484,7 @@ contract TrustRegistryTest is Test {
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         bytes memory sig = _sign(aliceKey, att);
 
-        vm.expectRevert(abi.encodeWithSelector(ENSNameNotFound.selector, WRAPPED));
+        vm.expectRevert(InvalidSignature.selector);
         registry.setTrust(att, sig);
     }
 
@@ -1716,6 +1718,170 @@ contract TrustRegistryTest is Test {
         registry.supportsInterface(type(ITrustRegistry).interfaceId);
         uint256 used = before - gasleft();
         assertLt(used, 30_000, "supportsInterface must stay under the ERC-165 budget");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Revert order (Errors, "Revert Order"). Each test violates its row AND every
+    // later row, so it passes only if the checks run in the specified order.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    function test_RevertOrder_SetTrust_1_SelfTrustProhibited() public {
+        TrustAttestation memory att = _att(GHOST, GHOST, TrustLevel.None, UNIVERSAL, 1, 0);
+        vm.expectRevert(SelfTrustProhibited.selector);
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_2_InvalidAttestationLevel() public {
+        TrustAttestation memory att = _att(GHOST, BOB, TrustLevel.Unknown, UNIVERSAL, 1, 0);
+        vm.expectRevert(abi.encodeWithSelector(InvalidAttestationLevel.selector, TrustLevel.Unknown));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_3_AttestationExpired() public {
+        TrustAttestation memory att = _att(GHOST, BOB, TrustLevel.Full, UNIVERSAL, 1, 0);
+        vm.expectRevert(abi.encodeWithSelector(AttestationExpired.selector, uint64(1), uint64(block.timestamp)));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_4_ENSNameNotFound() public {
+        TrustAttestation memory att = _att(GHOST, BOB, TrustLevel.Full, UNIVERSAL, 0, 0);
+        vm.expectRevert(abi.encodeWithSelector(ENSNameNotFound.selector, GHOST));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_5_NonceTooLow() public {
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 0);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(0), uint64(1)));
+        registry.setTrust(att, hex"dead");
+    }
+
+    /// @dev An expired wrapped name has a registry owner (the NameWrapper), so it
+    ///      passes row 4 and fails at the signature: controllerOf returns zero
+    function test_RevertOrder_SetTrust_6_InvalidSignature() public {
+        _wrapName(WRAPPED, address(0));
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(aliceKey, att);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    function test_RevertOrder_SetTrustBatch_1_BatchLengthMismatch() public {
+        vm.expectRevert(BatchLengthMismatch.selector);
+        registry.setTrustBatch(new TrustAttestation[](0), new bytes[](1));
+    }
+
+    function test_RevertOrder_SetTrustBatch_2_EmptyBatch() public {
+        vm.expectRevert(EmptyBatch.selector);
+        registry.setTrustBatch(new TrustAttestation[](0), new bytes[](0));
+    }
+
+    /// @dev The nonce regression at index 1 comes before the trustor mismatch at index 2
+    function test_RevertOrder_SetTrustBatch_3_BatchTrustorMismatch() public {
+        TrustAttestation[] memory atts = new TrustAttestation[](3);
+        atts[0] = _att(ALICE, ALICE, TrustLevel.None, UNIVERSAL, 0, 5);
+        atts[1] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 3);
+        atts[2] = _att(BOB, CAROL, TrustLevel.Full, UNIVERSAL, 0, 9);
+        vm.expectRevert(BatchTrustorMismatch.selector);
+        registry.setTrustBatch(atts, new bytes[](3));
+    }
+
+    /// @dev Item 0 would fail setTrust, but the batch-level nonce check runs first
+    function test_RevertOrder_SetTrustBatch_4_BatchNonceNotIncreasing() public {
+        TrustAttestation[] memory atts = new TrustAttestation[](2);
+        atts[0] = _att(ALICE, ALICE, TrustLevel.None, UNIVERSAL, 0, 2);
+        atts[1] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        vm.expectRevert(BatchNonceNotIncreasing.selector);
+        registry.setTrustBatch(atts, new bytes[](2));
+    }
+
+    /// @dev A valid first item is rolled back when a later item fails setTrust
+    function test_RevertOrder_SetTrustBatch_5_PerItemSetTrustChecks() public {
+        TrustAttestation[] memory atts = new TrustAttestation[](2);
+        bytes[] memory sigs = new bytes[](2);
+        atts[0] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        atts[1] = _att(ALICE, ALICE, TrustLevel.None, UNIVERSAL, 1, 2);
+        sigs[0] = _sign(aliceKey, atts[0]);
+        vm.expectRevert(SelfTrustProhibited.selector);
+        registry.setTrustBatch(atts, sigs);
+        assertEq(registry.getNonce(ALICE), 0, "nothing applied");
+    }
+
+    function test_RevertOrder_RevokeTrust_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    function test_RevertOrder_RevokeTrustBatch_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.revokeTrustBatch(ALICE, BOB, new bytes32[](0), bytes32(0));
+    }
+
+    function test_RevertOrder_RevokeTrustBatch_2_EmptyScopeList() public {
+        vm.prank(alice);
+        vm.expectRevert(EmptyScopeList.selector);
+        registry.revokeTrustBatch(ALICE, BOB, new bytes32[](0), bytes32(0));
+    }
+
+    function test_RevertOrder_InvalidateNonces_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.invalidateNonces(ALICE, 0);
+    }
+
+    function test_RevertOrder_InvalidateNonces_2_NonceTooLow() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(0), uint64(1)));
+        registry.invalidateNonces(ALICE, 0);
+    }
+
+    function test_RevertOrder_InvalidateNonces_3_NonceJumpTooLarge() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, type(uint64).max, uint64(2 ** 32)));
+        registry.invalidateNonces(ALICE, type(uint64).max);
+    }
+
+    /// @dev Rows 1-3 for both setIdentityGate and verifyPath, each with every later
+    ///      constraint also violated
+    function test_RevertOrder_ValidationParams_1to3() public {
+        bytes32[] memory tooMany = new bytes32[](11);
+        TrustPath memory p = _path(_nodes2(ALICE, BOB));
+        ValidationParams[3] memory bad = [
+            _params(0, TrustLevel.Unknown, UNIVERSAL, true, tooMany),
+            _params(5, TrustLevel.Unknown, UNIVERSAL, true, tooMany),
+            _params(5, TrustLevel.Marginal, UNIVERSAL, true, tooMany)
+        ];
+        bytes[3] memory expected = [
+            abi.encodeWithSelector(InvalidMaxPathLength.selector, uint8(0)),
+            abi.encodeWithSelector(InvalidMinEdgeTrust.selector, TrustLevel.Unknown),
+            abi.encodeWithSelector(TooManyRequiredAnchors.selector, uint256(11))
+        ];
+        for (uint256 i = 0; i < 3; i++) {
+            vm.expectRevert(expected[i]);
+            registry.verifyPath(p, bad[i]);
+
+            vm.prank(coordinator);
+            vm.expectRevert(expected[i]);
+            registry.setIdentityGate(MEV_COORDINATION, ALICE, bad[i]);
+        }
+    }
+
+    function test_RevertOrder_RemoveIdentityGate_1_GateNotFound() public {
+        vm.prank(coordinator);
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.removeIdentityGate(MEV_COORDINATION);
+    }
+
+    /// @dev GateNotFound comes before every return-false condition
+    function test_RevertOrder_ValidateParticipant_1_GateNotFound() public {
+        TrustPath memory empty = _path(new bytes32[](0));
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, empty);
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantAddress(coordinator, MEV_COORDINATION, address(0), empty);
     }
 
     // ───────────────────────────────────────────────────────────────────────────
