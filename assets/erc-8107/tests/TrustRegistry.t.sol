@@ -1322,6 +1322,24 @@ contract TrustRegistryTest is Test {
         registry.setTrust(att, sig);
     }
 
+    /// @dev DOCUMENTED BEHAVIOUR, NOT A BUG (see Security Considerations, "Expired
+    ///      Unwrapped Names"). An unwrapped .eth name's expiry lives in the
+    ///      BaseRegistrar, keyed by labelhash; the registry sees only the namehash.
+    ///      ens.owner(node) keeps returning the lapsed holder until the name is
+    ///      re-registered and reclaimed, so the lapsed holder can still attest.
+    function test_UnwrappedExpiredName_RetainsAuthority() public {
+        // ALICE is unwrapped; MockENS, like the real registry, keeps the owner record
+        uint256 notionalExpiry = block.timestamp + 365 days;
+        vm.warp(notionalExpiry + 91 days); // past expiry and the 90-day grace period
+        assertEq(ens.owner(ALICE), alice, "registry owner persists after expiry");
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "lapsed holder still attests");
+    }
+
     /// @dev Operator approvals for a wrapped name live on the NameWrapper
     function test_NameWrapper_ApprovalsRouteThroughWrapper() public {
         _wrapName(WRAPPED, alice);
