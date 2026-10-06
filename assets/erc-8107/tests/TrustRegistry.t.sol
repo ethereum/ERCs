@@ -1271,6 +1271,21 @@ contract TrustRegistryTest is Test {
         plain.setTrust(att, sig);
     }
 
+    /// @dev Only the pinned wrapper is unwrapped. A name held by a successor wrapper
+    ///      resolves to that wrapper contract as a raw controller, which has no
+    ///      EIP-1271, so even the successor's token holder cannot attest.
+    function test_NameWrapper_UnpinnedWrapperHasNoAuthority() public {
+        MockNameWrapper successor = new MockNameWrapper();
+        ens.setOwner(WRAPPED, address(successor));
+        successor.setWrappedOwner(WRAPPED, alice);
+
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(aliceKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
     // ───────────────────────────────────────────────────────────────────────────
     // Agent address resolution
     // ───────────────────────────────────────────────────────────────────────────
