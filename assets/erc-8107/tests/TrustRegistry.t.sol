@@ -978,7 +978,8 @@ contract TrustRegistryTest is Test {
 
     /// @dev Reading a gate under the wrong coordinator finds no gate, and an
     ///      unconfigured gate reverts rather than admitting the participant
-    function test_ValidateParticipant_WrongCoordinatorReverts() public {
+    /// @dev Fails closed: reading under the wrong coordinator reverts with GateNotFound
+    function test_WrongCoordinator_FailsClosed() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_anchored()); // this gate would reject the path below
 
@@ -1028,7 +1029,8 @@ contract TrustRegistryTest is Test {
     }
 
     /// @dev Removing a gate does not reopen the coordination type
-    function test_ValidateParticipant_RevertsAfterGateRemoved() public {
+    /// @dev Fails closed: a removed gate reverts with GateNotFound rather than admitting
+    function test_RemovedGate_FailsClosed() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_defaultParams());
         assertTrue(
