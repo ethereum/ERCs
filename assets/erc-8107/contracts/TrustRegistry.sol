@@ -515,16 +515,15 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
     /// @dev Verify signature - signing authority is the name controller only
     function verifySignature(bytes32 node, bytes32 digest, bytes calldata signature) internal view returns (bool) {
-        address controller = controllerOf(node); // unwraps NameWrapper names
+        address controller = controllerOf(node);
         if (controller == address(0)) return false;
 
-        // EOA controller
-        if (controller.code.length == 0) {
-            (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(digest, signature);
-            return err == ECDSA.RecoverError.NoError && recovered == controller;
-        }
+        // ECDSA first: covers plain EOAs and EIP-7702 delegated EOAs
+        (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(digest, signature);
+        if (err == ECDSA.RecoverError.NoError && recovered == controller) return true;
 
-        // Contract controller - delegate to EIP-1271
+        // ERC-1271 fallback for any controller with code
+        if (controller.code.length == 0) return false;
         try IERC1271(controller).isValidSignature(digest, signature) returns (bytes4 magic) {
             return magic == IERC1271.isValidSignature.selector;
         } catch {

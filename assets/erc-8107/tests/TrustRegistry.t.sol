@@ -123,6 +123,27 @@ contract MockSmartWallet is IERC1271 {
     }
 }
 
+/// @notice EIP-7702 delegate with no ERC-1271 support, like most account delegates
+contract Delegate7702Plain {
+    function execute(address target, bytes calldata data) external returns (bytes memory) {
+        (, bytes memory result) = target.call(data);
+        return result;
+    }
+}
+
+/// @notice EIP-7702 delegate that validates a non-ECDSA credential through ERC-1271
+/// @dev Stands in for a passkey or session-key scheme: it accepts
+///      `abi.encode(PASSKEY_DOMAIN, digest)`, which ECDSA cannot recover
+contract Delegate7702ERC1271 is IERC1271 {
+    bytes32 public constant PASSKEY_DOMAIN = keccak256("passkey");
+
+    function isValidSignature(bytes32 digest, bytes memory signature) external pure override returns (bytes4) {
+        return keccak256(signature) == keccak256(abi.encode(PASSKEY_DOMAIN, digest))
+            ? IERC1271.isValidSignature.selector
+            : bytes4(0xffffffff);
+    }
+}
+
 contract TrustRegistryTest is Test {
     TrustRegistry internal registry;
     MockENS internal ens;
@@ -383,6 +404,55 @@ contract TrustRegistryTest is Test {
 
         vm.expectRevert(InvalidSignature.selector);
         registry.setTrust(att, sig);
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // EIP-7702 delegated EOAs and signature malleability
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Give `eoa` an EIP-7702 delegation designator (0xef0100 || delegate)
+    function _delegate7702(address eoa, address delegate) internal {
+        vm.etch(eoa, abi.encodePacked(hex"ef0100", delegate));
+        assertGt(eoa.code.length, 0, "delegated EOA has code");
+    }
+
+    /// @dev The delegate has no isValidSignature, so an ERC-1271-first check would fail
+    function test_7702DelegatedEOA_ECDSAAccepted() public {
+        _delegate7702(alice, address(new Delegate7702Plain()));
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev ECDSA fails on a non-ECDSA credential, so verification falls back to ERC-1271
+    function test_7702DelegatedEOA_1271Accepted() public {
+        Delegate7702ERC1271 delegate = new Delegate7702ERC1271();
+        _delegate7702(alice, address(delegate));
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory credential = abi.encode(delegate.PASSKEY_DOMAIN(), registry.hashAttestation(att));
+        registry.setTrust(att, credential);
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev The malleated twin (n - s, flipped v) recovers the same signer but MUST be rejected
+    function test_HighS_Rejected() public {
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes32 digest = registry.hashAttestation(att);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, digest);
+
+        uint256 n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+        bytes32 highS = bytes32(n - uint256(s));
+        uint8 flippedV = v == 27 ? 28 : 27;
+        assertEq(ecrecover(digest, flippedV, r, highS), alice, "malleated signature recovers alice");
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, abi.encodePacked(r, highS, flippedV));
     }
 
     /// @dev Scope is part of the storage key, so levels are independent per scope
