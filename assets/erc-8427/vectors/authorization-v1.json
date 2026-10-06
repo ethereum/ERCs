@@ -2,7 +2,7 @@
   "version": 1,
   "encodeType": "SpendAuthorization(bytes32 grantHash,address asset,uint256 amount,address recipient,uint256 nonce,uint256 deadline)",
   "domain": {
-    "name": "SpendGrantAuthorizationExecutor",
+    "name": "SpendAuthorization",
     "version": "1"
   },
   "vectors": [
@@ -18,10 +18,10 @@
         "nonce": "7",
         "deadline": "1800000000"
       },
-      "domainSeparator": "0x5fd5b3a486931cd5600c3ab9e1092b651cc22a72b8b52a18f2b05426d6d2f517",
+      "domainSeparator": "0xd7b8a05a0382a9f8cbfa8894f971e75d21d40ef83be94bea1847179acffef701",
       "structHash": "0x3e0311ac7d616fe97d7ffbf65bd866299c62facfec2e27db08d6648b92b8e786",
-      "digest": "0xe27a93e7c811985454b8c36db8d44f096e46133e7378a412e5e1eae4bb23d7ae",
-      "signature": "0x1e11678298ab7236a433fc65ea20aa76b216a0d5e1f7d1fedb67d34481ac23863425569075552b6d29246729593e4111778bcc3b88337d3479fd12372989cba91b",
+      "digest": "0x4f996f46cc8afb3b25b00ce8544deb9f11f7db26782900a4c318781fee36b8ed",
+      "signature": "0xf3bf3bd7ed14637c6928921004957cf38e80e72a061e6a6c2bc92e60b587382a4f8aaf4d6349eff6c652acfa29830e25327acfb5b0377134c0cb5e16a4fe06111c",
       "signer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
     }
   ]

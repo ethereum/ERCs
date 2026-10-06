@@ -73,6 +73,7 @@ interface ISpendGrantRegistry {
     );
 
     function executor() external view returns (address);
+    function hashGrant(SpendGrant calldata grant) external view returns (bytes32);
     function revoke(bytes32 grantHash) external;
     function revoked(address principal, bytes32 grantHash) external view returns (bool);
     function usage(bytes32 grantHash, address asset) external view returns (uint256 spent, uint256 calls);

@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {AssetLimit, SpendGrant} from "../src/SpendGrantTypes.sol";
 import {SpendGrantHash} from "../src/SpendGrantHash.sol";
+import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {HashHarness} from "./HashHarness.sol";
 
 contract SpendGrantHashTest is Test {
@@ -87,6 +88,10 @@ contract SpendGrantHashTest is Test {
             assertEq(harness.hashStruct(m), structHash);
             assertEq(harness.digest(chainId, registry, m), digest_);
             assertEq(SpendGrantHash.digest(chainId, registry, m), digest_);
+
+            // The registry's own view, with its code placed at the vector's registry address, agrees.
+            vm.etch(registry, address(new SpendGrantRegistry(address(1))).code);
+            assertEq(SpendGrantRegistry(registry).hashGrant(m), digest_);
 
             if (i == 2) {
                 bytes memory sig = vm.parseJsonBytes(json, string.concat(p, ".signature"));

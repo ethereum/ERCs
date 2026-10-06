@@ -370,6 +370,32 @@ contract SpendGrantSemanticsTest is Test {
         assertEq(ret, abi.encodeWithSelector(SpendGrantError.selector, Reason.REVOKED));
     }
 
+    // ---------------------------------------------------------------- the registry's own hash
+
+    function test_hashGrant_isTheHashConsumeAndRevokeUse() public {
+        SpendGrant memory m = _grant(address(registry));
+        bytes memory sig = _sign(PRINCIPAL_PK, m, address(registry));
+        bytes32 h = registry.hashGrant(m);
+        assertEq(h, _hash(m, address(registry)));
+
+        // The value consume keys usage and its event on.
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit GrantConsumed(h, principal, NATIVE, 1, recipient);
+        registry.consume(m, sig, delegate, NATIVE, 1, recipient);
+        (uint256 spent,) = registry.usage(h, NATIVE);
+        assertEq(spent, 1);
+
+        // It is bound to this registry: the same grant hashes differently on another.
+        assertTrue(execRegistry.hashGrant(m) != h);
+
+        // A wallet revokes what the registry reports, and the grant is then revoked.
+        vm.prank(principal);
+        registry.revoke(h);
+        assertTrue(registry.revoked(principal, h));
+        _expect(Reason.REVOKED);
+        registry.consume(m, sig, delegate, NATIVE, 1, recipient);
+    }
+
     // ---------------------------------------------------------------- helpers
 
     function _grant(address) internal view returns (SpendGrant memory m) {

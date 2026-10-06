@@ -45,6 +45,13 @@ contract SpendGrantRegistry is ISpendGrantRegistry {
         return EXECUTOR;
     }
 
+    /// @notice The `grantHash` this registry computes for `grant` on this chain: the value `consume`
+    /// validates the signature over, keys usage on, and looks up in `revoked`. A wallet revokes this value
+    /// rather than one it computed itself, because `revoke` cannot tell a wrong hash from a right one.
+    function hashGrant(SpendGrant calldata grant) external view returns (bytes32) {
+        return SpendGrantHash.digest(block.chainid, address(this), grant);
+    }
+
     function revoke(bytes32 grantHash) external {
         if (revoked[msg.sender][grantHash]) return;
         revoked[msg.sender][grantHash] = true;
