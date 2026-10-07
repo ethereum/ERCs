@@ -1588,6 +1588,9 @@
                             "schema": {
                                 "$ref": "#/$customEncoding/node"
                             },
+                            "visible": {
+                                "$ref": "#/$format/rules"
+                            },
                             "label": {
                                 "type": "string"
                             },
