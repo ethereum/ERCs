@@ -1518,7 +1518,7 @@
                         "le"
                     ]
                 },
-                "fields": {
+                "bitranges": {
                     "type": "array",
                     "items": {
                         "oneOf": [
@@ -1572,7 +1572,7 @@
             },
             "required": [
                 "type",
-                "fields"
+                "bitranges"
             ],
             "oneOf": [
                 {
@@ -1594,7 +1594,7 @@
                 "type": {
                     "const": "object"
                 },
-                "fields": {
+                "entries": {
                     "type": "array",
                     "items": {
                         "type": "object",
@@ -1634,7 +1634,7 @@
             },
             "required": [
                 "type",
-                "fields"
+                "entries"
             ],
             "additionalProperties": false
         },

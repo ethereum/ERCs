@@ -55,7 +55,7 @@
                         "customEncoding": {
                             "type": "bitfield",
                             "bytes": 20,
-                            "fields": [
+                            "bitranges": [
                                 { "name": "beforeInitialize", "bit": 13 },
                                 { "name": "afterInitialize",  "bit": 12 },
                                 { "name": "beforeAddLiquidity",  "bit": 11 },

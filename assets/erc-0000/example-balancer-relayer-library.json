@@ -39,7 +39,7 @@
                         "label": "Signed authorization",
                         "customEncoding": {
                             "type": "object",
-                            "fields": [
+                            "entries": [
                                 {
                                     "name": "deadline",
                                     "schema": {
@@ -90,7 +90,7 @@
                         "label": "Pool",
                         "customEncoding": {
                             "type": "object",
-                            "fields": [
+                            "entries": [
                                 {
                                     "name": "poolAddress",
                                     "schema": {
@@ -241,7 +241,7 @@
                         "label": "Pool",
                         "customEncoding": {
                             "type": "object",
-                            "fields": [
+                            "entries": [
                                 {
                                     "name": "poolAddress",
                                     "schema": {

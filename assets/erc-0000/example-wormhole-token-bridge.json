@@ -29,7 +29,7 @@
                         "label": "Signed message (VAA)",
                         "customEncoding": {
                             "type": "object",
-                            "fields": [
+                            "entries": [
                                 {
                                     "name": "numSignatures",
                                     "offset": 5,
@@ -42,7 +42,7 @@
                                         "countFrom": "numSignatures",
                                         "element": {
                                             "type": "object",
-                                            "fields": [
+                                            "entries": [
                                                 { "name": "guardianIndex", "schema": { "type": "uint", "bytes": 1 } },
                                                 { "name": "r", "schema": { "type": "bytes", "length": 32 } },
                                                 { "name": "s", "schema": { "type": "bytes", "length": 32 } },
@@ -90,7 +90,7 @@
                                             "0x01": {
                                                 "customEncoding": {
                                                     "type": "object",
-                                                    "fields": [
+                                                    "entries": [
                                                         {
                                                             "name": "amount",
                                                             "schema": { "type": "uint", "bytes": 32 },

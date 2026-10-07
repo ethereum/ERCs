@@ -33,7 +33,7 @@
                         "label": "Mode",
                         "customEncoding": {
                             "type": "object",
-                            "fields": [
+                            "entries": [
                                 {
                                     "name": "callType",
                                     "schema": {
@@ -83,7 +83,7 @@
                                 "0x00": {
                                     "customEncoding": {
                                         "type": "object",
-                                        "fields": [
+                                        "entries": [
                                             {
                                                 "name": "target",
                                                 "schema": {
@@ -131,7 +131,7 @@
                                 "0xff": {
                                     "customEncoding": {
                                         "type": "object",
-                                        "fields": [
+                                        "entries": [
                                             {
                                                 "name": "target",
                                                 "schema": {
