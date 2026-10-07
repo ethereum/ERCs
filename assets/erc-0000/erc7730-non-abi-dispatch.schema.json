@@ -1501,9 +1501,16 @@
                     "const": "bitfield"
                 },
                 "bytes": {
+                    "description": "Width of the value in bytes. Exactly one of `bytes` and `bitwidth` MUST be present.",
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 32
+                },
+                "bitwidth": {
+                    "description": "Width of the value in bits. The node consumes ceil(bitwidth / 8) bytes; the unused most significant bits are padding. Exactly one of `bytes` and `bitwidth` MUST be present.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 256
                 },
                 "endian": {
                     "enum": [
@@ -1546,6 +1553,11 @@
                                         },
                                         "minItems": 2,
                                         "maxItems": 2
+                                    },
+                                    "signed": {
+                                        "description": "If true, the bit range is decoded as a two's complement signed integer instead of an unsigned one.",
+                                        "type": "boolean",
+                                        "default": false
                                     }
                                 },
                                 "required": [
@@ -1560,8 +1572,19 @@
             },
             "required": [
                 "type",
-                "bytes",
                 "fields"
+            ],
+            "oneOf": [
+                {
+                    "required": [
+                        "bytes"
+                    ]
+                },
+                {
+                    "required": [
+                        "bitwidth"
+                    ]
+                }
             ],
             "additionalProperties": false
         },
