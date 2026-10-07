@@ -27,6 +27,13 @@
 //    by the ISSUER before subjectWindow.until and holds exactly one entry for the facet's key
 //    tag = keccak256(abi.encode(subject, facetType, from, until)); otherwise the facet is downgraded to
 //    `integrity-only` with `exclusivity` = undeclared | missing | duplicate. Without log access: unchecked.
+//    Two entries under one tag are a duplicate UNLESS the later one carries `supersedes` = the earlier
+//    one's content: then it is a supersession chain and only the latest unsuperseded entry can be current.
+//  - SUPERSESSION: a facet named by another facet's `supersedes` (same issuer) — in the document or as a
+//    later entry in the issuer's declared log — is history, marked `supersededBy`, even inside its window.
+//    A `supersedes` naming a facet of a different issuer is ignored and reported.
+//  - FINALITY: `finality` is reported (absent = "final"); a provisional facet may be current but is never
+//    presented as final.
 const fs = require("fs");
 const { ethers } = require("ethers");
 const { canonicalize } = require("../jcs");
@@ -190,9 +197,30 @@ function exclusivityOf(facet, subject, ctx) {
   const tag = logTag({ ...facet, subject });
   const hits = entries.filter((e) => e.tag.toLowerCase() === tag.toLowerCase());
   if (hits.length === 0) return { exclusivity: "missing" };
-  if (hits.length > 1) return { exclusivity: "duplicate" };
-  if (hits[0].content.toLowerCase() !== facet.digest.toLowerCase()) return { exclusivity: "missing", exclusivityReason: "entry content differs from facet digest" };
-  return { exclusivity: "unique" };
+  const lc = (x) => String(x || "").toLowerCase();
+  const mine = hits.find((e) => lc(e.content) === lc(facet.digest));
+  if (!mine) return { exclusivity: "missing", exclusivityReason: "entry content differs from facet digest" };
+  // supersession chain: every entry except the first must supersede another entry of the same tag; otherwise equivocation
+  const contents = new Set(hits.map((e) => lc(e.content)));
+  const unlinked = hits.filter((e) => !e.supersedes || !contents.has(lc(e.supersedes)));
+  if (unlinked.length > 1) return { exclusivity: "duplicate" };
+  const later = hits.find((e) => lc(e.supersedes) === lc(facet.digest));
+  if (later) return { exclusivity: "superseded", supersededBy: later.content };
+  return { exclusivity: hits.length > 1 ? "unique-latest" : "unique" };
+}
+
+/** Document-side supersession: map digest -> { by, issuer } for facets superseded by a same-issuer facet. */
+function supersessionMap(facets) {
+  const byDigest = new Map(facets.map((f) => [String(f.digest).toLowerCase(), f]));
+  const out = new Map(); const rejected = [];
+  for (const f of facets) {
+    if (!f.supersedes) continue;
+    const target = byDigest.get(String(f.supersedes).toLowerCase());
+    if (!target) continue;
+    if (target.issuer !== f.issuer) { rejected.push({ facetType: f.facetType, supersedes: f.supersedes, reason: "cross-issuer supersession ignored" }); continue; }
+    out.set(String(f.supersedes).toLowerCase(), f.digest);
+  }
+  return { out, rejected };
 }
 
 /** Clock tolerance of each anchor kind, in seconds (see the ERC, "timing"): the resolver subtracts it before deciding. */
@@ -236,9 +264,19 @@ async function resolveSnapshot(snap, now, ctx = {}) {
   }
   const facets = { current: [], history: [], invalid: [], unattributable: [] };
   const listed = document ? document.facets || [] : [];
+  const sup = supersessionMap(listed);
+  for (const r of sup.rejected) reasons.push(`supersedes ignored (${r.facetType}): ${r.reason}`);
   for (const f of listed) {
-    const tag = { ...f, verified: f.provenance !== "SELF" ? undefined : false };
+    const tag = { ...f, verified: f.provenance !== "SELF" ? undefined : false, finality: f.finality || "final" };
     if (!f.validUntil || !Number.isFinite(f.validUntil)) { facets.invalid.push({ ...tag, reason: "missing validUntil" }); continue; }
+    // supersession visible in the document (same issuer)
+    const by = sup.out.get(String(f.digest).toLowerCase());
+    if (by) { facets.history.push({ ...tag, supersededBy: by, reason: "superseded" }); continue; }
+    // supersession visible only in the issuer's declared log
+    if (f.committedAt && f.committedAt.log) {
+      const ex = exclusivityOf(f, snap.aid, ctx);
+      if (ex.exclusivity === "superseded") { facets.history.push({ ...tag, ...ex, reason: "superseded in issuer log" }); continue; }
+    }
     if (f.validFrom && f.validFrom > now) { facets.invalid.push({ ...tag, reason: "not yet valid" }); continue; }
     // on-chain self facet record must agree with the document when present
     const key = ethers.keccak256(ethers.toUtf8Bytes(f.facetType));
@@ -299,5 +337,5 @@ async function main() {
   console.log(JSON.stringify(await resolveSnapshot(snap, now, ctx), null, 2));
 }
 
-module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, logTag, STATE };
+module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, supersessionMap, logTag, STATE };
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });

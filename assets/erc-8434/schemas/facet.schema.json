@@ -126,6 +126,18 @@
         }
       }
     },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$",
+      "description": "digest of an earlier facet by the SAME issuer that this facet replaces; a superseded facet is history even inside its window"
+    },
+    "finality": {
+      "enum": [
+        "provisional",
+        "final"
+      ],
+      "description": "absent = final. Domain state machines (e.g. proposed/disputed/final) live in the facet type's content schema."
+    },
     "digest": {
       "type": "string",
       "pattern": "^0x[0-9a-fA-F]{64}$",
