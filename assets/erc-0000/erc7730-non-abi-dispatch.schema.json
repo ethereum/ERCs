@@ -1526,11 +1526,24 @@
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
                                     },
                                     "bit": {
                                         "type": "integer",
                                         "minimum": 0
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    },
+                                    "format": {
+                                        "$ref": "#/$format/names"
+                                    },
+                                    "params": {
+                                        "type": "object"
+                                    },
+                                    "visible": {
+                                        "$ref": "#/$format/rules"
                                     }
                                 },
                                 "required": [
@@ -1543,7 +1556,8 @@
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
                                     },
                                     "bits": {
                                         "type": "array",
@@ -1558,6 +1572,18 @@
                                         "description": "If true, the bit range is decoded as a two's complement signed integer instead of an unsigned one.",
                                         "type": "boolean",
                                         "default": false
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    },
+                                    "format": {
+                                        "$ref": "#/$format/names"
+                                    },
+                                    "params": {
+                                        "type": "object"
+                                    },
+                                    "visible": {
+                                        "$ref": "#/$format/rules"
                                     }
                                 },
                                 "required": [
@@ -1600,7 +1626,8 @@
                         "type": "object",
                         "properties": {
                             "name": {
-                                "type": "string"
+                                "type": "string",
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
                             },
                             "offset": {
                                 "description": "Number of bytes to skip from the current position in the buffer before decoding this entry. Skipped bytes are consumed but not decoded. Defaults to 0.",
