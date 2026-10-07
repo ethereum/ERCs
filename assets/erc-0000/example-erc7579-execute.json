@@ -100,7 +100,8 @@
                                             {
                                                 "name": "callData",
                                                 "schema": {
-                                                    "type": "bytes"
+                                                    "type": "bytes",
+                                                    "toEnd": true
                                                 },
                                                 "label": "Execution",
                                                 "format": "calldata",
@@ -141,7 +142,8 @@
                                             {
                                                 "name": "callData",
                                                 "schema": {
-                                                    "type": "bytes"
+                                                    "type": "bytes",
+                                                    "toEnd": true
                                                 },
                                                 "label": "Execution",
                                                 "format": "calldata",
