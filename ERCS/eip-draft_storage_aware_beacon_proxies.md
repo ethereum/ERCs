@@ -1,4 +1,5 @@
 ---
+eip: 8438
 title: Storage-Aware Beacon Proxies
 description: Beacon proxies that coordinate fleet-wide implementation upgrades with per-proxy storage upgrades
 author: Ashutosh Ukey (@ashutosh-ukey), Huawei Gu (@huaweigu), Andrew Klein (@andrewkleincircle), Weikang Song (@weikangsong)
