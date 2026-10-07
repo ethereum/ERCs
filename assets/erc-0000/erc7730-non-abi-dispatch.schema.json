@@ -1579,6 +1579,12 @@
                             "name": {
                                 "type": "string"
                             },
+                            "offset": {
+                                "description": "Number of bytes to skip from the current position in the buffer before decoding this entry. Skipped bytes are consumed but not decoded. Defaults to 0.",
+                                "type": "integer",
+                                "minimum": 0,
+                                "default": 0
+                            },
                             "schema": {
                                 "$ref": "#/$customEncoding/node"
                             },

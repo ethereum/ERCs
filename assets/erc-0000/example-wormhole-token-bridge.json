@@ -31,15 +31,8 @@
                             "type": "object",
                             "fields": [
                                 {
-                                    "name": "version",
-                                    "schema": { "type": "uint", "bytes": 1 }
-                                },
-                                {
-                                    "name": "guardianSetIndex",
-                                    "schema": { "type": "uint", "bytes": 4 }
-                                },
-                                {
                                     "name": "numSignatures",
+                                    "offset": 5,
                                     "schema": { "type": "uint", "bytes": 1 }
                                 },
                                 {
