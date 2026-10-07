@@ -1,0 +1,32 @@
+{
+  "schemaId": "0xf8d52ce839f9cd138e0870ac859214827049064c10d86fe04977bba2fff89293",
+  "schemaVersion": "2",
+  "claimVariant": "backing.credit",
+  "assetId": "0x7e646f4f719d1da5c21d22509ef7c11e9e20934c981c2d8341f7ac31832a5474",
+  "claimVersion": 1,
+  "attestorProfile": "independent receivables-verification agent",
+  "authoredAt": "2026-10-07T14:00:00Z",
+  "dataAppliesAt": "2026-10-06T00:00:00Z",
+  "accessClassification": "PERMISSIONED_DISCLOSURE",
+  "data": {
+    "backingType": "RECEIVABLES_POOL",
+    "instrument": { "type": "RECEIVABLES", "jurisdiction": "CO" },
+    "evidence": {
+      "contentHash": "0x1a3f9c2b7d4e5061728394a5b6c7d8e9f0112233445566778899aabbccddeeff",
+      "hashAlgorithm": "SHA-256",
+      "cid": "bafybeigdyrsyntheticexampleonly",
+      "uri": "ipfs://bafybeigdyrsyntheticexampleonly"
+    },
+    "coverage": {
+      "basis": "NOMINAL",
+      "backedAmount": "1200000000",
+      "backedCurrency": "COP",
+      "referenceAmount": "1000000000",
+      "referenceCurrency": "COP"
+    },
+    "encumbrance": { "status": "NONE", "beneficiaryKnown": true },
+    "holderRef": {
+      "recordedHolderHash": "0x9b2c4e6a8d0f1234567890abcdef1234567890abcdef1234567890abcdef1234"
+    }
+  }
+}
