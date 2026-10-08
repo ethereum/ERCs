@@ -26,8 +26,13 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
 
     error UnsupportedAction(bytes4 selector);
     error InvalidData();
-    error CannotExecute(address agent, address target, bytes4 selector, uint256 amount);
+    error CannotExecute(
+        address agent, address target, bytes4 selector, uint256 amount, IAgentMandate.MandateReason reason
+    );
     error CallFailed(bytes returnData);
+
+    /// @notice Emitted when an action's execution spec is set, so the trusted amount-position registry is auditable.
+    event ActionConfigured(bytes4 indexed selector, bool supported, bool hasAmount, uint8 amountIndex);
 
     constructor(IAgentMandate _rams, address _principal, address owner_) Ownable(owner_) {
         rams = _rams;
@@ -38,6 +43,7 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
     ///         like the enforcer role.
     function setAction(bytes4 selector, bool supported, bool hasAmount, uint8 amountIndex) external onlyOwner {
         actions[selector] = ActionSpec({supported: supported, hasAmount: hasAmount, amountIndex: amountIndex});
+        emit ActionConfigured(selector, supported, hasAmount, amountIndex);
     }
 
     /// @inheritdoc IAgentExecutor
@@ -52,15 +58,17 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
         uint256 amount = spec.hasAmount ? _amountArg(data, spec.amountIndex) : 0;
         bytes32 action = bytes32(selector);
 
-        if (!rams.canExecute(agent, principal, target, action, amount)) {
-            revert CannotExecute(agent, target, selector, amount);
+        (bool ok, IAgentMandate.MandateReason reason) = rams.canExecute(agent, principal, target, action, amount);
+        if (!ok) {
+            revert CannotExecute(agent, target, selector, amount, reason);
         }
 
         rams.recordExecution(agent, principal, action, amount);
 
-        (bool ok, bytes memory ret) = target.call(data);
-        if (!ok) revert CallFailed(ret);
-        return ret;
+        bytes memory returnData;
+        (ok, returnData) = target.call(data);
+        if (!ok) revert CallFailed(returnData);
+        return returnData;
     }
 
     /// @dev A uint256 argument sits at 4 + 32*index in calldata, so this reads the amount by index.
