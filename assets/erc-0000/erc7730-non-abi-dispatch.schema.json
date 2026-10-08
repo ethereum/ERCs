@@ -1404,6 +1404,9 @@
                     "$ref": "#/$customEncoding/bytes"
                 },
                 {
+                    "$ref": "#/$customEncoding/string"
+                },
+                {
                     "$ref": "#/$customEncoding/address"
                 },
                 {
@@ -1490,6 +1493,26 @@
                     ]
                 }
             ]
+        },
+        "string": {
+            "title": "UTF-8 text, with trailing zero bytes removed when the width is fixed",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "const": "string"
+                },
+                "length": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "lengthFrom": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "type"
+            ],
+            "additionalProperties": false
         },
         "address": {
             "type": "object",
