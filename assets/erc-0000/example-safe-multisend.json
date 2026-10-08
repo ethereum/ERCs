@@ -68,10 +68,10 @@
                                         "label": "A Safe multi-call sub-call data",
                                         "format": "calldata",
                                         "params": {
-                                            "calleePath": "to",
-                                            "amountPath": "value",
+                                            "calleePath": "~.to",
+                                            "amountPath": "~.value",
                                             "operation": {
-                                                "expression": "^.operation",
+                                                "expression": "~.operation",
                                                 "cases": {
                                                     "0x01": "DELEGATECALL",
                                                     "$default": "CALL"

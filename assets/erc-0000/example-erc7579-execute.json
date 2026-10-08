@@ -106,8 +106,8 @@
                                                 "label": "Execution",
                                                 "format": "calldata",
                                                 "params": {
-                                                    "calleePath": "target",
-                                                    "amountPath": "value"
+                                                    "calleePath": "~.target",
+                                                    "amountPath": "~.value"
                                                 }
                                             }
                                         ]
@@ -118,12 +118,12 @@
                                         "intent": "Execute batch",
                                         "fields": [
                                             {
-                                                "path": ".[].callData",
+                                                "path": "~.[].callData",
                                                 "label": "Batched call data",
                                                 "format": "calldata",
                                                 "params": {
-                                                    "calleePath": ".[].target",
-                                                    "amountPath": ".[].value"
+                                                    "calleePath": "~.[].target",
+                                                    "amountPath": "~.[].value"
                                                 }
                                             }
                                         ]
@@ -148,7 +148,7 @@
                                                 "label": "Execution",
                                                 "format": "calldata",
                                                 "params": {
-                                                    "calleePath": "target",
+                                                    "calleePath": "~.target",
                                                     "operation": "DELEGATECALL"
                                                 }
                                             }
