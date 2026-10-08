@@ -1507,12 +1507,33 @@
                 },
                 "lengthFrom": {
                     "type": "string"
+                },
+                "toEnd": {
+                    "description": "If true, the node consumes all remaining bytes of its buffer, so it MUST be the last entry of its enclosing object.",
+                    "const": true
                 }
             },
             "required": [
                 "type"
             ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "oneOf": [
+                {
+                    "required": [
+                        "length"
+                    ]
+                },
+                {
+                    "required": [
+                        "lengthFrom"
+                    ]
+                },
+                {
+                    "required": [
+                        "toEnd"
+                    ]
+                }
+            ]
         },
         "address": {
             "type": "object",
