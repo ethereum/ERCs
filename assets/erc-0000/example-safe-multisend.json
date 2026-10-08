@@ -65,7 +65,7 @@
                                             "type": "bytes",
                                             "lengthFrom": "dataLength"
                                         },
-                                        "label": "Batched call data",
+                                        "label": "A Safe multi-call sub-call data",
                                         "format": "calldata",
                                         "params": {
                                             "calleePath": "to",
