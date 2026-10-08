@@ -18,20 +18,29 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
     bytes32 public constant FREEZING_ROLE = keccak256("FREEZING_ROLE");
     bytes32 public constant WHITELIST_ROLE = keccak256("WHITELIST_ROLE");
-    bytes32 public constant FORCE_TRANSFER_ROLE = keccak256("FORCE_TRANSFER_ROLE");  
+    bytes32 public constant FORCE_TRANSFER_ROLE = keccak256("FORCE_TRANSFER_ROLE");
 
-    /// @notice Mapping storing the whitelist status for each account address.
-    /// @dev True indicates the account is whitelisted and allowed to interact, false otherwise.
-    mapping(address account => bool whitelisted) internal _whitelist;
+    /// @notice Mapping storing the send whitelist status for each account address.
+    /// @dev True indicates the account is allowed to send tokens, false otherwise.
+    mapping(address account => bool allowed) internal _sendWhitelist;
+
+    /// @notice Mapping storing the receive whitelist status for each account address.
+    /// @dev True indicates the account is allowed to receive tokens, false otherwise.
+    mapping(address account => bool allowed) internal _receiveWhitelist;
 
     /// @notice Mapping storing the freezing status of assets for each account address.
     /// @dev It gives true or false on whether the `tokenId` is frozen for `account`.
     mapping(address account => mapping(uint256 tokenId => bool frozen)) internal _frozenTokens;
 
-    /// @notice Emitted when an account's whitelist status is changed.
+    /// @notice Emitted when an account's send whitelist status is changed.
     /// @param account The address whose status was changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    event Whitelisted(address indexed account, bool status);
+    event SendWhitelisted(address indexed account, bool status);
+
+    /// @notice Emitted when an account's receive whitelist status is changed.
+    /// @param account The address whose status was changed.
+    /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
+    event ReceiveWhitelisted(address indexed account, bool status);
 
     /// @notice Contract constructor.
     /// @dev Initializes the ERC-721 token with name and symbol, and grants all roles
@@ -53,14 +62,19 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
         address owner = _ownerOf(tokenId);
         if (owner != from || owner == address(0)) return allowed;
         if (getFrozenTokens(from, tokenId)) return allowed;
-        if (!canTransact(from) || !canTransact(to)) return allowed;
+        if (!canSend(from) || !canReceive(to)) return allowed;
 
         allowed = true;
     }
 
     /// @inheritdoc IERC7943NonFungible
-    function canTransact(address account) public view virtual override returns (bool allowed) {
-        allowed = _whitelist[account] ? true : false;
+    function canSend(address account) public view virtual override returns (bool allowed) {
+        allowed = _sendWhitelist[account];
+    }
+
+    /// @inheritdoc IERC7943NonFungible
+    function canReceive(address account) public view virtual override returns (bool allowed) {
+        allowed = _receiveWhitelist[account];
     }
 
     /// @inheritdoc IERC7943NonFungible
@@ -68,19 +82,29 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
         frozenStatus = _frozenTokens[account][tokenId];
     }
 
-    /// @notice Updates the whitelist status for a given account.
+    /// @notice Updates the send whitelist status for a given account.
     /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
-    /// Emits a {Whitelisted} event upon successful update.
+    /// Emits a {SendWhitelisted} event upon successful update.
     /// @param account The address whose whitelist status is to be changed.
     /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
-    function changeWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
-        _whitelist[account] = status;
-        emit Whitelisted(account, status);
+    function changeSendWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
+        _sendWhitelist[account] = status;
+        emit SendWhitelisted(account, status);
+    }
+
+    /// @notice Updates the receive whitelist status for a given account.
+    /// @dev Can only be called by accounts holding the `WHITELIST_ROLE`.
+    /// Emits a {ReceiveWhitelisted} event upon successful update.
+    /// @param account The address whose whitelist status is to be changed.
+    /// @param status The new whitelist status (true = whitelisted, false = not whitelisted).
+    function changeReceiveWhitelist(address account, bool status) external onlyRole(WHITELIST_ROLE) {
+        _receiveWhitelist[account] = status;
+        emit ReceiveWhitelisted(account, status);
     }
 
     /// @notice Safely creates a new token with `tokenId` and assigns it to `to`.
     /// @dev Can only be called by accounts holding the `MINTER_ROLE`.
-    /// Requires `to` to be allowed according to {canTransact} (enforced by the `_update` hook).
+    /// Requires `to` to be allowed according to {canReceive} (enforced by the `_update` hook).
     /// Performs an ERC721 receiver check on `to` if it is a contract.
     /// Emits a {Transfer} event with `from` set to the zero address.
     /// @param to The address that will receive the minted token.
@@ -93,15 +117,15 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     /// @dev Can only be called by accounts holding the `BURNER_ROLE`.
     /// Requires the caller (`_msgSender()`) to be the owner or approved for `tokenId`.
     /// Emits a {Transfer} event with `to` set to the zero address.
-    /// @param tokenId The specific token identifier to burn. 
+    /// @param tokenId The specific token identifier to burn.
     function burn(uint256 tokenId) external onlyRole(BURNER_ROLE) {
-        address previousOwner = _update(address(0), tokenId, _msgSender()); 
+        address previousOwner = _update(address(0), tokenId, _msgSender());
         if (previousOwner == address(0)) revert ERC721NonexistentToken(tokenId);
     }
 
     /// @inheritdoc IERC7943NonFungible
     /// @dev Can only be called by accounts holding the `FREEZING_ROLE`
-    function setFrozenTokens(address account, uint256 tokenId, bool frozenStatus) public virtual override onlyRole(FREEZING_ROLE) returns(bool result) {        
+    function setFrozenTokens(address account, uint256 tokenId, bool frozenStatus) public virtual override onlyRole(FREEZING_ROLE) returns(bool result) {
         _frozenTokens[account][tokenId] = frozenStatus;
         emit Frozen(account, tokenId, frozenStatus);
         result = true;
@@ -112,7 +136,7 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     function forcedTransfer(address from, address to, uint256 tokenId) public virtual override onlyRole(FORCE_TRANSFER_ROLE) returns(bool result) {
         require(to != address(0), ERC721InvalidReceiver(address(0)));
         require(from != address(0), ERC721InvalidSender(address(0)));
-        require(canTransact(to), ERC7943CannotTransact(to));
+        require(canReceive(to), ERC7943CannotReceive(to));
         require(ownerOf(tokenId) == from, ERC721IncorrectOwner(from, tokenId, ownerOf(tokenId)));
         _excessFrozenUpdate(from , tokenId);
         super._update(to, tokenId, address(0)); // Skip _update override
@@ -136,8 +160,8 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
     }
 
     /// @notice Hook that is called during any token transfer, including minting and burning.
-    /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer} and {canTransact} logic.
-    /// Reverts with {ERC721IncorrectOwner} | {ERC7943InsufficientUnfrozenBalance} | {ERC7943CannotTransact} if any `canTransfer`/`canTransact` or other check fails.
+    /// @dev Overrides the ERC-721 `_update` hook. Enforces transfer restrictions based on {canTransfer}, {canSend} and {canReceive} logic.
+    /// Reverts with {ERC721IncorrectOwner} | {ERC7943InsufficientUnfrozenBalance} | {ERC7943CannotSend} | {ERC7943CannotReceive} if any check fails.
     /// @param to The address receiving tokens (zero address for burning).
     /// @param tokenId The ID of the token being transferred.
     /// @param auth The address initiating the transfer.
@@ -149,14 +173,15 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
         }
 
         if (from == address(0) && to != address(0)) { // Mint
-            require(canTransact(to), ERC7943CannotTransact(to));
+            require(canReceive(to), ERC7943CannotReceive(to));
         } else if (from != address(0) && to == address(0)) { // Burn
+            require(canSend(from), ERC7943CannotSend(from));
             _excessFrozenUpdate(from, tokenId);
         } else if (from != address(0) && to != address(0)) { // Transfer
             require(from == _ownerOf(tokenId), ERC721IncorrectOwner(from, tokenId, _ownerOf(tokenId)));
             require(!getFrozenTokens(from, tokenId), ERC7943InsufficientUnfrozenBalance(from, tokenId));
-            require(canTransact(from), ERC7943CannotTransact(from));
-            require(canTransact(to), ERC7943CannotTransact(to));
+            require(canSend(from), ERC7943CannotSend(from));
+            require(canReceive(to), ERC7943CannotReceive(to));
         } else {
             revert ERC721NonexistentToken(tokenId);
         }
