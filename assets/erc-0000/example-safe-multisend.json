@@ -71,7 +71,7 @@
                                             "calleePath": "to",
                                             "amountPath": "value",
                                             "operation": {
-                                                "expression": "operation",
+                                                "expression": "^.operation",
                                                 "cases": {
                                                     "0x01": "DELEGATECALL",
                                                     "$default": "CALL"
