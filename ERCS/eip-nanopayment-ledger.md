@@ -50,12 +50,9 @@ Any address may submit an individual request or Batch with all required signatur
 
 #### 2.1 Overview
 
-1. The user requests a payment through a participating institution.
-2. The payer institution, payee institution, and Payment Network verify the transaction and sign the request.
-3. A submitter sends the authorized request on-chain, individually or in a batch.
-4. The ledger validates the request and signatures, posts the accounting entries, and emits the corresponding events.
-5. Institutions call `flush` on their agreed schedules to close their on-chain statements.
-6. Off-chain fiat systems use the reconciled statements to perform settlement.
+![Payment lifecycle overview](../assets/eip-nanopayment-ledger/overview.svg)
+
+[PlantUML source](../assets/eip-nanopayment-ledger/overview.puml)
 
 #### 2.2 Three-Party Accounting with Four Accounts
 
@@ -248,19 +245,18 @@ The interpretation of amounts MUST be immutable for each Ledger deployment. The 
 
 ##### 1. Transaction Authorization
 
-1. The user initiates a payment or refund request through the Acquirer.
-2. The Acquirer verifies the merchant-side transaction and sends the request and its signature to the Payment Network.
-3. The Payment Network forwards the same request to the Wallet for verification and signature.
-4. The Wallet verifies the user-side transaction and returns its signature.
-5. The Payment Network verifies network rules, signs the same request, and collects all three parties' signatures.
+![Transaction authorization sequence](../assets/eip-nanopayment-ledger/transaction-authorization.svg)
+
+[PlantUML source](../assets/eip-nanopayment-ledger/transaction-authorization.puml)
 
 1. **Illustrative allocation of responsibilities**: The Network collects signatures and submits requests in this example; neither the business entry point nor the signing order is fixed.
 2. **Open collection and submission**: Any participant or service may perform either function, and the two responsibilities may be separated.
 
 ##### 2. On-Chain Posting
 
-6. The Payment Network calls `pay` or `refund` with the request and all three parties' signatures.
-7. The ledger validates the request and signatures, updates all four accounts and the individual transaction state, and emits `PaymentPosted` or `RefundPosted`.
+![On-chain posting sequence](../assets/eip-nanopayment-ledger/on-chain-posting.svg)
+
+[PlantUML source](../assets/eip-nanopayment-ledger/on-chain-posting.puml)
 
 1. **Calling does not replace signing**: All three parties MUST authorize the same complete digest. The Network MUST supply its signature even when it submits the request itself.
 2. **Shared events**: Each party monitors the same Posted logs independently. Failure reverts the call without emitting a success event.
@@ -268,9 +264,9 @@ The interpretation of amounts MUST be immutable for each Ledger deployment. The 
 
 ##### 3. Flush and Off-Chain Funds Processing
 
-8. The Wallet calls `flush` to close its statement on its own schedule.
-9. The ledger records the Wallet's period payables and receivables in `Flushed`, resets the Wallet's aggregates, and subtracts the corresponding network amounts.
-10. The Wallet reconciles its closed statement and creates off-chain funds processing tasks.
+![Flush and off-chain funds processing sequence](../assets/eip-nanopayment-ledger/flush.svg)
+
+[PlantUML source](../assets/eip-nanopayment-ledger/flush.puml)
 
 1. **Independent statement closing**: The diagram illustrates the Wallet; the same process applies to the Acquirer. Institutions follow independent statement cycles and do not wait for each other. They arrange funds processing after reconciling the closed statement; Flush does not signify completion of fiat processing.
 2. **Statement reconstruction**: Off-chain systems obtain statement payable and receivable totals from `Flushed`, associate them with transaction details, and reconcile the amounts. See Section 3.5 for reconstruction rules.
