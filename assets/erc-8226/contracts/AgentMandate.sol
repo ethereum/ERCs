@@ -33,9 +33,12 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     mapping(address agent => mapping(address principal => bytes32[])) private _enabledList;
     mapping(address principal => mapping(address operator => bool)) private _operatorApproved;
     mapping(address agent => bool) private _frozen;
+
+    mapping(address principal => bool) private _frozenPrincipal;
     mapping(address principal => uint256) public nonces;
 
     error ZeroComplianceProvider();
+    error ZeroAction();
     error MandateAlreadyActive();
     error NoActiveMandate();
     error PrincipalNotEligible();
@@ -55,56 +58,67 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
-    function grantMandate(GrantMandateParams calldata p, bytes calldata signature) external {
-        if (p.complianceProvider == address(0)) revert ZeroComplianceProvider();
-        if (p.validUntil <= block.timestamp || p.validUntil <= p.validFrom) revert InvalidExpiry();
+    function grantMandate(GrantMandateParams calldata params, bytes calldata signature) external {
+        if (params.complianceProvider == address(0)) revert ZeroComplianceProvider();
+        if (params.validUntil <= block.timestamp || params.validUntil <= params.validFrom) revert InvalidExpiry();
 
-        Mandate storage existing = _mandates[p.agent][p.principal];
+        Mandate storage existing = _mandates[params.agent][params.principal];
         if (existing.principal != address(0) && !existing.revoked && block.timestamp <= existing.validUntil) {
             revert MandateAlreadyActive();
         }
 
-        _authPrincipal(p.principal, _grantStructHash(p), p.deadline, signature);
+        _authPrincipal(params.principal, _grantStructHash(params), params.deadline, signature);
 
-        (bool eligible,,) = IComplianceProvider(p.complianceProvider).checkPrincipal(p.principal, p.identityRef);
+        (bool eligible,, uint48 expiresAt) =
+            IComplianceProvider(params.complianceProvider).checkPrincipal(params.principal, params.identityRef);
         if (!eligible) revert PrincipalNotEligible();
+        if (expiresAt != 0 && params.validUntil > expiresAt) revert InvalidExpiry();
 
-        _clearActions(p.agent, p.principal);
+        _clearActions(params.agent, params.principal);
 
-        _mandates[p.agent][p.principal] = Mandate({
-            agent: p.agent,
-            validFrom: p.validFrom,
-            validUntil: p.validUntil,
-            principal: p.principal,
+        _mandates[params.agent][params.principal] = Mandate({
+            agent: params.agent,
+            validFrom: params.validFrom,
+            validUntil: params.validUntil,
+            principal: params.principal,
             revoked: false,
-            complianceProvider: p.complianceProvider,
-            identityRef: p.identityRef,
-            asset: p.asset,
-            maxTransactionValue: p.maxTransactionValue,
-            maxCumulativeValue: p.maxCumulativeValue,
+            complianceProvider: params.complianceProvider,
+            identityRef: params.identityRef,
+            asset: params.asset,
+            maxTransactionValue: params.maxTransactionValue,
+            maxCumulativeValue: params.maxCumulativeValue,
             cumulativeUsed: 0,
-            metadata: p.metadata
+            metadata: params.metadata
         });
 
-        emit MandateGranted(p.agent, p.principal, p.complianceProvider, p.asset, p.validFrom, p.validUntil, p.metadata);
+        emit MandateGranted(
+            params.agent,
+            params.principal,
+            params.complianceProvider,
+            params.asset,
+            params.validFrom,
+            params.validUntil,
+            params.metadata
+        );
 
-        for (uint256 i = 0; i < p.actions.length; i++) {
-            _actionEnabled[p.agent][p.principal][p.actions[i]] = true;
-            _enabledList[p.agent][p.principal].push(p.actions[i]);
-            emit ActionEnabled(p.agent, p.principal, p.actions[i]);
+        for (uint256 i = 0; i < params.actions.length; i++) {
+            if (params.actions[i] == bytes32(0)) revert ZeroAction();
+            _actionEnabled[params.agent][params.principal][params.actions[i]] = true;
+            _enabledList[params.agent][params.principal].push(params.actions[i]);
+            emit ActionEnabled(params.agent, params.principal, params.actions[i]);
         }
     }
 
     /// @inheritdoc IAgentMandate
     function revokeMandate(address agent, address principal, uint256 deadline, bytes calldata signature) external {
-        Mandate storage m = _mandates[agent][principal];
-        if (m.principal == address(0) || m.revoked) revert NoActiveMandate();
+        Mandate storage mandate = _mandates[agent][principal];
+        if (mandate.principal == address(0) || mandate.revoked) revert NoActiveMandate();
 
         bytes32 structHash =
             keccak256(abi.encode(REVOKE_MANDATE_TYPEHASH, agent, principal, nonces[principal], deadline));
         _authOperator(principal, structHash, deadline, signature);
 
-        m.revoked = true;
+        mandate.revoked = true;
         emit MandateRevoked(agent, principal, msg.sender);
     }
 
@@ -116,16 +130,23 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         uint256 deadline,
         bytes calldata signature
     ) external {
-        Mandate storage m = _mandates[agent][principal];
-        if (m.principal == address(0) || m.revoked || block.timestamp > m.validUntil) revert NoActiveMandate();
-        if (newValidUntil <= m.validUntil) revert InvalidExpiry();
+        Mandate storage mandate = _mandates[agent][principal];
+        if (mandate.principal == address(0) || mandate.revoked || block.timestamp > mandate.validUntil) {
+            revert NoActiveMandate();
+        }
+        if (newValidUntil <= mandate.validUntil) revert InvalidExpiry();
 
         bytes32 structHash = keccak256(
             abi.encode(EXTEND_MANDATE_TYPEHASH, agent, principal, newValidUntil, nonces[principal], deadline)
         );
         _authOperator(principal, structHash, deadline, signature);
 
-        m.validUntil = newValidUntil;
+        (bool eligible,, uint48 expiresAt) =
+            IComplianceProvider(mandate.complianceProvider).checkPrincipal(mandate.principal, mandate.identityRef);
+        if (!eligible) revert PrincipalNotEligible();
+        if (expiresAt != 0 && newValidUntil > expiresAt) revert InvalidExpiry();
+
+        mandate.validUntil = newValidUntil;
         emit MandateExtended(agent, principal, newValidUntil);
     }
 
@@ -154,20 +175,29 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
+    function freezePrincipal(address principal) external onlyRole(ENFORCER_ROLE) {
+        _frozenPrincipal[principal] = true;
+        emit PrincipalFrozen(principal, msg.sender);
+    }
+
+    /// @inheritdoc IAgentMandate
+    function unfreezePrincipal(address principal) external onlyRole(ENFORCER_ROLE) {
+        _frozenPrincipal[principal] = false;
+        emit PrincipalUnfrozen(principal, msg.sender);
+    }
+
+    /// @inheritdoc IAgentMandate
     function recordExecution(address agent, address principal, bytes32 action, uint256 amount) external {
-        Mandate storage m = _mandates[agent][principal];
-        if (msg.sender != m.asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
+        Mandate storage mandate = _mandates[agent][principal];
+        if (msg.sender != mandate.asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
             revert UnauthorizedRecorder();
         }
-        if (!_mandateAllows(m, agent, principal, action)) revert NotExecutable();
-        if (m.maxTransactionValue != type(uint256).max && amount > m.maxTransactionValue) {
-            revert ExceedsTransactionCap();
-        }
-        uint256 used = m.cumulativeUsed + amount;
-        if (m.maxCumulativeValue != type(uint256).max && used > m.maxCumulativeValue) {
-            revert ExceedsCumulativeCap();
-        }
-        m.cumulativeUsed = used;
+        MandateReason reason = _evaluate(mandate, agent, principal, mandate.asset, action, amount);
+        if (reason == MandateReason.OVER_TX_CAP) revert ExceedsTransactionCap();
+        if (reason == MandateReason.OVER_CUMULATIVE_CAP) revert ExceedsCumulativeCap();
+        if (reason != MandateReason.OK) revert NotExecutable();
+        uint256 used = mandate.cumulativeUsed + amount;
+        mandate.cumulativeUsed = used;
         emit ExecutionRecorded(agent, principal, action, amount, used);
     }
 
@@ -175,17 +205,10 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     function canExecute(address agent, address principal, address asset, bytes32 action, uint256 amount)
         external
         view
-        returns (bool)
+        returns (bool ok, MandateReason reason)
     {
-        Mandate storage m = _mandates[agent][principal];
-
-        if (asset != m.asset) return false;
-        if (!_mandateAllows(m, agent, principal, action)) return false;
-        if (m.maxTransactionValue != type(uint256).max && amount > m.maxTransactionValue) return false;
-        if (m.maxCumulativeValue != type(uint256).max && m.cumulativeUsed + amount > m.maxCumulativeValue) {
-            return false;
-        }
-        return true;
+        reason = _evaluate(_mandates[agent][principal], agent, principal, asset, action, amount);
+        ok = reason == MandateReason.OK;
     }
 
     /// @inheritdoc IAgentMandate
@@ -204,8 +227,13 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
-    function isFrozen(address agent) external view returns (bool) {
+    function isAgentFrozen(address agent) external view returns (bool) {
         return _frozen[agent];
+    }
+
+    /// @inheritdoc IAgentMandate
+    function isPrincipalFrozen(address principal) external view returns (bool) {
+        return _frozenPrincipal[principal];
     }
 
     /// @inheritdoc IAgentMandate
@@ -254,40 +282,57 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @dev Isolated so the 14-field encode has its own stack frame (avoids stack-too-deep without via-IR).
-    function _grantStructHash(GrantMandateParams calldata p) private view returns (bytes32) {
+    function _grantStructHash(GrantMandateParams calldata params) private view returns (bytes32) {
         return keccak256(
             abi.encode(
                 GRANT_MANDATE_TYPEHASH,
-                p.agent,
-                p.validFrom,
-                p.validUntil,
-                p.principal,
-                p.complianceProvider,
-                p.identityRef,
-                p.asset,
-                p.maxTransactionValue,
-                p.maxCumulativeValue,
-                p.metadata,
-                keccak256(abi.encodePacked(p.actions)),
-                nonces[p.principal],
-                p.deadline
+                params.agent,
+                params.validFrom,
+                params.validUntil,
+                params.principal,
+                params.complianceProvider,
+                params.identityRef,
+                params.asset,
+                params.maxTransactionValue,
+                params.maxCumulativeValue,
+                params.metadata,
+                keccak256(abi.encodePacked(params.actions)),
+                nonces[params.principal],
+                params.deadline
             )
         );
     }
 
-    /// @dev Shared gate for canExecute and recordExecution (existence, validity window, revoked, action,
-    ///      freeze) so the read check and the state mutation cannot drift. Caps are checked by the callers.
-    function _mandateAllows(Mandate storage m, address agent, address principal, bytes32 action)
-        private
-        view
-        returns (bool)
-    {
-        if (m.principal == address(0)) return false;
-        if (block.timestamp < m.validFrom || block.timestamp > m.validUntil) return false;
-        if (m.revoked) return false;
-        if (!_actionEnabled[agent][principal][action]) return false;
-        if (_frozen[agent]) return false;
-        return true;
+    /// @dev Single source of truth for canExecute and recordExecution (existence, asset, validity window,
+    ///      revocation, action, agent and principal freeze, and caps) so the read check and the state mutation
+    ///      cannot drift.
+    ///      Returns MandateReason.OK when the action may execute, otherwise the first failing check.
+    function _evaluate(
+        Mandate storage mandate,
+        address agent,
+        address principal,
+        address asset,
+        bytes32 action,
+        uint256 amount
+    ) private view returns (MandateReason) {
+        if (mandate.principal == address(0)) return MandateReason.NONEXISTENT;
+        if (_frozen[agent]) return MandateReason.AGENT_FROZEN;
+        if (_frozenPrincipal[principal]) return MandateReason.PRINCIPAL_FROZEN;
+        if (asset != mandate.asset) return MandateReason.WRONG_ASSET;
+        if (block.timestamp < mandate.validFrom) return MandateReason.NOT_YET_VALID;
+        if (block.timestamp > mandate.validUntil) return MandateReason.EXPIRED;
+        if (mandate.revoked) return MandateReason.REVOKED;
+        if (!_actionEnabled[agent][principal][action]) return MandateReason.ACTION_NOT_ENABLED;
+        if (mandate.maxTransactionValue != type(uint256).max && amount > mandate.maxTransactionValue) {
+            return MandateReason.OVER_TX_CAP;
+        }
+        if (
+            mandate.maxCumulativeValue != type(uint256).max
+                && amount > mandate.maxCumulativeValue - mandate.cumulativeUsed
+        ) {
+            return MandateReason.OVER_CUMULATIVE_CAP;
+        }
+        return MandateReason.OK;
     }
 
     function _clearActions(address agent, address principal) private {

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8410/typed-data-receipt.schema.json",
+  "title": "Typed-data delivery receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "request_id",
+    "request_digest",
+    "status"
+  ],
+  "properties": {
+    "kind": {
+      "const": "typed_data_receipt"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])"
+    },
+    "request_digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "unknown"
+      ]
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "accepted"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "operation_id"
+        ],
+        "properties": {
+          "operation_id": {}
+        }
+      },
+      "else": {
+        "properties": {
+          "operation_id": false
+        }
+      }
+    }
+  ]
+}

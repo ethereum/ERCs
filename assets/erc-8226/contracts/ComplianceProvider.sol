@@ -34,11 +34,11 @@ contract ComplianceProvider is IComplianceProvider, ERC165, Ownable {
 
     /// @inheritdoc IComplianceProvider
     function revokePrincipal(address principal, ReasonCode reason) external onlyOwner {
-        Record storage r = _records[principal];
-        if (r.identityRef == bytes32(0) || r.revoked) revert NotActive(principal);
-        r.revoked = true;
-        r.reason = reason;
-        emit PrincipalRevoked(principal, r.identityRef, reason);
+        Record storage record = _records[principal];
+        if (record.identityRef == bytes32(0) || record.revoked) revert NotActive(principal);
+        record.revoked = true;
+        record.reason = reason;
+        emit PrincipalRevoked(principal, record.identityRef, reason);
     }
 
     /// @inheritdoc IComplianceProvider
@@ -47,15 +47,15 @@ contract ComplianceProvider is IComplianceProvider, ERC165, Ownable {
         view
         returns (bool eligible, ReasonCode reason, uint48 expiresAt)
     {
-        Record memory r = _records[principal];
+        Record memory record = _records[principal];
 
-        if (r.identityRef == bytes32(0)) return (false, ReasonCode.IDENTITY_NOT_FOUND, 0);
-        if (r.revoked) return (false, r.reason, 0);
-        if (r.identityRef != identityRef) return (false, ReasonCode.IDENTITY_NOT_FOUND, 0);
-        if (r.expiresAt != 0 && block.timestamp > r.expiresAt) {
-            return (false, ReasonCode.KYC_EXPIRED, r.expiresAt);
+        if (record.identityRef == bytes32(0)) return (false, ReasonCode.IDENTITY_NOT_FOUND, 0);
+        if (record.revoked) return (false, record.reason, 0);
+        if (record.identityRef != identityRef) return (false, ReasonCode.IDENTITY_NOT_FOUND, 0);
+        if (record.expiresAt != 0 && block.timestamp > record.expiresAt) {
+            return (false, ReasonCode.KYC_EXPIRED, record.expiresAt);
         }
-        return (true, ReasonCode.COMPLIANT, r.expiresAt);
+        return (true, ReasonCode.COMPLIANT, record.expiresAt);
     }
 
     /// @inheritdoc ERC165
