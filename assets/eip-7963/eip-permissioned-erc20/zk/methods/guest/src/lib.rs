@@ -16,7 +16,7 @@ pub struct PaymentInstructionInput {
     pub debtor_data: String,          // JSON string of debtor object
     pub creditor_data: String,        // JSON string of creditor object
     pub amount_value: u64,            // Amount in milli units
-    pub currency: String,             // Currency code (ISO 4217)
+    pub currency: String,             // Three-letter currency code
     pub execution_date: String,       // Execution date as string
 
     // Merkle proof data
