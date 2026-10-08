@@ -73,6 +73,9 @@ Each mutation starts from the positive vector, leaves signature bytes unchanged 
 | Configure the route as an early-invalidation endpoint and re-sign without `nonce` | `nonce_required`; invalidation state is unchanged |
 | Submit the positive vector twice | first succeeds; second yields `nonce_reused` |
 | Remove `nonce` where Replayable is supported but denied by policy | `replayable_not_allowed` |
+| Accept Replayable signatures with no early invalidation, re-sign without `nonce`, and submit twice | both authenticate; no replay or invalidation state is read or written |
+| Accept Replayable signatures with no early invalidation and re-sign without `nonce` with `expires=1700000061` | `request_validity_too_long` before cryptography |
+| Accept Replayable signatures with early invalidation, re-sign without `nonce`, and invalidate the signature | authenticates; the 60-second window is not checked against invalidation state |
 | Add `alg` to `Signature-Input` | `unsupported_algorithm` |
 | Change the query while retaining the signature | `bad_signature`; no nonce consumption |
 | Make account classification RPC unavailable | `signature_verification_unavailable` with 503 |

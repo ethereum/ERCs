@@ -78,9 +78,9 @@ Steps:
 
 1. Parse the complete `Signature-Input` and `Signature` fields.
 2. Evaluate candidates in wire order under the limits in Section 3.5.
-3. Validate the served chain, request coverage, content, time, replay posture, and policy.
+3. Validate the served chain, request coverage, content, time, replay posture, and policy. A Replayable validity window over 60 seconds needs early invalidation (Section 5.2).
 4. Reconstruct `M` and apply Universal Account verification, honoring `mode="eoa"`.
-5. Atomically consume the winning nonce.
+5. Atomically consume the winning nonce, or check a Replayable signature valid for more than 60 seconds against early invalidation. A Replayable signature valid for at most 60 seconds reads no state.
 
 ```ts
 async function verifyRequest(req: Request, policy: Policy): Promise<AuthResult> {
@@ -107,6 +107,12 @@ async function verifyRequest(req: Request, policy: Policy): Promise<AuthResult> 
     if (candidate.nonce !== undefined &&
         !await consumeIfUnused([checked.signer, candidate.nonce], checked.replayUntil)) {
       failures.push("nonce_reused"); continue;
+    }
+    // validateBeforeRpc refused a longer Replayable window without invalidation.
+    if (candidate.nonce === undefined &&
+        candidate.expires - candidate.created > 60 &&
+        await isInvalidated(checked.signer, M)) {
+      failures.push("replayable_not_allowed"); continue;
     }
     return checked.result;
   }
