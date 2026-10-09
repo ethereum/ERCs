@@ -14,7 +14,6 @@ interface IAgentMandate is IERC165 {
     enum MandateReason {
         OK,
         NONEXISTENT,
-        WRONG_ASSET,
         NOT_YET_VALID,
         EXPIRED,
         REVOKED,
@@ -73,28 +72,35 @@ interface IAgentMandate is IERC165 {
     event MandateGranted(
         address indexed agent,
         address indexed principal,
+        address indexed asset,
         address complianceProvider,
-        address asset,
         uint48 validFrom,
         uint48 validUntil,
         bytes32 metadata
     );
 
     /// @notice Emitted when an action is enabled on a mandate at grant time.
-    event ActionEnabled(address indexed agent, address indexed principal, bytes32 indexed action);
+    event ActionEnabled(address indexed agent, address indexed principal, bytes32 indexed action, address asset);
 
     /// @notice Emitted when a mandate is revoked.
-    event MandateRevoked(address indexed agent, address indexed principal, address revokedBy);
+    event MandateRevoked(address indexed agent, address indexed principal, address indexed asset, address revokedBy);
 
     /// @notice Emitted when a mandate's validity is extended.
-    event MandateExtended(address indexed agent, address indexed principal, uint48 newValidUntil);
+    event MandateExtended(
+        address indexed agent, address indexed principal, address indexed asset, uint48 newValidUntil
+    );
 
     /// @notice Emitted when an operator approval is set or revoked.
     event OperatorSet(address indexed principal, address indexed operator, bool approved);
 
     /// @notice Emitted when an agent executes an action recorded by a RAMS-aware token.
     event ExecutionRecorded(
-        address indexed agent, address indexed principal, bytes32 indexed action, uint256 amount, uint256 cumulativeUsed
+        address indexed agent,
+        address indexed principal,
+        bytes32 indexed action,
+        address asset,
+        uint256 amount,
+        uint256 cumulativeUsed
     );
 
     /// @notice Emitted when an agent is frozen. Freezing is restricted to authorized enforcer roles.
@@ -116,24 +122,28 @@ interface IAgentMandate is IERC165 {
     /// @param signature Principal signature (EIP-712, EIP-1271 supported).
     function grantMandate(GrantMandateParams calldata params, bytes calldata signature) external;
 
-    /// @notice Revokes the active mandate for the given agent and principal.
+    /// @notice Revokes the active mandate for the given agent, principal and asset.
     /// @dev Callable by the principal directly or by anyone with a valid principal signature. An approved operator MAY also call this.
     /// @param agent The agent address whose mandate is revoked.
     /// @param principal The principal address whose mandate is revoked.
+    /// @param asset The asset of the mandate being revoked.
     /// @param deadline Signature expiry timestamp.
     /// @param signature Principal signature (EIP-712, EIP-1271 supported).
-    function revokeMandate(address agent, address principal, uint256 deadline, bytes calldata signature) external;
+    function revokeMandate(address agent, address principal, address asset, uint256 deadline, bytes calldata signature)
+        external;
 
     /// @notice Extends the validity of an existing mandate without resetting cumulativeUsed.
     /// @dev Callable by the principal directly or by anyone with a valid principal signature. An approved operator MAY also call this.
     /// @param agent The agent address.
     /// @param principal The principal address.
+    /// @param asset The asset of the mandate being extended.
     /// @param newValidUntil New expiry timestamp. MUST be greater than the current validUntil.
     /// @param deadline Signature expiry timestamp.
     /// @param signature Principal signature (EIP-712, EIP-1271 supported).
     function extendMandate(
         address agent,
         address principal,
+        address asset,
         uint48 newValidUntil,
         uint256 deadline,
         bytes calldata signature
@@ -172,16 +182,18 @@ interface IAgentMandate is IERC165 {
     /// @notice Records an agent-initiated execution. Called by RAMS-aware regulated tokens.
     /// @param agent The agent address.
     /// @param principal The principal on whose behalf the action is executed.
+    /// @param asset The asset of the mandate. When the caller is the asset, it MUST pass its own address.
     /// @param action The action label being executed.
     /// @param amount The amount in the asset's base unit.
-    function recordExecution(address agent, address principal, bytes32 action, uint256 amount) external;
+    function recordExecution(address agent, address principal, address asset, bytes32 action, uint256 amount)
+        external;
 
     /// @notice Returns whether the agent can execute the action on the asset for the principal at the given
     ///         amount, and the reason.
     /// @dev Bundles asset, existence, validity, agent and principal freeze, action, and cap checks into one call.
     /// @param agent The agent address.
     /// @param principal The principal address.
-    /// @param asset The asset the action targets; MUST equal the mandate's `asset`.
+    /// @param asset The asset the action targets; selects the mandate.
     /// @param action The action label being checked.
     /// @param amount The amount to check, in the asset's base unit.
     /// @return ok True if the agent can execute the action at this amount.
@@ -194,15 +206,20 @@ interface IAgentMandate is IERC165 {
     /// @notice Returns true if the action is enabled on the mandate.
     /// @param agent The agent address.
     /// @param principal The principal address.
+    /// @param asset The asset of the mandate.
     /// @param action The action label.
     /// @return True if the action is enabled.
-    function isActionEnabled(address agent, address principal, bytes32 action) external view returns (bool);
+    function isActionEnabled(address agent, address principal, address asset, bytes32 action)
+        external
+        view
+        returns (bool);
 
-    /// @notice Returns the full Mandate struct for the given agent and principal.
+    /// @notice Returns the full Mandate struct for the given agent, principal and asset.
     /// @param agent The agent address.
     /// @param principal The principal address.
+    /// @param asset The asset of the mandate.
     /// @return The Mandate struct.
-    function getMandate(address agent, address principal) external view returns (Mandate memory);
+    function getMandate(address agent, address principal, address asset) external view returns (Mandate memory);
 
     /// @notice Returns true if the operator is approved for the given principal.
     /// @param principal The principal address.
