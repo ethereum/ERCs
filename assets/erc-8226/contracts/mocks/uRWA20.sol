@@ -208,7 +208,7 @@ contract uRWA20 is Context, ERC20, AccessControlEnumerable, IERC7943Fungible {
     }
 
     /// @dev Mock-only: a dynamic arg before `amount` lets tests exercise the executor's amount-by-index decode.
-    function swap(uint256 a, uint256[] calldata t, uint256 amount) external {}
+    function swap(uint256 minimumOut, uint256[] calldata path, uint256 amount) external {}
 
     /// @notice See {IERC165-supportsInterface}.
     /// @dev Indicates support for the {IERC7943Fungible} interface in addition to inherited interfaces.
