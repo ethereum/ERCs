@@ -1,4 +1,5 @@
 ---
+eip: 0
 title: Hybrid post-quantum stealth address scheme
 description: ERC-5564 schemeId 3, announcing with ML-KEM-768 combined with secp256k1 ECDH while spending stays on secp256k1
 author: Nam Ngo (@namnc), Pierre Daix-Moreux (@dmpierre), kassandra.eth (@kassandraoftroy)
