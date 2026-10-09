@@ -9,7 +9,7 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 /// @title AgentMandate
-/// @notice Reference RAMS registry. Holds one mandate per (agent, principal), gates agent actions via
+/// @notice Reference RAMS registry. Holds one mandate per (agent, principal, asset), gates agent actions via
 ///         canExecute, records use via recordExecution, and supports role-based freeze.
 contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     bytes32 public constant ENFORCER_ROLE = keccak256("ENFORCER_ROLE");
@@ -21,16 +21,18 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         "address asset,uint256 maxTransactionValue,uint256 maxCumulativeValue,"
         "bytes32 metadata,bytes32[] actions,uint256 nonce,uint256 deadline)"
     );
-    bytes32 private constant REVOKE_MANDATE_TYPEHASH =
-        keccak256("RevokeMandate(address agent,address principal,uint256 nonce,uint256 deadline)");
-    bytes32 private constant EXTEND_MANDATE_TYPEHASH =
-        keccak256("ExtendMandate(address agent,address principal,uint48 newValidUntil,uint256 nonce,uint256 deadline)");
+    bytes32 private constant REVOKE_MANDATE_TYPEHASH = keccak256(
+        "RevokeMandate(address agent,address principal,address asset,uint256 nonce,uint256 deadline)"
+    );
+    bytes32 private constant EXTEND_MANDATE_TYPEHASH = keccak256(
+        "ExtendMandate(address agent,address principal,address asset,uint48 newValidUntil,uint256 nonce,uint256 deadline)"
+    );
     bytes32 private constant SET_OPERATOR_TYPEHASH =
         keccak256("SetOperator(address principal,address operator,bool approved,uint256 nonce,uint256 deadline)");
 
-    mapping(address agent => mapping(address principal => Mandate)) private _mandates;
-    mapping(address agent => mapping(address principal => mapping(bytes32 action => bool))) private _actionEnabled;
-    mapping(address agent => mapping(address principal => bytes32[])) private _enabledList;
+    mapping(bytes32 mandateKey => Mandate) private _mandates;
+    mapping(bytes32 mandateKey => mapping(bytes32 action => bool)) private _actionEnabled;
+    mapping(bytes32 mandateKey => bytes32[]) private _enabledList;
     mapping(address principal => mapping(address operator => bool)) private _operatorApproved;
     mapping(address agent => bool) private _frozen;
 
@@ -62,7 +64,8 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         if (params.complianceProvider == address(0)) revert ZeroComplianceProvider();
         if (params.validUntil <= block.timestamp || params.validUntil <= params.validFrom) revert InvalidExpiry();
 
-        Mandate storage existing = _mandates[params.agent][params.principal];
+        bytes32 key = _mandateKey(params.agent, params.principal, params.asset);
+        Mandate storage existing = _mandates[key];
         if (existing.principal != address(0) && !existing.revoked && block.timestamp <= existing.validUntil) {
             revert MandateAlreadyActive();
         }
@@ -74,9 +77,9 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         if (!eligible) revert PrincipalNotEligible();
         if (expiresAt != 0 && params.validUntil > expiresAt) revert InvalidExpiry();
 
-        _clearActions(params.agent, params.principal);
+        _clearActions(key);
 
-        _mandates[params.agent][params.principal] = Mandate({
+        _mandates[key] = Mandate({
             agent: params.agent,
             validFrom: params.validFrom,
             validUntil: params.validUntil,
@@ -94,50 +97,53 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         emit MandateGranted(
             params.agent,
             params.principal,
-            params.complianceProvider,
             params.asset,
+            params.complianceProvider,
             params.validFrom,
             params.validUntil,
             params.metadata
         );
 
-        for (uint256 i = 0; i < params.actions.length; i++) {
-            if (params.actions[i] == bytes32(0)) revert ZeroAction();
-            _actionEnabled[params.agent][params.principal][params.actions[i]] = true;
-            _enabledList[params.agent][params.principal].push(params.actions[i]);
-            emit ActionEnabled(params.agent, params.principal, params.actions[i]);
+        for (uint256 index = 0; index < params.actions.length; index++) {
+            if (params.actions[index] == bytes32(0)) revert ZeroAction();
+            _actionEnabled[key][params.actions[index]] = true;
+            _enabledList[key].push(params.actions[index]);
+            emit ActionEnabled(params.agent, params.principal, params.actions[index], params.asset);
         }
     }
 
     /// @inheritdoc IAgentMandate
-    function revokeMandate(address agent, address principal, uint256 deadline, bytes calldata signature) external {
-        Mandate storage mandate = _mandates[agent][principal];
+    function revokeMandate(address agent, address principal, address asset, uint256 deadline, bytes calldata signature)
+        external
+    {
+        Mandate storage mandate = _mandates[_mandateKey(agent, principal, asset)];
         if (mandate.principal == address(0) || mandate.revoked) revert NoActiveMandate();
 
         bytes32 structHash =
-            keccak256(abi.encode(REVOKE_MANDATE_TYPEHASH, agent, principal, nonces[principal], deadline));
+            keccak256(abi.encode(REVOKE_MANDATE_TYPEHASH, agent, principal, asset, nonces[principal], deadline));
         _authOperator(principal, structHash, deadline, signature);
 
         mandate.revoked = true;
-        emit MandateRevoked(agent, principal, msg.sender);
+        emit MandateRevoked(agent, principal, asset, msg.sender);
     }
 
     /// @inheritdoc IAgentMandate
     function extendMandate(
         address agent,
         address principal,
+        address asset,
         uint48 newValidUntil,
         uint256 deadline,
         bytes calldata signature
     ) external {
-        Mandate storage mandate = _mandates[agent][principal];
+        Mandate storage mandate = _mandates[_mandateKey(agent, principal, asset)];
         if (mandate.principal == address(0) || mandate.revoked || block.timestamp > mandate.validUntil) {
             revert NoActiveMandate();
         }
         if (newValidUntil <= mandate.validUntil) revert InvalidExpiry();
 
         bytes32 structHash = keccak256(
-            abi.encode(EXTEND_MANDATE_TYPEHASH, agent, principal, newValidUntil, nonces[principal], deadline)
+            abi.encode(EXTEND_MANDATE_TYPEHASH, agent, principal, asset, newValidUntil, nonces[principal], deadline)
         );
         _authOperator(principal, structHash, deadline, signature);
 
@@ -147,7 +153,7 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         if (expiresAt != 0 && newValidUntil > expiresAt) revert InvalidExpiry();
 
         mandate.validUntil = newValidUntil;
-        emit MandateExtended(agent, principal, newValidUntil);
+        emit MandateExtended(agent, principal, asset, newValidUntil);
     }
 
     /// @inheritdoc IAgentMandate
@@ -187,18 +193,21 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
     }
 
     /// @inheritdoc IAgentMandate
-    function recordExecution(address agent, address principal, bytes32 action, uint256 amount) external {
-        Mandate storage mandate = _mandates[agent][principal];
-        if (msg.sender != mandate.asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
+    function recordExecution(address agent, address principal, address asset, bytes32 action, uint256 amount)
+        external
+    {
+        if (msg.sender != asset && msg.sender != principal && !hasRole(RECORDER_ROLE, msg.sender)) {
             revert UnauthorizedRecorder();
         }
-        MandateReason reason = _evaluate(mandate, agent, principal, mandate.asset, action, amount);
+        bytes32 key = _mandateKey(agent, principal, asset);
+        Mandate storage mandate = _mandates[key];
+        MandateReason reason = _evaluate(mandate, key, agent, principal, action, amount);
         if (reason == MandateReason.OVER_TX_CAP) revert ExceedsTransactionCap();
         if (reason == MandateReason.OVER_CUMULATIVE_CAP) revert ExceedsCumulativeCap();
         if (reason != MandateReason.OK) revert NotExecutable();
         uint256 used = mandate.cumulativeUsed + amount;
         mandate.cumulativeUsed = used;
-        emit ExecutionRecorded(agent, principal, action, amount, used);
+        emit ExecutionRecorded(agent, principal, action, asset, amount, used);
     }
 
     /// @inheritdoc IAgentMandate
@@ -207,18 +216,23 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         view
         returns (bool ok, MandateReason reason)
     {
-        reason = _evaluate(_mandates[agent][principal], agent, principal, asset, action, amount);
+        bytes32 key = _mandateKey(agent, principal, asset);
+        reason = _evaluate(_mandates[key], key, agent, principal, action, amount);
         ok = reason == MandateReason.OK;
     }
 
     /// @inheritdoc IAgentMandate
-    function isActionEnabled(address agent, address principal, bytes32 action) external view returns (bool) {
-        return _actionEnabled[agent][principal][action];
+    function isActionEnabled(address agent, address principal, address asset, bytes32 action)
+        external
+        view
+        returns (bool)
+    {
+        return _actionEnabled[_mandateKey(agent, principal, asset)][action];
     }
 
     /// @inheritdoc IAgentMandate
-    function getMandate(address agent, address principal) external view returns (Mandate memory) {
-        return _mandates[agent][principal];
+    function getMandate(address agent, address principal, address asset) external view returns (Mandate memory) {
+        return _mandates[_mandateKey(agent, principal, asset)];
     }
 
     /// @inheritdoc IAgentMandate
@@ -250,6 +264,12 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         if (role == ENFORCER_ROLE && hasRole(DEFAULT_ADMIN_ROLE, account)) revert AdminEnforcerOverlap();
         if (role == DEFAULT_ADMIN_ROLE && hasRole(ENFORCER_ROLE, account)) revert AdminEnforcerOverlap();
         return super._grantRole(role, account);
+    }
+
+    /// @dev One mandate per (agent, principal, asset). Derived rather than chosen, so a gated token can compute
+    ///      it from (msg.sender, holder, address(this)).
+    function _mandateKey(address agent, address principal, address asset) private pure returns (bytes32) {
+        return keccak256(abi.encode(agent, principal, asset));
     }
 
     /// @dev Principal-only: direct call by the principal, or a valid principal signature.
@@ -303,26 +323,25 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         );
     }
 
-    /// @dev Single source of truth for canExecute and recordExecution (existence, asset, validity window,
-    ///      revocation, action, agent and principal freeze, and caps) so the read check and the state mutation
-    ///      cannot drift.
+    /// @dev Single source of truth for canExecute and recordExecution (existence, validity window, revocation,
+    ///      action, agent and principal freeze, and caps) so the read check and the state mutation cannot drift.
+    ///      The asset is part of the key, so a mandate on another asset reads as NONEXISTENT.
     ///      Returns MandateReason.OK when the action may execute, otherwise the first failing check.
     function _evaluate(
         Mandate storage mandate,
+        bytes32 key,
         address agent,
         address principal,
-        address asset,
         bytes32 action,
         uint256 amount
     ) private view returns (MandateReason) {
         if (mandate.principal == address(0)) return MandateReason.NONEXISTENT;
         if (_frozen[agent]) return MandateReason.AGENT_FROZEN;
         if (_frozenPrincipal[principal]) return MandateReason.PRINCIPAL_FROZEN;
-        if (asset != mandate.asset) return MandateReason.WRONG_ASSET;
         if (block.timestamp < mandate.validFrom) return MandateReason.NOT_YET_VALID;
         if (block.timestamp > mandate.validUntil) return MandateReason.EXPIRED;
         if (mandate.revoked) return MandateReason.REVOKED;
-        if (!_actionEnabled[agent][principal][action]) return MandateReason.ACTION_NOT_ENABLED;
+        if (!_actionEnabled[key][action]) return MandateReason.ACTION_NOT_ENABLED;
         if (mandate.maxTransactionValue != type(uint256).max && amount > mandate.maxTransactionValue) {
             return MandateReason.OVER_TX_CAP;
         }
@@ -335,11 +354,11 @@ contract AgentMandate is IAgentMandate, AccessControl, EIP712 {
         return MandateReason.OK;
     }
 
-    function _clearActions(address agent, address principal) private {
-        bytes32[] storage prev = _enabledList[agent][principal];
-        for (uint256 i = 0; i < prev.length; i++) {
-            _actionEnabled[agent][principal][prev[i]] = false;
+    function _clearActions(bytes32 key) private {
+        bytes32[] storage prev = _enabledList[key];
+        for (uint256 index = 0; index < prev.length; index++) {
+            _actionEnabled[key][prev[index]] = false;
         }
-        delete _enabledList[agent][principal];
+        delete _enabledList[key];
     }
 }
