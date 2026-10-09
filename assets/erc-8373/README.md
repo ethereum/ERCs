@@ -50,3 +50,18 @@ Experimental software, provided as is. Not audited. Written to pin the semantics
 readably rather than to be gas-efficient or production-ready. The PQ side of proof-of-possession is
 not verifiable in the EVM today and is delegated, not assumed. Include your own tests and get an
 audit before relying on any of it.
+
+## Canonicalization facet (`pq_key_binding.v1/canonicalization`)
+
+| File | What it is |
+|------|------------|
+| `pq-key-binding-v1.canonicalization.json` | The facet's two admission bounds (member name 64 escaped bytes, statement 6208 bytes) and their derivation |
+| `pq-key-binding-v1.canonicalization-vectors.json` | 13 cases: the five published statements, an ML-DSA-87-sized binding, and each bound at exactly the limit and one past it |
+| `canonicalization_check.py` | Stdlib admission check that reproduces the vectors |
+
+```
+python3 canonicalization_check.py pq-key-binding-v1.canonicalization.json pq-key-binding-v1.canonicalization-vectors.json
+```
+
+An on-chain anchor that enforces the size bound at admission and proves canonical-form violations by a one-segment fraud proof: [babyblueviper1/erc8373-optimistic-jcs](https://github.com/babyblueviper1/erc8373-optimistic-jcs) (`PinpointJcsAnchor`).
+

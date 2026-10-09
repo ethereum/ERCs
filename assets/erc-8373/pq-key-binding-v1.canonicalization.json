@@ -1,0 +1,14 @@
+{
+  "facet": "pq_key_binding.v1/canonicalization",
+  "applies_to": "the raw bytes of JCS(statement), the bytes the content-address is computed over",
+  "max_member_name_escaped_bytes": 64,
+  "max_statement_bytes": 6208,
+  "derivation": {
+    "max_statement_bytes": "2 * 2592 + 1024 = 6208. 2592 bytes is the largest public key among the families this profile admits (ML-DSA-87, FIPS 204; ML-DSA-44/65 are 1312/1952 bytes, every SLH-DSA (FIPS 205) parameter set is at most 64), carried as hex in pq_pubkey, so 5184 bytes. 1024 bytes covers every other member: the largest non-key overhead among the published statements is 313 bytes (the SLH-DSA rotation statement), so 1024 is chosen headroom, not a measured maximum.",
+    "max_member_name_escaped_bytes": "64 escaped bytes per member name. The longest published member name is 27 bytes (predecessor_content_address). The bound is what makes the member-ordering rule decidable from a fixed window, which an on-chain segment fraud proof needs."
+  },
+  "admission": "A statement whose bytes exceed max_statement_bytes, or with any member name longer than max_member_name_escaped_bytes in escaped form, MUST be rejected at admission, before it is anchored or accepted.",
+  "scope": "Canonical form only. This facet does not change the cutoff rule, the content-address, or in-force resolution.",
+  "versioning": "Per profile and versioned. A profile that admits a family with a larger public key declares its own facet with the same derivation; it never amends this one.",
+  "verdicts": ["admit", "reject:size_exceeded", "reject:name_too_long", "reject:not_canonical"]
+}
