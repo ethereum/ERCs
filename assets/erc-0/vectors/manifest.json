@@ -1,0 +1,30 @@
+{
+  "_what": "sha256 per emitted file. the conformance runner verifies these where a tree carries one, and `gen_vectors.py --check` re-derives every rebuildable row from the specification either way -- fixture/manifest CONSISTENCY, not adversarial integrity: this manifest lives in the same tree as the fixtures, so an editor who changes a fixture can rehash it here in the same commit. What it catches is the accidental or incomplete edit. Protection against deliberate oracle replacement comes from provenance -- the committed generator, the blinded re-derivation, the NIST-oracled rows.",
+  "tier1_source": {
+    "ML-KEM-keyGen-FIPS203": {
+      "url": "https://raw.githubusercontent.com/usnistgov/ACVP-Server/master/gen-val/json-files/ML-KEM-keyGen-FIPS203/internalProjection.json",
+      "sha256_of_upstream_file": "d7a62a2c3476957f56dd8d24f9004ea6776ccfe995ffe71a65bb9506dc9c7b1b",
+      "bytes": 558841,
+      "fetched": "2026-08-21"
+    },
+    "ML-KEM-encapDecap-FIPS203": {
+      "url": "https://raw.githubusercontent.com/usnistgov/ACVP-Server/master/gen-val/json-files/ML-KEM-encapDecap-FIPS203/internalProjection.json",
+      "sha256_of_upstream_file": "a556952ce869bb89c3a3196a701dad89647c193a34c86eafb61a9d710d5b810f",
+      "bytes": 1465634,
+      "fetched": "2026-08-21"
+    }
+  },
+  "files": {
+    "section-1.json": {
+      "sha256": "8bde9a3edb495e760e41feaee9aaeae5b8906a8821d737338313501af075ec71",
+      "rows_in_plan": 7,
+      "rows_present": 6,
+      "rows_withdrawn_or_reserved": 1
+    },
+    "section-2.json": {
+      "sha256": "f4c6ff59e33367722ab1df9c15988fe2a5e825baba6d3117ab02ea2bcadb616b",
+      "rows_in_plan": 19,
+      "rows_present": 19
+    }
+  }
+}
