@@ -92,6 +92,13 @@
    "statement_hex": "7b2270223a202261227d",
    "expect": "reject:not_canonical",
    "note": "canonical form is still required; the caps add bounds, not exemptions"
+  },
+  {
+   "id": "member_order_utf16_vs_utf8_divergence",
+   "bytes": 24,
+   "statement_hex": "7b2261f09f9880223a2278222c2261efbcba223a2279227d",
+   "expect": "admit",
+   "note": "member names 'a\\ud83d\\ude00' (U+1F600, above BMP) and 'a\\uff3a' (U+FF3A); JCS/RFC 8785 orders by UTF-16 code units, under which the surrogate-pair name sorts first, but ordering by raw UTF-8 bytes (or by code point) reverses it -- a checker that sorts by the wrong key admits the two names in the opposite order and this case alone catches it, since every other case's names are ASCII where the two orderings agree"
   }
  ]
 }
