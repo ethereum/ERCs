@@ -1,0 +1,53 @@
+{
+  "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+  "state": 1,
+  "binding": {
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "agentId": 10387,
+    "boundAt": 1790000000
+  },
+  "lastSeen": 1790000000,
+  "livenessWindow": 7776000,
+  "successor": null,
+  "documentDigest": "0xe7d2cb9cdfaba9ea459ca4246fe3724e14c28fb0d5337ead0bb850921b24e4ba",
+  "document": {
+    "version": "aid-document/v1",
+    "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+    "binding": {
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 10387
+    },
+    "alsoKnownAs": [
+      "eip155:8453:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+      "eip155:10:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+      "eip155:42161:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42"
+    ],
+    "facets": []
+  },
+  "onChainFacets": {},
+  "registrationFile": {
+    "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+    "name": "demo-agent",
+    "description": "fixture",
+    "image": "",
+    "active": true
+  },
+  "linkedDocuments": {
+    "eip155:8453:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42": {
+      "version": "aid-document/v1",
+      "aid": "eip155:8453:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+      "alsoKnownAs": [
+        "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42"
+      ],
+      "facets": []
+    },
+    "eip155:10:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42": {
+      "version": "aid-document/v1",
+      "aid": "eip155:10:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+      "alsoKnownAs": [
+        "eip155:1:0x0000000000000000000000000000000000000001"
+      ],
+      "facets": []
+    }
+  }
+}

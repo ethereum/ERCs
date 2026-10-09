@@ -138,6 +138,16 @@
       ],
       "description": "absent = final. Domain state machines (e.g. proposed/disputed/final) live in the facet type's content schema."
     },
+    "finalizeBy": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "unix seconds; only on provisional facets: the time by which the issuer commits to publish a final facet or a supersession. Resolvers report finalization: open | overdue."
+    },
+    "finalizationRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "opaque reference to the event the facet type names as finalizing this facet (e.g. an oracle request id); format belongs to the content schema"
+    },
     "digest": {
       "type": "string",
       "pattern": "^0x[0-9a-fA-F]{64}$",
@@ -239,5 +249,24 @@
       "type": "string",
       "description": "where the content document lives (PUBLIC/GATED)"
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "finalizeBy"
+        ]
+      },
+      "then": {
+        "properties": {
+          "finality": {
+            "const": "provisional"
+          }
+        },
+        "required": [
+          "finality"
+        ]
+      }
+    }
+  ]
 }

@@ -5,7 +5,7 @@
 //   node resolve.js --fixture <fixture.json> [--now <unix>]
 //
 // Output:
-//   { onChainState, resolvedState, reasons[], binding, authorityIntervals[], document,
+//   { onChainState, resolvedState, reasons[], binding, authorityIntervals[], document, alsoKnownAs[],
 //     facets: { current, history, invalid, unattributable } }
 //
 // Rules implemented (normative in the ERC):
@@ -32,8 +32,18 @@
 //  - SUPERSESSION: a facet named by another facet's `supersedes` (same issuer) — in the document or as a
 //    later entry in the issuer's declared log — is history, marked `supersededBy`, even inside its window.
 //    A `supersedes` naming a facet of a different issuer is ignored and reported.
+//  - SUPERSESSION TIMING: a superseded facet keeps its own `timing`, and the resolver reports when the
+//    replacement was proven (§8 proven time: the superseding facet's verified `committedAt`, or the anchored
+//    head time `provenAt` of the superseding log entry) relative to the superseded facet's subjectWindow.until:
+//    `supersessionTiming` = before-outcome | not-before-outcome | unknown. A `final` facet that was pre-outcome
+//    and was replaced by a supersession not proven before the outcome is marked `reversedAfterOutcome: true`:
+//    the claim made in time was withdrawn after the outcome, and a reader scoring pre-outcome claims scores it.
 //  - FINALITY: `finality` is reported (absent = "final"); a provisional facet may be current but is never
-//    presented as final.
+//    presented as final. A current provisional facet with `finalizeBy` is reported `finalization: "open"`
+//    before that time and `"overdue"` at or after it when the issuer's declared log shows no supersession.
+//  - ALSO KNOWN AS: each `alsoKnownAs` link is reported `confirmed` only when the linked AID's Document
+//    (ctx.linkedDocuments / ctx.fetchLinkedDocument) lists this AID back; otherwise `unconfirmed`, or
+//    `unchecked` when that Document was not available. A one-sided link never merges profiles.
 const fs = require("fs");
 const { ethers } = require("ethers");
 const { canonicalize } = require("../jcs");
@@ -157,7 +167,9 @@ async function reconstructIntervals(p, reg, anchor, fromBlock) {
 async function verifyCommitment(facet, ctx) {
   const c = facet.committedAt;
   if (!c || !c.anchor) return null;
-  if (ctx.trustedTimestamps && ctx.trustedTimestamps[facet.facetType] != null) return ctx.trustedTimestamps[facet.facetType];
+  const tt = ctx.trustedTimestamps;
+  if (tt && facet.digest && tt[String(facet.digest).toLowerCase()] != null) return tt[String(facet.digest).toLowerCase()];
+  if (tt && tt[facet.facetType] != null) return tt[facet.facetType];
   if (ctx.verifiers && ctx.verifiers[c.anchor]) return ctx.verifiers[c.anchor](facet);
   if (c.anchor === "block" && ctx.provider && c.proof && c.proof.txHash) {
     try {
@@ -205,8 +217,39 @@ function exclusivityOf(facet, subject, ctx) {
   const unlinked = hits.filter((e) => !e.supersedes || !contents.has(lc(e.supersedes)));
   if (unlinked.length > 1) return { exclusivity: "duplicate" };
   const later = hits.find((e) => lc(e.supersedes) === lc(facet.digest));
-  if (later) return { exclusivity: "superseded", supersededBy: later.content };
+  if (later) return { exclusivity: "superseded", supersededBy: later.content, supersededAtProven: Number.isFinite(later.provenAt) ? later.provenAt : null, supersededAnchor: later.anchor || (facet.committedAt && facet.committedAt.anchor) };
   return { exclusivity: hits.length > 1 ? "unique-latest" : "unique" };
+}
+
+/** Finalization status of a current `provisional` facet that carries `finalizeBy` (see the ERC, "Supersession and finality").
+ *  `open` before finalizeBy; `overdue` at or after it when the issuer's declared log shows no supersession (a facet the log
+ *  shows as superseded never reaches this point: it is history). `finalizeBy` on a `final` facet is ignored. */
+function finalizationOf(facet, now, exclusivity) {
+  if ((facet.finality || "final") !== "provisional" || !Number.isFinite(facet.finalizeBy)) return {};
+  if (now < facet.finalizeBy) return { finalization: "open" };
+  const out = { finalization: "overdue" };
+  if (!(facet.committedAt && facet.committedAt.log)) out.finalizationReason = "no declared log to check for a supersession";
+  else if (exclusivity === "unchecked" || exclusivity === "undeclared") out.finalizationReason = "issuer log " + exclusivity;
+  return out;
+}
+
+const lcAid = (x) => String(x || "").toLowerCase();
+
+/** Mutual-link check for `alsoKnownAs` (see the ERC, §1): a link is `confirmed` only when the linked AID's Document lists this
+ *  AID back in its own `alsoKnownAs`; `unconfirmed` when the linked Document was read and does not; `unchecked` when it was
+ *  not available. ctx.linkedDocuments maps CAIP-10 -> AID Document (fixture mode); ctx.fetchLinkedDocument(aid) may load one. */
+async function alsoKnownAsOf(document, self, ctx) {
+  const links = (document && Array.isArray(document.alsoKnownAs)) ? document.alsoKnownAs : [];
+  const out = [];
+  for (const aid of links) {
+    let d = ctx.linkedDocuments ? (ctx.linkedDocuments[aid] ?? ctx.linkedDocuments[lcAid(aid)]) : undefined;
+    if (d === undefined && typeof ctx.fetchLinkedDocument === "function") { try { d = await ctx.fetchLinkedDocument(aid); } catch { d = undefined; } }
+    if (!d) { out.push({ aid, status: "unchecked" }); continue; }
+    if (lcAid(d.aid) !== lcAid(aid)) { out.push({ aid, status: "unconfirmed", reason: "linked document is for a different AID" }); continue; }
+    const back = Array.isArray(d.alsoKnownAs) && d.alsoKnownAs.some((x) => lcAid(x) === lcAid(self));
+    out.push({ aid, status: back ? "confirmed" : "unconfirmed", ...(back ? {} : { reason: "linked document does not list this AID back" }) });
+  }
+  return out;
 }
 
 /** Document-side supersession: map digest -> { by, issuer } for facets superseded by a same-issuer facet. */
@@ -230,6 +273,24 @@ const ANCHOR_TOLERANCE = {
   rfc3161: (facet) => { const a = facet.committedAt && facet.committedAt.proof && facet.committedAt.proof.accuracySeconds; return Number.isFinite(a) ? a : 60; },
 };
 function toleranceOf(facet) { const f = ANCHOR_TOLERANCE[facet.committedAt && facet.committedAt.anchor]; return f ? f(facet) : Infinity; }
+
+/**
+ * When the replacement of a superseded facet was proven, relative to that facet's subjectWindow.until.
+ * provenAt: proven time of the superseding facet or log entry (null if it has none); anchor: its anchor kind.
+ */
+function supersessionTimingOf(facet, ownTiming, provenAt, anchor) {
+  const w = facet.subjectWindow;
+  let st;
+  if (provenAt == null || !w || !Number.isFinite(w.until)) st = "unknown";
+  else {
+    const f = ANCHOR_TOLERANCE[anchor]; const tol = f ? f({ committedAt: { anchor } }) : Infinity;
+    st = provenAt + tol < w.until ? "before-outcome" : "not-before-outcome";
+  }
+  const out = { supersessionTiming: st };
+  if (provenAt != null) out.supersededAtProven = provenAt;
+  if ((facet.finality || "final") === "final" && ownTiming === "pre-outcome" && st === "not-before-outcome") out.reversedAfterOutcome = true;
+  return out;
+}
 
 function timingOf(facet, provenAt) {
   if (!facet.committedAt) return { timing: "none" };
@@ -271,11 +332,22 @@ async function resolveSnapshot(snap, now, ctx = {}) {
     if (!f.validUntil || !Number.isFinite(f.validUntil)) { facets.invalid.push({ ...tag, reason: "missing validUntil" }); continue; }
     // supersession visible in the document (same issuer)
     const by = sup.out.get(String(f.digest).toLowerCase());
-    if (by) { facets.history.push({ ...tag, supersededBy: by, reason: "superseded" }); continue; }
+    if (by) {
+      const own = timingOf(f, await verifyCommitment(f, ctx));
+      const repl = listed.find((x) => String(x.digest).toLowerCase() === String(by).toLowerCase());
+      const replAt = repl && repl.committedAt ? await verifyCommitment(repl, ctx) : null;
+      facets.history.push({ ...tag, ...own, supersededBy: by, reason: "superseded", ...supersessionTimingOf(f, own.timing, replAt, repl && repl.committedAt && repl.committedAt.anchor) });
+      continue;
+    }
     // supersession visible only in the issuer's declared log
     if (f.committedAt && f.committedAt.log) {
       const ex = exclusivityOf(f, snap.aid, ctx);
-      if (ex.exclusivity === "superseded") { facets.history.push({ ...tag, ...ex, reason: "superseded in issuer log" }); continue; }
+      if (ex.exclusivity === "superseded") {
+        const own = timingOf(f, await verifyCommitment(f, ctx));
+        const { supersededAtProven, supersededAnchor, ...exRest } = ex;
+        facets.history.push({ ...tag, ...own, ...exRest, reason: "superseded in issuer log", ...supersessionTimingOf(f, own.timing, supersededAtProven, supersededAnchor) });
+        continue;
+      }
     }
     if (f.validFrom && f.validFrom > now) { facets.invalid.push({ ...tag, reason: "not yet valid" }); continue; }
     // on-chain self facet record must agree with the document when present
@@ -299,10 +371,12 @@ async function resolveSnapshot(snap, now, ctx = {}) {
       if (["undeclared", "missing", "duplicate"].includes(ex.exclusivity)) { tag.timing = "integrity-only"; tag.timingReason = "exclusivity: " + ex.exclusivity; }
     }
     if (f.validUntil <= now) { facets.history.push(tag); continue; }
+    Object.assign(tag, finalizationOf(f, now, tag.exclusivity));
     facets.current.push(tag);
   }
+  const alsoKnownAs = await alsoKnownAsOf(document, snap.aid, ctx);
   if (onChainState === "RETIRED") reasons.push("RETIRED: activity after retirement MUST NOT be attributed to this AID; successor=" + (snap.successor || "none"));
-  return { onChainState, resolvedState, reasons, binding: snap.binding, lastSeen: snap.lastSeen, livenessWindow: snap.livenessWindow, authorityIntervals: intervals, document, facets };
+  return { onChainState, resolvedState, reasons, binding: snap.binding, lastSeen: snap.lastSeen, livenessWindow: snap.livenessWindow, authorityIntervals: intervals, document, alsoKnownAs, facets };
 }
 
 async function snapshotFromChain(rpc, registry, anchor, fetchImpl, fromBlock = 0) {
@@ -331,11 +405,11 @@ async function main() {
   const a = args();
   const now = a.now ? Number(a.now) : Math.floor(Date.now() / 1000);
   let snap; const ctx = {};
-  if (a.fixture) { snap = JSON.parse(fs.readFileSync(a.fixture, "utf8")); ctx.trustedTimestamps = snap.trustedTimestamps || null; ctx.issuerLogs = snap.issuerLogs || null; ctx.logEntries = snap.logEntries || null; }
+  if (a.fixture) { snap = JSON.parse(fs.readFileSync(a.fixture, "utf8")); ctx.trustedTimestamps = snap.trustedTimestamps || null; ctx.issuerLogs = snap.issuerLogs || null; ctx.logEntries = snap.logEntries || null; ctx.linkedDocuments = snap.linkedDocuments || null; }
   else if (a.rpc && a.registry && a.anchor) { ctx.provider = new ethers.JsonRpcProvider(a.rpc); snap = await snapshotFromChain(ctx.provider, a.registry, a.anchor, typeof fetch === "function" ? fetch : null, a["from-block"] ? Number(a["from-block"]) : 0); }
   else { console.error("usage: --rpc <url> --registry <addr> --anchor <addr> [--from-block n] | --fixture <file>  [--now <unix>]"); process.exit(2); }
   console.log(JSON.stringify(await resolveSnapshot(snap, now, ctx), null, 2));
 }
 
-module.exports = { resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, supersessionMap, logTag, STATE };
+module.exports = { supersessionTimingOf, finalizationOf, alsoKnownAsOf, resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, supersessionMap, logTag, STATE };
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
