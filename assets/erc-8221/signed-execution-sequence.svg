@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 970" role="img" aria-labelledby="title desc">
+  <title id="title">Signed Execution Sequence</title>
+  <desc id="desc">Sequence diagram showing the controller signing an EIP-712 execution request offline, a relayer submitting it as an ordinary transaction, the account validating the signature through the cascade, incrementing the nonce, and executing the call. The relayer pays gas; the controller never sends a transaction.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7a8a9a"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4c7a62"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .owner { fill: #eef3ff; }
+    .relay { fill: #fff3db; }
+    .account { fill: #eaf7ef; }
+    .target { fill: #fff0ec; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .info { fill: #f3f7ff; stroke: #8ea8c7; stroke-width: 2; rx: 14; ry: 14; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .life { stroke: #98a6b3; stroke-width: 2.4; stroke-dasharray: 8 7; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .offchain { stroke: #7a8a9a; stroke-width: 3; fill: none; stroke-dasharray: 10 8; marker-end: url(#arrow-gray); }
+    .result { stroke: #4c7a62; stroke-width: 3.2; fill: none; marker-end: url(#arrow-green); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="970"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Signed Execution Sequence</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">The controller signs offline. Any third party relays as an ordinary protocol transaction.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">No EntryPoint, no bundler, no paymaster required.</text>
+
+  <!-- Entity boxes -->
+  <rect class="box owner" x="55" y="145" width="250" height="90"/>
+  <text class="title2" x="180" y="183" text-anchor="middle">Controller (O)</text>
+  <text class="body" x="180" y="213" text-anchor="middle">signs offline, never transacts</text>
+
+  <rect class="box relay" x="420" y="145" width="260" height="90"/>
+  <text class="title2" x="550" y="183" text-anchor="middle">Relayer (R)</text>
+  <text class="body" x="550" y="213" text-anchor="middle">any address with ETH</text>
+
+  <rect class="box account" x="790" y="145" width="280" height="90"/>
+  <text class="title2" x="930" y="183" text-anchor="middle">Account (A)</text>
+  <text class="mono" x="930" y="213" text-anchor="middle">NFT-controlled account</text>
+
+  <rect class="box target" x="1160" y="145" width="230" height="90"/>
+  <text class="title2" x="1275" y="183" text-anchor="middle">Target</text>
+  <text class="body" x="1275" y="213" text-anchor="middle">contract being called</text>
+
+  <!-- Lifelines -->
+  <line class="life" x1="180" y1="235" x2="180" y2="760"/>
+  <line class="life" x1="550" y1="235" x2="550" y2="760"/>
+  <line class="life" x1="930" y1="235" x2="930" y2="760"/>
+  <line class="life" x1="1275" y1="235" x2="1275" y2="760"/>
+
+  <!-- 1. Controller signs EIP-712 offline -->
+  <rect class="info" x="60" y="280" width="290" height="52"/>
+  <text class="label" x="205" y="304" text-anchor="middle">1. Sign EIP-712 offline</text>
+  <text class="mono" x="205" y="324" text-anchor="middle">ExecuteBatchRequest</text>
+
+  <!-- 2. Off-chain handoff -->
+  <text class="label" x="365" y="370" text-anchor="middle">2. Off-chain handoff</text>
+  <path class="offchain" d="M 180 388 L 550 388"/>
+  <text class="body" x="365" y="410" text-anchor="middle">signed request + calldata</text>
+
+  <!-- 3. Relayer submits ordinary tx -->
+  <text class="label" x="740" y="458" text-anchor="middle">3. Ordinary protocol transaction</text>
+  <path class="edge" d="M 550 476 L 930 476"/>
+  <text class="mono" x="740" y="498" text-anchor="middle">executeBatchWithSignature(calls, nonce, deadline, sig)</text>
+
+  <!-- 4. Account validates signature -->
+  <rect class="info" x="850" y="530" width="210" height="70"/>
+  <text class="label" x="955" y="556" text-anchor="middle">4. Validate signature</text>
+  <text class="body" x="955" y="578" text-anchor="middle">ecrecover / ERC-1271</text>
+  <text class="body" x="955" y="594" text-anchor="middle">/ active validators</text>
+
+  <!-- 5. nonce++ and CALL -->
+  <text class="label" x="1102" y="636" text-anchor="middle">5. nonce++, then CALL</text>
+  <path class="edge" d="M 930 654 L 1275 654"/>
+  <text class="mono" x="1102" y="676" text-anchor="middle">target.call{value: v}(data)</text>
+
+  <!-- 6. Result returns -->
+  <text class="label" x="1102" y="712" text-anchor="middle">6. Result</text>
+  <path class="result" d="M 1275 730 L 930 730"/>
+  <text class="body" x="1102" y="752" text-anchor="middle">raw return data or revert</text>
+
+  <!-- Bottom annotation panels -->
+  <rect class="good" x="70" y="810" width="400" height="130"/>
+  <text class="label" x="270" y="850" text-anchor="middle">Gas Sponsorship</text>
+  <text class="body" x="270" y="878" text-anchor="middle">The relayer pays gas. The controller never</text>
+  <text class="body" x="270" y="900" text-anchor="middle">sends a transaction or holds ETH for gas.</text>
+
+  <rect class="good" x="520" y="810" width="400" height="130"/>
+  <text class="label" x="720" y="850" text-anchor="middle">FOCIL and VOPS Compatible</text>
+  <text class="body" x="720" y="878" text-anchor="middle">The relayer's tx is an ordinary protocol transaction.</text>
+  <text class="body" x="720" y="900" text-anchor="middle">Nodes validate by sender nonce and balance only.</text>
+
+  <rect class="note" x="970" y="810" width="400" height="130"/>
+  <text class="label" x="1170" y="850" text-anchor="middle">No Infrastructure Required</text>
+  <text class="body" x="1170" y="878" text-anchor="middle">No EntryPoint singleton, no bundler network,</text>
+  <text class="body" x="1170" y="900" text-anchor="middle">no paymaster protocol. Any address can relay.</text>
+</svg>

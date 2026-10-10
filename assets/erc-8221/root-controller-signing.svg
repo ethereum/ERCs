@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 940" role="img" aria-labelledby="title desc">
+  <title id="title">Key Rotation at the Root-Controller Layer</title>
+  <desc id="desc">Diagram showing that the NFT-controlled account keeps the same custody address while the controlling NFT can be transferred to a different owner account, allowing key rotation or a different EIP-8202 signing scheme at the owner layer.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .top { fill: #eef3ff; }
+    .left { fill: #eaf7ef; }
+    .right { fill: #fff3db; }
+    .center { fill: #f8f2ff; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 23px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .line { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 8 7; }
+    .pill { fill: #ffffff; stroke: #9fb0bf; stroke-width: 1.8; rx: 16; ry: 16; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="940"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Key Rotation at the Root-Controller Layer</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">The account keeps the same custody address.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">Control rotates when the controller NFT moves to a new owner account.</text>
+
+  <rect class="box left" x="100" y="180" width="400" height="230"/>
+  <text class="title2" x="300" y="220" text-anchor="middle">Owner Account (A)</text>
+  <text class="mono" x="300" y="252" text-anchor="middle">scheme_id = secp256k1</text>
+  <rect class="good" x="145" y="290" width="310" height="100"/>
+  <text class="label" x="300" y="322" text-anchor="middle">Current Controller</text>
+  <text class="body" x="300" y="348" text-anchor="middle">Owns NFT (T)</text>
+  <text class="body" x="300" y="370" text-anchor="middle">Sends ordinary owner tx</text>
+
+  <rect class="box center" x="560" y="214" width="320" height="162"/>
+  <text class="title2" x="720" y="255" text-anchor="middle">Controller NFT (T)</text>
+  <text class="mono" x="720" y="286" text-anchor="middle">tokenId == uint160(account)</text>
+  <text class="body" x="720" y="318" text-anchor="middle">Transfer rotates root control.</text>
+  <text class="body" x="720" y="342" text-anchor="middle">The account address stays put.</text>
+
+  <rect class="box right" x="940" y="180" width="400" height="230"/>
+  <text class="title2" x="1140" y="220" text-anchor="middle">Owner Account (B)</text>
+  <text class="mono" x="1140" y="252" text-anchor="middle">scheme_id = P256 or post-quantum</text>
+  <rect class="good" x="985" y="290" width="310" height="100"/>
+  <text class="label" x="1140" y="322" text-anchor="middle">New Controller</text>
+  <text class="body" x="1140" y="348" text-anchor="middle">Receives NFT (T)</text>
+  <text class="body" x="1140" y="370" text-anchor="middle">Uses its own signing scheme</text>
+
+  <rect class="box top" x="355" y="470" width="730" height="280"/>
+  <text class="title2" x="720" y="512" text-anchor="middle">NFT-Controlled Account (C)</text>
+  <text class="mono" x="720" y="544" text-anchor="middle">same address - same custody - same balances</text>
+
+  <rect class="note" x="430" y="582" width="580" height="68"/>
+  <text class="label" x="720" y="612" text-anchor="middle">What Changes</text>
+  <text class="body" x="720" y="638" text-anchor="middle">Root control changes because ownership of T changes.</text>
+
+  <rect class="note" x="430" y="670" width="580" height="68"/>
+  <text class="label" x="720" y="700" text-anchor="middle">What Stays the Same</text>
+  <text class="body" x="720" y="726" text-anchor="middle">The account does not need to standardize every signing curve itself.</text>
+
+  <path class="line" d="M 500 295 C 525 295, 535 295, 560 295"/>
+  <path class="line" d="M 880 295 C 905 295, 915 295, 940 295"/>
+  <path class="line dash" d="M 720 376 C 720 412, 720 435, 720 470"/>
+  <rect class="note" x="1030" y="800" width="260" height="90"/>
+  <text class="label" x="1160" y="832" text-anchor="middle">EIP-8202 Status</text>
+  <text class="body" x="1160" y="858" text-anchor="middle">Compatible owner model</text>
+  <text class="body" x="1160" y="878" text-anchor="middle">Draft, not required</text>
+</svg>

@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">executeBatch: Position Rebalance Workflow</title>
+  <desc id="desc">Diagram showing an ordinary owner transaction to Account A branching into eight ordered steps for a rebalance, with dashed asset-flow lines showing swap outputs, fees, and withdrawn assets feeding the rebalance and liquidity steps.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5f7f95"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 24; ry: 24; }
+    .owner { fill: #eef3ff; }
+    .safe { fill: #eaf7ef; }
+    .risk { fill: #fff3db; }
+    .step { stroke: #304254; stroke-width: 2.4; rx: 18; ry: 18; fill: #fff3db; }
+    .trunk { stroke: #304254; stroke-width: 3; fill: none; }
+    .edge { stroke: #304254; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    .asset-feed { stroke: #5f7f95; stroke-width: 4; stroke-dasharray: 4 8; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .asset-arrow { stroke: #5f7f95; stroke-width: 4; stroke-dasharray: 12 10; stroke-linecap: round; stroke-linejoin: round; fill: none; marker-end: url(#arrow-blue); }
+    .merge-node { fill: #5f7f95; }
+    .flow-note { fill: #f2f7fa; stroke: #9db3c1; stroke-width: 2; rx: 16; ry: 16; }
+    .warn { fill: #fff0ec; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .label-bg { fill: #fbfaf6; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="900"/>
+  <text class="title" x="720" y="48" text-anchor="middle">executeBatch: Position Rebalance Workflow</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">One ordinary owner transaction fans out to ordered multi-step calls</text>
+
+  <rect class="box owner" x="120" y="180" width="220" height="110"/>
+  <text class="title2" x="230" y="220" text-anchor="middle">Owner (O)</text>
+  <text class="body" x="230" y="250" text-anchor="middle">sends executeBatch</text>
+
+  <rect class="box safe" x="80" y="330" width="320" height="130"/>
+  <text class="title2" x="240" y="370" text-anchor="middle">Account (A)</text>
+  <text class="mono" x="240" y="404" text-anchor="middle">executeBatch([call1...call8])</text>
+
+  <line class="edge" x1="230" y1="290" x2="230" y2="330"/>
+
+  <line class="trunk" x1="400" y1="395" x2="450" y2="395"/>
+  <rect class="label-bg" x="448" y="360" width="140" height="24"/>
+  <text class="body" x="435" y="300" text-anchor="middle">atomically dispatches<tspan x="435" dy="20">ordered calls</tspan></text>
+
+  <!-- Steps column -->
+  <rect class="step risk" x="620" y="110" width="500" height="58"/>
+  <text class="title2" x="870" y="138" text-anchor="middle">1. Approve Token X</text>
+  <text class="body" x="870" y="158" text-anchor="middle">approve exact amount for swap</text>
+
+  <rect class="step risk" x="620" y="188" width="500" height="58"/>
+  <text class="title2" x="870" y="216" text-anchor="middle">2. Swap Token X</text>
+  <text class="body" x="870" y="236" text-anchor="middle">sell token X into rebalance inputs</text>
+
+  <rect class="flow-note" x="1140" y="108" width="255" height="85"/>
+  <text class="label" x="1268" y="136" text-anchor="middle">Asset Flow</text>
+  <text class="body" x="1268" y="157" text-anchor="middle">Swap outputs, fees, and withdrawn</text>
+  <text class="body" x="1268" y="176" text-anchor="middle">tokens feed the rebalance inputs</text>
+
+  <rect class="step risk" x="620" y="266" width="500" height="58"/>
+  <text class="title2" x="870" y="294" text-anchor="middle">3. Approve Token Y</text>
+  <text class="body" x="870" y="314" text-anchor="middle">approve another exact amount</text>
+
+  <rect class="step risk" x="620" y="344" width="500" height="58"/>
+  <text class="title2" x="870" y="372" text-anchor="middle">4. Swap Token Y</text>
+  <text class="body" x="870" y="392" text-anchor="middle">sell token Y into rebalance inputs</text>
+
+  <rect class="step risk" x="620" y="422" width="500" height="58"/>
+  <text class="title2" x="870" y="450" text-anchor="middle">5. Collect Uniswap v3 Fees</text>
+  <text class="body" x="870" y="470" text-anchor="middle">collect on existing LPs</text>
+
+  <rect class="step risk" x="620" y="500" width="500" height="58"/>
+  <text class="title2" x="870" y="528" text-anchor="middle">6. Remove Liquidity</text>
+  <text class="body" x="870" y="548" text-anchor="middle">decreaseLiquidity / burn</text>
+
+  <rect class="step risk" x="620" y="578" width="500" height="58"/>
+  <text class="title2" x="870" y="606" text-anchor="middle">7. Rebalance into Target Ratio</text>
+  <text class="body" x="870" y="626" text-anchor="middle">swap outputs into the next ETH pool inputs</text>
+
+  <rect class="step risk" x="620" y="656" width="500" height="58"/>
+  <text class="title2" x="870" y="684" text-anchor="middle">8. Add Liquidity Again</text>
+  <text class="body" x="870" y="704" text-anchor="middle">mint/increase position in new range</text>
+
+  <!-- Branch arrows -->
+  <line class="edge" x1="450" y1="395" x2="620" y2="139"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="217"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="295"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="373"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="451"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="529"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="607"/>
+  <line class="edge" x1="450" y1="395" x2="620" y2="685"/>
+
+  <!-- Asset flow -->
+  <path class="asset-feed" d="M 1135 217 C 1288 233, 1320 575, 1160 607"/>
+  <path class="asset-feed" d="M 1135 373 C 1258 389, 1300 525, 1160 607"/>
+  <path class="asset-feed" d="M 1135 451 C 1218 463, 1250 530, 1160 607"/>
+  <path class="asset-feed" d="M 1135 529 C 1182 541, 1190 570, 1160 607"/>
+  <circle class="merge-node" cx="1160" cy="607" r="4"/>
+  <path class="asset-arrow" d="M 1160 607 C 1150 607, 1140 607, 1130 607"/>
+  <path class="asset-arrow" d="M 1135 630 C 1192 623, 1228 685, 1130 685"/>
+
+  <rect class="note" x="80" y="760" width="400" height="110"/>
+  <text class="label" x="280" y="793" text-anchor="middle">Why Batch Matters</text>
+  <text class="body" x="280" y="823" text-anchor="middle">Multiple swaps, fee collection, and liquidity</text>
+  <text class="body" x="280" y="847" text-anchor="middle">moves stay in one atomic transaction.</text>
+
+  <rect class="warn" x="520" y="760" width="400" height="110"/>
+  <text class="label" x="720" y="793" text-anchor="middle">Atomic Failure Model</text>
+  <text class="body" x="720" y="823" text-anchor="middle">Any failed action reverts everything.</text>
+  <text class="body" x="720" y="847" text-anchor="middle">No residual approvals or liquidity drift.</text>
+
+  <rect class="note" x="960" y="760" width="400" height="110"/>
+  <text class="label" x="1160" y="793" text-anchor="middle">Execution Context</text>
+  <text class="body" x="1160" y="823" text-anchor="middle">Still an ordinary direct-owner transaction.</text>
+  <text class="body" x="1160" y="847" text-anchor="middle">executeBatch just orders the calls.</text>
+</svg>
