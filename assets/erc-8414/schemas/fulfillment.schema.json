@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/task-token/fulfillment.schema.json",
+  "title": "Fulfillment Policy Descriptor (TASK-KERNEL v1.0, normative schema)",
+  "type": "object",
+  "required": ["schemaVersion", "mode", "maxCompletions"],
+  "properties": {
+    "schemaVersion":  { "type": "string" },
+    "mode":           { "type": "string", "enum": ["exclusive", "collaborative", "replicated"] },
+    "maxCompletions": { "type": "integer", "minimum": 0,
+                        "description": "MUST equal on-chain TenderTerms.maxCompletions; 0 = unbounded" },
+    "teaming": {
+      "type": "object",
+      "required": ["allowed"],
+      "properties": {
+        "allowed":      { "type": "boolean" },
+        "splitProfile": { "type": "string",
+                          "description": "opaque split-scheme identifier (e.g. x-erc1155-shares-v1); unknown profiles MUST NOT be improvised" }
+      },
+      "additionalProperties": true
+    },
+    "subcontracting": {
+      "type": "object",
+      "required": ["allowed"],
+      "properties": { "allowed": { "type": "boolean" } },
+      "additionalProperties": true
+    },
+    "eligibility": {
+      "type": "object",
+      "required": ["profile"],
+      "properties": { "profile": { "type": "string", "minLength": 1 } },
+      "additionalProperties": true,
+      "$comment": "who may be accepted; enforcement lives with the acceptance authority, not the contract"
+    },
+    "delivery": {
+      "type": "object",
+      "required": ["profile"],
+      "properties": { "profile": { "type": "string", "minLength": 1 } },
+      "additionalProperties": true,
+      "$comment": "how deliverable bytes reach the acceptance authority; determines resultHash exchange mechanics"
+    }
+  },
+  "additionalProperties": true,
+  "$comment": "Policy declaration, not enforcement: the contract enforces counting/solvency/deadlines/authority; the acceptance authority enforces everything declared here."
+}

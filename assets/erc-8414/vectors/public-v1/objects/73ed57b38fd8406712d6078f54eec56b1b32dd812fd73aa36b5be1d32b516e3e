@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Committed acceptance harness (profile: x-pytest-v1).
+Structural judgment of a submitted brief deliverable: dashboard row count,
+headline count, analysis word limit. Judgment against THIS harness is what
+the tender's taskHash commits to."""
+import json, sys
+
+def judge(deliverable_dir: str) -> bool:
+    meta = json.load(open(f"{deliverable_dir}/brief.json"))
+    assert len(meta["dashboard"]) == 60, "dashboard must cover 60 instruments"
+    assert len(meta["headlines"]) == 10, "exactly 10 headlines"
+    assert len(meta["analysis"].split()) <= 500, "analysis exceeds 500 words"
+    return True
+
+if __name__ == "__main__":
+    print("ACCEPT" if judge(sys.argv[1]) else "REJECT")
