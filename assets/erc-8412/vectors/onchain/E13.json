@@ -1,0 +1,61 @@
+[
+  {
+    "name": "attest-superseded",
+    "invariant": "E13",
+    "level": "MUST",
+    "description": "A superseded preregistration cannot be attested.",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1"
+        }
+      },
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1100,
+        "args": {
+          "criteriaDigest": "0x9f94dd8c7be75d866c8dce502d6d3fdcebd78a20ab090209619020edb1a891c1",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "$p1"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p2"
+        }
+      },
+      {
+        "call": "attestOutcome",
+        "from": "verifier",
+        "timestamp": 1200,
+        "args": {
+          "preregistrationId": "$p1",
+          "bundleDigest": "0xa756cae0ef6a0b6531305b24d364448a4b2637b6bd5b8b1f918ce1cfaa11271c",
+          "attestationDigest": "0xa2e73eb835e4b74aaee074442d0fc621373da297cecf0a7468eed5353d7f784b",
+          "verdict": "Satisfied",
+          "obligationOutcomes": "0x60"
+        },
+        "expect": {
+          "revert": "E13"
+        }
+      }
+    ]
+  }
+]
