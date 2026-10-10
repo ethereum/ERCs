@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/facets/review-erc8004-v1.schema.json",
+  "title": "aid:review/erc8004/v1 — content document",
+  "description": "Open third-party evaluation terms for the anchor, read from the ERC-8004 Reputation Registry of the bound agent. Each term is a `tag1` value; the resolver reports per-term summaries and applies reviewer weighting by the reviewer's own AID state.",
+  "type": "object",
+  "required": ["facetType", "subject", "agentId", "reputationRegistry", "observedAt", "terms"],
+  "additionalProperties": false,
+  "properties": {
+    "facetType": { "const": "aid:review/erc8004/v1" },
+    "subject": { "type": "string", "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "agentId": { "type": "integer" },
+    "reputationRegistry": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "observedAt": { "type": "integer" },
+    "window": { "type": "integer", "description": "seconds of feedback history considered; default 31536000" },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["tag1", "count"], "additionalProperties": true,
+        "properties": {
+          "tag1": { "type": "string" },
+          "tag2": { "type": "string" },
+          "count": { "type": "integer", "minimum": 0 },
+          "distinctReviewers": { "type": "integer", "minimum": 0 },
+          "mean": { "type": "number" },
+          "weightedMean": { "type": "number", "description": "reviewer-weighted by reviewer AID state (ACTIVE=1, STALE=0.5, DORMANT/RETIRED=0.25 by default)" },
+          "valueDecimals": { "type": "integer" },
+          "revoked": { "type": "integer" },
+          "responses": { "type": "integer", "description": "appendResponse count by the agent" }
+        }
+      }
+    }
+  }
+}

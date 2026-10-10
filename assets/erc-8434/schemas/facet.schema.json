@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/facet.schema.json",
+  "title": "AID Facet",
+  "description": "One provenance-tagged, time-windowed profile facet of an AID. Content-specific fields live in the referenced content document; this envelope is what the AID Document lists.",
+  "type": "object",
+  "required": [
+    "facetType",
+    "provenance",
+    "issuer",
+    "validUntil",
+    "digest",
+    "access",
+    "resolver"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "facetType": {
+      "type": "string",
+      "pattern": "^aid:[a-z0-9-]+(/[a-z0-9-]+)*/v[0-9]+$",
+      "description": "namespaced URI; on-chain key = keccak256(utf8(facetType))"
+    },
+    "provenance": {
+      "enum": [
+        "SELF",
+        "OBSERVED",
+        "ATTESTED",
+        "PROVED"
+      ]
+    },
+    "issuer": {
+      "type": "string",
+      "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$"
+    },
+    "validFrom": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "validUntil": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "observedAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "subjectWindow": {
+      "type": "object",
+      "required": [
+        "from",
+        "until"
+      ],
+      "additionalProperties": false,
+      "description": "The period of behaviour this facet is ABOUT (not how long the claim counts, which is validUntil). Required for a facet to be read as pre-outcome.",
+      "properties": {
+        "from": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "until": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "committedAt": {
+      "type": "object",
+      "required": [
+        "anchor",
+        "proof"
+      ],
+      "additionalProperties": false,
+      "description": "Optional commitment of `digest` to a clock the issuer does not control. Orthogonal to provenance. A resolver reports timing: pre-outcome iff the proof verifies to a time earlier than subjectWindow.until; otherwise integrity-only.",
+      "properties": {
+        "anchor": {
+          "enum": [
+            "block",
+            "rfc3161",
+            "ots"
+          ],
+          "description": "block = inclusion of the digest in a transaction (calldata or log) on an EVM chain; rfc3161 = RFC 3161 timestamp token; ots = OpenTimestamps proof"
+        },
+        "proof": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "chainId": {
+              "type": "integer"
+            },
+            "txHash": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "token": {
+              "type": "string",
+              "description": "base64 DER TimeStampToken (rfc3161)"
+            },
+            "ots": {
+              "type": "string",
+              "description": "base64 .ots proof"
+            }
+          }
+        },
+        "log": {
+          "type": "object",
+          "required": [
+            "uri",
+            "position"
+          ],
+          "additionalProperties": false,
+          "description": "OPTIONAL reference to the issuer-declared append-only commitment log (see the reference profile): the log URI as declared by the issuer and the position of this facet's entry.",
+          "properties": {
+            "uri": {
+              "type": "string"
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "head": {
+              "type": "string",
+              "pattern": "^0x[0-9a-fA-F]{64}$",
+              "description": "OPTIONAL head the entry was presented under"
+            }
+          }
+        }
+      }
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$",
+      "description": "digest of an earlier facet by the SAME issuer that this facet replaces; a superseded facet is history even inside its window"
+    },
+    "finality": {
+      "enum": [
+        "provisional",
+        "final"
+      ],
+      "description": "absent = final. Domain state machines (e.g. proposed/disputed/final) live in the facet type's content schema."
+    },
+    "finalizeBy": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "unix seconds; only on provisional facets: the time by which the issuer commits to publish a final facet or a supersession. Resolvers report finalization: open | overdue."
+    },
+    "finalizationRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "opaque reference to the event the facet type names as finalizing this facet (e.g. an oracle request id); format belongs to the content schema"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{64}$",
+      "description": "keccak256 of canonical content, or a commitment when access.mode == ZK"
+    },
+    "access": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "mode": {
+          "enum": [
+            "PUBLIC",
+            "GATED",
+            "ZK"
+          ]
+        },
+        "policy": {
+          "type": "string",
+          "description": "GATED: URI of the disclosure policy"
+        },
+        "verifier": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$",
+          "description": "ZK: on-chain verifier (ERC-8419 PROVED scheme verifier)"
+        },
+        "predicates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "ZK: predicate identifiers provable against the commitment"
+        }
+      }
+    },
+    "resolver": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "enum": [
+            "erc8004-identity",
+            "erc8004-reputation",
+            "erc8004-validation",
+            "erc8419-assertion",
+            "erc8338",
+            "erc8414",
+            "uri"
+          ]
+        },
+        "chainId": {
+          "type": "integer"
+        },
+        "registry": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$"
+        },
+        "agentId": {
+          "type": "integer"
+        },
+        "schemeId": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{64}$"
+        },
+        "issuers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          }
+        },
+        "tag1": {
+          "type": "string"
+        },
+        "contracts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[0-9a-fA-F]{40}$"
+          }
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uri": {
+          "type": "string"
+        }
+      }
+    },
+    "uri": {
+      "type": "string",
+      "description": "where the content document lives (PUBLIC/GATED)"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "finalizeBy"
+        ]
+      },
+      "then": {
+        "properties": {
+          "finality": {
+            "const": "provisional"
+          }
+        },
+        "required": [
+          "finality"
+        ]
+      }
+    }
+  ]
+}
