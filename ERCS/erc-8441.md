@@ -541,22 +541,22 @@ so a tool that assumes the length of `schemeId` 1's must check upon `schemeId` f
 
 Conformance vectors are in the two files below, 
 with a SHA-256 digest of each in
-[`vectors/manifest.json`](../assets/erc-0/vectors/manifest.json).
-[`vectors/PLAN.md`](../assets/erc-0/vectors/PLAN.md) 
+[`vectors/manifest.json`](../assets/erc-8441/vectors/manifest.json).
+[`vectors/PLAN.md`](../assets/erc-8441/vectors/PLAN.md) 
 states, 
 for each row, the requirement it pins 
 and the wrong output it distinguishes.
 
 | file | rows | what it pins |
 |---|---|---|
-| [`vectors/section-1.json`](../assets/erc-0/vectors/section-1.json) | 6 | Section 1: the offset, its range check, byte order and the view tag |
-| [`vectors/section-2.json`](../assets/erc-0/vectors/section-2.json) | 19 | Section 2: keys and seeds, the meta-address, the combiner and its bindings, the address, the wire mapping, and what counts as a skip |
+| [`vectors/section-1.json`](../assets/erc-8441/vectors/section-1.json) | 6 | Section 1: the offset, its range check, byte order and the view tag |
+| [`vectors/section-2.json`](../assets/erc-8441/vectors/section-2.json) | 19 | Section 2: keys and seeds, the meta-address, the combiner and its bindings, the address, the wire mapping, and what counts as a skip |
 
-The generator, [`tools/gen_vectors.py`](../assets/erc-0/tools/gen_vectors.py), 
-does its arithmetic in [`tools/vecprim.py`](../assets/erc-0/tools/vecprim.py) 
+The generator, [`tools/gen_vectors.py`](../assets/erc-8441/tools/gen_vectors.py), 
+does its arithmetic in [`tools/vecprim.py`](../assets/erc-8441/tools/vecprim.py) 
 and imports nothing from the reference implementation. 
 ML-KEM values come from NIST's ACVP files, 
-vendored at [`vectors/tier1/ml-kem-768-acvp.json`](../assets/erc-0/vectors/tier1/ml-kem-768-acvp.json). 
+vendored at [`vectors/tier1/ml-kem-768-acvp.json`](../assets/erc-8441/vectors/tier1/ml-kem-768-acvp.json). 
 Running `python3 tools/gen_vectors.py --check` in the directory that holds `vectors/` and `tools/`
 re-derives every vector and compares it with the files above. 
 It needs only the Python standard library.
