@@ -1,0 +1,35 @@
+{
+  "schemaId": "0xf8d52ce839f9cd138e0870ac859214827049064c10d86fe04977bba2fff89293",
+  "schemaVersion": "2",
+  "claimVariant": "backing.credit",
+  "assetId": "0x3c1d8e2f4a5b6c7d8e9f00112233445566778899aabbccddeeff001122334455",
+  "claimVersion": 3,
+  "attestorProfile": "independent collateral agent",
+  "authoredAt": "2026-10-07T14:00:00Z",
+  "dataAppliesAt": "2026-09-30T00:00:00Z",
+  "accessClassification": "PERMISSIONED_DISCLOSURE",
+  "data": {
+    "backingType": "COLLATERAL",
+    "instrument": { "type": "LOAN", "jurisdiction": "US" },
+    "evidence": {
+      "contentHash": "0x5e8a7b6c5d4e3f20112233445566778899aabbccddeeff00112233445566778a",
+      "hashAlgorithm": "KECCAK-256",
+      "uri": "ipfs://bafybeisyntheticcollateralpackage"
+    },
+    "coverage": {
+      "basis": "APPRAISED",
+      "backedAmount": "2400000",
+      "backedCurrency": "EUR",
+      "referenceAmount": "2000000",
+      "referenceCurrency": "USD",
+      "valuationRef": {
+        "chainId": 11155111,
+        "registry": "0x00000000000000000000000000000000000c8320",
+        "assetId": "0xa1b2c3d4e5f60718293a4b5c6d7e8f9011223344556677889900aabbccddeeff",
+        "version": 2,
+        "contentHash": "0x0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff0"
+      }
+    },
+    "encumbrance": { "status": "NONE", "beneficiaryKnown": true }
+  }
+}

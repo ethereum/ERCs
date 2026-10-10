@@ -1,0 +1,21 @@
+{
+  "schemaId": "0xf8d52ce839f9cd138e0870ac859214827049064c10d86fe04977bba2fff89293",
+  "schemaVersion": "2",
+  "claimVariant": "backing.credit",
+  "assetId": "0x9d8c7b6a5f4e3d2c1b0a99887766554433221100ffeeddccbbaa998877665544",
+  "claimVersion": 1,
+  "attestorProfile": "independent verification agent",
+  "authoredAt": "2026-10-07T14:00:00Z",
+  "dataAppliesAt": "2026-10-01T00:00:00Z",
+  "accessClassification": "PUBLIC_DISCOVERY",
+  "data": {
+    "backingType": "GUARANTEE",
+    "instrument": { "type": "PROMISSORY_NOTE", "jurisdiction": "ES" },
+    "evidence": {
+      "contentHash": "0x2b4d6f8091a3c5e7f9112233445566778899aabbccddeeff0011223344556677",
+      "hashAlgorithm": "SHA-256",
+      "uri": "ipfs://bafybeisyntheticguaranteepackage"
+    },
+    "encumbrance": { "status": "UNKNOWN", "beneficiaryKnown": false }
+  }
+}
