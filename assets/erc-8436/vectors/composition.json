@@ -1,0 +1,1734 @@
+{
+  "description": "Four-valued composition over three children (Y=Decided yes, N=Decided no, P=Pending, D=NoDecision). KOFM2 = 2-of-3. Verified in test/ACDFVectors.t.sol with 1-of-1 bodies.",
+  "count": 192,
+  "vectors": [
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "Y",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "Y",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "Y",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "N",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "N",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "N",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "P",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "P",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "D",
+        "Y"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "D",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "Y",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "Y",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "Y",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "Y",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "Y",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "N",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "N",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "N",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "P",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "P",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "P",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "P",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "D",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "D",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "D",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "N",
+        "D",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "Y",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "Y",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "Y",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "Y",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "N",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "N",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "N",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "P",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "P",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "D",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "D",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "P",
+        "D",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "Y",
+        "Y"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "Y",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "Y",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "Y",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "N",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "N",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "N",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "P",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "P",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "D",
+        "Y"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "D",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ALL",
+      "children": [
+        "D",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "Y",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "Y",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "Y",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "N",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "N",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "N",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "N",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "P",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "P",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "P",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "P",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "D",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "D",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "D",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "Y",
+        "D",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "Y",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "Y",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "Y",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "N",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "N",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "N",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "P",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "P",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "D",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "D",
+        "N"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "N",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "Y",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "Y",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "Y",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "N",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "N",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "N",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "N",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "P",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "P",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "D",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "D",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "P",
+        "D",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "Y",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "Y",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "Y",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "N",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "N",
+        "N"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "N",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "N",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "P",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "P",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "D",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "D",
+        "N"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "ANY",
+      "children": [
+        "D",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "Y",
+        "N"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "Y",
+        "P"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "Y",
+        "D"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "N",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "N",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "N",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "P",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "P",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "D",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "D",
+        "N"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "Y",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "Y",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "Y",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "Y",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "N",
+        "Y"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "N",
+        "P"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "N",
+        "D"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "P",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "P",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "D",
+        "Y"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "D",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "N",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "Y",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "Y",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "Y",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "N",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "N",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "N",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "P",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "P",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "D",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "D",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "P",
+        "D",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "Y",
+        "Y"
+      ],
+      "expected": "Yes"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "Y",
+        "N"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "Y",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "Y",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "N",
+        "Y"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "N",
+        "N"
+      ],
+      "expected": "No"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "N",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "N",
+        "D"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "P",
+        "Y"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "P",
+        "N"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "P",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "P",
+        "D"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "D",
+        "Y"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "D",
+        "N"
+      ],
+      "expected": "NoDecision"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "D",
+        "P"
+      ],
+      "expected": "Pending"
+    },
+    {
+      "op": "KOFM2",
+      "children": [
+        "D",
+        "D",
+        "D"
+      ],
+      "expected": "NoDecision"
+    }
+  ]
+}

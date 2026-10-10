@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/acd-framework/assets/erc-acdf/schemas/policy-spec.schema.json",
+  "title": "ACDF PolicySpec (off-chain descriptor mirror)",
+  "description": "JSON mirror of the on-chain PolicySpec struct of the Agent Collective Decision Framework reference v0.2. The on-chain struct is the normative object: policyId = keccak256(abi.encode(PolicySpec)). This descriptor exists so that implementers in other languages can reproduce the encoding (see vectors/policy-id.json). Any field here that is not part of the hashed struct is marked informative.",
+  "type": "object",
+  "required": ["family", "version", "previous", "updateAuthority", "bodies", "nodes", "maxAppeals", "appealWindow", "appealable", "appealStanding", "appealMode", "maxTotalDuration", "ackWindow", "allowAdvisory", "descriptorHash"],
+  "additionalProperties": false,
+  "properties": {
+    "family": { "$ref": "#/$defs/bytes32", "description": "Policy family id; the first version claims it and fixes who may publish later versions." },
+    "version": { "type": "integer", "minimum": 1, "maximum": 4294967295, "description": "Strictly increasing within the family." },
+    "previous": { "$ref": "#/$defs/bytes32", "description": "policyId of the previous version in the family; zero for the first version." },
+    "updateAuthority": { "$ref": "#/$defs/address", "description": "Account allowed to publish the next version of the family." },
+    "bodies": {
+      "type": "array", "minItems": 1, "maxItems": 32,
+      "items": { "$ref": "#/$defs/BodySpec" }
+    },
+    "nodes": {
+      "type": "array", "minItems": 1, "maxItems": 64,
+      "description": "nodes[0] is the root. Every edge points to a strictly larger index (acyclic) and every non-root node is referenced exactly once (a tree).",
+      "items": { "$ref": "#/$defs/Node" }
+    },
+    "maxAppeals": { "type": "integer", "minimum": 0, "maximum": 4294967295, "description": "Extra rounds allowed after the first." },
+    "appealWindow": { "$ref": "#/$defs/uint64", "description": "Seconds after a round's result instant during which an appeal may be filed. Must be > 0 when maxAppeals > 0." },
+    "appealable": { "type": "integer", "minimum": 0, "maximum": 3, "description": "Bitmask: 1 = Decided results appealable, 2 = NoDecision results appealable." },
+    "appealStanding": { "type": "string", "enum": ["ANYONE", "CONSUMER_OR_FILER"] },
+    "appealMode": { "type": "string", "enum": ["PRESERVE_UNLESS_OVERTURNED", "REQUIRE_FRESH_DECISION"], "description": "PRESERVE_UNLESS_OVERTURNED: an appeal round that ends in NoDecision leaves the decision under appeal standing. REQUIRE_FRESH_DECISION: opening an appeal vacates the earlier decision; only the last round's own decision can be adopted, otherwise the issue ends in NoDecision. No kernel default: every policy states its mode." },
+    "maxTotalDuration": { "$ref": "#/$defs/uint64", "description": "Hard cap from admission, in seconds. Must be >= (maxAppeals + 1) * roundDuration + maxAppeals * appealWindow, where roundDuration is the longest body window." },
+    "ackWindow": { "$ref": "#/$defs/uint64", "description": "POST_ACK acknowledgment window in seconds; 0 disables POST_ACK for this policy." },
+    "allowAdvisory": { "type": "boolean", "description": "Whether an unacknowledged POST_ACK issue may be admitted as Advisory after the window." },
+    "descriptorHash": { "$ref": "#/$defs/bytes32", "description": "Hash of the human-readable descriptor. Informative: it is part of the hashed struct but never influences execution." }
+  },
+  "$defs": {
+    "bytes32": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "uint64": { "type": ["integer", "string"], "pattern": "^[0-9]+$", "minimum": 0 },
+    "BodySpec": {
+      "type": "object",
+      "required": ["kind", "acceptance", "members", "k", "window"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["ROSTER_KOFN", "AUTHORIZED_SUBMITTER"] },
+        "acceptance": { "type": "string", "enum": ["ON_CHAIN_TALLY", "SIGNED_BALLOTS", "AUTHORIZED_SUBMITTER"], "description": "Result-acceptance mode of THIS body. ROSTER_KOFN bodies use ON_CHAIN_TALLY or SIGNED_BALLOTS; AUTHORIZED_SUBMITTER bodies use AUTHORIZED_SUBMITTER." },
+        "members": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/address" }, "description": "ROSTER_KOFN: unique, non-zero roster. AUTHORIZED_SUBMITTER: exactly one pinned submitter." },
+        "k": { "type": "integer", "minimum": 0, "maximum": 4294967295, "description": "ROSTER_KOFN: approvals needed, 1 <= k <= N; N-k+1 blocks decide No. Ignored for AUTHORIZED_SUBMITTER." },
+        "window": { "$ref": "#/$defs/uint64", "description": "Seconds from round start during which this body accepts input; > 0." }
+      }
+    },
+    "Node": {
+      "type": "object",
+      "required": ["op"],
+      "additionalProperties": false,
+      "properties": {
+        "op": { "type": "string", "enum": ["BODY", "ALL", "ANY", "KOFM", "VETO"] },
+        "body": { "type": "integer", "minimum": 0, "description": "BODY: index into bodies." },
+        "k": { "type": "integer", "minimum": 0, "description": "KOFM: required child approvals, 1 <= k <= children.length." },
+        "target": { "type": "integer", "minimum": 0, "description": "VETO: index of the guarded node (> own index)." },
+        "vetoBody": { "type": "integer", "minimum": 0, "description": "VETO: index of the veto body; its window is the veto window. An approve ballot in that body means VETO; an explicit block decision means CLEARANCE." },
+        "silence": { "type": "string", "enum": ["PASS_THROUGH", "REQUIRE_CLEARANCE"], "description": "VETO: what the veto body's silence means once its window closes." },
+        "children": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "description": "ALL / ANY / KOFM: child node indices (> own index, unique)." }
+      }
+    }
+  }
+}
