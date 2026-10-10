@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="520" font-family="'Cascadia Code','Fira Code','JetBrains Mono',monospace" font-size="13">
+  <rect width="780" height="520" rx="8" fill="#1e1e2e"/>
+  <text x="20" y="30" fill="#89b4fa" font-size="11">Ran 14 tests for test/ERC8210TestVectors.t.sol:ERC8210TestVectors</text>
+
+  <text x="20" y="58"  fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="58"  fill="#cdd6f4">test_01_FullHappyPath_AssurancePath</text><text x="540" y="58" fill="#6c7086">(gas: 437,549)</text>
+  <text x="20" y="82"  fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="82"  fill="#cdd6f4">test_02_FullHappyPath_ClaimsPath</text><text x="540" y="82" fill="#6c7086">(gas: 702,300)</text>
+  <text x="20" y="106" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="106" fill="#cdd6f4">test_03_DenialPath</text><text x="540" y="106" fill="#6c7086">(gas: 808,583)</text>
+  <text x="20" y="130" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="130" fill="#cdd6f4">test_04_ExpiryPath</text><text x="540" y="130" fill="#6c7086">(gas: 409,311)</text>
+  <text x="20" y="154" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="154" fill="#cdd6f4">test_05_PrematureExpiry</text><text x="540" y="154" fill="#6c7086">(gas: 386,815)</text>
+  <text x="20" y="178" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="178" fill="#cdd6f4">test_06_Insolvency</text><text x="540" y="178" fill="#6c7086">(gas: 611,943)</text>
+  <text x="20" y="202" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="202" fill="#cdd6f4">test_07_WithdrawalBoundary</text><text x="540" y="202" fill="#6c7086">(gas: 394,046)</text>
+  <text x="20" y="226" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="226" fill="#cdd6f4">test_08_InvalidStateTransitions</text><text x="540" y="226" fill="#6c7086">(gas: 837,715)</text>
+  <text x="20" y="250" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="250" fill="#cdd6f4">test_09_EligibilityGating</text><text x="540" y="250" fill="#6c7086">(gas: 840,822)</text>
+  <text x="20" y="274" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="274" fill="#cdd6f4">test_10_AdverseSelection</text><text x="540" y="274" fill="#6c7086">(gas: 206,897)</text>
+  <text x="20" y="298" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="298" fill="#cdd6f4">test_11_DuplicateCommitment</text><text x="540" y="298" fill="#6c7086">(gas: 828,365)</text>
+  <text x="20" y="322" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="322" fill="#cdd6f4">test_12_AmountValidation</text><text x="540" y="322" fill="#6c7086">(gas: 603,263)</text>
+  <text x="20" y="346" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="346" fill="#cdd6f4">test_13_RecusalRuleEnforcement</text><text x="540" y="346" fill="#6c7086">(gas: 650,683)</text>
+  <text x="20" y="370" fill="#a6e3a1">&#x2714; PASS</text><text x="100" y="370" fill="#cdd6f4">test_14_InvariantVerification</text><text x="540" y="370" fill="#6c7086">(gas: 728,787)</text>
+
+  <line x1="20" y1="390" x2="760" y2="390" stroke="#45475a" stroke-width="1"/>
+  <text x="20" y="415" fill="#a6e3a1" font-weight="bold">Suite result: ok.</text>
+  <text x="175" y="415" fill="#a6e3a1" font-weight="bold">14 passed</text>
+  <text x="280" y="415" fill="#6c7086">; 0 failed; 0 skipped</text>
+
+  <text x="20" y="445" fill="#6c7086">Ran 1 test suite in 31.92ms: 14 tests passed, 0 failed, 0 skipped</text>
+  <text x="20" y="469" fill="#6c7086">Solidity 0.8.24 | Foundry | forge-std v1.15.0</text>
+
+  <rect x="20" y="486" width="120" height="22" rx="4" fill="#a6e3a1" opacity="0.15"/>
+  <text x="30" y="502" fill="#a6e3a1" font-size="12" font-weight="bold">14 / 14 PASS</text>
+</svg>
