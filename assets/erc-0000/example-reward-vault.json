@@ -1,0 +1,38 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Reward Vault",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xYourRewardVaultAddress"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Example",
+        "contractName": "Reward Vault"
+    },
+    "display": {
+        "formats": {
+            "grantReward(address to,uint256 amount)": {
+                "intent": "Grant reward",
+                "interpolatedIntent": "Grant {amount} reward to {to}",
+                "fields": [
+                    {
+                        "path": "to",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "amount",
+                        "label": "Amount",
+                        "format": "amount"
+                    }
+                ]
+            }
+        }
+    }
+}
