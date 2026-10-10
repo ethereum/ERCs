@@ -1,0 +1,28 @@
+@startuml
+title Settlement-Decoupled Nanopayment Ledger: Core Flow
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam nodesep 16
+skinparam ranksep 20
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 14
+skinparam ArrowColor #536A7B
+skinparam rectangle {
+  BackgroundColor #F1F6FB
+  BorderColor #536A7B
+  FontColor #1D354A
+  RoundCorner 12
+}
+rectangle "1. **User initiates payment**\n\nThe user requests payment\nthrough a participating institution" as step1
+rectangle "2. **Parties verify and sign**\n\nThe payer institution,\npayee institution, and Payment Network\nverify the transaction and sign" as step2
+rectangle "3. **Submit on-chain**\n\nThe submitter sends requests\nindividually or in a batch" as step3
+rectangle "4. **Post to the ledger**\n\nThe ledger validates requests,\nposts entries, and emits events" as step4
+rectangle "5. **Close statements**\n\nInstitutions call flush periodically\nas agreed to close on-chain statements" as step5
+rectangle "6. **Settle fiat off-chain**\n\nOff-chain fiat systems settle\non the basis of the statements" as step6
+step1 --> step2
+step2 --> step3
+step3 --> step4
+step4 --> step5
+step5 --> step6
+@enduml

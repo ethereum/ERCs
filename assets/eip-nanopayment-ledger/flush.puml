@@ -1,0 +1,41 @@
+@startuml
+title 3. Flush and Off-Chain Funds Processing
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam nodesep 24
+skinparam ranksep 28
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam ParticipantPadding 12
+skinparam BoxPadding 8
+skinparam maxMessageSize 0
+skinparam sequence {
+  ArrowColor #435B70
+  LifeLineBorderColor #A3AFBC
+  ParticipantBorderColor #64798B
+  ParticipantBackgroundColor #FFFFFF
+  GroupBorderColor #7D90A3
+  GroupBackgroundColor #FAFCFE
+}
+skinparam note {
+  BackgroundColor #FFFBEF
+  BorderColor #CABD94
+  FontSize 12
+}
+hide footbox
+box "Off-chain | Business checks and authorization" #F0F5FA
+actor "User / Merchant" as customer
+participant "Acquirer" as acquirer
+participant "Payment Network" as network
+participant "Wallet" as wallet
+endbox
+box "On-chain | This ERC" #E5F3EB
+participant "Ledger" as ledger
+endbox
+box "Off-chain | Funds processing" #FFF6E8
+participant "Institution fiat systems" as funds
+endbox
+wallet -> ledger : 8 Call flush to close the statement on the Wallet's own schedule
+ledger --> wallet : 9 Record the Wallet's period payables and receivables in Flushed\nReset Wallet aggregates and subtract the corresponding Network amounts
+wallet -> funds : 10 Reconcile the Wallet's closed statement and create off-chain funds processing tasks
+@enduml
