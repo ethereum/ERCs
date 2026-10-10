@@ -16,15 +16,15 @@
   },
   "files": {
     "section-1.json": {
-      "sha256": "8bde9a3edb495e760e41feaee9aaeae5b8906a8821d737338313501af075ec71",
+      "sha256": "e05a67608ee48776b91b2e685342815c1f90fb3f77c70c78ecc3ba7cc158d151",
       "rows_in_plan": 7,
       "rows_present": 6,
       "rows_withdrawn_or_reserved": 1
     },
     "section-2.json": {
-      "sha256": "f4c6ff59e33367722ab1df9c15988fe2a5e825baba6d3117ab02ea2bcadb616b",
-      "rows_in_plan": 19,
-      "rows_present": 19
+      "sha256": "cc5b95f20737084d17823584f1f7bf954121403b8cd59f89aacd1a051658468e",
+      "rows_in_plan": 23,
+      "rows_present": 23
     }
   }
 }

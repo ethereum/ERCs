@@ -76,7 +76,7 @@
         "superseded_eight_byte_width": "feaba572e3c54d12",
         "trailing_byte_of_own_digest": "25",
         "leading_byte_of_H_ss": "d8",
-        "note": "the tag was eight bytes until the announced stealthAddress became the authoritative check (Section 2.5 MUST) and the tag was narrowed to a prefilter; an implementation carrying the old width matches nothing"
+        "note": "the tag was eight bytes until the announced stealthAddress became the authoritative check (Section 2.5) and the tag was narrowed to a prefilter; an implementation carrying the old width matches nothing"
       }
     }
   }

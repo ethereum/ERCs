@@ -82,6 +82,12 @@ DS_HYBRID = b"pq-stealth/hybrid-payment/v1"
 # a blinded re-derivation from this project's prose. Both are inside the project, so the
 # constant is still a proposal -- and saying "no implementation has agreed" would send a
 # reader looking for agreement that exists inside this project.
+# The recipient of V3-14 and V3-17, whose KEM key is an ACVP decapsulation case's. ACVP gives
+# that key only expanded, with no (d, z) behind it, so it cannot be a Section 2.1 tracking key;
+# the rows give ss_pq so that an implementation holding seeds can start there.
+RECIPIENT_EXPANDED = ("V3-09's viewing key with the KEM key of ACVP decapsulation tcId {tc}. "
+                      "ACVP gives that key only in expanded form, so an implementation that "
+                      "holds keys as (d, z) seeds starts from the ss_pq given here")
 PROVISIONAL_WHY = ("NO OUTSIDE implementation has adopted it. This document's own implementation produces these bytes and an independent blinded re-derivation from the prose alone agreed on them, and neither is an outside party -- the constant is still a proposal")
 def plan_rows(root: Path) -> dict[str, list[tuple[str, str]]]:
     """{group: [(row id, claim cell), ...]} read off the plan, in document order.
@@ -129,6 +135,11 @@ def tier1(root: Path) -> dict:
 
 def hx(b: bytes) -> str:
     return b.hex()
+
+
+def resized(b: bytes, n: int) -> bytes:
+    """`b` cut to `n` bytes, or padded to them with 0x11: how V3-15 makes its malformed fields."""
+    return b[:n] + b"\x11" * (n - len(b))
 
 
 # --------------------------------------------------------------------------------------
@@ -202,7 +213,7 @@ def group_1() -> dict[str, dict]:
                 hx(hashlib.sha256(vp.DS_VIEWTAG + ss).digest()[31:]),
             "leading_byte_of_H_ss": hx(base[:1]),
             "note": "the tag was eight bytes until the announced stealthAddress became the "
-                    "authoritative check (Section 2.5 MUST) and the tag was narrowed to a "
+                    "authoritative check (Section 2.5) and the tag was narrowed to a "
                     "prefilter; "
                     "an implementation carrying the old width matches nothing",
         },
@@ -225,13 +236,32 @@ def group_2(t1: dict) -> dict[str, dict]:
     # and the 33-byte compressed form, so all three are emitted and they differ.
     shared_pt = vp.mul(esk, vp.decode_compressed(viewing_pk_ec))
     ss_ec = shared_pt[0].to_bytes(32, "big")
+
+    # V3-09's recipient, built first so the rows before V3-09 can state their inputs in full
+    # rather than point at it: spending 0x11.., viewing 0x33.., and the (d, z) of ACVP keygen
+    # tcId 26, so its ek is NIST's.
+    spending_seed = bytes([0x11]) * 32
+    kg = t1["keygen"][0]
+    kem_seed = bytes.fromhex(kg["d"]) + bytes.fromhex(kg["z"])
+    v_ec_seed = bytes([0x33]) * 32
+    assert vp.encode_compressed(vp.mul(int.from_bytes(v_ec_seed, "big"))) == viewing_pk_ec
+    delegated = v_ec_seed + kem_seed
+    assert spending_seed not in (delegated[0:32], delegated[32:64], delegated[64:96]), \
+        "Section2.1's component check would reject this fixture's own keygen seed"
+    keygen_seed = spending_seed + delegated
+    spending_pk = vp.encode_compressed(vp.mul(int.from_bytes(spending_seed, "big")))
+    meta = spending_pk + viewing_pk_ec + bytes.fromhex(kg["ek"])
+
     v["V3-01"] = {"claim": "keygen seed is 128 B",
-                  "given": {"lengths": [128, 96, 127]},
+                  "given": {"lengths": [128, 96, 127],
+                            "seeds": {"128": hx(keygen_seed), "96": hx(keygen_seed[:96]),
+                                      "127": hx(keygen_seed[:127])},
+                            "seeds_are": "V3-09's keygen seed, then its first 96 and its "
+                                         "first 127 bytes"},
                   "expect": {"outcome": "outputs, then errors for 96 and 127"},
                   "wrong": {"note": "padding or truncating to 128 rather than rejecting; or "
                                     "accepting 96 bytes, which is a well-formed seed for a "
                                     "scheme with no EC half and is the likeliest port"}}
-    spending_seed = bytes([0x11]) * 32
     # The delegated object is viewing_ec_seed(32) || d(32) || z(32); the check compares
     # spending_seed with each of the three components, so each is planted in turn.
     components = {"viewing_ec_seed": 0, "d": 32, "z": 64}
@@ -259,7 +289,11 @@ def group_2(t1: dict) -> dict[str, dict]:
     v["V3-03"] = {"claim": "meta is 1250 B and both points are validated",
                   "given": {"spending_pk": hx(vp.encode_compressed(
                       vp.mul(int.from_bytes(spending_seed, 'big')))),
-                      "viewing_pk_ec_compact_0x05": hx(b"\x05" + viewing_pk_ec[1:])},
+                      "viewing_pk_ec_compact_0x05": hx(b"\x05" + viewing_pk_ec[1:]),
+                      "meta_address": hx(spending_pk + b"\x05" + viewing_pk_ec[1:]
+                                         + meta[66:]),
+                      "meta_address_is": "V3-09's meta-address with viewing_pk_ec's tag set "
+                                         "to 0x05"},
                   "expect": {"outcome": "error at decode"},
                   "wrong": {"note": "validating only spending_pk, which is the natural port "
                                     "of a decoder for a meta-address that carries one point"}}
@@ -289,9 +323,17 @@ def group_2(t1: dict) -> dict[str, dict]:
     three = ss_ec + ss_pq + epk
     v["V3-06"] = {"claim": "IKM is exactly ss_ec || ss_pq || epk || ct || viewing_pk_ec || ek",
                   "provisional": True,
+                  "provisional_because": PROVISIONAL_WHY,
                   "given": {"parts": {"ss_ec": hx(ss_ec), "ss_pq": hx(ss_pq), "epk": hx(epk),
                                       "ct": hx(ct), "viewing_pk_ec": hx(viewing_pk_ec),
-                                      "ek": hx(ek)}},
+                                      "ek": hx(ek)},
+                            "esk": f"{esk:064x}",
+                            "acvp_encapsulation_tcId": en["tcId"],
+                            "m": en["m"],
+                            "parts_are": f"epk = esk*G and ss_ec = ECDH(esk, viewing_pk_ec).x "
+                                         f"as in V3-04, viewing_pk_ec being V3-09's; ek, ct and "
+                                         f"ss_pq are ACVP encapsulation tcId {en['tcId']}, "
+                                         f"(ct, ss_pq) = ML-KEM.Encaps_internal(ek, m)"},
                   "expect": {"ss": hx(ss)},
                   "wrong": {
                       "three_field_form": hx(hashlib.sha3_256(DS_HYBRID + three).digest()),
@@ -302,7 +344,9 @@ def group_2(t1: dict) -> dict[str, dict]:
     ct2 = bytes.fromhex(t1["encapsulation"][1]["c"])
     v["V3-06a"] = {"claim": "ct is bound in",
                    "given": {"ct_a": hx(ct), "ct_b": hx(ct2),
-                             "everything_else": "identical"},
+                             "ct_b_is": f"the c of ACVP encapsulation tcId "
+                                        f"{t1['encapsulation'][1]['tcId']}",
+                             "everything_else": "V3-06's parts"},
                    "expect": {"ss_a": hx(ss),
                               "ss_b": hx(hashlib.sha3_256(
                                   DS_HYBRID + ss_ec + ss_pq + epk + ct2
@@ -315,7 +359,9 @@ def group_2(t1: dict) -> dict[str, dict]:
     vpk2 = vp.encode_compressed(vp.mul(int.from_bytes(bytes([0x55]) * 32, "big")))
     v["V3-06b"] = {"claim": "viewing_pk_ec is bound in",
                    "given": {"viewing_pk_ec_a": hx(viewing_pk_ec),
-                             "viewing_pk_ec_b": hx(vpk2)},
+                             "viewing_pk_ec_b": hx(vpk2),
+                             "viewing_ec_b": hx(bytes([0x55]) * 32),
+                             "everything_else": "V3-06's parts"},
                    "expect": {"ss_a": hx(ss),
                               "ss_b": hx(hashlib.sha3_256(
                                   DS_HYBRID + ss_ec + ss_pq + epk + ct + vpk2
@@ -325,7 +371,8 @@ def group_2(t1: dict) -> dict[str, dict]:
                                      "the old IKM"}}
     flipped = bytes([epk[0] ^ 0x01]) + epk[1:]
     v["V3-07"] = {"claim": "epk MUST be bound in",
-                  "given": {"epk": hx(epk), "epk_parity_flipped": hx(flipped)},
+                  "given": {"epk": hx(epk), "epk_parity_flipped": hx(flipped),
+                            "everything_else": "V3-06's parts"},
                   "expect": {"ss_a": hx(ss),
                              "ss_b": hx(hashlib.sha3_256(
                                  DS_HYBRID + ss_ec + ss_pq + flipped + ct
@@ -380,16 +427,6 @@ def group_2(t1: dict) -> dict[str, dict]:
     # `modified ciphertext` -- which is the implicit-rejection behaviour itself, oracled
     # by NIST rather than asserted by us.
     # ----------------------------------------------------------------------------------
-    kg = t1["keygen"][0]
-    kem_seed = bytes.fromhex(kg["d"]) + bytes.fromhex(kg["z"])
-    v_ec_seed = bytes([0x33]) * 32
-    assert vp.encode_compressed(vp.mul(int.from_bytes(v_ec_seed, "big"))) == viewing_pk_ec
-    delegated = v_ec_seed + kem_seed
-    assert spending_seed not in (delegated[0:32], delegated[32:64], delegated[64:96]), \
-        "Section2.1's component check would reject this fixture's own keygen seed"
-    keygen_seed = spending_seed + delegated
-    spending_pk = vp.encode_compressed(vp.mul(int.from_bytes(spending_seed, "big")))
-    meta = spending_pk + viewing_pk_ec + bytes.fromhex(kg["ek"])
     v["V3-09"] = {"claim": "keygen MUST be deterministic in the seed -- the same 128 bytes "
                            "produce the same three outputs",
                   "given": {"keygen_seed": hx(keygen_seed),
@@ -410,16 +447,22 @@ def group_2(t1: dict) -> dict[str, dict]:
                                     "can decapsulate no payment ever made to the registered "
                                     "ek. Undetectable at keygen and total afterwards"}}
 
+    def with_half(at: int, half: bytes) -> bytes:
+        seed = bytearray(keygen_seed)
+        seed[at:at + 32] = half
+        return bytes(seed)
+
     v["V3-10"] = {"claim": "spending_seed and viewing_ec_seed MUST each be a valid secp256k1 "
                            "scalar -- error at keygen, per Section2.7",
-                  "given": {"seeds_128_B_differing_only_in_the_first_or_second_32": {
-                      "spending_seed_0": hx(bytes(32)),
-                      "spending_seed_n": f"{vp.N:064x}",
-                      "spending_seed_n_minus_1": f"{vp.N - 1:064x}",
-                      "viewing_ec_seed_0": hx(bytes(32))}},
+                  "given": {"seeds": {
+                      "spending_seed_0": hx(with_half(0, bytes(32))),
+                      "spending_seed_n": hx(with_half(0, vp.N.to_bytes(32, "big"))),
+                      "spending_seed_n_minus_1": hx(with_half(0, (vp.N - 1).to_bytes(32, "big"))),
+                      "viewing_ec_seed_0": hx(with_half(32, bytes(32)))},
+                      "seeds_are": "V3-09's keygen seed with the named 32-byte half replaced"},
                   "expect": {"outcome": "error, error, accepted, error"},
-                  "wrong": {"note": "reducing the seed mod n instead of rejecting it. "
-                                    "Nothing in this document reduces mod n: a library "
+                  "wrong": {"note": "reducing the seed mod n instead of rejecting it as "
+                                    "Section 2.1 requires: a library "
                                     "that reduces silently turns "
                                     "spending_seed = n into spending_seed = 0, and every "
                                     "payment to the resulting meta-address is spendable by "
@@ -427,7 +470,11 @@ def group_2(t1: dict) -> dict[str, dict]:
                                     "in the bound rejects a legitimate seed"}}
 
     v["V3-11"] = {"claim": "decoding MUST reject a meta-address length other than 1250",
-                  "given": {"lengths": [1249, 1250, 1251]},
+                  "given": {"lengths": [1249, 1250, 1251],
+                            "meta_addresses": {"1249": hx(meta[:-1]), "1250": hx(meta),
+                                               "1251": hx(meta + b"\x00")},
+                            "meta_addresses_are": "V3-09's meta-address without its last "
+                                                  "byte, as it is, and with 0x00 appended"},
                   "expect": {"outcome": "error, accepted, error"},
                   "wrong": {"note": "slicing [0:33], [33:66], [66:] with no length check. "
                                     "1251 then decodes with a trailing byte ignored and 1249 "
@@ -439,10 +486,16 @@ def group_2(t1: dict) -> dict[str, dict]:
     v["V3-12"] = {"claim": "33 bytes of the right length can still be a non-point -- both "
                            "points MUST be validated before the meta-address is used",
                   "given": {"viewing_pk_ec_nonpoint": hx(b"\x02" + nonpoint_x.to_bytes(32, "big")),
-                            "why": f"x = {nonpoint_x} is the smallest x for which x^3 + 7 is "
+                            "why": f"x = {nonpoint_x} is the smallest positive x for which x^3 + 7 is "
                                    f"not a square mod p, so no y exists and this is 33 "
                                    f"well-formed bytes that are not a point",
-                            "viewing_pk_ec_valid": hx(viewing_pk_ec)},
+                            "viewing_pk_ec_valid": hx(viewing_pk_ec),
+                            "meta_address_nonpoint": hx(
+                                meta[:33] + b"\x02" + nonpoint_x.to_bytes(32, "big")
+                                + meta[66:]),
+                            "meta_address_valid": hx(meta),
+                            "meta_addresses_are": "V3-09's meta-address with viewing_pk_ec "
+                                                  "replaced by each"},
                   "expect": {"outcome": "error at decode, then accepted"},
                   "wrong": {"note": "checking the length and the 0x02/0x03 tag byte and "
                                     "storing the bytes. The ECDH that follows either throws "
@@ -457,7 +510,10 @@ def group_2(t1: dict) -> dict[str, dict]:
     v["V3-13"] = {"claim": "address = keccak256(uncompressed(stealth_pk) without its 0x04 "
                            "prefix)[12..32]",
                   "given": {"stealth_pk_compressed": hx(vp.encode_compressed(stealth_pt)),
-                            "stealth_pk_uncompressed": hx(uncompressed)},
+                            "stealth_pk_uncompressed": hx(uncompressed),
+                            "stealth_pk_from": {"row": "V3-16",
+                                                "spending_pk": hx(spending_pk),
+                                                "ss": hx(ss)}},
                   "expect": {"address": hx(address), "eip55": vp.eip55(address)},
                   "wrong": {"keccak_of_compressed": hx(
                                 vp.keccak256(vp.encode_compressed(stealth_pt))[12:32]),
@@ -489,10 +545,14 @@ def group_2(t1: dict) -> dict[str, dict]:
                             "ek": hx(ek_88),
                             "ek_source": "dk[1152:2336] per FIPS 203's expanded key layout, "
                                          "checked against the H(ek) at dk[2336:2368]",
+                            "viewing_ec": hx(v_ec_seed),
+                            "viewing_pk_ec": hx(viewing_pk_ec),
+                            "recipient_is": RECIPIENT_EXPANDED.format(tc=dc["tcId"]),
                             "announcement": {"ephemeralPubKey": hx(epk),
                                              "view_tag": hx(announced_tag),
                                              "ct": hx(ct_foreign)}},
                   "expect": {"decapsulation": "returns 32 bytes and does NOT fail",
+                             "ss_ec": hx(ss_ec),
                              "ss_pq": hx(ss_pq_88),
                              "ss": hx(ss_foreign),
                              "derived_view_tag": hx(derived_tag),
@@ -510,7 +570,12 @@ def group_2(t1: dict) -> dict[str, dict]:
     v["V3-15"] = {"claim": "a malformed announcement is a skip at the entry point, not an "
                            "error",
                   "given": {"ephemeralPubKey_lengths": [33, 1120, 1121, 1122],
-                            "metadata_lengths": [0, 1, 57]},
+                            "metadata_lengths": [0, 1, 57],
+                            "ephemeralPubKeys": {str(n): hx(resized(epk + ct, n))
+                                                 for n in (33, 1120, 1121, 1122)},
+                            "metadatas": {str(n): hx(resized(tag, n)) for n in (0, 1, 57)},
+                            "fields_are": "V3-08's ephemeralPubKey and metadata, cut to each "
+                                          "length or padded to it with 0x11 bytes"},
                   "expect": {"outcome": "skip unless ephemeralPubKey is 1121 bytes and "
                                         "metadata is at least 1 byte; 1121 / 1 and "
                                         "1121 / 57 are processed"},
@@ -520,6 +585,164 @@ def group_2(t1: dict) -> dict[str, dict]:
                                     "publishes -- and it costs the attacker one transaction. "
                                     "33 is the superseded epk-only field. 1121 / 1 and "
                                     "1121 / 57 are the positive controls"}}
+
+    # ----------------------------------------------------------------------------------
+    # V3-16..V3-19 -- requirements that had no fixture. V3-16 derives the stealth key pair
+    # from its inputs; before it, V3-13 was handed `stealth_pk`, so an implementation with a
+    # different tweak passed every row. V3-17 makes the announced address decide a match the
+    # view tag lets through. V3-18 and V3-19 are the two Section 2.7 rows that had none: a
+    # correctly sized `ephemeralPubKey` whose `epk` is not a point, and an `ek` that fails
+    # FIPS 203's encapsulation key check, the latter judged by NIST's own ACVP cases.
+    # ----------------------------------------------------------------------------------
+    spending_pt = vp.decode_compressed(spending_pk)
+    spending_k = int.from_bytes(spending_seed, "big")
+    h_ss = vp.h_of_ss(ss)[1]
+    stealth_sk = (spending_k + h_ss) % vp.N
+    assert vp.mul(stealth_sk) == stealth_pt, "V3-13's stealth_pk is spending_pk + H(ss)*G"
+    near_n = vp.N - 1
+    near_sk = (near_n + h_ss) % vp.N
+    near_pt = vp.add(vp.mul(near_n), vp.mul(h_ss))
+    assert vp.mul(near_sk) == near_pt
+    assert near_n + h_ss >= vp.N, "the near-n case must actually need the reduction"
+    v["V3-16"] = {"claim": "stealth_pk = spending_pk + H(ss)*G and stealth_sk = (spending_sk + "
+                           "H(ss)) mod n, and the two are one key pair",
+                  "given": {"ss": hx(ss), "ss_from": "V3-05",
+                            "spending_sk": hx(spending_seed),
+                            "spending_pk": hx(spending_pk),
+                            "spending_sk_near_n": f"{near_n:064x}"},
+                  "expect": {"H_ss": f"{h_ss:064x}",
+                             "stealth_pk": hx(vp.encode_compressed(stealth_pt)),
+                             "stealth_sk": f"{stealth_sk:064x}",
+                             "address": hx(address),
+                             "near_n": {"stealth_pk": hx(vp.encode_compressed(near_pt)),
+                                        "stealth_sk": f"{near_sk:064x}"}},
+                  "wrong": {
+                      "multiplicative_stealth_pk": hx(vp.encode_compressed(
+                          vp.mul(h_ss, spending_pt))),
+                      "multiplicative_stealth_sk": f"{spending_k * h_ss % vp.N:064x}",
+                      "ss_as_offset_stealth_pk": hx(vp.encode_compressed(vp.add(
+                          spending_pt, vp.mul(int.from_bytes(ss, "big"))))),
+                      "near_n_reduced_mod_2_256": f"{(near_n + h_ss) % 2**256:064x}",
+                      "note": "the tweak is additive, as in ERC-5564. A multiplicative tweak, "
+                              "H(ss)*spending_pk with spending_sk*H(ss), is also one key pair, "
+                              "so a sender and a recipient built on it agree with each other "
+                              "and with nobody else; using ss itself as the offset skips "
+                              "Section 1's hash and range check. With spending_sk = n - 1 "
+                              "the sum passes n, and reducing it mod 2^256 instead of mod n "
+                              "gives the key of a different address"}}
+
+    dv = next(c for c in t1["decapsulation"] if c["reason"] == "valid decapsulation")
+    dk_v = bytes.fromhex(dv["dk"])
+    ek_v = dk_v[1152:2336]
+    assert hashlib.sha3_256(ek_v).digest() == dk_v[2336:2368], \
+        "ek is not embedded in this dk where FIPS 203 puts it"
+    ct_v = bytes.fromhex(dv["c"])
+    ss_pq_v = bytes.fromhex(dv["k"])
+    ss_v = hashlib.sha3_256(
+        DS_HYBRID + ss_ec + ss_pq_v + epk + ct_v + viewing_pk_ec + ek_v).digest()
+    tag_v = vp.view_tag(ss_v)
+    stealth_v = vp.add(spending_pt, vp.mul(vp.h_of_ss(ss_v)[1]))
+    address_v = vp.address_of(stealth_v)
+    # The lie is a real sender bug rather than an arbitrary address: V3-13's keccak over the
+    # 0x04-prefixed point. The tag still matches, because the lie touches nothing ss covers.
+    lie = vp.keccak256(vp.encode_uncompressed(stealth_v))[12:32]
+    assert lie != address_v
+    v["V3-17"] = {"claim": "the announced stealthAddress decides: a view-tag match with a "
+                           "different stealthAddress is a skip",
+                  "given": {"acvp_decapsulation_tcId": dv["tcId"],
+                            "acvp_reason": dv["reason"],
+                            "dk": f"ACVP decapsulation tcId {dv['tcId']}, vendored in "
+                                  f"vectors/tier1/",
+                            "ek": hx(ek_v),
+                            "ek_source": "dk[1152:2336] per FIPS 203's expanded key layout, "
+                                         "checked against the H(ek) at dk[2336:2368]",
+                            "viewing_ec": hx(v_ec_seed),
+                            "viewing_pk_ec": hx(viewing_pk_ec),
+                            "spending_pk": hx(spending_pk),
+                            "recipient_is": RECIPIENT_EXPANDED.format(tc=dv["tcId"]),
+                            "announcement": {"ephemeralPubKey": hx(epk + ct_v),
+                                             "metadata": hx(tag_v)},
+                            "stealthAddress_honest": hx(address_v),
+                            "stealthAddress_lie": hx(lie)},
+                  "expect": {"ss_ec": hx(ss_ec), "ss_pq": hx(ss_pq_v), "ss": hx(ss_v),
+                             "view_tag": hx(tag_v),
+                             "stealth_pk": hx(vp.encode_compressed(stealth_v)),
+                             "address": hx(address_v),
+                             "honest": "match, with this address and ss",
+                             "lie": "skip"},
+                  "wrong": {"note": "deciding on the view tag. It matches in both, since it is "
+                                    "a function of ss and the lie changes only "
+                                    "stealthAddress, so such a scanner reports a payment at "
+                                    "an address the announcement does not name. The lie is "
+                                    "what a sender that hashed the 0x04 prefix (V3-13) "
+                                    "announces, and its funds went to an address nobody holds "
+                                    "a key for. Raising on it instead is a scanner denial of "
+                                    "service (Section 2.7)"}}
+
+    bad_epks = {
+        "tag_0x05_compact": b"\x05" + epk[1:],
+        "tag_0x04": b"\x04" + epk[1:],
+        "tag_0x00": b"\x00" + epk[1:],
+        "x_not_on_curve": b"\x02" + nonpoint_x.to_bytes(32, "big"),
+        "x_p_plus_1": b"\x02" + (vp.P + 1).to_bytes(32, "big"),
+    }
+    for name, b in bad_epks.items():
+        try:
+            vp.decode_compressed(b)
+        except ValueError:
+            continue
+        raise AssertionError(f"V3-18's {name} decodes")
+    # x = 1 is on the curve, so a decoder that reduces x mod p accepts x = p + 1 as that point.
+    vp.decode_compressed(b"\x02" + (1).to_bytes(32, "big"))
+    v["V3-18"] = {"claim": "a 1121-byte ephemeralPubKey whose epk is not a valid compressed "
+                           "point is a skip, not an error",
+                  "given": {"ephemeralPubKeys": {name: hx(b + ct)
+                                                 for name, b in bad_epks.items()},
+                            "honest_ephemeralPubKey": hx(epk + ct),
+                            "metadata": hx(tag),
+                            "fields_are": "each epk followed by V3-08's ct; metadata is "
+                                          "V3-08's view tag"},
+                  "expect": {"outcome": "skip for every ephemeralPubKeys entry; the honest "
+                                        "one is processed"},
+                  "wrong": {"note": "raising, or propagating the curve library's exception. "
+                                    "The length check passes, so the failure surfaces in "
+                                    "point decoding, and an error there is a scanner denial "
+                                    "of service (Section 2.7). Accepting a non-canonical "
+                                    "encoding is the other mistake: a decoder that "
+                                    "canonicalises 0x05 to 0x03, or reduces x mod p and so "
+                                    "reads x = p + 1 as the point with x = 1, gives one point "
+                                    "several encodings"}}
+
+    checks = t1["encapsulation_key_check"]
+    for c in checks:
+        assert (vp.ek_out_of_range(bytes.fromhex(c["ek"])) is None) == c["testPassed"], \
+            f"FIPS 203 Section 7.2 here disagrees with NIST on tcId {c['tcId']}"
+    ek_bad_case = next(c for c in checks if not c["testPassed"])
+    ek_good_case = next(c for c in checks if c["testPassed"])
+    ek_bad = bytes.fromhex(ek_bad_case["ek"])
+    bad_index, bad_value = vp.ek_out_of_range(ek_bad)
+    v["V3-19"] = {"claim": "an ek that fails FIPS 203's encapsulation key check is an error, "
+                           "and no announcement is made to it",
+                  "given": {"acvp_encapsulationKeyCheck_tcId_invalid": ek_bad_case["tcId"],
+                            "acvp_reason_invalid": ek_bad_case["reason"],
+                            "acvp_encapsulationKeyCheck_tcId_valid": ek_good_case["tcId"],
+                            "meta_address_invalid_ek": hx(spending_pk + viewing_pk_ec + ek_bad),
+                            "meta_address_valid_ek": hx(spending_pk + viewing_pk_ec
+                                                        + bytes.fromhex(ek_good_case["ek"])),
+                            "meta_addresses_are": "V3-09's spending_pk and viewing_pk_ec, then "
+                                                  "the ek of each ACVP case"},
+                  "expect": {"first_coefficient_at_least_q": {"index": bad_index,
+                                                              "value": bad_value,
+                                                              "q": vp.ML_KEM_Q},
+                             "outcome": "the invalid one is an error, at decode or at "
+                                        "encapsulation, and no announcement is made; the "
+                                        "valid one encapsulates"},
+                  "wrong": {"note": "encapsulating anyway. A library that reduces each "
+                                    "coefficient mod q on decoding encapsulates to a "
+                                    "different key from the one registered, ss binds the "
+                                    "registered bytes, and no decapsulation key exists for "
+                                    "either: the payment goes to a stealth address nobody "
+                                    "can find"}}
 
     return v
 

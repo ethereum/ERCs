@@ -229,10 +229,9 @@ def have_kem() -> bool:
 def kem_keygen(dz: bytes) -> tuple[bytes, bytes]:
     """`ML-KEM.KeyGen_internal(d, z)` -> `(ek, dk)`. §1 requires the internal entry point.
 
-    Takes the 64-byte `(d, z)` seed because §1 requires the decapsulation key to be
-    represented as that seed rather than the expanded form -- so the caller holds 64 bytes and
-    expands on demand, which is the property that makes the tracking key 64 bytes and not
-    2 400.
+    Takes the 64-byte `(d, z)` seed because §2.1 makes the tracking key carry that seed rather
+    than the expanded form -- so the caller holds 64 bytes and expands on demand, which is the
+    property that makes the tracking key 96 bytes and not 2 432.
     """
     assert len(dz) == 64, f"(d, z) is 64 bytes, got {len(dz)}"
     return _ML_KEM_768._keygen_internal(dz[:32], dz[32:])
@@ -253,8 +252,8 @@ def kem_decaps_expanded(dk: bytes, ct: bytes) -> bytes:
     """`ML-KEM.Decaps(dk, ct)` from the EXPANDED 2 400-byte key.
 
     **This exists for one purpose: consuming NIST's ACVP decapsulation cases**, whose `dk` is
-    the expanded form. §1 requires the 64-byte `(d, z)` seed as the representation, and the
-    difference is what makes a delegated tracking key 64 bytes rather than 2 400 -- so no
+    the expanded form. §2.1 makes the tracking key carry the 64-byte `(d, z)` seed, and the
+    difference is what makes a delegated tracking key 96 bytes rather than 2 432 -- so no
     derivation in this repository takes this path, and `kem_decaps` above is the one our vectors
     use.
 
@@ -296,6 +295,26 @@ def acvp_selftest(tier1: dict) -> list[str]:
         if ss.hex() != c["k"]:
             bad.append(f"decaps tcId {c['tcId']} ({c['reason']}): ss disagrees with ACVP")
     return bad
+
+
+ML_KEM_Q = 3329
+
+
+def ek_out_of_range(ek: bytes) -> tuple[int, int] | None:
+    """FIPS 203 §7.2's modulus check on an ML-KEM-768 `ek`: the first 12-bit coefficient of
+    `ek[0:1152]` that is at least q, as `(index, value)`, or None if every one is below q.
+
+    ByteDecode12 then ByteEncode12 is the identity exactly when no coefficient is at least q, so
+    this is the check FIPS 203 states, read off the packing: three bytes hold two coefficients,
+    low nibble of the middle byte with the first. The type check (1 184 bytes) is the caller's.
+    """
+    assert len(ek) == 1184, f"an ML-KEM-768 ek is 1 184 bytes, got {len(ek)}"
+    for i in range(0, 1152, 3):
+        b0, b1, b2 = ek[i], ek[i + 1], ek[i + 2]
+        for j, c in enumerate((b0 | (b1 & 0x0F) << 8, b1 >> 4 | b2 << 4)):
+            if c >= ML_KEM_Q:
+                return (2 * (i // 3) + j, c)
+    return None
 def offset_scalar(base: bytes) -> int:
     """§1's range check. Returns `base` as an integer if `0 < base < n`.
 
