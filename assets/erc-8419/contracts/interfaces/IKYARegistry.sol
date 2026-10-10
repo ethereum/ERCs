@@ -28,6 +28,9 @@ interface IKYARegistry is IKYATypes {
     ///         the admission domain every proof admitted here MUST be bound to (passed to IKYAVerifier.verify).
     function admissionDomain() external view returns (bytes32);
 
+    /// @notice The scheme's committed result domain (Section 3.1): resultKind and the bitmap of declared levels.
+    function resultDomain(bytes32 schemeId) external view returns (uint8 resultKind, uint256 levelMask);
+
     /// @notice ATTESTED mode. Caller is the issuer. Reverts if scheme.mode != ATTESTED.
     function attest(
         Subject calldata subject,

@@ -38,15 +38,38 @@ interface IKYATypes {
         UNEVALUABLE     // 3: registry cannot evaluate natively (foreign chain / unknown subject type)
     }
 
-    /// @dev A scheme's semantics (schemeHash, mode, verifier, predecessor) are IMMUTABLE after
-    ///      registration; only the descriptor pointer (schemeURI) may be re-pointed to another copy
-    ///      of the same bytes. Any semantic change is a new scheme with `predecessor` set.
+    /// @dev How a scheme's `level` is to be read (Section 3.1). Values >= 3 reserved.
+    enum ResultKind {
+        ORDERED_LEVEL, // 0: levels are totally ordered, "higher is stronger"; check/minLevel apply
+        CATEGORICAL,   // 1: level is a code with no order; read assertions, never compare
+        OPAQUE         // 2: level MUST be 0; the result lives in claimDigest
+    }
+
+    /// @dev Everything a controller supplies to registerScheme. All of it except schemeURI is
+    ///      IMMUTABLE once registered.
+    struct SchemeInput {
+        string schemeURI;
+        bytes32 schemeHash;   // keccak256 of the descriptor bytes; MUST be non-zero
+        uint8 mode;           // SchemeMode
+        uint8 binding;        // BindingKind
+        uint8 resultKind;     // ResultKind
+        uint256 levelMask;    // bit n set <=> level n is a declared, valid result (Section 3.1)
+        address verifier;     // IKYAVerifier; MUST be a contract iff mode == PROVED
+        bytes32 predecessor;  // previous version's schemeId (same controller) or 0x0
+    }
+
+    /// @dev A scheme's semantics (schemeHash, mode, binding, resultKind, levelMask, verifier,
+    ///      predecessor) are IMMUTABLE after registration; only the descriptor pointer (schemeURI)
+    ///      may be re-pointed to another copy of the same bytes. Any semantic change is a new scheme
+    ///      with `predecessor` set.
     struct Scheme {
         address controller;
         string schemeURI;
         bytes32 schemeHash;       // keccak256 of the descriptor bytes; MUST be non-zero
         uint8 mode;
         uint8 binding;            // BindingKind
+        uint8 resultKind;         // ResultKind — the result domain's shape, committed on-chain
+        uint256 levelMask;        // the result domain itself: bit n set <=> level n is valid
         address verifier;         // non-zero iff mode == PROVED
         bytes32 verifierCodehash; // EXTCODEHASH of verifier at registration (PROVED); pinned
         bytes32 predecessor;      // previous version's schemeId or 0x0
@@ -74,6 +97,11 @@ interface IKYATypes {
     error KYA_VerifierRequired();
     error KYA_SchemeHashRequired();
     error KYA_InvalidBinding(uint8 binding);
+    error KYA_InvalidResultKind(uint8 resultKind);
+    error KYA_InvalidLevelMask(uint8 resultKind, uint256 levelMask);
+    error KYA_LevelNotDeclared(bytes32 schemeId, uint8 level);
+    error KYA_NotOrderedLevel(bytes32 schemeId, uint8 resultKind);
+    error KYA_ZeroThreshold();
     error KYA_VerifierNotContract(address verifier);
     error KYA_VerifierCodeChanged(bytes32 schemeId, bytes32 expected, bytes32 actual);
     error KYA_BindingUnevaluable(bytes32 subjectKey, uint8 binding);

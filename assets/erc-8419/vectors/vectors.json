@@ -24,6 +24,15 @@
     "schemeIdPreimage": "abi.encode(chainId, schemeRegistry, controller, schemeHash, nonce)",
     "descriptorKeccak": "keccak256 of the raw bytes of example-scheme.json",
     "binding": "controller (1)",
+    "resultKind": 0,
+    "levelMask": "0x15",
+    "levelMaskDecimal": "21",
+    "declaredLevels": [
+      0,
+      2,
+      4
+    ],
+    "levelMaskRule": "bit n set <=> level n is a declared, valid result; equals the key set of descriptor.levels (ordered-level) or descriptor.result.codes (categorical); opaque is exactly 0x1",
     "bindingWitnessExample": {
       "controller": "0x8888888888888888888888888888888888888888",
       "witness": "0xeaad5b910795ac2a3b6dc3e37149f6c0fb81e849dc96185d30667b47ed8621f5"
@@ -213,8 +222,8 @@
     "presentationSignature": "0xfec827b6ca59ee790deed3a881dea7647bc9734f967137346140148a192f01fb166f40b7e7c56128634d170bd0ada6785a80f2f397b023c760442d45bf5c56f31b"
   },
   "interfaceIds": {
-    "IKYASchemeRegistry": "0x50cb46d8",
-    "IKYARegistry": "0xed494331",
+    "IKYASchemeRegistry": "0xe6dbd933",
+    "IKYARegistry": "0x5d1bec61",
     "IKYAPolicyRegistry": "0x1cf9e558",
     "IKYAPolicyEvaluator": "0x173ff2b6",
     "IKYAVerifier": "0xfc2b4271"

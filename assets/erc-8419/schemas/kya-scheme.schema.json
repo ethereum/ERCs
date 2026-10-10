@@ -62,11 +62,11 @@
             "categorical",
             "opaque"
           ],
-          "description": "ordered-level: Ordered-Level Profile (level totally ordered, higher is stronger; minLevel and resolve's highest-wins apply). categorical: level is an opaque code from `codes`, compared by equality. opaque: level MUST be 0; the result is what claimDigest commits to."
+          "description": "ordered-level: Ordered-Level Profile (level totally ordered, higher is stronger; minLevel and resolve's highest-wins apply). categorical: level is an opaque code from `codes`, compared by equality. opaque: level MUST be 0; the result is what claimDigest commits to. The kind is committed on-chain as Scheme.resultKind (0/1/2 in this order) and MUST match."
         },
         "codes": {
           "type": "object",
-          "description": "categorical only: map from level code (decimal string 0-255) to meaning.",
+          "description": "categorical only: map from level code (decimal string 0-255) to meaning. The set of keys is the complete valid result domain and MUST equal the bits set in the on-chain Scheme.levelMask.",
           "propertyNames": {
             "pattern": "^([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$"
           },
@@ -92,7 +92,7 @@
     },
     "levels": {
       "type": "object",
-      "description": "Ordered-Level Profile only (result.kind == ordered-level). Map from level (decimal string 0-255) to semantics. Level 0 MUST be present and mean 'not verified / failed'.",
+      "description": "Ordered-Level Profile only (result.kind == ordered-level). Map from level (decimal string 0-255) to semantics. Level 0 MUST be present and mean 'not verified / failed'. The set of keys is the complete valid result domain and MUST equal the bits set in the on-chain Scheme.levelMask; any other level is refused at admission.",
       "required": [
         "0"
       ],

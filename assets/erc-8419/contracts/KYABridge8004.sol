@@ -28,6 +28,7 @@ contract KYABridge8004 {
     error RequestNotForBridge(bytes32 requestHash, address validator);
     error BadResponseMap();
     error LevelNotMapped(bytes32 schemeId, uint8 level);
+    error ResponseMapIncomplete(bytes32 schemeId, uint256 levelMask, uint256 responseMapLength);
 
     event SchemeConfigured(bytes32 indexed schemeId, bytes32 indexed configHash, address[] trustedIssuers, uint8[] responseMap);
     event Synced(uint256 indexed agentId, bytes32 indexed schemeId, bytes32 indexed requestHash, bytes32 configHash, uint8 level, uint8 response, bytes32 assertionId);
@@ -75,6 +76,11 @@ contract KYABridge8004 {
         for (uint256 i = 0; i < responseMap.length; i++) {
             if (responseMap[i] > 100) revert BadResponseMap();
         }
+        // a bridge mirrors ordered levels only, and every declared level MUST have a mapping, so that a
+        // declared result can never be refused at sync time as unmapped (Section 8)
+        (uint8 kind, uint256 levelMask) = kyaRegistry.resultDomain(schemeId);
+        if (kind != uint8(IKYATypes.ResultKind.ORDERED_LEVEL)) revert IKYATypes.KYA_NotOrderedLevel(schemeId, kind);
+        if (levelMask >> responseMap.length != 0) revert ResponseMapIncomplete(schemeId, levelMask, responseMap.length);
         SchemeConfig storage c = _configs[schemeId];
         c.trustedIssuers = trustedIssuers;
         c.responseMap = responseMap;

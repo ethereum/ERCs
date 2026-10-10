@@ -13,6 +13,8 @@ interface IKYASchemeRegistry is IKYATypes {
         address indexed controller,
         uint8 mode,
         uint8 binding,
+        uint8 resultKind,
+        uint256 levelMask,
         address verifier,
         bytes32 verifierCodehash,
         string schemeURI,
@@ -29,21 +31,14 @@ interface IKYASchemeRegistry is IKYATypes {
     ///         the KYA Registry that admits a proof under the scheme enters the proof's admission domain
     ///         (IKYAVerifier.verify's admissionDomain), not the scheme identity, so one scheme can be adopted by
     ///         several KYA Registries sharing this catalogue.
-    ///         schemeHash, mode, binding, verifier (address AND code hash) and predecessor are immutable.
-    /// @param schemeURI   URI of the Scheme Descriptor JSON.
-    /// @param schemeHash  keccak256 of the descriptor bytes. MUST be non-zero.
-    /// @param mode        SchemeMode (0 = ATTESTED, 1 = PROVED).
-    /// @param binding     BindingKind (0 = IDENTITY, 1 = CONTROLLER, 2 = INSTANCE).
-    /// @param verifier    IKYAVerifier address; MUST be a contract iff mode == PROVED. Its EXTCODEHASH is pinned.
-    /// @param predecessor Previous version's schemeId (same controller) or 0x0.
-    function registerScheme(
-        string calldata schemeURI,
-        bytes32 schemeHash,
-        uint8 mode,
-        uint8 binding,
-        address verifier,
-        bytes32 predecessor
-    ) external returns (bytes32 schemeId);
+    ///         schemeHash, mode, binding, resultKind, levelMask, verifier (address AND code hash) and predecessor
+    ///         are immutable. The result domain is part of the scheme's committed semantics (Section 3.1):
+    ///           - resultKind ORDERED_LEVEL: levelMask MUST have bit 0 set (level 0 = "not verified / failed")
+    ///             and at least one other bit;
+    ///           - resultKind CATEGORICAL: levelMask MUST be non-zero;
+    ///           - resultKind OPAQUE: levelMask MUST be exactly 1 (level 0 only).
+    ///         A KYA Registry refuses any assertion whose level is not in levelMask.
+    function registerScheme(SchemeInput calldata input) external returns (bytes32 schemeId);
 
     /// @notice Re-point an unfrozen scheme's descriptor URI to another copy of the SAME bytes
     ///         (schemeHash is unchanged and MUST still match). Controller only.

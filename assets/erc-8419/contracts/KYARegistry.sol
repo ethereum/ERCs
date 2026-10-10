@@ -83,6 +83,7 @@ contract KYARegistry is IKYARegistry, IERC165 {
         returns (uint8 level, uint64 expiresAt, bytes32 assertionId)
     {
         if (issuers.length == 0) revert KYA_EmptyIssuers();
+        _requireOrdered(schemeId); // "highest wins" has no meaning for categorical or opaque schemes
         bytes32 subjectKey = subjectKeyOf(subject);
         uint64 bestIssuedAt = 0;
         for (uint256 i = 0; i < issuers.length; i++) {
@@ -156,8 +157,27 @@ contract KYARegistry is IKYARegistry, IERC165 {
         view
         returns (bool)
     {
+        // "does a qualifying assertion exist" is resolve's question; check answers "does it meet THIS threshold",
+        // and a level-0 ("not verified / failed") result must never pass one.
+        if (minLevel == 0) revert KYA_ZeroThreshold();
         (uint8 level,, bytes32 id) = resolve(subject, schemeId, issuers);
         return id != bytes32(0) && level >= minLevel;
+    }
+
+    /// @notice The scheme's committed result domain: (resultKind, levelMask) from the Scheme Registry.
+    function resultDomain(bytes32 schemeId) public view returns (uint8 resultKind, uint256 levelMask) {
+        Scheme memory s = _loadScheme(schemeId);
+        return (s.resultKind, s.levelMask);
+    }
+
+    function _requireOrdered(bytes32 schemeId) internal view {
+        Scheme memory s = _loadScheme(schemeId);
+        if (s.resultKind != uint8(ResultKind.ORDERED_LEVEL)) revert KYA_NotOrderedLevel(schemeId, s.resultKind);
+    }
+
+    /// @dev An assertion's level MUST belong to the scheme's committed result domain (Section 3.1).
+    function _requireDeclared(bytes32 schemeId, uint256 levelMask, uint8 level) internal pure {
+        if ((levelMask >> level) & 1 == 0) revert KYA_LevelNotDeclared(schemeId, level);
     }
 
     // ----------------------------------------------------------------- writes
@@ -174,6 +194,7 @@ contract KYARegistry is IKYARegistry, IERC165 {
         Scheme memory s = _loadScheme(schemeId);
         if (s.mode != uint8(SchemeMode.ATTESTED)) revert KYA_ModeMismatch(schemeId, uint8(SchemeMode.ATTESTED), s.mode);
         if (expiresAt != 0 && expiresAt <= block.timestamp) revert KYA_Expired(expiresAt);
+        _requireDeclared(schemeId, s.levelMask, level);
 
         Assertion memory a;
         a.subjectKey = subjectKeyOf(subject);
@@ -193,15 +214,16 @@ contract KYARegistry is IKYARegistry, IERC165 {
         bytes calldata proof,
         string calldata evidenceURI
     ) external returns (bytes32 assertionId) {
-        (address verifier, uint8 binding) = _provedVerifier(schemeId);
+        (address verifier, uint8 binding, uint256 levelMask) = _provedVerifier(schemeId);
         Assertion memory a = _verify(verifier, subjectKeyOf(subject), schemeId, publicInputs, proof);
+        _requireDeclared(schemeId, levelMask, a.level);
         a.bindingWitness = _witnessAtIssuance(subject, binding, a.claimDigest);
 
         assertionId = _record(a, schemeId, verifier, evidenceURI);
         _storeSubject(assertionId, subject);
     }
 
-    function _provedVerifier(bytes32 schemeId) internal view returns (address verifier, uint8 binding) {
+    function _provedVerifier(bytes32 schemeId) internal view returns (address verifier, uint8 binding, uint256 levelMask) {
         Scheme memory s = _loadScheme(schemeId);
         if (s.mode != uint8(SchemeMode.PROVED)) revert KYA_ModeMismatch(schemeId, uint8(SchemeMode.PROVED), s.mode);
         if (s.verifier == address(0)) revert KYA_VerifierRequired();
@@ -210,6 +232,7 @@ contract KYARegistry is IKYARegistry, IERC165 {
         if (ch != s.verifierCodehash) revert KYA_VerifierCodeChanged(schemeId, s.verifierCodehash, ch);
         verifier = s.verifier;
         binding = s.binding;
+        levelMask = s.levelMask;
     }
 
     function _storeSubject(bytes32 assertionId, Subject calldata subject) internal {

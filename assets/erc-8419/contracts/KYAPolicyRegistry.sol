@@ -36,6 +36,10 @@ contract KYAPolicyRegistry is IKYAPolicyRegistry, IKYAPolicyEvaluator, IERC165 {
         if (allOf.length == 0) revert KYA_NoOnchainRules(bytes32(0));
         for (uint256 i = 0; i < allOf.length; i++) {
             if (allOf[i].issuers.length == 0) revert KYA_EmptyIssuers();
+            // the projection is defined over ordered-level schemes with a positive threshold only (Section 7)
+            if (allOf[i].minLevel == 0) revert KYA_ZeroThreshold();
+            (uint8 kind,) = kyaRegistry.resultDomain(allOf[i].schemeId); // reverts KYA_SchemeNotFound if unknown
+            if (kind != uint8(ResultKind.ORDERED_LEVEL)) revert KYA_NotOrderedLevel(allOf[i].schemeId, kind);
         }
         policyId = _register(policyURI, policyHash, rulesHashOf(allOf));
         for (uint256 i = 0; i < allOf.length; i++) {
