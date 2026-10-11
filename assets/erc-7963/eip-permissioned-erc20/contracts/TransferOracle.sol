@@ -213,7 +213,7 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
      *      Consumes the approval by removing it from storage.
      */
     function canTransfer(
-        address issuer,
+        address token,
         address sender,
         address recipient,
         uint256 amount
@@ -224,7 +224,7 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
         nonReentrant
         returns (bytes32 proofId)
     {
-        if (issuer != permissionedToken) {
+        if (token != permissionedToken) {
             revert TransferOracle__CallerNotToken();
         }
 
@@ -238,7 +238,7 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < listLength; ++i) {
             TransferApproval storage currentApproval = approvalList[i];
 
-            if (currentApproval.expiry < block.timestamp) {
+            if (currentApproval.expiry <= block.timestamp) {
                 continue;
             }
             if (amount >= currentApproval.minAmt && amount <= currentApproval.maxAmt) {

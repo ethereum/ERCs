@@ -45,10 +45,10 @@ interface ITransferOracle {
 
     /**
      * @notice Stores a new transfer approval after verifying an associated ZK proof.
-     * @dev The implementation MUST verify the `proof` against `publicInputs` using a
-     *      Groth16 Verifier contract before storing the approval details.
+     * @dev The implementation MUST verify the `proof` against `publicInputs` using the
+     *      verifier for its chosen ZK proof system before storing the approval details.
      * @param approval The details of the transfer to approve.
-     * @param proof The ZK-SNARK proof data (Groth16).
+     * @param proof The ZK proof bytes (format depends on the proof system).
      * @param publicInputs The public inputs used for proof verification.
      */
     function approveTransfer(
@@ -63,14 +63,14 @@ interface ITransferOracle {
      *      consumes the smallest applicable approval, and returns its proof ID.
      *      Reverts if no suitable approval is found or if the caller is not the
      *      designated token contract.
-     * @param issuer The address of the token contract (or designated issuer entity).
+     * @param token The address of the permissioned token contract (MUST equal `msg.sender`).
      * @param sender The sender address of the proposed transfer.
      * @param recipient The recipient address of the proposed transfer.
      * @param amount The amount of the proposed transfer.
      * @return proofId The unique identifier of the proof associated with the consumed approval.
      */
     function canTransfer(
-        address issuer,
+        address token,
         address sender,
         address recipient,
         uint256 amount
