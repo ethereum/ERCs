@@ -38,6 +38,21 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
     // Scaling factor used for amounts in ZK proof compared to token amounts
     uint256 private constant AMOUNT_SCALING_FACTOR = 1000;
 
+    // --- Structs ---
+
+    /**
+     * @dev Public inputs committed by the ZK proof, in ABI-encoded order.
+     */
+    struct PublicInputs {
+        bytes32 root;
+        bytes32 debtorHash;
+        bytes32 creditorHash;
+        uint256 minAmountScaled;
+        uint256 maxAmountScaled;
+        bytes32 currencyHash;
+        uint64 expiry;
+    }
+
     // --- State Variables ---
 
     /**
@@ -124,56 +139,8 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
         bytes calldata proof,
         bytes calldata publicInputs
     ) external override onlyIssuer nonReentrant returns (bytes32 proofId) {
-        // 1. Decode public inputs for RISC Zero format
-        // Expected format: [root, debtorHash, creditorHash, minAmt, maxAmt, currencyHash, expiry]
-        (
-            bytes32 rootFromProof,
-            bytes32 proofDebtorHash,
-            bytes32 proofCreditorHash,
-            uint256 proofMinAmountScaled,
-            uint256 proofMaxAmountScaled,
-            bytes32 currencyHash,
-            uint64 proofExpiry
-        ) = abi.decode(publicInputs, (bytes32, bytes32, bytes32, uint256, uint256, bytes32, uint64));
-
-        // 2. Validate consistency: Amounts & Expiry
-        if (
-            _scaleUp(approval.minAmt) != proofMinAmountScaled ||
-            _scaleUp(approval.maxAmt) != proofMaxAmountScaled ||
-            uint64(approval.expiry) != proofExpiry
-        ) {
-            revert TransferOracle__InvalidPublicInputs();
-        }
-
-        // 3. Validate approval data semantics
-        if (
-            approval.sender == address(0) ||
-            approval.recipient == address(0) ||
-            approval.minAmt > approval.maxAmt ||
-            approval.expiry <= block.timestamp ||
-            approval.expiry > type(uint256).max
-        ) {
-            revert TransferOracle__InvalidApprovalData();
-        }
-
-        // 4. Verify proofId consistency (EIP specified calculation)
-        bytes32 calculatedProofId = keccak256(abi.encodePacked(rootFromProof, proofDebtorHash, proofCreditorHash));
-        if (calculatedProofId != approval.proofId) {
-            revert TransferOracle__InvalidPublicInputs(); // Or InvalidProofId
-        }
-
-        // 5. Check if proofId has already been used
-        if (_consumedProofIds[approval.proofId]) {
-            revert TransferOracle__ProofAlreadyUsed();
-        }
-
-        // 6. Verify the RISC Zero proof
-        bytes32 journalHash = keccak256(publicInputs);
-        bytes32 sealHash = keccak256(proof);
-        bool success = verifier.verify(proof, journalHash, sealHash);
-        if (!success) {
-            revert TransferOracle__ProofVerificationFailed();
-        }
+        // 1-6. Validate the approval against the proof and its public inputs
+        _validateApproval(approval, proof, publicInputs);
 
         // 7. Store the approval
         bytes32 key = keccak256(abi.encode(owner(), approval.sender, approval.recipient));
@@ -272,6 +239,59 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
     }
 
     // --- Internal Functions ---
+
+    /**
+     * @dev Validates `approval` against the ZK proof and its public inputs.
+     *      Reverts if any check fails.
+     */
+    function _validateApproval(
+        ITransferOracle.TransferApproval calldata approval,
+        bytes calldata proof,
+        bytes calldata publicInputs
+    ) private view {
+        // 1. Decode public inputs for RISC Zero format
+        // Expected format: [root, debtorHash, creditorHash, minAmt, maxAmt, currencyHash, expiry]
+        PublicInputs memory inputs = abi.decode(publicInputs, (PublicInputs));
+
+        // 2. Validate consistency: Amounts & Expiry
+        if (
+            _scaleUp(approval.minAmt) != inputs.minAmountScaled ||
+            _scaleUp(approval.maxAmt) != inputs.maxAmountScaled ||
+            approval.expiry != inputs.expiry
+        ) {
+            revert TransferOracle__InvalidPublicInputs();
+        }
+
+        // 3. Validate approval data semantics
+        if (
+            approval.sender == address(0) ||
+            approval.recipient == address(0) ||
+            approval.minAmt > approval.maxAmt ||
+            approval.expiry <= block.timestamp ||
+            approval.expiry > type(uint256).max
+        ) {
+            revert TransferOracle__InvalidApprovalData();
+        }
+
+        // 4. Verify proofId consistency (EIP specified calculation)
+        bytes32 calculatedProofId = keccak256(abi.encodePacked(inputs.root, inputs.debtorHash, inputs.creditorHash));
+        if (calculatedProofId != approval.proofId) {
+            revert TransferOracle__InvalidPublicInputs(); // Or InvalidProofId
+        }
+
+        // 5. Check if proofId has already been used
+        if (_consumedProofIds[approval.proofId]) {
+            revert TransferOracle__ProofAlreadyUsed();
+        }
+
+        // 6. Verify the RISC Zero proof
+        bytes32 journalHash = keccak256(publicInputs);
+        bytes32 sealHash = keccak256(proof);
+        bool success = verifier.verify(proof, journalHash, sealHash);
+        if (!success) {
+            revert TransferOracle__ProofVerificationFailed();
+        }
+    }
 
     /**
      * @dev Scales an amount by the AMOUNT_SCALING_FACTOR.

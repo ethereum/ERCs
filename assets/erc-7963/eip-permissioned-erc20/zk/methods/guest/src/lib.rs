@@ -10,14 +10,14 @@ pub struct PaymentInstructionInput {
     pub min_amount_milli: u64,
     pub max_amount_milli: u64,
     pub currency_hash: [u8; 32],
-    pub expiry: u64,                  // Execution date as YYYYMMDD
+    pub expiry: u64,                  // Execution date as UNIX seconds (UTC)
 
     // Private inputs (for proof generation only)
     pub debtor_data: String,          // JSON string of debtor object
     pub creditor_data: String,        // JSON string of creditor object
     pub amount_value: u64,            // Amount in milli units
     pub currency: String,             // Three-letter currency code
-    pub execution_date: String,       // Execution date as string
+    pub execution_date: String,       // Execution date as RFC 3339 UTC timestamp
 
     // Merkle proof data
     pub debtor_proof_siblings: Vec<[u8; 32]>,
@@ -104,6 +104,53 @@ pub fn compute_leaf_hash(preimage: &[u8], tag: u8) -> [u8; 32] {
     output
 }
 
+/// Parse an RFC 3339 UTC timestamp ("YYYY-MM-DDTHH:MM:SSZ") into UNIX seconds
+pub fn parse_rfc3339_utc(timestamp: &str) -> Result<u64, String> {
+    let err = || "Invalid expiry date format".to_string();
+    let b = timestamp.as_bytes();
+    if b.len() != 20
+        || b[4] != b'-' || b[7] != b'-' || b[10] != b'T'
+        || b[13] != b':' || b[16] != b':' || b[19] != b'Z'
+    {
+        return Err(err());
+    }
+    let num = |range: std::ops::Range<usize>| -> Result<u64, String> {
+        b[range].iter().try_fold(0u64, |acc, &c| {
+            if c.is_ascii_digit() { Ok(acc * 10 + u64::from(c - b'0')) } else { Err(err()) }
+        })
+    };
+    let (year, month, day) = (num(0..4)?, num(5..7)?, num(8..10)?);
+    let (hour, minute, second) = (num(11..13)?, num(14..16)?, num(17..19)?);
+    if year < 1970
+        || !(1..=12).contains(&month)
+        || day < 1 || day > days_in_month(year, month)
+        || hour > 23 || minute > 59 || second > 59
+    {
+        return Err(err());
+    }
+    Ok(days_from_civil(year, month, day) * 86_400 + hour * 3_600 + minute * 60 + second)
+}
+
+/// Number of days in a month of the proleptic Gregorian calendar
+fn days_in_month(year: u64, month: u64) -> u64 {
+    match month {
+        2 if (year % 4 == 0 && year % 100 != 0) || year % 400 == 0 => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+/// Days since 1970-01-01 (Howard Hinnant's days_from_civil, for years >= 1970)
+fn days_from_civil(year: u64, month: u64, day: u64) -> u64 {
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = y / 400;
+    let yoe = y - era * 400;
+    let doy = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
 /// Main verification logic (extracted for testing)
 pub fn verify_payment_instruction(input: &PaymentInstructionInput) -> Result<PaymentInstructionOutput, String> {
     // 1. Verify debtor hash
@@ -134,9 +181,8 @@ pub fn verify_payment_instruction(input: &PaymentInstructionInput) -> Result<Pay
         return Err("Amount above maximum".to_string());
     }
     
-    // 5. Verify expiry (convert date string to timestamp)
-    let expiry_timestamp = input.execution_date.replace("-", "").parse::<u64>()
-        .map_err(|_| "Invalid expiry date format".to_string())?;
+    // 5. Verify expiry (convert RFC 3339 timestamp to UNIX seconds)
+    let expiry_timestamp = parse_rfc3339_utc(&input.execution_date)?;
     if expiry_timestamp != input.expiry {
         return Err("Expiry mismatch".to_string());
     }
@@ -274,6 +320,19 @@ mod tests {
         let siblings = vec![left_leaf];
         let directions = vec![1]; // Right child
         assert!(verify_merkle_proof(&right_leaf, &siblings, &directions, &root));
+    }
+
+    #[test]
+    fn test_parse_rfc3339_utc() {
+        assert_eq!(parse_rfc3339_utc("1970-01-01T00:00:00Z"), Ok(0));
+        assert_eq!(parse_rfc3339_utc("2025-01-03T10:30:00Z"), Ok(1_735_900_200));
+        assert_eq!(parse_rfc3339_utc("2024-02-29T00:00:00Z"), Ok(1_709_164_800));
+
+        // Rejects non-UTC, date-only, and impossible dates
+        assert!(parse_rfc3339_utc("2025-01-03T10:30:00+08:00").is_err());
+        assert!(parse_rfc3339_utc("2025-01-03").is_err());
+        assert!(parse_rfc3339_utc("2025-02-29T00:00:00Z").is_err());
+        assert!(parse_rfc3339_utc("2025-13-01T00:00:00Z").is_err());
     }
 
     #[test]
