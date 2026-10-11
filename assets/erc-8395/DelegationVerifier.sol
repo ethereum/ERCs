@@ -8,18 +8,18 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 
 /// @notice ERC-8395 grant proof verification, NOT HTTP authorization.
 /// @dev Callers must separately validate grant structure, parent/profile binding,
-/// attenuation, validity, revocation, request signatures and service permissions.
+/// attenuation, validity, revocation, request signatures and service scopes.
 /// No constructor arguments, storage or immutables: CREATE2 code is chain invariant.
 contract DelegationVerifier {
-    struct AudiencePermission {
+    struct AudienceScope {
         string audience;
-        string[] permissions;
+        string[] scopes;
     }
 
     struct Delegation {
         string issuer;
         string delegate;
-        AudiencePermission[] audiencePermissions;
+        AudienceScope[] audienceScopes;
         bytes32 id;
         uint64 epoch;
         uint64 validAfter;
@@ -33,10 +33,9 @@ contract DelegationVerifier {
     }
 
     bytes32 public constant DELEGATION_TYPEHASH = keccak256(
-        "Delegation(string issuer,string delegate,AudiencePermission[] audiencePermissions,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,bytes32 parentGrantHash)AudiencePermission(string audience,string[] permissions)"
+        "Delegation(string issuer,string delegate,AudienceScope[] audienceScopes,bytes32 id,uint64 epoch,uint64 validAfter,uint64 validUntil,uint32 maxRequestValiditySeconds,uint32 remainingDelegations,string delegateProfile,bool requireNonReplayable,string[] requiredComponents,bytes32 parentGrantHash)AudienceScope(string audience,string[] scopes)"
     );
-    bytes32 public constant AUDIENCE_PERMISSION_TYPEHASH =
-        keccak256("AudiencePermission(string audience,string[] permissions)");
+    bytes32 public constant AUDIENCE_SCOPE_TYPEHASH = keccak256("AudienceScope(string audience,string[] scopes)");
     bytes32 private constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 private constant NAME_HASH = keccak256("ERC-8128 Delegation");
@@ -66,7 +65,7 @@ contract DelegationVerifier {
         words[0] = DELEGATION_TYPEHASH;
         words[1] = keccak256(bytes(g.issuer));
         words[2] = keccak256(bytes(g.delegate));
-        words[3] = _hashAudiencePermissions(g.audiencePermissions);
+        words[3] = _hashAudienceScopes(g.audienceScopes);
         words[4] = g.id;
         words[5] = bytes32(uint256(g.epoch));
         words[6] = bytes32(uint256(g.validAfter));
@@ -170,14 +169,12 @@ contract DelegationVerifier {
         return (0x0f, "ERC-8128 Delegation", "1", block.chainid, address(this), bytes32(0), new uint256[](0));
     }
 
-    function _hashAudiencePermissions(AudiencePermission[] calldata entries) private pure returns (bytes32) {
+    function _hashAudienceScopes(AudienceScope[] calldata entries) private pure returns (bytes32) {
         bytes32[] memory hashes = new bytes32[](entries.length);
         for (uint256 i; i < entries.length; ++i) {
             hashes[i] = keccak256(
                 abi.encode(
-                    AUDIENCE_PERMISSION_TYPEHASH,
-                    keccak256(bytes(entries[i].audience)),
-                    _hashStrings(entries[i].permissions)
+                    AUDIENCE_SCOPE_TYPEHASH, keccak256(bytes(entries[i].audience)), _hashStrings(entries[i].scopes)
                 )
             );
         }

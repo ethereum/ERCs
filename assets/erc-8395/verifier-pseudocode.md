@@ -27,8 +27,8 @@ async function verifyDelegated(req: Request, candidate: Candidate, policy: Polic
   for (let i = 0; i < links.length; i++) {
     await requireActive(links[i], chain.revocationAccounts[i], chain.registryHandles[i]);
   }
-  requireRoutePermissions(
-    chain.effectivePermissionsAt(req.origin), policy.requiredPermissions
+  requireRouteScopes(
+    chain.effectiveScopesAt(req.origin), policy.requiredScopes
   ); // the leaf entry's tokens for this Audience (Section 3.4)
   if (candidate.nonce !== undefined) await consumeLeafNonceLast(candidate, chain.leaf.delegateId);
   else await requireReplayableInvalidationActive(candidate, chain.leaf.delegateId);
