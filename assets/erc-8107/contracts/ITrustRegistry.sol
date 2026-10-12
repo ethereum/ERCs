@@ -213,7 +213,8 @@ interface ITrustRegistry is IERC165 {
 
     /// @notice Get the denial flag stored for exactly one scope
     /// @dev Returns the stored flag, not the effective denial: a universal denial is
-    ///      not reflected in the result for a named scope
+    ///      not reflected in the result for a named scope. The effective denial is
+    ///      getDenial(A, B, bytes32(0)) || getDenial(A, B, scope)
     /// @param trustorNode The trusting agent
     /// @param trusteeNode The denied agent
     /// @param scope The scope (bytes32(0) for universal)

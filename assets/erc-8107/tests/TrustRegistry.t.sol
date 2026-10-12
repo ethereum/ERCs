@@ -1369,6 +1369,24 @@ contract TrustRegistryTest is Test {
         _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defiParams(), false, "indirect path");
     }
 
+    /// @dev The effective denial a caller derives from getDenial matches path verification
+    ///      for every combination of universal and scoped flags
+    function test_Denial_EffectiveDenialFormulaMatchesVerification() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        for (uint256 i = 0; i < 4; i++) {
+            (bool universal, bool scoped) = (i & 1 != 0, i & 2 != 0);
+            if (universal) _deny(ALICE, alice, BOB, UNIVERSAL);
+            else _undeny(ALICE, alice, BOB, UNIVERSAL);
+            if (scoped) _deny(ALICE, alice, BOB, DEFI);
+            else _undeny(ALICE, alice, BOB, DEFI);
+
+            bool effective = registry.getDenial(ALICE, BOB, UNIVERSAL) || registry.getDenial(ALICE, BOB, DEFI);
+            assertEq(effective, universal || scoped, "formula");
+            _assertVerdicts(_nodes2(ALICE, BOB), _defiParams(), !effective, "verdict follows the formula");
+        }
+    }
+
     /// @dev Denial is not an expiry rule and not an edge-level threshold: it holds with
     ///      enforceExpiry off and whatever minEdgeTrust is
     function test_Denial_IndependentOfExpiryAndMinEdgeTrust() public {
