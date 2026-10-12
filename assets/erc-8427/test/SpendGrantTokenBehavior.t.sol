@@ -80,6 +80,11 @@ contract OddReturnERC20 is MockERC20 {
     }
 }
 
+/// @dev Not a token: code with an empty fallback, which accepts any call and returns nothing.
+contract AcceptsAnyCall {
+    fallback() external {}
+}
+
 /// @dev Exposes the movement hook so it can be aimed at an address the registry would never let through.
 contract MoveHarness is SpendGrantExecutor {
     constructor(ISpendGrantRegistry registry_) SpendGrantExecutor(registry_) {}
@@ -271,6 +276,22 @@ contract SpendGrantTokenBehaviorTest is Test {
         // A call to an address without code succeeds with no return data; the hook refuses to count it.
         vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
         harness.move(address(0xD00D), principal, recipient, 1);
+    }
+
+    function test_codeThatAcceptsAnyCall_recordsADebitThatMovedNothing() public {
+        // The code check at consume passes it, and an empty return from code is a success, so the
+        // spend records a debit although no token exists to move: why a wallet checks a listed asset.
+        AcceptsAnyCall notAToken = new AcceptsAnyCall();
+        SpendGrant memory m = _grant(address(notAToken));
+
+        vm.prank(delegate);
+        executor.spend(m, _sign(m, registry), address(notAToken), 1e18, recipient);
+        (uint256 spent, uint256 calls) = registry.usage(_hash(m, registry), address(notAToken));
+        assertEq(spent, 1e18);
+        assertEq(calls, 1);
+        (bool ok, bytes memory ret) = address(notAToken).staticcall(abi.encodeCall(IBalance.balanceOf, (recipient)));
+        assertTrue(ok);
+        assertEq(ret.length, 0); // no balance anywhere to show for it
     }
 
     // ---------------------------------------------------------------- the optional balance check
