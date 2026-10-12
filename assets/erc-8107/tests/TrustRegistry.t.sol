@@ -1651,6 +1651,51 @@ contract TrustRegistryTest is Test {
         _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), true, "cleared after re-review");
     }
 
+    /// @dev The back-run the nonce check cannot stop: the relayer holds the pre-signed Full
+    ///      until after the clear, and it applies immediately. Documents why callers
+    ///      raise the floor before reading the nonce.
+    function test_ClearDenial_BackRunWithoutFloorAppliesAfterClear() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 1);
+        TrustAttestation memory preSigned = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory preSignedSig = _sign(aliceKey, preSigned);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+
+        _undeny(ALICE, alice, BOB, UNIVERSAL); // reviewed Marginal; the check passes
+        registry.setTrust(preSigned, preSignedSig); // lands in the next block
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "unreviewed Full is in force");
+        _assertVerdicts(
+            _nodes2(ALICE, BOB), _params(5, TrustLevel.Full, UNIVERSAL, true, new bytes32[](0)), true, "Full admits"
+        );
+    }
+
+    /// @dev Raising the floor before reading the nonce closes both orderings: the
+    ///      pre-signed attestation fails before the clear without causing NonceChanged,
+    ///      and fails after it, so the reviewed Marginal stays in force
+    function test_ClearDenial_FloorBeforeReviewBlocksBackRun() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 1);
+        TrustAttestation memory preSigned = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory preSignedSig = _sign(aliceKey, preSigned);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 2);
+        uint64 reviewed = registry.getNonce(ALICE);
+
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(2), uint64(3)));
+        registry.setTrust(preSigned, preSignedSig); // in flight: fails, no false positive
+
+        vm.prank(alice);
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(2), uint64(3)));
+        registry.setTrust(preSigned, preSignedSig); // held back: still fails
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Marginal), "reviewed endorsement in force");
+    }
+
     /// @dev Clearing a universal denial reactivates every scope, so an attestation in a
     ///      named scope also invalidates the review
     function test_ClearDenial_ScopedAttestationBlocksUniversalClear() public {

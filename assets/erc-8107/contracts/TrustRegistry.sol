@@ -217,10 +217,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @dev Controller-only. A denial overrides endorsements by other agents within
     ///      the trustor's own decisions, so it carries the same authority as signing
     ///      an attestation rather than the bounded authority of a withdrawal.
-    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode)
-        external
-        override
-    {
+    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode) external override {
         if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
         if (trustorNode == trusteeNode) revert SelfTrustProhibited();
 
@@ -238,7 +235,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         uint64 expectedNonce,
         bytes32 reasonCode
     ) external override {
-        if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
+        if (!_isController(trustorNode, msg.sender)) {
+            revert NotAuthorized(trustorNode, msg.sender);
+        }
         if (trustorNode == trusteeNode) revert SelfTrustProhibited();
 
         uint64 current = _nonces[trustorNode];

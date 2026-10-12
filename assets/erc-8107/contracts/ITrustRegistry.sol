@@ -176,6 +176,9 @@ interface ITrustRegistry is IERC165 {
     ///      NOT call this. MUST revert with NonceChanged unless
     ///      getNonce(trustorNode) == expectedNonce, so endorsements written after the
     ///      caller's review cannot take effect through the clear.
+    ///      It cannot stop an attestation signed earlier from landing after the
+    ///      clear: callers SHOULD raise the floor with invalidateNonces before
+    ///      reading expectedNonce.
     ///      MUST NOT change the trust level, expiry or any other stored field.
     ///      Clearing a denial that is not set succeeds with no event.
     /// @param trustorNode The trustor's ENS namehash
