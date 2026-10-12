@@ -63,7 +63,7 @@ contract AgentExecutor is IAgentExecutor, Ownable, ReentrancyGuard {
             revert CannotExecute(agent, target, selector, amount, reason);
         }
 
-        rams.recordExecution(agent, principal, action, amount);
+        rams.recordExecution(agent, principal, target, action, amount);
 
         bytes memory returnData;
         (ok, returnData) = target.call(data);
