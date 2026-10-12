@@ -86,10 +86,14 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     ///         networks with no deployment
     address public immutable nameWrapper;
 
+    /// @dev One storage slot. Endorsement (level, expiry, setAt) and denial are
+    ///      independent: every write names its fields, so no operation on one
+    ///      overwrites the other.
     struct TrustRecord {
         TrustLevel level;
         uint64 expiry;
         uint64 setAt;
+        bool denied;
     }
 
     struct IdentityGate {
@@ -205,14 +209,37 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         emit NoncesInvalidated(trustorNode, newNonce);
     }
 
-    /// @dev Prior trust is NOT required. Distrusting an agent that was never trusted is
-    ///      meaningful: it blocks paths that would otherwise route through this edge.
+    /// @inheritdoc ITrustRegistry
+    /// @dev Controller-only. A denial overrides endorsements by other agents within
+    ///      the trustor's own decisions, so it carries the same authority as signing
+    ///      an attestation rather than the bounded authority of a withdrawal.
+    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bool denied, bytes32 reasonCode)
+        external
+        override
+    {
+        if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
+        if (trustorNode == trusteeNode) revert SelfTrustProhibited();
+
+        TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
+        if (record.denied == denied) return;
+
+        record.denied = denied;
+        emit DenialSet(trustorNode, trusteeNode, scope, denied, reasonCode);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    function getDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope) external view override returns (bool) {
+        return _trust[trustorNode][trusteeNode][scope].denied;
+    }
+
+    /// @dev Prior trust is NOT required. Withdrawing in a scope that was never granted
+    ///      is meaningful: it blocks the universal fallback for that scope.
     function _revokeOne(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode) internal {
         TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
 
         record.level = TrustLevel.None;
-        // Explicit distrust does not expire: getTrust returns (None, 0). The record
-        // is retained (not deleted) so the distrust remains observable.
+        // A withdrawal does not expire: getTrust returns (None, 0). The record is
+        // retained (not deleted) so the withdrawal remains observable.
         record.expiry = 0;
         record.setAt = uint64(block.timestamp);
 
@@ -258,6 +285,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     }
 
     /// @dev Core path verification. Cost is O(path length x requiredAnchors).
+    ///      Besides the per-edge checks, the validator must not effectively deny any
+    ///      later node: its denial overrides any indirect endorsement within its own
+    ///      trust decision.
     ///      `validateParams` is false only for parameters read from a stored gate,
     ///      which `setIdentityGate` validated when it stored them.
     function _verifyPath(TrustPath memory path, ValidationParams memory params, bool validateParams)
@@ -283,13 +313,24 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
             }
         }
 
+        // The validator's denial overrides any indirect endorsement.
+        // k = 1 is already covered by the first edge check.
+        bytes32 validator = path.nodes[0];
+        for (uint256 k = 2; k < path.nodes.length; ++k) {
+            (,, bool validatorDenies) = _edgeTrust(validator, path.nodes[k], params.scope);
+            if (validatorDenies) return false;
+        }
+
         // Track anchor satisfaction
         bool foundAnchor = params.requiredAnchors.length == 0;
 
         // Verify each edge
         for (uint256 i = 0; i < path.nodes.length - 1; i++) {
-            // Universal distrust, then a stored scoped record, then universal trust
-            (TrustLevel level, uint64 expiry) = _edgeTrust(path.nodes[i], path.nodes[i + 1], params.scope);
+            // Universal None, then a stored scoped record, then universal trust
+            (TrustLevel level, uint64 expiry, bool denied) = _edgeTrust(path.nodes[i], path.nodes[i + 1], params.scope);
+
+            // Denial voids the edge whatever its endorsement
+            if (denied) return false;
 
             // Edge must meet minimum trust level
             if (level < params.minEdgeTrust) return false;
@@ -317,24 +358,28 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         return foundAnchor;
     }
 
-    /// @dev The trust that applies to one edge when verifying in `scope`
+    /// @dev The endorsement and the effective denial that apply to one edge when
+    ///      verifying in `scope`. Each record is one slot, so denial costs no extra read.
     function _edgeTrust(bytes32 from, bytes32 to, bytes32 scope)
         internal
         view
-        returns (TrustLevel level, uint64 expiry)
+        returns (TrustLevel level, uint64 expiry, bool denied)
     {
-        (TrustLevel u, uint64 uExp) = _getTrust(from, to, bytes32(0));
-        if (scope == bytes32(0)) return (u, uExp);
+        TrustRecord storage u = _trust[from][to][bytes32(0)];
 
-        // 1. Universal distrust voids the edge in every scope
-        if (u == TrustLevel.None) return (TrustLevel.None, uExp);
+        // Universal denial holds in every scope, so no scoped record can lift it
+        if (scope == bytes32(0) || u.denied) return (u.level, u.expiry, u.denied);
+
+        TrustRecord storage s = _trust[from][to][scope];
+
+        // 1. Universal None voids the endorsement in every scope
+        if (u.level == TrustLevel.None) return (TrustLevel.None, u.expiry, s.denied);
 
         // 2. Any stored scoped record is authoritative, expired or not
-        (TrustLevel s, uint64 sExp) = _getTrust(from, to, scope);
-        if (s != TrustLevel.Unknown) return (s, sExp);
+        if (s.level != TrustLevel.Unknown) return (s.level, s.expiry, s.denied);
 
         // 3. Otherwise universal applies
-        return (u, uExp);
+        return (u.level, u.expiry, s.denied);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -494,7 +539,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     function _setTrust(TrustAttestation calldata attestation, bytes calldata signature) internal {
         if (attestation.trustorNode == attestation.trusteeNode) revert SelfTrustProhibited();
 
-        // Attestations grant trust; distrust is expressed by revokeTrust. This keeps
+        // Attestations grant trust; withdrawal is expressed by revokeTrust. This keeps
         // exactly one path, one event, and one authorisation rule per level.
         if (attestation.level == TrustLevel.Unknown || attestation.level == TrustLevel.None) {
             revert InvalidAttestationLevel(attestation.level);
