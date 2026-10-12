@@ -27,7 +27,8 @@ import {
     BatchTrustorMismatch,
     BatchNonceNotIncreasing,
     EmptyScopeList,
-    NonceJumpTooLarge
+    NonceJumpTooLarge,
+    NonceChanged
 } from "./ITrustRegistry.sol";
 
 /// @notice Minimal ENS registry interface (ERC-137)
@@ -216,13 +217,40 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @dev Controller-only. A denial overrides endorsements by other agents within
     ///      the trustor's own decisions, so it carries the same authority as signing
     ///      an attestation rather than the bounded authority of a withdrawal.
-    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bool denied, bytes32 reasonCode)
+    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode)
         external
         override
     {
         if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
         if (trustorNode == trusteeNode) revert SelfTrustProhibited();
 
+        _writeDenial(trustorNode, trusteeNode, scope, true, reasonCode);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    /// @dev Every attestation that lands raises the trustor's nonce, so an unchanged
+    ///      nonce means the stored endorsements, in every scope, are those the caller
+    ///      reviewed. Withdrawals do not raise it, but can only reduce trust.
+    function clearDenial(
+        bytes32 trustorNode,
+        bytes32 trusteeNode,
+        bytes32 scope,
+        uint64 expectedNonce,
+        bytes32 reasonCode
+    ) external override {
+        if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
+        if (trustorNode == trusteeNode) revert SelfTrustProhibited();
+
+        uint64 current = _nonces[trustorNode];
+        if (current != expectedNonce) revert NonceChanged(expectedNonce, current);
+
+        _writeDenial(trustorNode, trusteeNode, scope, false, reasonCode);
+    }
+
+    /// @dev Emits only on a change, so the latest DenialSet reconstructs the flag
+    function _writeDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bool denied, bytes32 reasonCode)
+        internal
+    {
         TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
         if (record.denied == denied) return;
 
