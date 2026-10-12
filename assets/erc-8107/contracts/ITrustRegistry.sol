@@ -8,7 +8,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 /// @dev Ordering is significant: `verifyPath` compares levels with `<`
 enum TrustLevel {
     Unknown, // 0: No trust relationship established
-    None, // 1: Explicitly distrusted
+    None, // 1: Endorsement withdrawn
     Marginal, // 2: Partial trust - accepted on an edge when minEdgeTrust <= Marginal
     Full // 3: Complete trust - satisfies any minEdgeTrust
 }
@@ -88,6 +88,13 @@ interface ITrustRegistry is IERC165 {
         bytes32 indexed trustorNode, bytes32 indexed trusteeNode, bytes32 indexed scope, bytes32 reasonCode
     );
 
+    /// @notice Emitted when a denial flag changes
+    /// @dev Emitted only on a change, so the latest event per
+    ///      (trustorNode, trusteeNode, scope) reconstructs the stored flag
+    event DenialSet(
+        bytes32 indexed trustorNode, bytes32 indexed trusteeNode, bytes32 indexed scope, bool denied, bytes32 reasonCode
+    );
+
     /// @notice Emitted when a trustor invalidates outstanding attestations
     event NoncesInvalidated(bytes32 indexed trustorNode, uint64 newNonce);
 
@@ -115,7 +122,8 @@ interface ITrustRegistry is IERC165 {
     /// @notice Set trust level for another agent in a specific scope
     /// @dev Signature MUST be from the name controller (controllerOf), or validate via
     ///      ERC-1271 when that controller is a contract.
-    ///      `level` MUST be Marginal or Full; distrust goes through revokeTrust.
+    ///      `level` MUST be Marginal or Full; withdrawal goes through revokeTrust.
+    ///      MUST NOT change the denial flag.
     ///      `nonce` MUST exceed the current nonce by at most 2**32.
     /// @param attestation The trust attestation
     /// @param signature EIP-712 signature from the trustor's name controller (controllerOf)
@@ -128,25 +136,39 @@ interface ITrustRegistry is IERC165 {
     /// @param signatures Corresponding signatures
     function setTrustBatch(TrustAttestation[] calldata attestations, bytes[] calldata signatures) external;
 
-    /// @notice Set explicit distrust (level None) for one scope
+    /// @notice Withdraw the trustor's endorsement (level None) in one scope
     /// @dev Caller MUST be the name controller (controllerOf) or an approved operator.
-    ///      Prior trust is NOT required: a trustor may preemptively distrust an agent it
-    ///      never trusted.
+    ///      Prior trust is NOT required: a trustor may preemptively withdraw in a scope
+    ///      it never granted. MUST NOT change the denial flag.
     /// @param trustorNode The trustor's ENS namehash
     /// @param trusteeNode The agent to revoke trust from
     /// @param scope The scope to revoke trust in
     /// @param reasonCode Reason code for revocation
     function revokeTrust(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode) external;
 
-    /// @notice Revoke trust across several scopes in one transaction
+    /// @notice Withdraw the trustor's endorsement across several scopes in one transaction
     /// @dev Caller MUST be the name controller (controllerOf) or an approved operator.
     ///      Scopes are supplied by the caller; this standard does not enumerate them
-    ///      on-chain.
+    ///      on-chain. MUST NOT change the denial flag.
     /// @param trustorNode The trustor's ENS namehash
     /// @param trusteeNode The agent to revoke trust from
     /// @param scopes The scopes to revoke trust in
     /// @param reasonCode Reason code for revocation
     function revokeTrustBatch(bytes32 trustorNode, bytes32 trusteeNode, bytes32[] calldata scopes, bytes32 reasonCode)
+        external;
+
+    /// @notice Set or clear the trustor's denial of an agent in one scope
+    /// @dev Caller MUST be the name controller (controllerOf); approved operators MUST
+    ///      NOT call this. A denied agent fails every edge from the trustor, and every
+    ///      path the trustor evaluates as validator, whatever its endorsements.
+    ///      MUST NOT change the trust level, expiry or any other stored field.
+    ///      Setting the stored value again succeeds with no event.
+    /// @param trustorNode The trustor's ENS namehash
+    /// @param trusteeNode The agent to deny or reinstate
+    /// @param scope The scope of the denial; bytes32(0) applies in every scope
+    /// @param denied True to deny, false to clear
+    /// @param reasonCode Reason code for the change
+    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bool denied, bytes32 reasonCode)
         external;
 
     /// @notice Invalidate every outstanding attestation below a nonce
@@ -169,6 +191,15 @@ interface ITrustRegistry is IERC165 {
         view
         returns (TrustLevel level, uint64 expiry);
 
+    /// @notice Get the denial flag stored for exactly one scope
+    /// @dev Returns the stored flag, not the effective denial: a universal denial is
+    ///      not reflected in the result for a named scope
+    /// @param trustorNode The trusting agent
+    /// @param trusteeNode The denied agent
+    /// @param scope The scope (bytes32(0) for universal)
+    /// @return Whether the flag is set for that scope
+    function getDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope) external view returns (bool);
+
     /// @notice Get current nonce for a trustor
     /// @param trustorNode The agent's ENS namehash
     /// @return Current nonce value
@@ -179,8 +210,9 @@ interface ITrustRegistry is IERC165 {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// @notice Verify a pre-computed trust path
-    /// @dev Returns true only if every edge check AND the requiredAnchors
-    ///      constraint are satisfied. There is no partial success.
+    /// @dev Returns true only if every edge check, the validator denial check
+    ///      AND the requiredAnchors constraint are satisfied. There is no partial
+    ///      success.
     /// @param path The trust path to verify
     /// @param params Validation parameters
     /// @return valid Whether the path satisfies all validation requirements
