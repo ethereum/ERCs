@@ -169,6 +169,53 @@ contract Delegate7702ERC1271 is IERC1271 {
 ///         implement isValidSignature
 contract MockGraveyard {}
 
+/// @notice Answers any call with scripted raw bytes, standing in for a hostile or broken
+///         resolver or ERC-1271 controller
+/// @dev Returns or reverts with the first `size` bytes of `word` followed by zeros, so
+///      `size` below 32 is short, `size` 0 is empty and `size` above 32 is oversized
+contract RawResponder {
+    enum Mode {
+        Return,
+        Revert,
+        BurnGas
+    }
+
+    Mode internal immutable mode;
+    bytes32 internal immutable word;
+    uint256 internal immutable size;
+
+    constructor(Mode mode_, bytes32 word_, uint256 size_) {
+        (mode, word, size) = (mode_, word_, size_);
+    }
+
+    fallback() external {
+        Mode m = mode;
+        bytes32 w = word;
+        uint256 n = size;
+        assembly {
+            if eq(m, 2) { for {} 1 {} {} }
+            mstore(0, w)
+            if eq(m, 1) { revert(0, n) }
+            return(0, n)
+        }
+    }
+}
+
+/// @notice ERC-8001 coordinator that validates every participant of an intent in one call
+contract ParticipantLoop {
+    function validateAll(
+        TrustRegistry registry,
+        bytes32 coordinationType,
+        address[] calldata participants,
+        TrustPath[] calldata paths
+    ) external view returns (bool[] memory ok) {
+        ok = new bool[](participants.length);
+        for (uint256 i = 0; i < participants.length; i++) {
+            ok[i] = registry.validateParticipantAddress(address(this), coordinationType, participants[i], paths[i]);
+        }
+    }
+}
+
 contract TrustRegistryTest is Test {
     TrustRegistry internal registry;
     MockENS internal ens;
@@ -514,6 +561,85 @@ contract TrustRegistryTest is Test {
 
         vm.expectRevert(InvalidSignature.selector);
         registry.setTrust(att, abi.encodePacked(r, highS, flippedV));
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Malformed ERC-1271 responses fail as InvalidSignature, never a bare revert
+    // ───────────────────────────────────────────────────────────────────────────
+
+    bytes32 internal constant MAGIC = bytes32(IERC1271.isValidSignature.selector);
+
+    /// @dev Make ALICE's controller a contract with a scripted isValidSignature answer,
+    ///      and return an attestation whose ECDSA signature recovers someone else
+    function _rawController(RawResponder.Mode mode, bytes32 word, uint256 size)
+        internal
+        returns (TrustAttestation memory att, bytes memory sig)
+    {
+        ens.setOwner(ALICE, address(new RawResponder(mode, word, size)));
+        att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        sig = _sign(malloryKey, att);
+    }
+
+    /// @dev An EIP-7702 delegate with an empty fallback returns success and no data. A
+    ///      high-level call reverted here with empty data instead of InvalidSignature.
+    function test_ERC1271_7702EmptyFallback_InvalidSignature() public {
+        _delegate7702(alice, address(new RawResponder(RawResponder.Mode.Return, MAGIC, 0)));
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(malloryKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    function test_ERC1271_EmptyReturn_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Return, MAGIC, 0);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev The bare 4-byte selector is not an ABI-encoded bytes4
+    function test_ERC1271_ShortReturn_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Return, MAGIC, 4);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev Magic value with non-zero padding is rejected, not truncated to bytes4
+    function test_ERC1271_DirtyReturn_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) =
+            _rawController(RawResponder.Mode.Return, MAGIC | bytes32(uint256(1)), 32);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev Trailing data after a valid magic word is ignored, as ABI decoding would;
+    ///      only the first word is copied
+    function test_ERC1271_OversizedReturn_Accepted() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Return, MAGIC, 4096);
+        registry.setTrust(att, sig);
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    function test_ERC1271_LargeRevertData_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Revert, MAGIC, 4096);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev ERC-1271 forwards all gas, so a controller can burn 63/64 of the submitter's
+    ///      gas. Only submissions of that controller's own attestations are exposed:
+    ///      validation never verifies signatures.
+    function test_ERC1271_GasBurn_InvalidSignatureAfterBurningSubmitterGas() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        uint256 before = gasleft();
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust{gas: 2_000_000}(att, sig);
+        uint256 used = before - gasleft();
+
+        assertGt(used, 1_900_000, "controller consumed the forwarded gas");
     }
 
     /// @dev Scope is part of the storage key, so levels are independent per scope
@@ -2053,6 +2179,54 @@ contract TrustRegistryTest is Test {
         registry.invalidateNonces(ALICE, 4);
     }
 
+    // At a floor of type(uint64).max no nonce is acceptable. NonceTooLow reports the
+    // saturated floor as `required` rather than panicking on current + 1.
+
+    function test_InvalidateNonces_FloorAtUint64Max_NonceTooLow() public {
+        _setNonceFloor(ALICE, type(uint64).max);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.invalidateNonces(ALICE, type(uint64).max);
+    }
+
+    function test_SetTrust_FloorAtUint64Max_NonceTooLow() public {
+        _setNonceFloor(ALICE, type(uint64).max);
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        bytes memory sig = _sign(aliceKey, att);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.setTrust(att, sig);
+    }
+
+    function test_SetTrustBatch_FloorAtUint64Max_NonceTooLow() public {
+        _setNonceFloor(ALICE, type(uint64).max);
+
+        TrustAttestation[] memory atts = new TrustAttestation[](1);
+        bytes[] memory sigs = new bytes[](1);
+        atts[0] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        sigs[0] = _sign(aliceKey, atts[0]);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.setTrustBatch(atts, sigs);
+    }
+
+    /// @dev The last nonce is usable once; afterwards the trustor's nonce space is spent
+    function test_SetTrust_LastNonceThenExhausted() public {
+        _setNonceFloor(ALICE, type(uint64).max - 1);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, type(uint64).max);
+        assertEq(registry.getNonce(ALICE), type(uint64).max);
+
+        TrustAttestation memory replay = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        bytes memory replaySig = _sign(aliceKey, replay);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.setTrust(replay, replaySig);
+
+        TrustAttestation memory older = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max - 1);
+        bytes memory olderSig = _sign(aliceKey, older);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max - 1, type(uint64).max));
+        registry.setTrust(older, olderSig);
+    }
+
     function test_InvalidateNonces_RevertsForStranger() public {
         vm.prank(mallory);
         vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
@@ -2311,6 +2485,84 @@ contract TrustRegistryTest is Test {
     function test_ResolveAgent_ZeroWhenResolverReverts() public {
         ens.setResolver(CAROL, address(new RevertingResolver()));
         assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev Gas forwarded to the resolver; mirrors TrustRegistry.RESOLVE_GAS
+    uint256 internal constant RESOLVE_GAS = 50_000;
+
+    function _setRawResolver(bytes32 node, RawResponder.Mode mode, bytes32 word, uint256 size) internal {
+        ens.setResolver(node, address(new RawResponder(mode, word, size)));
+    }
+
+    function _addrWord(address a) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(a)));
+    }
+
+    /// @dev A resolver address with no code answers a call with success and no data
+    function test_ResolveAgent_ZeroWhenResolverHasNoCode() public {
+        ens.setResolver(CAROL, address(0xBEEF));
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    function test_ResolveAgent_ZeroOnEmptyReturn() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Return, _addrWord(carol), 0);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    function test_ResolveAgent_ZeroOnShortReturn() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Return, _addrWord(carol), 31);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev Non-zero upper 96 bits are not a valid ABI-encoded address
+    function test_ResolveAgent_ZeroOnDirtyReturn() public {
+        bytes32 dirty = _addrWord(carol) | bytes32(uint256(1) << 160);
+        _setRawResolver(CAROL, RawResponder.Mode.Return, dirty, 32);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev Trailing data is ignored, as ABI decoding would; only the first word is copied
+    function test_ResolveAgent_OversizedReturnReadsFirstWord() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Return, _addrWord(carol), 4096);
+        assertEq(registry.resolveAgent(CAROL), carol);
+    }
+
+    function test_ResolveAgent_ZeroOnLargeRevertData() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Revert, _addrWord(carol), 4096);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev A resolver that burns gas costs the caller at most the cap, not 63/64 of its gas
+    function test_ResolveAgent_GasBurnIsCapped() public {
+        _setRawResolver(CAROL, RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        uint256 before = gasleft();
+        address resolved = registry.resolveAgent{gas: 10_000_000}(CAROL);
+        uint256 used = before - gasleft();
+
+        assertEq(resolved, address(0));
+        assertLt(used, RESOLVE_GAS + 20_000, "gas use bounded by RESOLVE_GAS");
+    }
+
+    /// @dev One hostile participant cannot exhaust the gas a coordinator budgets for
+    ///      validating every participant of an intent
+    function test_ValidateParticipantAddress_HostileResolverDoesNotAbortLoop() public {
+        _gatedChainToCarol();
+        _grant(bobKey, BOB, DAVE, TrustLevel.Full, UNIVERSAL, 2);
+        _setRawResolver(DAVE, RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        ParticipantLoop loop = new ParticipantLoop();
+        vm.prank(address(loop));
+        registry.setIdentityGate(MEV_COORDINATION, ALICE, _defaultParams());
+
+        address[] memory participants = new address[](2);
+        TrustPath[] memory paths = new TrustPath[](2);
+        (participants[0], paths[0]) = (dave, _path(_nodes3(ALICE, BOB, DAVE)));
+        (participants[1], paths[1]) = (carol, _path(_nodes3(ALICE, BOB, CAROL)));
+
+        bool[] memory ok = loop.validateAll{gas: 300_000}(registry, MEV_COORDINATION, participants, paths);
+        assertFalse(ok[0], "hostile resolver fails closed");
+        assertTrue(ok[1], "later participant still validated");
     }
 
     // ───────────────────────────────────────────────────────────────────────────

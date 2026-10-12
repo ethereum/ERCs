@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {
     ITrustRegistry,
@@ -74,6 +74,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     /// @dev Upper bound on how far one attestation or `invalidateNonces` call may
     ///      raise the nonce floor
     uint64 internal constant MAX_NONCE_JUMP = 2 ** 32;
+
+    /// @dev Gas forwarded to a node's resolver in `resolveAgent`
+    uint256 internal constant RESOLVE_GAS = 50_000;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // STORAGE
@@ -200,7 +203,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
 
         uint64 current = _nonces[trustorNode];
-        if (newNonce <= current) revert NonceTooLow(newNonce, current + 1);
+        if (newNonce <= current) revert NonceTooLow(newNonce, _next(current));
 
         uint64 max = _maxNonce(current);
         if (newNonce > max) revert NonceJumpTooLarge(newNonce, max);
@@ -449,11 +452,21 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         address resolver = ens.resolver(node);
         if (resolver == address(0)) return address(0);
 
-        try IAddrResolver(resolver).addr(node) returns (address payable agent) {
-            return agent;
-        } catch {
-            return address(0);
+        // Low-level, gas-capped, bounded-copy call. A participant controls its own
+        // resolver, so a high-level call would let it make validation REVERT (no code,
+        // short or dirty return data) or burn 63/64 of the caller's gas, either of
+        // which aborts a coordinator looping over every participant of an intent.
+        bytes memory data = abi.encodeWithSelector(IAddrResolver.addr.selector, node);
+        bool ok;
+        uint256 word;
+        uint256 size;
+        assembly ("memory-safe") {
+            ok := staticcall(RESOLVE_GAS, resolver, add(data, 0x20), mload(data), 0, 0x20)
+            size := returndatasize()
+            word := mload(0)
         }
+        if (!ok || size < 0x20 || word >> 160 != 0) return address(0);
+        return address(uint160(word));
     }
 
     /// @inheritdoc ITrustRegistry
@@ -552,7 +565,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         if (ens.owner(attestation.trustorNode) == address(0)) revert ENSNameNotFound(attestation.trustorNode);
 
         uint64 currentNonce = _nonces[attestation.trustorNode];
-        if (attestation.nonce <= currentNonce) revert NonceTooLow(attestation.nonce, currentNonce + 1);
+        if (attestation.nonce <= currentNonce) revert NonceTooLow(attestation.nonce, _next(currentNonce));
 
         uint64 maxNonce = _maxNonce(currentNonce);
         if (attestation.nonce > maxNonce) revert NonceJumpTooLarge(attestation.nonce, maxNonce);
@@ -610,11 +623,10 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
         // ERC-1271 fallback for any controller with code
         if (controller.code.length == 0) return false;
-        try IERC1271(controller).isValidSignature(digest, signature) returns (bytes4 magic) {
-            return magic == IERC1271.isValidSignature.selector;
-        } catch {
-            return false;
-        }
+        // Low-level call with a returndata length check: a high-level call would revert
+        // with empty data (not InvalidSignature) when the controller's code returns
+        // nothing, e.g. an EIP-7702 delegate with an empty fallback
+        return SignatureChecker.isValidERC1271SignatureNow(controller, digest, signature);
     }
 
     /// @dev Check if caller can submit a revokeTrust transaction
@@ -636,6 +648,11 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     ///      type(uint64).max rather than wrapping.
     function _maxNonce(uint64 current) internal pure returns (uint64) {
         return current > type(uint64).max - MAX_NONCE_JUMP ? type(uint64).max : current + MAX_NONCE_JUMP;
+    }
+
+    /// @dev Saturating successor, so NonceTooLow reports cleanly at type(uint64).max
+    function _next(uint64 current) internal pure returns (uint64) {
+        return current == type(uint64).max ? current : current + 1;
     }
 
     /// @dev Controller only - authority for trustor-wide operations
