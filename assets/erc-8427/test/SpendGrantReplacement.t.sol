@@ -67,11 +67,24 @@ contract SpendGrantReplacementTest is Test {
         (uint256 lowerSpent,) = registry.usage(_hash(lower), NATIVE);
         assertEq(earlierSpent + lowerSpent, 1500);
 
-        // Sized from what the earlier grant had left, the replacement allows exactly that.
-        uint256 left = 1000 - earlierSpent;
-        SpendGrant memory netted = _grant(3, left, left, left);
-        registry.consume(netted, _sign(netted), delegate, NATIVE, left, recipient);
+        // To hold lifetime spend to a new total of 800, the replacement is sized at
+        // min(800, earlier maxTotal) - earlier spent = 100, not at the 300 the earlier grant had left.
+        uint256 newTotal = 800;
+        uint256 sized = (newTotal < 1000 ? newTotal : 1000) - earlierSpent;
+        assertEq(sized, 100);
+        SpendGrant memory netted = _grant(3, sized, sized, sized);
+        registry.consume(netted, _sign(netted), delegate, NATIVE, sized, recipient);
+        (uint256 nettedSpent,) = registry.usage(_hash(netted), NATIVE);
+        assertEq(earlierSpent + nettedSpent, newTotal);
         _expect(Reason.OVER_WINDOW_CAP);
+        registry.consume(netted, _sign(netted), delegate, NATIVE, 1, recipient);
+
+        // Once those spends leave the window, neither grant can spend more: the earlier one is revoked,
+        // and the lifetime cap holds the replacement, so the total stays at 800.
+        vm.warp(vm.getBlockTimestamp() + 86400);
+        _expect(Reason.REVOKED);
+        registry.consume(earlier, _sign(earlier), delegate, NATIVE, 1, recipient);
+        _expect(Reason.OVER_CUMULATIVE_CAP);
         registry.consume(netted, _sign(netted), delegate, NATIVE, 1, recipient);
     }
 
