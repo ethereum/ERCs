@@ -72,19 +72,64 @@ contract MockENS is IENS {
 
 /// @notice Mock ENS NameWrapper (ERC-1155 semantics)
 contract MockNameWrapper is INameWrapper {
-    mapping(uint256 => address) private _owners;
-    mapping(address => mapping(address => bool)) private _operators;
+    uint32 internal constant PARENT_CANNOT_CONTROL = 1 << 16;
+    uint32 internal constant IS_DOT_ETH = 1 << 17;
+    uint64 internal constant GRACE_PERIOD = 90 days;
 
+    struct Data {
+        address owner;
+        uint32 fuses;
+        uint64 expiry;
+    }
+
+    mapping(uint256 => Data) private _data;
+    mapping(address => mapping(address => bool)) private _operators;
+    mapping(uint256 => address) private _tokenApprovals;
+
+    /// @dev No fuses and no expiry: the deployed wrapper treats this as an expired,
+    ///      unemancipated name, which keeps its holder
     function setWrappedOwner(bytes32 node, address newOwner) external {
-        _owners[uint256(node)] = newOwner;
+        _data[uint256(node)] = Data(newOwner, 0, 0);
+    }
+
+    /// @dev For a .eth 2LD, `expiry` is the registrar expiry plus GRACE_PERIOD
+    function setWrappedData(bytes32 node, address owner_, uint32 fuses, uint64 expiry) external {
+        _data[uint256(node)] = Data(owner_, fuses, expiry);
     }
 
     function setApprovalForAll(address operator, bool approved) external {
         _operators[msg.sender][operator] = approved;
     }
 
-    function ownerOf(uint256 id) external view override returns (address) {
-        return _owners[id];
+    function approve(address to, uint256 id) external {
+        _tokenApprovals[id] = to;
+    }
+
+    function getApproved(uint256 id) external view returns (address) {
+        return _tokenApprovals[id];
+    }
+
+    /// @dev Mirrors NameWrapper.getData: once `expiry` has passed the fuses reset, and
+    ///      the holder is cleared only if PARENT_CANNOT_CONTROL was burned
+    function getData(uint256 id) public view returns (address owner_, uint32 fuses, uint64 expiry) {
+        Data memory d = _data[id];
+        (owner_, fuses, expiry) = (d.owner, d.fuses, d.expiry);
+        if (expiry < block.timestamp) {
+            if (fuses & PARENT_CANNOT_CONTROL != 0) owner_ = address(0);
+            fuses = 0;
+        }
+    }
+
+    function ownerOf(uint256 id) external view override returns (address owner_) {
+        (owner_,,) = getData(id);
+    }
+
+    /// @dev Mirrors NameWrapper.canModifyName, which refuses a .eth 2LD in its grace
+    ///      period. The registry never calls it; tests use it to show the difference
+    function canModifyName(bytes32 node, address addr) external view returns (bool) {
+        (address owner_, uint32 fuses, uint64 expiry) = getData(uint256(node));
+        bool inGrace = fuses & IS_DOT_ETH != 0 && expiry - GRACE_PERIOD < block.timestamp;
+        return (owner_ == addr || _operators[owner_][addr]) && !inGrace;
     }
 
     function isApprovedForAll(address owner_, address operator) external view override returns (bool) {
@@ -349,6 +394,22 @@ contract TrustRegistryTest is Test {
     function _wrapName(bytes32 node, address controller_) internal {
         ens.setOwner(node, address(wrapper));
         wrapper.setWrappedOwner(node, controller_);
+    }
+
+    uint32 internal constant PARENT_CANNOT_CONTROL = 1 << 16;
+    uint32 internal constant IS_DOT_ETH = 1 << 17;
+
+    /// @dev A wrapped .eth 2LD held by alice whose registrar expiry is `regExpiry`. The
+    ///      wrapper expiry is 90 days later, at the end of the grace period
+    function _wrap2LD(bytes32 node, uint64 regExpiry) internal {
+        ens.setOwner(node, address(wrapper));
+        wrapper.setWrappedData(node, alice, PARENT_CANNOT_CONTROL | IS_DOT_ETH, regExpiry + 90 days);
+    }
+
+    /// @dev A wrapped .eth 2LD past the end of its grace period: the wrapper reports
+    ///      no holder, while the registry still points at the wrapper
+    function _wrapLapsed(bytes32 node) internal {
+        _wrap2LD(node, uint64(block.timestamp) - 90 days - 1);
     }
 
     /// @dev Publish an ERC-137 forward address record for `node`
@@ -816,9 +877,9 @@ contract TrustRegistryTest is Test {
         registry.revokeTrust(GHOST, BOB, UNIVERSAL, bytes32(0));
     }
 
-    /// @dev An expired wrapped name has a registry owner but no controller
-    function test_RevokeTrust_RevertsForExpiredWrappedName() public {
-        _wrapName(WRAPPED, address(0));
+    /// @dev A wrapped .eth name past its grace period has a registry owner but no controller
+    function test_RevokeTrust_RevertsForLapsedWrappedName() public {
+        _wrapLapsed(WRAPPED);
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
         registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
@@ -1571,7 +1632,7 @@ contract TrustRegistryTest is Test {
         vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, GHOST, mallory));
         registry.setDenial(GHOST, BOB, UNIVERSAL, bytes32(0));
 
-        _wrapName(WRAPPED, address(0)); // expired wrapped name: no controller
+        _wrapLapsed(WRAPPED); // wrapped name past its grace period: no controller
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
         registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
@@ -2523,9 +2584,9 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(level), uint8(TrustLevel.Full));
     }
 
-    /// @dev NameWrapper returns address(0) for an expired wrapped name
-    function test_NameWrapper_ExpiredNameHasNoAuthority() public {
-        _wrapName(WRAPPED, address(0));
+    /// @dev NameWrapper returns address(0) for a wrapped .eth name past its grace period
+    function test_NameWrapper_LapsedNameHasNoAuthority() public {
+        _wrapLapsed(WRAPPED);
 
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         bytes memory sig = _sign(aliceKey, att);
@@ -2550,6 +2611,128 @@ contract TrustRegistryTest is Test {
 
         (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
         assertEq(uint8(level), uint8(TrustLevel.Full), "lapsed holder still attests");
+    }
+
+    // ENS lifecycle. MockNameWrapper mirrors NameWrapper.getData; the same cases were
+    // checked against the deployed contracts on a mainnet fork (see the ERC's Test Cases)
+
+    /// @dev In the grace period the wrapper refuses management, but ownerOf still
+    ///      returns the holder, so the controller keeps every ERC-8107 power
+    function test_NameWrapper_2LDKeepsAuthorityThroughGrace() public {
+        uint64 regExpiry = uint64(block.timestamp + 1 days);
+        _wrap2LD(WRAPPED, regExpiry);
+        vm.prank(alice);
+        wrapper.setApprovalForAll(mallory, true);
+        TrustAttestation memory first = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(first, _sign(aliceKey, first));
+
+        vm.warp(regExpiry);
+        assertTrue(wrapper.canModifyName(WRAPPED, alice), "at registrar expiry: not yet in grace");
+        vm.warp(regExpiry + 1);
+        assertFalse(wrapper.canModifyName(WRAPPED, alice), "grace: wrapper refuses management");
+
+        TrustAttestation memory att = _att(WRAPPED, CAROL, TrustLevel.Marginal, UNIVERSAL, 0, 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+        vm.prank(alice);
+        registry.revokeTrust(WRAPPED, CAROL, UNIVERSAL, bytes32(0));
+        vm.prank(mallory);
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        registry.invalidateNonces(WRAPPED, 10);
+        vm.prank(alice);
+        registry.clearDenial(WRAPPED, BOB, UNIVERSAL, 10, bytes32(0));
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.invalidateNonces(WRAPPED, 11);
+    }
+
+    /// @dev Authority ends one second after the wrapper expiry (the end of grace), the
+    ///      stored records stay, and the next registrant inherits them
+    function test_NameWrapper_2LDAuthorityEndsAfterGrace() public {
+        uint64 regExpiry = uint64(block.timestamp + 1 days);
+        _wrap2LD(WRAPPED, regExpiry);
+        TrustAttestation memory first = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(first, _sign(aliceKey, first));
+
+        vm.warp(regExpiry + 90 days);
+        TrustAttestation memory atEnd = _att(WRAPPED, CAROL, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(atEnd, _sign(aliceKey, atEnd));
+
+        vm.warp(regExpiry + 90 days + 1);
+        TrustAttestation memory after_ = _att(WRAPPED, DAVE, TrustLevel.Full, UNIVERSAL, 0, 3);
+        bytes memory sig = _sign(aliceKey, after_);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(after_, sig);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        (TrustLevel level,) = registry.getTrust(WRAPPED, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "endorsement persists");
+
+        // Re-registration: the new holder controls the stored records
+        wrapper.setWrappedData(WRAPPED, bob, PARENT_CANNOT_CONTROL | IS_DOT_ETH, uint64(block.timestamp + 455 days));
+        vm.prank(bob);
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    /// @dev An emancipated subname has no grace period: authority ends at its expiry
+    function test_NameWrapper_EmancipatedSubnameLosesAuthorityAtExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        ens.setOwner(WRAPPED, address(wrapper));
+        wrapper.setWrappedData(WRAPPED, alice, PARENT_CANNOT_CONTROL, expiry);
+
+        vm.warp(expiry);
+        TrustAttestation memory atExpiry = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(atExpiry, _sign(aliceKey, atExpiry));
+
+        vm.warp(expiry + 1);
+        TrustAttestation memory after_ = _att(WRAPPED, CAROL, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory sig = _sign(aliceKey, after_);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(after_, sig);
+    }
+
+    /// @dev An unemancipated subname keeps its holder after expiry: only its fuses
+    ///      reset. A wrapper expiry of zero is the common case and behaves the same
+    function test_NameWrapper_UnemancipatedSubnameKeepsAuthorityAfterExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        ens.setOwner(WRAPPED, address(wrapper));
+        wrapper.setWrappedData(WRAPPED, alice, 1 << 20, expiry); // a parent-controlled custom fuse
+
+        vm.warp(expiry + 365 days);
+        (, uint32 fuses,) = wrapper.getData(uint256(WRAPPED));
+        assertEq(fuses, 0, "fuses reset");
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+        vm.prank(alice);
+        registry.setDenial(WRAPPED, CAROL, UNIVERSAL, bytes32(0));
+
+        wrapper.setWrappedOwner(WRAPPED, alice); // expiry 0
+        TrustAttestation memory zero = _att(WRAPPED, DAVE, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(zero, _sign(aliceKey, zero));
+    }
+
+    /// @dev A per-token approval confers no authority: only isApprovedForAll counts
+    function test_NameWrapper_TokenApprovalGrantsNothing() public {
+        _wrapName(WRAPPED, alice);
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+        vm.prank(alice);
+        wrapper.approve(mallory, uint256(WRAPPED));
+        assertEq(wrapper.getApproved(uint256(WRAPPED)), mallory);
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
     }
 
     /// @dev Operator approvals for a wrapped name live on the NameWrapper
@@ -3056,10 +3239,11 @@ contract TrustRegistryTest is Test {
         registry.setTrust(att, hex"dead");
     }
 
-    /// @dev An expired wrapped name has a registry owner (the NameWrapper), so it
-    ///      passes rows 4-6 and fails at the signature: controllerOf returns zero
+    /// @dev A wrapped .eth name past its grace period has a registry owner (the
+    ///      NameWrapper), so it passes rows 4-6 and fails at the signature:
+    ///      controllerOf returns zero
     function test_RevertOrder_SetTrust_7_InvalidSignature() public {
-        _wrapName(WRAPPED, address(0));
+        _wrapLapsed(WRAPPED);
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         bytes memory sig = _sign(aliceKey, att);
         vm.expectRevert(InvalidSignature.selector);
