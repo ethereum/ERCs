@@ -1043,8 +1043,8 @@ contract SpendGrantRedemptionTest is Test {
         MatrixThief thief;
         bytes execution;
         bytes32 grantId;
-        bytes driveP;
-        bytes driveD;
+        bytes drivePrincipal;
+        bytes driveDelegate;
         bytes viaCaveat;
         bytes viaCaveatNoArgs;
     }
@@ -1199,8 +1199,9 @@ contract SpendGrantRedemptionTest is Test {
                     for (uint256 i = 0; i < chains.length; i++) {
                         _link(chains[i]);
                     }
-                    bytes memory nested =
-                        act == 0 ? x.driveP : act == 1 ? x.driveD : act == 2 ? x.viaCaveat : x.viaCaveatNoArgs;
+                    bytes memory nested = act == 0
+                        ? x.drivePrincipal
+                        : act == 1 ? x.driveDelegate : act == 2 ? x.viaCaveat : x.viaCaveatNoArgs;
                     x.thief.arm(pt, nested, x.execution);
                     uint256 snap = vm.snapshotState();
                     (bool ok, uint256 calls, bytes memory ret) = _attempt(x, ra, chains, entries);
@@ -1271,11 +1272,11 @@ contract SpendGrantRedemptionTest is Test {
         MockDelegationManager.Delegation[] memory p = new MockDelegationManager.Delegation[](1);
         p[0] = _delegation(address(x.thief), address(principalAccount), false);
         _link(p);
-        x.driveP = abi.encode(p);
+        x.drivePrincipal = abi.encode(p);
         MockDelegationManager.Delegation[] memory d = new MockDelegationManager.Delegation[](1);
         d[0] = _delegation(address(x.thief), address(x.delegateAccount), false);
         _link(d);
-        x.driveD = abi.encode(d);
+        x.driveDelegate = abi.encode(d);
         // A delegation from the principal to the thief that carries the SpendGrant caveat: with its args, it names
         // the thief, not the grant's delegate, and reverts (WrongDelegate); without them, it reverts too
         // (MissingDelegation).
@@ -1360,10 +1361,10 @@ contract SpendGrantRedemptionTest is Test {
     /// reverts at its own caveat (`_cannotPayRevert`), before anything in its entry could take a record. A shape that
     /// can pay fails only where the thief takes its record: driving the principal (act 0) from a beforeHook on that
     /// entry's root after this enforcer's caveat, it spends between the record's write and the execution, which then
-    /// finds no record (13). Nowhere else is a record live when the thief strikes: the beforeAll pass and the hooks
-    /// below the root run before the write, and the token callback, the afterHooks, and the afterAll pass after the
-    /// take. Its other moves take none: the delegate's account spends without one (act 1), and the principal's
-    /// delegation to the thief that carries the caveat reverts at its hook (acts 2 and 3).
+    /// finds no record (13). Nowhere else is a record live when the thief strikes: the beforeAllHook pass and the
+    /// hooks below the root run before the write, and the token callback, the afterHooks, and the afterAllHook pass
+    /// after the take. Its other moves take none: the delegate's account spends without one (act 1), and the
+    /// principal's delegation to the thief that carries the caveat reverts at its hook (acts 2 and 3).
     function _firstFailure(
         uint256 a,
         uint256 b,

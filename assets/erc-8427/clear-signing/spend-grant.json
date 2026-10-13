@@ -3,7 +3,12 @@
   "context": {
     "$id": "Portable Spend Grants",
     "contract": {
-      "deployments": []
+      "deployments": [
+        {
+          "chainId": 5042002,
+          "address": "0xe8987A22a1e3fd4a63cB517A9476B9d214388287"
+        }
+      ]
     }
   },
   "metadata": {
