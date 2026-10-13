@@ -2,17 +2,8 @@
   "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v2.schema.json",
   "context": {
     "$id": "Portable Spend Grants",
-    "eip712": {
-      "domain": {
-        "name": "SpendGrant",
-        "version": "1"
-      },
-      "deployments": [
-        {
-          "chainId": 5042002,
-          "address": "0x37ceecB34B97B39D5B07e8D7Dd974A5a9aD14425"
-        }
-      ]
+    "contract": {
+      "deployments": []
     }
   },
   "metadata": {
@@ -42,12 +33,12 @@
       }
     },
     "formats": {
-      "SpendGrant(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,AssetLimit[] assets,uint64 validAfter,uint64 validUntil,uint256 salt)AssetLimit(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)": {
-        "$id": "SpendGrant",
+      "register((address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)[] assets,uint64 validAfter,uint64 validUntil,uint256 salt) terms)": {
+        "$id": "register",
         "intent": "Grant spending",
         "fields": [
           {
-            "path": "delegate",
+            "path": "terms.delegate",
             "label": "Delegate",
             "format": "addressName",
             "params": {
@@ -58,7 +49,7 @@
             }
           },
           {
-            "path": "recipientMode",
+            "path": "terms.recipientMode",
             "label": "Pays to",
             "format": "enum",
             "params": {
@@ -66,7 +57,7 @@
             }
           },
           {
-            "path": "recipient",
+            "path": "terms.recipient",
             "label": "Recipient",
             "format": "addressName",
             "visible": {
@@ -76,12 +67,12 @@
             }
           },
           {
-            "path": "windowSeconds",
+            "path": "terms.windowSeconds",
             "label": "Rolling window",
             "format": "duration"
           },
           {
-            "path": "assets.[]",
+            "path": "terms.assets.[]",
             "fields": [
               {
                 "path": "maxPerCall",
@@ -99,13 +90,14 @@
                 "$ref": "$.display.definitions.cap"
               },
               {
+                "$id": "Shown as each cap's token",
                 "path": "asset",
                 "visible": "never"
               }
             ]
           },
           {
-            "path": "validAfter",
+            "path": "terms.validAfter",
             "label": "Valid from",
             "format": "date",
             "params": {
@@ -113,7 +105,7 @@
             }
           },
           {
-            "path": "validUntil",
+            "path": "terms.validUntil",
             "label": "Valid until",
             "format": "date",
             "params": {
@@ -121,8 +113,38 @@
             }
           },
           {
-            "path": "principal",
-            "label": "Spending from",
+            "$id": "Must be the sender; register and update revert otherwise",
+            "path": "terms.principal",
+            "visible": "never"
+          },
+          {
+            "$id": "Only 0 (independent per-asset caps) is valid",
+            "path": "terms.assetCombine",
+            "visible": {
+              "mustMatch": [
+                0
+              ]
+            }
+          },
+          {
+            "$id": "Distinguishes otherwise identical grants; update ignores it",
+            "path": "terms.salt",
+            "visible": "never"
+          }
+        ]
+      },
+      "update(bytes32 grantId,uint256 expectedVersion,(address principal,address delegate,uint8 recipientMode,address recipient,uint8 assetCombine,uint64 windowSeconds,(address asset,uint256 maxPerCall,uint256 maxPerWindow,uint256 maxTotal)[] assets,uint64 validAfter,uint64 validUntil,uint256 salt) terms)": {
+        "$id": "update",
+        "intent": "Change spending grant",
+        "fields": [
+          {
+            "path": "grantId",
+            "label": "Grant",
+            "format": "raw"
+          },
+          {
+            "path": "terms.delegate",
+            "label": "Delegate",
             "format": "addressName",
             "params": {
               "types": [
@@ -132,7 +154,77 @@
             }
           },
           {
-            "path": "assetCombine",
+            "path": "terms.recipientMode",
+            "label": "Pays to",
+            "format": "enum",
+            "params": {
+              "$ref": "$.metadata.enums.recipientMode"
+            }
+          },
+          {
+            "path": "terms.recipient",
+            "label": "Recipient",
+            "format": "addressName",
+            "visible": {
+              "ifNotIn": [
+                "0x0000000000000000000000000000000000000000"
+              ]
+            }
+          },
+          {
+            "path": "terms.windowSeconds",
+            "label": "Rolling window",
+            "format": "duration"
+          },
+          {
+            "path": "terms.assets.[]",
+            "fields": [
+              {
+                "path": "maxPerCall",
+                "label": "Max per payment",
+                "$ref": "$.display.definitions.cap"
+              },
+              {
+                "path": "maxPerWindow",
+                "label": "Max in any rolling window",
+                "$ref": "$.display.definitions.cap"
+              },
+              {
+                "path": "maxTotal",
+                "label": "Max in total",
+                "$ref": "$.display.definitions.cap"
+              },
+              {
+                "$id": "Shown as each cap's token",
+                "path": "asset",
+                "visible": "never"
+              }
+            ]
+          },
+          {
+            "path": "terms.validAfter",
+            "label": "Valid from",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "terms.validUntil",
+            "label": "Valid until",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "$id": "Must be the sender; register and update revert otherwise",
+            "path": "terms.principal",
+            "visible": "never"
+          },
+          {
+            "$id": "Only 0 (independent per-asset caps) is valid",
+            "path": "terms.assetCombine",
             "visible": {
               "mustMatch": [
                 0
@@ -140,8 +232,15 @@
             }
           },
           {
-            "path": "salt",
+            "$id": "Distinguishes otherwise identical grants; update ignores it",
+            "path": "terms.salt",
             "visible": "never"
+          },
+          {
+            "path": "expectedVersion",
+            "label": "From version",
+            "format": "raw",
+            "visible": "optional"
           }
         ]
       }

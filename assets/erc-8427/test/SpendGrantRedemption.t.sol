@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {AssetLimit, IERC1271, SpendGrant, SpendGrantError, Reason} from "../src/SpendGrantTypes.sol";
-import {SpendGrantHash} from "../src/SpendGrantHash.sol";
 import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {SpendGrantExecutor} from "../src/SpendGrantExecutor.sol";
 import {SpendGrantRedemptionEnforcer} from "../src/SpendGrantRedemptionEnforcer.sol";
@@ -192,7 +191,11 @@ contract MockDeleGator {
 /// @dev A hostile intermediate delegator that is also a caveat enforcer on its own delegation. During a
 /// hook it calls the executor itself with the execution's spend data, trying to ride the delegate's
 /// redemption for a second spend. Its ERC-1271 accepts anything so a manager can validate its delegation.
+/// A refused call reverts with `StrikeRefused` carrying the executor's revert data, so a test can tell the
+/// executor's refusal of evil's own call from any other revert in the redemption.
 contract EvilDelegator {
+    error StrikeRefused(bytes reason);
+
     SpendGrantRedemptionExecutor internal immutable EXECUTOR;
     bool internal immutable IN_BEFORE;
 
@@ -229,11 +232,7 @@ contract EvilDelegator {
 
     function _strike(bytes calldata exec) internal {
         (bool ok, bytes memory ret) = address(EXECUTOR).call(exec[52:]);
-        if (!ok) {
-            assembly {
-                revert(add(ret, 32), mload(ret))
-            }
-        }
+        if (!ok) revert StrikeRefused(ret);
     }
 }
 
@@ -249,7 +248,7 @@ contract DoubleExecDeleGator is MockDeleGator {
 
 /// @dev The scenario matrix's adversary. It strikes once, at one chosen point: one of its own hooks when it
 /// sits on a delegation, or the token callback when it is the recipient. It redeems a caveat-free delegation
-/// whose execution is the same spend, and catches whatever that does.
+/// whose execution is the same spend, and catches whatever that does, keeping the revert data.
 contract MatrixThief {
     uint8 internal constant NONE = 0;
     uint8 internal constant BEFORE_ALL = 1;
@@ -262,6 +261,7 @@ contract MatrixThief {
     uint8 internal point;
     bool public struck;
     bool public nestedSpent;
+    bytes public nestedError;
     bytes internal nestedContext;
     bytes internal nestedExecution;
 
@@ -271,6 +271,7 @@ contract MatrixThief {
 
     function arm(uint8 point_, bytes memory context, bytes memory execution) external {
         (point, struck, nestedSpent, nestedContext, nestedExecution) = (point_, false, false, context, execution);
+        nestedError = "";
     }
 
     function beforeAllHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address)
@@ -307,7 +308,9 @@ contract MatrixThief {
         executions[0] = nestedExecution;
         try MANAGER.redeemDelegations(contexts, modes, executions) {
             nestedSpent = true;
-        } catch {}
+        } catch (bytes memory err) {
+            nestedError = err;
+        }
     }
 }
 
@@ -315,7 +318,7 @@ contract MatrixThief {
 contract RecordProbe {
     SpendGrantRedemptionEnforcer internal immutable ENFORCER;
     address internal principal;
-    bytes32 internal grantHash;
+    bytes32 internal grantId;
     address internal asset;
     uint256 internal amount;
     address internal recipient;
@@ -326,10 +329,10 @@ contract RecordProbe {
         ENFORCER = enforcer_;
     }
 
-    function watch(address principal_, bytes32 grantHash_, address asset_, uint256 amount_, address recipient_)
+    function watch(address principal_, bytes32 grantId_, address asset_, uint256 amount_, address recipient_)
         external
     {
-        (principal, grantHash, asset, amount, recipient) = (principal_, grantHash_, asset_, amount_, recipient_);
+        (principal, grantId, asset, amount, recipient) = (principal_, grantId_, asset_, amount_, recipient_);
     }
 
     function beforeAllHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address)
@@ -337,11 +340,11 @@ contract RecordProbe {
     {}
 
     function beforeHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address) external {
-        seenBefore = ENFORCER.recorded(principal, grantHash, asset, amount, recipient);
+        seenBefore = ENFORCER.recorded(principal, grantId, asset, amount, recipient);
     }
 
     function afterHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address) external {
-        seenAfter = ENFORCER.recorded(principal, grantHash, asset, amount, recipient);
+        seenAfter = ENFORCER.recorded(principal, grantId, asset, amount, recipient);
     }
 
     function afterAllHook(bytes calldata, bytes calldata, bytes32, bytes calldata, bytes32, address, address)
@@ -363,6 +366,11 @@ contract HookERC20 is MockERC20 {
 contract SpendGrantRedemptionTest is Test {
     uint256 internal constant OWNER_PK = 0xA11CE;
     uint256 internal constant EOA_PRINCIPAL_PK = 0xA11CF;
+    bytes4 internal constant SPEND_GRANT_ERROR = bytes4(keccak256("SpendGrantError(uint8)"));
+    bytes4 internal constant WRONG_DELEGATOR = bytes4(keccak256("WrongDelegator()"));
+    bytes4 internal constant NOT_ROOT = bytes4(keccak256("NotRoot()"));
+    bytes4 internal constant WRONG_DELEGATE = bytes4(keccak256("WrongDelegate()"));
+    bytes4 internal constant WRONG_REDEEMER = bytes4(keccak256("WrongRedeemer()"));
 
     bytes32 internal constant SINGLE_DEFAULT = bytes32(0);
     bytes32 internal constant BATCH_DEFAULT = bytes32(uint256(0x01) << 248);
@@ -407,147 +415,184 @@ contract SpendGrantRedemptionTest is Test {
     // ---------------------------------------------------------------- shape two: redeemer is the delegate
 
     function test_redemption_byDelegate_recordsRedeemerAndSpends() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
-        bytes32 h = _hash(m);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
         chain[0] = _delegation(delegate, address(principalAccount), true);
 
         uint256 principalBefore = token.balanceOf(address(principalAccount));
 
-        _redeem(delegate, chain, SINGLE_DEFAULT, _execution(m, sig, 1e18, recipient));
+        _redeem(delegate, chain, SINGLE_DEFAULT, _execution(id, 1e18, recipient));
 
         assertEq(principalBefore - token.balanceOf(address(principalAccount)), 1e18);
         assertEq(token.balanceOf(recipient), 1e18);
-        (uint256 spent, uint256 calls) = registry.usage(h, address(token));
+        (uint256 spent, uint256 calls) = registry.usage(id, address(token));
         assertEq(spent, 1e18);
         assertEq(calls, 1);
         // Cleared when taken, so nothing in this transaction can use it again.
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
     }
 
     function test_redemption_bySubDelegate_isRejected() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
-        // Leaf: delegate -> subDelegate. Root: principal -> delegate, carrying the caveat.
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        // Leaf: delegate -> subDelegate. Root: principal -> delegate, carrying the caveat. The root's hook sees the
+        // sub-delegate as the redeemer, not the grant's delegate, and reverts before anything is recorded.
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
         chain[0] = _delegation(subDelegate, delegate, false);
         chain[1] = _delegation(delegate, address(principalAccount), true);
 
-        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, subDelegate, chain, _execution(m, sig, 1e18, recipient));
-        _assertNothingSpent(m);
+        _redeemReverting(abi.encodeWithSelector(WRONG_REDEEMER), subDelegate, chain, _execution(id, 1e18, recipient));
+        _assertNothingSpent(id);
     }
 
-    function test_redemption_openDelegation_onlyGrantDelegatePasses() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
+    function test_redemption_openDelegation_revertsEvenForTheDelegate() public {
+        // The principal's root delegation open to any delegate, carrying the caveat: it does not name the grant's
+        // delegate, so its hook reverts for whoever redeems it, the grant's delegate included.
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
         chain[0] = _delegation(manager.ANY_DELEGATE(), address(principalAccount), true);
-        bytes memory execution = _execution(m, sig, 1e18, recipient);
+        bytes memory execution = _execution(id, 1e18, recipient);
 
-        // Whoever calls is recorded as the redeemer; the registry rejects everyone but the delegate.
-        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, stranger, chain, execution);
-        _assertNothingSpent(m);
-
-        _redeem(delegate, chain, SINGLE_DEFAULT, execution);
-        (uint256 spent,) = registry.usage(_hash(m), address(token));
-        assertEq(spent, 1e18);
+        _redeemReverting(abi.encodeWithSelector(WRONG_DELEGATE), delegate, chain, execution);
+        _redeemReverting(abi.encodeWithSelector(WRONG_DELEGATE), stranger, chain, execution);
+        _assertNothingSpent(id);
     }
 
     function test_redemption_recordAuthorizesOneConsume() public {
         DoubleExecDeleGator twice = new DoubleExecDeleGator(address(manager), owner);
         _fund(address(twice));
-        SpendGrant memory m = _grant(address(twice), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
+        bytes32 id = _register(_grant(address(twice), delegate));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
         chain[0] = _delegation(delegate, address(twice), true);
 
         // The first spend takes the record; the second finds none and the whole redemption reverts.
-        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(m, sig, 1e18, recipient));
-        _assertNothingSpent(m);
+        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(id, 1e18, recipient));
+        _assertNothingSpent(id);
         assertEq(token.balanceOf(address(twice)), 1e24);
     }
 
-    function test_redemption_recordBoundToAnotherAccountIsNeverRead() public {
-        // The redeemer is the grant's delegate. The caveat sits on the leaf, whose delegator is an
-        // intermediary, so the enforcer writes nothing, and the principal's account finds no record.
+    function test_redemption_chainThroughAnotherAccount_reverts() public {
+        // principal -> intermediary, the root, carrying the caveat; intermediary -> delegate; the delegate redeems.
+        // The root names the intermediary, not the grant's delegate, so its hook reverts.
         address intermediary = vm.addr(0x1111);
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
-        bytes32 h = _hash(m);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
+        chain[0] = _delegation(delegate, intermediary, false);
+        chain[1] = _delegation(intermediary, address(principalAccount), true);
+
+        _redeemReverting(abi.encodeWithSelector(WRONG_DELEGATE), delegate, chain, _execution(id, 1e18, recipient));
+        _assertNothingSpent(id);
+    }
+
+    function test_redemption_loopThroughAnotherAccountPays() public {
+        // principal -> delegate, the root, carrying the caveat; delegate -> another account; that account -> delegate;
+        // the delegate redeems. The enforcer checks the root delegation and the redeemer, not the hops between: the
+        // root names the delegate and the delegate redeems, so this pays once, and no record is left.
+        address other = vm.addr(0x7777);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](3);
+        chain[0] = _delegation(delegate, other, false);
+        chain[1] = _delegation(other, delegate, false);
+        chain[2] = _delegation(delegate, address(principalAccount), true);
+        uint256 principalBefore = token.balanceOf(address(principalAccount));
+
+        _redeem(delegate, chain, SINGLE_DEFAULT, _execution(id, 1e18, recipient));
+
+        assertEq(principalBefore - token.balanceOf(address(principalAccount)), 1e18);
+        assertEq(token.balanceOf(recipient), 1e18);
+        (uint256 spent, uint256 calls) = registry.usage(id, address(token));
+        assertEq(spent, 1e18);
+        assertEq(calls, 1);
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
+    }
+
+    function test_redemption_caveatOnAnIntermediarysDelegationReverts() public {
+        // The redeemer is the grant's delegate. The caveat sits on the leaf, whose delegator is an intermediary, not
+        // the grant's principal, so its hook reverts and nothing is recorded for anyone.
+        address intermediary = vm.addr(0x1111);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
         chain[0] = _delegation(delegate, intermediary, true);
         chain[1] = _delegation(intermediary, address(principalAccount), false);
 
-        _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(m, sig, 1e18, recipient));
-        _assertNothingSpent(m);
-        assertEq(enforcer.recorded(intermediary, h, address(token), 1e18, recipient), address(0));
+        _redeemReverting(abi.encodeWithSelector(WRONG_DELEGATOR), delegate, chain, _execution(id, 1e18, recipient));
+        _assertNothingSpent(id);
+        assertEq(enforcer.recorded(intermediary, id, address(token), 1e18, recipient), address(0));
     }
 
     function test_redemption_hostileIntermediaryCannotRideTheRedemption() public {
-        // Chain: principal -> evil (caveat), evil -> delegate (caveat + evil as its own enforcer). The
-        // delegate redeems once. In a hook, evil calls the executor with the same spend. The enforcer wrote
-        // no record for evil, and the executor rejects any record-path caller but the principal, so the
-        // strike reverts and takes the whole redemption with it.
+        // Chain: principal -> delegate, the root, carrying the caveat; delegate -> evil; evil -> delegate, carrying evil
+        // as its own enforcer. The root names the delegate and the delegate redeems, so the rule accepts the chain and
+        // evil's hook runs: its beforeHook before the root's hook writes the record, its afterHook after the execution
+        // took it. From either, evil calls the executor with the same spend, as neither the grant's principal nor its
+        // delegate, so the executor refuses that call itself (13), before it asks the enforcer for any record, and the
+        // whole redemption reverts with evil's StrikeRefused carrying that refusal.
         for (uint256 variant = 0; variant < 2; variant++) {
             EvilDelegator evil = new EvilDelegator(executor, variant == 0);
             SpendGrant memory m = _grant(address(principalAccount), delegate);
             m.salt = 100 + variant;
-            bytes memory sig = _sign(OWNER_PK, m);
-            MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
-            chain[0] = _delegation(delegate, address(evil), true);
-            chain[0].caveats = new MockDelegationManager.Caveat[](2);
-            chain[0].caveats[0] = MockDelegationManager.Caveat(address(enforcer), "", "");
-            chain[0].caveats[1] = MockDelegationManager.Caveat(address(evil), "", "");
-            chain[1] = _delegation(address(evil), address(principalAccount), true);
+            bytes32 id = _register(m);
+            MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](3);
+            chain[0] = _delegation(delegate, address(evil), false);
+            chain[0].caveats = new MockDelegationManager.Caveat[](1);
+            chain[0].caveats[0] = MockDelegationManager.Caveat(address(evil), "", "");
+            chain[1] = _delegation(address(evil), delegate, false);
+            chain[2] = _delegation(delegate, address(principalAccount), true);
 
-            _redeemExpecting(Reason.UNAUTHORIZED_DELEGATE, delegate, chain, _execution(m, sig, 1e18, recipient));
-            _assertNothingSpent(m);
+            vm.expectCall(address(enforcer), abi.encodeWithSelector(enforcer.take.selector, address(evil)), 0);
+            // In the afterHook variant the principal's execution took the record once before evil struck, so the same
+            // prefix with the principal's account matches a real call.
+            if (variant == 1) {
+                vm.expectCall(
+                    address(enforcer), abi.encodeWithSelector(enforcer.take.selector, address(principalAccount)), 1
+                );
+            }
+            _redeemReverting(
+                abi.encodeWithSelector(EvilDelegator.StrikeRefused.selector, _err(13)),
+                delegate,
+                chain,
+                _execution(id, 1e18, recipient)
+            );
+            _assertNothingSpent(id);
+            assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
         }
     }
 
-    function test_redemption_caveatOnOtherHopsIsInertAndLeavesNoRecord() public {
-        // Chain: principal -> intermediary (caveat), intermediary -> delegate (caveat). One redemption, one
-        // spend. No record exists for the intermediary afterwards, and it cannot spend on its own.
+    function test_redemption_caveatOnOtherHopsReverts() public {
+        // Chain: principal -> intermediary (caveat), intermediary -> delegate (caveat). The leaf's hook runs first,
+        // and its delegator is the intermediary, not the grant's principal, so the redemption reverts. No record
+        // exists for either account afterwards, and the intermediary cannot spend on its own.
         address intermediary = vm.addr(0x1111);
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
-        bytes32 h = _hash(m);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
         chain[0] = _delegation(delegate, intermediary, true);
         chain[1] = _delegation(intermediary, address(principalAccount), true);
 
-        _redeem(delegate, chain, SINGLE_DEFAULT, _execution(m, sig, 1e18, recipient));
-
-        (uint256 spent, uint256 calls) = registry.usage(h, address(token));
-        assertEq(spent, 1e18);
-        assertEq(calls, 1);
-        assertEq(enforcer.recorded(intermediary, h, address(token), 1e18, recipient), address(0));
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+        _redeemReverting(abi.encodeWithSelector(WRONG_DELEGATOR), delegate, chain, _execution(id, 1e18, recipient));
+        _assertNothingSpent(id);
+        assertEq(enforcer.recorded(intermediary, id, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
 
         vm.prank(intermediary);
         _expect(Reason.UNAUTHORIZED_DELEGATE);
-        executor.spend(m, sig, address(token), 1e18, recipient);
+        executor.spend(id, address(token), 1e18, recipient);
     }
 
     function test_recordPath_onlyThePrincipalMayUseIt() public {
         // A record written for the principal does not help any other caller, even with the right spend.
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
-        _writeRecord(m, address(principalAccount), delegate);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        _writeRecord(id, address(principalAccount), delegate);
 
         vm.expectCall(address(enforcer), abi.encodeWithSelector(enforcer.take.selector), 0);
         vm.prank(stranger);
         _expect(Reason.UNAUTHORIZED_DELEGATE);
-        executor.spend(m, sig, address(token), 1e18, recipient);
+        executor.spend(id, address(token), 1e18, recipient);
     }
 
     function test_afterHook_clearsWhatWasNotTaken() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes32 h = _hash(m);
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
-        _writeRecord(m, address(principalAccount), delegate);
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), delegate);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
+        _writeRecord(id, address(principalAccount), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), delegate);
 
         vm.prank(stranger);
         vm.expectRevert(SpendGrantRedemptionEnforcer.NotManager.selector);
@@ -555,12 +600,12 @@ contract SpendGrantRedemptionTest is Test {
 
         vm.prank(address(manager));
         enforcer.afterHook("", "", SINGLE_DEFAULT, execution, bytes32(0), address(principalAccount), delegate);
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
     }
 
     function test_enforcer_rejectsVendorModeBytes() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
         // Call type and exec type are zero, but a vendor selector is set.
         bytes32 vendorMode = bytes32(uint256(0xdeadbeef) << 176);
 
@@ -572,104 +617,116 @@ contract SpendGrantRedemptionTest is Test {
     // ---------------------------------------------------------------- shape one: the delegate's account calls
 
     function test_directCall_byDelegateAccount_acceptsItsSubDelegate() public {
-        // Principal is an EOA; the delegate is a smart account that re-delegated to subDelegate.
+        // Principal is an EOA; the delegate is a smart account that re-delegated to subDelegate, with no
+        // SpendGrant caveat on that sub-delegation.
         MockDeleGator delegateAccount = new MockDeleGator(address(manager), owner);
         address eoaPrincipal = vm.addr(EOA_PRINCIPAL_PK);
         _fund(eoaPrincipal);
-        SpendGrant memory m = _grant(eoaPrincipal, address(delegateAccount));
-        bytes memory sig = _sign(EOA_PRINCIPAL_PK, m);
+        bytes32 id = _register(_grant(eoaPrincipal, address(delegateAccount)));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
-        chain[0] = _delegation(subDelegate, address(delegateAccount), true);
+        chain[0] = _delegation(subDelegate, address(delegateAccount), false);
 
-        // The executor is called by grant.delegate itself, so this is a direct call: the record the
-        // enforcer wrote (naming subDelegate) is not consulted, and the delegate account's own
-        // delegation policy is what let subDelegate drive it.
-        _redeem(subDelegate, chain, SINGLE_DEFAULT, _execution(m, sig, 1e18, recipient));
+        // The executor is called by the grant's delegate itself, so this is a direct call and no record is
+        // consulted; the delegate account's own delegation policy is what let subDelegate drive it.
+        _redeem(subDelegate, chain, SINGLE_DEFAULT, _execution(id, 1e18, recipient));
 
         assertEq(token.balanceOf(recipient), 1e18);
         assertEq(token.balanceOf(eoaPrincipal), 1e24 - 1e18);
-        (uint256 spent,) = registry.usage(_hash(m), address(token));
+        (uint256 spent,) = registry.usage(id, address(token));
         assertEq(spent, 1e18);
     }
 
+    function test_directCall_byDelegateAccount_subDelegationCarryingTheCaveatReverts() public {
+        // The same sub-delegation carrying the SpendGrant caveat. The caveat's delegator is the delegate account, not
+        // the grant's principal, so its hook reverts: the caveat cannot restrict a delegate account's sub-delegation.
+        MockDeleGator delegateAccount = new MockDeleGator(address(manager), owner);
+        address eoaPrincipal = vm.addr(EOA_PRINCIPAL_PK);
+        _fund(eoaPrincipal);
+        bytes32 id = _register(_grant(eoaPrincipal, address(delegateAccount)));
+        MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
+        chain[0] = _delegation(subDelegate, address(delegateAccount), true);
+
+        _redeemReverting(abi.encodeWithSelector(WRONG_DELEGATOR), subDelegate, chain, _execution(id, 1e18, recipient));
+        _assertNothingSpent(id);
+        assertEq(token.balanceOf(eoaPrincipal), 1e24);
+    }
+
     function test_directCall_byDelegate_needsNoRecord() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
 
         vm.prank(delegate);
-        executor.spend(m, sig, address(token), 1e18, recipient);
+        executor.spend(id, address(token), 1e18, recipient);
 
         assertEq(token.balanceOf(recipient), 1e18);
     }
 
     function test_directCall_byStranger_isRejectedWithoutRecord() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
 
         // The executor rejects before the registry is reached: no record is no authorization, and it
         // never passes a placeholder authorizer.
         vm.expectCall(address(registry), abi.encodeWithSelector(registry.consume.selector), 0);
         vm.prank(stranger);
         _expect(Reason.UNAUTHORIZED_DELEGATE);
-        executor.spend(m, sig, address(token), 1e18, recipient);
-        _assertNothingSpent(m);
+        executor.spend(id, address(token), 1e18, recipient);
+        _assertNothingSpent(id);
     }
 
     // ---------------------------------------------------------------- the record itself
 
     function test_take_clearsAndIsExecutorOnly() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes32 h = _hash(m);
-        _writeRecord(m, address(principalAccount), delegate);
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), delegate);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        _writeRecord(id, address(principalAccount), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), delegate);
 
         vm.prank(stranger);
         vm.expectRevert(SpendGrantRedemptionEnforcer.NotExecutor.selector);
-        enforcer.take(address(principalAccount), h, address(token), 1e18, recipient);
+        enforcer.take(address(principalAccount), id, address(token), 1e18, recipient);
 
         vm.prank(address(executor));
-        assertEq(enforcer.take(address(principalAccount), h, address(token), 1e18, recipient), delegate);
+        assertEq(enforcer.take(address(principalAccount), id, address(token), 1e18, recipient), delegate);
         vm.prank(address(executor));
-        assertEq(enforcer.take(address(principalAccount), h, address(token), 1e18, recipient), address(0));
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.take(address(principalAccount), id, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
     }
 
     function test_record_isScopedToSpendAndExecutingAccount() public {
         SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes32 h = _hash(m);
-        _writeRecord(m, address(principalAccount), delegate);
+        bytes32 id = _register(m);
+        _writeRecord(id, address(principalAccount), delegate);
 
-        SpendGrant memory other = m;
-        other.salt = 2;
-        bytes32 otherHash = _hash(other);
+        // Another registered grant of the same principal: a different id, so none of this one's records.
+        m.salt = 2;
+        bytes32 otherId = _register(m);
 
         vm.startPrank(address(executor));
-        assertEq(enforcer.take(address(principalAccount), h, address(token), 2e18, recipient), address(0));
-        assertEq(enforcer.take(address(principalAccount), h, address(token), 1e18, stranger), address(0));
-        assertEq(enforcer.take(address(principalAccount), h, address(0xA55E7), 1e18, recipient), address(0));
-        assertEq(enforcer.take(address(principalAccount), otherHash, address(token), 1e18, recipient), address(0));
-        assertEq(enforcer.take(stranger, h, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.take(address(principalAccount), id, address(token), 2e18, recipient), address(0));
+        assertEq(enforcer.take(address(principalAccount), id, address(token), 1e18, stranger), address(0));
+        assertEq(enforcer.take(address(principalAccount), id, address(0xA55E7), 1e18, recipient), address(0));
+        assertEq(enforcer.take(address(principalAccount), otherId, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.take(stranger, id, address(token), 1e18, recipient), address(0));
         // Misses do not disturb the record; the exact spend still finds it.
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), delegate);
-        assertEq(enforcer.take(address(principalAccount), h, address(token), 1e18, recipient), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), delegate);
+        assertEq(enforcer.take(address(principalAccount), id, address(token), 1e18, recipient), delegate);
         vm.stopPrank();
     }
 
     function test_enforcer_onlyManagerWrites() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
+        // The principal's own root, shown by its args: what the manager would pass. A stranger still cannot write.
+        (bytes memory args, bytes32 delegationHash) = _rootArgs(address(principalAccount), delegate);
 
         vm.prank(stranger);
         vm.expectRevert(SpendGrantRedemptionEnforcer.NotManager.selector);
-        enforcer.beforeHook("", "", SINGLE_DEFAULT, execution, bytes32(0), address(principalAccount), delegate);
-        assertEq(enforcer.recorded(address(principalAccount), _hash(m), address(token), 1e18, recipient), address(0));
+        enforcer.beforeHook("", args, SINGLE_DEFAULT, execution, delegationHash, address(principalAccount), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
     }
 
     function test_enforcer_failsClosed() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory sig = _sign(OWNER_PK, m);
-        bytes memory execution = _execution(m, sig, 1e18, recipient);
-        bytes memory spendCall = abi.encodeCall(SpendGrantExecutor.spend, (m, sig, address(token), 1e18, recipient));
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
+        bytes memory spendCall = abi.encodeCall(SpendGrantExecutor.spend, (id, address(token), 1e18, recipient));
 
         vm.startPrank(address(manager));
 
@@ -704,19 +761,44 @@ contract SpendGrantRedemptionTest is Test {
             delegate
         );
 
+        // Another call on the executor. Bare, it is shorter than a spend's call data: malformed.
+        bytes memory otherCall = abi.encodeCall(SpendGrantExecutor.registry, ());
+        vm.expectRevert(SpendGrantRedemptionEnforcer.MalformedExecution.selector);
+        enforcer.beforeHook(
+            "",
+            "",
+            SINGLE_DEFAULT,
+            abi.encodePacked(address(executor), uint256(0), otherCall),
+            bytes32(0),
+            address(principalAccount),
+            delegate
+        );
+
+        // Padded with a spend's four argument words, it is the wrong call.
         vm.expectRevert(SpendGrantRedemptionEnforcer.WrongCall.selector);
         enforcer.beforeHook(
             "",
             "",
             SINGLE_DEFAULT,
-            abi.encodePacked(address(executor), uint256(0), abi.encodeCall(SpendGrantExecutor.registry, ())),
+            abi.encodePacked(address(executor), uint256(0), otherCall, abi.encode(id, address(token), 1e18, recipient)),
             bytes32(0),
             address(principalAccount),
             delegate
         );
 
         vm.stopPrank();
-        assertEq(enforcer.recorded(address(principalAccount), _hash(m), address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
+    }
+
+    function test_enforcer_valueWithOnlyItsTopByteSetReverts() public {
+        // The execution's value is the whole 32-byte word after the target, and a spend carries none: a value with
+        // only its top byte set (2**248) is nonzero.
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory spendCall = abi.encodeCall(SpendGrantExecutor.spend, (id, address(token), 1e18, recipient));
+        bytes memory execution = abi.encodePacked(address(executor), uint256(1) << 248, spendCall);
+        vm.prank(address(manager));
+        vm.expectRevert(SpendGrantRedemptionEnforcer.NonzeroValue.selector);
+        enforcer.beforeHook("", "", SINGLE_DEFAULT, execution, bytes32(0), address(principalAccount), delegate);
     }
 
     function test_constructor_rejectsEnforcerForAnotherExecutor() public {
@@ -727,20 +809,44 @@ contract SpendGrantRedemptionTest is Test {
         new SpendGrantRedemptionExecutor(other, enforcer);
     }
 
+    function test_constructor_rejectsEnforcerForAnotherRegistry() public {
+        // The enforcer takes each grant's principal from its own registry; an executor on another registry would
+        // take records written against principals that registry never named.
+        uint64 nonce = vm.getNonce(address(this));
+        address predicted = vm.computeCreateAddress(address(this), nonce + 2);
+        SpendGrantRegistry other = new SpendGrantRegistry(predicted);
+        SpendGrantRedemptionEnforcer elsewhere =
+            new SpendGrantRedemptionEnforcer(address(manager), predicted, address(registry));
+        vm.expectRevert(SpendGrantRedemptionExecutor.EnforcerMismatch.selector);
+        new SpendGrantRedemptionExecutor(other, elsewhere);
+    }
+
+    function test_constructor_rejectsEnforcerForAnotherExecutorOnTheSameRegistry() public {
+        // The enforcer reads this executor's own registry, so only its executor() differs: its records are for another
+        // executor to take, and its hooks accept only executions that target that one.
+        uint64 nonce = vm.getNonce(address(this));
+        address predicted = vm.computeCreateAddress(address(this), nonce + 2);
+        SpendGrantRegistry same = new SpendGrantRegistry(predicted);
+        SpendGrantRedemptionEnforcer forAnother =
+            new SpendGrantRedemptionEnforcer(address(manager), stranger, address(same));
+        vm.expectRevert(SpendGrantRedemptionExecutor.EnforcerMismatch.selector);
+        new SpendGrantRedemptionExecutor(same, forAnother);
+    }
+
     // ---------------------------------------------------------------- the record is written only at the root
 
     function test_enforcer_writesOnlyAtTheRootDelegation() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes32 h = _hash(m);
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
         MockDelegationManager.Delegation memory d = _delegation(delegate, address(principalAccount), true);
 
-        // Not the root: the authority is another delegation's hash. The args check out, and nothing is written.
+        // Not the root: the authority is another delegation's hash. The args check out, and the hook reverts.
         d.authority = keccak256("parent");
         bytes32 lowerHash = manager.getDelegationHash(d);
         vm.prank(address(manager));
+        vm.expectRevert(abi.encodeWithSelector(NOT_ROOT));
         enforcer.beforeHook("", abi.encode(d), SINGLE_DEFAULT, execution, lowerHash, d.delegator, delegate);
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
 
         // No args: a delegation of the principal's must show itself, so the call reverts.
         d.authority = manager.ROOT_AUTHORITY();
@@ -752,12 +858,26 @@ contract SpendGrantRedemptionTest is Test {
         // The root, shown by args whose hash is the one the manager passed: written.
         vm.prank(address(manager));
         enforcer.beforeHook("", abi.encode(d), SINGLE_DEFAULT, execution, rootHash, d.delegator, delegate);
-        assertEq(enforcer.recorded(address(principalAccount), h, address(token), 1e18, recipient), delegate);
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), delegate);
+    }
+
+    function test_enforcer_notRootComesBeforeWrongDelegate() public {
+        // A principal's delegation below the root that also names another delegate fails both checks. The ERC requires
+        // only a revert; the reference checks that the delegation is the root before it checks the delegate it names,
+        // so its hook reverts NotRoot.
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
+        MockDelegationManager.Delegation memory d = _delegation(stranger, address(principalAccount), true);
+        d.authority = keccak256("parent");
+        bytes32 lowerHash = manager.getDelegationHash(d);
+        vm.prank(address(manager));
+        vm.expectRevert(abi.encodeWithSelector(NOT_ROOT));
+        enforcer.beforeHook("", abi.encode(d), SINGLE_DEFAULT, execution, lowerHash, d.delegator, delegate);
     }
 
     function test_enforcer_argsThatAreNotTheHookedDelegationRevert() public {
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        bytes memory execution = _execution(id, 1e18, recipient);
         // A root delegation the principal signed elsewhere, offered for a lower delegation's hook.
         (bytes memory otherRoot,) = _rootArgs(address(principalAccount), delegate);
         MockDelegationManager.Delegation memory lower = _delegation(delegate, address(principalAccount), true);
@@ -770,14 +890,14 @@ contract SpendGrantRedemptionTest is Test {
 
     function test_redemption_rootCarryingTheCaveatTwiceReverts() public {
         // A second copy would write the record again after a hook between the copies could have taken it.
-        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
         chain[0] = _delegation(delegate, address(principalAccount), true);
         MockDelegationManager.Caveat[] memory twice = new MockDelegationManager.Caveat[](2);
         twice[0] = chain[0].caveats[0];
         twice[1] = MockDelegationManager.Caveat(address(enforcer), "", "");
         chain[0].caveats = twice;
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+        bytes memory execution = _execution(id, 1e18, recipient);
         _link(chain);
         bytes[] memory contexts = new bytes[](1);
         contexts[0] = abi.encode(chain);
@@ -788,26 +908,130 @@ contract SpendGrantRedemptionTest is Test {
         manager.redeemDelegations(contexts, new bytes32[](1), executions);
     }
 
-    function test_redemption_principalBelowTheRootLeavesNoRecord() public {
-        // The delegate's own account is the root delegator, so the principal's delegation, carrying the caveat,
-        // is a lower one: inert. A probe on the root reads the principal's record in its beforeHook, which runs
-        // after the principal's, and in its afterHook, which runs before the principal's clears anything: under
-        // the earlier rule both would see the delegate. The execution is the delegate account's direct call.
+    function test_redemption_principalBelowTheRootReverts() public {
+        // The delegate's own account is the root delegator, so the principal's delegation, carrying the caveat, is a
+        // lower one, and its hook reverts. A record written there would stay live through the hooks above it and the
+        // execution, which is the delegate account's direct call and never takes it.
         MockDeleGator delegateAccount = new MockDeleGator(address(manager), owner);
-        RecordProbe probe = new RecordProbe(enforcer);
-        SpendGrant memory m = _grant(address(principalAccount), address(delegateAccount));
-        probe.watch(address(principalAccount), _hash(m), address(token), 1e18, recipient);
+        bytes32 id = _register(_grant(address(principalAccount), address(delegateAccount)));
         MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](2);
         chain[0] = _delegation(address(delegateAccount), address(principalAccount), true);
         chain[1] = _delegation(address(principalAccount), address(delegateAccount), false);
-        chain[1].caveats = new MockDelegationManager.Caveat[](1);
-        chain[1].caveats[0] = MockDelegationManager.Caveat(address(probe), "", "");
-        _redeem(address(delegateAccount), chain, SINGLE_DEFAULT, _execution(m, _sign(OWNER_PK, m), 1e18, recipient));
-        assertEq(probe.seenBefore(), address(0), "a record was live before the execution");
-        assertEq(probe.seenAfter(), address(0), "a record was live after the execution");
-        (uint256 spent, uint256 calls) = registry.usage(_hash(m), address(token));
+
+        _redeemReverting(
+            abi.encodeWithSelector(NOT_ROOT), address(delegateAccount), chain, _execution(id, 1e18, recipient)
+        );
+        _assertNothingSpent(id);
+    }
+
+    /// A probe after this enforcer on the principal's root: its beforeHook reads the record naming the delegate, and
+    /// its afterHook, after the execution took it, reads nothing. The record is live only from the root's hook to the
+    /// execution that takes it.
+    function test_recordProbe_seesTheRecordAtThePrincipalsRoot() public {
+        RecordProbe probe = new RecordProbe(enforcer);
+        bytes32 id = _register(_grant(address(principalAccount), delegate));
+        probe.watch(address(principalAccount), id, address(token), 1e18, recipient);
+        MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
+        chain[0] = _delegation(delegate, address(principalAccount), true);
+        MockDelegationManager.Caveat[] memory caveats = new MockDelegationManager.Caveat[](2);
+        caveats[0] = chain[0].caveats[0];
+        caveats[1] = MockDelegationManager.Caveat(address(probe), "", "");
+        chain[0].caveats = caveats;
+        _redeem(delegate, chain, SINGLE_DEFAULT, _execution(id, 1e18, recipient));
+        assertEq(probe.seenBefore(), delegate, "the probe did not see the live record");
+        assertEq(probe.seenAfter(), address(0), "the record outlived the execution that took it");
+        (uint256 spent, uint256 calls) = registry.usage(id, address(token));
         assertEq(calls, 1);
         assertEq(spent, 1e18);
+    }
+
+    // ---------------------------------------------------------------- an id the registry does not know
+
+    /// An id the registry does not know names no principal. Hook inputs that, for a registered grant of the same
+    /// principal, write the record (its root shown by its args) or revert (no args, args that are not the hooked
+    /// delegation, the caveat twice) write nothing and do not revert, for the principal's account and for a zero
+    /// delegator, which a zero principal must not match. The same root with the registered id writes, so the inputs
+    /// are live ones. With that record live, the principal's spend of the unknown id is NONEXISTENT (14) before any
+    /// record is consulted.
+    function test_redemption_unknownIdRecordsNothingAndSpendIsNonexistent() public {
+        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        bytes32 id = _register(m);
+        m.salt = 2;
+        bytes32 unknown = registry.hashGrant(m);
+        (address unknownPrincipal,) = registry.parties(unknown);
+        assertEq(unknownPrincipal, address(0), "the unknown id is registered");
+        bytes memory execution = _execution(unknown, 1e18, recipient);
+        bytes memory registeredExecution = _execution(id, 1e18, recipient);
+
+        MockDelegationManager.Delegation memory root = _delegation(delegate, address(principalAccount), true);
+        root.authority = manager.ROOT_AUTHORITY();
+        bytes32 rootHash = manager.getDelegationHash(root);
+        MockDelegationManager.Delegation memory twice = _delegation(delegate, address(principalAccount), true);
+        twice.authority = root.authority;
+        twice.caveats = new MockDelegationManager.Caveat[](2);
+        twice.caveats[0] = MockDelegationManager.Caveat(address(enforcer), "", "");
+        twice.caveats[1] = MockDelegationManager.Caveat(address(enforcer), "", "");
+        bytes32 twiceHash = manager.getDelegationHash(twice);
+        MockDelegationManager.Delegation memory zeroRoot = _delegation(delegate, address(0), true);
+        zeroRoot.authority = root.authority;
+        bytes32 zeroRootHash = manager.getDelegationHash(zeroRoot);
+
+        vm.startPrank(address(manager));
+        enforcer.beforeHook(
+            "", abi.encode(root), SINGLE_DEFAULT, execution, rootHash, address(principalAccount), delegate
+        );
+        enforcer.beforeHook("", "", SINGLE_DEFAULT, execution, rootHash, address(principalAccount), delegate);
+        enforcer.beforeHook(
+            "", abi.encode(root), SINGLE_DEFAULT, execution, keccak256("another"), address(principalAccount), delegate
+        );
+        enforcer.beforeHook(
+            "", abi.encode(twice), SINGLE_DEFAULT, execution, twiceHash, address(principalAccount), delegate
+        );
+        enforcer.beforeHook("", "", SINGLE_DEFAULT, execution, bytes32(0), address(0), delegate);
+        enforcer.beforeHook("", abi.encode(zeroRoot), SINGLE_DEFAULT, execution, zeroRootHash, address(0), delegate);
+        enforcer.afterHook("", "", SINGLE_DEFAULT, execution, rootHash, address(principalAccount), delegate);
+        vm.stopPrank();
+        assertEq(enforcer.recorded(address(principalAccount), unknown, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(0), unknown, address(token), 1e18, recipient), address(0));
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), address(0));
+
+        // The same root for the registered id writes the principal's record; no args for it revert.
+        vm.prank(address(manager));
+        enforcer.beforeHook(
+            "", abi.encode(root), SINGLE_DEFAULT, registeredExecution, rootHash, address(principalAccount), delegate
+        );
+        assertEq(enforcer.recorded(address(principalAccount), id, address(token), 1e18, recipient), delegate);
+        vm.prank(address(manager));
+        vm.expectRevert(SpendGrantRedemptionEnforcer.MissingDelegation.selector);
+        enforcer.beforeHook("", "", SINGLE_DEFAULT, registeredExecution, rootHash, address(principalAccount), delegate);
+
+        vm.expectCall(address(enforcer), abi.encodeWithSelector(enforcer.take.selector), 0);
+        vm.expectCall(address(registry), abi.encodeWithSelector(registry.consume.selector), 0);
+        vm.prank(address(principalAccount));
+        vm.expectRevert(_err(14));
+        executor.spend(unknown, address(token), 1e18, recipient);
+    }
+
+    /// Through the manager: the delegate redeems the principal's root, which carries the caveat, for a spend of an
+    /// id the registry does not know. The hook neither records nor reverts, so the execution runs, and the whole
+    /// redemption reverts with the executor's NONEXISTENT (14), not with any error of the enforcer's.
+    function test_redemption_unknownIdThroughTheManagerIsNonexistent() public {
+        SpendGrant memory m = _grant(address(principalAccount), delegate);
+        _register(m);
+        m.salt = 2;
+        bytes32 unknown = registry.hashGrant(m);
+        MockDelegationManager.Delegation[] memory chain = new MockDelegationManager.Delegation[](1);
+        chain[0] = _delegation(delegate, address(principalAccount), true);
+        _link(chain);
+        bytes[] memory contexts = new bytes[](1);
+        contexts[0] = abi.encode(chain);
+        bytes[] memory executions = new bytes[](1);
+        executions[0] = _execution(unknown, 1e18, recipient);
+
+        vm.expectCall(address(enforcer), abi.encodeWithSelector(enforcer.take.selector), 0);
+        vm.prank(delegate);
+        vm.expectRevert(_err(14));
+        manager.redeemDelegations(contexts, new bytes32[](1), executions);
     }
 
     // ---------------------------------------------------------------- the scenario matrix
@@ -818,7 +1042,7 @@ contract SpendGrantRedemptionTest is Test {
         HookERC20 asset;
         MatrixThief thief;
         bytes execution;
-        bytes32 grantHash;
+        bytes32 grantId;
         bytes driveP;
         bytes driveD;
         bytes viaCaveat;
@@ -826,81 +1050,84 @@ contract SpendGrantRedemptionTest is Test {
     }
 
     /// @notice Every chain shape in `_shape`, with the thief in every caveat slot or none, striking at every
-    /// point with either delegation it may hold, alone and paired with every shape in one batch: a call that does
-    /// not revert pays each of its entries at most once, plus one for a delegate-account call that the thief's own
-    /// delegation drove, which is that account's own authorization. One test per first shape, to stay under the
-    /// per-test gas limit.
+    /// point with either delegation it may hold, alone and paired with every shape in one batch. Every row's outcome
+    /// is exact: it reverts with the reason of its first failing entry (`_firstFailure`), or it pays, each of its
+    /// entries at most once, plus one for a delegate-account call that the thief's own delegation drove, which is that
+    /// account's own authorization. One test per first shape, to stay under the per-test gas limit.
     function test_matrix_S1_principalRoot() public {
-        _matrixFrom(0, 0, 4);
+        _matrixFrom(0, 0, 4, 377, 101);
     }
 
     function test_matrix_S1_principalRoot_pairedWithS6S7() public {
-        _matrixFrom(0, 5, 8);
+        _matrixFrom(0, 5, 8, 404, 98);
     }
 
     function test_matrix_S2_delegateRoot() public {
-        _matrixFrom(1, 0, 4);
+        _matrixFrom(1, 0, 4, 457, 0);
     }
 
     function test_matrix_S2_delegateRoot_pairedWithS6S7() public {
-        _matrixFrom(1, 5, 8);
+        _matrixFrom(1, 5, 8, 468, 0);
     }
 
     function test_matrix_S3_delegateRootWithOtherBetween() public {
-        _matrixFrom(2, 0, 4);
+        _matrixFrom(2, 0, 4, 537, 0);
     }
 
     function test_matrix_S3_delegateRootWithOtherBetween_pairedWithS6S7() public {
-        _matrixFrom(2, 5, 8);
+        _matrixFrom(2, 5, 8, 532, 0);
     }
 
     function test_matrix_S4_otherRoot() public {
-        _matrixFrom(3, 0, 4);
+        _matrixFrom(3, 0, 4, 457, 0);
     }
 
     function test_matrix_S4_otherRoot_pairedWithS6S7() public {
-        _matrixFrom(3, 5, 8);
+        _matrixFrom(3, 5, 8, 468, 0);
     }
 
     function test_matrix_S5_subDelegateRedeems() public {
-        _matrixFrom(4, 0, 4);
+        _matrixFrom(4, 0, 4, 154, 0);
     }
 
     function test_matrix_S6_principalTwiceCaveatLower() public {
-        _matrixFrom(5, 0, 4);
+        _matrixFrom(5, 0, 4, 537, 0);
     }
 
     function test_matrix_S6_principalTwiceCaveatLower_pairedWithS6S7() public {
-        _matrixFrom(5, 5, 8);
+        _matrixFrom(5, 5, 8, 532, 0);
     }
 
     function test_matrix_S6_principalTwiceCaveatAtRoot() public {
-        _matrixFrom(6, 0, 4);
+        _matrixFrom(6, 0, 4, 537, 165);
     }
 
     function test_matrix_S6_principalTwiceCaveatAtRoot_pairedWithS6S7() public {
-        _matrixFrom(6, 5, 8);
+        _matrixFrom(6, 5, 8, 532, 130);
     }
 
     function test_matrix_S6_principalTwiceCaveatAtBoth() public {
-        _matrixFrom(7, 0, 4);
+        _matrixFrom(7, 0, 4, 617, 0);
     }
 
     function test_matrix_S6_principalTwiceCaveatAtBoth_pairedWithS6S7() public {
-        _matrixFrom(7, 5, 8);
+        _matrixFrom(7, 5, 8, 596, 0);
     }
 
     function test_matrix_S7_rootCarriesTheCaveatTwice() public {
-        _matrixFrom(8, 0, 4);
+        _matrixFrom(8, 0, 4, 457, 0);
     }
 
     function test_matrix_S7_rootCarriesTheCaveatTwice_pairedWithS6S7() public {
-        _matrixFrom(8, 5, 8);
+        _matrixFrom(8, 5, 8, 468, 0);
     }
 
     /// @dev Shape `a` alone (when `bFrom` is 0) and paired with shapes `bFrom` to `bTo` in one batch; split so
-    /// each test stays under the per-test gas and memory limits.
-    function _matrixFrom(uint256 a, uint256 bFrom, uint256 bTo) internal {
+    /// each test stays under the per-test gas and memory limits. `expectedCases` and `expectedStrikes` pin the
+    /// test's case count and its count of strikes inside successful calls.
+    function _matrixFrom(uint256 a, uint256 bFrom, uint256 bTo, uint256 expectedCases, uint256 expectedStrikes)
+        internal
+    {
         Matrix memory x = _matrix();
         uint256 cases;
         uint256 struck;
@@ -914,22 +1141,27 @@ contract SpendGrantRedemptionTest is Test {
         emit log_named_uint("cases where the thief struck and the call still succeeded", struck);
         assertGt(cases, 0, "this matrix test ran no cases");
         // Not vacuous: wherever the shape can succeed, the thief must have run inside successful calls.
-        if (a != 3 && a != 4 && a != 5 && a != 8) assertGt(struck, 0, "the thief never struck in a successful call");
+        if (_canPay(a)) assertGt(struck, 0, "the thief never struck in a successful call");
+        // Pinned: a change in either number means the matrix's coverage changed, and must be explained.
+        assertEq(cases, expectedCases, "matrix case count changed");
+        assertEq(struck, expectedStrikes, "matrix strike count changed");
     }
 
     function test_matrix_legitimateShapesPayOnceAndTheRestRevert() public {
         Matrix memory x = _matrix();
-        // S1, S2, S3, S6 with the caveat at the root: one payment. S4 (another account at the root), S5 (a
-        // sub-delegate redeems), S6 with the caveat only lower down, S7 (the caveat twice on the root): revert.
-        bool[9] memory pays = [true, true, true, false, false, false, true, true, false];
+        // S1, and S6 with the caveat at the root only: one payment. Every other shape reverts: S2, S3, S4, and S6
+        // with the caveat lower down carry it on a delegation of the principal's below the root (NotRoot), in S5 a
+        // sub-delegate redeems (WrongRedeemer), and in S7 the root carries it twice (CaveatNotOnce).
+        bool[9] memory pays = [true, false, false, false, false, false, true, false, false];
         for (uint256 a = 0; a < 9; a++) {
             (MockDelegationManager.Delegation[] memory chain, address redeemer) = _shape(x, a);
             _link(chain);
             x.thief.arm(0, "", "");
             uint256 snap = vm.snapshotState();
-            (bool ok, uint256 calls) = _attempt(x, redeemer, _one(chain), 1);
+            (bool ok, uint256 calls, bytes memory ret) = _attempt(x, redeemer, _one(chain), 1);
             assertEq(ok, pays[a], "legitimate shape outcome");
             if (ok) assertEq(calls, 1, "legitimate shape pays once");
+            else assertEq(ret, _cannotPayRevert(a), "legitimate shape revert");
             vm.revertToState(snap);
         }
     }
@@ -971,7 +1203,12 @@ contract SpendGrantRedemptionTest is Test {
                         act == 0 ? x.driveP : act == 1 ? x.driveD : act == 2 ? x.viaCaveat : x.viaCaveatNoArgs;
                     x.thief.arm(pt, nested, x.execution);
                     uint256 snap = vm.snapshotState();
-                    (bool ok, uint256 calls) = _attempt(x, ra, chains, entries);
+                    (bool ok, uint256 calls, bytes memory ret) = _attempt(x, ra, chains, entries);
+                    // Exact for every row: it pays only where no entry fails, and otherwise reverts with the reason
+                    // of the first entry that fails.
+                    bytes memory expected = _firstFailure(a, b, chains, pt, act, address(x.thief));
+                    assertEq(ok, expected.length == 0, "a row's outcome is not the one the hook order gives");
+                    if (!ok) assertEq(ret, expected, "a row reverted for another reason");
                     if (ok) {
                         uint256 allowed = entries + (act == 1 && x.thief.nestedSpent() ? 1 : 0);
                         assertLe(calls, allowed, "a redemption paid more than once");
@@ -979,9 +1216,14 @@ contract SpendGrantRedemptionTest is Test {
                             struck++;
                             // The thief's own moves behave as they should, so a broken nested path cannot pass
                             // for a safe one: the delegate account's call through the thief's own delegation is
-                            // that account's authorization and goes through; everything else fails.
-                            if (act == 1) assertTrue(x.thief.nestedSpent(), "the delegate-account call failed");
-                            else assertFalse(x.thief.nestedSpent(), "a thief move without authority paid");
+                            // that account's authorization and goes through; everything else fails, each for its
+                            // own reason.
+                            if (act == 1) {
+                                assertTrue(x.thief.nestedSpent(), "the delegate-account call failed");
+                            } else {
+                                assertFalse(x.thief.nestedSpent(), "a thief move without authority paid");
+                                assertEq(x.thief.nestedError(), _thiefRevert(act), "a thief move failed otherwise");
+                            }
                         }
                     }
                     vm.revertToState(snap);
@@ -996,7 +1238,7 @@ contract SpendGrantRedemptionTest is Test {
         address redeemer,
         MockDelegationManager.Delegation[][] memory chains,
         uint256 entries
-    ) internal returns (bool ok, uint256 calls) {
+    ) internal returns (bool ok, uint256 calls, bytes memory ret) {
         bytes[] memory contexts = new bytes[](entries);
         bytes32[] memory modes = new bytes32[](entries);
         bytes[] memory executions = new bytes[](entries);
@@ -1005,8 +1247,8 @@ contract SpendGrantRedemptionTest is Test {
             executions[i] = x.execution;
         }
         vm.prank(redeemer);
-        (ok,) = address(manager).call(abi.encodeCall(manager.redeemDelegations, (contexts, modes, executions)));
-        (, calls) = registry.usage(x.grantHash, address(x.asset));
+        (ok, ret) = address(manager).call(abi.encodeCall(manager.redeemDelegations, (contexts, modes, executions)));
+        (, calls) = registry.usage(x.grantId, address(x.asset));
     }
 
     function _matrix() internal returns (Matrix memory x) {
@@ -1020,11 +1262,11 @@ contract SpendGrantRedemptionTest is Test {
         SpendGrant memory m = _grant(address(principalAccount), address(x.delegateAccount));
         m.recipient = address(x.thief);
         m.assets[0].asset = address(x.asset);
-        x.grantHash = _hash(m);
+        x.grantId = _register(m);
         x.execution = abi.encodePacked(
             address(executor),
             uint256(0),
-            abi.encodeCall(SpendGrantExecutor.spend, (m, _sign(OWNER_PK, m), address(x.asset), 1e18, address(x.thief)))
+            abi.encodeCall(SpendGrantExecutor.spend, (x.grantId, address(x.asset), 1e18, address(x.thief)))
         );
         MockDelegationManager.Delegation[] memory p = new MockDelegationManager.Delegation[](1);
         p[0] = _delegation(address(x.thief), address(principalAccount), false);
@@ -1034,8 +1276,9 @@ contract SpendGrantRedemptionTest is Test {
         d[0] = _delegation(address(x.thief), address(x.delegateAccount), false);
         _link(d);
         x.driveD = abi.encode(d);
-        // A delegation from the principal to the thief that carries the SpendGrant caveat: with its args, it
-        // records the thief, whom consume rejects; without them, it reverts.
+        // A delegation from the principal to the thief that carries the SpendGrant caveat: with its args, it names
+        // the thief, not the grant's delegate, and reverts (WrongDelegate); without them, it reverts too
+        // (MissingDelegation).
         MockDelegationManager.Delegation[] memory v = new MockDelegationManager.Delegation[](1);
         v[0] = _delegation(address(x.thief), address(principalAccount), true);
         _link(v);
@@ -1095,6 +1338,73 @@ contract SpendGrantRedemptionTest is Test {
             c[1] = _delegation(pa, da, false);
             c[2] = _delegation(da, pa, id != 5);
         }
+    }
+
+    /// @dev Whether shape `a` can pay at all: only where the caveat sits on the principal's root delegation to the
+    /// delegate and on no other delegation, and the delegate redeems: S1, and S6 with the caveat at the root only.
+    function _canPay(uint256 a) internal pure returns (bool) {
+        return a == 0 || a == 6;
+    }
+
+    /// @dev Why shape `a`, which cannot pay, reverts: the caveat sits on a delegation of the principal's below the
+    /// root (S2, S3, S4, and S6 with the caveat lower down: NotRoot); a sub-delegate redeems (S5: WrongRedeemer); the
+    /// root carries the caveat twice (S7: CaveatNotOnce).
+    function _cannotPayRevert(uint256 a) internal pure returns (bytes memory) {
+        if (a == 8) return abi.encodeWithSelector(SpendGrantRedemptionEnforcer.CaveatNotOnce.selector);
+        if (a == 4) return abi.encodeWithSelector(WRONG_REDEEMER);
+        return _canPay(a) ? bytes("") : abi.encodeWithSelector(NOT_ROOT);
+    }
+
+    /// @dev The revert data a row must end with, or none when it must pay. The manager runs entry a's hooks and
+    /// execution before entry b's beforeHooks, so the first entry that fails decides the row. A shape that cannot pay
+    /// reverts at its own caveat (`_cannotPayRevert`), before anything in its entry could take a record. A shape that
+    /// can pay fails only where the thief takes its record: driving the principal (act 0) from a beforeHook on that
+    /// entry's root after this enforcer's caveat, it spends between the record's write and the execution, which then
+    /// finds no record (13). Nowhere else is a record live when the thief strikes: the beforeAll pass and the hooks
+    /// below the root run before the write, and the token callback, the afterHooks, and the afterAll pass after the
+    /// take. Its other moves take none: the delegate's account spends without one (act 1), and the principal's
+    /// delegation to the thief that carries the caveat reverts at its hook (acts 2 and 3).
+    function _firstFailure(
+        uint256 a,
+        uint256 b,
+        MockDelegationManager.Delegation[][] memory chains,
+        uint8 pt,
+        uint256 act,
+        address thief
+    ) internal view returns (bytes memory) {
+        uint256[2] memory shapes = [a, b];
+        for (uint256 i = 0; i < chains.length; i++) {
+            if (!_canPay(shapes[i])) return _cannotPayRevert(shapes[i]);
+            if (act == 0 && pt == 2 && _strikesWhileRecorded(chains[i], thief)) return _err(13);
+        }
+        return "";
+    }
+
+    /// @dev Whether the thief's caveat sits on the root of `c` after this enforcer's, so that its beforeHook (point 2)
+    /// runs while the record is live: beforeHooks run leaf to root, each delegation's caveats in order, and the root
+    /// delegator's execution follows them.
+    function _strikesWhileRecorded(MockDelegationManager.Delegation[] memory c, address thief)
+        internal
+        view
+        returns (bool)
+    {
+        MockDelegationManager.Caveat[] memory cv = c[c.length - 1].caveats;
+        bool written;
+        for (uint256 i = 0; i < cv.length; i++) {
+            if (cv[i].enforcer == address(enforcer)) written = true;
+            else if (cv[i].enforcer == thief) return written;
+        }
+        return false;
+    }
+
+    /// @dev Why the thief's nested redemption fails inside a call that succeeds: the principal's account, driven
+    /// through a caveat-free delegation, finds no record (act 0: 13); the principal's delegation to the thief that
+    /// carries the caveat names the thief, not the grant's delegate (act 2: WrongDelegate), and without its args it
+    /// cannot show it is the root (act 3: MissingDelegation).
+    function _thiefRevert(uint256 act) internal pure returns (bytes memory) {
+        if (act == 0) return _err(13);
+        if (act == 2) return abi.encodeWithSelector(WRONG_DELEGATE);
+        return abi.encodeWithSelector(SpendGrantRedemptionEnforcer.MissingDelegation.selector);
     }
 
     function _slots(MockDelegationManager.Delegation[] memory c) internal pure returns (uint256 n) {
@@ -1179,25 +1489,17 @@ contract SpendGrantRedemptionTest is Test {
         m.assets[0] = AssetLimit(address(token), 1e18, 10e18, 100e18);
     }
 
-    function _hash(SpendGrant memory m) internal view returns (bytes32) {
-        return SpendGrantHash.digest(block.chainid, address(registry), m);
+    /// @dev Registers the terms from their principal's account, as `register` requires, and returns the id the
+    /// registry assigned; executions and records use that id.
+    function _register(SpendGrant memory m) internal returns (bytes32 id) {
+        vm.prank(m.principal);
+        id = registry.register(m);
     }
 
-    function _sign(uint256 pk, SpendGrant memory m) internal view returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, _hash(m));
-        return abi.encodePacked(r, s, v);
-    }
-
-    /// @dev ERC-7579 single execution targeting the executor's `spend`.
-    function _execution(SpendGrant memory m, bytes memory sig, uint256 amount, address to)
-        internal
-        view
-        returns (bytes memory)
-    {
+    /// @dev ERC-7579 single execution targeting the executor's `spend(grantId, asset, amount, recipient)`.
+    function _execution(bytes32 id, uint256 amount, address to) internal view returns (bytes memory) {
         return abi.encodePacked(
-            address(executor),
-            uint256(0),
-            abi.encodeCall(SpendGrantExecutor.spend, (m, sig, address(token), amount, to))
+            address(executor), uint256(0), abi.encodeCall(SpendGrantExecutor.spend, (id, address(token), amount, to))
         );
     }
 
@@ -1268,13 +1570,37 @@ contract SpendGrantRedemptionTest is Test {
         manager.redeemDelegations(contexts, modes, executions);
     }
 
+    /// @dev Redeems `chain` as `caller` with a plain call rather than vm.expectRevert, and requires the redemption
+    /// to revert with exactly `err`, so the test can go on to check that nothing moved.
+    function _redeemReverting(
+        bytes memory err,
+        address caller,
+        MockDelegationManager.Delegation[] memory chain,
+        bytes memory execution
+    ) internal {
+        _link(chain);
+        bytes[] memory contexts = new bytes[](1);
+        contexts[0] = abi.encode(chain);
+        bytes32[] memory modes = new bytes32[](1);
+        bytes[] memory executions = new bytes[](1);
+        executions[0] = execution;
+        vm.prank(caller);
+        (bool ok, bytes memory ret) =
+            address(manager).call(abi.encodeCall(manager.redeemDelegations, (contexts, modes, executions)));
+        assertFalse(ok, "the redemption did not revert");
+        assertEq(ret, err, "the redemption reverted for another reason");
+    }
+
     /// @dev Writes a record the way the manager would at a root delegation from `executingAccount`, for tests
-    /// of the record alone.
-    function _writeRecord(SpendGrant memory m, address executingAccount, address redeemer) internal {
-        bytes memory execution = _execution(m, _sign(OWNER_PK, m), 1e18, recipient);
+    /// of the record alone, and checks that it was written: the hook reverts unless the registry names
+    /// `executingAccount` as the grant's principal and `redeemer` as its delegate, and a test of a record that was
+    /// never written passes for the wrong reason.
+    function _writeRecord(bytes32 id, address executingAccount, address redeemer) internal {
+        bytes memory execution = _execution(id, 1e18, recipient);
         (bytes memory args, bytes32 delegationHash) = _rootArgs(executingAccount, redeemer);
         vm.prank(address(manager));
         enforcer.beforeHook("", args, SINGLE_DEFAULT, execution, delegationHash, executingAccount, redeemer);
+        assertEq(enforcer.recorded(executingAccount, id, address(token), 1e18, recipient), redeemer, "no record");
     }
 
     /// @dev A root delegation from `delegator` to `delegate_` carrying the SpendGrant caveat: as the
@@ -1290,8 +1616,8 @@ contract SpendGrantRedemptionTest is Test {
         args = abi.encode(d);
     }
 
-    function _assertNothingSpent(SpendGrant memory m) internal view {
-        (uint256 spent, uint256 calls) = registry.usage(_hash(m), address(token));
+    function _assertNothingSpent(bytes32 id) internal view {
+        (uint256 spent, uint256 calls) = registry.usage(id, address(token));
         assertEq(spent, 0);
         assertEq(calls, 0);
         assertEq(token.balanceOf(recipient), 0);
@@ -1299,5 +1625,10 @@ contract SpendGrantRedemptionTest is Test {
 
     function _expect(Reason r) internal {
         vm.expectRevert(abi.encodeWithSelector(SpendGrantError.selector, r));
+    }
+
+    /// @dev `SpendGrantError(uint8)` carrying the literal reason number.
+    function _err(uint8 reason) internal pure returns (bytes memory) {
+        return abi.encodeWithSelector(SPEND_GRANT_ERROR, reason);
     }
 }

@@ -2,8 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, ISpendGrantRegistry, SpendGrant, SpendGrantError, Reason} from "../src/SpendGrantTypes.sol";
-import {SpendGrantHash} from "../src/SpendGrantHash.sol";
+import {AssetLimit, ISpendGrantRegistry, SpendGrant} from "../src/SpendGrantTypes.sol";
 import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
 import {SpendGrantExecutor} from "../src/SpendGrantExecutor.sol";
 import {MockERC20} from "./MockERC20.sol";
@@ -115,7 +114,7 @@ contract DeltaCheckedExecutor is SpendGrantExecutor {
 
 /// @dev What a cap bounds when the token does not move exactly what was requested.
 contract SpendGrantTokenBehaviorTest is Test {
-    uint256 internal constant PRINCIPAL_PK = 0xA11CE;
+    bytes4 internal constant SPEND_GRANT_ERROR = bytes4(keccak256("SpendGrantError(uint8)"));
 
     SpendGrantRegistry internal registry;
     SpendGrantExecutor internal executor;
@@ -131,7 +130,7 @@ contract SpendGrantTokenBehaviorTest is Test {
     address internal recipient;
 
     function setUp() public {
-        principal = vm.addr(PRINCIPAL_PK);
+        principal = makeAddr("principal");
         delegate = vm.addr(0xB0B);
         recipient = vm.addr(0xC0C);
 
@@ -155,16 +154,15 @@ contract SpendGrantTokenBehaviorTest is Test {
     // ---------------------------------------------------------------- the default executor records the request
 
     function test_senderFee_capBoundsTheRequestNotTheDebit() public {
-        SpendGrant memory m = _grant(address(senderFee));
-        bytes memory sig = _sign(m, registry);
+        bytes32 id = _register(_grant(address(senderFee)), registry);
         uint256 before = senderFee.balanceOf(principal);
 
         vm.prank(delegate);
-        executor.spend(m, sig, address(senderFee), 1e18, recipient);
+        executor.spend(id, address(senderFee), 1e18, recipient);
 
         // The executor asked for exactly what consume recorded; the token took more from the principal.
         assertEq(senderFee.lastRequested(), 1e18);
-        (uint256 spent, uint256 calls) = registry.usage(_hash(m, registry), address(senderFee));
+        (uint256 spent, uint256 calls) = registry.usage(id, address(senderFee));
         assertEq(spent, 1e18);
         assertEq(calls, 1);
         assertEq(before - senderFee.balanceOf(principal), 1.05e18);
@@ -172,36 +170,34 @@ contract SpendGrantTokenBehaviorTest is Test {
     }
 
     function test_recipientFee_principalDebitedTheRequest() public {
-        SpendGrant memory m = _grant(address(recipientFee));
-        bytes memory sig = _sign(m, registry);
+        bytes32 id = _register(_grant(address(recipientFee)), registry);
         uint256 before = recipientFee.balanceOf(principal);
 
         vm.prank(delegate);
-        executor.spend(m, sig, address(recipientFee), 1e18, recipient);
+        executor.spend(id, address(recipientFee), 1e18, recipient);
 
         assertEq(recipientFee.lastRequested(), 1e18);
-        (uint256 spent,) = registry.usage(_hash(m, registry), address(recipientFee));
+        (uint256 spent,) = registry.usage(id, address(recipientFee));
         assertEq(spent, 1e18);
         assertEq(before - recipientFee.balanceOf(principal), 1e18);
         assertEq(recipientFee.balanceOf(recipient), 0.95e18);
     }
 
     function test_senderFee_lifetimeCapCountsRequests() public {
-        SpendGrant memory m = _grant(address(senderFee));
-        bytes memory sig = _sign(m, registry);
+        bytes32 id = _register(_grant(address(senderFee)), registry);
 
         // maxTotal is 3e18; three requests of 1e18 exhaust it while the principal paid 3.15e18.
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(delegate);
-            executor.spend(m, sig, address(senderFee), 1e18, recipient);
+            executor.spend(id, address(senderFee), 1e18, recipient);
         }
         assertEq(1e24 - senderFee.balanceOf(principal), 3.15e18);
 
         // Once the window clears, the lifetime cap still counts the three requests.
         vm.warp(vm.getBlockTimestamp() + 86401);
         vm.prank(delegate);
-        vm.expectRevert(abi.encodeWithSelector(SpendGrantError.selector, Reason.OVER_CUMULATIVE_CAP));
-        executor.spend(m, sig, address(senderFee), 1, recipient);
+        vm.expectRevert(_err(10)); // OVER_CUMULATIVE_CAP
+        executor.spend(id, address(senderFee), 1, recipient);
     }
 
     // ---------------------------------------------------------------- what the token returns
@@ -209,47 +205,52 @@ contract SpendGrantTokenBehaviorTest is Test {
     function test_noReturnToken_isAcceptedWhenItMoves() public {
         NoReturnERC20 usdtLike = new NoReturnERC20();
         _fund(usdtLike);
-        SpendGrant memory m = _grant(address(usdtLike));
-        bytes memory sig = _sign(m, registry);
+        bytes32 id = _register(_grant(address(usdtLike)), registry);
+        bytes memory call = _spendCall(id, address(usdtLike), 1e18);
 
         vm.prank(delegate);
-        executor.spend(m, sig, address(usdtLike), 1e18, recipient);
+        executor.spend(id, address(usdtLike), 1e18, recipient);
         assertEq(usdtLike.balanceOf(recipient), 1e18);
-        (uint256 spent,) = registry.usage(_hash(m, registry), address(usdtLike));
+        (uint256 spent,) = registry.usage(id, address(usdtLike));
         assertEq(spent, 1e18);
 
         // The same token reverting is a failed movement with no debit left behind.
         usdtLike.setRevert(true);
         vm.prank(delegate);
-        vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
-        executor.spend(m, sig, address(usdtLike), 1e18, recipient);
-        (uint256 spentAfter,) = registry.usage(_hash(m, registry), address(usdtLike));
+        (bool ok, bytes memory ret) = address(executor).call(call);
+        assertFalse(ok);
+        assertEq(ret, abi.encodeWithSelector(SpendGrantExecutor.TransferFailed.selector));
+        (uint256 spentAfter,) = registry.usage(id, address(usdtLike));
         assertEq(spentAfter, 1e18);
     }
 
     function test_malformedReturns_areFailedMovements() public {
         OddReturnERC20 odd = new OddReturnERC20();
         _fund(odd);
-        SpendGrant memory m = _grant(address(odd));
-        bytes memory sig = _sign(m, registry);
-        bytes32 h = _hash(m, registry);
+        bytes32 id = _register(_grant(address(odd)), registry);
+        bytes memory call = _spendCall(id, address(odd), 1e18);
+        bytes memory transferFailed = abi.encodeWithSelector(SpendGrantExecutor.TransferFailed.selector);
 
         uint256[4] memory lengths = [uint256(1), 31, 64, 32];
         bytes32[4] memory words = [bytes32(uint256(1)), bytes32(uint256(1)), bytes32(uint256(1)), bytes32(uint256(2))];
+        uint256 rejected;
         for (uint256 i = 0; i < 4; i++) {
             odd.configure(lengths[i], words[i]);
             vm.prank(delegate);
-            vm.expectRevert(SpendGrantExecutor.TransferFailed.selector);
-            executor.spend(m, sig, address(odd), 1e18, recipient);
+            (bool ok, bytes memory ret) = address(executor).call(call);
+            assertFalse(ok);
+            assertEq(ret, transferFailed);
+            ++rejected;
         }
-        (uint256 spent,) = registry.usage(h, address(odd));
+        assertEq(rejected, 4);
+        (uint256 spent,) = registry.usage(id, address(odd));
         assertEq(spent, 0);
         assertEq(odd.balanceOf(recipient), 0);
 
         // Exactly one word equal to true is the well-formed success.
         odd.configure(32, bytes32(uint256(1)));
         vm.prank(delegate);
-        executor.spend(m, sig, address(odd), 1e18, recipient);
+        executor.spend(id, address(odd), 1e18, recipient);
         assertEq(odd.balanceOf(recipient), 1e18);
     }
 
@@ -257,13 +258,11 @@ contract SpendGrantTokenBehaviorTest is Test {
         OddReturnERC20 bomb = new OddReturnERC20();
         _fund(bomb);
         bomb.configure(0x100000, bytes32(uint256(1)));
-        SpendGrant memory m = _grant(address(bomb));
-        bytes memory sig = _sign(m, registry);
+        bytes32 id = _register(_grant(address(bomb)), registry);
+        bytes memory call = _spendCall(id, address(bomb), 1e18);
 
         vm.prank(delegate);
-        (bool ok, bytes memory ret) = address(executor).call{gas: 500_000}(
-            abi.encodeCall(executor.spend, (m, sig, address(bomb), 1e18, recipient))
-        );
+        (bool ok, bytes memory ret) = address(executor).call{gas: 500_000}(call);
         assertFalse(ok);
         assertEq(ret, abi.encodeWithSelector(SpendGrantExecutor.TransferFailed.selector));
     }
@@ -282,11 +281,11 @@ contract SpendGrantTokenBehaviorTest is Test {
         // The code check at consume passes it, and an empty return from code is a success, so the
         // spend records a debit although no token exists to move: why a wallet checks a listed asset.
         AcceptsAnyCall notAToken = new AcceptsAnyCall();
-        SpendGrant memory m = _grant(address(notAToken));
+        bytes32 id = _register(_grant(address(notAToken)), registry);
 
         vm.prank(delegate);
-        executor.spend(m, _sign(m, registry), address(notAToken), 1e18, recipient);
-        (uint256 spent, uint256 calls) = registry.usage(_hash(m, registry), address(notAToken));
+        executor.spend(id, address(notAToken), 1e18, recipient);
+        (uint256 spent, uint256 calls) = registry.usage(id, address(notAToken));
         assertEq(spent, 1e18);
         assertEq(calls, 1);
         (bool ok, bytes memory ret) = address(notAToken).staticcall(abi.encodeCall(IBalance.balanceOf, (recipient)));
@@ -297,16 +296,17 @@ contract SpendGrantTokenBehaviorTest is Test {
     // ---------------------------------------------------------------- the optional balance check
 
     function test_deltaChecked_rejectsSenderFee() public {
-        SpendGrant memory m = _grant(address(senderFee));
-        bytes memory sig = _sign(m, checkedRegistry);
+        bytes32 id = _register(_grant(address(senderFee)), checkedRegistry);
         uint256 before = senderFee.balanceOf(principal);
+        bytes memory call = _spendCall(id, address(senderFee), 1e18);
 
         vm.prank(delegate);
-        vm.expectRevert(abi.encodeWithSelector(DeltaCheckedExecutor.PrincipalOvercharged.selector, 1e18, 1.05e18));
-        checkedExecutor.spend(m, sig, address(senderFee), 1e18, recipient);
+        (bool ok, bytes memory ret) = address(checkedExecutor).call(call);
+        assertFalse(ok);
+        assertEq(ret, abi.encodeWithSelector(DeltaCheckedExecutor.PrincipalOvercharged.selector, 1e18, 1.05e18));
 
         // Reverted rather than recorded: the registry and both balances are untouched.
-        (uint256 spent, uint256 calls) = checkedRegistry.usage(_hash(m, checkedRegistry), address(senderFee));
+        (uint256 spent, uint256 calls) = checkedRegistry.usage(id, address(senderFee));
         assertEq(spent, 0);
         assertEq(calls, 0);
         assertEq(senderFee.balanceOf(principal), before);
@@ -314,25 +314,23 @@ contract SpendGrantTokenBehaviorTest is Test {
     }
 
     function test_deltaChecked_acceptsRecipientFee() public {
-        SpendGrant memory m = _grant(address(recipientFee));
-        bytes memory sig = _sign(m, checkedRegistry);
+        bytes32 id = _register(_grant(address(recipientFee)), checkedRegistry);
 
         vm.prank(delegate);
-        checkedExecutor.spend(m, sig, address(recipientFee), 1e18, recipient);
+        checkedExecutor.spend(id, address(recipientFee), 1e18, recipient);
 
-        (uint256 spent,) = checkedRegistry.usage(_hash(m, checkedRegistry), address(recipientFee));
+        (uint256 spent,) = checkedRegistry.usage(id, address(recipientFee));
         assertEq(spent, 1e18);
         assertEq(recipientFee.balanceOf(recipient), 0.95e18);
     }
 
     function test_deltaChecked_acceptsExactToken() public {
-        SpendGrant memory m = _grant(address(exact));
-        bytes memory sig = _sign(m, checkedRegistry);
+        bytes32 id = _register(_grant(address(exact)), checkedRegistry);
 
         vm.prank(delegate);
-        checkedExecutor.spend(m, sig, address(exact), 1e18, recipient);
+        checkedExecutor.spend(id, address(exact), 1e18, recipient);
 
-        (uint256 spent,) = checkedRegistry.usage(_hash(m, checkedRegistry), address(exact));
+        (uint256 spent,) = checkedRegistry.usage(id, address(exact));
         assertEq(spent, 1e18);
         assertEq(exact.balanceOf(recipient), 1e18);
     }
@@ -361,12 +359,19 @@ contract SpendGrantTokenBehaviorTest is Test {
         m.assets[0] = AssetLimit(asset, 1e18, 3e18, 3e18);
     }
 
-    function _hash(SpendGrant memory m, SpendGrantRegistry reg) internal view returns (bytes32) {
-        return SpendGrantHash.digest(block.chainid, address(reg), m);
+    /// The principal registers the terms at `reg`; the delegate spends by the returned id.
+    function _register(SpendGrant memory m, SpendGrantRegistry reg) internal returns (bytes32 id) {
+        vm.prank(m.principal);
+        id = reg.register(m);
     }
 
-    function _sign(SpendGrant memory m, SpendGrantRegistry reg) internal view returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PRINCIPAL_PK, _hash(m, reg));
-        return abi.encodePacked(r, s, v);
+    /// Calldata for `spend(id, asset, amount, recipient)`, for calls whose failure is checked by return data.
+    function _spendCall(bytes32 id, address asset, uint256 amount) internal view returns (bytes memory) {
+        return abi.encodeCall(SpendGrantExecutor.spend, (id, asset, amount, recipient));
+    }
+
+    /// `SpendGrantError(uint8)` carrying the literal reason number.
+    function _err(uint8 reason) internal pure returns (bytes memory) {
+        return abi.encodeWithSelector(SPEND_GRANT_ERROR, reason);
     }
 }

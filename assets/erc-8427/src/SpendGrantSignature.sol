@@ -3,9 +3,9 @@ pragma solidity 0.8.28;
 
 import {IERC1271} from "./SpendGrantTypes.sol";
 
-/// @notice The Signatures rules of the ERC, shared by the registry (for the principal over `grantHash`)
-/// and by executors that accept delegate-signed authorizations (for the delegate over the authorization
-/// digest).
+/// @notice The Signatures rules of the ERC, applied by executors that accept delegate-signed
+/// authorizations (to the delegate, over the authorization digest). Grants are not signed; the registry
+/// uses only `isDelegationDesignator`, for its asset check.
 /// @dev No code: a strict 65-byte secp256k1 signature, and the recovered signer is whoever it is. An
 /// EIP-7702 delegation designator (exactly 23 bytes, 0xef0100 prefix): the account's own key first, then
 /// ERC-1271 against the delegated code. Any other code: ERC-1271 only, never an ECDSA fallback. The

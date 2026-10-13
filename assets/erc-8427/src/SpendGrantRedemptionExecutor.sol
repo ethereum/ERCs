@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {ISpendGrantRegistry, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
-import {SpendGrantHash} from "./SpendGrantHash.sol";
+import {ISpendGrantRegistry, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
 import {SpendGrantExecutor} from "./SpendGrantExecutor.sol";
 import {SpendGrantRedemptionEnforcer} from "./SpendGrantRedemptionEnforcer.sol";
 
 /// @notice An executor that also accepts spends redeemed through an ERC-7710 delegation manager.
-/// @dev The caller decides the shape:
+/// @dev The caller decides the shape, against the grant's principal and delegate as the registry names them
+/// (an id the registry does not know is rejected with NONEXISTENT before any of this):
 /// - The caller is the grant's delegate: a direct call. The EVM authenticated it and it is the
 ///   authorizer, whatever drove that account to call; a sub-delegation it granted is its own access
 ///   control.
@@ -32,18 +32,20 @@ contract SpendGrantRedemptionExecutor is SpendGrantExecutor {
         return ENFORCER;
     }
 
-    function _authorizer(SpendGrant calldata grant, address asset, uint256 amount, address recipient)
-        internal
-        override
-        returns (address)
-    {
-        if (msg.sender == grant.delegate) return msg.sender;
+    function _authorizer(
+        bytes32 grantId,
+        address principal,
+        address delegate,
+        address asset,
+        uint256 amount,
+        address recipient
+    ) internal override returns (address) {
+        if (msg.sender == delegate) return msg.sender;
         // The record path is for the principal's own account performing an ERC-7710 execution. Any other
         // caller, such as an intermediate delegator in the chain, has no standing on it, whatever records
         // exist: a record it could use would turn the delegate's one redemption into a second spend.
-        if (msg.sender != grant.principal) revert SpendGrantError(Reason.UNAUTHORIZED_DELEGATE);
-        bytes32 grantHash = SpendGrantHash.digest(block.chainid, address(REGISTRY), grant);
-        address redeemer = ENFORCER.take(msg.sender, grantHash, asset, amount, recipient);
+        if (msg.sender != principal) revert SpendGrantError(Reason.UNAUTHORIZED_DELEGATE);
+        address redeemer = ENFORCER.take(msg.sender, grantId, asset, amount, recipient);
         // No record is no authorization. Reject here rather than pass an address nobody authenticated.
         if (redeemer == address(0)) revert SpendGrantError(Reason.UNAUTHORIZED_DELEGATE);
         return redeemer;

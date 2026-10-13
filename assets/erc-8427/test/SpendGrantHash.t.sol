@@ -75,10 +75,12 @@ contract SpendGrantHashTest is Test {
         for (uint256 i = 0; i < 3; i++) {
             string memory p = string.concat(".vectors[", vm.toString(i), "]");
             uint256 chainId = vm.parseJsonUint(json, string.concat(p, ".chainId"));
-            address registry = vm.parseJsonAddress(json, string.concat(p, ".revocationRegistry"));
+            address registry = vm.parseJsonAddress(json, string.concat(p, ".registry"));
             bytes32 domain = vm.parseJsonBytes32(json, string.concat(p, ".domainSeparator"));
             bytes32 structHash = vm.parseJsonBytes32(json, string.concat(p, ".structHash"));
             bytes32 digest_ = vm.parseJsonBytes32(json, string.concat(p, ".digest"));
+            // Grants are registered, not signed: no vector carries a grant signature.
+            assertFalse(vm.keyExistsJson(json, string.concat(p, ".signature")));
 
             uint256 nAssets = (i == 0 || i == 2) ? 1 : 2;
             SpendGrant memory m = _grantFromJson(json, p, nAssets);
@@ -89,25 +91,13 @@ contract SpendGrantHashTest is Test {
             assertEq(harness.digest(chainId, registry, m), digest_);
             assertEq(SpendGrantHash.digest(chainId, registry, m), digest_);
 
-            // The registry's own view, with its code placed at the vector's registry address, agrees.
+            // The registry's own code at the vector's registry address: hashGrant gives the vector's digest, and
+            // registering the terms there assigns exactly that grantId.
             vm.etch(registry, address(new SpendGrantRegistry(address(1))).code);
             assertEq(SpendGrantRegistry(registry).hashGrant(m), digest_);
-
-            if (i == 2) {
-                bytes memory sig = vm.parseJsonBytes(json, string.concat(p, ".signature"));
-                assertEq(sig.length, 65);
-                bytes32 r;
-                bytes32 s;
-                uint8 v;
-                assembly {
-                    r := mload(add(sig, 32))
-                    s := mload(add(sig, 64))
-                    v := byte(0, mload(add(sig, 96)))
-                }
-                address recovered = ecrecover(digest_, v, r, s);
-                assertEq(recovered, m.principal);
-                assertTrue(v == 27 || v == 28);
-            }
+            vm.prank(m.principal);
+            bytes32 grantId = SpendGrantRegistry(registry).register(m);
+            assertEq(grantId, digest_);
         }
     }
 

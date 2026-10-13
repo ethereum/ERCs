@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.28;
 
-import {ISpendGrantRegistry, NATIVE, SpendGrant, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
+import {ISpendGrantRegistry, NATIVE, SpendGrantError, Reason} from "./SpendGrantTypes.sol";
 
 /// @notice Minimal conformant executor: the delegate calls `spend` itself, and the executor asks the
 /// ERC-20 to move exactly `amount` from the principal in the same transaction as `consume`.
@@ -22,37 +22,39 @@ contract SpendGrantExecutor {
         return REGISTRY;
     }
 
-    function spend(
-        SpendGrant calldata grant,
-        bytes calldata grantSignature,
-        address asset,
-        uint256 amount,
-        address recipient
-    ) external {
+    /// @notice Spends `amount` of `asset` from the principal of the registered grant `grantId` to `recipient`.
+    function spend(bytes32 grantId, address asset, uint256 amount, address recipient) external {
         // Moving native currency from the principal needs an account adapter, which the spec
         // leaves out; the reference does not spend the delegate's own value.
         if (asset == NATIVE) revert NativeRequiresAccountAdapter();
 
-        // Authenticate first. Whatever this resolves to is what consume compares with grant.delegate.
-        address authorizer = _authorizer(grant, asset, amount, recipient);
+        // The parties come from the registry under the id, never from the caller. A zero principal means the
+        // registry does not know the id: there is no one to authenticate against and no one to move from.
+        (address principal, address delegate) = REGISTRY.parties(grantId);
+        if (principal == address(0)) revert SpendGrantError(Reason.NONEXISTENT);
+
+        // Authenticate before consume. Whatever this resolves to is what consume compares with the grant's
+        // delegate.
+        address authorizer = _authorizer(grantId, principal, delegate, asset, amount, recipient);
 
         // Record the debit first so a recipient callback cannot double-spend; movement
         // still shares the transaction and reverts with consume if either step fails.
         // The recipient passes through unchanged, so the payee is the one the delegate named; in
         // recipientMode 0 the registry rejects any other address with WRONG_RECIPIENT.
-        REGISTRY.consume(grant, grantSignature, authorizer, asset, amount, recipient);
+        REGISTRY.consume(grantId, authorizer, asset, amount, recipient);
 
         // The same `amount` consume recorded is what the token is asked to move. The caps bound this
         // request, as the principal's allowance does. What the token's own code does with it (a
         // transfer fee, a rebase, share rounding) is the asset's behavior; this executor neither
         // detects it nor records anything but the request.
-        _move(asset, grant.principal, recipient, amount);
+        _move(asset, principal, recipient, amount);
     }
 
-    /// @dev Who authorized this spend. The base executor is called by the delegate itself, so the EVM
-    /// has authenticated msg.sender. An override MUST return only an address it authenticated for
-    /// this exact spend, never grant.delegate by assumption.
-    function _authorizer(SpendGrant calldata, address, uint256, address) internal virtual returns (address) {
+    /// @dev Who authorized this spend. The arguments are the grant id, the grant's principal and delegate as
+    /// the registry names them, and the spend. The base executor is called by the delegate itself, so the EVM
+    /// has authenticated msg.sender. An override MUST return only an address it authenticated for this exact
+    /// spend, never the delegate by assumption.
+    function _authorizer(bytes32, address, address, address, uint256, address) internal virtual returns (address) {
         return msg.sender;
     }
 

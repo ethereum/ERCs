@@ -2,10 +2,10 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {AssetLimit, MAX_LIVE_DEBITS, NATIVE, Reason, SpendGrant, SpendGrantError} from "../src/SpendGrantTypes.sol";
-import {SpendGrantHash} from "../src/SpendGrantHash.sol";
+import {
+    AssetLimit, ISpendGrantRegistry, MAX_LIVE_DEBITS, NATIVE, Reason, SpendGrant
+} from "../src/SpendGrantTypes.sol";
 import {SpendGrantRegistry} from "../src/SpendGrantRegistry.sol";
-import {MockERC20} from "./MockERC20.sol";
 
 /// @dev Naive reference model: stores every debit and recomputes usage/rollingUsage by a full
 /// O(n) scan under the same liveness rule and the same MAX_LIVE_DEBITS bound, to differentially
@@ -156,29 +156,31 @@ contract RingModel {
 }
 
 contract SpendGrantRingTest is Test {
-    uint256 internal constant PRINCIPAL_PK = 0xA11CE;
+    bytes4 internal constant SPEND_GRANT_ERROR = bytes4(keccak256("SpendGrantError(uint8)"));
 
     SpendGrantRegistry internal registry;
-    MockERC20 internal token;
 
+    address internal executor;
     address internal principal;
     address internal delegate;
     address internal recipient;
 
     function setUp() public {
-        principal = vm.addr(PRINCIPAL_PK);
+        executor = makeAddr("executor");
+        principal = vm.addr(0xA11CE);
         delegate = vm.addr(0xB0B);
         recipient = vm.addr(0xC0C);
-        token = new MockERC20();
-        registry = new SpendGrantRegistry(address(this));
+        registry = new SpendGrantRegistry(executor);
         vm.warp(1_700_000_000);
     }
 
-    function _grant(uint64 windowSeconds, uint256 maxPerCall, uint256 maxPerWindow, uint256 maxTotal, uint256 salt)
+    /// @dev Registers a one-asset (NATIVE) grant with this window and these caps, valid for all time, and
+    /// returns its id. Every test spends by that id; the window comes from the stored terms.
+    function _register(uint64 windowSeconds, uint256 maxPerCall, uint256 maxPerWindow, uint256 maxTotal, uint256 salt)
         internal
-        view
-        returns (SpendGrant memory m)
+        returns (bytes32 id)
     {
+        SpendGrant memory m;
         m.principal = principal;
         m.delegate = delegate;
         m.recipientMode = 0;
@@ -190,21 +192,19 @@ contract SpendGrantRingTest is Test {
         m.salt = salt;
         m.assets = new AssetLimit[](1);
         m.assets[0] = AssetLimit(NATIVE, maxPerCall, maxPerWindow, maxTotal);
+        vm.prank(principal);
+        id = registry.register(m);
     }
 
-    function _sig(SpendGrant memory m) internal view returns (bytes memory) {
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(PRINCIPAL_PK, SpendGrantHash.digest(block.chainid, address(registry), m));
-        return abi.encodePacked(r, s, v);
-    }
-
-    function _tryConsume(SpendGrant memory m, uint256 amount) internal returns (bool ok, Reason reason) {
-        bytes memory sig = _sig(m);
-        (bool callOk, bytes memory ret) =
-            address(registry).call(abi.encodeCall(registry.consume, (m, sig, m.delegate, NATIVE, amount, recipient)));
+    /// @dev The executor consumes `amount` under `id` for the delegate; a revert must be exactly
+    /// `SpendGrantError(uint8)`, whose reason is returned.
+    function _tryConsume(bytes32 id, uint256 amount) internal returns (bool ok, Reason reason) {
+        bytes memory data = abi.encodeCall(ISpendGrantRegistry.consume, (id, delegate, NATIVE, amount, recipient));
+        vm.prank(executor);
+        (bool callOk, bytes memory ret) = address(registry).call(data);
         if (callOk) return (true, Reason.OK);
-        if (ret.length == 36 && bytes4(ret) == SpendGrantError.selector) {
-            reason = abi.decode(_slice(ret, 4), (Reason));
+        if (ret.length == 36 && bytes4(ret) == SPEND_GRANT_ERROR) {
+            reason = Reason(abi.decode(_slice(ret, 4), (uint8)));
             return (false, reason);
         }
         revert("unexpected revert");
@@ -255,9 +255,9 @@ contract SpendGrantRingTest is Test {
         uint256 maxTotal = 20_000;
         nSteps = uint8(bound(nSteps, 1, 60));
 
-        SpendGrant memory m = _grant(windowSeconds, maxPerCall, maxPerWindow, maxTotal, 1);
+        bytes32 id = _register(windowSeconds, maxPerCall, maxPerWindow, maxTotal, 1);
         NaiveModel model = new NaiveModel(windowSeconds);
-        _runDifferential(m, address(model), maxPerCall, maxPerWindow, maxTotal, nSteps, seed, windowSeconds, true, 0);
+        _runDifferential(id, address(model), maxPerCall, maxPerWindow, maxTotal, nSteps, seed, windowSeconds, true, 0);
     }
 
     /// @dev 1b: a tight-window variant (maxPerCall = 1, windowSeconds in [2, 4]) run for enough
@@ -274,10 +274,10 @@ contract SpendGrantRingTest is Test {
         uint256 maxTotal = 1_000_000;
         uint256 nSteps = 2 * MAX_LIVE_DEBITS + 200;
 
-        SpendGrant memory m = _grant(windowSeconds, maxPerCall, maxPerWindow, maxTotal, 7);
+        bytes32 id = _register(windowSeconds, maxPerCall, maxPerWindow, maxTotal, 7);
         RingModel model = new RingModel(windowSeconds);
         _runDifferential(
-            m,
+            id,
             address(model),
             maxPerCall,
             maxPerWindow,
@@ -296,7 +296,7 @@ contract SpendGrantRingTest is Test {
     /// filling the ring); after that dt is fuzzed small (0, with an occasional 1-second warp) so
     /// entries expire and the ring wraps.
     function _runDifferential(
-        SpendGrant memory m,
+        bytes32 h,
         address model,
         uint256 maxPerCall,
         uint256 maxPerWindow,
@@ -307,7 +307,6 @@ contract SpendGrantRingTest is Test {
         bool wideDt,
         uint256 forcedZeroDtSteps
     ) internal {
-        bytes32 h = _hashOf(m);
         for (uint256 i = 0; i < nSteps; i++) {
             seed = uint256(keccak256(abi.encode(seed, i)));
             uint256 dt;
@@ -331,7 +330,7 @@ contract SpendGrantRingTest is Test {
             else amount = 1 + ((seed >> 24) % maxPerCall);
 
             (bool expectOk, Reason expectReason) = _modelTryConsume(model, amount, maxPerCall, maxPerWindow, maxTotal);
-            (bool actualOk, Reason actualReason) = _tryConsume(m, amount);
+            (bool actualOk, Reason actualReason) = _tryConsume(h, amount);
 
             assertEq(actualOk, expectOk);
             if (!expectOk) assertEq(uint8(actualReason), uint8(expectReason));
@@ -383,18 +382,13 @@ contract SpendGrantRingTest is Test {
         }
     }
 
-    function _hashOf(SpendGrant memory m) internal view returns (bytes32) {
-        return SpendGrantHash.digest(block.chainid, address(registry), m);
-    }
-
     /// @dev 2: fill MAX_LIVE_DEBITS live debits, the next spend reverts WINDOW_FULL, then warp so
     /// some expire and keep spending past logical index 2*MAX_LIVE_DEBITS, asserting views stay
     /// exactly correct across the wrap (tracked against an explicit (time, count) batch model,
     /// not just a loose upper bound).
     function test_wrapAround_pastTwiceCapacity() public {
         uint64 windowSeconds = 100;
-        SpendGrant memory m = _grant(windowSeconds, 1, type(uint192).max, type(uint192).max, 2);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(windowSeconds, 1, type(uint192).max, type(uint192).max, 2);
 
         // Every consume in this test lands at one of a handful of distinct block timestamps (no
         // per-call warp within a batch), so tracking (batchTime, batchCount) pairs and summing
@@ -405,7 +399,7 @@ contract SpendGrantRingTest is Test {
         batchTime[0] = vm.getBlockTimestamp();
 
         for (uint256 i = 0; i < MAX_LIVE_DEBITS; i++) {
-            (bool ok,) = _tryConsume(m, 1);
+            (bool ok,) = _tryConsume(h, 1);
             assertTrue(ok);
         }
         batchCount[0] = MAX_LIVE_DEBITS;
@@ -414,7 +408,7 @@ contract SpendGrantRingTest is Test {
         assertEq(liveCalls, _expectedLive(batchTime, batchCount, nBatches, windowSeconds));
         assertEq(liveCalls, MAX_LIVE_DEBITS);
 
-        (bool full, Reason reason) = _tryConsume(m, 1);
+        (bool full, Reason reason) = _tryConsume(h, 1);
         assertFalse(full);
         assertEq(uint8(reason), uint8(Reason.WINDOW_FULL));
 
@@ -437,7 +431,7 @@ contract SpendGrantRingTest is Test {
                 batchTime[nBatches] = vm.getBlockTimestamp();
                 nBatches++;
             }
-            (bool stepOk,) = _tryConsume(m, 1);
+            (bool stepOk,) = _tryConsume(h, 1);
             assertTrue(stepOk);
             batchCount[nBatches - 1]++;
             totalCalls++;
@@ -471,8 +465,7 @@ contract SpendGrantRingTest is Test {
     function test_fullRingWrap_exactTracking() public {
         uint64 windowSeconds = uint64(MAX_LIVE_DEBITS);
         uint256 totalSteps = 3 * MAX_LIVE_DEBITS;
-        SpendGrant memory m = _grant(windowSeconds, 997, 5_000_000, type(uint192).max, 5);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(windowSeconds, 997, 5_000_000, type(uint192).max, 5);
 
         uint256[] memory amounts = new uint256[](totalSteps);
         uint256 sum;
@@ -482,7 +475,7 @@ contract SpendGrantRingTest is Test {
             uint256 amount = (k % 997) + 1;
             amounts[k] = amount;
 
-            (bool ok,) = _tryConsume(m, amount);
+            (bool ok,) = _tryConsume(h, amount);
             assertTrue(ok);
 
             sum += amount;
@@ -494,7 +487,7 @@ contract SpendGrantRingTest is Test {
             assertEq(liveCalls, expectedLive);
 
             if (k + 1 >= MAX_LIVE_DEBITS && k % 300 == 0) {
-                (bool extraOk, Reason extraReason) = _tryConsume(m, 1);
+                (bool extraOk, Reason extraReason) = _tryConsume(h, 1);
                 assertFalse(extraOk);
                 assertEq(uint8(extraReason), uint8(Reason.WINDOW_FULL));
             }
@@ -512,15 +505,15 @@ contract SpendGrantRingTest is Test {
     /// registry must revert OVER_WINDOW_CAP (checked before WINDOW_FULL), not WINDOW_FULL.
     function test_ordering_overWindowCapBeforeWindowFull() public {
         uint64 windowSeconds = 365 days;
-        SpendGrant memory m = _grant(windowSeconds, 1, MAX_LIVE_DEBITS, type(uint192).max, 3);
+        bytes32 h = _register(windowSeconds, 1, MAX_LIVE_DEBITS, type(uint192).max, 3);
 
         for (uint256 i = 0; i < MAX_LIVE_DEBITS; i++) {
-            (bool stepOk,) = _tryConsume(m, 1);
+            (bool stepOk,) = _tryConsume(h, 1);
             assertTrue(stepOk);
         }
         // windowSpent == maxPerWindow == MAX_LIVE_DEBITS; ring is also full. Any further spend
         // must be OVER_WINDOW_CAP, not WINDOW_FULL.
-        (bool ok, Reason reason) = _tryConsume(m, 1);
+        (bool ok, Reason reason) = _tryConsume(h, 1);
         assertFalse(ok);
         assertEq(uint8(reason), uint8(Reason.OVER_WINDOW_CAP));
     }
@@ -528,12 +521,12 @@ contract SpendGrantRingTest is Test {
     /// @dev 3b: an amount exceeding type(uint192).max reverts OVER_TX_CAP, using a grant whose
     /// maxPerCall would otherwise allow it.
     function test_ordering_overUint192MaxRevertsOverTxCap() public {
-        SpendGrant memory m = _grant(1000, type(uint256).max, type(uint256).max, type(uint256).max, 4);
+        bytes32 h = _register(1000, type(uint256).max, type(uint256).max, type(uint256).max, 4);
 
-        (bool okMax,) = _tryConsume(m, type(uint192).max);
+        (bool okMax,) = _tryConsume(h, type(uint192).max);
         assertTrue(okMax);
 
-        (bool okOver, Reason reason) = _tryConsume(m, uint256(type(uint192).max) + 1);
+        (bool okOver, Reason reason) = _tryConsume(h, uint256(type(uint192).max) + 1);
         assertFalse(okOver);
         assertEq(uint8(reason), uint8(Reason.OVER_TX_CAP));
     }
@@ -545,28 +538,28 @@ contract SpendGrantRingTest is Test {
     /// spend of 1 is within the window cap (1024+1 <= 1030) but over the cumulative cap.
     function test_ordering_overCumulativeCapBeforeWindowFull() public {
         uint64 windowSeconds = 100;
-        SpendGrant memory m = _grant(windowSeconds, 10, 1030, 1034, 6);
+        bytes32 h = _register(windowSeconds, 10, 1030, 1034, 6);
 
-        (bool ok0,) = _tryConsume(m, 10);
+        (bool ok0,) = _tryConsume(h, 10);
         assertTrue(ok0);
 
         vm.warp(vm.getBlockTimestamp() + windowSeconds);
 
         for (uint256 i = 0; i < MAX_LIVE_DEBITS; i++) {
-            (bool stepOk,) = _tryConsume(m, 1);
+            (bool stepOk,) = _tryConsume(h, 1);
             assertTrue(stepOk);
         }
 
-        (bool ok, Reason reason) = _tryConsume(m, 1);
+        (bool ok, Reason reason) = _tryConsume(h, 1);
         assertFalse(ok);
         assertEq(uint8(reason), uint8(Reason.OVER_CUMULATIVE_CAP));
     }
 
     // -- liveDebits -----------------------------------------------------------------------------
 
-    function test_liveDebits_emptyBeforeAnyDebit() public view {
-        SpendGrant memory m = _grant(100, 10, 100, 1000, 21);
-        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(_hashOf(m), NATIVE, 10);
+    function test_liveDebits_emptyBeforeAnyDebit() public {
+        bytes32 h = _register(100, 10, 100, 1000, 21);
+        (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, 10);
         assertEq(expiresAt.length, 0);
         assertEq(amounts.length, 0);
     }
@@ -574,16 +567,15 @@ contract SpendGrantRingTest is Test {
     /// @dev Oldest first, exact expiry boundary (a debit is gone at vm.getBlockTimestamp() == expiresAt),
     /// same-block debits kept in order, and expired-but-not-yet-evicted debits skipped by the view.
     function test_liveDebits_oldestFirstAndExactBoundary() public {
-        SpendGrant memory m = _grant(100, 10, 100, 1000, 22);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(100, 10, 100, 1000, 22);
         uint256 t0 = vm.getBlockTimestamp();
 
-        _mustConsume(m, 5);
+        _mustConsume(h, 5);
         vm.warp(t0 + 10);
-        _mustConsume(m, 7);
-        _mustConsume(m, 3);
+        _mustConsume(h, 7);
+        _mustConsume(h, 3);
         vm.warp(t0 + 60);
-        _mustConsume(m, 9);
+        _mustConsume(h, 9);
 
         uint256[] memory wantAt = new uint256[](4);
         uint256[] memory wantAmt = new uint256[](4);
@@ -605,14 +597,13 @@ contract SpendGrantRingTest is Test {
     }
 
     function test_liveDebits_maxCountTruncatesOldestFirst() public {
-        SpendGrant memory m = _grant(100, 10, 100, 1000, 23);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(100, 10, 100, 1000, 23);
         uint256 t0 = vm.getBlockTimestamp();
-        _mustConsume(m, 1);
+        _mustConsume(h, 1);
         vm.warp(t0 + 1);
-        _mustConsume(m, 2);
+        _mustConsume(h, 2);
         vm.warp(t0 + 2);
-        _mustConsume(m, 3);
+        _mustConsume(h, 3);
 
         (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, 2);
         assertEq(expiresAt.length, 2);
@@ -630,13 +621,12 @@ contract SpendGrantRingTest is Test {
     /// with each expiry equal to its own spend time plus the window.
     function test_liveDebits_orderAcrossWrap() public {
         uint64 windowSeconds = uint64(MAX_LIVE_DEBITS);
-        SpendGrant memory m = _grant(windowSeconds, 10, type(uint192).max, type(uint192).max, 24);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(windowSeconds, 10, type(uint192).max, type(uint192).max, 24);
         uint256 t0 = vm.getBlockTimestamp();
         uint256 steps = MAX_LIVE_DEBITS + 476;
         for (uint256 k = 0; k < steps; k++) {
             vm.warp(t0 + k);
-            _mustConsume(m, 1 + (k % 7));
+            _mustConsume(h, 1 + (k % 7));
         }
 
         (uint256[] memory expiresAt, uint256[] memory amounts) = registry.liveDebits(h, NATIVE, type(uint256).max);
@@ -658,21 +648,20 @@ contract SpendGrantRingTest is Test {
     /// physical slot 1023 -> 0, then maxCount below the live count while that prefix exists.
     function test_liveDebits_prefixSkipAcrossWrapWithHeadPastCapacity() public {
         uint64 w = 100;
-        SpendGrant memory m = _grant(w, 10, type(uint192).max, type(uint192).max, 25);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(w, 10, type(uint192).max, type(uint192).max, 25);
         uint256 t = vm.getBlockTimestamp();
 
-        _consumeMany(m, MAX_LIVE_DEBITS, 1); // logical 0..1023 at t
+        _consumeMany(h, MAX_LIVE_DEBITS, 1); // logical 0..1023 at t
         vm.warp(t + 100);
-        _consumeMany(m, 1000, 2); // evicts the first batch: head = 1024; logical 1024..2023 at t+100
+        _consumeMany(h, 1000, 2); // evicts the first batch: head = 1024; logical 1024..2023 at t+100
         vm.warp(t + 150);
-        _consumeMany(m, 24, 3); // logical 2024..2047 (physical 1000..1023) at t+150; ring full
-        (bool ok, Reason why) = _tryConsume(m, 1);
+        _consumeMany(h, 24, 3); // logical 2024..2047 (physical 1000..1023) at t+150; ring full
+        (bool ok, Reason why) = _tryConsume(h, 1);
         assertFalse(ok);
         assertEq(uint8(why), uint8(Reason.WINDOW_FULL));
 
         vm.warp(t + 200);
-        _consumeMany(m, 500, 4); // evicts through logical 2023: head = 2024; logical 2048..2547 at t+200
+        _consumeMany(h, 500, 4); // evicts through logical 2023: head = 2024; logical 2048..2547 at t+200
         vm.warp(t + 250); // logical 2024..2047 expired but not evicted; the skip crosses 1023 -> 0
 
         (uint256[] memory at, uint256[] memory amt) = registry.liveDebits(h, NATIVE, type(uint256).max);
@@ -696,14 +685,13 @@ contract SpendGrantRingTest is Test {
 
     /// @dev maxCount below the live count while an expired-but-unevicted prefix exists.
     function test_liveDebits_truncateAfterExpiredPrefix() public {
-        SpendGrant memory m = _grant(100, 10, 100, 1000, 26);
-        bytes32 h = _hashOf(m);
+        bytes32 h = _register(100, 10, 100, 1000, 26);
         uint256 t = vm.getBlockTimestamp();
-        _mustConsume(m, 5);
+        _mustConsume(h, 5);
         vm.warp(t + 50);
-        _mustConsume(m, 6);
+        _mustConsume(h, 6);
         vm.warp(t + 60);
-        _mustConsume(m, 7);
+        _mustConsume(h, 7);
         vm.warp(t + 100); // first debit expired, not evicted
 
         (uint256[] memory at, uint256[] memory amt) = registry.liveDebits(h, NATIVE, 1);
@@ -717,22 +705,21 @@ contract SpendGrantRingTest is Test {
 
     /// @dev An asset the grant never spent returns nothing, even when another asset has debits.
     function test_liveDebits_unusedAssetIsEmpty() public {
-        SpendGrant memory m = _grant(100, 10, 100, 1000, 27);
-        _mustConsume(m, 5);
-        (uint256[] memory at, uint256[] memory amt) =
-            registry.liveDebits(_hashOf(m), address(0x1234), type(uint256).max);
+        bytes32 h = _register(100, 10, 100, 1000, 27);
+        _mustConsume(h, 5);
+        (uint256[] memory at, uint256[] memory amt) = registry.liveDebits(h, address(0x1234), type(uint256).max);
         assertEq(at.length, 0);
         assertEq(amt.length, 0);
     }
 
-    function _consumeMany(SpendGrant memory m, uint256 count, uint256 amount) internal {
+    function _consumeMany(bytes32 h, uint256 count, uint256 amount) internal {
         for (uint256 i = 0; i < count; i++) {
-            _mustConsume(m, amount);
+            _mustConsume(h, amount);
         }
     }
 
-    function _mustConsume(SpendGrant memory m, uint256 amount) internal {
-        (bool ok,) = _tryConsume(m, amount);
+    function _mustConsume(bytes32 h, uint256 amount) internal {
+        (bool ok,) = _tryConsume(h, amount);
         assertTrue(ok);
     }
 
