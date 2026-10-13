@@ -30,8 +30,8 @@ The attestor is identified by the claim's `author` and the envelope's `attestorP
 ## Identifiers
 
 ```
-schemaId   = keccak256("erc8320.backing.credit.v2")
-           = 0xf8d52ce839f9cd138e0870ac859214827049064c10d86fe04977bba2fff89293
+schemaId   = keccak256("erc8320.example.backing.credit.v2")
+           = 0xe335a0f140ac39c68076337112b0f4e0744fd6806f0033c175b9b211f6b2f8df
 schemaHash = keccak256(exact bytes of backing.credit.v2.schema.json)
            = 0x1085ab88a615dd33bf22d66715c736093906ec2a5afa043e6f6648fa39928fe0
 ```
