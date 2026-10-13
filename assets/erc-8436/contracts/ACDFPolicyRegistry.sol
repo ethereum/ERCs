@@ -86,17 +86,24 @@ contract ACDFPolicyRegistry is IACDFPolicyRegistry {
 
         // nodes form a tree rooted at 0: every edge points to a strictly larger index
         // (acyclic by construction) and every non-root node is referenced exactly once.
+        // Bodies play one role each: a body is at most one BODY leaf, a veto body is never a
+        // BODY leaf (it may guard several VETO nodes), and every body is used somewhere.
         uint256[] memory refs = new uint256[](nn);
+        bool[] memory leaf = new bool[](nb);
+        bool[] memory veto = new bool[](nb);
         for (uint256 i = 0; i < nn; i++) {
             T.Node calldata nd = spec.nodes[i];
             uint256 nc = nd.children.length;
             if (nd.op == T.Combinator.BODY) {
                 require(nd.body < nb, "ACDF: body index");
                 require(nc == 0, "ACDF: body node has children");
+                require(!leaf[nd.body], "ACDF: body reused");
+                leaf[nd.body] = true;
             } else if (nd.op == T.Combinator.VETO) {
                 require(nc == 0, "ACDF: veto node has children");
                 require(nd.target > i && nd.target < nn, "ACDF: veto target");
                 require(nd.vetoBody < nb, "ACDF: veto body index");
+                veto[nd.vetoBody] = true;
                 refs[nd.target] += 1;
             } else {
                 require(nc >= 1, "ACDF: no children");
@@ -115,6 +122,10 @@ contract ACDFPolicyRegistry is IACDFPolicyRegistry {
         }
         require(refs[0] == 0, "ACDF: root referenced");
         for (uint256 i = 1; i < nn; i++) require(refs[i] == 1, "ACDF: node not in tree");
+        for (uint256 i = 0; i < nb; i++) {
+            require(!(leaf[i] && veto[i]), "ACDF: veto body votes");
+            require(leaf[i] || veto[i], "ACDF: body unused");
+        }
 
         if (spec.maxAppeals > 0) {
             require(spec.appealWindow > 0, "ACDF: zero appeal window");
