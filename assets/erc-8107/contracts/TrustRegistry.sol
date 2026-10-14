@@ -597,7 +597,8 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         uint64 maxNonce = _maxNonce(currentNonce);
         if (attestation.nonce > maxNonce) revert NonceJumpTooLarge(attestation.nonce, maxNonce);
 
-        // Covers an expired wrapped name too: controllerOf returns address(0)
+        // Covers a name with no controller too, such as a wrapped .eth name past its
+        // grace period: controllerOf returns address(0)
         if (!verifySignature(attestation.trustorNode, hashAttestation(attestation), signature)) {
             revert InvalidSignature();
         }
@@ -630,7 +631,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         // Wrapped name: the ERC-1155 holder is the real controller
         if (nameWrapper != address(0) && owner == nameWrapper) {
             try INameWrapper(nameWrapper).ownerOf(uint256(node)) returns (address wrapped) {
-                return wrapped; // address(0) once the wrapped name expires
+                // address(0) once a name with PARENT_CANNOT_CONTROL burned passes its
+                // NameWrapper expiry; an unemancipated subname keeps its holder
+                return wrapped;
             } catch {
                 return address(0);
             }
