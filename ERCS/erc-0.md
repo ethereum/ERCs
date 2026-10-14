@@ -1,0 +1,193 @@
+---
+eip: 0000
+title: Quantum Bridge Shield
+description: A hash based signature shield that lets bridges accept only messages a quantum computer cannot forge.
+author: Quantova Inc (@quantova-inc)
+discussions-to: https://ethereum-magicians.org/t/erc-quantum-bridge-shield/29969
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-10-14
+---
+
+## Abstract
+
+This standard defines the Quantum Bridge Shield, a post quantum signature layer for cross chain bridges on Ethereum. A committee signs the Merkle root of a batch of cross chain messages with stateful hash based signatures as specified in RFC 8554, optionally paired with secp256k1 ECDSA during migration. An on chain guard approves a root only when a strict majority of distinct, unfrozen members has signed it, records every one time key leaf it accepts, and freezes any key that signs one leaf twice. A bridge accepts a message only with a Merkle inclusion proof against an approved root. The standard fixes the digest formats, the Merkle construction, the quorum and freezing rules, the guard interface and the leaf formats for bridge integrations, so that independent signers, guards and bridges interoperate.
+
+## Motivation
+
+Bridges on Ethereum are secured by committees that sign with secp256k1 ECDSA or BLS12 381. Shor's algorithm recovers the private key behind any such public key on a fault tolerant quantum computer, after which an adversary can attest to messages that never occurred and release assets on the destination chain. Committee public keys and historical signatures are public today, so they can be harvested now and broken later, and one recovered validator key compromises every route that trusts it.
+
+Hash based signatures rest only on the security of the hash function. LMS is standardized in RFC 8554 and approved in NIST SP 800 208, has a 56 byte public key, and verifies on the EVM through the SHA 256 precompile at about 200,000 gas for the recommended parameters. No interoperable way exists for a bridge to require such signatures, for signers to produce them safely, or for different implementations to agree on what was signed. This standard provides it.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Signatures
+
+Every committee member holds an LMS public key as specified in [RFC 8554](https://www.rfc-editor.org/rfc/rfc8554) for a single tree, with the SHA 256 parameter sets of 32 byte output. Guards MUST accept LMS typecodes 5 to 9, which are tree heights 5, 10, 15, 20 and 25, and LMOTS typecodes 1 to 4, which are Winternitz parameters 1, 2, 4 and 8. Guards MUST reject every other typecode. The signed message is always a 32 byte digest defined below.
+
+Every LMS key is bound to one guard on one chain through its identifier I. The first eight bytes of I MUST equal the first eight bytes of `keccak256(abi.encode(chainid, guard))`, and the last eight bytes MUST be drawn uniformly at random for each key, so that every key keeps a distinct identifier as RFC 8554 requires. A guard MUST reject any configuration containing a key whose identifier prefix does not match it, or two keys with the same identifier. A guard is therefore deployed to an address fixed before key generation, for example through CREATE2 or a known deployer nonce, and one key serves exactly one guard.
+
+In hybrid mode every member MUST also sign the same digest with secp256k1 ECDSA, encoded as 65 bytes of r, s and v, where s is at most half the curve order and v is 27 or 28. In post quantum mode the ECDSA signature is ignored.
+
+### Digests
+
+Let `guard` be the address of the guard contract, `chainid` the chain identifier and `epoch` the configuration epoch, which starts at 1 and increases by one on every reconfiguration.
+
+```
+ROOT_TAG   = keccak256("QUANTOVA_BRIDGE_GUARD_ROOT_V1")
+REVOKE_TAG = keccak256("QUANTOVA_BRIDGE_GUARD_REVOKE_V1")
+CONFIG_TAG = keccak256("QUANTOVA_BRIDGE_GUARD_CONFIG_V1")
+
+rootDigest(root)   = keccak256(abi.encode(ROOT_TAG, chainid, guard, epoch, root))
+revokeDigest(root) = keccak256(abi.encode(REVOKE_TAG, chainid, guard, epoch, root))
+configDigest(signers, threshold, mode) =
+    keccak256(abi.encode(CONFIG_TAG, chainid, guard, epoch, keccak256(abi.encode(signers)), threshold, mode))
+```
+
+`epoch` is encoded as `uint64`, `mode` as `uint8` with 0 for hybrid and 1 for post quantum, and `signers` as an array of `(address ecdsa, bytes lmsPublicKey)`.
+
+### Merkle construction
+
+```
+leafHash(leaf)    = keccak256(0x00 || leaf)
+node(left, right) = keccak256(0x01 || left || right)
+```
+
+A batch of n leaves is padded with zero words at the leaf hash level to the next power of two. At level i the bit i of the leaf index selects whether the proof node is the left sibling. Guards MUST return no root for a proof longer than 64 nodes or for an index that does not fit the proof length.
+
+### Quorum
+
+A configuration is a list of signers, a threshold and a mode. The threshold MUST be a strict majority of the signers. LMS public keys MUST be unique, and in hybrid mode ECDSA addresses MUST be nonzero and unique.
+
+An action carries a list of `Attestation` entries, each `(uint256 signer, bytes ecdsaSignature, bytes lmsSignature)`, with strictly increasing signer indices. For each entry the guard computes `record = keccak256(abi.encode(digest, keccak256(lmsSignature)))` for the leaf index q of the LMS signature and the member's key.
+
+1. An entry from a frozen key MUST be skipped.
+2. If no record exists at q, the LMS signature MUST verify and, in hybrid mode, the ECDSA signature MUST recover the member's address. The entry then counts.
+3. If the record at q equals `record`, the entry counts again after the ECDSA check in hybrid mode.
+4. If a different record exists at q and the LMS signature verifies, the key MUST be frozen.
+
+An action takes effect only when the count reaches the threshold, and only then are new records written. When a freeze leaves the count short, the action MUST revert and report the frozen member and leaf. Anyone MUST be able to freeze a key by submitting two valid LMS signatures from one leaf over different digests.
+
+### Roots and reconfiguration
+
+An approved root becomes usable after a minimum root age, which MUST be at least 60 seconds and is fixed at deployment. A revoked root MUST never be approved again. A new member MUST prove possession of its LMS key by signing the configuration digest, and in hybrid mode of its ECDSA key. A current member whose LMS key, and in hybrid mode ECDSA address, is unchanged MAY be retained without a new signature.
+
+### Interface
+
+```solidity
+interface IQuantumBridgeShield {
+    enum Mode { Hybrid, PostQuantum }
+
+    struct Signer {
+        address ecdsa;
+        bytes lmsPublicKey;
+    }
+
+    struct Attestation {
+        uint256 signer;
+        bytes ecdsaSignature;
+        bytes lmsSignature;
+    }
+
+    event RootApproved(bytes32 indexed root, uint64 indexed epoch, uint256 signatures);
+    event RootRevoked(bytes32 indexed root, uint64 indexed epoch, uint256 signatures);
+    event ConfigurationChanged(uint64 indexed epoch, uint256 signers, uint256 threshold, Mode mode);
+    event SignerFrozen(bytes32 indexed lmsKeyHash, uint256 leaf, bytes32 recordA, bytes32 recordB);
+
+    function approveRoot(bytes32 root, Attestation[] calldata attestations) external;
+    function revokeRoot(bytes32 root, Attestation[] calldata attestations) external;
+    function provePossession(Signer[] calldata signers, uint256 threshold, Mode mode, uint256 index, Attestation calldata proof) external;
+    function reconfigure(Signer[] calldata signers, uint256 threshold, Mode mode, Attestation[] calldata attestations) external;
+    function reportEquivocation(bytes calldata lmsPublicKey, bytes32 digestA, bytes calldata signatureA, bytes32 digestB, bytes calldata signatureB) external;
+
+    function isApproved(bytes32 root) external view returns (bool);
+    function isIncluded(bytes32 root, bytes32 leaf, uint256 index, bytes32[] calldata proof) external view returns (bool);
+    function nextLeafOf(uint256 signer) external view returns (uint256);
+    function epoch() external view returns (uint64);
+    function identifierTag() external view returns (bytes8);
+}
+```
+
+`nextLeafOf` returns one more than the highest leaf recorded for the member's key, which signers pass to their key state before signing. `identifierTag` returns the eight byte prefix that every key on the guard carries in its identifier.
+
+### Bridge bindings
+
+A bridge integration MUST define its leaf so that it binds a domain tag unique to the integration, the destination, the bridge endpoint and the full message, so that no leaf of one integration is valid in another. A bridge MUST accept a message only when `isIncluded` returns true for its leaf. This standard defines the binding for verifiers that receive packets through a receive library.
+
+```
+LAYERZERO_TAG = keccak256("QUANTOVA_BRIDGE_GUARD_LAYERZERO_V1")
+layerZeroLeaf = keccak256(abi.encode(LAYERZERO_TAG, uint32 localEid, address verifier, address receiveLibrary,
+                                     keccak256(packetHeader), bytes32 payloadHash, uint64 confirmations))
+```
+
+A verifier MUST check that the packet header is 81 bytes, version 1 and addressed to `localEid`.
+
+### Signer requirements
+
+LMS keys are stateful. A signer MUST durably record each leaf before it releases a signature, MUST NOT sign from a key whose state is behind the on chain `nextLeafOf`, and SHOULD keep a monotonic high water mark on storage separate from the key.
+
+A signer MUST check the identifier prefix of its key against the chain and guard of every signing request, and MUST refuse a mismatch before it touches leaf state.
+
+Tree height SHOULD be chosen from the expected batch rate. Height 20 gives 1,048,576 leaves, roughly 145 days at one batch per block and about two years at one batch per minute, and is RECOMMENDED for active bridges. Because one leaf signs a whole batch, larger batches extend key life.
+
+## Rationale
+
+LMS was chosen over stateless hash based signatures because a W4 LMS signature is about 2.5 KB and verifies for about 200,000 gas, while stateless schemes produce signatures of 8 to 50 KB. Lattice signatures have no EVM precompile and cost millions of gas to verify. LMS needs only the SHA 256 precompile that every EVM chain provides.
+
+Signing a Merkle root rather than each message pays the cost of post quantum verification once per batch. Once a batch is approved, accepting one of its messages costs only a Merkle proof check, which is under 10,000 gas for a batch of 256.
+
+Recording a hash of the digest and the signature for every leaf makes one time key reuse detectable on chain in any arrival order, and lets an identical signature count again so that publishing it early cannot block an action. Writing records only when an action succeeds keeps honest signatures usable after a failed attempt.
+
+Hybrid mode lets bridges deploy the standard beside their existing committees, so security is never lower than the stronger of ECDSA and LMS during migration. The domain tags bind every digest to one action, chain, guard and epoch.
+
+## Backwards Compatibility
+
+This standard adds a verification layer and changes no existing contract. Bridges adopt it beside their current verification, for example inside an aggregation of security modules.
+
+## Test Cases
+
+The following values hold for `chainid` 1, `guard` `0x00000000000000000000000000000000000000aa`, `epoch` 1 and `root = keccak256("example batch")`.
+
+```
+ROOT_TAG     0x6729535f697b38a0cbcbe25b5814ad01f96a92820409648531c8e6b56b47f326
+REVOKE_TAG   0x1c378e95cf4dc034274f2241b23d465ffc8fc1e3c93c1d95e4e29d4b812ee457
+CONFIG_TAG   0xe657fbbefed497ce189b9dc46afa3b8173fc5b30c4f422c8a87e05b4cd16cc87
+root         0x147a79ace204d0285b38360840696652b6316c08f833b86bc1e1b297ff2640ca
+rootDigest   0x1e3d8f95ec6c59d61be11d9992ed2eb2dceff409b2affa205653d8555ca8ba26
+revokeDigest 0x8ad2d6543bb319aea86b0b45a4eafb7dbed85ce74bb1db3632216f453c0ab8cd
+```
+
+The following values hold for the leaves `keccak256("message a")`, `keccak256("message b")` and `keccak256("message c")`.
+
+```
+merkleRoot     0x5c57796a586cca35235995a17d5fe44a78642d6f9e2af1f25defefd5e0225fc0
+proof index 2  [0x0000000000000000000000000000000000000000000000000000000000000000,
+                0xfd5657abcd3a0b6c6fd39380b90aac23720f534a9e46413a2d8f5f9021f44c9e]
+```
+
+LMS verification MUST accept the two test cases of RFC 8554 Appendix F and MUST reject them after any change to the message or the signature.
+
+## Reference Implementation
+
+Quantova Inc maintains a reference implementation named Quantova Bridge Guard. It contains the on chain LMS verifier, the guard, a packet verifier, a signer kit with durable leaf state, and a test suite covering the RFC 8554 vectors, byte level agreement between the contracts and the signer kit, and a live run on a local Ethereum node.
+
+## Security Considerations
+
+The security of the shield rests on SHA 256 and Keccak 256. Grover search leaves about 128 bits of security against preimage attacks on both.
+
+Reusing an LMS leaf exposes enough of the one time key to forge signatures. The on chain records detect reuse, and any party can freeze the key, but they cannot prevent the first forged signature from counting if it reaches an unused leaf. Signers must therefore persist leaf state before signing, never run a cloned key, and prefer a hardware module with a monotonic counter. Snapshots, disk images and virtual machine clones defeat file level copy detection.
+
+The guarantee holds for messages that the committee observes on the source chain. A dishonest majority can still attest to false messages. The minimum root age gives an honest minority time to raise revocation through the bridge's own processes.
+
+If misuse freezes so many keys that fewer live members remain than the threshold, the guard stops approving anything. This fail safe halt is intended, and recovery is a new guard that the bridge selects. Operators SHOULD size a committee so that the number of members minus the threshold is at least the number of keys that could be frozen or lost at the same time, and SHOULD monitor that margin. A guard MAY expose the count of members whose keys are not frozen for this purpose.
+
+The identifier binding confines every key to one guard on one chain, so a cloned or compromised signer cannot spread leaf reuse across guards. A key accepted elsewhere would need a matching 64 bit prefix by accident. `reportEquivocation` accepts any two valid LMS signatures from the same leaf of the same key, whatever digests they cover, so any party holding such a pair can freeze the key. Recovery after a halt is a new guard at a new address, which requires fresh keys for every member.
+
+Implementations should bound committee size so that approval and rotation fit within the transaction gas limit for the largest supported signatures.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
