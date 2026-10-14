@@ -1,0 +1,8 @@
+Agentic Resource Discovery specification schemas
+Copyright The ards-project contributors
+
+Vendored verbatim from https://github.com/ards-project/ard-spec (spec/schemas/ard-entry.schema.json, spec/schemas/ard.context.jsonld),
+commit 49eb4df6f3841ccecc5c31d5175117337b568bdf (2026-10-11), under the Apache License, Version 2.0
+(see LICENSE in this directory). Pinned here because the ERC text cannot hyperlink the specification site. The conformance tool
+expects the ARD entry schema at ../../spec/schemas/ard-entry.schema.json relative to its own location;
+the test copies it there from assets/erc-9999/vendor/ard/ at run time.

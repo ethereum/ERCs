@@ -1,0 +1,95 @@
+{
+  "@context": [
+    "https://agenticresourcediscovery.org/context/v1",
+    {
+      "value": "https://eips.ethereum.org/assets/eip-9999/ns#"
+    }
+  ],
+  "value:controllers": [
+    "did:pkh:eip155:8453:0x6666666666666666666666666666666666666666"
+  ],
+  "entries": [
+    {
+      "identifier": "urn:air:registry.finchip.ai:registry:base",
+      "trustManifest": {
+        "identity": "registry.finchip.ai"
+      },
+      "displayName": "ARD Onchain gateway for Base",
+      "description": "ARD registry endpoint indexing the ARD Onchain registry instance on Base. Results carry onchain anchors and descriptor hashes for independent verification.",
+      "type": "application/ai-registry+json",
+      "url": "https://registry.finchip.ai/api/v1/",
+      "representativeQueries": [
+        "onchain skills with escrowed bounties",
+        "agent tasks paying in USDC on Base"
+      ],
+      "updatedAt": "2026-10-12T00:00:00Z",
+      "value:kind": "registry",
+      "value:controller": "did:pkh:eip155:8453:0x6666666666666666666666666666666666666666",
+      "value:indexes": [
+        "eip155:8453:0x7777777777777777777777777777777777777777"
+      ]
+    },
+    {
+      "identifier": "urn:air:registry.finchip.ai:onchain:eip155-8453-erc721-0x1111111111111111111111111111111111111111-42",
+      "trustManifest": {
+        "identity": "registry.finchip.ai"
+      },
+      "displayName": "FinChip Daily Finance Brief",
+      "description": "Generates the daily global finance brief: 60-instrument dashboard, top headlines, short analysis.",
+      "type": "application/ai-skill+md",
+      "url": "https://finchip.ai/skills/daily-finance-brief/SKILL.md",
+      "tags": [
+        "finance",
+        "report",
+        "daily"
+      ],
+      "capabilities": [
+        "DailyFinanceBrief"
+      ],
+      "representativeQueries": [
+        "generate today's global markets brief",
+        "daily finance report with crypto and FX dashboard",
+        "morning market summary as PDF"
+      ],
+      "version": "1.4.0",
+      "updatedAt": "2026-10-12T00:00:00Z",
+      "value:kind": "skill",
+      "value:controller": "did:pkh:eip155:8453:0x2222222222222222222222222222222222222222",
+      "value:terms": {
+        "unit": "call",
+        "price": {
+          "amount": "0.50",
+          "currency": "USDC",
+          "asset": "eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+        }
+      },
+      "value:settlement": [
+        {
+          "rail": "x402",
+          "payee": "eip155:8453:0x2222222222222222222222222222222222222222",
+          "asset": "eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "endpoint": "https://finchip.ai/api/v1/skills/daily-finance-brief"
+        },
+        {
+          "rail": "onchain",
+          "payee": "eip155:8453:0x2222222222222222222222222222222222222222",
+          "asset": "eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+        }
+      ],
+      "value:provenance": {
+        "packageDigest": "sha256:3f2a9c0b7e1d4a6f8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a",
+        "cardDigest": "sha256:9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f"
+      },
+      "value:anchor": "eip155:8453/erc721:0x1111111111111111111111111111111111111111/42",
+      "value:canonical": "urn:air:finchip.ai:skills:daily-finance-brief",
+      "value:aliases": [
+        "urn:air:registry.finchip.ai:onchain:eip155-8453-erc721-0x1111111111111111111111111111111111111111-42"
+      ],
+      "value:binding": "verified",
+      "value:level": 2,
+      "value:status": "Active",
+      "value:registry": "eip155:8453:0x7777777777777777777777777777777777777777",
+      "value:descriptorHash": "sha256:8df640a84dbff351a1d67490b42a8d696f5d1232210863e2b469137fe105a6ac"
+    }
+  ]
+}
