@@ -41,14 +41,13 @@ recompute the shared secret for every announcement,
 and thus learn which recipient each payment went to. 
 As such privacy loss is retroactive, 
 post-quantum migration for the anonymity layer matters now.
-
-Spending is a different problem with a later deadline,
-as theft needs the CRQC to exist while the funds are still in the account.
-Beside, moving accounts off secp256k1 may also need account or protocol changes that are not yet available. 
-
 Conveniently, ERC-5564's `announce()` and ERC-6538's `registerKeys` both take unbounded `bytes`, 
 hence the announcement layer can move to a post-quantum KEM now, with no new contract. 
-And spending can stay on secp256k1 until a later and separate migration.
+
+On the other hand, spending is a different problem with a later deadline,
+as theft needs the CRQC to exist while the funds are still in the account.
+Beside, moving accounts off secp256k1 may also need account or protocol changes that are not yet available. 
+Hence spending can stay on secp256k1 until a later and separate migration.
 
 The ECDH half yields no protection against a quantum adversary
 but a hedge for the extreme case 
@@ -70,11 +69,12 @@ Notation:
 - `n` is the order of the secp256k1 group and `G` is its generator. 
 A valid scalar is an integer `k` with `0 < k < n`. 
 A 32-byte secret's `u256be` value must be a valid scalar.
-- Points use SEC1-compressed encoding: 33 bytes with tag `0x02` or `0x03`. 
-`uncompressed(P)` is the 65-byte SEC1 form `0x04 || x || y`.
+- Points use SEC1-compressed encoding: 33 bytes with tag `0x02` or `0x03`, 
+whereas `uncompressed(P)` is the 65-byte SEC1 form `0x04 || x || y`.
 - `ECDH(k, P).x` is the 32-byte big-endian x-coordinate of `k·P`.
-- `SHA256` is SHA-256 (FIPS 180-4) and `SHA3-256` is SHA3-256 (FIPS 202). 
-`keccak256` is Ethereum's original Keccak-256.
+- `SHA256` is SHA-256 (FIPS 180-4)
+and `SHA3-256` is SHA3-256 (FIPS 202) 
+while `keccak256` is Ethereum's original Keccak-256.
 - Domain separators are ASCII strings used as written, with no length prefix and no terminator.
 
 ML-KEM-768 is as specified in FIPS 203. We use it as follows:
@@ -102,8 +102,8 @@ Sender and recipient MUST both run exactly this procedure.
 An implementation MUST NOT reduce `base` mod `n` or derive another candidate. 
 On failure, the sender discards the announcement's randomness and draws again (Section 2.4), 
 and a scanner skips the announcement (Section 2.7).
-`base` is out of range with probability below 2^-127. 
-Test vectors reach the failure by supplying `base` directly (Test Cases).
+As `base` is out of range with probability below 2^-127, 
+test vectors reach the failure by supplying `base` directly (Test Cases).
 
 The stealth key pair and its address keep ERC-5564's structure:
 
