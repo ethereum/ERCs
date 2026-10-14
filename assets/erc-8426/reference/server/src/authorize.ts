@@ -77,10 +77,19 @@ export function statusFor(error: AuthError): number {
 ///  lists. The nonce is consumed before the later checks run, so a single
 ///  presentation spends it whether or not the rest succeeds: a failed attempt
 ///  cannot be retried with the same nonce.
+/// Hard ceiling on a presented message, in characters, checked before parsing.
+export const MAX_MESSAGE_CHARS = 4096;
+
 export async function authorize(input: AuthorizeInput, deps: AuthorizeDeps): Promise<AuthorizeResult> {
   const nowMs = (deps.now ?? Date.now)();
   const { config } = deps;
   const target: AuthorizeTarget = { ...input.target, tokenId: normalizeTokenId(input.target.tokenId) };
+
+  // 0. Size before parse. The SIWE parser is quadratic on a message made of
+  //    repeated "URI: " with no newline, and it runs before the nonce is looked
+  //    up, so an anonymous caller could spend that CPU. A challenge this server
+  //    issues is under 2 KiB; anything past the cap is refused unread.
+  if (input.message.length > MAX_MESSAGE_CHARS) return { ok: false, error: "invalid_message" };
 
   // 1. The message parses as a SIWE challenge carrying the fields the standard
   //    mandates. Expiration is checked in step 4, where the spec orders it.

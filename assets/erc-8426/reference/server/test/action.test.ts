@@ -99,6 +99,18 @@ describe("POST /action", () => {
     expect(res.body.error).toBe("challenge_expired");
   });
 
+  it("refuses an oversized message before parsing it (quadratic SIWE parse)", async () => {
+    const h = buildHarness();
+    // Repeated "URI: " with no newline is the worst case for the SIWE parser
+    // (quadratic); 90 KB of it, under the old 100 KB body default, parsed for over a second.
+    const message = "URI: ".repeat(18_000);
+    const t0 = performance.now();
+    const res = await submitAction(h.app, message, `0x${"ab".repeat(65)}`, h.config.contract);
+    const elapsed = performance.now() - t0;
+    expect([400, 413]).toContain(res.status);
+    expect(elapsed).toBeLessThan(500);
+  });
+
   it("rejects a message whose domain is a different verifier", async () => {
     const h = buildHarness();
     const account = newSigner();

@@ -46,7 +46,9 @@ export function createApp(deps: AppDeps): Express {
   const { config, passStore } = deps;
   const now = deps.now ?? Date.now;
   const app = express();
-  app.use(express.json());
+  // A proof body carries a short SIWE message and a signature; nothing larger
+  // is legitimate, and authorize() caps the message again before parsing.
+  app.use(express.json({ limit: "16kb" }));
 
   // Issue a challenge for one (account, token, action) with a fresh single-use
   // nonce and a short expiry. Shared by POST /challenge and the gated
