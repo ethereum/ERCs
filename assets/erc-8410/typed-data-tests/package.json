@@ -1,0 +1,13 @@
+{
+  "name": "erc-8410-typed-data-vectors",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test vectors.test.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "ethers": "6.17.0",
+    "viem": "2.56.3"
+  }
+}

@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "./IERC5516.sol";
 
 contract ERC5516 is Context, ERC165, IERC5516 {
-    // Used as the URI for all token types by relying on ID substitution, e.g. https://ipfs.io/ipfs/token.data
+    // Used as the URI for all token types, e.g. https://ipfs.io/ipfs/token.data
     string private _uri;
 
     // Mapping from account to token IDs it holds
@@ -50,7 +50,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
      * @dev See {IERC5516-issue}.
      */
     function issue(
-        address[] memory recipients,
+        address[] calldata recipients,
         string calldata metadataURI
     ) external virtual override returns (uint256 tokenId) {
         require(recipients.length > 0, "ERC5516: Empty recipients list");
@@ -66,7 +66,7 @@ contract ERC5516 is Context, ERC165, IERC5516 {
         } else {
             // Re-issuance path: the same `tokenId` already exists.
             //
-            // This equality check is defense-in-depth. Because `_deriveTokenId`
+            // This equality check is defense-in-depth. Because `deriveTokenId`
             // mixes `msg.sender` into the hash, no other address can produce
             // this `tokenId` via `issue()` in the first place, so the check is
             // structurally redundant for this implementation. It is kept for
@@ -137,6 +137,16 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     }
 
     /**
+     * @dev See {IERC5516-hasRenounced}.
+     */
+    function hasRenounced(
+        address who,
+        uint256 tokenId
+    ) external view virtual override returns (bool) {
+        return _renounced[tokenId][who];
+    }
+
+    /**
      * @dev See {IERC5516-issuerOf}.
      */
     function issuerOf(
@@ -159,17 +169,25 @@ contract ERC5516 is Context, ERC165, IERC5516 {
     }
 
     /**
-     * @dev Deterministically derives a token ID from the issuer's address and the metadata URI.
-     * @dev See {IERC5516-issue}.
-     *
-     * @param issuer The address of the token issuer.
-     * @param metadataURI The metadata URI associated with the token.
-     * @return tokenId The unique identifier of the token derived from the issuer and metadata URI.
+     * @dev See {IERC5516-deriveTokenId}.
+     */
+    function deriveTokenId(
+        address issuer,
+        string calldata metadataURI
+    ) external view override returns (uint256) {
+        return _deriveTokenId(issuer, metadataURI);
+    }
+
+    /**
+     * @dev See {IERC5516-deriveTokenId}.
      */
     function _deriveTokenId(
         address issuer,
         string calldata metadataURI
     ) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(issuer, metadataURI)));
+        uint256 tokenId = uint256(
+            keccak256(abi.encodePacked(issuer, metadataURI))
+        );
+        return tokenId;
     }
 }
