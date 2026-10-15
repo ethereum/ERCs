@@ -14,12 +14,12 @@ contract MockERC20 is ERC20 {
     }
 }
 
-/// @dev Handler para invariant testing (FASE 4). Llama al protocolo con
-///      secuencias acotadas de acciones y mantiene ghost variables para
-///      las dos propiedades derivadas de S3-01/S4-02 (ver audit/step6.md).
-///      No hay handler de "solvencia clasica" (4.3 #1): el contrato nunca
-///      custodia fondos (pay() transfiere lessee->lessor directo), asi que
-///      esa invariante universal no aplica a este protocolo.
+/// @dev Handler for invariant testing. Calls the protocol with
+///      bounded sequences of actions and keeps ghost variables for
+///      the two properties derived from S3-01/S4-02.
+///      There is no "classic solvency" handler: the contract never
+///      holds funds (pay() transfers payer -> lessor position holder directly), so
+///      that universal invariant does not apply to this protocol.
 contract Handler is Test {
     FinancialLease public lease;
     MockERC20 public token;
@@ -29,13 +29,13 @@ contract Handler is Test {
     address[] public actors;
     uint256[] public leaseIds;
 
-    // INV-LESSEE: true si algun leaseId sufrio un cambio de lessee
-    // disparado por alguien que NO era el lessee saliente en ese momento.
+    // INV-LESSEE: true if any leaseId had its lessee changed
+    // by someone who was NOT the outgoing lessee at that moment.
     mapping(uint256 => bool) public ghost_lesseeHijacked;
 
-    // Invariante auxiliar de sanidad (4.3, adaptada): una vez alcanzado un
-    // status terminal (Terminated/Completed/PurchaseExercised), el lease
-    // nunca deberia reportar un status distinto despues.
+    // Auxiliary sanity invariant: once an absorbing
+    // status is reached (see _isAbsorbing), the lease
+    // should never report a different status afterwards.
     mapping(uint256 => IFinancialLease.LeaseStatus) public ghost_lastStatus;
     bool public ghost_anyTerminalRegression;
 
@@ -67,16 +67,16 @@ contract Handler is Test {
         return actors[bound(seed, 0, actors.length - 1)];
     }
 
-    /// @dev De los 3 valores "terminales" del enum, Completed NO es
-    ///      absorbente en la practica: exercisePurchaseOption() lo mueve
-    ///      legitimamente a PurchaseExercised (ver purchaseOption():
-    ///      exercisable = status == Completed). Terminated nunca se
-    ///      asigna en ningun lado del contrato (grep confirmado) — dead
-    ///      enum member, nota aparte en step6.md, no es parte de esta
-    ///      invariante. El unico estado genuinamente absorbente es
-    ///      PurchaseExercised: ninguna funcion tiene un path de salida
-    ///      (pay/declareDefault revierten por status > InDefault;
-    ///      exercisePurchaseOption revierte porque exercisable exige
+    /// @dev Of the 3 terminal values the handler can reach, Completed is NOT
+    ///      absorbing in practice: exercisePurchaseOption() legitimately moves it
+    ///      to PurchaseExercised (see purchaseOption():
+    ///      exercisable = status == Completed). Terminated is terminal
+    ///      (fix S6-01) but this handler does not call the termination
+    ///      functions; its freeze is covered by T66/T67. The only absorbing
+    ///      status checked here is
+    ///      PurchaseExercised: no function has an exit path
+    ///      (pay/declareDefault revert outside non-terminal statuses;
+    ///      exercisePurchaseOption reverts because exercisable requires
     ///      status == Completed).
     function _isAbsorbing(IFinancialLease.LeaseStatus s) internal pure returns (bool) {
         return s == IFinancialLease.LeaseStatus.PurchaseExercised;
@@ -91,7 +91,7 @@ contract Handler is Test {
         ghost_lastStatus[leaseId] = cur;
     }
 
-    // ─── acciones ───────────────────────────────────────────────
+    // ─── actions ───────────────────────────────────────────────
 
     function createLease(uint256 lessorSeed, uint256 lesseeSeed, uint256 declarerSeed, uint256 nInstallments, uint256 amountSeed, uint256 bpsSeed)
         external
@@ -99,10 +99,10 @@ contract Handler is Test {
         address lessor_ = _actor(lessorSeed);
         address lessee_ = _actor(lesseeSeed);
 
-        // declarerSeed tambien explora el branch p.defaultDeclarer == 0
-        // (post fix S4-01: sin override -> se resuelve dinamicamente
-        // contra ownerOf(leaseId) en cada llamada, YA NO se congela en
-        // msg.sender al originar — ver _declarer() en FinancialLease.sol).
+        // declarerSeed also explores the p.defaultDeclarer == 0 branch
+        // (after fix S4-01: no override -> resolved dynamically
+        // against ownerOf(leaseId) on every call, NO LONGER frozen at
+        // msg.sender at origination — see _declarer() in FinancialLease.sol).
         address declarer_ = declarerSeed % 5 == 0 ? address(0) : _actor(declarerSeed);
 
         uint256 n = bound(nInstallments, 1, 3);
@@ -171,8 +171,8 @@ contract Handler is Test {
         } catch {}
     }
 
-    /// @dev El corazon del fuzz de INV-LESSEE: el caller es un actor
-    ///      arbitrario, no necesariamente el lessee saliente.
+    /// @dev The heart of the INV-LESSEE fuzz: the caller is an
+    ///      arbitrary actor, not necessarily the outgoing lessee.
     function assignLessee(uint256 leaseIdSeed, uint256 callerSeed, uint256 newLesseeSeed) external {
         if (leaseIds.length == 0) return;
         uint256 id = leaseIds[bound(leaseIdSeed, 0, leaseIds.length - 1)];
