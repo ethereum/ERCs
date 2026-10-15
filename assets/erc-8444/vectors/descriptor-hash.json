@@ -1,0 +1,54 @@
+{
+  "description": "descriptorHash = SHA-256(JCS(content members)), JCS per RFC 8785. Publication members (identifier, trustManifest) and resolved members are excluded. The canonical string is included so that a Solidity test can recompute sha256 over its UTF-8 bytes.",
+  "publicationMembers": [
+    "@context",
+    "@id",
+    "identifier",
+    "trustManifest"
+  ],
+  "resolvedMembers": [
+    "value:anchor",
+    "value:binding",
+    "value:level",
+    "value:status",
+    "value:aliases",
+    "value:canonical",
+    "value:registry",
+    "value:descriptorHash",
+    "value:stale",
+    "value:claimedUrn"
+  ],
+  "cases": [
+    {
+      "file": "../examples/skill.json",
+      "identifier": "urn:air:finchip.ai:skills:daily-finance-brief",
+      "canonical": "{\"capabilities\":[\"DailyFinanceBrief\"],\"description\":\"Generates the daily global finance brief: 60-instrument dashboard, top headlines, short analysis.\",\"displayName\":\"FinChip Daily Finance Brief\",\"representativeQueries\":[\"generate today's global markets brief\",\"daily finance report with crypto and FX dashboard\",\"morning market summary as PDF\"],\"tags\":[\"finance\",\"report\",\"daily\"],\"type\":\"application/ai-skill+md\",\"updatedAt\":\"2026-10-12T00:00:00Z\",\"url\":\"https://finchip.ai/skills/daily-finance-brief/SKILL.md\",\"value:controller\":\"did:pkh:eip155:8453:0x2222222222222222222222222222222222222222\",\"value:kind\":\"skill\",\"value:provenance\":{\"cardDigest\":\"sha256:9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f\",\"packageDigest\":\"sha256:3f2a9c0b7e1d4a6f8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a\"},\"value:settlement\":[{\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"endpoint\":\"https://finchip.ai/api/v1/skills/daily-finance-brief\",\"payee\":\"eip155:8453:0x2222222222222222222222222222222222222222\",\"rail\":\"x402\"},{\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"payee\":\"eip155:8453:0x2222222222222222222222222222222222222222\",\"rail\":\"onchain\"}],\"value:terms\":{\"price\":{\"amount\":\"0.50\",\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"currency\":\"USDC\"},\"unit\":\"call\"},\"version\":\"1.4.0\"}",
+      "sha256": "0x8df640a84dbff351a1d67490b42a8d696f5d1232210863e2b469137fe105a6ac"
+    },
+    {
+      "file": "../examples/task.json",
+      "identifier": "urn:air:finchip.ai:tenders:oracle-basis-feed",
+      "canonical": "{\"data\":{\"acceptance\":{\"mode\":\"verifier\",\"ref\":\"eip155:8453:0x3333333333333333333333333333333333333333\"},\"bounty\":{\"amount\":\"120\",\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"currency\":\"USDC\"},\"cadence\":{\"epoch\":\"PT1H\",\"epochs\":720},\"cardinality\":\"single\",\"deadlines\":{\"judgmentWindow\":\"P7D\",\"settleBy\":\"2026-12-31T00:00:00Z\"},\"eligibility\":{\"credit\":{\"minLevel\":2,\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\"}},\"specDigest\":\"sha256:5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c\",\"specURI\":\"https://finchip.ai/tenders/oracle-basis-feed/spec.json\",\"wants\":[\"application/mcp-server-card+json\",\"application/ai-skill+md\"]},\"description\":\"Pays per hourly delivery of a verified BTC and ETH perpetual basis feed for 30 days. Fulfilment is checked by a verifier contract; no human judge.\",\"displayName\":\"Standing bounty: hourly BTC/ETH basis feed\",\"representativeQueries\":[\"tasks paying for price-feed delivery\",\"who pays for hourly basis data\",\"standing oracle bounties for agents\"],\"tags\":[\"bounty\",\"oracle\",\"price-feed\"],\"type\":\"application/ai-task+json\",\"updatedAt\":\"2026-10-12T00:00:00Z\",\"value:controller\":\"did:pkh:eip155:8453:0x2222222222222222222222222222222222222222\",\"value:dispute\":{\"policyId\":\"0x0f36cb699dafbdab0b08057665b6a716316e730409f5cbdfe53a5241f99ff279\",\"registry\":\"eip155:8453:0x4444444444444444444444444444444444444444\"},\"value:kind\":\"task\",\"value:provenance\":{\"packageDigest\":\"sha256:5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c\"}}",
+      "sha256": "0x0e68cbd7b16cc2ce94a97b9bdece6de1884e680f812c81fa3c9ba4d139cc2ff3"
+    },
+    {
+      "file": "../examples/agent.json",
+      "identifier": "urn:air:finchip.ai:agents:finch-analyst",
+      "canonical": "{\"capabilities\":[\"MarketBrief\",\"PriceFeedDelivery\"],\"description\":\"Research agent that produces market briefs and fulfils price-feed tenders.\",\"displayName\":\"Finch Analyst\",\"representativeQueries\":[\"an agent that writes daily market briefs\",\"agent that can deliver hourly basis feeds\"],\"type\":\"application/a2a-agent-card+json\",\"updatedAt\":\"2026-10-12T00:00:00Z\",\"url\":\"https://finchip.ai/.well-known/agent-card.json\",\"value:controller\":\"did:pkh:eip155:8453:0x2222222222222222222222222222222222222222\",\"value:credit\":[{\"level\":2,\"registry\":\"eip155:8453:0x5555555555555555555555555555555555555555\",\"scheme\":\"0xc3d44c830a5c118f980f48317b97e9eaa920a7bbd204c7d3595ac191d4726764\"}],\"value:kind\":\"agent\",\"value:registration\":\"https://finchip.ai/.well-known/agent-registration.json\",\"value:settlement\":[{\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"payee\":\"eip155:8453:0x2222222222222222222222222222222222222222\",\"rail\":\"x402\"}]}",
+      "sha256": "0x048340ce2630ba410e3a742c0bed15adfae028271658b28cca6a5dae40e04758"
+    },
+    {
+      "file": "../examples/registry.json",
+      "identifier": "urn:air:registry.finchip.ai:registry:base",
+      "canonical": "{\"description\":\"ARD registry endpoint indexing the ARD Onchain registry instance on Base. Results carry onchain anchors and descriptor hashes for independent verification.\",\"displayName\":\"ARD Onchain gateway for Base\",\"representativeQueries\":[\"onchain skills with escrowed bounties\",\"agent tasks paying in USDC on Base\"],\"type\":\"application/ai-registry+json\",\"updatedAt\":\"2026-10-12T00:00:00Z\",\"url\":\"https://registry.finchip.ai/api/v1/\",\"value:controller\":\"did:pkh:eip155:8453:0x6666666666666666666666666666666666666666\",\"value:indexes\":[\"eip155:8453:0x7777777777777777777777777777777777777777\"],\"value:kind\":\"registry\"}",
+      "sha256": "0xb5a387663102892a0d2bc1679191d4dd35ff4b5e21179fb61a73150b432445b6"
+    },
+    {
+      "file": "../examples/well-known-ard.json#entries[1]",
+      "identifier": "urn:air:registry.finchip.ai:onchain:eip155-8453-erc721-0x1111111111111111111111111111111111111111-42",
+      "note": "a gateway alias entry: publication members (identifier, trustManifest) and resolved members are stripped before hashing, so this hashes to the same value as the authored skill.json it mirrors",
+      "canonical": "{\"capabilities\":[\"DailyFinanceBrief\"],\"description\":\"Generates the daily global finance brief: 60-instrument dashboard, top headlines, short analysis.\",\"displayName\":\"FinChip Daily Finance Brief\",\"representativeQueries\":[\"generate today's global markets brief\",\"daily finance report with crypto and FX dashboard\",\"morning market summary as PDF\"],\"tags\":[\"finance\",\"report\",\"daily\"],\"type\":\"application/ai-skill+md\",\"updatedAt\":\"2026-10-12T00:00:00Z\",\"url\":\"https://finchip.ai/skills/daily-finance-brief/SKILL.md\",\"value:controller\":\"did:pkh:eip155:8453:0x2222222222222222222222222222222222222222\",\"value:kind\":\"skill\",\"value:provenance\":{\"cardDigest\":\"sha256:9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f\",\"packageDigest\":\"sha256:3f2a9c0b7e1d4a6f8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a\"},\"value:settlement\":[{\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"endpoint\":\"https://finchip.ai/api/v1/skills/daily-finance-brief\",\"payee\":\"eip155:8453:0x2222222222222222222222222222222222222222\",\"rail\":\"x402\"},{\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"payee\":\"eip155:8453:0x2222222222222222222222222222222222222222\",\"rail\":\"onchain\"}],\"value:terms\":{\"price\":{\"amount\":\"0.50\",\"asset\":\"eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"currency\":\"USDC\"},\"unit\":\"call\"},\"version\":\"1.4.0\"}",
+      "sha256": "0x8df640a84dbff351a1d67490b42a8d696f5d1232210863e2b469137fe105a6ac"
+    }
+  ]
+}
