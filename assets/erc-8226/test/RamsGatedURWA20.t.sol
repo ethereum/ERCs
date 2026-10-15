@@ -54,7 +54,7 @@ contract RamsGatedURWA20Test is Test {
     }
 
     function _grant() internal {
-        IAgentMandate.GrantMandateParams memory p = IAgentMandate.GrantMandateParams({
+        IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
             agent: agent,
             validFrom: 0,
             validUntil: uint48(block.timestamp + 1 days),
@@ -69,7 +69,7 @@ contract RamsGatedURWA20Test is Test {
             deadline: 0
         });
         vm.prank(principal);
-        mandate.grantMandate(p, "");
+        mandate.grantMandate(params, "");
     }
 
     // --- the gated path ---
@@ -81,7 +81,7 @@ contract RamsGatedURWA20Test is Test {
         token.transferFrom(principal, recipient, 400);
 
         assertEq(token.balanceOf(recipient), 400);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 400);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 400);
     }
 
     function test_ApproveForRecordsWithoutMovingTokens() public {
@@ -93,7 +93,7 @@ contract RamsGatedURWA20Test is Test {
 
         assertEq(token.allowance(principal, spender), 700);
         assertEq(token.totalSupply(), supply);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 700);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 700);
     }
 
     function test_MintForNeedsRoleAndMandate() public {
@@ -114,7 +114,7 @@ contract RamsGatedURWA20Test is Test {
         token.mintFor(principal, 300);
 
         assertEq(token.balanceOf(principal), 5300);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 300);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 300);
     }
 
     function test_EachActionSpendsTheSameBudget() public {
@@ -125,7 +125,7 @@ contract RamsGatedURWA20Test is Test {
         token.approveFor(principal, spender, 600);
         vm.stopPrank();
 
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 1500);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 1500);
 
         vm.expectRevert(
             abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP)
@@ -156,7 +156,7 @@ contract RamsGatedURWA20Test is Test {
     function test_BlockedRevoked() public {
         _grant();
         vm.prank(principal);
-        mandate.revokeMandate(agent, principal, 0, "");
+        mandate.revokeMandate(agent, principal, address(token), 0, "");
 
         vm.expectRevert(abi.encodeWithSelector(RamsGated.MandateBlocked.selector, IAgentMandate.MandateReason.REVOKED));
         vm.prank(agent);

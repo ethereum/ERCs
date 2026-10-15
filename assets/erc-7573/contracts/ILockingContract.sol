@@ -67,6 +67,15 @@ interface ILockingContract {
     );
 
     /**
+     * @dev Emitted exactly once when the token has been successfully locked for the transfer.
+     * A classic confirmation emits this together with {TransferConfirmed}. A generated-key
+     * completion emits it on the first successful locking transition. Failed, pending, cancelled,
+     * or idempotent no-op attempts MUST NOT emit it.
+     * @param id Lifetime-unique identifier of this transfer leg.
+     */
+    event TokenLocked(uint256 indexed id);
+
+    /**
      * @dev Emitted when the token was successfully claimed (forwarded to the buyer).
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param key the key that was used to claim the asset
@@ -113,7 +122,8 @@ interface ILockingContract {
      * and MUST NOT, by itself, determine either participant. Implementations MAY require
      * `msg.sender` to be a participant or an authorized operator. The buyer and seller
      * outcome material MUST identify distinct keys where the representations are directly comparable.
-     * Emits a {TransferConfirmed}.
+     * Emits a {TransferConfirmed} and, after the token has been successfully locked,
+     * a {TokenLocked}.
      * @param id Lifetime-unique identifier of this transfer leg.
      * @param amount the number of tokens to be transferred.
      * @param from The address of the seller.
