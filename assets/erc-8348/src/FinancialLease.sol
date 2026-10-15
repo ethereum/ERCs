@@ -10,97 +10,97 @@ import {IConversionOracle} from "./IConversionOracle.sol";
 import {IFinancialLease, INPUT_INDEX_OBSERVATION, TERMINATION_DEFAULT} from "./IFinancialLease.sol";
 import {IFinancialLeaseAnchored} from "./IFinancialLeaseAnchored.sol";
 
-/// @title FinancialLease — implementación de referencia del ERC de leasing
-/// @dev Posición del lessor = NFT (tokenId == leaseId). Cronograma inmutable
-///      en unidades de cuenta; conversión a payment asset vía oráculo.
+/// @title FinancialLease — reference implementation of ERC-8348 (Financial Lease)
+/// @dev Lessor position = NFT (tokenId == leaseId). Immutable schedule
+///      in units of account; conversion to the payment asset via oracle.
 contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialLeaseAnchored {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    /// @dev observedAt: cuando el servicer dice que observo el dato
-    ///      off-chain. reportedAt: cuando quedo persistido on-chain
-    ///      (siempre block.timestamp de la tx de updateServicing). Los dos
-    ///      pueden divergir (ver inputFreshness) — maxStaleness NO vive
-    ///      aca: la fija la configuracion del lease (ver
-    ///      Lease.maxStalenessByInput), no el servicer.
+    /// @dev observedAt: when the servicer says it observed the datum
+    ///      off-chain. reportedAt: when it was persisted on-chain
+    ///      (always block.timestamp of the updateServicing tx). The two
+    ///      may diverge (see inputFreshness) — maxStaleness does NOT live
+    ///      here: it is set by the lease configuration (see
+    ///      Lease.maxStalenessByInput), not by the servicer.
     struct ServicingAttestation {
         uint64 observedAt;
         uint64 reportedAt;
     }
 
     struct Lease {
-        // Partes y capa legal
+        // Parties and legal layer
         address lessee;
         bytes2 jurisdiction;
         string governingLaw;
         bytes32 agreementHash;
         string assetRef;
-        // Denominación
+        // Denomination
         address paymentAsset;
         string denomSymbol;
-        address oracle; // address(0) = denominación fija
-        uint64 maxOracleStaleness; // segundos; 0 = sin límite
-        // Cronograma (inmutable, en unidades)
+        address oracle; // address(0) = fixed denomination
+        uint64 maxOracleStaleness; // seconds; 0 = no limit
+        // Schedule (immutable, in units)
         uint64[] dueDates;
         uint256[] unitAmounts;
-        uint256 scheduleTotalUnits; // suma total del cronograma
-        // Estado vivo — devengamiento closed-form (fix S3-01, ver
-        // audit/s3-01-diseno.md y audit/s3-01-fix.md). Nada de esto se
-        // "proyecta": arrears()/status()/nextPayment() son funciones puras
-        // de estos campos + block.timestamp, sin ningun paso de
-        // persistencia intermedio.
-        uint256 settledUnits; // unidades del cronograma efectivamente pagadas (capital, FIFO)
-        // Punitorio: "bruto acumulado" (crystallizedPenaltyUnits + dinamico
-        // sobre lo actualmente impago, ver _computeState) MENOS lo
-        // efectivamente pagado (penaltyPaidUnits). crystallizedPenaltyUnits
-        // solo crece cuando un pago reduce montoImpago(i) de un tramo
-        // vencido — nunca por el mero paso del tiempo ni por relectura.
+        uint256 scheduleTotalUnits; // total sum of the schedule
+        // Live state — closed-form accrual (fix S3-01). Nothing here is
+        // "projected": arrears()/status()/nextPayment() are pure
+        // functions of these fields + block.timestamp, with no
+        // intermediate
+        // persistence step.
+        uint256 settledUnits; // schedule units actually paid (principal, FIFO)
+        // Penalty: "accrued gross" (crystallizedPenaltyUnits + dynamic part
+        // on what is currently unpaid, see _computeState) MINUS what has
+        // actually been paid (penaltyPaidUnits). crystallizedPenaltyUnits
+        // only grows when a payment reduces unpaidAmount(i) of an overdue
+        // tranche — never through the mere passage of time or a re-read.
         uint256 crystallizedPenaltyUnits;
         uint256 penaltyPaidUnits;
-        // Cache de gas (NO fuente de verdad): primer tramo del cronograma
-        // con saldo impago, y la suma acumulada de unitAmounts ANTES de
-        // ese indice. Se mantiene al dia en cada pay(); si por algun motivo
-        // quedara atras, los loops que lo usan son defensivos (ver
-        // _computeState) y el resultado sigue siendo correcto, solo menos
-        // optimo en gas.
+        // Gas cache (NOT a source of truth): first tranche of the schedule
+        // with an unpaid balance, and the cumulative sum of unitAmounts BEFORE
+        // that index. Kept up to date on every pay(); if for any reason it
+        // fell behind, the loops that use it are defensive (see
+        // _computeState) and the result is still correct, just less
+        // gas-efficient.
         uint256 firstUnsettledIndex;
         uint256 cumBeforeFirstUnsettled;
         LeaseStatus status;
-        // Gobernanza de mora (fix S4-01): 0 = sin override, el poder de
-        // declarar default sigue DINAMICAMENTE a ownerOf(leaseId) (ver
-        // _declarer()) — sobrevive a transferencias del NFT sin quedar
-        // nunca en manos de un lessor que ya se desprendio de la
-        // posicion. Un lessor puede delegar a una address fija via
-        // assignDefaultDeclarer, gateado por ser el ownerOf actual.
+        // Delinquency governance (fix S4-01): 0 = no override, the power to
+        // declare default follows ownerOf(leaseId) DYNAMICALLY (see
+        // _declarer()) — it survives NFT transfers and never stays
+        // with a lessor that has already sold its
+        // position. A lessor can delegate to a fixed address via
+        // assignDefaultDeclarer, gated on being the current ownerOf.
         address defaultDeclarer;
-        // Timestamp de la ultima transicion exitosa a InDefault (0 = nunca).
-        // Usado como ancla del timelock de terminateForDefault.
+        // Timestamp of the last successful transition to InDefault (0 = never).
+        // Used as the anchor of the terminateForDefault timelock.
         uint64 defaultDeclaredAt;
-        // Terminación anticipada (fix S6-01): ver _terminate(),
+        // Early termination (fix S6-01): see _terminate(),
         // proposeTermination(), acceptTermination(), terminateForDefault().
-        // terminationTimestamp == 0 significa "no terminado" — una vez
-        // seteado, _effectiveNow() lo usa para congelar toda magnitud
-        // economica derivada de _computeState en ese instante para
-        // siempre, sin importar cuanto tiempo pase despues.
+        // terminationTimestamp == 0 means "not terminated" — once
+        // set, _effectiveNow() uses it to freeze every economic quantity
+        // derived from _computeState at that instant forever,
+        // no matter how much time passes afterwards.
         uint64 terminationTimestamp;
-        uint64 terminationDelay; // fijado al originar; MUST ser > 0
+        uint64 terminationDelay; // set at origination; MUST be > 0
         bytes32 terminationReason;
         address terminationProposedBy;
         bytes32 terminationProposedReason;
-        // Opción de compra
+        // Purchase option
         uint256 purchasePriceUnits;
-        // Punitorio: bps diarios sobre el stock vencido
+        // Penalty: daily bps on the overdue stock
         uint16 penaltyBpsPerDay;
-        // Ancla a activo titulado en un registro ERC-8325 (opcional)
+        // Anchor to a titled asset in an ERC-8325 registry (optional)
         uint256 anchorChainId;
         address anchorRegistry;
         bytes32 anchorId;
-        // Servicing paralelo: atestaciones de frescura por input (bytes32)
+        // Parallel servicing: freshness attestations per input (bytes32)
         address servicer;
         mapping(bytes32 => ServicingAttestation) servicingAttestations;
-        // maxStaleness declarado por input, fijado al originar el lease
-        // (change 3): el servicer ya NO puede autoevaluarse su propia
-        // tolerancia via updateServicing.
+        // maxStaleness declared per input, set when the lease is originated
+        // (change 3): the servicer can NO longer self-assess its own
+        // tolerance via updateServicing.
         mapping(bytes32 => uint64) maxStalenessByInput;
     }
 
@@ -117,25 +117,23 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
     error InvalidTerminationDelay();
     error TimelockNotElapsed();
 
-    /// @dev No forma parte de IFinancialLease: es especifico de como esta
-    ///      implementacion resuelve el rol de defaultDeclarer (fix S4-01).
+    /// @dev Not part of IFinancialLease: specific to how this
+    ///      implementation resolves the defaultDeclarer role (fix S4-01).
     event DefaultDeclarerAssigned(uint256 indexed leaseId, address indexed oldDeclarer, address indexed newDeclarer);
 
-    /// @dev No forma parte de IFinancialLease: la interfaz solo exige
-    ///      LeaseTerminated(leaseId, finalStatus) — ya declarado ahi y
-    ///      reusado para el status Terminated. Estos dos eventos agregan
-    ///      la causal y quien propuso, que LeaseTerminated no carga.
+    /// @dev Not part of IFinancialLease: records who proposed a mutual
+    ///      termination. The reason itself is reported through
+    ///      TerminationRecorded, declared in IFinancialLease.
     event TerminationProposed(uint256 indexed leaseId, address indexed proposedBy, bytes32 reason);
-    event TerminationRecorded(uint256 indexed leaseId, bytes32 indexed reason);
 
     constructor() ERC721("Financial Lease Position", "LEASE") {}
 
-    // ─── Originación ──────────────────────────────────────────
+    // ─── Origination ──────────────────────────────────────────
 
-    /// @dev Agrupado en struct para evitar "stack too deep": createLease
-    ///      tenía 14 parámetros sueltos (varios calldata/arrays), lo cual
-    ///      excede el límite de stack incluso con via-ir. Los campos y su
-    ///      semántica son idénticos a la firma original.
+    /// @dev Grouped in a struct to avoid "stack too deep": createLease
+    ///      had 14 loose parameters (several calldata/arrays), which
+    ///      exceeds the stack limit even with via-ir. The fields and their
+    ///      semantics are identical to the original signature.
     struct CreateLeaseParams {
         address lessee;
         bytes2 jurisdiction;
@@ -151,20 +149,20 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         uint256 purchasePriceUnits;
         uint16 penaltyBpsPerDay;
         address defaultDeclarer;
-        // Timelock entre declareDefault y terminateForDefault. MUST > 0:
-        // cero admite tres lecturas razonables (sin timelock / usar un
-        // default implicito / configuracion invalida) y ese patron ya
-        // costo un hallazgo (S2-05, sentinel de staleness con semantica
-        // ambigua entre capas) — createLease revierte explicito en vez
-        // de dejarlo ambiguo.
+        // Timelock between declareDefault and terminateForDefault. MUST be > 0:
+        // zero admits three reasonable readings (no timelock / use an
+        // implicit default / invalid configuration) and that pattern already
+        // cost one finding (S2-05, a staleness sentinel with ambiguous
+        // semantics across layers) — createLease reverts explicitly instead
+        // of leaving it ambiguous.
         uint64 terminationDelay;
         uint256 anchorChainId;
         address anchorRegistry;
         bytes32 anchorId;
         address servicer;
-        // Tolerancia de staleness por servicing input (change 3): arrays
-        // paralelos porque los structs calldata no admiten mappings.
-        // IndexObservation ignora esta config: usa maxOracleStaleness.
+        // Staleness tolerance per servicing input (change 3): parallel
+        // arrays because calldata structs do not support mappings.
+        // IndexObservation ignores this config: it uses maxOracleStaleness.
         bytes32[] servicingInputs;
         uint64[] servicingMaxStaleness;
     }
@@ -177,8 +175,8 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         require(p.servicingInputs.length == p.servicingMaxStaleness.length, "bad servicing config");
         if (p.terminationDelay == 0) revert InvalidTerminationDelay();
 
-        // Change 1: la tupla de anclaje es o toda-cero (no anclado) o
-        // toda-seteada. Tuplas parciales quedan invalidas.
+        // Change 1: the anchor tuple is either all-zero (not anchored) or
+        // fully set. Partial tuples are invalid.
         bool anyAnchorField = p.anchorChainId != 0 || p.anchorRegistry != address(0) || p.anchorId != bytes32(0);
         bool allAnchorFields = p.anchorChainId != 0 && p.anchorRegistry != address(0) && p.anchorId != bytes32(0);
         if (anyAnchorField && !allAnchorFields) revert InvalidAnchor();
@@ -198,11 +196,11 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         l.unitAmounts = p.unitAmounts;
         l.purchasePriceUnits = p.purchasePriceUnits;
         l.penaltyBpsPerDay = p.penaltyBpsPerDay;
-        // Fix S4-01: ya NO se sustituye address(0) por msg.sender. Dejarlo
-        // en 0 significa "sin override" -> _declarer() lo resuelve
-        // dinamicamente contra ownerOf(leaseId) en cada llamada, asi que
-        // sigue al NFT si se transfiere. Pasar una address explicita
-        // fija ese declarer desde el origen (delegacion inicial).
+        // Fix S4-01: address(0) is NO longer replaced by msg.sender. Leaving it
+        // at 0 means "no override" -> _declarer() resolves it
+        // dynamically against ownerOf(leaseId) on every call, so it
+        // follows the NFT if it is transferred. Passing an explicit address
+        // fixes that declarer from origination (initial delegation).
         l.defaultDeclarer = p.defaultDeclarer;
         l.terminationDelay = p.terminationDelay;
         l.status = LeaseStatus.Active;
@@ -220,15 +218,15 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
             total += p.unitAmounts[i];
         }
         l.scheduleTotalUnits = total;
-        // firstUnsettledIndex / cumBeforeFirstUnsettled quedan en su
-        // default (0, 0) — correcto: apuntan al primer tramo del
-        // cronograma, sin nada acumulado antes.
+        // firstUnsettledIndex / cumBeforeFirstUnsettled stay at their
+        // default (0, 0) — correct: they point to the first tranche of the
+        // schedule, with nothing accumulated before it.
 
-        _mint(msg.sender, leaseId); // lessor = dueño del NFT
+        _mint(msg.sender, leaseId); // lessor = NFT owner
         emit LeaseCreated(leaseId, msg.sender, p.lessee, p.jurisdiction, p.paymentAsset);
     }
 
-    // ─── Conversión ───────────────────────────────────────────
+    // ─── Conversion ───────────────────────────────────────────
 
     function conversionRateAsOf(uint256 leaseId) public view returns (uint256 rate, uint64 asOf) {
         Lease storage l = _leases[leaseId];
@@ -240,64 +238,64 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         Lease storage l = _leases[leaseId];
         uint64 asOf;
         (rate, asOf) = conversionRateAsOf(leaseId);
-        // S2-01: un oraculo con asOf futuro underfloweria `block.timestamp
-        // - asOf` -> Panic -> DoS de pay()/exercisePurchaseOption(). La
-        // capa de servicing ya exige esto (ver FutureObservation en
-        // updateServicing); reusa el mismo error para la capa de oraculo,
-        // sin importar si el oraculo especifico en uso es confiable.
+        // S2-01: an oracle with a future asOf would underflow `block.timestamp
+        // - asOf` -> Panic -> DoS of pay()/exercisePurchaseOption(). The
+        // servicing layer already requires this (see FutureObservation in
+        // updateServicing); the oracle layer reuses the same error,
+        // regardless of whether the specific oracle in use is trusted.
         if (asOf > block.timestamp) revert FutureObservation();
         if (l.maxOracleStaleness != 0 && block.timestamp - asOf > l.maxOracleStaleness) {
             revert StaleOracle();
         }
     }
 
-    /// @dev Cobros: redondeo hacia ARRIBA (contra el pagador)
+    /// @dev Charges: round UP (against the payer)
     function convertToAssets(uint256 leaseId, uint256 units) public view returns (uint256) {
         (uint256 rate,) = conversionRateAsOf(leaseId);
         return units.mulDiv(rate, 1e18, Math.Rounding.Ceil);
     }
 
-    /// @dev Acreditación de pagos: redondeo hacia ABAJO (contra el pagador)
+    /// @dev Payment crediting: round DOWN (against the payer)
     function convertToUnits(uint256 leaseId, uint256 assets) public view returns (uint256) {
         (uint256 rate,) = conversionRateAsOf(leaseId);
         return assets.mulDiv(1e18, rate, Math.Rounding.Floor);
     }
 
-    // ─── Terminalidad y congelamiento ───────────────────────────
+    // ─── Terminality and freezing ─────────────────────────────
 
-    /// @dev Unica fuente de verdad de "¿es un status terminal?". Por
-    ///      valor exacto, no por orden del enum — un `uint8(status) >
-    ///      uint8(X)` se rompe en silencio si algun dia se inserta un
-    ///      miembro nuevo en medio del enum; esto no.
+    /// @dev Single source of truth for "is this a terminal status?". By
+    ///      exact value, not by enum order — a `uint8(status) >
+    ///      uint8(X)` breaks silently if a new member is ever inserted
+    ///      in the middle of the enum; this does not.
     function _isTerminal(LeaseStatus s) internal pure returns (bool) {
         return s == LeaseStatus.Completed || s == LeaseStatus.PurchaseExercised || s == LeaseStatus.Terminated;
     }
 
-    /// @dev "Ahora", a los efectos de cualquier calculo economico. Antes
-    ///      de terminar: block.timestamp real. Despues de terminar:
-    ///      congelado para siempre en el instante de la terminacion — asi
-    ///      arrears()/status()/nextPayment() (todo lo que pasa por
-    ///      _computeState) dejan de moverse apenas el lease es Terminated,
-    ///      sin importar cuanto tiempo transcurra despues.
+    /// @dev "Now", for the purposes of any economic calculation. Before
+    ///      termination: the real block.timestamp. After termination:
+    ///      frozen forever at the instant of termination — so
+    ///      arrears()/status()/nextPayment() (everything that goes through
+    ///      _computeState) stop moving as soon as the lease is Terminated,
+    ///      no matter how much time passes afterwards.
     function _effectiveNow(Lease storage l) internal view returns (uint64) {
         return l.terminationTimestamp == 0 ? uint64(block.timestamp) : l.terminationTimestamp;
     }
 
-    // ─── Devengamiento (closed-form, sin estado intermedio) ────
+    // ─── Accrual (closed-form, no intermediate state) ─────────
 
-    /// @dev Fuente única de verdad de la mora, en unidades de cuenta.
-    ///      Recorre el cronograma desde el cache (firstUnsettledIndex /
-    ///      cumBeforeFirstUnsettled) hasta el primer tramo NO vencido
-    ///      (dueDates ascendente => ahi se puede cortar, todo lo que sigue
-    ///      tambien esta por vencer). Es pura: ninguna llamada externa
-    ///      puede alterar su resultado salvo un pago real (que muta
-    ///      settledUnits/crystallizedPenaltyUnits/penaltyPaidUnits) — por
-    ///      eso arrears()/status()/nextPayment()/pay() dan siempre el
-    ///      mismo valor sin importar cuantas veces se llamo antes (fix
-    ///      S3-01). Devuelve ademas nextIdx/cumAtNextIdx: el primer tramo
-    ///      con dueDate >= ahora (o length si no queda ninguno) y la suma
-    ///      acumulada hasta ahi — reutilizado por nextPayment() para no
-    ///      pagar un segundo recorrido ni una busqueda binaria aparte.
+    /// @dev Single source of truth for delinquency, in units of account.
+    ///      Walks the schedule from the cache (firstUnsettledIndex /
+    ///      cumBeforeFirstUnsettled) up to the first tranche NOT yet due
+    ///      (dueDates ascending => it can stop there, everything after it
+    ///      is also not yet due). It is pure: no external call
+    ///      can change its result except a real payment (which mutates
+    ///      settledUnits/crystallizedPenaltyUnits/penaltyPaidUnits) — that is
+    ///      why arrears()/status()/nextPayment()/pay() always return the
+    ///      same value no matter how many times they were called before (fix
+    ///      S3-01). It also returns nextIdx/cumAtNextIdx: the first tranche
+    ///      with dueDate >= now (or length if none is left) and the cumulative
+    ///      sum up to it — reused by nextPayment() to avoid
+    ///      paying for a second pass or a separate binary search.
     function _computeState(Lease storage l)
         internal
         view
@@ -308,14 +306,14 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         uint256 cum = l.cumBeforeFirstUnsettled;
         uint256 settled = l.settledUnits;
         uint16 bps = l.penaltyBpsPerDay;
-        uint64 nowEff = _effectiveNow(l); // congela post-terminacion
+        uint64 nowEff = _effectiveNow(l); // frozen after termination
 
         for (; i < n; i++) {
             cum += l.unitAmounts[i];
-            if (cum <= settled) continue; // saldado (cache defensivamente atrasado); seguir
-            if (l.dueDates[i] >= nowEff) break; // primer tramo aun no vencido: cortar aca
+            if (cum <= settled) continue; // settled (cache defensively behind); continue
+            if (l.dueDates[i] >= nowEff) break; // first tranche not yet due: stop here
             uint256 unpaid = cum - settled;
-            if (unpaid > l.unitAmounts[i]) unpaid = l.unitAmounts[i]; // clamp defensivo
+            if (unpaid > l.unitAmounts[i]) unpaid = l.unitAmounts[i]; // defensive clamp
             principalArrears += unpaid;
             if (bps > 0) {
                 uint256 daysLate = (nowEff - l.dueDates[i]) / 1 days;
@@ -326,11 +324,11 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         cumAtNextIdx = cum;
     }
 
-    /// @dev penaltyOwed = (crystallizedPenaltyUnits + dinamico-de-ahora) −
-    ///      penaltyPaidUnits. Nunca negativo por construccion: solo se
-    ///      permite pagar hasta min(remaining, penaltyOwed) en cada pago
-    ///      (ver pay()), y el numerador es monotono no-decreciente, asi
-    ///      que penaltyPaidUnits jamas puede superarlo.
+    /// @dev penaltyOwed = (crystallizedPenaltyUnits + dynamic-as-of-now) −
+    ///      penaltyPaidUnits. Never negative by construction: each payment
+    ///      may only pay up to min(remaining, penaltyOwed)
+    ///      (see pay()), and the numerator is monotonically non-decreasing, so
+    ///      penaltyPaidUnits can never exceed it.
     function _penaltyOwed(Lease storage l, uint256 penaltyGrossNow) internal view returns (uint256) {
         return l.crystallizedPenaltyUnits + penaltyGrossNow - l.penaltyPaidUnits;
     }
@@ -341,25 +339,25 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         return principalArrears > 0 ? LeaseStatus.InArrears : LeaseStatus.Active;
     }
 
-    /// @dev Aplica `remaining` unidades a capital, FIFO desde el cache,
-    ///      cristalizando por tramo con SU PROPIA fecha de vencimiento
-    ///      (no una fecha comun para todo el pago — ver T48). Cubre tanto
-    ///      capital vencido (cristaliza) como cuotas futuras (no
-    ///      cristaliza, `dueDates[i] >= block.timestamp`) en un unico
-    ///      recorrido: son la misma cola FIFO, solo difieren en si
-    ///      generan punitorio.
+    /// @dev Applies `remaining` units to principal, FIFO from the cache,
+    ///      crystallizing per tranche with ITS OWN due date
+    ///      (not a common date for the whole payment — see T48). Covers both
+    ///      overdue principal (crystallizes) and future installments (does not
+    ///      crystallize, `dueDates[i] >= block.timestamp`) in a single
+    ///      pass: they are the same FIFO queue, they only differ in whether
+    ///      they generate a penalty.
     function _applyToPrincipal(Lease storage l, uint256 remaining) internal {
         uint256 i = l.firstUnsettledIndex;
-        uint256 cumBefore = l.cumBeforeFirstUnsettled; // suma de unitAmounts[0..i-1]
+        uint256 cumBefore = l.cumBeforeFirstUnsettled; // sum of unitAmounts[0..i-1]
         uint256 settledSoFar = l.settledUnits;
         uint256 crystallizedNow;
         uint256 n = l.dueDates.length;
         uint16 bps = l.penaltyBpsPerDay;
-        // Inalcanzable con un lease Terminated (pay() ya revierte antes
-        // de llegar aca), pero _effectiveNow() de todos modos por
-        // consistencia: ningun calculo economico de este contrato debe
-        // depender de block.timestamp directo, ni siquiera en un camino
-        // hoy inalcanzable.
+        // Unreachable with a Terminated lease (pay() already reverts before
+        // getting here), but _effectiveNow() anyway for
+        // consistency: no economic calculation in this contract should
+        // depend on block.timestamp directly, not even on a path that is
+        // unreachable today.
         uint64 nowEff = _effectiveNow(l);
 
         while (remaining > 0 && i < n) {
@@ -372,16 +370,16 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
             }
             uint256 applied = Math.min(remaining, unpaid);
 
-            // Cristaliza la DIFERENCIA de grosses floorados (gross(unpaid)
-            // antes vs. despues de este pago), no floor(applied*r): floor
-            // es subaditivo (floor(a*r)+floor(b*r) <= floor((a+b)*r)), asi
-            // que cristalizar floor(applied*r) por separado pierde hasta 1
-            // unidad cada vez que un pago parte un tramo, y esa perdida
-            // nunca se recupera -> underflow en _penaltyOwed si se repite
-            // lo suficiente (ver test_T70_BUG). Por telescopado, la suma de
-            // estas diferencias a lo largo de cualquier cantidad de pagos
-            // sobre el mismo tramo da EXACTO gross(unpaid_inicial) -
-            // gross(unpaid_final), sin residuo.
+            // Crystallizes the DIFFERENCE of floored grosses (gross(unpaid)
+            // before vs. after this payment), not floor(applied*r): floor
+            // is subadditive (floor(a*r)+floor(b*r) <= floor((a+b)*r)), so
+            // crystallizing floor(applied*r) separately loses up to 1
+            // unit every time a payment splits a tranche, and that loss
+            // is never recovered -> underflow in _penaltyOwed if it repeats
+            // often enough (see test_T70_BUG). By telescoping, the sum of
+            // these differences over any number of payments
+            // on the same tranche is EXACTLY gross(initial_unpaid) -
+            // gross(final_unpaid), with no residue.
             if (bps > 0 && l.dueDates[i] < nowEff) {
                 uint256 daysLate = (nowEff - l.dueDates[i]) / 1 days;
                 uint256 r = uint256(bps) * daysLate;
@@ -404,12 +402,12 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         if (crystallizedNow > 0) l.crystallizedPenaltyUnits += crystallizedNow;
     }
 
-    // ─── Pago ─────────────────────────────────────────────────
+    // ─── Payment ──────────────────────────────────────────────
 
-    /// @dev Imputación de referencia: punitorios → capital vencido → cuotas.
-    ///      Punitorios (cristalizado + dinamico neteado contra lo pagado)
-    ///      se pueden pagar de forma independiente del capital que los
-    ///      generó (ver T7/Scenario2) — pagar solo el punitorio NO reduce
+    /// @dev Reference imputation: penalties → overdue principal → installments.
+    ///      Penalties (crystallized + dynamic, net of what was paid)
+    ///      can be paid independently of the principal that
+    ///      generated them (see T7/Scenario2) — paying only the penalty does NOT reduce
     ///      outstandingUnits.
     function pay(uint256 leaseId, uint256 assets) external nonReentrant {
         Lease storage l = _leases[leaseId];
@@ -425,23 +423,23 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
             emit ArrearsAccrued(leaseId, principalArrears + penaltyOwed);
         }
 
-        // Fix (d): capar a lo adeudado y transferir solo lo necesario
+        // Fix (d): cap at what is owed and transfer only what is needed
         uint256 remainingPrincipal = l.scheduleTotalUnits - l.settledUnits;
         uint256 owedUnits = penaltyOwed + remainingPrincipal;
         uint256 units = Math.min(assets.mulDiv(1e18, rate, Math.Rounding.Floor), owedUnits);
         if (units == 0) revert NothingDue();
         uint256 pulled = units.mulDiv(rate, 1e18, Math.Rounding.Ceil);
 
-        // ── Efectos ──
+        // ── Effects ──
         uint256 remaining = units;
 
-        // 1) Punitorios — fix (b): NO tocan settledUnits ni el capital
+        // 1) Penalties — fix (b): they do NOT touch settledUnits or principal
         uint256 toPenalty = Math.min(remaining, penaltyOwed);
         l.penaltyPaidUnits += toPenalty;
         remaining -= toPenalty;
 
-        // 2) Capital (vencido primero por el orden FIFO del cache, luego
-        //    cuotas futuras) — cristaliza punitorio por tramo al pasar
+        // 2) Principal (overdue first, by the cache's FIFO order, then
+        //    future installments) — crystallizes the penalty per tranche as it goes
         if (remaining > 0) {
             _applyToPrincipal(l, remaining);
         }
@@ -457,32 +455,32 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
                 emit LeaseTerminated(leaseId, LeaseStatus.Completed);
             }
         } else if (statusBefore == LeaseStatus.Active) {
-            // La mora persiste y todavia no se habia marcado — queda
-            // registrada para que un pago posterior no vuelva a emitir
-            // ArrearsAccrued por la misma mora.
+            // Arrears persist and had not been flagged yet — it is
+            // recorded so that a later payment does not emit
+            // ArrearsAccrued again for the same arrears.
             l.status = LeaseStatus.InArrears;
         }
 
-        // ── Interacción al final — fix (e) ──
+        // ── Interaction last — fix (e) ──
         IERC20(l.paymentAsset).safeTransferFrom(msg.sender, ownerOf(leaseId), pulled);
 
         emit PaymentReceived(leaseId, msg.sender, pulled, units, rate, l.scheduleTotalUnits - l.settledUnits);
     }
 
-    // ─── Mora formal ──────────────────────────────────────────
+    // ─── Formal default ───────────────────────────────────────
 
-    /// @dev Fix S4-01: si nunca se delego explicitamente (defaultDeclarer
-    ///      == 0), el poder de declarar default es del ownerOf(leaseId)
-    ///      ACTUAL — sigue al NFT en cada transferencia, nunca se queda
-    ///      congelado en un lessor que ya vendio su posicion.
+    /// @dev Fix S4-01: if it was never explicitly delegated (defaultDeclarer
+    ///      == 0), the power to declare default belongs to the CURRENT
+    ///      ownerOf(leaseId) — it follows the NFT on every transfer and never stays
+    ///      frozen with a lessor that already sold its position.
     function _declarer(Lease storage l, uint256 leaseId) internal view returns (address) {
         return l.defaultDeclarer == address(0) ? ownerOf(leaseId) : l.defaultDeclarer;
     }
 
-    /// @dev Delegacion explicita del rol de defaultDeclarer, gateada por
-    ///      quien sea el dueño ACTUAL del NFT (nunca por quien lo era al
-    ///      originar el lease). `newDeclarer == address(0)` limpia la
-    ///      delegacion y vuelve a la resolucion dinamica via ownerOf.
+    /// @dev Explicit delegation of the defaultDeclarer role, gated on
+    ///      whoever is the CURRENT owner of the NFT (never whoever owned it when
+    ///      the lease was originated). `newDeclarer == address(0)` clears the
+    ///      delegation and returns to dynamic resolution via ownerOf.
     function assignDefaultDeclarer(uint256 leaseId, address newDeclarer) external {
         if (msg.sender != ownerOf(leaseId)) revert NotAuthorized();
         Lease storage l = _leases[leaseId];
@@ -494,9 +492,9 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
     function declareDefault(uint256 leaseId) external {
         Lease storage l = _leases[leaseId];
         if (msg.sender != _declarer(l, leaseId)) revert NotAuthorized();
-        // Active: mora nunca "notada" por un pay() previo. InArrears: ya
-        // notada (persistida por pay(), ver epilogo de pay()). Ambas son
-        // validas — la unica diferencia es si ArrearsAccrued ya se emitio.
+        // Active: arrears never "noticed" by a previous pay(). InArrears: already
+        // noticed (persisted by pay(), see the epilogue of pay()). Both are
+        // valid — the only difference is whether ArrearsAccrued was already emitted.
         LeaseStatus statusBefore = l.status;
         if (statusBefore != LeaseStatus.Active && statusBefore != LeaseStatus.InArrears) revert WrongStatus();
 
@@ -512,12 +510,12 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         emit DefaultDeclared(leaseId, msg.sender);
     }
 
-    // ─── Terminación anticipada (fix S6-01) ─────────────────────
+    // ─── Early termination (fix S6-01) ───────────────────────
 
-    /// @dev Congela el lease para siempre: persiste el instante y la
-    ///      causal, y pasa a Terminated. A partir de aca, _effectiveNow()
-    ///      deja de avanzar para este lease — ninguna magnitud economica
-    ///      derivada de _computeState vuelve a cambiar.
+    /// @dev Freezes the lease forever: persists the instant and the
+    ///      cause, and moves to Terminated. From here on, _effectiveNow()
+    ///      stops advancing for this lease — no economic quantity
+    ///      derived from _computeState changes again.
     function _terminate(uint256 leaseId, Lease storage l, bytes32 reason) internal {
         l.terminationTimestamp = uint64(block.timestamp);
         l.status = LeaseStatus.Terminated;
@@ -526,11 +524,11 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         emit TerminationRecorded(leaseId, reason);
     }
 
-    /// @dev Paso 1 de la terminación por acuerdo mutuo. Llamable por el
-    ///      lessee o por el ownerOf(leaseId) actual, en cualquier status
-    ///      no terminal (Active, InArrears o InDefault). Una propuesta
-    ///      nueva SIEMPRE sobrescribe la anterior — sin importar quién la
-    ///      hizo ni si ya había una pendiente sin aceptar.
+    /// @dev Step 1 of termination by mutual agreement. Callable by the
+    ///      lessee or by the current ownerOf(leaseId), in any
+    ///      non-terminal status (Active, InArrears or InDefault). A new
+    ///      proposal ALWAYS overwrites the previous one — regardless of who
+    ///      made it or whether one was already pending acceptance.
     function proposeTermination(uint256 leaseId, bytes32 reason) external {
         Lease storage l = _leases[leaseId];
         if (_isTerminal(l.status)) revert WrongStatus();
@@ -541,19 +539,19 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         emit TerminationProposed(leaseId, msg.sender, reason);
     }
 
-    /// @dev Paso 2. Solo la CONTRAPARTE del último `proposeTermination`
-    ///      puede aceptar: si propuso el lessee, acepta el ownerOf
-    ///      actual, y viceversa (evaluado con las identidades VIGENTES al
-    ///      momento de aceptar, no las que tenían al proponer — si
-    ///      `lessee`/el dueño del NFT cambiaron en el medio,
-    ///      assignLessee/transferFrom siguen permitidos mientras no haya
-    ///      terminado, ver matriz de operaciones).
+    /// @dev Step 2. Only the COUNTERPARTY of the last `proposeTermination`
+    ///      can accept: if the lessee proposed, the current ownerOf accepts,
+    ///      and vice versa (evaluated with the identities IN FORCE at
+    ///      acceptance time, not those at proposal time — if
+    ///      `lessee`/the NFT owner changed in between,
+    ///      assignLessee/transferFrom remain allowed until the lease has
+    ///      terminated, see the operation matrix).
     function acceptTermination(uint256 leaseId) external {
         Lease storage l = _leases[leaseId];
         if (_isTerminal(l.status)) revert WrongStatus();
 
         address proposer = l.terminationProposedBy;
-        if (proposer == address(0)) revert NotAuthorized(); // nada propuesto todavia
+        if (proposer == address(0)) revert NotAuthorized(); // nothing proposed yet
         address expectedAccepter = proposer == l.lessee ? ownerOf(leaseId) : l.lessee;
         if (msg.sender != expectedAccepter) revert NotAuthorized();
 
@@ -564,13 +562,13 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         _terminate(leaseId, l, reason);
     }
 
-    /// @dev Terminación por incumplimiento. Solo el ownerOf(leaseId)
-    ///      actual (nunca el defaultDeclarer per se, aunque en general
-    ///      coincidan salvo delegación explícita — ver S4-01/S4-02:
-    ///      declarar default y decidir terminar son facultades
-    ///      distintas, la primera puede delegarse sin delegar la
-    ///      segunda). Requiere status == InDefault (estricto, no
-    ///      InArrears ni Active) Y que haya pasado el timelock desde
+    /// @dev Termination for breach. Only the current ownerOf(leaseId)
+    ///      (never the defaultDeclarer as such, although they usually
+    ///      coincide unless explicitly delegated — see S4-01/S4-02:
+    ///      declaring default and deciding to terminate are distinct
+    ///      powers; the first can be delegated without delegating the
+    ///      second). Requires status == InDefault (strictly, not
+    ///      InArrears or Active) AND that the timelock has elapsed since
     ///      defaultDeclaredAt.
     function terminateForDefault(uint256 leaseId) external {
         if (msg.sender != ownerOf(leaseId)) revert NotAuthorized();
@@ -583,7 +581,7 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         _terminate(leaseId, l, TERMINATION_DEFAULT);
     }
 
-    // ─── Opción de compra ─────────────────────────────────────
+    // ─── Purchase option ──────────────────────────────────────
 
     function purchaseOption(uint256 leaseId) public view returns (uint256 priceInAssets, bool exercisable) {
         Lease storage l = _leases[leaseId];
@@ -606,29 +604,29 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
 
         emit PurchaseOptionExercised(leaseId, price);
         emit LeaseTerminated(leaseId, LeaseStatus.PurchaseExercised);
-        // Extensión asset-bound: acá iría el settlement atómico del bien
+        // Asset-bound extension: atomic settlement of the asset would go here
     }
 
-    // ─── Cesión del tomador ───────────────────────────────────
+    // ─── Lessee assignment ────────────────────────────────────
 
-    /// @dev Fix S4-02: solo el lessee SALIENTE puede reasignarse a si
-    ///      mismo. La version anterior tambien aceptaba a
-    ///      `defaultDeclarer` (que por default terminaba siendo el
-    ///      lessor) sin gate de status ni consentimiento del lessee —
-    ///      permitia robar la opcion de compra a costo cero (ver
-    ///      audit/s4-02-fix.md). Simplificación de referencia: en
-    ///      producción, además consentimiento explícito (firma/two-step)
-    ///      + hook de compliance (3643/7943). Reasignación iniciada por
-    ///      un tercero (ej. repossession post-default) requeriría un rol
-    ///      separado, explícitamente delegado — nunca el mismo que
-    ///      declara default ni el lessor.
-    /// @dev Permitido en Active/InArrears/InDefault, bloqueado en
-    ///      terminales (fix S6-01, matriz de operaciones): es política
-    ///      comercial, no una cuestión de autorización — el estándar deja
-    ///      esta elección a la implementación; esta referencia elige
-    ///      permitirlo incluso en mora porque no hay ninguna razón
-    ///      económica para impedirle al tomador ceder su posición
-    ///      mientras el lease siga vivo.
+    /// @dev Fix S4-02: only the OUTGOING lessee can reassign
+    ///      itself. The previous version also accepted
+    ///      `defaultDeclarer` (which by default ended up being the
+    ///      lessor) with no status gate and no lessee consent —
+    ///      it allowed stealing the purchase option at zero cost
+    ///      (finding S4-02). Reference simplification: in
+    ///      production, add explicit consent (signature/two-step)
+    ///      + a compliance hook (3643/7943). Reassignment initiated by
+    ///      a third party (e.g. repossession after default) would require a
+    ///      separate, explicitly delegated role — never the one that
+    ///      declares default, nor the lessor.
+    /// @dev Allowed in Active/InArrears/InDefault, blocked in
+    ///      terminal statuses (fix S6-01, operation matrix): it is a
+    ///      commercial policy, not an authorization question — the standard leaves
+    ///      this choice to the implementation; this reference chooses to
+    ///      allow it even in arrears because there is no economic
+    ///      reason to prevent the lessee from assigning its position
+    ///      while the lease is still alive.
     function assignLessee(uint256 leaseId, address newLessee) external {
         Lease storage l = _leases[leaseId];
         if (msg.sender != l.lessee) revert NotAuthorized();
@@ -638,23 +636,23 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         emit LesseeAssigned(leaseId, old, newLessee);
     }
 
-    // ─── Anclaje a registro ERC-8325 ───────────────────────────
+    // ─── Anchoring to an ERC-8325 registry ────────────────────
 
     function assetAnchor(uint256 leaseId) external view returns (uint256 chainId, address registry, bytes32 anchorId) {
         Lease storage l = _leases[leaseId];
         return (l.anchorChainId, l.anchorRegistry, l.anchorId);
     }
 
-    // ─── Servicing (reporte paralelo, no enforcado) ────────────
+    // ─── Servicing (parallel reporting, not enforced) ─────────
 
-    /// @dev IndexObservation se deriva de conversionRateAsOf (observedAt ==
-    ///      reportedAt: el oraculo no distingue los dos momentos) y nunca
-    ///      se atesta manualmente (ver DerivedInput en updateServicing).
-    ///      Las demas categorias son atestaciones que el servicer
-    ///      actualiza. Puro reporte: no participa de pay() ni del estado
-    ///      del lease. Un input bytes32 nunca atestado y no derivado
-    ///      devuelve (0,0,0) — informacion valida ("nunca se reporto"), no
-    ///      un caso de error.
+    /// @dev IndexObservation is derived from conversionRateAsOf (observedAt ==
+    ///      reportedAt: the oracle does not distinguish the two moments) and is never
+    ///      attested manually (see DerivedInput in updateServicing).
+    ///      The other categories are attestations that the servicer
+    ///      updates. Reporting only: they take no part in pay() or in the
+    ///      lease state. A bytes32 input never attested and not derived
+    ///      returns (0,0,0) — valid information ("never reported"), not
+    ///      an error case.
     function inputFreshness(uint256 leaseId, bytes32 input)
         external
         view
@@ -680,7 +678,7 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         emit ServicingUpdated(leaseId, input, observedAt, reportedAt);
     }
 
-    // ─── Views del estándar ───────────────────────────────────
+    // ─── Standard views ───────────────────────────────────────
 
     function lessor(uint256 id) external view returns (address) {
         return ownerOf(id);
@@ -718,13 +716,13 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         return _leases[id].dueDates.length;
     }
 
-    /// @dev Fix (a): `paid` se deriva del acumulado saldado, no del
-    ///      puntero de devengamiento. Loop aceptable en referencia;
-    ///      producción usaría prefix sums.
-    /// @dev No necesita _computeState: `paid` depende solo de
-    ///      settledUnits (que pay() muta directamente) y del cronograma
-    ///      inmutable — ninguno de los dos lo toca el paso del tiempo,
-    ///      así que ya es preciso en cualquier momento entre tx.
+    /// @dev Fix (a): `paid` is derived from the settled cumulative amount, not from the
+    ///      accrual pointer. A loop is acceptable in a reference;
+    ///      production would use prefix sums.
+    /// @dev Does not need _computeState: `paid` depends only on
+    ///      settledUnits (which pay() mutates directly) and on the immutable
+    ///      schedule — neither is touched by the passage of time,
+    ///      so it is already accurate at any moment between txs.
     function paymentAt(uint256 id, uint256 i) external view returns (uint256 units, uint64 dueDate, bool paid) {
         Lease storage l = _leases[id];
         units = l.unitAmounts[i];
@@ -736,9 +734,9 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         paid = l.settledUnits >= cum;
     }
 
-    /// @dev settledUnits solo lo muta pay() — el mero paso del tiempo
-    ///      nunca lo toca, así que esta view ya es precisa en cualquier
-    ///      momento entre tx sin necesitar _computeState.
+    /// @dev settledUnits is only mutated by pay() — the mere passage of time
+    ///      never touches it, so this view is already accurate at any
+    ///      moment between txs without needing _computeState.
     function outstandingUnits(uint256 id) public view returns (uint256) {
         Lease storage l = _leases[id];
         return l.scheduleTotalUnits - l.settledUnits;
@@ -748,21 +746,21 @@ contract FinancialLease is ERC721, ReentrancyGuard, IFinancialLease, IFinancialL
         return convertToAssets(id, outstandingUnits(id));
     }
 
-    /// @dev Frequency-independent por construccion (fix S3-01): función
-    ///      pura de (cronograma, settledUnits, crystallizedPenaltyUnits,
-    ///      penaltyPaidUnits, block.timestamp). Ningún poke (llamada sin
-    ///      pago real) puede alterar ninguno de esos campos.
+    /// @dev Frequency-independent by construction (fix S3-01): a pure
+    ///      function of (schedule, settledUnits, crystallizedPenaltyUnits,
+    ///      penaltyPaidUnits, block.timestamp). No poke (a call without a
+    ///      real payment) can alter any of those fields.
     function arrears(uint256 id) external view returns (uint256) {
         Lease storage l = _leases[id];
         (uint256 principalArrears, uint256 penaltyGrossNow,,) = _computeState(l);
         return convertToAssets(id, principalArrears + _penaltyOwed(l, penaltyGrossNow));
     }
 
-    /// @dev Próxima cuota del calendario cuya fecha de vencimiento AÚN NO
-    ///      pasó (independiente de si hay mora en cuotas anteriores — la
-    ///      mora se consulta vía arrears()/status()). Si el cronograma ya
-    ///      está totalmente saldado (incluso si fue prepago antes de
-    ///      vencer), no queda "próxima" que reportar: (0, 0).
+    /// @dev Next installment in the calendar whose due date has NOT YET
+    ///      passed (regardless of arrears on earlier installments — arrears
+    ///      are queried via arrears()/status()). If the schedule is already
+    ///      fully settled (even if prepaid before falling
+    ///      due), there is no "next" to report: (0, 0).
     function nextPayment(uint256 id) external view returns (uint256 assets, uint64 dueDate) {
         Lease storage l = _leases[id];
         if (l.settledUnits >= l.scheduleTotalUnits) return (0, 0);

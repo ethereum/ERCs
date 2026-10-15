@@ -11,9 +11,9 @@ import {IFinancialLease} from "../src/IFinancialLease.sol";
 import {ChainlinkConversionOracle} from "../src/oracles/ChainlinkConversionOracle.sol";
 import {MockAggregator} from "./mocks/MockAggregator.sol";
 
-/// @dev Stablecoin mock con decimales configurables (para simular una
-///      ARS digital de 6 decimales, distinta del mUSD de 18 decimales
-///      usado en FinancialLease.t.sol).
+/// @dev Stablecoin mock with configurable decimals (to simulate a
+///      6-decimal digital ARS, different from the 18-decimal mUSD
+///      used in FinancialLease.t.sol).
 contract MockStable is ERC20 {
     uint8 private immutable _dec;
 
@@ -30,26 +30,26 @@ contract MockStable is ERC20 {
     }
 }
 
-/// @title Escenarios end-to-end para ERC-8348 (Financial Lease)
-/// @dev Esta suite NO reemplaza FinancialLease.t.sol (25 tests unitarios):
-///      es una capa adicional que simula contratos de leasing reales de
-///      punta a punta, con invariantes verificados tras cada operacion.
+/// @title End-to-end scenarios for ERC-8348 (Financial Lease)
+/// @dev This suite does NOT replace FinancialLease.t.sol (unit tests):
+///      it is an additional layer that simulates real lease contracts
+///      end to end, with invariants checked after every operation.
 contract ScenariosTest is Test {
     FinancialLease lease;
 
-    // Token "actual" contra el cual se verifica el invariante I5 (balance
-    // total recibido por el/los lessor(es) == suma de PaymentReceived).
-    // Cada escenario usa un unico payment asset a lo largo de su ciclo de
-    // vida, asi que alcanza con un puntero mutable seteado al comienzo.
+    // "Current" token against which invariant I5 is checked (total
+    // balance received by the lessor(s) == sum of PaymentReceived).
+    // Each scenario uses a single payment asset throughout its
+    // lifecycle, so a mutable pointer set at the start is enough.
     IERC20 internal _currentAssetToken;
 
-    // ─── Registro de cronogramas (para reconstruir invariantes desde
-    //     fuera del contrato sin tocar src/) ─────────────────────────
+    // ─── Schedule registry (to rebuild invariants from
+    //     outside the contract without touching src/) ────────────
     mapping(uint256 => uint64[]) internal _schedDue;
     mapping(uint256 => uint256[]) internal _schedAmt;
     mapping(uint256 => uint256) internal _schedTotal;
 
-    // ─── Contabilidad de pagos (I5), reconstruida via replay de logs ──
+    // ─── Payment accounting (I5), rebuilt by replaying logs ──
     mapping(uint256 => address) internal _ownerOfLease;
     mapping(address => uint256) internal _expectedFromPayments;
     mapping(address => uint256) internal _expectedFromPurchase;
@@ -67,7 +67,7 @@ contract ScenariosTest is Test {
     }
 
     // ════════════════════════════════════════════════════════════════
-    // Helpers de originacion
+    // Origination helpers
     // ════════════════════════════════════════════════════════════════
 
     function _monthlySchedule(uint256 n, uint256 amountEach)
@@ -135,18 +135,18 @@ contract ScenariosTest is Test {
     }
 
     // ════════════════════════════════════════════════════════════════
-    // Reconstruccion externa de arrearsPrincipalUnits
+    // External reconstruction of arrearsPrincipalUnits
     // ════════════════════════════════════════════════════════════════
 
-    /// @dev El contrato nunca expone arrearsPrincipalUnits ni
-    ///      arrearsPenaltyUnits por separado (solo arrears(), que los
-    ///      combina en assets). Pero como pay() SIEMPRE imputa en el
-    ///      orden punitorios -> capital vencido -> cuotas futuras, el
-    ///      capital vencido nunca puede "saltearse" cuotas: por lo tanto
+    /// @dev The contract never exposes arrearsPrincipalUnits or
+    ///      arrearsPenaltyUnits separately (only arrears(), which
+    ///      combines them in assets). But since pay() ALWAYS imputes in the
+    ///      order penalties -> overdue principal -> future installments,
+    ///      overdue principal can never "skip" installments: therefore
     ///      arrearsPrincipalUnits == totalOverdueNominal - settledUnits
-    ///      (nunca negativo), donde totalOverdueNominal es la suma de
-    ///      unitAmounts cuyo dueDate ya paso. Ambos lados son
-    ///      reconstruibles desde la interfaz publica.
+    ///      (never negative), where totalOverdueNominal is the sum of
+    ///      unitAmounts whose dueDate has passed. Both sides can be
+    ///      rebuilt from the public interface.
     function _reconstructArrearsPrincipal(uint256 leaseId) internal view returns (uint256 principal) {
         uint256 outstanding = lease.outstandingUnits(leaseId);
         uint256 settled = _schedTotal[leaseId] - outstanding;
@@ -161,46 +161,46 @@ contract ScenariosTest is Test {
     }
 
     // ════════════════════════════════════════════════════════════════
-    // Invariantes globales — llamar despues de CADA operacion
+    // Global invariants — call after EVERY operation
     // ════════════════════════════════════════════════════════════════
 
     function _assertInvariants(uint256 leaseId) internal {
         uint256 total = _schedTotal[leaseId];
         uint256 outstanding = lease.outstandingUnits(leaseId);
 
-        // I1: settledUnits <= scheduleTotalUnits. outstandingUnits() se
-        // calcula como total - settled: si settled > total, la resta
-        // hubiese revertido por underflow. Chequeamos ademas el rango.
-        assertLe(outstanding, total, "I1: outstandingUnits excede scheduleTotalUnits");
+        // I1: settledUnits <= scheduleTotalUnits. outstandingUnits() is
+        // computed as total - settled: if settled > total, the subtraction
+        // would have reverted on underflow. We also check the range.
+        assertLe(outstanding, total, "I1: outstandingUnits exceeds scheduleTotalUnits");
 
-        // I2: outstandingUnits == scheduleTotalUnits - settledUnits es
-        // verdadero por construccion en el contrato (es su formula
-        // literal); no es falseable desde afuera. Lo que SI verificamos,
-        // como chequeo de regresion mas fuerte, es que el campo
-        // newOutstandingUnits emitido en cada PaymentReceived coincide
-        // con el estado vivo leido inmediatamente despues (dentro de
+        // I2: outstandingUnits == scheduleTotalUnits - settledUnits is
+        // true by construction in the contract (it is its literal
+        // formula); it cannot be falsified from outside. What we DO check,
+        // as a stronger regression check, is that the
+        // newOutstandingUnits field emitted in each PaymentReceived matches
+        // the live state read immediately afterwards (inside
         // _assertPaymentAccounting).
 
-        // I6: la mora de capital reconstruida nunca debe exceder lo que
-        // falta pagar del cronograma.
+        // I6: the rebuilt overdue principal must never exceed what
+        // remains to be paid on the schedule.
         uint256 principalRecon = _reconstructArrearsPrincipal(leaseId);
-        assertLe(principalRecon, outstanding, "I6: mora de capital excede outstandingUnits");
+        assertLe(principalRecon, outstanding, "I6: overdue principal exceeds outstandingUnits");
 
         IFinancialLease.LeaseStatus st = lease.status(leaseId);
         uint256 arrearsAssets = lease.arrears(leaseId);
 
         // I3: Completed => outstanding == 0 && arrears == 0.
-        // (arrears() == 0 en assets es equivalente exacto a "0 unidades"
-        // porque convertToAssets(0) = 0 y cualquier valor positivo de
-        // unidades redondea hacia arriba a un valor positivo de assets.)
+        // (arrears() == 0 in assets is exactly equivalent to "0 units"
+        // because convertToAssets(0) = 0 and any positive number of
+        // units rounds up to a positive amount of assets.)
         if (st == IFinancialLease.LeaseStatus.Completed) {
-            assertEq(outstanding, 0, "I3: Completed con outstandingUnits != 0");
-            assertEq(arrearsAssets, 0, "I3: Completed con arrears != 0");
+            assertEq(outstanding, 0, "I3: Completed with outstandingUnits != 0");
+            assertEq(arrearsAssets, 0, "I3: Completed with arrears != 0");
         }
 
-        // I4: Active => sin mora de capital ni punitorios.
+        // I4: Active => no overdue principal and no penalties.
         if (st == IFinancialLease.LeaseStatus.Active) {
-            assertEq(arrearsAssets, 0, "I4: Active con mora pendiente");
+            assertEq(arrearsAssets, 0, "I4: Active with pending arrears");
         }
 
         _assertPaymentAccounting();
@@ -213,11 +213,11 @@ contract ScenariosTest is Test {
         }
     }
 
-    /// @dev I5: replay de logs desde el ultimo drenaje. Reconstruye,
-    ///      para cada direccion que alguna vez fue dueño del NFT de
-    ///      alguna lease, cuanto deberia haber recibido via
-    ///      PaymentReceived + PurchaseOptionExercised, y lo compara
-    ///      contra su balance real del payment asset vigente.
+    /// @dev I5: replay of logs since the last drain. Rebuilds,
+    ///      for every address that ever owned the NFT of
+    ///      any lease, how much it should have received via
+    ///      PaymentReceived + PurchaseOptionExercised, and compares it
+    ///      with its actual balance of the current payment asset.
     function _assertPaymentAccounting() internal {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         for (uint256 i = 0; i < logs.length; i++) {
@@ -241,7 +241,7 @@ contract ScenariosTest is Test {
                 assertEq(
                     lease.outstandingUnits(lid),
                     newOutstanding,
-                    "REGRESION: PaymentReceived.newOutstandingUnits no coincide con outstandingUnits() vivo"
+                    "REGRESSION: PaymentReceived.newOutstandingUnits does not match live outstandingUnits()"
                 );
             } else if (topic0 == PURCHASE_TOPIC && logEntry.topics.length == 2) {
                 uint256 lid = uint256(logEntry.topics[1]);
@@ -257,13 +257,13 @@ contract ScenariosTest is Test {
             assertEq(
                 _currentAssetToken.balanceOf(a),
                 _expectedFromPayments[a] + _expectedFromPurchase[a],
-                "I5: balance del lessor no coincide con la suma de PaymentReceived + purchase"
+                "I5: lessor balance does not match the sum of PaymentReceived + purchase"
             );
         }
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 1 — leasing UVA argentino, ciclo completo y limpio
+    // SCENARIO 1 — Argentine UVA lease, full clean cycle
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario1_UVAFullCycle() public {
@@ -299,7 +299,7 @@ contract ScenariosTest is Test {
 
         for (uint256 i = 0; i < n; i++) {
             vm.warp(uint256(dueDates[i]));
-            rate = (rate * 104) / 100; // ~4% acumulativo mensual
+            rate = (rate * 104) / 100; // ~4% compounded monthly
             uvaOracle.set(rate);
 
             totalNominalConverted += lease.convertToAssets(id, unitAmounts[i]);
@@ -313,20 +313,20 @@ contract ScenariosTest is Test {
         }
 
         console2.log("Escenario 1 - rate final (x1e6 ARS/UVA):", rate / 1e6);
-        console2.log("Escenario 1 - assets totales pagados por el tomador:", totalAssetsPaid);
-        console2.log("Escenario 1 - suma nominal convertida al momento de cada pago:", totalNominalConverted);
+        console2.log("Scenario 1 - total assets paid by the lessee:", totalAssetsPaid);
+        console2.log("Scenario 1 - nominal sum converted at the time of each payment:", totalNominalConverted);
 
         uint256 finalOutstanding = lease.outstandingUnits(id);
         console2.log("Escenario 1 - outstandingUnits final (esperado 0):", finalOutstanding);
-        assertEq(finalOutstanding, 0, "ESCENARIO 1 CRITICO: queda dust tras pagar las 36 cuotas exactas");
+        assertEq(finalOutstanding, 0, "SCENARIO 1 CRITICAL: dust remains after paying the 36 exact installments");
         assertEq(
             uint8(lease.status(id)),
             uint8(IFinancialLease.LeaseStatus.Completed),
-            "debe estar Completed tras la 36a cuota"
+            "must be Completed after the 36th installment"
         );
 
         (uint256 price, bool exercisable) = lease.purchaseOption(id);
-        assertTrue(exercisable, "la opcion de compra debe ser ejercible tras Completed");
+        assertTrue(exercisable, "the purchase option must be exercisable after Completed");
 
         vm.expectEmit(true, false, false, false);
         emit IFinancialLease.PurchaseOptionExercised(id, price);
@@ -338,7 +338,7 @@ contract ScenariosTest is Test {
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 2 — mora, punitorios, cura y finalizacion
+    // SCENARIO 2 — arrears, penalties, cure and completion
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario2_ArrearsPenaltyCureCompletion() public {
@@ -352,9 +352,9 @@ contract ScenariosTest is Test {
         vm.prank(lesseeAddr);
         stable.approve(address(lease), type(uint256).max);
 
-        // Rate fijo en 1e18: convertToAssets/convertToUnits se vuelven
-        // identidades exactas (sin redondeo), lo que permite aislar el
-        // componente EXACTO de punitorios mas abajo.
+        // Rate fixed at 1e18: convertToAssets/convertToUnits become
+        // exact identities (no rounding), which makes it possible to isolate the
+        // EXACT penalty component below.
         MockUVAOracle oracle_ = new MockUVAOracle(1e18);
 
         (uint64[] memory dueDates, uint256[] memory unitAmounts) = _monthlySchedule(12, 1000e18);
@@ -371,7 +371,7 @@ contract ScenariosTest is Test {
             declarer
         );
 
-        // Cuotas 1-3 puntuales
+        // Installments 1-3 on time
         for (uint256 i = 0; i < 3; i++) {
             vm.warp(uint256(dueDates[i]));
             oracle_.set(1e18);
@@ -381,27 +381,27 @@ contract ScenariosTest is Test {
             _assertInvariants(id);
         }
 
-        // Saltear cuotas 4 y 5: avanzar bien mas alla de su vencimiento
-        vm.warp(uint256(dueDates[4]) + 5 days); // ~65 dias sin pagar desde la cuota 3
+        // Skip installments 4 and 5: advance well past their due date
+        vm.warp(uint256(dueDates[4]) + 5 days); // ~65 days unpaid since installment 3
         oracle_.set(1e18);
 
-        // status()/arrears() proyectan el devengo a block.timestamp: ya
-        // reflejan la mora aca mismo, SIN mandar ninguna transaccion
-        // (antes de la corrección de views obsoletas hacía falta un pago
-        // minimo "poke" para forzar la persistencia; ya no es necesario).
+        // status()/arrears() report accrual as of block.timestamp: they already
+        // reflect the arrears right here, WITHOUT sending any transaction
+        // (before the stale-views fix a minimal "poke" payment was
+        // needed to force persistence; it no longer is).
         assertEq(
-            uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InArrears), "debe verse InArrears sin tx previa"
+            uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InArrears), "must show InArrears with no prior tx"
         );
-        assertGt(lease.arrears(id), 0, "arrears() debe ser > 0 sin tx previa");
+        assertGt(lease.arrears(id), 0, "arrears() must be > 0 with no prior tx");
 
         (,, bool paid3) = lease.paymentAt(id, 3);
         (,, bool paid4) = lease.paymentAt(id, 4);
-        assertFalse(paid3, "REGRESION: cuota 4 vencida impaga no debe figurar paid");
-        assertFalse(paid4, "REGRESION: cuota 5 vencida impaga no debe figurar paid");
+        assertFalse(paid3, "REGRESSION: overdue unpaid installment 4 must not show as paid");
+        assertFalse(paid4, "REGRESSION: overdue unpaid installment 5 must not show as paid");
 
-        // declareDefault es la primera tx real desde la cuota 3: establece
-        // el primer checkpoint persistido de la mora (capital vencido,
-        // sin punitorios todavia — devengan recien desde este checkpoint).
+        // declareDefault is the first real tx since installment 3: it emits
+        // ArrearsAccrued (no pay() has flagged these arrears yet) and
+        // moves the lease to InDefault.
         vm.expectEmit(true, false, false, false);
         emit IFinancialLease.ArrearsAccrued(id, 0);
         vm.expectEmit(true, true, false, false);
@@ -411,15 +411,15 @@ contract ScenariosTest is Test {
         _assertInvariants(id);
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
 
-        // Dejar correr mas dias para que el stock ya reconocido devengue punitorios
+        // Let more days pass so penalties keep accruing on the overdue stock
         vm.warp(block.timestamp + 20 days);
         oracle_.set(1e18);
 
-        // Componente EXACTO de punitorios (rate=1e18 => sin redondeo)
+        // EXACT penalty component (rate=1e18 => no rounding)
         uint256 principalUnits = _reconstructArrearsPrincipal(id);
-        uint256 totalArrearsUnits = lease.arrears(id); // == unidades exactas porque rate == 1e18
+        uint256 totalArrearsUnits = lease.arrears(id); // == exact units because rate == 1e18
         uint256 penaltyUnits = totalArrearsUnits - principalUnits;
-        assertGt(penaltyUnits, 0, "debe haber punitorios devengados");
+        assertGt(penaltyUnits, 0, "penalties must have accrued");
 
         uint256 outstandingBeforePenaltyPay = lease.outstandingUnits(id);
         oracle_.set(1e18);
@@ -427,19 +427,19 @@ contract ScenariosTest is Test {
         lease.pay(id, penaltyUnits);
         _assertInvariants(id);
 
-        // REGRESION: pagar SOLO punitorios no debe reducir outstandingUnits
+        // REGRESSION: paying ONLY penalties must not reduce outstandingUnits
         assertEq(
             lease.outstandingUnits(id),
             outstandingBeforePenaltyPay,
-            "REGRESION: los punitorios no deben tocar el capital/outstanding"
+            "REGRESSION: penalties must not touch principal/outstanding"
         );
         assertEq(
             uint8(lease.status(id)),
             uint8(IFinancialLease.LeaseStatus.InDefault),
-            "sigue en default: el capital vencido sigue impago"
+            "still in default: overdue principal is still unpaid"
         );
 
-        // Pagar el resto de la mora (capital vencido) -> cura
+        // Pay the rest of the arrears (overdue principal) -> cure
         oracle_.set(1e18);
         vm.expectEmit(true, false, false, false);
         emit IFinancialLease.DefaultCured(id);
@@ -448,11 +448,11 @@ contract ScenariosTest is Test {
         _assertInvariants(id);
 
         assertEq(
-            uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Active), "debe curar a Active (quedan cuotas)"
+            uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Active), "must cure to Active (installments remain)"
         );
-        assertEq(lease.arrears(id), 0, "toda la mora debe quedar saldada");
+        assertEq(lease.arrears(id), 0, "all arrears must be settled");
 
-        // Completar las cuotas restantes (6 a 12) puntualmente
+        // Complete the remaining installments (6 to 12) on time
         for (uint256 i = 5; i < 12; i++) {
             vm.warp(uint256(dueDates[i]));
             oracle_.set(1e18);
@@ -465,19 +465,19 @@ contract ScenariosTest is Test {
         assertEq(
             uint8(lease.status(id)),
             uint8(IFinancialLease.LeaseStatus.Completed),
-            "debe llegar a Completed pese al historial de mora"
+            "must reach Completed despite the arrears history"
         );
         (, bool exercisable) = lease.purchaseOption(id);
-        assertTrue(exercisable, "la opcion de compra debe quedar ejercible");
+        assertTrue(exercisable, "the purchase option must remain exercisable");
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 3 — securitizacion (cesion del lessor a mitad de vida)
+    // SCENARIO 3 — securitization (assignment of the lessor mid-life)
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario3_SecuritizationTransferMidLife() public {
         address lessorOriginal = makeAddr("s3_lessorOriginal");
-        address fondoComprador = makeAddr("s3_fondoComprador");
+        address buyerFund = makeAddr("s3_buyerFund");
         address tomador = makeAddr("s3_tomador");
 
         MockStable stable = new MockStable(6);
@@ -512,43 +512,43 @@ contract ScenariosTest is Test {
             assertEq(
                 stable.balanceOf(lessorOriginal) - balBefore,
                 assetsDue,
-                "cuotas 1-8: los fondos deben ir a lessorOriginal"
+                "installments 1-8: funds must go to lessorOriginal"
             );
         }
-        assertEq(stable.balanceOf(fondoComprador), 0, "fondoComprador no debe tener fondos todavia");
+        assertEq(stable.balanceOf(buyerFund), 0, "buyerFund must not have funds yet");
 
         uint256 outstandingBeforeTransfer = lease.outstandingUnits(id);
         IFinancialLease.LeaseStatus statusBeforeTransfer = lease.status(id);
         (uint256 nextAssetsBefore, uint64 nextDueBefore) = lease.nextPayment(id);
 
         vm.prank(lessorOriginal);
-        lease.transferFrom(lessorOriginal, fondoComprador, id);
+        lease.transferFrom(lessorOriginal, buyerFund, id);
         _assertInvariants(id);
 
-        assertEq(lease.lessor(id), fondoComprador, "el NFT debe pasar a fondoComprador");
+        assertEq(lease.lessor(id), buyerFund, "the NFT must pass to buyerFund");
         assertEq(
-            lease.outstandingUnits(id), outstandingBeforeTransfer, "ASSERT: la cesion no debe alterar el outstanding"
+            lease.outstandingUnits(id), outstandingBeforeTransfer, "ASSERT: the assignment must not alter outstanding"
         );
-        assertEq(uint8(lease.status(id)), uint8(statusBeforeTransfer), "ASSERT: la cesion no debe alterar el status");
+        assertEq(uint8(lease.status(id)), uint8(statusBeforeTransfer), "ASSERT: the assignment must not alter the status");
         (uint256 nextAssetsAfter, uint64 nextDueAfter) = lease.nextPayment(id);
-        assertEq(nextAssetsAfter, nextAssetsBefore, "ASSERT: la cesion no debe alterar la proxima cuota");
-        assertEq(nextDueAfter, nextDueBefore, "ASSERT: la cesion no debe alterar el vencimiento");
+        assertEq(nextAssetsAfter, nextAssetsBefore, "ASSERT: the assignment must not alter the next installment");
+        assertEq(nextDueAfter, nextDueBefore, "ASSERT: the assignment must not alter the due date");
 
         for (uint256 i = 8; i < 24; i++) {
             vm.warp(uint256(dueDates[i]));
             oracle_.set(1e18);
             (uint256 assetsDue,) = lease.nextPayment(id);
-            uint256 balBeforeNew = stable.balanceOf(fondoComprador);
+            uint256 balBeforeNew = stable.balanceOf(buyerFund);
             uint256 balBeforeOld = stable.balanceOf(lessorOriginal);
             vm.prank(tomador);
             lease.pay(id, assetsDue);
             _assertInvariants(id);
             assertEq(
-                stable.balanceOf(fondoComprador) - balBeforeNew,
+                stable.balanceOf(buyerFund) - balBeforeNew,
                 assetsDue,
-                "cuotas 9-24: los fondos deben ir a fondoComprador"
+                "installments 9-24: funds must go to buyerFund"
             );
-            assertEq(stable.balanceOf(lessorOriginal), balBeforeOld, "lessorOriginal no debe recibir nada mas");
+            assertEq(stable.balanceOf(lessorOriginal), balBeforeOld, "lessorOriginal must not receive anything else");
         }
 
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
@@ -572,7 +572,7 @@ contract ScenariosTest is Test {
             lessorA, tomador, address(stable), address(oracle_), 60 days, dueDates, unitAmounts, 2000e18, 10, declarer
         );
 
-        // Saltear la cuota 1 y dejarla devengar mora
+        // Skip installment 1 and let it accrue arrears
         vm.warp(uint256(dueDates[0]) + 20 days);
         oracle_.set(1e18);
 
@@ -581,14 +581,14 @@ contract ScenariosTest is Test {
         _assertInvariants(id);
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.InDefault));
 
-        // Cesion del NFT mientras la lease esta InDefault
+        // Transfer the NFT while the lease is InDefault
         vm.prank(lessorA);
         lease.transferFrom(lessorA, lessorB, id);
         _assertInvariants(id);
         assertEq(lease.lessor(id), lessorB);
 
         uint256 curePrincipal = _reconstructArrearsPrincipal(id);
-        uint256 curePenalty = lease.arrears(id) - curePrincipal; // rate=1e18: exacto
+        uint256 curePenalty = lease.arrears(id) - curePrincipal; // rate=1e18: exact
         uint256 balBeforeB = stable.balanceOf(lessorB);
         uint256 balBeforeA = stable.balanceOf(lessorA);
 
@@ -601,14 +601,14 @@ contract ScenariosTest is Test {
         assertEq(
             stable.balanceOf(lessorB) - balBeforeB,
             curePrincipal + curePenalty,
-            "el pago de cura debe ir al nuevo dueno"
+            "the cure payment must go to the new owner"
         );
-        assertEq(stable.balanceOf(lessorA), balBeforeA, "el dueno anterior no debe recibir nada");
+        assertEq(stable.balanceOf(lessorA), balBeforeA, "the previous owner must not receive anything");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Active));
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 4 — deflacion del indice
+    // SCENARIO 4 — index deflation
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario4_DeflationHealthyCycle() public {
@@ -643,7 +643,7 @@ contract ScenariosTest is Test {
         for (uint256 i = 0; i < 12; i++) {
             vm.warp(uint256(dueDates[i]));
             if (i == 3) {
-                rate = (rate * 80) / 100; // el indice cae 20% entre la cuota 3 y la 4
+                rate = (rate * 80) / 100; // the index falls 20% between installments 3 and 4
             }
             oracle_.set(rate);
 
@@ -657,15 +657,15 @@ contract ScenariosTest is Test {
             totalAssetsPaid += stable.balanceOf(lessorAddr) - balBefore;
         }
 
-        console2.log("Escenario 4 - assets totales pagados (con deflacion):", totalAssetsPaid);
-        console2.log("Escenario 4 - proyeccion ingenua al rate original:", projectedAtOriginalRate);
+        console2.log("Scenario 4 - total assets paid (with deflation):", totalAssetsPaid);
+        console2.log("Scenario 4 - naive projection at the original rate:", projectedAtOriginalRate);
         assertLt(
             totalAssetsPaid,
             projectedAtOriginalRate,
-            "con deflacion, lo realmente pagado debe ser menor a la proyeccion"
+            "with deflation, the amount actually paid must be lower than the projection"
         );
 
-        assertEq(lease.outstandingUnits(id), 0, "debe llegar a 0 unidades pendientes pese a la deflacion");
+        assertEq(lease.outstandingUnits(id), 0, "must reach 0 outstanding units despite deflation");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
     }
 
@@ -695,14 +695,14 @@ contract ScenariosTest is Test {
             declarer
         );
 
-        // Generar mora: saltear la cuota 1
+        // Generate arrears: skip installment 1
         vm.warp(uint256(dueDates[0]) + 10 days);
         oracle_.set(2000e6);
         vm.prank(lesseeAddr);
-        lease.pay(id, 1); // poke minimo: reconoce la mora, dispara InArrears
+        lease.pay(id, 1); // minimal payment: flags the arrears, emits ArrearsAccrued
         _assertInvariants(id);
 
-        // Dejar acumular punitorios en un segundo ciclo de accrual
+        // Let penalties keep accumulating
         vm.warp(block.timestamp + 15 days);
         oracle_.set(2000e6);
         vm.prank(declarer);
@@ -713,28 +713,28 @@ contract ScenariosTest is Test {
         vm.warp(block.timestamp + 15 days);
         oracle_.set(2000e6);
         vm.prank(lesseeAddr);
-        lease.pay(id, 1); // otro poke: mas punitorios sobre el stock vencido
+        lease.pay(id, 1); // another minimal payment: more penalties on the overdue stock
         _assertInvariants(id);
 
-        // Ahora, con punitorios ya devengados, el indice cae fuerte
+        // Now, with penalties already accrued, the index falls sharply
         uint256 crashedRate = (2000e6 * 50) / 100; // -50%
         oracle_.set(crashedRate);
-        _assertInvariants(id); // el solo movimiento del oraculo no debe corromper el estado
+        _assertInvariants(id); // the oracle move alone must not corrupt state
 
-        // Pagar todo de una vez (capital vencido + punitorios + resto del
-        // cronograma). pay() cappea a lo efectivamente adeudado, asi que
-        // sobre-enviar es seguro y no debe haber underflow en ningun punto.
-        uint256 hugeAmount = stable.balanceOf(lesseeAddr); // todo el balance disponible
+        // Pay everything at once (overdue principal + penalties + rest of the
+        // schedule). pay() caps at what is actually owed, so
+        // overpaying is safe and there must be no underflow anywhere.
+        uint256 hugeAmount = stable.balanceOf(lesseeAddr); // the whole available balance
         vm.prank(lesseeAddr);
         lease.pay(id, hugeAmount);
         _assertInvariants(id);
 
-        assertEq(lease.outstandingUnits(id), 0, "no debe haber underflow ni estado corrupto tras la deflacion fuerte");
+        assertEq(lease.outstandingUnits(id), 0, "no underflow or corrupt state after severe deflation");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 5 — bordes de vencimiento y pagos parciales
+    // SCENARIO 5 — due-date edges and partial payments
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario5_PaymentTimingAndPartialEdges() public {
@@ -762,26 +762,26 @@ contract ScenariosTest is Test {
             address(0)
         );
 
-        // (a) Pagar EXACTAMENTE en dueDate: la condicion de mora en
-        // _accrue usa `>` estricto, asi que vencer justo a tiempo NO
-        // cuenta como mora. Comportamiento observado, documentado aqui.
+        // (a) Pay EXACTLY at dueDate: an installment is overdue only
+        // strictly after its dueDate, so paying exactly on time does NOT
+        // count as arrears. Observed behaviour, documented here.
         vm.warp(uint256(dueDates[0]));
         oracle_.set(1e18);
         (uint256 assetsDue0,) = lease.nextPayment(id);
         vm.prank(lesseeAddr);
         lease.pay(id, assetsDue0);
         _assertInvariants(id);
-        console2.log("Escenario 5(a) - status tras pagar EXACTO en dueDate:", uint8(lease.status(id)));
+        console2.log("Scenario 5(a) - status after paying EXACTLY at dueDate:", uint8(lease.status(id)));
         assertEq(
             uint8(lease.status(id)),
             uint8(IFinancialLease.LeaseStatus.Active),
-            "OBSERVADO: pagar exactamente en dueDate cuenta como al dia (sin mora), por el `>` estricto en _accrue"
+            "OBSERVED: paying exactly at dueDate counts as current (no arrears), because overdue is strictly after dueDate"
         );
         assertEq(lease.arrears(id), 0);
 
-        // (b) 1 segundo despues del vencimiento: SI se registra mora
-        // (evento ArrearsAccrued), aunque se cure en la misma tx al pagar
-        // el monto exacto adeudado.
+        // (b) 1 second after the due date: arrears ARE recorded
+        // (ArrearsAccrued event), even though they are cured in the same tx by paying
+        // the exact amount owed.
         vm.warp(uint256(dueDates[1]) + 1);
         oracle_.set(1e18);
         vm.expectEmit(true, false, false, false);
@@ -790,10 +790,10 @@ contract ScenariosTest is Test {
         vm.prank(lesseeAddr);
         lease.pay(id, assetsDue1);
         _assertInvariants(id);
-        assertEq(lease.arrears(id), 0, "se cura en la misma tx al pagar el monto exacto");
+        assertEq(lease.arrears(id), 0, "cured in the same tx by paying the exact amount");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Active));
 
-        // (c) Pago parcial de la cuota 3
+        // (c) Partial payment of installment 3
         vm.warp(uint256(dueDates[2]));
         oracle_.set(1e18);
         (uint256 assetsDue2,) = lease.nextPayment(id);
@@ -802,18 +802,18 @@ contract ScenariosTest is Test {
         lease.pay(id, half);
         _assertInvariants(id);
         (,, bool paid2Partial) = lease.paymentAt(id, 2);
-        assertFalse(paid2Partial, "un pago parcial no debe marcar la cuota como pagada");
+        assertFalse(paid2Partial, "a partial payment must not mark the installment as paid");
         (uint256 remainingAssets,) = lease.nextPayment(id);
-        assertGt(remainingAssets, 0, "nextPayment debe reflejar el saldo restante");
-        assertLt(remainingAssets, assetsDue2, "el saldo restante debe ser menor al original");
+        assertGt(remainingAssets, 0, "nextPayment must reflect the remaining balance");
+        assertLt(remainingAssets, assetsDue2, "the remaining balance must be lower than the original");
 
         vm.prank(lesseeAddr);
         lease.pay(id, remainingAssets);
         _assertInvariants(id);
         (,, bool paid2Full) = lease.paymentAt(id, 2);
-        assertTrue(paid2Full, "tras completar el saldo, la cuota debe quedar pagada");
+        assertTrue(paid2Full, "after completing the balance, the installment must be paid");
 
-        // (d) Sobrepago en la ultima cuota: solo se transfiere lo necesario
+        // (d) Overpayment on the last installment: only what is needed is transferred
         uint256 outstandingBefore = lease.outstandingBalance(id);
         uint256 overpay = outstandingBefore * 10;
         uint256 lessorBalBefore = stable.balanceOf(lessorAddr);
@@ -821,16 +821,16 @@ contract ScenariosTest is Test {
         lease.pay(id, overpay);
         _assertInvariants(id);
         uint256 pulled = stable.balanceOf(lessorAddr) - lessorBalBefore;
-        assertEq(pulled, outstandingBefore, "no debe transferirse mas de lo estrictamente adeudado");
-        assertEq(lease.outstandingUnits(id), 0, "no debe acreditarse de mas");
+        assertEq(pulled, outstandingBefore, "no more than what is strictly owed may be transferred");
+        assertEq(lease.outstandingUnits(id), 0, "must not over-credit");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
 
-        console2.log("Escenario 5(d) - assets enviados en el sobrepago:", overpay);
+        console2.log("Scenario 5(d) - assets sent in the overpayment:", overpay);
         console2.log("Escenario 5(d) - assets realmente transferidos:", pulled);
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 6 — cronograma largo, stress de redondeo (EL MAS IMPORTANTE)
+    // SCENARIO 6 — long schedule, rounding stress (THE MOST IMPORTANT)
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario6_LongScheduleRoundingStress() public {
@@ -846,7 +846,7 @@ contract ScenariosTest is Test {
         MockUVAOracle oracle_ = new MockUVAOracle(1500e6);
 
         uint256 n = 60;
-        uint256 amountEach = 833333333333333333; // no redondo
+        uint256 amountEach = 833333333333333333; // not round
         (uint64[] memory dueDates, uint256[] memory unitAmounts) = _monthlySchedule(n, amountEach);
 
         uint256 id = _createLease(
@@ -868,7 +868,7 @@ contract ScenariosTest is Test {
 
         for (uint256 i = 0; i < n; i++) {
             vm.warp(uint256(dueDates[i]));
-            rate = (rate * 1037) / 1000; // no redondo, ~3.7%/mes
+            rate = (rate * 1037) / 1000; // not round, ~3.7%/month
             oracle_.set(rate);
 
             totalNominalConverted += lease.convertToAssets(id, amountEach);
@@ -883,20 +883,20 @@ contract ScenariosTest is Test {
 
         uint256 finalOutstanding = lease.outstandingUnits(id);
         console2.log("Escenario 6 - outstandingUnits final (esperado 0):", finalOutstanding);
-        console2.log("Escenario 6 - assets totales pagados por el tomador:", totalAssetsPaid);
-        console2.log("Escenario 6 - suma nominal convertida al momento de cada pago:", totalNominalConverted);
+        console2.log("Scenario 6 - total assets paid by the lessee:", totalAssetsPaid);
+        console2.log("Scenario 6 - nominal sum converted at the time of each payment:", totalNominalConverted);
 
         if (finalOutstanding != 0) {
             console2.log(
-                "HALLAZGO ESCENARIO 6: queda dust tras 60 pagos exactos, unidades residuales:", finalOutstanding
+                "SCENARIO 6 FINDING: dust remains after 60 exact payments, residual units:", finalOutstanding
             );
         }
-        assertEq(finalOutstanding, 0, "ESCENARIO 6 CRITICO: dust residual tras 60 cuotas con montos/rate no redondos");
+        assertEq(finalOutstanding, 0, "SCENARIO 6 CRITICAL: residual dust after 60 installments with non-round amounts/rate");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
     }
 
     // ════════════════════════════════════════════════════════════════
-    // ESCENARIO 7 — adaptador de oraculo real (Chainlink)
+    // SCENARIO 7 — real oracle adapter (Chainlink)
     // ════════════════════════════════════════════════════════════════
 
     function test_Scenario7_ChainlinkOracleFullCycle() public {
@@ -944,7 +944,7 @@ contract ScenariosTest is Test {
 
         uint256 finalOutstanding = lease.outstandingUnits(id);
         console2.log("Escenario 7 - outstandingUnits final (esperado 0):", finalOutstanding);
-        assertEq(finalOutstanding, 0, "ESCENARIO 7: dust residual con ChainlinkConversionOracle tras 36 pagos");
+        assertEq(finalOutstanding, 0, "SCENARIO 7: residual dust with ChainlinkConversionOracle after 36 payments");
         assertEq(uint8(lease.status(id)), uint8(IFinancialLease.LeaseStatus.Completed));
 
         (, bool exercisable) = lease.purchaseOption(id);

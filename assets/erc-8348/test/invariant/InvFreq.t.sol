@@ -6,13 +6,13 @@ import {FinancialLease} from "../../src/FinancialLease.sol";
 import {INPUT_COLLECTIONS, INPUT_ARREARS_RECORD} from "../../src/IFinancialLease.sol";
 import {MockERC20} from "./Handler.sol";
 
-/// @title STEP 6/fix — INV-FREQ (Fase 3, test de escenario dirigido)
-/// @dev Confirma el fix de S3-01. Post-fix no existe ningun "_accrue"
-///      interno que exponer via harness — arrears() es una view pura, asi
-///      que se prueba contra FinancialLease directamente.
+/// @title INV-FREQ (directed scenario test)
+/// @dev Confirms the S3-01 fix. After the fix there is no internal "_accrue"
+///      to expose through a harness — arrears() is a pure view, so
+///      it is tested against FinancialLease directly.
 ///
-///      DEBE PASAR con el codigo actual (post-fix). Si falla, el fix esta
-///      mal — no hay que tocar este test para que pase.
+///      MUST PASS with the current (post-fix) code. If it fails, the fix is
+///      wrong — do not touch this test to make it pass.
 contract InvFreqTest is Test {
     FinancialLease internal lease;
     MockERC20 internal token;
@@ -24,18 +24,18 @@ contract InvFreqTest is Test {
 
     uint256 internal constant UNIT = 1e18;
     uint256 internal constant PRINCIPAL = 1_000_000 * UNIT;
-    uint16 internal constant PENALTY_BPS_PER_DAY = 10; // 0.10%/dia
+    uint16 internal constant PENALTY_BPS_PER_DAY = 10; // 0.10%/day
 
-    /// @dev Storage, no local: con el optimizer activado, una local que
-    ///      guarda block.timestamp antes de un vm.warp puede quedar elidida
-    ///      y solc rematerializa TIMESTAMP en el punto de uso (correcto
-    ///      bajo semantica EVM real -- el timestamp no cambia intra-tx --
-    ///      pero rompe estos tests, que usan vm.warp, un cheatcode, para
-    ///      simular avance de tiempo dentro de la misma tx de test). Un
-    ///      SLOAD no sufre esto: el optimizer debe asumir reentrada
-    ///      potencial en cualquier llamada externa (los cheatcodes de foundry
-    ///      son llamadas externas a la address del VM) y no puede elidir la
-    ///      relectura de storage a traves de ellas.
+    /// @dev Storage, not a local: with the optimizer enabled, a local that
+    ///      holds block.timestamp before a vm.warp can be elided
+    ///      and solc rematerializes TIMESTAMP at the point of use (correct
+    ///      under real EVM semantics -- the timestamp does not change within a tx --
+    ///      but it breaks these tests, which use vm.warp, a cheatcode, to
+    ///      simulate time passing within the same test tx). An
+    ///      SLOAD does not suffer from this: the optimizer must assume potential
+    ///      reentrancy on any external call (Foundry cheatcodes
+    ///      are external calls to the VM address) and cannot elide the
+    ///      storage re-read across them.
     uint256 internal t0Slot;
 
     function setUp() public {
@@ -64,7 +64,7 @@ contract InvFreqTest is Test {
             assetRef: "asset://x",
             paymentAsset: address(token),
             denomSymbol: "USD",
-            oracle: address(0), // rate fijo 1:1, unidades == assets
+            oracle: address(0), // fixed 1:1 rate, units == assets
             maxStaleness: 0,
             dueDates: dueDates,
             unitAmounts: unitAmounts,
@@ -83,11 +83,11 @@ contract InvFreqTest is Test {
         id = lease.createLease(p);
     }
 
-    /// @dev Version simple, view-only. Cierto por construccion (una view
-    ///      nunca muta storage), la dejo como baseline barato pero
-    ///      ACLARADO como trivial: no prueba nada sobre transacciones
-    ///      reales, solo sobre relecturas. La prueba fuerte es
-    ///      test_INV_FREQ_immuneToNonEconomicTransactions de abajo.
+    /// @dev Simple, view-only version. True by construction (a view
+    ///      never mutates storage); kept as a cheap baseline but
+    ///      FLAGGED as trivial: it proves nothing about real
+    ///      transactions, only about re-reads. The strong test is
+    ///      test_INV_FREQ_immuneToNonEconomicTransactions below.
     function test_INV_FREQ_readsAloneCannotDiverge_trivialBaseline() public {
         uint256 idA = _mkLease();
         uint256 idB = _mkLease();
@@ -99,84 +99,84 @@ contract InvFreqTest is Test {
 
         for (uint256 i = 0; i < 90; i++) {
             vm.warp(t0Slot + i * 1 days);
-            lease.arrears(idB); // descartado — una view no puede mutar nada
+            lease.arrears(idB); // discarded — a view cannot mutate anything
         }
         vm.warp(t0Slot + 90 days);
         uint256 arrearsB = lease.arrears(idB);
 
-        assertEq(arrearsA, arrearsB, "trivial: las views nunca mutan storage");
+        assertEq(arrearsA, arrearsB, "trivial: views never mutate storage");
     }
 
-    /// @dev INV-FREQ fuerte — inmune a transacciones sin efecto economico.
-    ///      Prueba lo que S3-01 realmente pedia: dos leases identicos, con
-    ///      los MISMOS pagos en los MISMOS instantes, pero uno de ellos
-    ///      ademas recibe cuanta transaccion real (no revertida, con
-    ///      escritura de storage genuina) se pueda intercalar sin mover
-    ///      dinero del lease — declareDefault, updateServicing,
-    ///      assignLessee, transferencia del NFT de posicion del lessor, y
-    ///      un intento de pago que revierte. arrears() debe coincidir
-    ///      EXACTO al final en ambos.
+    /// @dev Strong INV-FREQ — immune to transactions with no economic effect.
+    ///      Tests what S3-01 really asked for: two identical leases, with
+    ///      the SAME payments at the SAME instants, but one of them
+    ///      also receives every real transaction (not reverted, with
+    ///      genuine storage writes) that can be interleaved without moving
+    ///      money in the lease — declareDefault, updateServicing,
+    ///      assignLessee, transfer of the lessor-position NFT, and
+    ///      a payment attempt that reverts. arrears() must match
+    ///      EXACTLY at the end in both.
     ///
-    ///      ARGUMENTO (no solo empirico) de por que esto tiene que dar
-    ///      igual, verificado por inspeccion exhaustiva de
-    ///      src/FinancialLease.sol antes de escribir este test (todo
-    ///      `l.<campo> = ...` del contrato, grep confirmado uno por uno):
+    ///      ARGUMENT (not just empirical) for why this has to be
+    ///      equal, verified by exhaustive inspection of
+    ///      src/FinancialLease.sol before writing this test (every
+    ///      `l.<field> = ...` in the contract, grep-confirmed one by one):
     ///
-    ///      arrears() depende UNICAMENTE de los campos que lee
+    ///      arrears() depends ONLY on the fields read by
     ///      _computeState()/_penaltyOwed(): dueDates, unitAmounts,
-    ///      penaltyBpsPerDay (los tres fijados una unica vez en
-    ///      createLease, nunca reescritos despues), settledUnits,
+    ///      penaltyBpsPerDay (all three set once in
+    ///      createLease, never rewritten afterwards), settledUnits,
     ///      firstUnsettledIndex, cumBeforeFirstUnsettled,
     ///      crystallizedPenaltyUnits, penaltyPaidUnits.
     ///
-    ///      De esos 5 campos "vivos", los UNICOS que se escriben en todo
-    ///      el contrato fuera de createLease son los que muta
+    ///      Of those 5 "live" fields, the ONLY writes anywhere in
+    ///      the contract outside createLease are those made by
     ///      _applyToPrincipal() (settledUnits, firstUnsettledIndex,
-    ///      cumBeforeFirstUnsettled, crystallizedPenaltyUnits) y
-    ///      penaltyPaidUnits (mutado solo dentro de pay()). Ninguna otra
-    ///      funcion del contrato — declareDefault, exercisePurchaseOption,
-    ///      assignLessee, updateServicing, ni las transferencias ERC721
-    ///      heredadas (que ademas viven en storage de OpenZeppelin,
-    ///      totalmente separado del struct Lease) — escribe ninguno de
-    ///      esos 5 campos. declareDefault/exercisePurchaseOption solo
-    ///      escriben `status` (que _computeState ni siquiera lee);
-    ///      assignLessee solo escribe `lessee`; updateServicing solo
-    ///      escribe el mapping de servicing. Por lo tanto NINGUNA
-    ///      transaccion sin pago puede alterar el resultado de arrears() —
-    ///      es una garantia estructural del diseño (closed-form, sin
-    ///      bucket agregado ni paso de persistencia intermedio), no una
-    ///      coincidencia de este escenario particular.
+    ///      cumBeforeFirstUnsettled, crystallizedPenaltyUnits) and
+    ///      penaltyPaidUnits (mutated only inside pay()). No other
+    ///      function of the contract — declareDefault, exercisePurchaseOption,
+    ///      assignLessee, updateServicing, nor the inherited ERC721
+    ///      transfers (which also live in OpenZeppelin storage,
+    ///      fully separate from the Lease struct) — writes any of
+    ///      those 5 fields. declareDefault/exercisePurchaseOption only
+    ///      write `status` (which _computeState does not even read);
+    ///      assignLessee only writes `lessee`; updateServicing only
+    ///      writes the servicing mapping. Therefore NO
+    ///      transaction without a payment can alter the result of arrears() —
+    ///      it is a structural guarantee of the design (closed-form, no
+    ///      aggregate bucket or intermediate persistence step), not a
+    ///      coincidence of this particular scenario.
     function test_INV_FREQ_immuneToNonEconomicTransactions() public {
         uint256 idA = _mkLease();
         uint256 idB = _mkLease();
 
-        vm.warp(block.timestamp + 2); // cruzar el vencimiento en ambos
+        vm.warp(block.timestamp + 2); // cross the due date in both
         t0Slot = block.timestamp;
 
-        // Lease B: intercalar toda transaccion real sin efecto economico
-        // que el contrato permite, ANTES del pago.
+        // Lease B: interleave every real transaction with no economic effect
+        // that the contract allows, BEFORE the payment.
         vm.prank(lessor_);
         lease.updateServicing(idB, INPUT_COLLECTIONS, uint64(block.timestamp));
 
         vm.prank(declarer_);
-        lease.declareDefault(idB); // valido: idB ya esta en mora (1,000,000 vencido)
+        lease.declareDefault(idB); // valid: idB is already in arrears (1,000,000 overdue)
 
         vm.prank(lessor_);
-        lease.transferFrom(lessor_, otherLessor, idB); // el NFT de posicion cambia de dueño
+        lease.transferFrom(lessor_, otherLessor, idB); // the position NFT changes owner
 
         vm.prank(lessee_);
-        lease.assignLessee(idB, otherLessee); // el lessee se reasigna
+        lease.assignLessee(idB, otherLessee); // the lessee is reassigned
 
-        vm.prank(otherLessor); // el nuevo servicer NO es otherLessor -> revierte
+        vm.prank(otherLessor); // the new servicer is NOT otherLessor -> reverts
         vm.expectRevert(FinancialLease.NotAuthorized.selector);
         lease.updateServicing(idB, INPUT_ARREARS_RECORD, uint64(block.timestamp));
 
-        vm.prank(otherLessee); // pago de 0 -> revierte, no debe dejar rastro
+        vm.prank(otherLessee); // payment of 0 -> reverts, must leave no trace
         vm.expectRevert(FinancialLease.NothingDue.selector);
         lease.pay(idB, 0);
 
-        // Avanzar 90 dias intercalando MAS transacciones sin pago en B
-        // (lease A no recibe ninguna — solo el paso del tiempo).
+        // Advance 90 days interleaving MORE payment-free transactions on B
+        // (lease A receives none — only the passage of time).
         for (uint256 i = 0; i < 90; i++) {
             vm.warp(t0Slot + (i + 1) * 1 days);
             if (i % 10 == 0) {
@@ -184,30 +184,30 @@ contract InvFreqTest is Test {
                 lease.updateServicing(idB, INPUT_COLLECTIONS, uint64(block.timestamp));
             }
         }
-        assertEq(block.timestamp, t0Slot + 90 days, "precondicion: mismo timestamp final");
+        assertEq(block.timestamp, t0Slot + 90 days, "precondition: same final timestamp");
 
-        // El MISMO pago, en el MISMO instante, en ambos leases — este es
-        // el unico tipo de transaccion que el diseño permite que altere
-        // arrears(), y es identico en A y B.
+        // The SAME payment, at the SAME instant, on both leases — this is
+        // the only kind of transaction the design allows to alter
+        // arrears(), and it is identical on A and B.
         uint256 payment = 500_000 * UNIT;
         vm.prank(lessee_);
         lease.pay(idA, payment);
-        vm.prank(otherLessee); // en B el lessee ya fue reasignado arriba
+        vm.prank(otherLessee); // on B the lessee was already reassigned above
         lease.pay(idB, payment);
 
         assertEq(
             lease.arrears(idA),
             lease.arrears(idB),
-            "INV-FREQ fuerte: arrears() debe coincidir aunque B haya recibido transacciones reales (declareDefault, updateServicing, assignLessee, transferencia del NFT, pagos revertidos) que A nunca recibio"
+            "strong INV-FREQ: arrears() must match even though B received real transactions (declareDefault, updateServicing, assignLessee, NFT transfer, reverted payments) that A never received"
         );
 
-        // Verificacion cuantitativa: interes SIMPLE por tramo (fix
-        // S3-01), 1,000,000 UNIT en mora desde t0, penaltyBpsPerDay=10,
-        // 90 dias, menos el pago de 500,000 UNIT aplicado en el mismo
-        // instante en ambos. El punitorio antes del pago es identico al
-        // "Caso A" historico del bug (90,000 UNIT) en los dos leases.
+        // Quantitative check: SIMPLE interest per tranche (fix
+        // S3-01), 1,000,000 UNIT overdue since t0, penaltyBpsPerDay=10,
+        // 90 days, minus the 500,000 UNIT payment applied at the same
+        // instant on both. The penalty before the payment is identical to the
+        // historical "Case A" of the bug (90,000 UNIT) on both leases.
         assertEq(
-            lease.arrears(idA), (PRINCIPAL + 90_000 * UNIT) - payment, "punitorio simple exacto, tras el pago"
+            lease.arrears(idA), (PRINCIPAL + 90_000 * UNIT) - payment, "exact simple penalty, after the payment"
         );
     }
 }

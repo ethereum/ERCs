@@ -6,16 +6,16 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IConversionOracle} from "../IConversionOracle.sol";
 import {AggregatorV3Interface} from "./ChainlinkConversionOracle.sol";
 
-/// @notice Compone dos feeds Chainlink-compatible en un unico
-///         IConversionOracle (ej: UVA/ARS x ARS/USD para liquidar un lease
-///         indexado a UVA en USDC).
-/// @dev asOf = min(asOf de ambos feeds): la frescura de una composicion es
-///      la del input mas viejo, nunca mejor que su peor componente.
+/// @notice Composes two Chainlink-compatible feeds into a single
+///         IConversionOracle (e.g. UVA/ARS x ARS/USD to settle a
+///         UVA-indexed lease in USDC).
+/// @dev asOf = min(asOf of both feeds): the freshness of a composition is
+///      that of its oldest input, never better than its worst component.
 contract ComposedConversionOracle is IConversionOracle {
     using Math for uint256;
 
-    // S1-02: misma cota defensiva que ChainlinkConversionOracle, aplicada
-    // a ambos feeds compuestos.
+    // S1-02: same defensive bound as ChainlinkConversionOracle, applied
+    // to both composed feeds.
     uint8 internal constant MAX_SANE_DECIMALS = 30;
 
     AggregatorV3Interface public immutable feedA;
@@ -46,16 +46,16 @@ contract ComposedConversionOracle is IConversionOracle {
         (uint256 normA, uint256 updatedAtA) = _normalized(feedA, feedADecimals);
         (uint256 normB, uint256 updatedAtB) = _normalized(feedB, feedBDecimals);
 
-        // S2-08: guard explicito antes de dividir, en vez de depender del
-        // guard implicito (division por cero) que ya tiene Math.mulDiv
-        // internamente — mismo criterio de error que el resto del
-        // contrato (feed invalido = InvalidAnswer, sin importar en que
-        // paso se detecto).
+        // S2-08: explicit guard before dividing, instead of relying on the
+        // implicit guard (division by zero) that Math.mulDiv already has
+        // internally — same error criterion as the rest of the
+        // contract (invalid feed = InvalidAnswer, regardless of which
+        // step detected it).
         if (invertB && normB == 0) revert InvalidAnswer();
 
-        // Ambos normalizados a 1e18 antes de componer; invertB divide en
-        // lugar de multiplicar cuando el segundo feed cotiza en sentido
-        // inverso al necesario (ej: USD/ARS en vez de ARS/USD).
+        // Both normalized to 1e18 before composing; invertB divides
+        // instead of multiplying when the second feed is quoted in the
+        // opposite direction to the one needed (e.g. USD/ARS instead of ARS/USD).
         uint256 composed1e18 = invertB ? normA.mulDiv(1e18, normB) : normA.mulDiv(normB, 1e18);
 
         rate = composed1e18.mulDiv(10 ** paymentAssetDecimals, 1e18);
@@ -67,10 +67,10 @@ contract ComposedConversionOracle is IConversionOracle {
         view
         returns (uint256 norm, uint256 updatedAt)
     {
-        // S2-02: mismo criterio que ChainlinkConversionOracle — releer y
-        // comparar decimals() en cada lectura, barato frente al riesgo
-        // de mis-scaling silencioso si el feed envuelto cambia de
-        // convencion post-deploy.
+        // S2-02: same criterion as ChainlinkConversionOracle — re-read and
+        // compare decimals() on every read, cheap compared with the risk
+        // of silent mis-scaling if the wrapped feed changes
+        // convention after deployment.
         if (feed_.decimals() != feedDecimals_) revert DecimalsChanged();
 
         (, int256 answer,, uint256 updatedAt_,) = feed_.latestRoundData();

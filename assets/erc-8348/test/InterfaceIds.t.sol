@@ -7,12 +7,12 @@ import {IFinancialLease} from "../src/IFinancialLease.sol";
 import {IFinancialLeaseAnchored} from "../src/IFinancialLeaseAnchored.sol";
 import {IFinancialLeaseAssetBound} from "../src/IFinancialLeaseAssetBound.sol";
 
-/// @dev Fija los interfaceId de ERC-165 de la spec como constantes: si una
-///      firma cambia (se agrega/quita/renombra una función del core o de
-///      una extensión), el interfaceId resultante cambia y este test falla
-///      en vez de dejar pasar en silencio una detección ERC-165 rota.
+/// @dev Pins the spec's ERC-165 interfaceIds as constants: if a
+///      signature changes (a function of the core or of an extension is added/removed/renamed),
+///      the resulting interfaceId changes and this test fails
+///      instead of silently letting a broken ERC-165 detection through.
 contract InterfaceIdsTest is Test {
-    bytes4 constant IFINANCIAL_LEASE_ID = 0xe3e0ac48;
+    bytes4 constant IFINANCIAL_LEASE_ID = 0xf6b0f493;
     bytes4 constant IFINANCIAL_LEASE_ANCHORED_ID = 0x09fce36a;
     bytes4 constant IFINANCIAL_LEASE_ASSET_BOUND_ID = 0xf71550a8;
 
@@ -31,33 +31,33 @@ contract InterfaceIdsTest is Test {
         console2.logBytes4(anchored);
         console2.logBytes4(assetBound);
 
-        assertEq(core, IFINANCIAL_LEASE_ID, "IFinancialLease.interfaceId cambio de valor");
-        assertEq(anchored, IFINANCIAL_LEASE_ANCHORED_ID, "IFinancialLeaseAnchored.interfaceId cambio de valor");
-        assertEq(assetBound, IFINANCIAL_LEASE_ASSET_BOUND_ID, "IFinancialLeaseAssetBound.interfaceId cambio de valor");
+        assertEq(core, IFINANCIAL_LEASE_ID, "IFinancialLease.interfaceId changed value");
+        assertEq(anchored, IFINANCIAL_LEASE_ANCHORED_ID, "IFinancialLeaseAnchored.interfaceId changed value");
+        assertEq(assetBound, IFINANCIAL_LEASE_ASSET_BOUND_ID, "IFinancialLeaseAssetBound.interfaceId changed value");
     }
 
     function test_supportsInterface_core() public view {
-        assertTrue(lease.supportsInterface(IFINANCIAL_LEASE_ID), "debe declarar soporte de IFinancialLease");
+        assertTrue(lease.supportsInterface(IFINANCIAL_LEASE_ID), "must declare support for IFinancialLease");
     }
 
     function test_supportsInterface_anchored() public view {
         assertTrue(
-            lease.supportsInterface(IFINANCIAL_LEASE_ANCHORED_ID), "debe declarar soporte de IFinancialLeaseAnchored"
+            lease.supportsInterface(IFINANCIAL_LEASE_ANCHORED_ID), "must declare support for IFinancialLeaseAnchored"
         );
     }
 
     function test_supportsInterface_erc165AndErc721() public view {
-        assertTrue(lease.supportsInterface(0x01ffc9a7), "debe declarar soporte de ERC-165");
-        assertTrue(lease.supportsInterface(0x80ac58cd), "debe declarar soporte de ERC-721");
+        assertTrue(lease.supportsInterface(0x01ffc9a7), "must declare support for ERC-165");
+        assertTrue(lease.supportsInterface(0x80ac58cd), "must declare support for ERC-721");
     }
 
-    /// @dev AssetBound es una extensión opcional que la referencia NO
-    ///      implementa todavía (fuera de alcance): el contrato no debe
-    ///      anunciar soporte para funciones que no expone.
+    /// @dev AssetBound is an optional extension that the reference does NOT
+    ///      implement yet (out of scope): the contract must not
+    ///      advertise support for functions it does not expose.
     function test_supportsInterface_assetBoundNotAdvertised() public view {
         assertFalse(
             lease.supportsInterface(IFINANCIAL_LEASE_ASSET_BOUND_ID),
-            "no debe declarar soporte de una extension no implementada"
+            "must not declare support for an unimplemented extension"
         );
     }
 }

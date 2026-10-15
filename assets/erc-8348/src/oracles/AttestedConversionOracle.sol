@@ -5,13 +5,13 @@ pragma solidity ^0.8.24;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IConversionOracle} from "../IConversionOracle.sol";
 
-/// @notice Adaptador para indices sin feed on-chain (ej. UVA, UF): un
-///         atestador autorizado publica la tasa periodicamente.
-/// @dev Trust model: la fuente de verdad es un atestador confiable
-///      designado por el owner, NO un mecanismo descentralizado. Usar
-///      solo cuando no exista un feed verificable on-chain para el indice
-///      de referencia, y dejar este supuesto explicito en la due
-///      diligence del lease que consuma este oraculo.
+/// @notice Adapter for indices with no on-chain feed (e.g. UVA, UF): an
+///         authorized attester publishes the rate periodically.
+/// @dev Trust model: the source of truth is a trusted attester
+///      designated by the owner, NOT a decentralized mechanism. Use it
+///      only when no verifiable on-chain feed exists for the reference
+///      index, and state this assumption explicitly in the due
+///      diligence of any lease that consumes this oracle.
 contract AttestedConversionOracle is IConversionOracle, Ownable {
     address public attester;
     uint256 public rate;
@@ -35,11 +35,11 @@ contract AttestedConversionOracle is IConversionOracle, Ownable {
 
     function attest(uint256 newRate) external {
         if (msg.sender != attester) revert NotAttester();
-        // S2-03: atestar 0 no revertia (asOf queda != 0, satisface
-        // NotYetAttested) pero dejaba rate = 0 como denominador implicito
-        // -> division por cero en cada pay() futuro -> DoS total hasta la
-        // proxima atestacion valida. Los otros dos adaptadores ya validan
-        // answer > 0; este es el unico que faltaba.
+        // S2-03: attesting 0 did not revert (asOf becomes != 0, satisfying
+        // NotYetAttested) but left rate = 0 as an implicit denominator
+        // -> division by zero on every future pay() -> full DoS until the
+        // next valid attestation. The other two adapters already validate
+        // answer > 0; this was the only one missing it.
         if (newRate == 0) revert InvalidRate();
         rate = newRate;
         asOf = uint64(block.timestamp);
