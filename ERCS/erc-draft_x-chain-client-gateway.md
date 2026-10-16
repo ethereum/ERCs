@@ -66,35 +66,21 @@ The contract SHOULD place a `data:` URL after the `x-chain` URL. Only clients wi
 data:application/json,{"data":"0xff"}
 ```
 
-The callback MUST NOT treat a one byte `0xff` response as a valid remote result. ABI encoded return values and standard revert payloads can never be the single byte `0xff`, so the value is unambiguous as a signal. The callback SHOULD handle `0xff` explicitly, for example by reverting with an error that names the missing capability.
+The callback MUST treat a one byte `0xff` response as a client without support for this ERC, never as a remote result.
 
 ### Client behavior
 
-#### Accepting an x-chain URL
+A client that supports this ERC MUST use the first `x-chain` URL in `urls` and ignore all other URLs.
 
-A client that supports this ERC and finds an `x-chain` URL in `urls` MUST ignore every other URL in the list, whatever the outcome of the call. It never falls back to the `data:` URL or to any other URL, so only unaware clients reach the fallback. If the list contains more than one `x-chain` URL, the client MUST use the first one and ignore the rest.
+The client alone decides whether it can safely make the call on the destination chain. This includes knowing the chain, having a trusted RPC endpoint for it, and supporting its virtual machine. Support for one EVM chain does not imply support for another. If the client cannot make the call, or the URL is malformed, it MUST fail the call, the same outcome as a gateway HTTP 4xx response.
 
-The URL format accepts any ERC-7930 chain type. The client alone decides whether it can safely and correctly make the call on the destination chain. That judgment covers at least whether the client knows the chain, has a trusted RPC endpoint for it, and supports its virtual machine and call semantics. If the client is not confident on all counts, or the URL is unsupported, it MUST fail the call with an error, the same outcome as a gateway HTTP 4xx response, and MUST NOT attempt a best effort call.
+The client calls the target contract on the destination chain with `callData`, at the selected block. The destination chain MAY be the same chain.
 
-This section defines call semantics for `eip155` chains, where the read is an `eth_call`. EVM chains are a family of different virtual machines, including zkEVMs, chains missing newer opcodes such as `PUSH0`, and chains with different precompiles and gas rules, so support for one `eip155` chain does not imply support for another. Call semantics for other chain types, for example Solana, are left to clients or to a later ERC.
+- On success, the client invokes the callback with the return data exactly as `eth_call` returns it.
+- On a revert, the client MUST fail the call and SHOULD surface the revert data.
+- On an `OffchainLookup` revert, the client resolves it as a normal [ERC-3668](./eip-3668.md) client on the destination chain. If that lookup contains an `x-chain` URL, the client MUST fail the call.
 
-The chain named in the URL MAY equal the chain the original call was made on. Same-chain reads are valid uses of this ERC.
-
-#### Performing the call
-
-The client makes the call on the destination chain with `to` set to the address from the Interoperable Address, `data` set to `callData` from the `OffchainLookup` error, and the block selected by the `block` parameter. The client MUST give results identical to the results of a valid ERC-3668 gateway.
-
-- On success, the client invokes the callback with `response` set to the raw return data exactly as `eth_call` returns it, and `extraData` unmodified, per [ERC-3668](./eip-3668.md).
-- If the remote call reverts with an error other than `OffchainLookup`, the client MUST NOT invoke the callback and MUST fail the overall call, the same outcome as a gateway HTTP 4xx response. The client SHOULD surface the remote revert data to its caller where it can. The JSON-RPC representation of revert data is not uniform across providers, so the quality of the surfaced error may vary.
-- If the remote call reverts with `OffchainLookup`, the client proceeds as described under Nested lookups.
-
-#### Nested lookups
-
-While serving an `x-chain` call, the client acts as a normal ERC-3668 client on the remote chain. It validates the nested `sender`, fetches from the nested gateway URLs, and invokes the nested callback on the remote chain via `eth_call`, repeating as needed.
-
-If a nested lookup's URL list contains an `x-chain` URL, the client MUST fail the entire call with an error, the same outcome as a gateway HTTP 4xx response. Nested `x-chain` URLs are never followed and never skipped.
-
-One shared lookup limit bounds the entire resolution, counting the outer lookup and every nested lookup together. The limit MUST be at least 4.
+One lookup limit of at least 4 covers the whole resolution, including nested lookups.
 
 ## Rationale
 
