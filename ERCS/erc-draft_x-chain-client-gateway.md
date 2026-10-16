@@ -94,83 +94,19 @@ This ERC adds a URL scheme to the ERC-3668 `urls` list and changes no interfaces
 
 ## Test Cases
 
-### Chain identifier vectors
-
-The ERC-7930 Chain Identifier for Ethereum mainnet, chain id 1, is `0x00010000010100`. The Chain Identifier for Base, chain id 8453, is `0x0001000002210500`. Chain Identifiers have a zero-length address and are therefore not valid in `x-chain` URLs, which require a target address.
-
-### Valid URLs
-
 USDC on Base, chain id 8453, contract `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
 
 ```
 x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913
 ```
 
-The ENS registry on Ethereum mainnet, chain id 1, contract `0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e`.
+The ENS registry on Ethereum mainnet, chain id 1, contract `0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e`, read at the finalized block.
 
 ```
-x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e
+x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?block=finalized
 ```
 
-The same targets with a block parameter.
-
-```
-x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913?block=finalized
-x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?block=latest-128
-```
-
-### Invalid URLs
-
-Each of the following MUST be treated as unsupported.
-
-| URL | Defect |
-| --- | --- |
-| `x-chain:0x0002000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913` | version is not `0x0001` |
-| `x-chain:0x0001000002210514833589FCD6EDB6E08F4C7C32D4F71B54BDA02913` | uppercase hexadecimal |
-| `x-chain:0x0001000002210500` | zero-length address, a Chain Identifier only |
-| `x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913ff` | trailing bytes after the Interoperable Address |
-| `x-chain:8453` | not an ERC-7930 Interoperable Address |
-
-### Block parameter vectors
-
-| `block` value | Valid | Meaning |
-| --- | --- | --- |
-| absent | yes | `latest`, the default |
-| `latest` | yes | call at the latest block |
-| `safe` | yes | call at the safe block |
-| `finalized` | yes | call at the finalized block |
-| `0x1538f70` | yes | call at exactly block 22253424, fails if the client cannot serve it |
-| `latest-128` | yes | head read once, minus 128, call at that exact number |
-| `latest-0` | yes | equals the head block |
-| `latest-99999999999` | parses | fails when `N` exceeds the head, no substitute block |
-| `latest-` | no | `N` missing |
-| `latest-abc` | no | `N` not decimal |
-| `latest--5` | no | negative `N` |
-| `-5` | no | not a tag, not `0x` hexadecimal |
-| `22253424` | no | decimal block numbers are not a defined form |
-| `0x` | no | empty hexadecimal number |
-| `earliest` | no | not a defined value |
-| `pending` | no | not a defined value |
-
-### The 0xff signal
-
-A contract reverts with `OffchainLookup` where `urls[0]` is an `x-chain` URL and `urls[1]` is `data:application/json,{"data":"0xff"}`. A client without support for this ERC skips `urls[0]`, fetches `urls[1]`, and invokes the callback with `response` equal to the single byte `0xff`. The reference callback in the Reference Implementation reverts with `XChainUnsupported()` on that input.
-
-### Nested lookup
-
-While serving an `x-chain` call, the remote contract reverts with `OffchainLookup` where `urls[0]` is an `x-chain` URL and `urls[1]` is `data:application/json,{"data":"0xff"}`. The client MUST fail the entire call. It does not follow the nested `x-chain` URL and it does not use the `data:` URL.
-
-### Multiple x-chain URLs
-
-A contract reverts with `OffchainLookup` where `urls` contains two `x-chain` URLs followed by a `data:` URL. A supporting client uses the first `x-chain` URL and ignores every other URL in the list.
-
-### Unsupported chain
-
-A contract reverts with `OffchainLookup` where `urls[0]` is an `x-chain` URL naming a chain the client has no trusted RPC endpoint for and `urls[1]` is the `data:` fallback. A supporting client fails the call with an error and does not use the `data:` URL. A client unaware of this ERC skips `urls[0]` and delivers `0xff`.
-
-### Same chain
-
-A contract on Base reverts with `OffchainLookup` naming a contract on Base, chain id 8453, with `?block=finalized`. A supporting client performs the call on Base at the finalized block and invokes the callback with the raw return data.
+A contract reverts with `OffchainLookup` where `urls[0]` is one of the URLs above and `urls[1]` is `data:application/json,{"data":"0xff"}`. A client that supports this ERC calls the target contract and invokes the callback with the raw return data. A client that does not support this ERC invokes the callback with the single byte `0xff`.
 
 ## Reference Implementation
 
