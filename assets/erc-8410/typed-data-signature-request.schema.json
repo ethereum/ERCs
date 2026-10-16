@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8410/typed-data-signature-request.schema.json",
+  "title": "Portable typed-data request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "signer",
+    "typed_data"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "kind": {
+      "const": "typed_data_signature_request"
+    },
+    "signer": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}(?![\\s\\S])"
+    },
+    "typed_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "types",
+        "primaryType",
+        "domain",
+        "message"
+      ],
+      "properties": {
+        "types": {
+          "type": "object",
+          "required": [
+            "EIP712Domain"
+          ],
+          "maxProperties": 128,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/TypeMembers"
+          },
+          "properties": {
+            "EIP712Domain": {
+              "$ref": "#/$defs/TypeMembers"
+            }
+          }
+        },
+        "primaryType": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
+          "not": {
+            "const": "EIP712Domain"
+          }
+        },
+        "domain": {
+          "type": "object"
+        },
+        "message": {
+          "type": "object"
+        }
+      }
+    },
+    "valid_until": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+      "maxLength": 20
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "request_id"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/(?:[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*)?(?![\\s\\S])",
+          "maxLength": 2048
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}(?![\\s\\S])"
+        }
+      }
+    }
+  },
+  "description": "Structural checks only. The signature-request specification additionally requires uint64 cutoff bounds, duplicate-key rejection before parsing, recursive EIP-712 validation, canonical scalar encodings, resource limits, authorization, and verified same-origin delivery. JSON Schema cannot enforce those rules.",
+  "$defs": {
+    "TypeMembers": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    }
+  }
+}
