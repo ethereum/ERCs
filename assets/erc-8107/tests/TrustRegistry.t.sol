@@ -23,9 +23,13 @@ import {
     InvalidMaxPathLength,
     InvalidMinEdgeTrust,
     TooManyRequiredAnchors,
+    BatchLengthMismatch,
+    EmptyBatch,
     BatchTrustorMismatch,
     BatchNonceNotIncreasing,
-    EmptyScopeList
+    EmptyScopeList,
+    NonceJumpTooLarge,
+    NonceChanged
 } from "../contracts/ITrustRegistry.sol";
 
 /// @notice Mock ENS registry
@@ -46,6 +50,13 @@ contract MockENS is IENS {
         _operators[msg.sender][operator] = approved;
     }
 
+    /// @dev ERC-137 setSubnodeOwner: the parent's owner may (re)assign any subname
+    function setSubnodeOwner(bytes32 parent, bytes32 label, address newOwner) external returns (bytes32 node) {
+        require(msg.sender == _owners[parent], "not parent owner");
+        node = keccak256(abi.encodePacked(parent, label));
+        _owners[node] = newOwner;
+    }
+
     function owner(bytes32 node) external view override returns (address) {
         return _owners[node];
     }
@@ -61,23 +72,79 @@ contract MockENS is IENS {
 
 /// @notice Mock ENS NameWrapper (ERC-1155 semantics)
 contract MockNameWrapper is INameWrapper {
-    mapping(uint256 => address) private _owners;
-    mapping(address => mapping(address => bool)) private _operators;
+    uint32 internal constant PARENT_CANNOT_CONTROL = 1 << 16;
+    uint32 internal constant IS_DOT_ETH = 1 << 17;
+    uint64 internal constant GRACE_PERIOD = 90 days;
 
+    struct Data {
+        address owner;
+        uint32 fuses;
+        uint64 expiry;
+    }
+
+    mapping(uint256 => Data) private _data;
+    mapping(address => mapping(address => bool)) private _operators;
+    mapping(uint256 => address) private _tokenApprovals;
+
+    /// @dev No fuses and no expiry: the deployed wrapper treats this as an expired,
+    ///      unemancipated name, which keeps its holder
     function setWrappedOwner(bytes32 node, address newOwner) external {
-        _owners[uint256(node)] = newOwner;
+        _data[uint256(node)] = Data(newOwner, 0, 0);
+    }
+
+    /// @dev For a .eth 2LD, `expiry` is the registrar expiry plus GRACE_PERIOD
+    function setWrappedData(bytes32 node, address owner_, uint32 fuses, uint64 expiry) external {
+        _data[uint256(node)] = Data(owner_, fuses, expiry);
     }
 
     function setApprovalForAll(address operator, bool approved) external {
         _operators[msg.sender][operator] = approved;
     }
 
-    function ownerOf(uint256 id) external view override returns (address) {
-        return _owners[id];
+    function approve(address to, uint256 id) external {
+        _tokenApprovals[id] = to;
+    }
+
+    function getApproved(uint256 id) external view returns (address) {
+        return _tokenApprovals[id];
+    }
+
+    /// @dev Mirrors NameWrapper.getData: once `expiry` has passed the fuses reset, and
+    ///      the holder is cleared only if PARENT_CANNOT_CONTROL was burned
+    function getData(uint256 id) public view returns (address owner_, uint32 fuses, uint64 expiry) {
+        Data memory d = _data[id];
+        (owner_, fuses, expiry) = (d.owner, d.fuses, d.expiry);
+        if (expiry < block.timestamp) {
+            if (fuses & PARENT_CANNOT_CONTROL != 0) owner_ = address(0);
+            fuses = 0;
+        }
+    }
+
+    function ownerOf(uint256 id) external view override returns (address owner_) {
+        (owner_,,) = getData(id);
+    }
+
+    /// @dev Mirrors NameWrapper.canModifyName, which refuses a .eth 2LD in its grace
+    ///      period. The registry never calls it; tests use it to show the difference
+    function canModifyName(bytes32 node, address addr) external view returns (bool) {
+        (address owner_, uint32 fuses, uint64 expiry) = getData(uint256(node));
+        bool inGrace = fuses & IS_DOT_ETH != 0 && expiry - GRACE_PERIOD < block.timestamp;
+        return (owner_ == addr || _operators[owner_][addr]) && !inGrace;
     }
 
     function isApprovedForAll(address owner_, address operator) external view override returns (bool) {
         return _operators[owner_][operator];
+    }
+}
+
+/// @notice NameWrapper whose ownerOf reverts, standing in for a faulty wrapper
+contract RevertingNameWrapper is INameWrapper {
+    function ownerOf(uint256) external pure override returns (address) {
+        revert("ownerOf");
+    }
+
+    function isApprovedForAll(address, address) external pure override returns (bool) {
+        return false;
     }
 }
 
@@ -120,6 +187,78 @@ contract MockSmartWallet is IERC1271 {
             v := byte(0, mload(add(signature, 0x60)))
         }
         return ecrecover(digest, v, r, s) == signer ? IERC1271.isValidSignature.selector : bytes4(0xffffffff);
+    }
+}
+
+/// @notice EIP-7702 delegate with no ERC-1271 support, like most account delegates
+contract Delegate7702Plain {
+    function execute(address target, bytes calldata data) external returns (bytes memory) {
+        (, bytes memory result) = target.call(data);
+        return result;
+    }
+}
+
+/// @notice EIP-7702 delegate that validates a non-ECDSA credential through ERC-1271
+/// @dev Stands in for a passkey or session-key scheme: it accepts
+///      `abi.encode(PASSKEY_DOMAIN, digest)`, which ECDSA cannot recover
+contract Delegate7702ERC1271 is IERC1271 {
+    bytes32 public constant PASSKEY_DOMAIN = keccak256("passkey");
+
+    function isValidSignature(bytes32 digest, bytes memory signature) external pure override returns (bytes4) {
+        return keccak256(signature) == keccak256(abi.encode(PASSKEY_DOMAIN, digest))
+            ? IERC1271.isValidSignature.selector
+            : bytes4(0xffffffff);
+    }
+}
+
+/// @notice Stands in for the ENSv2 Graveyard: holds migrated ENSv1 names and does not
+///         implement isValidSignature
+contract MockGraveyard {}
+
+/// @notice Answers any call with scripted raw bytes, standing in for a hostile or broken
+///         resolver or ERC-1271 controller
+/// @dev Returns or reverts with the first `size` bytes of `word` followed by zeros, so
+///      `size` below 32 is short, `size` 0 is empty and `size` above 32 is oversized
+contract RawResponder {
+    enum Mode {
+        Return,
+        Revert,
+        BurnGas
+    }
+
+    Mode internal immutable mode;
+    bytes32 internal immutable word;
+    uint256 internal immutable size;
+
+    constructor(Mode mode_, bytes32 word_, uint256 size_) {
+        (mode, word, size) = (mode_, word_, size_);
+    }
+
+    fallback() external {
+        Mode m = mode;
+        bytes32 w = word;
+        uint256 n = size;
+        assembly {
+            if eq(m, 2) { for {} 1 {} {} }
+            mstore(0, w)
+            if eq(m, 1) { revert(0, n) }
+            return(0, n)
+        }
+    }
+}
+
+/// @notice ERC-8001 coordinator that validates every participant of an intent in one call
+contract ParticipantLoop {
+    function validateAll(
+        TrustRegistry registry,
+        bytes32 coordinationType,
+        address[] calldata participants,
+        TrustPath[] calldata paths
+    ) external view returns (bool[] memory ok) {
+        ok = new bool[](participants.length);
+        for (uint256 i = 0; i < participants.length; i++) {
+            ok[i] = registry.validateParticipantAddress(address(this), coordinationType, participants[i], paths[i]);
+        }
     }
 }
 
@@ -187,12 +326,7 @@ contract TrustRegistryTest is Test {
         returns (TrustAttestation memory)
     {
         return TrustAttestation({
-            trustorNode: trustor,
-            trusteeNode: trustee,
-            level: level,
-            scope: scope,
-            expiry: expiry,
-            nonce: nonce
+            trustorNode: trustor, trusteeNode: trustee, level: level, scope: scope, expiry: expiry, nonce: nonce
         });
     }
 
@@ -251,11 +385,7 @@ contract TrustRegistryTest is Test {
         (n[0], n[1], n[2], n[3]) = (a, b, c, d);
     }
 
-    function _signWith(TrustRegistry r, uint256 key, TrustAttestation memory att)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _signWith(TrustRegistry r, uint256 key, TrustAttestation memory att) internal view returns (bytes memory) {
         (uint8 v, bytes32 rr, bytes32 ss) = vm.sign(key, r.hashAttestation(att));
         return abi.encodePacked(rr, ss, v);
     }
@@ -264,6 +394,22 @@ contract TrustRegistryTest is Test {
     function _wrapName(bytes32 node, address controller_) internal {
         ens.setOwner(node, address(wrapper));
         wrapper.setWrappedOwner(node, controller_);
+    }
+
+    uint32 internal constant PARENT_CANNOT_CONTROL = 1 << 16;
+    uint32 internal constant IS_DOT_ETH = 1 << 17;
+
+    /// @dev A wrapped .eth 2LD held by alice whose registrar expiry is `regExpiry`. The
+    ///      wrapper expiry is 90 days later, at the end of the grace period
+    function _wrap2LD(bytes32 node, uint64 regExpiry) internal {
+        ens.setOwner(node, address(wrapper));
+        wrapper.setWrappedData(node, alice, PARENT_CANNOT_CONTROL | IS_DOT_ETH, regExpiry + 90 days);
+    }
+
+    /// @dev A wrapped .eth 2LD past the end of its grace period: the wrapper reports
+    ///      no holder, while the registry still points at the wrapper
+    function _wrapLapsed(bytes32 node) internal {
+        _wrap2LD(node, uint64(block.timestamp) - 90 days - 1);
     }
 
     /// @dev Publish an ERC-137 forward address record for `node`
@@ -288,7 +434,7 @@ contract TrustRegistryTest is Test {
         TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
 
         vm.expectEmit(true, true, true, true);
-        emit ITrustRegistry.TrustSet(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0);
+        emit ITrustRegistry.TrustSet(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         registry.setTrust(att, _sign(aliceKey, att));
 
         (TrustLevel level, uint64 expiry) = registry.getTrust(ALICE, BOB, UNIVERSAL);
@@ -394,6 +540,170 @@ contract TrustRegistryTest is Test {
         registry.setTrust(att, sig);
     }
 
+    // ───────────────────────────────────────────────────────────────────────────
+    // Parent-controlled subnames
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev DOCUMENTED BEHAVIOUR (see Security Considerations, "Parent-Controlled
+    ///      Subnames"). An unwrapped parent can reassign a subname at any time; the new
+    ///      controller attests as the subname and inherits trust placed in it.
+    function test_ParentReassignsSubname_NewControllerAttests() public {
+        bytes32 label = keccak256("worker");
+        vm.prank(alice);
+        bytes32 sub = ens.setSubnodeOwner(ALICE, label, bob);
+
+        TrustAttestation memory att = _att(sub, CAROL, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(bobKey, att));
+        _grant(carolKey, CAROL, sub, TrustLevel.Full, UNIVERSAL, 1);
+
+        // The parent takes the subname back and hands it to mallory, without bob
+        vm.prank(alice);
+        ens.setSubnodeOwner(ALICE, label, mallory);
+
+        att = _att(sub, DAVE, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(att, _sign(malloryKey, att));
+        (TrustLevel level,) = registry.getTrust(sub, DAVE, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "new controller attests as the subname");
+
+        att = _att(sub, BOB, TrustLevel.Full, UNIVERSAL, 0, 3);
+        bytes memory oldHolderSig = _sign(bobKey, att);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, oldHolderSig);
+
+        assertTrue(
+            registry.verifyPath(_path(_nodes2(CAROL, sub)), _defaultParams()),
+            "trust placed in the subname carries over"
+        );
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // EIP-7702 delegated EOAs and signature malleability
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Give `eoa` an EIP-7702 delegation designator (0xef0100 || delegate)
+    function _delegate7702(address eoa, address delegate) internal {
+        vm.etch(eoa, abi.encodePacked(hex"ef0100", delegate));
+        assertGt(eoa.code.length, 0, "delegated EOA has code");
+    }
+
+    /// @dev The delegate has no isValidSignature, so an ERC-1271-first check would fail
+    function test_7702DelegatedEOA_ECDSAAccepted() public {
+        _delegate7702(alice, address(new Delegate7702Plain()));
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev ECDSA fails on a non-ECDSA credential, so verification falls back to ERC-1271
+    function test_7702DelegatedEOA_1271Accepted() public {
+        Delegate7702ERC1271 delegate = new Delegate7702ERC1271();
+        _delegate7702(alice, address(delegate));
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory credential = abi.encode(delegate.PASSKEY_DOMAIN(), registry.hashAttestation(att));
+        registry.setTrust(att, credential);
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev The malleated twin (n - s, flipped v) recovers the same signer but MUST be rejected
+    function test_HighS_Rejected() public {
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes32 digest = registry.hashAttestation(att);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, digest);
+
+        uint256 n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+        bytes32 highS = bytes32(n - uint256(s));
+        uint8 flippedV = v == 27 ? 28 : 27;
+        assertEq(ecrecover(digest, flippedV, r, highS), alice, "malleated signature recovers alice");
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, abi.encodePacked(r, highS, flippedV));
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Malformed ERC-1271 responses fail as InvalidSignature, never a bare revert
+    // ───────────────────────────────────────────────────────────────────────────
+
+    bytes32 internal constant MAGIC = bytes32(IERC1271.isValidSignature.selector);
+
+    /// @dev Make ALICE's controller a contract with a scripted isValidSignature answer,
+    ///      and return an attestation whose ECDSA signature recovers someone else
+    function _rawController(RawResponder.Mode mode, bytes32 word, uint256 size)
+        internal
+        returns (TrustAttestation memory att, bytes memory sig)
+    {
+        ens.setOwner(ALICE, address(new RawResponder(mode, word, size)));
+        att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        sig = _sign(malloryKey, att);
+    }
+
+    /// @dev An EIP-7702 delegate with an empty fallback returns success and no data. A
+    ///      high-level call reverted here with empty data instead of InvalidSignature.
+    function test_ERC1271_7702EmptyFallback_InvalidSignature() public {
+        _delegate7702(alice, address(new RawResponder(RawResponder.Mode.Return, MAGIC, 0)));
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(malloryKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    function test_ERC1271_EmptyReturn_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Return, MAGIC, 0);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev The bare 4-byte selector is not an ABI-encoded bytes4
+    function test_ERC1271_ShortReturn_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Return, MAGIC, 4);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev Magic value with non-zero padding is rejected, not truncated to bytes4
+    function test_ERC1271_DirtyReturn_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) =
+            _rawController(RawResponder.Mode.Return, MAGIC | bytes32(uint256(1)), 32);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev Trailing data after a valid magic word is ignored, as ABI decoding would;
+    ///      only the first word is copied
+    function test_ERC1271_OversizedReturn_Accepted() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Return, MAGIC, 4096);
+        registry.setTrust(att, sig);
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    function test_ERC1271_LargeRevertData_InvalidSignature() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.Revert, MAGIC, 4096);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    /// @dev ERC-1271 forwards all gas, so a controller can burn 63/64 of the submitter's
+    ///      gas. Only submissions of that controller's own attestations are exposed:
+    ///      validation never verifies signatures.
+    function test_ERC1271_GasBurn_InvalidSignatureAfterBurningSubmitterGas() public {
+        (TrustAttestation memory att, bytes memory sig) = _rawController(RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        uint256 before = gasleft();
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust{gas: 2_000_000}(att, sig);
+        uint256 used = before - gasleft();
+
+        assertGt(used, 1_900_000, "controller consumed the forwarded gas");
+    }
+
     /// @dev Scope is part of the storage key, so levels are independent per scope
     function test_SetTrust_ScopeIsPartOfTheKey() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
@@ -408,7 +718,7 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(universal), uint8(TrustLevel.Unknown));
     }
 
-    /// @dev Distrust is expressed by revokeTrust, never by an attestation. This keeps
+    /// @dev Withdrawal is expressed by revokeTrust, never by an attestation. This keeps
     ///      one path, one event, and one authorisation rule per level.
     function test_SetTrust_RejectsNoneLevel() public {
         TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.None, UNIVERSAL, 0, 1);
@@ -454,6 +764,12 @@ contract TrustRegistryTest is Test {
             sigs[i] = _sign(aliceKey, atts[i]);
         }
 
+        for (uint256 i = 0; i < 3; i++) {
+            vm.expectEmit(true, true, true, true);
+            emit ITrustRegistry.TrustSet(
+                atts[i].trustorNode, atts[i].trusteeNode, atts[i].level, atts[i].scope, 0, atts[i].nonce
+            );
+        }
         registry.setTrustBatch(atts, sigs);
 
         assertEq(registry.getNonce(ALICE), 3);
@@ -470,7 +786,7 @@ contract TrustRegistryTest is Test {
         atts[1] = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, 2);
         sigs[0] = _sign(aliceKey, atts[0]);
 
-        vm.expectRevert(BatchTrustorMismatch.selector);
+        vm.expectRevert(BatchLengthMismatch.selector);
         registry.setTrustBatch(atts, sigs);
     }
 
@@ -512,7 +828,33 @@ contract TrustRegistryTest is Test {
         registry.revokeTrust(ALICE, BOB, UNIVERSAL, reason);
 
         (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
-        assertEq(uint8(level), uint8(TrustLevel.None), "explicit distrust must be retained, not deleted");
+        assertEq(uint8(level), uint8(TrustLevel.None), "the withdrawal must be retained, not deleted");
+    }
+
+    /// @dev Revocation clears a previously stored expiry, singly and in a batch
+    function test_Revoke_ClearsExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, expiry, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+        att = _att(ALICE, BOB, TrustLevel.Full, DEFI, expiry, 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        (TrustLevel level, uint64 stored) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(stored, expiry, "expiry stored before revocation");
+
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+        (level, stored) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.None));
+        assertEq(stored, 0, "revokeTrust clears expiry");
+
+        bytes32[] memory scopes = new bytes32[](1);
+        scopes[0] = DEFI;
+        vm.prank(alice);
+        registry.revokeTrustBatch(ALICE, BOB, scopes, bytes32(0));
+        (level, stored) = registry.getTrust(ALICE, BOB, DEFI);
+        assertEq(uint8(level), uint8(TrustLevel.None));
+        assertEq(stored, 0, "revokeTrustBatch clears expiry");
     }
 
     function test_RevokeTrust_ApprovedOperatorMaySubmit() public {
@@ -528,6 +870,21 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(level), uint8(TrustLevel.None));
     }
 
+    /// @dev A name with no registry owner has no controller, so nobody may revoke for it
+    function test_RevokeTrust_RevertsForUnregisteredName() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, GHOST, mallory));
+        registry.revokeTrust(GHOST, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    /// @dev A wrapped .eth name past its grace period has a registry owner but no controller
+    function test_RevokeTrust_RevertsForLapsedWrappedName() public {
+        _wrapLapsed(WRAPPED);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+    }
+
     function test_RevokeTrust_RevertsForStranger() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
 
@@ -536,7 +893,7 @@ contract TrustRegistryTest is Test {
         registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
     }
 
-    /// @dev Preemptive distrust: no prior trust relationship is required
+    /// @dev Preemptive withdrawal: no prior trust relationship is required
     function test_RevokeTrust_WorksWithoutPriorTrust() public {
         (TrustLevel before,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
         assertEq(uint8(before), uint8(TrustLevel.Unknown));
@@ -548,20 +905,20 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(level), uint8(TrustLevel.None));
     }
 
-    /// @dev Preemptive distrust is useful: it blocks paths routing through that edge
-    function test_RevokeTrust_PreemptiveDistrustBlocksPath() public {
+    /// @dev Preemptive withdrawal is useful: it blocks paths routing through that edge
+    function test_RevokeTrust_PreemptiveWithdrawalBlocksPath() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         assertTrue(registry.verifyPath(_path(_nodes3(ALICE, BOB, CAROL)), _defaultParams()));
 
-        // Bob never trusted Carol in DEFI, but distrusts her preemptively there
+        // Bob never trusted Carol in DEFI, but withdraws preemptively there
         vm.prank(bob);
         registry.revokeTrust(BOB, CAROL, DEFI, keccak256("MISBEHAVIOR"));
 
         ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
         assertFalse(
             registry.verifyPath(_path(_nodes3(ALICE, BOB, CAROL)), defi),
-            "scoped distrust must block the universal fallback"
+            "a scoped tombstone must block the universal fallback"
         );
     }
 
@@ -667,7 +1024,7 @@ contract TrustRegistryTest is Test {
         );
     }
 
-    function test_VerifyPath_ScopedRevocationOverridesUniversalTrust() public {
+    function test_ScopedRevoke_StillBlocksUniversalFallback() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 2);
 
@@ -676,6 +1033,52 @@ contract TrustRegistryTest is Test {
 
         ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
         assertFalse(registry.verifyPath(_path(_nodes2(ALICE, BOB)), defi));
+        assertTrue(registry.verifyPath(_path(_nodes2(ALICE, BOB)), _defaultParams()), "universal scope unaffected");
+    }
+
+    /// @dev A universal revocation (e.g. COMPROMISED) voids the edge in every scope,
+    ///      including scopes holding a stored grant
+    function test_UniversalRevoke_BlocksScopedGrant() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
+
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, keccak256("COMPROMISED"));
+
+        ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
+        assertFalse(registry.verifyPath(_path(_nodes2(ALICE, BOB)), defi), "universal None overrides scoped Full");
+
+        // getTrust stays literal: the scoped record itself is unchanged
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, DEFI);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev Re-attesting at universal scope lifts the override, and the stored scoped
+    ///      record applies again
+    function test_UniversalReattest_RestoresScopedPath() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, keccak256("COMPROMISED"));
+
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 2);
+
+        ValidationParams memory strictDefi = _params(5, TrustLevel.Full, DEFI, true, new bytes32[](0));
+        assertTrue(
+            registry.verifyPath(_path(_nodes2(ALICE, BOB)), strictDefi),
+            "scoped Full applies once universal is not None"
+        );
+    }
+
+    /// @dev An expired scoped record is authoritative: the edge fails rather than
+    ///      widening to universal trust
+    function test_ExpiredScoped_DoesNotFallBack() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, DEFI, uint64(block.timestamp + 1 days), 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        vm.warp(block.timestamp + 2 days);
+
+        ValidationParams memory defi = _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
+        assertFalse(registry.verifyPath(_path(_nodes2(ALICE, BOB)), defi), "expired scoped record must not fall back");
         assertTrue(registry.verifyPath(_path(_nodes2(ALICE, BOB)), _defaultParams()), "universal scope unaffected");
     }
 
@@ -779,6 +1182,804 @@ contract TrustRegistryTest is Test {
     }
 
     // ───────────────────────────────────────────────────────────────────────────
+    // Shared path assertions
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Asserts one verdict from verifyPath and both gate hooks. The gate is keyed
+    ///      to the path's first node and the terminal node is bound to an address, so
+    ///      every gate-specific check passes and only path verification decides.
+    function _assertVerdicts(bytes32[] memory nodes, ValidationParams memory p, bool expected, string memory why)
+        internal
+    {
+        bytes32 target = nodes[nodes.length - 1];
+        address targetAddr = address(uint160(uint256(target)));
+        _bindAddr(target, targetAddr);
+        vm.prank(coordinator);
+        registry.setIdentityGate(MEV_COORDINATION, nodes[0], p);
+
+        TrustPath memory path = _path(nodes);
+        assertEq(registry.verifyPath(path, p), expected, string.concat("verifyPath: ", why));
+        assertEq(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, target, path),
+            expected,
+            string.concat("validateParticipantWithPath: ", why)
+        );
+        assertEq(
+            registry.validateParticipantAddress(coordinator, MEV_COORDINATION, targetAddr, path),
+            expected,
+            string.concat("validateParticipantAddress: ", why)
+        );
+    }
+
+    function _defiParams() internal pure returns (ValidationParams memory) {
+        return _params(5, TrustLevel.Marginal, DEFI, true, new bytes32[](0));
+    }
+
+    function _deny(bytes32 trustor, address controller_, bytes32 trustee, bytes32 scope) internal {
+        vm.prank(controller_);
+        registry.setDenial(trustor, trustee, scope, keccak256("COMPROMISED"));
+    }
+
+    /// @dev Clears at the trustor's current nonce, as a controller that has just reviewed
+    function _undeny(bytes32 trustor, address controller_, bytes32 trustee, bytes32 scope) internal {
+        uint64 nonce = registry.getNonce(trustor);
+        vm.prank(controller_);
+        registry.clearDenial(trustor, trustee, scope, nonce, bytes32(0));
+    }
+
+    /// @dev ALICE -> BOB -> CAROL -> DAVE, all Full at universal scope
+    function _chain4() internal {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(carolKey, CAROL, DAVE, TrustLevel.Full, UNIVERSAL, 1);
+    }
+
+    /// @dev The raw storage word of one trust record. `_trust` is at slot 2, after
+    ///      EIP712's two fallback strings; the TrustRecord packs into that one word.
+    function _rawRecord(bytes32 trustor, bytes32 trustee, bytes32 scope) internal view returns (uint256) {
+        bytes32 slot = keccak256(abi.encode(trustor, uint256(2)));
+        slot = keccak256(abi.encode(trustee, slot));
+        slot = keccak256(abi.encode(scope, slot));
+        return uint256(vm.load(address(registry), slot));
+    }
+
+    /// @dev `denied` sits at byte offset 17 of the record word
+    uint256 internal constant DENIED_BIT = 1 << 136;
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Withdrawal (revokeTrust): withdraws the trustor's own endorsement only
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Core regression for the separation. An operator withdraws ALICE's direct
+    ///      endorsement of CAROL; BOB's endorsement still routes CAROL into ALICE's
+    ///      paths, because withdrawal is not denial.
+    function test_Withdrawal_OperatorWithdrawal_LeavesIndirectPathValid() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 2);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        ens.setApprovalForAll(mallory, true);
+        vm.prank(mallory);
+        registry.revokeTrust(ALICE, CAROL, UNIVERSAL, keccak256("COMPROMISED"));
+
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), false, "the withdrawn edge fails");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), true, "a path avoiding the edge is valid");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defiParams(), true, "in a named scope too");
+        assertFalse(registry.getDenial(ALICE, CAROL, UNIVERSAL), "withdrawal does not deny");
+    }
+
+    /// @dev A withdrawn intermediary is still usable when the path does not traverse
+    ///      the withdrawn edge
+    function test_Withdrawal_DoesNotExcludeIntermediary() public {
+        _chain4();
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, CAROL, UNIVERSAL, keccak256("MISBEHAVIOR"));
+
+        _assertVerdicts(_nodes4(ALICE, BOB, CAROL, DAVE), _defaultParams(), true, "withdrawal is not a veto");
+    }
+
+    function test_Withdrawal_ScopedDoesNotAffectOtherScopes() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, DEFI, keccak256("MISBEHAVIOR"));
+
+        ValidationParams memory gaming = _params(5, TrustLevel.Marginal, GAMING, true, new bytes32[](0));
+        _assertVerdicts(_nodes2(ALICE, BOB), _defiParams(), false, "withdrawn scope");
+        _assertVerdicts(_nodes2(ALICE, BOB), gaming, true, "other scope falls back to universal");
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), true, "universal scope");
+    }
+
+    /// @dev Universal None overrides a scoped grant on the same pair, in the edge
+    ///      check, and a scoped grant cannot route around it
+    function test_Withdrawal_UniversalOverridesScopedGrantOnSamePair() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, GAMING, 2);
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, keccak256("INACTIVE"));
+
+        ValidationParams memory gaming = _params(5, TrustLevel.Marginal, GAMING, true, new bytes32[](0));
+        _assertVerdicts(_nodes2(ALICE, BOB), _defiParams(), false, "DEFI grant overridden");
+        _assertVerdicts(_nodes2(ALICE, BOB), gaming, false, "GAMING grant overridden");
+    }
+
+    /// @dev Withdrawing the only edge into a required anchor still invalidates every
+    ///      path the gate can accept, even though an unanchored path remains
+    function test_Withdrawal_OnlyEdgeIntoAnchorInvalidatesAnchoredPath() public {
+        _grant(aliceKey, ALICE, ANCHOR, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 2);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        _anchorAttests(CAROL, 1);
+        _assertVerdicts(_nodes3(ALICE, ANCHOR, CAROL), _anchored(), true, "anchored path before withdrawal");
+
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, ANCHOR, UNIVERSAL, bytes32(0));
+
+        _assertVerdicts(_nodes3(ALICE, ANCHOR, CAROL), _anchored(), false, "edge into the anchor withdrawn");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _anchored(), false, "remaining path has no anchor");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), true, "unanchored gate still admits");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Denial (setDenial, clearDenial): rejects the trustee within the trustor's own decisions
+    // ───────────────────────────────────────────────────────────────────────────
+
+    function test_Denial_TargetRejectedDespiteIndirectPath() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 2);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), true, "valid before denial");
+
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), false, "direct edge, despite stored Full");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), false, "indirect path to a denied target");
+        (TrustLevel level,) = registry.getTrust(ALICE, CAROL, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "the endorsement itself is untouched");
+    }
+
+    /// @dev Denying an agent rejects its judgement, so a path cannot pass through it
+    function test_Denial_IntermediaryRejected() public {
+        _chain4();
+        _assertVerdicts(_nodes4(ALICE, BOB, CAROL, DAVE), _defaultParams(), true, "valid before denial");
+
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+
+        _assertVerdicts(_nodes4(ALICE, BOB, CAROL, DAVE), _defaultParams(), false, "path through a denied agent");
+    }
+
+    /// @dev The validator check covers every later index, not only the first few
+    function test_Denial_EveryLaterIndexChecked() public {
+        _chain4();
+        _grant(daveKey, DAVE, GHOST, TrustLevel.Full, UNIVERSAL, 1);
+        bytes32[] memory nodes = new bytes32[](5);
+        (nodes[0], nodes[1], nodes[2], nodes[3], nodes[4]) = (ALICE, BOB, CAROL, DAVE, GHOST);
+        _assertVerdicts(nodes, _defaultParams(), true, "valid before denial");
+
+        uint256 snap = vm.snapshotState();
+        _deny(ALICE, alice, DAVE, UNIVERSAL);
+        _assertVerdicts(nodes, _defaultParams(), false, "intermediary at index 3");
+        vm.revertToState(snap);
+
+        _deny(ALICE, alice, GHOST, DEFI);
+        _assertVerdicts(nodes, _defiParams(), false, "target at index 4, named scope");
+        _assertVerdicts(nodes, _defaultParams(), true, "scoped denial only");
+    }
+
+    /// @dev An intermediary's denial of its own successor voids that edge, overriding
+    ///      a stored Full endorsement
+    function test_Denial_IntermediaryDeniesSuccessor() public {
+        _chain4();
+        _deny(BOB, bob, CAROL, UNIVERSAL);
+
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), false, "BOB -> CAROL denied");
+        _assertVerdicts(_nodes4(ALICE, BOB, CAROL, DAVE), _defaultParams(), false, "and every path using it");
+        (TrustLevel level,) = registry.getTrust(BOB, CAROL, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+    }
+
+    /// @dev Only the validator's denial vetoes the whole path. A non-validator's denial
+    ///      of a non-adjacent node, or denial held off the path, does not
+    function test_Denial_NonValidatorDenialOfNonAdjacentNodeDoesNotVeto() public {
+        _chain4();
+        _deny(BOB, bob, DAVE, UNIVERSAL);
+        _deny(DAVE, dave, CAROL, UNIVERSAL);
+
+        _assertVerdicts(_nodes4(ALICE, BOB, CAROL, DAVE), _defaultParams(), true, "BOB's denial of DAVE");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), true, "off-path denial");
+    }
+
+    /// @dev Universal denial applies in every scope, over stored scoped grants
+    function test_Denial_UniversalAppliesAcrossScopes() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, DEFI, 2);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+
+        ValidationParams memory gaming = _params(5, TrustLevel.Marginal, GAMING, true, new bytes32[](0));
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defiParams(), false, "direct, over a scoped grant");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defiParams(), false, "indirect, DEFI");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), gaming, false, "indirect, GAMING");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), false, "indirect, universal");
+    }
+
+    function test_Denial_ScopedAppliesOnlyInItsScope() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        _deny(ALICE, alice, CAROL, DEFI);
+
+        ValidationParams memory gaming = _params(5, TrustLevel.Marginal, GAMING, true, new bytes32[](0));
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defiParams(), false, "denied scope");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), gaming, true, "other scope");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), true, "universal scope");
+    }
+
+    /// @dev A scoped flag that is clear, whether never set or explicitly cleared, never
+    ///      lifts a universal denial
+    function test_Denial_ScopedFalseCannotOverrideUniversal() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, DEFI, 2);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        _deny(ALICE, alice, CAROL, DEFI);
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+        _undeny(ALICE, alice, CAROL, DEFI);
+
+        assertFalse(registry.getDenial(ALICE, CAROL, DEFI), "scoped flag cleared");
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defiParams(), false, "direct edge");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defiParams(), false, "indirect path");
+    }
+
+    /// @dev The effective denial a caller derives from getDenial matches path verification
+    ///      for every combination of universal and scoped flags
+    function test_Denial_EffectiveDenialFormulaMatchesVerification() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        for (uint256 i = 0; i < 4; i++) {
+            (bool universal, bool scoped) = (i & 1 != 0, i & 2 != 0);
+            if (universal) _deny(ALICE, alice, BOB, UNIVERSAL);
+            else _undeny(ALICE, alice, BOB, UNIVERSAL);
+            if (scoped) _deny(ALICE, alice, BOB, DEFI);
+            else _undeny(ALICE, alice, BOB, DEFI);
+
+            bool effective = registry.getDenial(ALICE, BOB, UNIVERSAL) || registry.getDenial(ALICE, BOB, DEFI);
+            assertEq(effective, universal || scoped, "formula");
+            _assertVerdicts(_nodes2(ALICE, BOB), _defiParams(), !effective, "verdict follows the formula");
+        }
+    }
+
+    /// @dev Denial is not an expiry rule and not an edge-level threshold: it holds with
+    ///      enforceExpiry off and whatever minEdgeTrust is
+    function test_Denial_IndependentOfExpiryAndMinEdgeTrust() public {
+        _chain4();
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+        _deny(CAROL, carol, DAVE, UNIVERSAL);
+
+        ValidationParams memory lax = _params(5, TrustLevel.Marginal, UNIVERSAL, false, new bytes32[](0));
+        ValidationParams memory strict = _params(5, TrustLevel.Full, UNIVERSAL, false, new bytes32[](0));
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), lax, false, "validator denial, expiry off");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), strict, false, "validator denial, Full required");
+        _assertVerdicts(_nodes2(CAROL, DAVE), lax, false, "edge denial, expiry off");
+    }
+
+    /// @dev On a two-node path the validator check adds nothing to the edge check
+    function test_Denial_TwoNodePathOnlyEdgeCounts() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _deny(CAROL, carol, BOB, UNIVERSAL);
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), true, "third-party denial ignored");
+
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), false, "the edge itself is denied");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Independence of endorsement and denial
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev setTrust and setTrustBatch never change `denied`, and submitting a
+    ///      positive attestation does not lift a denial
+    function test_Independence_SetTrustNeverChangesDenied() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        _deny(ALICE, alice, BOB, DEFI);
+
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL), "setTrust");
+
+        TrustAttestation[] memory atts = new TrustAttestation[](2);
+        bytes[] memory sigs = new bytes[](2);
+        atts[0] = _att(ALICE, BOB, TrustLevel.Marginal, DEFI, 0, 2);
+        atts[1] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 3);
+        sigs[0] = _sign(aliceKey, atts[0]);
+        sigs[1] = _sign(aliceKey, atts[1]);
+        registry.setTrustBatch(atts, sigs);
+
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL), "setTrustBatch, universal");
+        assertTrue(registry.getDenial(ALICE, BOB, DEFI), "setTrustBatch, DEFI");
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), false, "positive attestations cannot lift denial");
+
+        // Nor do they set it
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 4);
+        assertFalse(registry.getDenial(ALICE, CAROL, UNIVERSAL));
+    }
+
+    /// @dev revokeTrust and revokeTrustBatch never change `denied`, by controller or
+    ///      operator, and never set it either
+    function test_Independence_RevocationNeverChangesDenied() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        vm.prank(alice);
+        ens.setApprovalForAll(mallory, true);
+
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(mallory);
+        registry.revokeTrustBatch(ALICE, BOB, _scopes3(), bytes32(0));
+
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL), "denial survives revocation");
+        bytes32[] memory sc = _scopes3();
+        for (uint256 i = 0; i < sc.length; i++) {
+            if (sc[i] != UNIVERSAL) assertFalse(registry.getDenial(ALICE, BOB, sc[i]), "revocation does not deny");
+        }
+    }
+
+    /// @dev setDenial and clearDenial change only the denied byte: level, expiry and setAt are
+    ///      bit-for-bit unchanged, in both directions
+    function test_Independence_SetDenialChangesOnlyTheDeniedBit() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Marginal, DEFI, expiry, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        uint256 before = _rawRecord(ALICE, BOB, DEFI);
+        assertEq(before & DENIED_BIT, 0);
+
+        vm.warp(block.timestamp + 1 days); // a setAt rewrite would now be visible
+        _deny(ALICE, alice, BOB, DEFI);
+        assertEq(_rawRecord(ALICE, BOB, DEFI), before | DENIED_BIT, "set");
+        (TrustLevel level, uint64 stored) = registry.getTrust(ALICE, BOB, DEFI);
+        assertEq(uint8(level), uint8(TrustLevel.Marginal));
+        assertEq(stored, expiry);
+
+        _undeny(ALICE, alice, BOB, DEFI);
+        assertEq(_rawRecord(ALICE, BOB, DEFI), before, "cleared");
+    }
+
+    /// @dev Endorsement writes leave the denied byte exactly as it was
+    function test_Independence_EndorsementWritesPreserveDeniedBit() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        assertEq(_rawRecord(ALICE, BOB, UNIVERSAL) & DENIED_BIT, DENIED_BIT, "after setTrust");
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+        assertEq(_rawRecord(ALICE, BOB, UNIVERSAL) & DENIED_BIT, DENIED_BIT, "after revokeTrust");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Restoration: clearing denial reveals the stored endorsement exactly
+    // ───────────────────────────────────────────────────────────────────────────
+
+    function test_Restoration_ClearingRevealsStoredEndorsement() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Marginal, UNIVERSAL, 2);
+        vm.prank(alice);
+        registry.revokeTrust(ALICE, DAVE, UNIVERSAL, bytes32(0));
+
+        bytes32[3] memory trustees = [BOB, CAROL, DAVE];
+        for (uint256 i = 0; i < 3; i++) {
+            _deny(ALICE, alice, trustees[i], UNIVERSAL);
+            _undeny(ALICE, alice, trustees[i], UNIVERSAL);
+        }
+
+        ValidationParams memory full = _params(5, TrustLevel.Full, UNIVERSAL, true, new bytes32[](0));
+        _assertVerdicts(_nodes2(ALICE, BOB), full, true, "Full is exposed as Full");
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), true, "Marginal is exposed as Marginal");
+        _assertVerdicts(_nodes2(ALICE, CAROL), full, false, "and not as Full");
+        _assertVerdicts(_nodes2(ALICE, DAVE), _defaultParams(), false, "None stays None");
+        _assertVerdicts(_nodes2(ALICE, GHOST), _defaultParams(), false, "Unknown stays Unknown");
+    }
+
+    function test_Restoration_ClearingUniversalExposesScopedDenial() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        _deny(ALICE, alice, BOB, DEFI);
+
+        _undeny(ALICE, alice, BOB, UNIVERSAL);
+        _assertVerdicts(_nodes2(ALICE, BOB), _defiParams(), false, "scoped denial remains");
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), true, "universal scope restored");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // setDenial and clearDenial: authorisation, idempotence, events
+    // ───────────────────────────────────────────────────────────────────────────
+
+    function test_SetDenial_ControllerSetsAndClears() public {
+        vm.expectEmit(true, true, true, true);
+        emit ITrustRegistry.DenialSet(ALICE, BOB, DEFI, true, keccak256("COMPROMISED"));
+        _deny(ALICE, alice, BOB, DEFI);
+        assertTrue(registry.getDenial(ALICE, BOB, DEFI));
+
+        vm.expectEmit(true, true, true, true);
+        emit ITrustRegistry.DenialSet(ALICE, BOB, DEFI, false, bytes32(0));
+        _undeny(ALICE, alice, BOB, DEFI);
+        assertFalse(registry.getDenial(ALICE, BOB, DEFI));
+    }
+
+    /// @dev Approved operators may withdraw but MUST NOT set or clear denial
+    function test_SetDenial_ApprovedOperatorCannotSetOrClear() public {
+        vm.prank(alice);
+        ens.setApprovalForAll(mallory, true);
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.setDenial(ALICE, BOB, UNIVERSAL, bytes32(0));
+
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        uint64 nonce = registry.getNonce(ALICE);
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, nonce, bytes32(0));
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL));
+
+        // The same operator can still withdraw
+        vm.prank(mallory);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    function test_SetDenial_StrangerAndMissingControllerRejected() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.setDenial(ALICE, BOB, UNIVERSAL, bytes32(0));
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, GHOST, mallory));
+        registry.setDenial(GHOST, BOB, UNIVERSAL, bytes32(0));
+
+        _wrapLapsed(WRAPPED); // wrapped name past its grace period: no controller
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    /// @dev For a wrapped name only the NameWrapper holder may manage denial; the
+    ///      registry owner (the wrapper) and wrapper-approved operators may not
+    function test_SetDenial_WrappedNameControllerOnly() public {
+        _wrapName(WRAPPED, alice);
+        vm.prank(alice);
+        wrapper.setApprovalForAll(mallory, true);
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+
+        vm.prank(address(wrapper));
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, address(wrapper)));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+
+        _deny(WRAPPED, alice, BOB, UNIVERSAL);
+        assertTrue(registry.getDenial(WRAPPED, BOB, UNIVERSAL));
+    }
+
+    /// @dev Authority follows the name: after a transfer the new controller manages
+    ///      the stored denial and the former controller cannot
+    function test_SetDenial_TransferMovesAuthority() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        ens.setOwner(ALICE, carol);
+
+        uint64 nonce = registry.getNonce(ALICE);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, alice));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, nonce, bytes32(0));
+
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL), "denial survives the transfer");
+        _undeny(ALICE, carol, BOB, UNIVERSAL);
+        assertFalse(registry.getDenial(ALICE, BOB, UNIVERSAL));
+    }
+
+    function test_SetDenial_IdempotentWithoutDuplicateEvent() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+
+        vm.recordLogs();
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        _undeny(ALICE, alice, CAROL, UNIVERSAL); // clearing a flag that was never set
+        assertEq(vm.getRecordedLogs().length, 0, "no event when nothing changes");
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL));
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // clearDenial: the clear takes effect only on the endorsements the caller reviewed
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev The controller reviews a Marginal endorsement and clears; a relayer lands an
+    ///      older pre-signed Full attestation first. The clear MUST NOT activate it.
+    function test_ClearDenial_AttestationAfterReviewReverts() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 1);
+        TrustAttestation memory preSigned = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory preSignedSig = _sign(aliceKey, preSigned);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+
+        uint64 reviewed = registry.getNonce(ALICE);
+        registry.setTrust(preSigned, preSignedSig); // front-runs the clear
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceChanged.selector, reviewed, uint64(2)));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL), "denial still in force");
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), false, "denied after failed clear");
+
+        // After reviewing again the controller can clear, knowingly accepting Full
+        _undeny(ALICE, alice, BOB, UNIVERSAL);
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full));
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), true, "cleared after re-review");
+    }
+
+    /// @dev The back-run the nonce check cannot stop: the relayer holds the pre-signed Full
+    ///      until after the clear, and it applies immediately. Documents why callers
+    ///      raise the floor before reading the nonce.
+    function test_ClearDenial_BackRunWithoutFloorAppliesAfterClear() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 1);
+        TrustAttestation memory preSigned = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory preSignedSig = _sign(aliceKey, preSigned);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+
+        _undeny(ALICE, alice, BOB, UNIVERSAL); // reviewed Marginal; the check passes
+        registry.setTrust(preSigned, preSignedSig); // lands in the next block
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "unreviewed Full is in force");
+        _assertVerdicts(
+            _nodes2(ALICE, BOB), _params(5, TrustLevel.Full, UNIVERSAL, true, new bytes32[](0)), true, "Full admits"
+        );
+    }
+
+    /// @dev Raising the floor before reading the nonce closes both orderings: the
+    ///      pre-signed attestation fails before the clear without causing NonceChanged,
+    ///      and fails after it, so the reviewed Marginal stays in force
+    function test_ClearDenial_FloorBeforeReviewBlocksBackRun() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Marginal, UNIVERSAL, 1);
+        TrustAttestation memory preSigned = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory preSignedSig = _sign(aliceKey, preSigned);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 2);
+        uint64 reviewed = registry.getNonce(ALICE);
+
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(2), uint64(3)));
+        registry.setTrust(preSigned, preSignedSig); // in flight: fails, no false positive
+
+        vm.prank(alice);
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(2), uint64(3)));
+        registry.setTrust(preSigned, preSignedSig); // held back: still fails
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Marginal), "reviewed endorsement in force");
+    }
+
+    /// @dev Clearing a universal denial reactivates every scope, so an attestation in a
+    ///      named scope also invalidates the review
+    function test_ClearDenial_ScopedAttestationBlocksUniversalClear() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        uint64 reviewed = registry.getNonce(ALICE);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, DEFI, 1);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceChanged.selector, reviewed, uint64(1)));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+    }
+
+    /// @dev The guard is trustor-wide: an attestation for another trustee or a nonce
+    ///      invalidation also requires a fresh review. This fails closed.
+    function test_ClearDenial_AnyNonceChangeBlocksClear() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        uint64 reviewed = registry.getNonce(ALICE);
+
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceChanged.selector, reviewed, uint64(1)));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+
+        reviewed = registry.getNonce(ALICE);
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 10);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceChanged.selector, reviewed, uint64(10)));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+    }
+
+    /// @dev A withdrawal can only reduce trust, so it does not invalidate the review;
+    ///      the clear then reveals the withdrawal
+    function test_ClearDenial_WithdrawalAfterReviewDoesNotBlock() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        uint64 reviewed = registry.getNonce(ALICE);
+
+        vm.prank(alice);
+        ens.setApprovalForAll(mallory, true);
+        vm.prank(mallory);
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+
+        vm.prank(alice);
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, reviewed, bytes32(0));
+        assertFalse(registry.getDenial(ALICE, BOB, UNIVERSAL));
+        _assertVerdicts(_nodes2(ALICE, BOB), _defaultParams(), false, "withdrawal still voids the edge");
+    }
+
+    /// @dev The nonce is checked before the no-op, so a stale review always reverts
+    function test_ClearDenial_StaleNonceRevertsEvenWhenNotDenied() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceChanged.selector, uint64(0), uint64(1)));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, 0, bytes32(0));
+        assertFalse(registry.getDenial(ALICE, CAROL, UNIVERSAL));
+    }
+
+    /// @dev getDenial is literal: it reports the flag stored for the scope asked about,
+    ///      not the effective denial
+    function test_GetDenial_ReportsStoredScopeFlag() public {
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        assertTrue(registry.getDenial(ALICE, BOB, UNIVERSAL));
+        assertFalse(registry.getDenial(ALICE, BOB, DEFI), "universal denial is not copied into DEFI");
+        assertFalse(registry.getDenial(BOB, ALICE, UNIVERSAL), "directional");
+    }
+
+    /// @dev Every stored flag can be rebuilt from DenialSet logs alone
+    function test_DenialSet_EventsReconstructFlags() public {
+        vm.recordLogs();
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        _deny(ALICE, alice, BOB, DEFI);
+        _deny(ALICE, alice, CAROL, GAMING);
+        _undeny(ALICE, alice, BOB, UNIVERSAL);
+        _deny(ALICE, alice, BOB, DEFI); // no-op
+        _undeny(ALICE, alice, CAROL, GAMING);
+        _deny(ALICE, alice, CAROL, GAMING);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 6);
+
+        bytes32[3] memory trustees = [BOB, CAROL, DAVE];
+        bytes32[3] memory scopes = [UNIVERSAL, DEFI, GAMING];
+        for (uint256 t = 0; t < 3; t++) {
+            for (uint256 s = 0; s < 3; s++) {
+                bool rebuilt;
+                for (uint256 i = 0; i < logs.length; i++) {
+                    assertEq(logs[i].topics[0], ITrustRegistry.DenialSet.selector);
+                    if (
+                        logs[i].topics[1] == ALICE && logs[i].topics[2] == trustees[t] && logs[i].topics[3] == scopes[s]
+                    ) {
+                        (rebuilt,) = abi.decode(logs[i].data, (bool, bytes32));
+                    }
+                }
+                assertEq(rebuilt, registry.getDenial(ALICE, trustees[t], scopes[s]), "log replay matches state");
+            }
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Replay and quarantine
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev A positive attestation signed before the denial lands, updates the
+    ///      endorsement, and still cannot admit the agent. Clearing the denial later
+    ///      reveals that endorsement.
+    function test_Replay_PreSignedAttestationCannotBypassDenial() public {
+        TrustAttestation memory pending = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, 10);
+        bytes memory pendingSig = _sign(aliceKey, pending);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+        registry.setTrust(pending, pendingSig);
+
+        (TrustLevel level,) = registry.getTrust(ALICE, CAROL, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "endorsement updated underneath");
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), false, "direct, denied");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _defaultParams(), false, "indirect, denied");
+
+        _undeny(ALICE, alice, CAROL, UNIVERSAL);
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), true, "clearing reveals the attestation");
+    }
+
+    /// @dev Quarantine: deny, then raise the floor. Signatures at or below the floor
+    ///      are dead; a signature above it still lands, which is why the floor must
+    ///      exceed every nonce the trustor has signed.
+    function test_Replay_FloorKillsSignaturesAtOrBelowItOnly() public {
+        TrustAttestation memory low = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, 5);
+        TrustAttestation memory atFloor = _att(ALICE, CAROL, TrustLevel.Full, DEFI, 0, 10);
+        TrustAttestation memory high = _att(ALICE, CAROL, TrustLevel.Full, GAMING, 0, 20);
+        bytes memory lowSig = _sign(aliceKey, low);
+        bytes memory atFloorSig = _sign(aliceKey, atFloor);
+        bytes memory highSig = _sign(aliceKey, high);
+
+        _deny(ALICE, alice, CAROL, UNIVERSAL);
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 10);
+
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(5), uint64(11)));
+        registry.setTrust(low, lowSig);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(10), uint64(11)));
+        registry.setTrust(atFloor, atFloorSig);
+
+        registry.setTrust(high, highSig);
+        (TrustLevel level,) = registry.getTrust(ALICE, CAROL, GAMING);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "above the floor is not invalidated");
+        ValidationParams memory gaming = _params(5, TrustLevel.Marginal, GAMING, true, new bytes32[](0));
+        _assertVerdicts(_nodes2(ALICE, CAROL), gaming, false, "but the denial still holds");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Fuzz: scope precedence, isolation and restoration against a model
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Random sequences of endorse / withdraw / deny / clear over two scopes for
+    ///      ALICE -> CAROL, checked against a direct model of the specification.
+    ///      BOB -> CAROL is Full, so [ALICE, BOB, CAROL] isolates validator denial.
+    function testFuzz_ModelMatchesSpecification(uint8[16] memory ops) public {
+        bytes32[2] memory scopes = [UNIVERSAL, DEFI];
+        uint8[2] memory lvl; // TrustLevel per scope
+        bool[2] memory den;
+        uint64 nonce;
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, ++nonce);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        for (uint256 i = 0; i < ops.length; i++) {
+            uint256 s = ops[i] & 1;
+            uint8 kind = (ops[i] >> 1) % 5;
+            if (kind == 0) {
+                _grant(aliceKey, ALICE, CAROL, TrustLevel.Marginal, scopes[s], ++nonce);
+                lvl[s] = uint8(TrustLevel.Marginal);
+            } else if (kind == 1) {
+                _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, scopes[s], ++nonce);
+                lvl[s] = uint8(TrustLevel.Full);
+            } else if (kind == 2) {
+                vm.prank(alice);
+                registry.revokeTrust(ALICE, CAROL, scopes[s], bytes32(0));
+                lvl[s] = uint8(TrustLevel.None);
+            } else if (kind == 3) {
+                _deny(ALICE, alice, CAROL, scopes[s]);
+                den[s] = true;
+            } else {
+                _undeny(ALICE, alice, CAROL, scopes[s]);
+                den[s] = false;
+            }
+
+            for (uint256 q = 0; q < 2; q++) {
+                (TrustLevel stored,) = registry.getTrust(ALICE, CAROL, scopes[q]);
+                assertEq(uint8(stored), lvl[q], "getTrust is literal");
+                assertEq(registry.getDenial(ALICE, CAROL, scopes[q]), den[q], "getDenial is literal");
+
+                // EffectiveDeny(A, B, s) = Deny(A, B, UNIVERSAL) OR Deny(A, B, s)
+                bool effDeny = den[0] || den[q];
+                // Endorsement: universal None, then a stored scoped level, then universal
+                uint8 eff =
+                    q == 0 ? lvl[0] : (lvl[0] == uint8(TrustLevel.None) ? lvl[0] : (lvl[1] != 0 ? lvl[1] : lvl[0]));
+                ValidationParams memory p = _params(5, TrustLevel.Marginal, scopes[q], true, new bytes32[](0));
+                assertEq(
+                    registry.verifyPath(_path(_nodes2(ALICE, CAROL)), p),
+                    !effDeny && eff >= uint8(TrustLevel.Marginal),
+                    "direct edge"
+                );
+                assertEq(registry.verifyPath(_path(_nodes3(ALICE, BOB, CAROL)), p), !effDeny, "indirect path");
+            }
+        }
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Gates
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Regression guard: a direct attestation from the gatekeeper cannot satisfy a
+    ///      gate that requires an anchor, so whoever controls the gatekeeper name cannot
+    ///      admit agents to such a gate directly
+    function test_AnchoredGate_RejectsDirectPath() public {
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), true, "unanchored gate admits a direct path");
+        _assertVerdicts(_nodes2(ALICE, CAROL), _anchored(), false, "anchored gate rejects a direct path");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
     // Identity gates
     // ───────────────────────────────────────────────────────────────────────────
 
@@ -794,7 +1995,8 @@ contract TrustRegistryTest is Test {
         );
         _setGate(_defaultParams());
 
-        (bytes32 gatekeeper, ValidationParams memory p, bool enabled) = registry.getIdentityGate(coordinator, MEV_COORDINATION);
+        (bytes32 gatekeeper, ValidationParams memory p, bool enabled) =
+            registry.getIdentityGate(coordinator, MEV_COORDINATION);
         assertEq(gatekeeper, ALICE);
         assertEq(p.maxPathLength, 5);
         assertTrue(enabled);
@@ -841,9 +2043,10 @@ contract TrustRegistryTest is Test {
         assertTrue(enabled);
     }
 
-    /// @dev Reading a gate under the wrong coordinator yields an unconfigured gate,
-    ///      and an unconfigured gate is OPEN
-    function test_UnknownCoordinatorGateIsOpen() public {
+    /// @dev Reading a gate under the wrong coordinator finds no gate, and an
+    ///      unconfigured gate reverts rather than admitting the participant
+    /// @dev Fails closed: reading under the wrong coordinator reverts with GateNotFound
+    function test_WrongCoordinator_FailsClosed() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_anchored()); // this gate would reject the path below
 
@@ -851,10 +2054,9 @@ contract TrustRegistryTest is Test {
             registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB))),
             "the configured gate rejects"
         );
-        assertTrue(
-            registry.validateParticipantWithPath(otherCoordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB))),
-            "an unconfigured coordinator namespace is open"
-        );
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(otherCoordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB)));
     }
 
     function test_SetIdentityGate_RevertsOnInvalidParams() public {
@@ -888,8 +2090,26 @@ contract TrustRegistryTest is Test {
     // Regression: the verdict is bound to participantNode
     // ───────────────────────────────────────────────────────────────────────────
 
-    function test_ValidateParticipant_OpenWhenNoGate() public view {
-        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, _path(_nodes2(ALICE, DAVE))));
+    function test_ValidateParticipant_RevertsWhenNoGate() public {
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, _path(_nodes2(ALICE, DAVE)));
+    }
+
+    /// @dev Removing a gate does not reopen the coordination type
+    /// @dev Fails closed: a removed gate reverts with GateNotFound rather than admitting
+    function test_RemovedGate_FailsClosed() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _setGate(_defaultParams());
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB))),
+            "the configured gate admits"
+        );
+
+        vm.prank(coordinator);
+        registry.removeIdentityGate(MEV_COORDINATION);
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, _path(_nodes2(ALICE, BOB)));
     }
 
     function test_ValidateParticipant_AcceptsGatedPath() public {
@@ -897,14 +2117,30 @@ contract TrustRegistryTest is Test {
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_defaultParams());
 
-        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))));
+        assertTrue(
+            registry.validateParticipantWithPath(
+                coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
+            )
+        );
+    }
+
+    function test_ValidateParticipant_RejectsPathShorterThanTwoNodes() public {
+        _setGate(_defaultParams());
+        _bindAddr(ALICE, alice);
+        bytes32[] memory one = new bytes32[](1);
+        one[0] = ALICE;
+
+        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, ALICE, _path(one)));
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, alice, _path(one)));
     }
 
     function test_ValidateParticipant_RejectsPathNotStartingAtGatekeeper() public {
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_defaultParams());
 
-        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes2(BOB, CAROL))));
+        assertFalse(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes2(BOB, CAROL)))
+        );
     }
 
     /// @dev Core regression. A sound path from the gatekeeper to CAROL says nothing
@@ -916,7 +2152,9 @@ contract TrustRegistryTest is Test {
 
         TrustPath memory soundPath = _path(_nodes3(ALICE, BOB, CAROL));
 
-        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, soundPath), "valid for CAROL");
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, soundPath), "valid for CAROL"
+        );
         assertFalse(
             registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, soundPath),
             "the same path must not admit DAVE"
@@ -928,7 +2166,11 @@ contract TrustRegistryTest is Test {
         _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
         _setGate(_anchored());
 
-        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))));
+        assertFalse(
+            registry.validateParticipantWithPath(
+                coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
+            )
+        );
     }
 
     function test_ValidateParticipant_RejectsRevokedParticipant() public {
@@ -939,7 +2181,11 @@ contract TrustRegistryTest is Test {
         vm.prank(bob);
         registry.revokeTrust(BOB, CAROL, UNIVERSAL, keccak256("MISBEHAVIOR"));
 
-        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))));
+        assertFalse(
+            registry.validateParticipantWithPath(
+                coordinator, MEV_COORDINATION, CAROL, _path(_nodes3(ALICE, BOB, CAROL))
+            )
+        );
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -1018,7 +2264,7 @@ contract TrustRegistryTest is Test {
     /// @dev One TrustRevoked per listed scope, including never-granted ones
     function test_RevokeTrustBatch_EmitsOneEventPerScope() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
-        // DEFI and GAMING were never granted; they are distrusted preemptively
+        // DEFI and GAMING were never granted; they are withdrawn preemptively
 
         vm.recordLogs();
         vm.prank(alice);
@@ -1033,7 +2279,7 @@ contract TrustRegistryTest is Test {
         assertEq(count, 3, "one TrustRevoked per listed scope");
     }
 
-    /// @dev A batch may mix withdrawing trust with preemptive distrust
+    /// @dev A batch may mix withdrawing trust with preemptive withdrawal
     function test_RevokeTrustBatch_CoversNeverGrantedScopes() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
 
@@ -1046,7 +2292,7 @@ contract TrustRegistryTest is Test {
         (TrustLevel u,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
         (TrustLevel d,) = registry.getTrust(ALICE, BOB, DEFI);
         assertEq(uint8(u), uint8(TrustLevel.None));
-        assertEq(uint8(d), uint8(TrustLevel.None), "never-granted scopes are distrusted too");
+        assertEq(uint8(d), uint8(TrustLevel.None), "never-granted scopes are withdrawn too");
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -1064,6 +2310,79 @@ contract TrustRegistryTest is Test {
         assertEq(registry.getNonce(ALICE), 100);
     }
 
+    function test_InvalidateNonces_JumpTooLarge_Reverts() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(NonceJumpTooLarge.selector, uint64(1 + 2 ** 32 + 1), uint64(1 + 2 ** 32))
+        );
+        registry.invalidateNonces(ALICE, 1 + 2 ** 32 + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, type(uint64).max, uint64(1 + 2 ** 32)));
+        registry.invalidateNonces(ALICE, type(uint64).max);
+
+        assertEq(registry.getNonce(ALICE), 1, "floor unchanged");
+    }
+
+    function test_InvalidateNonces_MaxAllowedJump_Succeeds() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 1 + 2 ** 32);
+        assertEq(registry.getNonce(ALICE), 1 + 2 ** 32);
+
+        // The bound is relative to the current floor, so the call can be repeated
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, 1 + 2 * 2 ** 32);
+        assertEq(registry.getNonce(ALICE), 1 + 2 * 2 ** 32);
+    }
+
+    /// @dev A floor within 2**32 of type(uint64).max caps the bound at the maximum
+    ///      rather than wrapping to a small value
+    function test_InvalidateNonces_NearUint64Max_NoOverflow() public {
+        _setNonceFloor(ALICE, type(uint64).max - 10);
+
+        vm.prank(alice);
+        registry.invalidateNonces(ALICE, type(uint64).max);
+        assertEq(registry.getNonce(ALICE), type(uint64).max);
+    }
+
+    /// @dev Places a nonce floor directly in storage. A floor near type(uint64).max
+    ///      cannot be reached through the bounded entry points in any practical number
+    ///      of calls, so overflow tests start from it. `_nonces` is at slot 3, after the
+    ///      two EIP712 fallback strings and `_trust`.
+    function _setNonceFloor(bytes32 node, uint64 floor) internal {
+        vm.store(address(registry), keccak256(abi.encode(node, uint256(3))), bytes32(uint256(floor)));
+        assertEq(registry.getNonce(node), floor, "storage slot for _nonces");
+    }
+
+    function test_SetTrust_NonceJumpTooLarge_Reverts() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        TrustAttestation memory att = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        bytes memory sig = _sign(aliceKey, att);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, type(uint64).max, uint64(1 + 2 ** 32)));
+        registry.setTrust(att, sig);
+
+        assertEq(registry.getNonce(ALICE), 1, "floor unchanged");
+    }
+
+    function test_SetTrust_MaxAllowedNonceJump_Succeeds() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 1 + 2 ** 32);
+        assertEq(registry.getNonce(ALICE), 1 + 2 ** 32);
+    }
+
+    /// @dev Near type(uint64).max the attestation bound caps rather than wrapping
+    function test_SetTrust_NearUint64Max_NoOverflow() public {
+        _setNonceFloor(ALICE, type(uint64).max - 10);
+
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, type(uint64).max);
+        assertEq(registry.getNonce(ALICE), type(uint64).max);
+    }
+
     function test_InvalidateNonces_RevertsOnNonIncreasing() public {
         _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 5);
 
@@ -1076,6 +2395,54 @@ contract TrustRegistryTest is Test {
         registry.invalidateNonces(ALICE, 4);
     }
 
+    // At a floor of type(uint64).max no nonce is acceptable. NonceTooLow reports the
+    // saturated floor as `required` rather than panicking on current + 1.
+
+    function test_InvalidateNonces_FloorAtUint64Max_NonceTooLow() public {
+        _setNonceFloor(ALICE, type(uint64).max);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.invalidateNonces(ALICE, type(uint64).max);
+    }
+
+    function test_SetTrust_FloorAtUint64Max_NonceTooLow() public {
+        _setNonceFloor(ALICE, type(uint64).max);
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        bytes memory sig = _sign(aliceKey, att);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.setTrust(att, sig);
+    }
+
+    function test_SetTrustBatch_FloorAtUint64Max_NonceTooLow() public {
+        _setNonceFloor(ALICE, type(uint64).max);
+
+        TrustAttestation[] memory atts = new TrustAttestation[](1);
+        bytes[] memory sigs = new bytes[](1);
+        atts[0] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        sigs[0] = _sign(aliceKey, atts[0]);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.setTrustBatch(atts, sigs);
+    }
+
+    /// @dev The last nonce is usable once; afterwards the trustor's nonce space is spent
+    function test_SetTrust_LastNonceThenExhausted() public {
+        _setNonceFloor(ALICE, type(uint64).max - 1);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, type(uint64).max);
+        assertEq(registry.getNonce(ALICE), type(uint64).max);
+
+        TrustAttestation memory replay = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max);
+        bytes memory replaySig = _sign(aliceKey, replay);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max, type(uint64).max));
+        registry.setTrust(replay, replaySig);
+
+        TrustAttestation memory older = _att(ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 0, type(uint64).max - 1);
+        bytes memory olderSig = _sign(aliceKey, older);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, type(uint64).max - 1, type(uint64).max));
+        registry.setTrust(older, olderSig);
+    }
+
     function test_InvalidateNonces_RevertsForStranger() public {
         vm.prank(mallory);
         vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
@@ -1085,7 +2452,7 @@ contract TrustRegistryTest is Test {
     /// @dev Controller-only. An approved operator may revoke relationships, whose effect
     ///      is bounded to one trustee, but MUST NOT void the trustor's entire
     ///      outstanding attestation set.
-    function test_InvalidateNonces_RejectsApprovedOperator() public {
+    function test_Operator_CannotInvalidateNonces() public {
         vm.prank(alice);
         ens.setApprovalForAll(mallory, true);
 
@@ -1160,7 +2527,7 @@ contract TrustRegistryTest is Test {
         registry.setTrust(pending, pendingSig);
 
         (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
-        assertEq(uint8(level), uint8(TrustLevel.None), "distrust holds");
+        assertEq(uint8(level), uint8(TrustLevel.None), "the withdrawal holds");
     }
 
     /// @dev The floor is trustor-wide, not per trustee or scope
@@ -1217,15 +2584,155 @@ contract TrustRegistryTest is Test {
         assertEq(uint8(level), uint8(TrustLevel.Full));
     }
 
-    /// @dev NameWrapper returns address(0) for an expired wrapped name
-    function test_NameWrapper_ExpiredNameHasNoAuthority() public {
-        _wrapName(WRAPPED, address(0));
+    /// @dev NameWrapper returns address(0) for a wrapped .eth name past its grace period
+    function test_NameWrapper_LapsedNameHasNoAuthority() public {
+        _wrapLapsed(WRAPPED);
 
         TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
         bytes memory sig = _sign(aliceKey, att);
 
-        vm.expectRevert(abi.encodeWithSelector(ENSNameNotFound.selector, WRAPPED));
+        vm.expectRevert(InvalidSignature.selector);
         registry.setTrust(att, sig);
+    }
+
+    /// @dev DOCUMENTED BEHAVIOUR, NOT A BUG (see Security Considerations, "Expired
+    ///      Unwrapped Names"). An unwrapped .eth name's expiry lives in the
+    ///      BaseRegistrar, keyed by labelhash; the registry sees only the namehash.
+    ///      ens.owner(node) keeps returning the lapsed holder until the name is
+    ///      re-registered and reclaimed, so the lapsed holder can still attest.
+    function test_UnwrappedExpiredName_RetainsAuthority() public {
+        // ALICE is unwrapped; MockENS, like the real registry, keeps the owner record
+        uint256 notionalExpiry = block.timestamp + 365 days;
+        vm.warp(notionalExpiry + 91 days); // past expiry and the 90-day grace period
+        assertEq(ens.owner(ALICE), alice, "registry owner persists after expiry");
+
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+
+        (TrustLevel level,) = registry.getTrust(ALICE, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "lapsed holder still attests");
+    }
+
+    // ENS lifecycle. MockNameWrapper mirrors NameWrapper.getData; the same cases were
+    // checked against the deployed contracts on a mainnet fork (see the ERC's Test Cases)
+
+    /// @dev In the grace period the wrapper refuses management, but ownerOf still
+    ///      returns the holder, so the controller keeps every ERC-8107 power
+    function test_NameWrapper_2LDKeepsAuthorityThroughGrace() public {
+        uint64 regExpiry = uint64(block.timestamp + 1 days);
+        _wrap2LD(WRAPPED, regExpiry);
+        vm.prank(alice);
+        wrapper.setApprovalForAll(mallory, true);
+        TrustAttestation memory first = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(first, _sign(aliceKey, first));
+
+        vm.warp(regExpiry);
+        assertTrue(wrapper.canModifyName(WRAPPED, alice), "at registrar expiry: not yet in grace");
+        vm.warp(regExpiry + 1);
+        assertFalse(wrapper.canModifyName(WRAPPED, alice), "grace: wrapper refuses management");
+
+        TrustAttestation memory att = _att(WRAPPED, CAROL, TrustLevel.Marginal, UNIVERSAL, 0, 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+        vm.prank(alice);
+        registry.revokeTrust(WRAPPED, CAROL, UNIVERSAL, bytes32(0));
+        vm.prank(mallory);
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        registry.invalidateNonces(WRAPPED, 10);
+        vm.prank(alice);
+        registry.clearDenial(WRAPPED, BOB, UNIVERSAL, 10, bytes32(0));
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.invalidateNonces(WRAPPED, 11);
+    }
+
+    /// @dev Authority ends one second after the wrapper expiry (the end of grace), the
+    ///      stored records stay, and the next registrant inherits them
+    function test_NameWrapper_2LDAuthorityEndsAfterGrace() public {
+        uint64 regExpiry = uint64(block.timestamp + 1 days);
+        _wrap2LD(WRAPPED, regExpiry);
+        TrustAttestation memory first = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(first, _sign(aliceKey, first));
+
+        vm.warp(regExpiry + 90 days);
+        TrustAttestation memory atEnd = _att(WRAPPED, CAROL, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(atEnd, _sign(aliceKey, atEnd));
+
+        vm.warp(regExpiry + 90 days + 1);
+        TrustAttestation memory after_ = _att(WRAPPED, DAVE, TrustLevel.Full, UNIVERSAL, 0, 3);
+        bytes memory sig = _sign(aliceKey, after_);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(after_, sig);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, alice));
+        registry.setDenial(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+        (TrustLevel level,) = registry.getTrust(WRAPPED, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "endorsement persists");
+
+        // Re-registration: the new holder controls the stored records
+        wrapper.setWrappedData(WRAPPED, bob, PARENT_CANNOT_CONTROL | IS_DOT_ETH, uint64(block.timestamp + 455 days));
+        vm.prank(bob);
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    /// @dev An emancipated subname has no grace period: authority ends at its expiry
+    function test_NameWrapper_EmancipatedSubnameLosesAuthorityAtExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        ens.setOwner(WRAPPED, address(wrapper));
+        wrapper.setWrappedData(WRAPPED, alice, PARENT_CANNOT_CONTROL, expiry);
+
+        vm.warp(expiry);
+        TrustAttestation memory atExpiry = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(atExpiry, _sign(aliceKey, atExpiry));
+
+        vm.warp(expiry + 1);
+        TrustAttestation memory after_ = _att(WRAPPED, CAROL, TrustLevel.Full, UNIVERSAL, 0, 2);
+        bytes memory sig = _sign(aliceKey, after_);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(after_, sig);
+    }
+
+    /// @dev An unemancipated subname keeps its holder after expiry: only its fuses
+    ///      reset. A wrapper expiry of zero is the common case and behaves the same
+    function test_NameWrapper_UnemancipatedSubnameKeepsAuthorityAfterExpiry() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        ens.setOwner(WRAPPED, address(wrapper));
+        wrapper.setWrappedData(WRAPPED, alice, 1 << 20, expiry); // a parent-controlled custom fuse
+
+        vm.warp(expiry + 365 days);
+        (, uint32 fuses,) = wrapper.getData(uint256(WRAPPED));
+        assertEq(fuses, 0, "fuses reset");
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+        vm.prank(alice);
+        registry.setDenial(WRAPPED, CAROL, UNIVERSAL, bytes32(0));
+
+        wrapper.setWrappedOwner(WRAPPED, alice); // expiry 0
+        TrustAttestation memory zero = _att(WRAPPED, DAVE, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(zero, _sign(aliceKey, zero));
+    }
+
+    /// @dev A per-token approval confers no authority: only isApprovedForAll counts
+    function test_NameWrapper_TokenApprovalGrantsNothing() public {
+        _wrapName(WRAPPED, alice);
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att));
+        vm.prank(alice);
+        wrapper.approve(mallory, uint256(WRAPPED));
+        assertEq(wrapper.getApproved(uint256(WRAPPED)), mallory);
+
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, WRAPPED, mallory));
+        registry.revokeTrust(WRAPPED, BOB, UNIVERSAL, bytes32(0));
     }
 
     /// @dev Operator approvals for a wrapped name live on the NameWrapper
@@ -1271,6 +2778,34 @@ contract TrustRegistryTest is Test {
         plain.setTrust(att, sig);
     }
 
+    /// @dev Only the pinned wrapper is unwrapped. A name held by a successor wrapper
+    ///      resolves to that wrapper contract as a raw controller, which has no
+    ///      EIP-1271, so even the successor's token holder cannot attest.
+    /// @dev A pinned NameWrapper whose ownerOf reverts yields no controller
+    function test_NameWrapper_RevertingOwnerOfHasNoAuthority() public {
+        RevertingNameWrapper faulty = new RevertingNameWrapper();
+        TrustRegistry r = new TrustRegistry(address(ens), address(faulty));
+        ens.setOwner(WRAPPED, address(faulty));
+
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _signWith(r, aliceKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        r.setTrust(att, sig);
+    }
+
+    function test_NameWrapper_UnpinnedWrapperHasNoAuthority() public {
+        MockNameWrapper successor = new MockNameWrapper();
+        ens.setOwner(WRAPPED, address(successor));
+        successor.setWrappedOwner(WRAPPED, alice);
+
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(aliceKey, att);
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
     // ───────────────────────────────────────────────────────────────────────────
     // Agent address resolution
     // ───────────────────────────────────────────────────────────────────────────
@@ -1288,6 +2823,84 @@ contract TrustRegistryTest is Test {
     function test_ResolveAgent_ZeroWhenResolverReverts() public {
         ens.setResolver(CAROL, address(new RevertingResolver()));
         assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev Gas forwarded to the resolver; mirrors TrustRegistry.RESOLVE_GAS
+    uint256 internal constant RESOLVE_GAS = 50_000;
+
+    function _setRawResolver(bytes32 node, RawResponder.Mode mode, bytes32 word, uint256 size) internal {
+        ens.setResolver(node, address(new RawResponder(mode, word, size)));
+    }
+
+    function _addrWord(address a) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(a)));
+    }
+
+    /// @dev A resolver address with no code answers a call with success and no data
+    function test_ResolveAgent_ZeroWhenResolverHasNoCode() public {
+        ens.setResolver(CAROL, address(0xBEEF));
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    function test_ResolveAgent_ZeroOnEmptyReturn() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Return, _addrWord(carol), 0);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    function test_ResolveAgent_ZeroOnShortReturn() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Return, _addrWord(carol), 31);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev Non-zero upper 96 bits are not a valid ABI-encoded address
+    function test_ResolveAgent_ZeroOnDirtyReturn() public {
+        bytes32 dirty = _addrWord(carol) | bytes32(uint256(1) << 160);
+        _setRawResolver(CAROL, RawResponder.Mode.Return, dirty, 32);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev Trailing data is ignored, as ABI decoding would; only the first word is copied
+    function test_ResolveAgent_OversizedReturnReadsFirstWord() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Return, _addrWord(carol), 4096);
+        assertEq(registry.resolveAgent(CAROL), carol);
+    }
+
+    function test_ResolveAgent_ZeroOnLargeRevertData() public {
+        _setRawResolver(CAROL, RawResponder.Mode.Revert, _addrWord(carol), 4096);
+        assertEq(registry.resolveAgent(CAROL), address(0));
+    }
+
+    /// @dev A resolver that burns gas costs the caller at most the cap, not 63/64 of its gas
+    function test_ResolveAgent_GasBurnIsCapped() public {
+        _setRawResolver(CAROL, RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        uint256 before = gasleft();
+        address resolved = registry.resolveAgent{gas: 10_000_000}(CAROL);
+        uint256 used = before - gasleft();
+
+        assertEq(resolved, address(0));
+        assertLt(used, RESOLVE_GAS + 20_000, "gas use bounded by RESOLVE_GAS");
+    }
+
+    /// @dev One hostile participant cannot exhaust the gas a coordinator budgets for
+    ///      validating every participant of an intent
+    function test_ValidateParticipantAddress_HostileResolverDoesNotAbortLoop() public {
+        _gatedChainToCarol();
+        _grant(bobKey, BOB, DAVE, TrustLevel.Full, UNIVERSAL, 2);
+        _setRawResolver(DAVE, RawResponder.Mode.BurnGas, bytes32(0), 0);
+
+        ParticipantLoop loop = new ParticipantLoop();
+        vm.prank(address(loop));
+        registry.setIdentityGate(MEV_COORDINATION, ALICE, _defaultParams());
+
+        address[] memory participants = new address[](2);
+        TrustPath[] memory paths = new TrustPath[](2);
+        (participants[0], paths[0]) = (dave, _path(_nodes3(ALICE, BOB, DAVE)));
+        (participants[1], paths[1]) = (carol, _path(_nodes3(ALICE, BOB, CAROL)));
+
+        bool[] memory ok = loop.validateAll{gas: 300_000}(registry, MEV_COORDINATION, participants, paths);
+        assertFalse(ok[0], "hostile resolver fails closed");
+        assertTrue(ok[1], "later participant still validated");
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -1377,13 +2990,145 @@ contract TrustRegistryTest is Test {
         );
     }
 
-    function test_ValidateParticipantAddress_OpenWhenNoGate() public {
+    function test_ValidateParticipantAddress_RevertsWhenNoGate() public {
         _bindAddr(CAROL, carol);
 
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantAddress(
+            otherCoordinator, MEV_COORDINATION, carol, _path(_nodes3(ALICE, BOB, CAROL))
+        );
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // ENSv2 migration (see Backwards Compatibility, "ENSv2 Compatibility and
+    // Migration"). Modelled with a Graveyard stand-in; no ENSv2 contracts involved.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev Moves `node` to a Graveyard stand-in, as the ENSv2 migration does. An
+    ///      unwrapped name moves in the registry; a wrapped name moves in the NameWrapper.
+    function _migrate(bytes32 node, bool wrapped) internal {
+        address graveyard = address(new MockGraveyard());
+        if (wrapped) wrapper.setWrappedOwner(node, graveyard);
+        else ens.setOwner(node, graveyard);
+    }
+
+    /// @dev ALICE as an unwrapped name, or WRAPPED held by alice in the NameWrapper
+    function _migrationSubject(bool wrapped) internal returns (bytes32 node) {
+        if (!wrapped) return ALICE;
+        _wrapName(WRAPPED, alice);
+        return WRAPPED;
+    }
+
+    function _assertMigratedCannotAttest(bool wrapped) internal {
+        bytes32 node = _migrationSubject(wrapped);
+        TrustAttestation memory preSigned = _att(node, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory preSig = _sign(aliceKey, preSigned);
+
+        _migrate(node, wrapped);
+
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(preSigned, preSig);
+
+        TrustAttestation memory fresh = _att(node, CAROL, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory freshSig = _sign(aliceKey, fresh);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(fresh, freshSig);
+    }
+
+    function test_Migrated_UnwrappedCannotAttest() public {
+        _assertMigratedCannotAttest(false);
+    }
+
+    function test_Migrated_WrappedCannotAttest() public {
+        _assertMigratedCannotAttest(true);
+    }
+
+    function _assertMigratedCannotManage(bool wrapped) internal {
+        bytes32 node = _migrationSubject(wrapped);
+        _grant(aliceKey, node, BOB, TrustLevel.Full, UNIVERSAL, 1);
+
+        vm.prank(alice);
+        if (wrapped) wrapper.setApprovalForAll(mallory, true);
+        else ens.setApprovalForAll(mallory, true);
+
+        // Before migration the operator may revoke, and the controller may deny
+        vm.prank(mallory);
+        registry.revokeTrust(node, DAVE, UNIVERSAL, bytes32(0));
+        vm.prank(alice);
+        registry.setDenial(node, CAROL, UNIVERSAL, bytes32(0));
+
+        _migrate(node, wrapped);
+
+        address[2] memory former = [alice, mallory];
+        uint64 nonce = registry.getNonce(node);
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(former[i]);
+            vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, node, former[i]));
+            registry.revokeTrust(node, BOB, UNIVERSAL, bytes32(0));
+
+            vm.prank(former[i]);
+            vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, node, former[i]));
+            registry.invalidateNonces(node, 2);
+
+            vm.prank(former[i]);
+            vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, node, former[i]));
+            registry.clearDenial(node, CAROL, UNIVERSAL, nonce, bytes32(0));
+        }
+
+        (TrustLevel level,) = registry.getTrust(node, BOB, UNIVERSAL);
+        assertEq(uint8(level), uint8(TrustLevel.Full), "issued trust persists and cannot be withdrawn");
+        assertTrue(registry.getDenial(node, CAROL, UNIVERSAL), "denial persists and cannot be cleared");
+    }
+
+    function test_Migrated_UnwrappedCannotRevokeOrInvalidateOrDeny() public {
+        _assertMigratedCannotManage(false);
+    }
+
+    function test_Migrated_WrappedCannotRevokeOrInvalidateOrDeny() public {
+        _assertMigratedCannotManage(true);
+    }
+
+    /// @dev Path verification reads stored relationships only, so it does not need
+    ///      each node to keep an ENSv1 controller
+    function test_Migrated_StoredPathsStillVerify() public {
+        _wrapName(WRAPPED, alice);
+        _grant(aliceKey, WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        _migrate(WRAPPED, true); // gatekeeper, wrapped
+        _migrate(BOB, false); // intermediary, unwrapped
+
+        _assertVerdicts(_nodes3(WRAPPED, BOB, CAROL), _defaultParams(), true, "path through migrated names");
+    }
+
+    /// @dev Denial recorded before migration stays enforced after it, and nobody can
+    ///      clear it through this registry
+    function test_Migrated_DenialStillEnforced() public {
+        _wrapName(WRAPPED, alice);
+        _grant(aliceKey, WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        _deny(WRAPPED, alice, CAROL, UNIVERSAL);
+
+        _migrate(WRAPPED, true);
+
+        _assertVerdicts(_nodes3(WRAPPED, BOB, CAROL), _defaultParams(), false, "frozen denial");
+        _assertVerdicts(_nodes2(WRAPPED, BOB), _defaultParams(), true, "frozen endorsement");
+    }
+
+    function test_Migrated_AddressValidationFollowsResolver() public {
+        _gatedChainToCarol();
+        TrustPath memory path = _path(_nodes3(ALICE, BOB, CAROL));
+
+        _migrate(CAROL, false);
         assertTrue(
-            registry.validateParticipantAddress(
-                otherCoordinator, MEV_COORDINATION, carol, _path(_nodes3(ALICE, BOB, CAROL))
-            )
+            registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "legacy resolver retained"
+        );
+
+        ens.setResolver(CAROL, address(0));
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "resolver cleared");
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, path),
+            "node-based validation does not depend on the resolver"
         );
     }
 
@@ -1400,7 +3145,7 @@ contract TrustRegistryTest is Test {
     ///      states them as literals implementers may hard-code
     function test_ERC165_PublishedIdentifiersAreStable() public pure {
         assertEq(type(IERC165).interfaceId, bytes4(0x01ffc9a7), "IERC165 id");
-        assertEq(type(ITrustRegistry).interfaceId, bytes4(0x42b46ef5), "ITrustRegistry id");
+        assertEq(type(ITrustRegistry).interfaceId, bytes4(0x94f0ee34), "ITrustRegistry id");
         assertEq(type(ITrustRegistryExtended).interfaceId, bytes4(0x93e686a3), "ITrustRegistryExtended id");
     }
 
@@ -1415,6 +3160,31 @@ contract TrustRegistryTest is Test {
         assertFalse(registry.supportsInterface(bytes4(0xffffffff)));
     }
 
+    /// @dev 0x42b46ef5 identified the revision without denial. This implementation does
+    ///      not provide that surface, so it MUST NOT claim it.
+    function test_ERC165_DoesNotAdvertisePreDenialIdentifier() public view {
+        assertFalse(registry.supportsInterface(bytes4(0x42b46ef5)));
+        assertEq(
+            type(ITrustRegistry).interfaceId ^ ITrustRegistry.setDenial.selector ^ ITrustRegistry.clearDenial.selector
+                ^ ITrustRegistry.getDenial.selector,
+            bytes4(0x42b46ef5),
+            "the identifier changed by exactly the three denial functions"
+        );
+    }
+
+    /// @dev 0x31f35e83 identified the revision whose setDenial(bool) could clear without
+    ///      a nonce check. This implementation MUST NOT claim it.
+    function test_ERC165_DoesNotAdvertiseUnguardedClearIdentifier() public view {
+        assertFalse(registry.supportsInterface(bytes4(0x31f35e83)));
+        bytes4 unguardedSetDenial = bytes4(keccak256("setDenial(bytes32,bytes32,bytes32,bool,bytes32)"));
+        assertEq(
+            type(ITrustRegistry).interfaceId ^ ITrustRegistry.setDenial.selector ^ ITrustRegistry.clearDenial.selector
+                ^ unguardedSetDenial,
+            bytes4(0x31f35e83),
+            "the identifier changed by exactly the split of setDenial"
+        );
+    }
+
     function test_ERC165_RejectsUnrelatedInterface() public view {
         assertFalse(registry.supportsInterface(type(IERC1271).interfaceId));
         assertFalse(registry.supportsInterface(bytes4(0xdeadbeef)));
@@ -1426,6 +3196,207 @@ contract TrustRegistryTest is Test {
         registry.supportsInterface(type(ITrustRegistry).interfaceId);
         uint256 used = before - gasleft();
         assertLt(used, 30_000, "supportsInterface must stay under the ERC-165 budget");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Revert order (Errors, "Revert Order"). Each test violates its row AND every
+    // later row, so it passes only if the checks run in the specified order.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    function test_RevertOrder_SetTrust_1_SelfTrustProhibited() public {
+        TrustAttestation memory att = _att(GHOST, GHOST, TrustLevel.None, UNIVERSAL, 1, 0);
+        vm.expectRevert(SelfTrustProhibited.selector);
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_2_InvalidAttestationLevel() public {
+        TrustAttestation memory att = _att(GHOST, BOB, TrustLevel.Unknown, UNIVERSAL, 1, 0);
+        vm.expectRevert(abi.encodeWithSelector(InvalidAttestationLevel.selector, TrustLevel.Unknown));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_3_AttestationExpired() public {
+        TrustAttestation memory att = _att(GHOST, BOB, TrustLevel.Full, UNIVERSAL, 1, 0);
+        vm.expectRevert(abi.encodeWithSelector(AttestationExpired.selector, uint64(1), uint64(block.timestamp)));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_4_ENSNameNotFound() public {
+        TrustAttestation memory att = _att(GHOST, BOB, TrustLevel.Full, UNIVERSAL, 0, 0);
+        vm.expectRevert(abi.encodeWithSelector(ENSNameNotFound.selector, GHOST));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_5_NonceTooLow() public {
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 0);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(0), uint64(1)));
+        registry.setTrust(att, hex"dead");
+    }
+
+    function test_RevertOrder_SetTrust_6_NonceJumpTooLarge() public {
+        TrustAttestation memory att = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 2 ** 32 + 1);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, uint64(2 ** 32 + 1), uint64(2 ** 32)));
+        registry.setTrust(att, hex"dead");
+    }
+
+    /// @dev A wrapped .eth name past its grace period has a registry owner (the
+    ///      NameWrapper), so it passes rows 4-6 and fails at the signature:
+    ///      controllerOf returns zero
+    function test_RevertOrder_SetTrust_7_InvalidSignature() public {
+        _wrapLapsed(WRAPPED);
+        TrustAttestation memory att = _att(WRAPPED, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        bytes memory sig = _sign(aliceKey, att);
+        vm.expectRevert(InvalidSignature.selector);
+        registry.setTrust(att, sig);
+    }
+
+    function test_RevertOrder_SetTrustBatch_1_BatchLengthMismatch() public {
+        vm.expectRevert(BatchLengthMismatch.selector);
+        registry.setTrustBatch(new TrustAttestation[](0), new bytes[](1));
+    }
+
+    function test_RevertOrder_SetTrustBatch_2_EmptyBatch() public {
+        vm.expectRevert(EmptyBatch.selector);
+        registry.setTrustBatch(new TrustAttestation[](0), new bytes[](0));
+    }
+
+    /// @dev The nonce regression at index 1 comes before the trustor mismatch at index 2
+    function test_RevertOrder_SetTrustBatch_3_BatchTrustorMismatch() public {
+        TrustAttestation[] memory atts = new TrustAttestation[](3);
+        atts[0] = _att(ALICE, ALICE, TrustLevel.None, UNIVERSAL, 0, 5);
+        atts[1] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 3);
+        atts[2] = _att(BOB, CAROL, TrustLevel.Full, UNIVERSAL, 0, 9);
+        vm.expectRevert(BatchTrustorMismatch.selector);
+        registry.setTrustBatch(atts, new bytes[](3));
+    }
+
+    /// @dev Item 0 would fail setTrust, but the batch-level nonce check runs first
+    function test_RevertOrder_SetTrustBatch_4_BatchNonceNotIncreasing() public {
+        TrustAttestation[] memory atts = new TrustAttestation[](2);
+        atts[0] = _att(ALICE, ALICE, TrustLevel.None, UNIVERSAL, 0, 2);
+        atts[1] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        vm.expectRevert(BatchNonceNotIncreasing.selector);
+        registry.setTrustBatch(atts, new bytes[](2));
+    }
+
+    /// @dev A valid first item is rolled back when a later item fails setTrust
+    function test_RevertOrder_SetTrustBatch_5_PerItemSetTrustChecks() public {
+        TrustAttestation[] memory atts = new TrustAttestation[](2);
+        bytes[] memory sigs = new bytes[](2);
+        atts[0] = _att(ALICE, BOB, TrustLevel.Full, UNIVERSAL, 0, 1);
+        atts[1] = _att(ALICE, ALICE, TrustLevel.None, UNIVERSAL, 1, 2);
+        sigs[0] = _sign(aliceKey, atts[0]);
+        vm.expectRevert(SelfTrustProhibited.selector);
+        registry.setTrustBatch(atts, sigs);
+        assertEq(registry.getNonce(ALICE), 0, "nothing applied");
+    }
+
+    function test_RevertOrder_RevokeTrust_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.revokeTrust(ALICE, BOB, UNIVERSAL, bytes32(0));
+    }
+
+    function test_RevertOrder_RevokeTrustBatch_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.revokeTrustBatch(ALICE, BOB, new bytes32[](0), bytes32(0));
+    }
+
+    function test_RevertOrder_RevokeTrustBatch_2_EmptyScopeList() public {
+        vm.prank(alice);
+        vm.expectRevert(EmptyScopeList.selector);
+        registry.revokeTrustBatch(ALICE, BOB, new bytes32[](0), bytes32(0));
+    }
+
+    function test_RevertOrder_SetDenial_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.setDenial(ALICE, ALICE, UNIVERSAL, bytes32(0));
+    }
+
+    function test_RevertOrder_SetDenial_2_SelfTrustProhibited() public {
+        vm.prank(alice);
+        vm.expectRevert(SelfTrustProhibited.selector);
+        registry.setDenial(ALICE, ALICE, UNIVERSAL, bytes32(0));
+    }
+
+    function test_RevertOrder_ClearDenial_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.clearDenial(ALICE, ALICE, UNIVERSAL, 99, bytes32(0));
+    }
+
+    function test_RevertOrder_ClearDenial_2_SelfTrustProhibited() public {
+        vm.prank(alice);
+        vm.expectRevert(SelfTrustProhibited.selector);
+        registry.clearDenial(ALICE, ALICE, UNIVERSAL, 99, bytes32(0));
+    }
+
+    function test_RevertOrder_ClearDenial_3_NonceChanged() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceChanged.selector, uint64(99), uint64(0)));
+        registry.clearDenial(ALICE, BOB, UNIVERSAL, 99, bytes32(0));
+    }
+
+    function test_RevertOrder_InvalidateNonces_1_NotAuthorized() public {
+        vm.prank(mallory);
+        vm.expectRevert(abi.encodeWithSelector(NotAuthorized.selector, ALICE, mallory));
+        registry.invalidateNonces(ALICE, 0);
+    }
+
+    function test_RevertOrder_InvalidateNonces_2_NonceTooLow() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceTooLow.selector, uint64(0), uint64(1)));
+        registry.invalidateNonces(ALICE, 0);
+    }
+
+    function test_RevertOrder_InvalidateNonces_3_NonceJumpTooLarge() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(NonceJumpTooLarge.selector, type(uint64).max, uint64(2 ** 32)));
+        registry.invalidateNonces(ALICE, type(uint64).max);
+    }
+
+    /// @dev Rows 1-3 for both setIdentityGate and verifyPath, each with every later
+    ///      constraint also violated
+    function test_RevertOrder_ValidationParams_1to3() public {
+        bytes32[] memory tooMany = new bytes32[](11);
+        TrustPath memory p = _path(_nodes2(ALICE, BOB));
+        ValidationParams[3] memory bad = [
+            _params(0, TrustLevel.Unknown, UNIVERSAL, true, tooMany),
+            _params(5, TrustLevel.Unknown, UNIVERSAL, true, tooMany),
+            _params(5, TrustLevel.Marginal, UNIVERSAL, true, tooMany)
+        ];
+        bytes[3] memory expected = [
+            abi.encodeWithSelector(InvalidMaxPathLength.selector, uint8(0)),
+            abi.encodeWithSelector(InvalidMinEdgeTrust.selector, TrustLevel.Unknown),
+            abi.encodeWithSelector(TooManyRequiredAnchors.selector, uint256(11))
+        ];
+        for (uint256 i = 0; i < 3; i++) {
+            vm.expectRevert(expected[i]);
+            registry.verifyPath(p, bad[i]);
+
+            vm.prank(coordinator);
+            vm.expectRevert(expected[i]);
+            registry.setIdentityGate(MEV_COORDINATION, ALICE, bad[i]);
+        }
+    }
+
+    function test_RevertOrder_RemoveIdentityGate_1_GateNotFound() public {
+        vm.prank(coordinator);
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.removeIdentityGate(MEV_COORDINATION);
+    }
+
+    /// @dev GateNotFound comes before every return-false condition
+    function test_RevertOrder_ValidateParticipant_1_GateNotFound() public {
+        TrustPath memory empty = _path(new bytes32[](0));
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, empty);
+
+        vm.expectRevert(abi.encodeWithSelector(GateNotFound.selector, MEV_COORDINATION));
+        registry.validateParticipantAddress(coordinator, MEV_COORDINATION, address(0), empty);
     }
 
     // ───────────────────────────────────────────────────────────────────────────
