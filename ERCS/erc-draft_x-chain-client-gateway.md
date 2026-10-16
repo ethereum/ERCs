@@ -16,11 +16,9 @@ This ERC extends [ERC-3668](./eip-3668.md) so a contract can ask the client to r
 
 ## Motivation
 
-[ERC-3668](./eip-3668.md) gateways often just call a contract on another chain and relay the result. Each one is an HTTP service that someone must run and that the client must trust, even when the client already has RPC access to that chain.
+An [ERC-3668](./eip-3668.md) gateway must either be trusted or return a proof that the contract verifies on the original chain. In many cases a valid proof cannot be produced. That does not make the read unsafe. A client that already trusts its RPC connection to the destination chain can make the call itself.
 
 This ERC lets the client act as the gateway. The contract names the chain and contract to read, and the client answers using its own trusted RPC, so no third party is involved.
-
-A contract also needs to know whether the client supports this ERC. Clients that do not support it fall through to a `data:` URL that returns `0xff`, so the contract can detect them and respond, for example by reverting with a clear error.
 
 ## Specification
 
