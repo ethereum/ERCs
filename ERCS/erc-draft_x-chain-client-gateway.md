@@ -72,7 +72,7 @@ The callback MUST treat a one byte `0xff` response as a client without support f
 
 A client that supports this ERC MUST use the first `x-chain` URL in `urls` and ignore all other URLs.
 
-The client alone decides whether it can safely make the call on the destination chain. This includes knowing the chain, having a trusted RPC endpoint for it, and supporting its virtual machine. Support for one EVM chain does not imply support for another. If the client cannot make the call, or the URL is malformed, it MUST fail the call, the same outcome as a gateway HTTP 4xx response.
+The client alone decides whether it can safely make the call on the destination chain. This includes knowing the chain, having a trusted RPC endpoint for it, and supporting its virtual machine. The client MUST use its own RPC endpoints and MUST NOT take endpoints or chain metadata from the contract. Support for one EVM chain does not imply support for another. If the client cannot make the call, or the URL is malformed, it MUST fail the call, the same outcome as a gateway HTTP 4xx response.
 
 The client calls the target contract on the destination chain with `callData`, at the selected block. The destination chain MAY be the same chain.
 
@@ -88,33 +88,33 @@ Lookups on the destination chain count toward the client's ERC-3668 lookup limit
 
 [ERC-3668](./eip-3668.md) does not require a gateway to be an HTTP service, and allows URLs of any scheme. The client already trusts its own RPC connections, so it can answer a cross-chain read without adding a third party. A client that supports this ERC ignores all other URLs, so it never sends the request to a third-party gateway.
 
-### The fallback signal works with deployed clients
+### The unaware signal
 
-A survey of deployed CCIP-Read clients found that none fail hard at the sight of an unknown scheme, all of them record the failure and move to the next URL. Widely used clients also parse a `data:application/json` URL carrying a `data` field as a valid gateway response, so with those clients the callback receives `0xff` exactly as designed. Some clients cannot fetch `data:` URLs, and with those the whole lookup fails with an error rather than delivering `0xff`, a safe failure, though not a graceful one. The signal byte `0xff` was chosen because no ABI encoded return value and no standard revert payload is a single byte, so it cannot collide with a genuine remote result. An aware client never reaches the fallback, which keeps the signal unambiguous, `0xff` always means the client is unaware of this ERC. If an aware client that could not serve a chain fell back to the `data:` URL instead, the callback could not tell an unaware client from an aware client missing one chain, so the aware client fails the call with an error instead, matching how a gateway HTTP 4xx ends a lookup.
+Deployed CCIP-Read clients skip URL schemes they do not support and move to the next URL. Most also accept `data:` URLs, so the callback receives `0xff`. Clients that cannot read `data:` URLs fail the lookup with an error, which is safe. No ABI encoded result or standard revert payload is a single byte, so `0xff` cannot be mistaken for a real result. An aware client never reaches the `data:` URL, so `0xff` always means the client does not support this ERC.
 
-### The fallback is a data: URL only
+### No gateway fallback
 
-The purpose of this ERC is that the result is safe from the client's perspective, answered by the client's own trusted RPC and nothing else. Listing an ordinary HTTPS gateway as a fallback would reintroduce exactly the trusted third party this ERC exists to remove, so the fallback is a `data:` URL, which the client resolves locally without contacting anyone. The `0xff` it carries tells the callback that no supporting client was present, and the contract decides what to do with that fact.
+An HTTPS gateway fallback would bring back the third party this ERC removes. The client resolves a `data:` URL itself, without contacting anyone.
 
 ### No envelope
 
-The client passes through exactly what `eth_call` returns, and a remote revert fails the call rather than being delivered in a wrapper. This keeps callback code identical to callback code written against a trusted ERC-3668 gateway, keeps the client logic small, and avoids inventing a serialization for errors whose JSON-RPC shape is already inconsistent across providers. Contracts that want remote revert details can expose a remote function that returns status information instead of reverting.
+The client returns exactly what `eth_call` returns, and a remote revert fails the call. Callbacks work the same as with a normal ERC-3668 gateway.
 
 ### Nested x-chain URLs are not followed
 
-Allowing an `x-chain` call to spawn further `x-chain` calls makes loops easy, a contract on chain A can point at chain B and the contract on chain B can point back at chain A, and each hop multiplies RPC work across chains. Failing the call when a nested `x-chain` URL appears bounds the resolution to one cross-chain hop, while the client's lookup limit still leaves room for ordinary nested gateway lookups on the remote chain.
+A contract on chain A could point to chain B, and the contract on chain B back to chain A. Refusing nested `x-chain` URLs limits each call to one cross-chain hop.
 
-### Same-chain reads are allowed
+### Same-chain reads
 
-Requiring the named chain to differ from the current chain would forbid three useful patterns. A contract can read its own chain at `safe` or `finalized` to act only on settled state. A contract can have the client resolve another local contract whose answer depends on that contract's own `OffchainLookup`. A contract can route around the [ERC-3668](./eip-3668.md) rule that a nested `OffchainLookup` is only valid when its `sender` equals the called contract, because the client issues a fresh top-level call to the target.
+Same-chain reads let a contract read settled state at `safe` or `finalized`, or have the client resolve another local contract's `OffchainLookup`.
 
 ### The block parameter
 
-`latest`, `safe`, and `finalized` are the block tags clients already pass to `eth_call`, and `safe` and `finalized` are the stronger choice when the goal is settled state on rollups. `latest-N` covers contracts that want a fixed reorg buffer. The count is resolved to an exact number once, so repeated URL fetches cannot drift, and the call fails rather than silently landing on a different block. `N` blocks is a different span of time on each chain, so contracts choose `N` per chain.
+`latest`, `safe`, and `finalized` are the standard `eth_call` block tags. `latest-N` keeps a fixed distance behind the head. It is resolved to one block number, and the call fails rather than using a different block. `N` blocks is a different span of time on each chain.
 
 ## Backwards Compatibility
 
-This ERC changes no contract interfaces and no gateway interfaces. It only adds meaning to a URL scheme inside the existing [ERC-3668](./eip-3668.md) `urls` list. Contracts using this ERC remain valid ERC-3668 contracts. Clients without support for this ERC skip the `x-chain` URL and reach the `data:` fallback, so the callback receives `0xff` and can respond with a clear error. Clients that do not support `data:` URLs fail the lookup safely with an error and never give a wrong result.
+This ERC adds a URL scheme to the ERC-3668 `urls` list and changes no interfaces. Clients without support skip the `x-chain` URL and return `0xff` from the `data:` URL. Clients that cannot read `data:` URLs fail the lookup with an error and never return a wrong result.
 
 ## Test Cases
 
@@ -276,15 +276,13 @@ resolve(chain, target, data, lookups, nested):
 
 ## Security Considerations
 
-The callback MUST treat the client's answer as untrusted, exactly as it would treat the answer of any ERC-3668 gateway. A contract that needs guarantees verifies the response with proofs or signatures, or treats it as a hint.
+The result is as trustworthy as the client's RPC connection to the destination chain. The contract cannot verify it onchain. Contracts that need onchain guarantees should use proofs instead.
 
-Clients use their own RPC endpoints and MUST NOT accept RPC endpoints or chain metadata from the contract. The URL names a chain only through its ERC-7930 chain identifier. A chain identifier the client does not recognize makes the URL unsupported, so a contract cannot direct a client to an arbitrary endpoint. This ERC defines no HTTPS gateway fallback because a gateway would add another trusted party, the client's own RPC endpoints remain the only external dependency of the read.
+Clients use only their own RPC endpoints, so a contract cannot direct a client to an endpoint of its choosing. A chain the client does not recognize makes the call fail.
 
-The shared lookup limit bounds the work a single call can trigger. Without the nested restriction, cross-chain hops would make loops easy, a contract on chain A pointing to chain B whose contract points back to chain A, and each hop would multiply RPC load. Nested `x-chain` URLs are therefore never followed, and the client's lookup limit caps the remaining gateway lookups.
+Refusing nested `x-chain` URLs prevents cross-chain loops, and the client's lookup limit bounds the remaining lookups.
 
-All calls made under this ERC are reads. They move no assets, carry no spend authority, and create no reentrancy into the calling contract.
-
-A client that has seen an `x-chain` URL MUST NOT fall back to any other URL, so a transient RPC failure surfaces as a failed call rather than silently resolving through another URL, and the `data:` fallback keeps a single meaning, the client is unaware of this ERC.
+All calls under this ERC are reads. They move no assets and cannot reenter the calling contract.
 
 ## Copyright
 
