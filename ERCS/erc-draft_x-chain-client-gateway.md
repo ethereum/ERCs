@@ -98,13 +98,13 @@ One shared lookup limit bounds the entire resolution, counting the outer lookup 
 
 ## Rationale
 
-### A client-as-gateway URL has precedent
+### The client is the gateway
 
-ENSIP-21 reserves the URL `x-batch-gateway:true` inside `OffchainLookup`, instructing the client to substitute a local gateway implementation, to prefer it, and to ignore the other URLs in the list, the same exclusivity this ERC adopts, and that sentinel ships in viem today. ethers v6 ships built-in handling for `data:` URLs in the `urls` list. Both show that non-HTTP URLs in `OffchainLookup` are a workable extension point, and [ERC-3668](./eip-3668.md) itself states that URLs may be of any schema while defining handling only for HTTPS.
+A gateway under [ERC-3668](./eip-3668.md) is whatever answers the lookup, and nothing in that ERC requires it to be an HTTP service. The client already holds trusted RPC connections to the chains it serves, so it is the one party that can answer a cross-chain read without adding a trusted party. Making the client the gateway removes the service that someone must run, pay for, and keep available, and removes that service from the trust base of the read. The exclusivity rule follows from the same goal, a supporting client ignores every other URL so that it never consults a third party, and the outcome of a lookup depends only on the client's own connections. ERC-3668 states that URLs may be of any schema while defining handling only for HTTPS, so a new scheme is a conforming extension point.
 
 ### The fallback signal works with deployed clients
 
-A survey of CCIP-Read clients found that none fail hard at the sight of an unknown scheme, all of them record the failure and move to the next URL. viem, ensjs, which delegates to viem, and ethers v6 also parse a `data:application/json` URL carrying a `data` field as a valid gateway response, so with those clients the callback receives `0xff` exactly as designed. go-ens, web3.py, and alloy-ccip-read reject or cannot fetch `data:` URLs, so with those clients the whole lookup fails with an error rather than delivering `0xff`, a safe failure, though not a graceful one. The signal byte `0xff` was chosen because no ABI encoded return value and no standard revert payload is a single byte, so it cannot collide with a genuine remote result. An aware client never reaches the fallback, which keeps the signal unambiguous, `0xff` always means the client is unaware of this ERC. If an aware client that could not serve a chain fell back to the `data:` URL instead, the callback could not tell an unaware client from an aware client missing one chain, so the aware client fails the call with an error instead, matching how a gateway HTTP 4xx ends a lookup.
+A survey of deployed CCIP-Read clients found that none fail hard at the sight of an unknown scheme, all of them record the failure and move to the next URL. Widely used clients also parse a `data:application/json` URL carrying a `data` field as a valid gateway response, so with those clients the callback receives `0xff` exactly as designed. Some clients cannot fetch `data:` URLs, and with those the whole lookup fails with an error rather than delivering `0xff`, a safe failure, though not a graceful one. The signal byte `0xff` was chosen because no ABI encoded return value and no standard revert payload is a single byte, so it cannot collide with a genuine remote result. An aware client never reaches the fallback, which keeps the signal unambiguous, `0xff` always means the client is unaware of this ERC. If an aware client that could not serve a chain fell back to the `data:` URL instead, the callback could not tell an unaware client from an aware client missing one chain, so the aware client fails the call with an error instead, matching how a gateway HTTP 4xx ends a lookup.
 
 ### The fallback is a data: URL only
 
@@ -128,7 +128,7 @@ Requiring the named chain to differ from the current chain would forbid three us
 
 ## Backwards Compatibility
 
-This ERC changes no contract interfaces and no gateway interfaces. It only adds meaning to a URL scheme inside the existing [ERC-3668](./eip-3668.md) `urls` list. Contracts using this ERC remain valid ERC-3668 contracts. Clients without support for this ERC skip the `x-chain` URL and reach the `data:` fallback, so the callback receives `0xff` and can respond with a clear error. Clients that cannot read `data:` URLs, at the time of writing go-ens, web3.py, and alloy-ccip-read, fail the lookup safely with an error and never give a wrong result.
+This ERC changes no contract interfaces and no gateway interfaces. It only adds meaning to a URL scheme inside the existing [ERC-3668](./eip-3668.md) `urls` list. Contracts using this ERC remain valid ERC-3668 contracts. Clients without support for this ERC skip the `x-chain` URL and reach the `data:` fallback, so the callback receives `0xff` and can respond with a clear error. Clients that do not support `data:` URLs fail the lookup safely with an error and never give a wrong result.
 
 ## Test Cases
 
