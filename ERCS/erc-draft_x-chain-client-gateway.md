@@ -167,12 +167,7 @@ contract RemoteSupplyReader {
 
 ## Security Considerations
 
-- **RPC trust.** The result is only as reliable as the client's RPC connection to the destination chain. A faulty or compromised RPC returns wrong data, and the contract cannot detect it. Clients should only serve chains whose RPC they trust as much as their own.
-- **Results are not proofs.** The callback cannot tell a client's answer from data anyone else supplies. Contracts should not use an `x-chain` result to authorize a state change unless they also verify a proof.
-- **VM differences.** The same call can behave differently on different EVM chains, because of missing opcodes, different precompiles, or different gas rules. A client that supports one chain should not assume it supports another.
-- **Block choice.** `latest` can be reorganized, especially on rollups. Contracts that act on the result should consider `safe` or `finalized`. `latest-N` counts blocks, not time.
-- **Handling `0xff`.** A callback that does not check for `0xff` may try to decode it as a real result.
-- **Cost and privacy.** Any contract can make a supporting client query any chain the client serves, so clients should rate limit these calls. The client's RPC provider also sees which contracts are read on its chain.
+The result is only as reliable as the client's RPC connection to the destination chain, and the contract cannot verify it, so contracts should not use it to authorize a state change without a proof. The same call can behave differently on different EVM chains, so a client that supports one chain should not assume it supports another. `latest` can be reorganized, especially on rollups, so contracts that act on the result should consider `safe` or `finalized`.
 
 ## Copyright
 
