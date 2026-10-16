@@ -546,6 +546,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         // The terminal node MUST be bound to the participant address
         if (resolveAgent(path.nodes[path.nodes.length - 1]) != participant) return false;
 
+        // A name nobody controls cannot vouch for its addr record, which may be stale
+        if (controllerOf(path.nodes[path.nodes.length - 1]) == address(0)) return false;
+
         return _verifyPath(path, params, false);
     }
 
