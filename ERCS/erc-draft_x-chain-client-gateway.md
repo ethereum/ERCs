@@ -165,37 +165,6 @@ contract RemoteSupplyReader {
 }
 ```
 
-Client algorithm, in the style of [ERC-3668](./eip-3668.md). `lookups` is the shared counter bounding the entire resolution, and `LIMIT` is the client's ERC-3668 lookup limit.
-
-```
-resolve(chain, target, data, lookups, nested):
- 1. Set result to the result of eth_call with to = target and
-    input = data on chain.
- 2. If the call succeeded, return result.
- 3. If the call reverted with an error other than OffchainLookup,
-    fail and surface the revert data where possible. At the top
-    level, return the revert to the caller.
- 4. Decode sender, urls, callData, callbackFunction, and extraData
-    from the OffchainLookup error. If sender != target, fail.
- 5. If lookups >= LIMIT, fail. Increment lookups.
- 6. If urls contains an x-chain URL, ignore every other url and
-    use only the first x-chain url:
-    a. If nested, fail.
-    b. If the url is not well formed, or the client cannot safely
-       and correctly make the call on the named chain under
-       "Accepting an x-chain URL", fail.
-    c. Parse the Interoperable Address into (remoteChain,
-       remoteTarget), resolve the block parameter, and set
-       response to
-       resolve(remoteChain, remoteTarget, callData, lookups, true)
-       at the resolved block. If that resolution fails, fail.
- 7. Otherwise, for each url in urls, in order, handle url per
-    ERC-3668, continuing to the next url on failure. If no url
-    produced a response, fail.
- 8. Set data to callbackFunction ++ abi.encode(response, extraData)
-    and go to step 1.
-```
-
 ## Security Considerations
 
 The result is as trustworthy as the client's RPC connection to the destination chain. The contract cannot verify it onchain. Contracts that need onchain guarantees should use proofs instead.
