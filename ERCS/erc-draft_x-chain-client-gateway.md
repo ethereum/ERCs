@@ -102,7 +102,7 @@ The client passes through exactly what `eth_call` returns, and a remote revert f
 
 ### Nested x-chain URLs are not followed
 
-Allowing an `x-chain` call to spawn further `x-chain` calls makes loops easy, a contract on chain A can point at chain B and the contract on chain B can point back at chain A, and each hop multiplies RPC work across chains. Failing the call when a nested `x-chain` URL appears bounds the resolution to one cross-chain hop, while the shared lookup limit of at least 4 still leaves room for ordinary nested gateway lookups on the remote chain.
+Allowing an `x-chain` call to spawn further `x-chain` calls makes loops easy, a contract on chain A can point at chain B and the contract on chain B can point back at chain A, and each hop multiplies RPC work across chains. Failing the call when a nested `x-chain` URL appears bounds the resolution to one cross-chain hop, while the client's lookup limit still leaves room for ordinary nested gateway lookups on the remote chain.
 
 ### Same-chain reads are allowed
 
@@ -280,7 +280,7 @@ The callback MUST treat the client's answer as untrusted, exactly as it would tr
 
 Clients use their own RPC endpoints and MUST NOT accept RPC endpoints or chain metadata from the contract. The URL names a chain only through its ERC-7930 chain identifier. A chain identifier the client does not recognize makes the URL unsupported, so a contract cannot direct a client to an arbitrary endpoint. This ERC defines no HTTPS gateway fallback because a gateway would add another trusted party, the client's own RPC endpoints remain the only external dependency of the read.
 
-The shared lookup limit bounds the work a single call can trigger. Without the nested restriction, cross-chain hops would make loops easy, a contract on chain A pointing to chain B whose contract points back to chain A, and each hop would multiply RPC load. Nested `x-chain` URLs are therefore never followed, and the shared limit of at least 4 caps the remaining gateway lookups.
+The shared lookup limit bounds the work a single call can trigger. Without the nested restriction, cross-chain hops would make loops easy, a contract on chain A pointing to chain B whose contract points back to chain A, and each hop would multiply RPC load. Nested `x-chain` URLs are therefore never followed, and the client's lookup limit caps the remaining gateway lookups.
 
 All calls made under this ERC are reads. They move no assets, carry no spend authority, and create no reentrancy into the calling contract.
 
