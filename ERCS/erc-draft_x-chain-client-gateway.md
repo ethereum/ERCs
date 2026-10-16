@@ -106,7 +106,17 @@ The ENS registry on Ethereum mainnet, chain id 1, contract `0x00000000000c2e074e
 x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?block=finalized
 ```
 
-A contract reverts with `OffchainLookup` where `urls[0]` is one of the URLs above and `urls[1]` is `data:application/json,{"data":"0xff"}`. A client that supports this ERC calls the target contract and invokes the callback with the raw return data. A client that does not support this ERC invokes the callback with the single byte `0xff`.
+A contract that reads the USDC contract on Base reverts with `OffchainLookup` and this `urls` list.
+
+```
+[
+  "x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  "data:application/json,{\"data\":\"0xff\"}"
+]
+```
+
+- A client that supports this ERC uses the first URL. It calls the USDC contract on Base with `callData` and passes the result to the callback.
+- A client that does not support this ERC skips the first URL and uses the second. It passes `0xff` to the callback.
 
 ## Reference Implementation
 
