@@ -12,7 +12,7 @@ requires: 3668, 7930
 
 ## Abstract
 
-This ERC extends [ERC-3668](./eip-3668.md) CCIP-Read with a URL scheme, `x-chain`, that names a contract on a specific chain using an [ERC-7930](./eip-7930.md) Interoperable Address. When a contract reverts with `OffchainLookup` and the URL list contains an `x-chain` URL, a client that supports this ERC performs the read itself on the named chain, in place of an HTTP gateway, and passes the result to the callback exactly as `eth_call` returns it. A contract can include a `data:` URL after the `x-chain` URL so that a client that does not support this ERC falls through to it and delivers the single byte `0xff` to the callback, signaling that the client is unaware of this ERC.
+This ERC extends [ERC-3668](./eip-3668.md) so a contract can ask the client to read another contract directly, on another chain or the same chain, instead of relying on an offchain gateway. The client returns the same result a gateway would, using its own trusted connection to that chain, so no third party is involved. Contracts can also detect clients that do not support this ERC.
 
 ## Motivation
 
