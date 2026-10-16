@@ -84,33 +84,9 @@ Lookups on the destination chain count toward the client's ERC-3668 lookup limit
 
 ## Rationale
 
-### The client is the gateway
+[ERC-3668](./eip-3668.md) does not require a gateway to be an HTTP service, and allows URLs of any scheme. The client already trusts its own RPC connections, so it can answer a cross-chain read without adding a third party. A client that supports this ERC ignores all other URLs, so it never sends the request to a third-party gateway. It returns exactly what `eth_call` returns, so callbacks work as they do with any ERC-3668 gateway. Nested `x-chain` URLs are not followed, which limits each call to one cross-chain hop and prevents loops between chains.
 
-[ERC-3668](./eip-3668.md) does not require a gateway to be an HTTP service, and allows URLs of any scheme. The client already trusts its own RPC connections, so it can answer a cross-chain read without adding a third party. A client that supports this ERC ignores all other URLs, so it never sends the request to a third-party gateway.
-
-### The unaware signal
-
-Deployed CCIP-Read clients skip URL schemes they do not support and move to the next URL. Most also accept `data:` URLs, so the callback receives `0xff`. Clients that cannot read `data:` URLs fail the lookup with an error, which is safe. No ABI encoded result or standard revert payload is a single byte, so `0xff` cannot be mistaken for a real result. An aware client never reaches the `data:` URL, so `0xff` always means the client does not support this ERC.
-
-### No gateway fallback
-
-An HTTPS gateway fallback would bring back the third party this ERC removes. The client resolves a `data:` URL itself, without contacting anyone.
-
-### No envelope
-
-The client returns exactly what `eth_call` returns, and a remote revert fails the call. Callbacks work the same as with a normal ERC-3668 gateway.
-
-### Nested x-chain URLs are not followed
-
-A contract on chain A could point to chain B, and the contract on chain B back to chain A. Refusing nested `x-chain` URLs limits each call to one cross-chain hop.
-
-### Same-chain reads
-
-Same-chain reads let a contract read settled state at `safe` or `finalized`, or have the client resolve another local contract's `OffchainLookup`.
-
-### The block parameter
-
-`latest`, `safe`, and `finalized` are the standard `eth_call` block tags. `latest-N` keeps a fixed distance behind the head. It is resolved to one block number, and the call fails rather than using a different block. `N` blocks is a different span of time on each chain.
+The fallback is a `data:` URL because the client resolves it itself, without contacting anyone. Deployed CCIP-Read clients skip unsupported URL schemes, and most accept `data:` URLs, so the callback receives `0xff`. Clients that cannot read `data:` URLs fail the lookup with an error, which is safe. No ABI encoded result is a single byte, so `0xff` cannot be mistaken for a real result. The `block` parameter uses the standard `eth_call` block tags, and `latest-N` keeps a fixed number of blocks behind the head, which is a different span of time on each chain.
 
 ## Backwards Compatibility
 
