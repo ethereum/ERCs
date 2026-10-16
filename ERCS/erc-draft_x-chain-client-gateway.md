@@ -74,7 +74,7 @@ The callback MUST NOT treat a one byte `0xff` response as a valid remote result.
 
 A client that supports this ERC and finds an `x-chain` URL in `urls` MUST ignore every other URL in the list, whatever the outcome of the call. It never falls back to the `data:` URL or to any other URL, so only unaware clients reach the fallback. If the list contains more than one `x-chain` URL, the client MUST use the first one and ignore the rest.
 
-The URI format accepts any ERC-7930 chain type. The client alone decides whether it can safely and correctly make the call on the destination chain. That judgment covers at least whether the client knows the chain, has a trusted RPC endpoint for it, and supports its virtual machine and call semantics. If the client is not confident on all counts, or the URL is unsupported, it MUST fail the call with an error, the same outcome as a gateway HTTP 4xx response, and MUST NOT attempt a best effort call.
+The URL format accepts any ERC-7930 chain type. The client alone decides whether it can safely and correctly make the call on the destination chain. That judgment covers at least whether the client knows the chain, has a trusted RPC endpoint for it, and supports its virtual machine and call semantics. If the client is not confident on all counts, or the URL is unsupported, it MUST fail the call with an error, the same outcome as a gateway HTTP 4xx response, and MUST NOT attempt a best effort call.
 
 This section defines call semantics for `eip155` chains, where the read is an `eth_call`. EVM chains are a family of different virtual machines, including zkEVMs, chains missing newer opcodes such as `PUSH0`, and chains with different precompiles and gas rules, so support for one `eip155` chain does not imply support for another. Call semantics for other chain types, for example Solana, are left to clients or to a later ERC.
 
@@ -136,7 +136,7 @@ This ERC changes no contract interfaces and no gateway interfaces. It only adds 
 
 The ERC-7930 Chain Identifier for Ethereum mainnet, chain id 1, is `0x00010000010100`. The Chain Identifier for Base, chain id 8453, is `0x0001000002210500`. Chain Identifiers have a zero-length address and are therefore not valid in `x-chain` URLs, which require a target address.
 
-### Valid URIs
+### Valid URLs
 
 USDC on Base, chain id 8453, contract `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
 
@@ -157,11 +157,11 @@ x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913?block=finaliz
 x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?block=latest-128
 ```
 
-### Invalid URIs
+### Invalid URLs
 
 Each of the following MUST be treated as unsupported.
 
-| URI | Defect |
+| URL | Defect |
 | --- | --- |
 | `x-chain:0x0002000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913` | version is not `0x0001` |
 | `x-chain:0x0001000002210514833589FCD6EDB6E08F4C7C32D4F71B54BDA02913` | uppercase hexadecimal |
