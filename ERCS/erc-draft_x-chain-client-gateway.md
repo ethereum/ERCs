@@ -1,0 +1,174 @@
+---
+title: Cross-Chain Client Gateway for CCIP-Read
+description: An extension of CCIP-Read where the client itself performs a cross-chain read named by an x-chain URL
+author: Prem Makeig (@nxt3d)
+discussions-to:
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-10-16
+requires: 3668, 7930
+---
+
+## Abstract
+
+This ERC extends [ERC-3668](./eip-3668.md) so a contract can ask the client to read another contract directly, on another chain or the same chain, instead of relying on an offchain gateway. The client returns the same result a gateway would, using its own trusted connection to that chain, so no third party is involved. Contracts can also detect clients that do not support this ERC.
+
+## Motivation
+
+An [ERC-3668](./eip-3668.md) gateway must either be trusted or return a proof that the contract verifies on the original chain. In many cases a valid proof cannot be produced. That does not make the read unsafe. A client that already trusts its RPC connection to the destination chain can make the call itself.
+
+This ERC lets the client act as the gateway. The contract names the chain and contract to read, and the client answers using its own trusted RPC, so no third party is involved.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### The x-chain URL
+
+An `x-chain` URL has the following form.
+
+```
+x-chain:0x<interoperable-address>[?block=<block>]
+```
+
+`<interoperable-address>` is the lowercase hexadecimal encoding of a version 1 [ERC-7930](./eip-7930.md) Interoperable Address containing both a chain reference and a target address. The `AddressLength` field MUST NOT be zero. The hexadecimal string MUST be lowercase and MUST contain no bytes beyond the end of the Interoperable Address.
+
+For example, the following URL names the contract `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913` on Base, chain id 8453.
+
+```
+x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913
+```
+
+A URL that is not well formed under this section is unsupported. A client that supports this ERC handles an unsupported `x-chain` URL as defined under Client behavior.
+
+#### The block parameter
+
+The OPTIONAL `block` query parameter selects the block at which the call is made. The following values are defined.
+
+- `latest`. The latest block. This is the default when the parameter is absent.
+- `safe`. The safe block.
+- `finalized`. The finalized block.
+- A `0x`-prefixed hexadecimal block number. The call is made at exactly that block.
+- `latest-N`, where `N` is a decimal count of blocks. The client reads the head block number once, subtracts `N`, and makes the call at exactly that number. `latest-0` equals the head block.
+
+If `N` is larger than the head block number, or the client cannot serve the selected block, for example on a pruned node, the call MUST fail. The client MUST NOT substitute another block. A `block` value not matching one of the forms above makes the URL unsupported.
+
+The callback does not learn which block was used, because the result is identical to the result of `eth_call`. A contract that needs the block number MUST have the remote function return it.
+
+### Contract behavior
+
+A contract requests a cross-chain read by reverting with the `OffchainLookup` error defined in [ERC-3668](./eip-3668.md), with the `x-chain` URL in `urls` and with `callData` set to the plain call data for the target contract. No wrapping or envelope is applied to `callData`.
+
+The contract SHOULD place a `data:` URL after the `x-chain` URL. Only clients without support for this ERC reach it, and they deliver the single byte `0xff` to the callback. A client that supports this ERC never uses it.
+
+```
+data:application/json,{"data":"0xff"}
+```
+
+The callback MUST treat a one byte `0xff` response as a client without support for this ERC, never as a remote result.
+
+### Client behavior
+
+A client that supports this ERC MUST use the first `x-chain` URL in `urls` and ignore all other URLs.
+
+The client alone decides whether it can safely make the call on the destination chain. This includes knowing the chain, having a trusted RPC endpoint for it, and supporting its virtual machine. The client MUST use its own RPC endpoints and MUST NOT take endpoints or chain metadata from the contract. Support for one EVM chain does not imply support for another. If the client cannot make the call, or the URL is unsupported, it MUST fail the call, the same outcome as a gateway HTTP 4xx response.
+
+The client calls the target contract on the destination chain with `callData`, at the selected block. The destination chain MAY be the same chain.
+
+- On success, the client invokes the callback with the return data exactly as `eth_call` returns it.
+- On a revert, the client MUST fail the call and SHOULD surface the revert data.
+- On an `OffchainLookup` revert from the target contract, the client handles it as a normal [ERC-3668](./eip-3668.md) lookup on the destination chain. If that lookup includes an `x-chain` URL, the client MUST fail the call, so one `x-chain` read never starts another.
+
+Lookups on the destination chain count toward the client's ERC-3668 lookup limit for the original call.
+
+## Rationale
+
+[ERC-3668](./eip-3668.md) does not require a gateway to be an HTTP service, and allows URLs of any scheme. The client already trusts its own RPC connections, so it can answer a cross-chain read without adding a third party. A client that supports this ERC ignores all other URLs, so it never sends the request to a third-party gateway. It returns exactly what `eth_call` returns, so callbacks work as they do with any ERC-3668 gateway. Nested `x-chain` URLs are not followed, which limits each call to one cross-chain hop and prevents loops between chains.
+
+Clients that do not support this ERC are detected with a `data:` URL rather than an HTTP gateway. Existing CCIP-Read clients skip URL schemes they do not support, and most read a `data:` URL as a gateway response with the answer inside the URL, so the callback receives `0xff` without any server or third party. `0xff` was chosen because no ABI encoded result is a single byte, so it cannot be mistaken for a real result. The `block` parameter reuses the standard `eth_call` block tags and adds `latest-N` for contracts that want to stay a fixed number of blocks behind the head.
+
+## Backwards Compatibility
+
+This ERC adds a URL scheme to the ERC-3668 `urls` list and changes no interfaces. Clients without support skip the `x-chain` URL and return `0xff` from the `data:` URL. Clients that cannot read `data:` URLs fail the lookup with an error and never return a wrong result.
+
+## Test Cases
+
+USDC on Base, chain id 8453, contract `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913`.
+
+```
+x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913
+```
+
+The ENS registry on Ethereum mainnet, chain id 1, contract `0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e`, read at the finalized block.
+
+```
+x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?block=finalized
+```
+
+A contract that reads the USDC contract on Base reverts with `OffchainLookup` and this `urls` list.
+
+```
+[
+  "x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  "data:application/json,{\"data\":\"0xff\"}"
+]
+```
+
+- A client that supports this ERC uses the first URL. It calls the USDC contract on Base with `callData` and passes the result to the callback.
+- A client that does not support this ERC skips the first URL and uses the second. It passes `0xff` to the callback.
+
+## Reference Implementation
+
+A contract that reads `totalSupply()` from USDC on Base.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.24;
+
+contract RemoteSupplyReader {
+    error OffchainLookup(
+        address sender,
+        string[] urls,
+        bytes callData,
+        bytes4 callbackFunction,
+        bytes extraData
+    );
+    error XChainUnsupported();
+
+    string constant REMOTE_URL =
+        "x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913?block=finalized";
+    string constant FALLBACK_URL = "data:application/json,{\"data\":\"0xff\"}";
+
+    function remoteTotalSupply() external view returns (uint256) {
+        string[] memory urls = new string[](2);
+        urls[0] = REMOTE_URL;
+        urls[1] = FALLBACK_URL;
+        revert OffchainLookup(
+            address(this),
+            urls,
+            abi.encodeWithSignature("totalSupply()"),
+            this.remoteTotalSupplyCallback.selector,
+            ""
+        );
+    }
+
+    function remoteTotalSupplyCallback(
+        bytes calldata response,
+        bytes calldata
+    ) external pure returns (uint256) {
+        if (response.length == 1 && response[0] == 0xff) {
+            revert XChainUnsupported();
+        }
+        return abi.decode(response, (uint256));
+    }
+}
+```
+
+## Security Considerations
+
+The result is only as reliable as the client's RPC connection to the destination chain, and the contract cannot verify it, so contracts should not use it to authorize a state change without a proof. The same call can behave differently on different EVM chains, so a client that supports one chain should not assume it supports another. `latest` can be reorganized, especially on rollups, so contracts that act on the result should consider `safe` or `finalized`.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
