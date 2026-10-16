@@ -1,10 +1,7 @@
 # Reference implementation — Token-Bound Executable Skills
 
-Canonical repository (full toolchain, quick start, and reproduction instructions):
-https://github.com/garyyang-finchip/skill-token-standard (release v1.0.0)
-
-Live on Sepolia: 0x12cc1a5319c6F08bFB50982e3814A376A59fE550 — Skill Token #1 is the
-`public-v1` frozen vector; on-chain anchors match the vectors in this directory.
+Everything needed to check an independent implementation byte-for-byte is
+vendored in this directory.
 
 ## Contents
 
@@ -13,11 +10,14 @@ Live on Sepolia: 0x12cc1a5319c6F08bFB50982e3814A376A59fE550 — Skill Token #1 i
 - `schemas/` — manifest and confidentiality descriptor JSON Schemas
 - `vectors/` — six frozen test vectors (public / confidential / license-encrypted /
   custom primary path / companion-only update / key rotation) plus path negative tests;
-  reproducible byte-for-byte by independent implementations
+  each object file is named by its SHA-256 digest, every `skillroot.cbor` hashes to the
+  stated `packageHash`, and the version chains link `update-v2-companion-only → public-v1`
+  and `key-rotation-v2 → confidential-v1`, so the deterministic encoding is fully
+  reproducible from this directory alone
 
 Interface IDs (compiler-verified): ISkillToken = 0x734553a6, IOnchainSkillDocument = 0x7050dd2c
 
-The zero-dependency packer/verifier toolchain ships with the canonical repository
-(release v1.0.0) linked above.
+KEY.demo files are NON-CRYPTOGRAPHIC TEST keys; the x-test-sha256-xor-stream-v1
+profile is a test profile and must never be used in production.
 
 Released under CC0.
