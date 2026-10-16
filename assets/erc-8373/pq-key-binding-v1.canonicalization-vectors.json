@@ -99,6 +99,34 @@
    "statement_hex": "7b2261f09f9880223a2278222c2261efbcba223a2279227d",
    "expect": "admit",
    "note": "member names 'a\\ud83d\\ude00' (U+1F600, above BMP) and 'a\\uff3a' (U+FF3A); JCS/RFC 8785 orders by UTF-16 code units, under which the surrogate-pair name sorts first, but ordering by raw UTF-8 bytes (or by code point) reverses it -- a checker that sorts by the wrong key admits the two names in the opposite order and this case alone catches it, since every other case's names are ASCII where the two orderings agree"
+  },
+  {
+   "id": "toplevel_array_int_not_canonical",
+   "bytes": 3,
+   "statement_hex": "5b315d",
+   "expect": "reject:not_canonical",
+   "note": "a top-level JSON array of one integer, [1]; object_pairs_hook is never invoked for an array, so a checker that distinguishes an object's pairs-list from an array's value-list only by isinstance(x, list) crashes unpacking 1 as (k, v) instead of refusing -- found by @zexoverz"
+  },
+  {
+   "id": "toplevel_array_string_not_canonical",
+   "bytes": 7,
+   "statement_hex": "5b22616263225d",
+   "expect": "reject:not_canonical",
+   "note": "a top-level JSON array of one string, [\"abc\"]; same class as toplevel_array_int_not_canonical -- unpacking the 3-char string as (k, v) raises instead of refusing -- found by @zexoverz"
+  },
+  {
+   "id": "lone_surrogate_in_value_not_canonical",
+   "bytes": 14,
+   "statement_hex": "7b2261223a225c7564383030227d",
+   "expect": "reject:not_canonical",
+   "note": "value is the unpaired high surrogate U+D800 (written as the escape \\ud800, not raw UTF-8); JCS/RFC 8785 has no byte encoding for a lone surrogate, but re-encoding the parsed string to compare against raw throws UnicodeEncodeError uncaught instead of refusing -- found by @zexoverz"
+  },
+  {
+   "id": "lone_surrogate_in_name_not_canonical",
+   "bytes": 14,
+   "statement_hex": "7b225c7564383030223a2278227d",
+   "expect": "reject:not_canonical",
+   "note": "member name is the unpaired high surrogate U+D800; sorting member names by UTF-16BE code units throws UnicodeEncodeError on the lone surrogate uncaught instead of refusing -- found by @zexoverz"
   }
  ]
 }

@@ -40,23 +40,35 @@ def jcs(obj):
     return '{' + ','.join(parts) + '}'
 
 
+class _ObjectPairs(list):
+    """Marks a list as the result of parsing a JSON *object*, so a top-level JSON array
+    (which json.loads also hands back as a plain list) can never be mistaken for one."""
+
+
 def check(raw: bytes, facet: dict) -> str:
     if len(raw) > facet['max_statement_bytes']:
         return 'reject:size_exceeded'
     try:
         text = raw.decode('utf-8', errors='strict')
-        pairs = json.loads(text, object_pairs_hook=lambda p: p)
+        pairs = json.loads(text, object_pairs_hook=_ObjectPairs)
     except (UnicodeDecodeError, ValueError):
         return 'reject:not_canonical'
-    if not isinstance(pairs, list) or len({k for k, _ in pairs}) != len(pairs):
+    if not isinstance(pairs, _ObjectPairs) or len({k for k, _ in pairs}) != len(pairs):
         return 'reject:not_canonical'
     obj = dict(pairs)
     for v in obj.values():
         if isinstance(v, bool) or not (isinstance(v, str) or (isinstance(v, int) and abs(v) <= MAX_SAFE)):
             return 'reject:not_canonical'
-    if jcs(obj).encode('utf-8') != raw:
+    try:
+        canonical = jcs(obj).encode('utf-8')
+        name_lens_ok = all(len(jcs_string(k).encode('utf-8')) - 2 <= facet['max_member_name_escaped_bytes'] for k in obj)
+    except UnicodeEncodeError:
+        # a lone surrogate in a name or value: JCS (RFC 8785) has no encoding for it, so the
+        # statement cannot be canonical, regardless of which side tripped the encoder first.
         return 'reject:not_canonical'
-    if any(len(jcs_string(k).encode('utf-8')) - 2 > facet['max_member_name_escaped_bytes'] for k in obj):
+    if canonical != raw:
+        return 'reject:not_canonical'
+    if not name_lens_ok:
         return 'reject:name_too_long'
     return 'admit'
 
