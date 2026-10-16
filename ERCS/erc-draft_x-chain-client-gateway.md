@@ -86,7 +86,7 @@ Lookups on the destination chain count toward the client's ERC-3668 lookup limit
 
 ### The client is the gateway
 
-A gateway under [ERC-3668](./eip-3668.md) is whatever answers the lookup, and nothing in that ERC requires it to be an HTTP service. The client already holds trusted RPC connections to the chains it serves, so it is the one party that can answer a cross-chain read without adding a trusted party. Making the client the gateway removes the service that someone must run, pay for, and keep available, and removes that service from the trust base of the read. The exclusivity rule follows from the same goal, a supporting client ignores every other URL so that it never consults a third party, and the outcome of a lookup depends only on the client's own connections. ERC-3668 states that URLs may be of any schema while defining handling only for HTTPS, so a new scheme is a conforming extension point.
+[ERC-3668](./eip-3668.md) does not require a gateway to be an HTTP service, and allows URLs of any scheme. The client already trusts its own RPC connections, so it can answer a cross-chain read without adding a third party. For the same reason, a supporting client ignores every other URL.
 
 ### The fallback signal works with deployed clients
 
