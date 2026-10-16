@@ -81,6 +81,7 @@
         "cardDigest": "sha256:9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f"
       },
       "value:anchor": "eip155:8453/erc721:0x1111111111111111111111111111111111111111/42",
+      "value:adopted": true,
       "value:canonical": "urn:air:finchip.ai:skills:daily-finance-brief",
       "value:aliases": [
         "urn:air:registry.finchip.ai:onchain:eip155-8453-erc721-0x1111111111111111111111111111111111111111-42"

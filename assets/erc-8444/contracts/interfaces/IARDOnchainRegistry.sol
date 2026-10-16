@@ -25,7 +25,7 @@ interface IARDOnchainRegistry {
         string  descriptorURI;   // where the authored descriptor can be fetched; never a trust source
         string  urn;             // canonical URN supplied by the controller; may be empty
         Status  status;
-        address registrant;      // msg.sender at registration (informational)
+        address attestor;        // the controller that committed the current descriptor (register / updateDescriptor)
         uint64  updatedAt;
     }
 
@@ -58,7 +58,7 @@ interface IARDOnchainRegistry {
         bytes32 indexed kind,
         address indexed target,
         uint256 id,
-        address registrant,
+        address attestor,
         bytes32 descriptorHash,
         string descriptorURI,
         string urn
@@ -84,7 +84,10 @@ interface IARDOnchainRegistry {
         string calldata urn
     ) external returns (bytes32 recordId);
 
-    /// @notice Replace the descriptor commitment. Current controller only; not after Retired.
+    /// @notice Replace the descriptor commitment. Current controller only; not after Retired. Records
+    ///         msg.sender as the attestor, so a controller that acquired the anchor adopts the served
+    ///         descriptor by committing it again (the same hash is allowed). A record whose attestor is not
+    ///         its current controller is unadopted: resolvers do not serve it in discovery.
     function updateDescriptor(bytes32 recordId, bytes32 descriptorHash, string calldata descriptorURI, string calldata urn)
         external;
 
