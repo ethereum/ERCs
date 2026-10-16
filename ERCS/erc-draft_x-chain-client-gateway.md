@@ -16,9 +16,11 @@ This ERC extends [ERC-3668](./eip-3668.md) so a contract can ask the client to r
 
 ## Motivation
 
-[ERC-3668](./eip-3668.md) lets a contract defer a read to an offchain gateway, and in practice many gateways do nothing more than call a contract on another chain and relay the answer. Every such deployment requires an HTTP service that someone must run, pay for, and keep available, and the client must trust its availability even when the client already operates RPC connections to the destination chain. This ERC removes the middleman for that case. The client is the gateway, the contract states only which chain and contract to read, and the read inherits whatever RPC trust the client already has. The design goal is that the result is safe from the client's perspective. The client answers using its own trusted RPC endpoints and no third party enters the path, which is why the only fallback this ERC defines is a `data:` URL that the client resolves locally.
+[ERC-3668](./eip-3668.md) gateways often just call a contract on another chain and relay the result. Each one is an HTTP service that someone must run and that the client must trust, even when the client already has RPC access to that chain.
 
-A second problem is discoverability. A contract cannot ask the client whether it supports a new URL scheme. This ERC uses the existing ERC-3668 fallback behavior as the signal. Clients that support this ERC answer from the named chain and try no other URL. Clients that do not support it skip the unknown scheme and reach the next URL, so a `data:` URL returning `0xff` tells the callback that the client is unaware, and the contract can act on that, for example by reverting with a clear error.
+This ERC lets the client act as the gateway. The contract names the chain and contract to read, and the client answers using its own trusted RPC, so no third party is involved.
+
+A contract also needs to know whether the client supports this ERC. Clients that do not support it fall through to a `data:` URL that returns `0xff`, so the contract can detect them and respond, for example by reverting with a clear error.
 
 ## Specification
 
