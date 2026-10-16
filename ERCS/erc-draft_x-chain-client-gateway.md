@@ -243,7 +243,7 @@ contract RemoteSupplyReader {
 }
 ```
 
-Client algorithm, in the style of [ERC-3668](./eip-3668.md). `lookups` is the shared counter bounding the entire resolution, with a limit of at least 4.
+Client algorithm, in the style of [ERC-3668](./eip-3668.md). `lookups` is the shared counter bounding the entire resolution, and `LIMIT` is the client's ERC-3668 lookup limit.
 
 ```
 resolve(chain, target, data, lookups, nested):
