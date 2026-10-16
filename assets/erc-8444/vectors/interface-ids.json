@@ -1,0 +1,9 @@
+{
+  "description": "ERC-165 interface ids = XOR of all function selectors (ethers v6 over the forge ABI); re-derived with type(I).interfaceId in Solidity.",
+  "ids": {
+    "IARDOnchainRegistry": "0x881908a5",
+    "IARDKindAdapter": "0x67bde273",
+    "ISkillTokenKernel": "0x734553a6",
+    "ITaskTenderKernel": "0xc319d532"
+  }
+}
