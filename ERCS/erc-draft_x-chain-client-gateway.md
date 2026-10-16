@@ -80,7 +80,7 @@ The client calls the target contract on the destination chain with `callData`, a
 - On a revert, the client MUST fail the call and SHOULD surface the revert data.
 - On an `OffchainLookup` revert from the target contract, the client handles it as a normal [ERC-3668](./eip-3668.md) lookup on the destination chain. If that lookup includes an `x-chain` URL, the client MUST fail the call, so one `x-chain` read never starts another.
 
-The original lookup and any lookups on the destination chain count toward one limit, which MUST be at least 4.
+Lookups on the destination chain count toward the client's ERC-3668 lookup limit for the original call.
 
 ## Rationale
 
