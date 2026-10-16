@@ -1,0 +1,434 @@
+{
+  "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-v1.schema.json",
+  "context": {
+    "$id": "VerifiableInvoiceCommitment v1",
+    "eip712": {
+      "domain": {
+        "name": "VerifiableInvoiceCommitment",
+        "version": "1"
+      },
+      "deployments": [
+        {
+          "chainId": 11155111,
+          "address": "0xa8C5b7D5B413297343ca6CeCe3931F9770D7A2FD"
+        },
+        {
+          "chainId": 84532,
+          "address": "0xa8C5b7D5B413297343ca6CeCe3931F9770D7A2FD"
+        },
+        {
+          "chainId": 421614,
+          "address": "0xa8C5b7D5B413297343ca6CeCe3931F9770D7A2FD"
+        }
+      ],
+      "schemas": [
+        {
+          "primaryType": "Invoice",
+          "types": {
+            "EIP712Domain": [
+              {
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "name": "version",
+                "type": "string"
+              },
+              {
+                "name": "chainId",
+                "type": "uint256"
+              },
+              {
+                "name": "verifyingContract",
+                "type": "address"
+              }
+            ],
+            "Invoice": [
+              {
+                "name": "invoiceId",
+                "type": "string"
+              },
+              {
+                "name": "issueDate",
+                "type": "uint256"
+              },
+              {
+                "name": "dueDate",
+                "type": "uint256"
+              },
+              {
+                "name": "paymentTerms",
+                "type": "string"
+              },
+              {
+                "name": "purchaseOrderRef",
+                "type": "string"
+              },
+              {
+                "name": "issuer",
+                "type": "address"
+              },
+              {
+                "name": "issuerTaxId",
+                "type": "TaxIdentity"
+              },
+              {
+                "name": "recipient",
+                "type": "address"
+              },
+              {
+                "name": "recipientTaxId",
+                "type": "TaxIdentity"
+              },
+              {
+                "name": "paymentToken",
+                "type": "address"
+              },
+              {
+                "name": "paymentAmount",
+                "type": "uint256"
+              },
+              {
+                "name": "fiatCurrency",
+                "type": "string"
+              },
+              {
+                "name": "fiatAmountMilliUnits",
+                "type": "uint256"
+              },
+              {
+                "name": "fxRateScaled",
+                "type": "uint256"
+              },
+              {
+                "name": "fxOracle",
+                "type": "address"
+              },
+              {
+                "name": "fxTimestamp",
+                "type": "uint256"
+              },
+              {
+                "name": "taxes",
+                "type": "TaxEntry[]"
+              },
+              {
+                "name": "lineItems",
+                "type": "LineItem[]"
+              },
+              {
+                "name": "jurisdiction",
+                "type": "string"
+              },
+              {
+                "name": "regulatoryData",
+                "type": "bytes"
+              },
+              {
+                "name": "nonce",
+                "type": "uint256"
+              }
+            ],
+            "TaxIdentity": [
+              {
+                "name": "scheme",
+                "type": "string"
+              },
+              {
+                "name": "id",
+                "type": "string"
+              }
+            ],
+            "TaxEntry": [
+              {
+                "name": "taxType",
+                "type": "string"
+              },
+              {
+                "name": "taxScheme",
+                "type": "string"
+              },
+              {
+                "name": "rateBps",
+                "type": "uint256"
+              },
+              {
+                "name": "baseAmountMilliUnits",
+                "type": "uint256"
+              },
+              {
+                "name": "taxAmountMilliUnits",
+                "type": "uint256"
+              }
+            ],
+            "LineItem": [
+              {
+                "name": "description",
+                "type": "string"
+              },
+              {
+                "name": "quantityScaled",
+                "type": "uint256"
+              },
+              {
+                "name": "unit",
+                "type": "string"
+              },
+              {
+                "name": "unitPriceMilliUnits",
+                "type": "uint256"
+              },
+              {
+                "name": "lineTotalMilliUnits",
+                "type": "uint256"
+              },
+              {
+                "name": "taxRefIndex",
+                "type": "uint256"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "owner": "ERC-8342 reference descriptor",
+    "info": {
+      "legalName": "Verifiable Invoice Commitment (VIC)",
+      "url": "https://eips.ethereum.org/EIPS/eip-8342"
+    },
+    "enums": {
+      "taxIdentitySchemes": {
+        "AR-CUIT": "Argentina — CUIT",
+        "MX-RFC": "Mexico — RFC",
+        "EU-VAT": "European Union — VAT",
+        "US-EIN": "United States — EIN",
+        "OTHER": "Other / Unlisted"
+      },
+      "taxTypes": {
+        "VAT": "Value Added Tax",
+        "IVA": "Impuesto al Valor Agregado",
+        "SALES": "Sales Tax",
+        "WITHHOLDING": "Withholding Tax",
+        "EXCISE": "Excise Tax",
+        "OTHER": "Other"
+      }
+    }
+  },
+  "display": {
+    "formats": {
+      "Invoice": {
+        "intent": "Sign Invoice Commitment",
+        "fields": [
+          {
+            "path": "paymentAmount",
+            "label": "Payment Amount",
+            "format": "tokenAmount",
+            "params": {
+              "tokenPath": "paymentToken"
+            }
+          },
+          {
+            "path": "recipient",
+            "label": "Recipient",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "contract",
+                "eoa"
+              ],
+              "sources": [
+                "ens",
+                "local"
+              ]
+            }
+          },
+          {
+            "path": "invoiceId",
+            "label": "Invoice ID",
+            "format": "raw"
+          },
+          {
+            "path": "fiatAmountMilliUnits",
+            "label": "Fiat Amount",
+            "format": "unit",
+            "params": {
+              "decimals": 3
+            }
+          },
+          {
+            "path": "fiatCurrency",
+            "label": "Fiat Currency",
+            "format": "raw"
+          },
+          {
+            "path": "fxRateScaled",
+            "label": "FX Rate",
+            "format": "unit",
+            "params": {
+              "decimals": 8
+            }
+          },
+          {
+            "path": "fxTimestamp",
+            "label": "FX Rate Timestamp",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "issuer",
+            "label": "Issuer",
+            "format": "addressName",
+            "params": {
+              "types": [
+                "contract",
+                "eoa"
+              ],
+              "sources": [
+                "ens",
+                "local"
+              ]
+            }
+          },
+          {
+            "path": "issuerTaxId.scheme",
+            "label": "Issuer Tax ID Type",
+            "format": "enum",
+            "params": {
+              "$ref": "$.metadata.enums.taxIdentitySchemes"
+            }
+          },
+          {
+            "path": "issuerTaxId.id",
+            "label": "Issuer Tax ID",
+            "format": "raw"
+          },
+          {
+            "path": "recipientTaxId.scheme",
+            "label": "Recipient Tax ID Type",
+            "format": "enum",
+            "params": {
+              "$ref": "$.metadata.enums.taxIdentitySchemes"
+            }
+          },
+          {
+            "path": "recipientTaxId.id",
+            "label": "Recipient Tax ID",
+            "format": "raw"
+          },
+          {
+            "path": "issueDate",
+            "label": "Issue Date",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "dueDate",
+            "label": "Due Date",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          },
+          {
+            "path": "paymentTerms",
+            "label": "Payment Terms",
+            "format": "raw"
+          },
+          {
+            "path": "jurisdiction",
+            "label": "Jurisdiction",
+            "format": "raw"
+          },
+          {
+            "path": "taxes.[]",
+            "fields": [
+              {
+                "path": "taxType",
+                "label": "Type",
+                "format": "enum",
+                "params": {
+                  "$ref": "$.metadata.enums.taxTypes"
+                }
+              },
+              {
+                "path": "taxScheme",
+                "label": "Scheme",
+                "format": "raw"
+              },
+              {
+                "path": "rateBps",
+                "label": "Rate",
+                "format": "unit",
+                "params": {
+                  "decimals": 2,
+                  "base": "%"
+                }
+              },
+              {
+                "path": "taxAmountMilliUnits",
+                "label": "Amount",
+                "format": "unit",
+                "params": {
+                  "decimals": 3
+                }
+              }
+            ]
+          },
+          {
+            "path": "lineItems.[]",
+            "fields": [
+              {
+                "path": "description",
+                "label": "Description",
+                "format": "raw"
+              },
+              {
+                "path": "quantityScaled",
+                "label": "Quantity",
+                "format": "unit",
+                "params": {
+                  "decimals": 3
+                }
+              },
+              {
+                "path": "unit",
+                "label": "Unit",
+                "format": "raw"
+              },
+              {
+                "path": "unitPriceMilliUnits",
+                "label": "Unit Price",
+                "format": "unit",
+                "params": {
+                  "decimals": 3
+                }
+              },
+              {
+                "path": "lineTotalMilliUnits",
+                "label": "Line Total",
+                "format": "unit",
+                "params": {
+                  "decimals": 3
+                }
+              }
+            ]
+          }
+        ],
+        "excluded": [
+          "purchaseOrderRef",
+          "fxOracle",
+          "regulatoryData",
+          "nonce",
+          "taxes.[].baseAmountMilliUnits",
+          "lineItems.[].taxRefIndex"
+        ]
+      }
+    }
+  }
+}
