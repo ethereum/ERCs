@@ -72,7 +72,7 @@ The callback MUST treat a one byte `0xff` response as a client without support f
 
 A client that supports this ERC MUST use the first `x-chain` URL in `urls` and ignore all other URLs.
 
-The client alone decides whether it can safely make the call on the destination chain. This includes knowing the chain, having a trusted RPC endpoint for it, and supporting its virtual machine. The client MUST use its own RPC endpoints and MUST NOT take endpoints or chain metadata from the contract. Support for one EVM chain does not imply support for another. If the client cannot make the call, or the URL is malformed, it MUST fail the call, the same outcome as a gateway HTTP 4xx response.
+The client alone decides whether it can safely make the call on the destination chain. This includes knowing the chain, having a trusted RPC endpoint for it, and supporting its virtual machine. The client MUST use its own RPC endpoints and MUST NOT take endpoints or chain metadata from the contract. Support for one EVM chain does not imply support for another. If the client cannot make the call, or the URL is unsupported, it MUST fail the call, the same outcome as a gateway HTTP 4xx response.
 
 The client calls the target contract on the destination chain with `callData`, at the selected block. The destination chain MAY be the same chain.
 
