@@ -2,7 +2,7 @@
 title: Cross-Chain Client Gateway for CCIP-Read
 description: An extension of CCIP-Read where the client itself performs a cross-chain read named by an x-chain URL
 author: Prem Makeig (@nxt3d)
-discussions-to: https://ethereum-magicians.org/t/
+discussions-to:
 status: Draft
 type: Standards Track
 category: ERC
