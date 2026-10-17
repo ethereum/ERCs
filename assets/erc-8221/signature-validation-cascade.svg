@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" role="img" aria-labelledby="title desc">
+  <title id="title">Signature Validation Cascade</title>
+  <desc id="desc">Decision-tree diagram showing the signature validation cascade used for both ERC-1271 message validation and signed execution. The cascade tries ecrecover against the controller, then the controller's isValidSignature if it is a contract, then iterates active validators, and reverts if none succeed.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d7a4f"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45d42"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .start { fill: #eef3ff; }
+    .step { fill: #fff3db; stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .decision { fill: #f3f7ff; stroke: #304254; stroke-width: 2.4; }
+    .valid { fill: #eaf7ef; stroke: #3d7a4f; stroke-width: 2.4; rx: 22; ry: 22; }
+    .fail { fill: #fff0ec; stroke: #b45d42; stroke-width: 2.4; rx: 22; ry: 22; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .yes { font: 700 16px 'Segoe UI', Arial, sans-serif; fill: #3d7a4f; }
+    .no { font: 700 16px 'Segoe UI', Arial, sans-serif; fill: #b45d42; }
+    .edge { stroke: #304254; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .edge-yes { stroke: #3d7a4f; stroke-width: 3.2; fill: none; marker-end: url(#arrow-green); }
+    .edge-no { stroke: #b45d42; stroke-width: 3; fill: none; marker-end: url(#arrow-red); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="960"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Signature Validation Cascade</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Used for both ERC-1271 message validation and signed execution authorization.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">A successful result confirms a message signature (ERC-1271) or authorizes account execution (signed execution).</text>
+
+  <!-- Input -->
+  <rect class="box start" x="520" y="140" width="390" height="80"/>
+  <text class="title2" x="720" y="175" text-anchor="middle">EIP-712 Digest + Signature</text>
+  <text class="mono" x="720" y="202" text-anchor="middle">from isValidSignature or executeWithSignature</text>
+
+  <path class="edge" d="M 720 220 L 720 270"/>
+
+  <!-- Step 1: ecrecover -->
+  <rect class="step" x="520" y="270" width="400" height="80"/>
+  <text class="title2" x="720" y="302" text-anchor="middle">1. EOA Controller Check</text>
+  <text class="mono" x="720" y="330" text-anchor="middle">ecrecover(digest, sig) == ownerOf(tokenId)?</text>
+
+  <!-- Yes branch from step 1 -->
+  <path class="edge-yes" d="M 920 310 L 1100 310"/>
+  <text class="yes" x="990" y="298" text-anchor="middle">YES</text>
+
+  <rect class="valid" x="1100" y="280" width="220" height="60"/>
+  <text class="title2" x="1210" y="316" text-anchor="middle">Signature Valid</text>
+
+  <!-- No branch from step 1 -->
+  <path class="edge-no" d="M 720 350 L 720 400"/>
+  <text class="no" x="745" y="382" text-anchor="start">NO</text>
+
+  <!-- Step 2: Contract controller -->
+  <rect class="step" x="520" y="400" width="400" height="98"/>
+  <text class="title2" x="720" y="432" text-anchor="middle">2. Contract Controller Check</text>
+  <text class="body" x="720" y="460" text-anchor="middle">Is controller a contract with ERC-1271?</text>
+  <text class="mono" x="720" y="484" text-anchor="middle">controller.isValidSignature(digest, sig)</text>
+
+  <!-- Yes branch from step 2 -->
+  <path class="edge-yes" d="M 920 449 L 1100 449 L 1210 449 L 1210 340"/>
+  <text class="yes" x="990" y="437" text-anchor="middle">YES</text>
+
+  <!-- No branch from step 2 -->
+  <path class="edge-no" d="M 720 498 L 720 548"/>
+  <text class="no" x="745" y="530" text-anchor="start">NO</text>
+
+  <!-- Step 3: Active validators -->
+  <rect class="step" x="520" y="548" width="400" height="98"/>
+  <text class="title2" x="720" y="580" text-anchor="middle">3. Active Validators</text>
+  <text class="body" x="720" y="608" text-anchor="middle">Iterate validators for current controlVersion.</text>
+  <text class="mono" x="720" y="632" text-anchor="middle">v.isValidSignatureForAccount(A, digest, sig)</text>
+
+  <!-- Yes branch from step 3 -->
+  <path class="edge-yes" d="M 920 597 L 1100 597 L 1210 597 L 1210 340"/>
+  <text class="yes" x="990" y="585" text-anchor="middle">YES</text>
+
+  <!-- No branch from step 3 -->
+  <path class="edge-no" d="M 720 646 L 720 700"/>
+  <text class="no" x="745" y="680" text-anchor="start">NO</text>
+
+  <!-- Step 4: Revert -->
+  <rect class="fail" x="580" y="700" width="280" height="60"/>
+  <text class="title2" x="720" y="736" text-anchor="middle">4. Revert</text>
+
+  <!-- Left-side context annotations -->
+  <rect class="note" x="80" y="282" width="380" height="70"/>
+  <text class="label" x="270" y="308" text-anchor="middle">EOA controllers resolve here directly.</text>
+  <text class="body" x="270" y="328" text-anchor="middle">Most common path for individual users.</text>
+
+  <rect class="note" x="80" y="416" width="380" height="80"/>
+  <text class="label" x="270" y="442" text-anchor="middle">Multisig, Safe, or governance controllers</text>
+  <text class="body" x="270" y="466" text-anchor="middle">resolve here. The controller's own validation</text>
+  <text class="body" x="270" y="484" text-anchor="middle">logic decides whether the signature is valid.</text>
+
+  <rect class="note" x="80" y="560" width="380" height="80"/>
+  <text class="label" x="270" y="586" text-anchor="middle">Session keys, passkeys, zk-based signers,</text>
+  <text class="body" x="270" y="610" text-anchor="middle">and ERC-7913 address-less signers resolve here.</text>
+  <text class="body" x="270" y="628" text-anchor="middle">Version-scoped: inactive after transfer.</text>
+
+  <!-- Bottom panels -->
+  <rect class="note" x="70" y="810" width="420" height="110"/>
+  <text class="label" x="280" y="848" text-anchor="middle">Cascade Order Is Fixed</text>
+  <text class="body" x="280" y="878" text-anchor="middle">ecrecover first, then contract controller,</text>
+  <text class="body" x="280" y="900" text-anchor="middle">then validators. First match wins.</text>
+
+  <rect class="good" x="530" y="810" width="400" height="110"/>
+  <text class="label" x="730" y="848" text-anchor="middle">Shared by Both Paths</text>
+  <text class="body" x="730" y="878" text-anchor="middle">Same cascade for ERC-1271 and signed execution.</text>
+  <text class="body" x="730" y="900" text-anchor="middle">Only the consequence of success differs.</text>
+
+  <rect class="warn" x="970" y="810" width="400" height="110"/>
+  <text class="label" x="1170" y="848" text-anchor="middle">Validators Are Privileged</text>
+  <text class="body" x="1170" y="878" text-anchor="middle">A validator that returns the magic value</text>
+  <text class="body" x="1170" y="900" text-anchor="middle">authorizes execution, not just signature.</text>
+</svg>
