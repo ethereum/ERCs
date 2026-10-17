@@ -1,0 +1,156 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ERC-8176 offchain attestation file",
+    "type": "object",
+    "required": [ "sig", "signer" ],
+    "additionalProperties": false,
+    "properties": {
+        "sig": { "$ref": "#/definitions/signedAttestation" },
+        "signer": {
+            "description": "Address of the attester. For a contract attester, the contract address.",
+            "$ref": "#/definitions/address"
+        },
+        "scope": {
+            "description": "State scope. Not covered by the signature; bound to it by scopeHash in sig.message.data.",
+            "$ref": "#/definitions/stateScope"
+        }
+    },
+
+    "definitions": {
+        "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+        "bytes32": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+        "uintString": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+        "hexValue": { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,64}$" },
+
+        "signedAttestation": {
+            "type": "object",
+            "required": [ "version", "domain", "primaryType", "types", "message", "signature", "uid" ],
+            "additionalProperties": false,
+            "properties": {
+                "version": { "const": 2 },
+                "domain": {
+                    "type": "object",
+                    "required": [ "name", "version", "chainId", "verifyingContract" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "name": { "const": "EAS Attestation" },
+                        "version": { "type": "string" },
+                        "chainId": { "const": "1" },
+                        "verifyingContract": { "const": "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" }
+                    }
+                },
+                "primaryType": { "const": "Attest" },
+                "types": {
+                    "type": "object",
+                    "required": [ "Attest" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "Attest": {
+                            "const": [
+                                { "name": "version", "type": "uint16" },
+                                { "name": "schema", "type": "bytes32" },
+                                { "name": "recipient", "type": "address" },
+                                { "name": "time", "type": "uint64" },
+                                { "name": "expirationTime", "type": "uint64" },
+                                { "name": "revocable", "type": "bool" },
+                                { "name": "refUID", "type": "bytes32" },
+                                { "name": "data", "type": "bytes" },
+                                { "name": "salt", "type": "bytes32" }
+                            ]
+                        }
+                    }
+                },
+                "message": {
+                    "type": "object",
+                    "required": [ "version", "schema", "recipient", "time", "expirationTime", "revocable", "refUID", "data", "salt" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "version": { "const": 2 },
+                        "schema": { "const": "0xd6d14997a8b9ae530705c96435f7d07c6d9fae6628770b8302bede5be080e5d8" },
+                        "recipient": { "$ref": "#/definitions/address" },
+                        "time": { "$ref": "#/definitions/uintString" },
+                        "expirationTime": { "$ref": "#/definitions/uintString" },
+                        "revocable": { "type": "boolean" },
+                        "refUID": { "$ref": "#/definitions/bytes32" },
+                        "data": {
+                            "description": "abi.encode(descriptorHash, scopeHash): 64 bytes.",
+                            "type": "string",
+                            "pattern": "^0x[0-9a-fA-F]{128}$"
+                        },
+                        "salt": { "$ref": "#/definitions/bytes32" }
+                    }
+                },
+                "signature": {
+                    "type": "object",
+                    "required": [ "r", "s", "v" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "r": { "$ref": "#/definitions/bytes32" },
+                        "s": { "$ref": "#/definitions/bytes32" },
+                        "v": { "type": "integer", "enum": [ 27, 28 ] }
+                    }
+                },
+                "uid": { "$ref": "#/definitions/bytes32" }
+            }
+        },
+
+        "stateScope": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+                "proxy": { "$ref": "#/definitions/proxy" },
+                "stateRefs": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/stateRef" }
+                }
+            }
+        },
+
+        "proxy": {
+            "type": "object",
+            "required": [ "type", "expectedImplementations" ],
+            "additionalProperties": false,
+            "properties": {
+                "type": { "enum": [ "eip1967", "eip1822", "eip2535" ] },
+                "expectedImplementations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": [ "chainId", "address" ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "chainId": { "type": "integer", "minimum": 1 },
+                            "address": { "$ref": "#/definitions/address" },
+                            "selectors": {
+                                "type": "array",
+                                "items": { "type": "string", "pattern": "^0x[0-9a-fA-F]{8}$" }
+                            }
+                        }
+                    }
+                }
+            },
+            "if": { "properties": { "type": { "const": "eip2535" } } },
+            "then": {
+                "properties": { "expectedImplementations": { "items": { "required": [ "selectors" ] } } }
+            },
+            "else": {
+                "properties": { "expectedImplementations": { "items": { "not": { "required": [ "selectors" ] } } } }
+            }
+        },
+
+        "stateRef": {
+            "type": "object",
+            "required": [ "slot", "expectedValue", "description" ],
+            "additionalProperties": false,
+            "properties": {
+                "slot": { "$ref": "#/definitions/hexValue" },
+                "expectedValue": { "$ref": "#/definitions/hexValue" },
+                "mask": { "$ref": "#/definitions/hexValue" },
+                "chainId": { "type": "integer", "minimum": 1 },
+                "address": { "$ref": "#/definitions/address" },
+                "description": { "type": "string" }
+            }
+        }
+    }
+}
