@@ -329,6 +329,12 @@ contract uRWA721Test is Test {
         token.transferFrom(user1, user2, TOKEN_ID_1);
     }
 
+    function test_Revert_Transfer_FromIncorrectOwner() public {
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721IncorrectOwner.selector, user2, TOKEN_ID_1, user1));
+        token.transferFrom(user2, user1, TOKEN_ID_1);
+    }
+
     function test_Revert_Transfer_WhenFrozen() public {
         vm.prank(freezer);
         token.setFrozenTokens(user1, TOKEN_ID_1, true);
@@ -489,12 +495,12 @@ contract uRWA721Test is Test {
         assertTrue(token.canTransfer(user1, user2, TOKEN_ID_1));
     }
 
-    function test_CanTransfer_Fail_FromNotOwner() public view {
-        assertFalse(token.canTransfer(user2, user1, TOKEN_ID_1));
+    function test_CanTransfer_Success_FromNotOwnerWhenPolicyAllows() public view {
+        assertTrue(token.canTransfer(user2, user1, TOKEN_ID_1));
     }
 
-    function test_CanTransfer_Fail_NonExistentToken() public view {
-        assertFalse(token.canTransfer(user1, user2, NON_EXISTENT_TOKEN_ID));
+    function test_CanTransfer_Success_NonExistentTokenWhenPolicyAllows() public view {
+        assertTrue(token.canTransfer(user1, user2, NON_EXISTENT_TOKEN_ID));
     }
 
     function test_CanTransfer_Fail_FromCannotSend() public {
