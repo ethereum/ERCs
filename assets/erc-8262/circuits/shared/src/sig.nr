@@ -2,9 +2,11 @@
 ///
 /// The COMPLIANCE_SIGNED / RISK_SCORE_SIGNED circuits anchor the screening signals
 /// to a provider-issued signature. The provider signs a Pedersen digest committing to
-/// `(provider_set_hash, signals, weights, timestamp, submitter)`; the circuit verifies
-/// the signature in-circuit using `std::ecdsa_secp256k1`. Without this, a user could
-/// submit `signals = [0; 8]` and prove "low risk" without real screening.
+/// `(domain, chain_id, oracle_address, provider_set_hash, signals, weights, timestamp,
+/// submitter)`; the circuit verifies the signature in-circuit using
+/// `std::ecdsa_secp256k1`. Without this, a user could submit `signals = [0; 8]` and
+/// prove "low risk" without real screening. The per-proof-type `domain` tag binds a
+/// signature to one proof type.
 ///
 /// Trust resolution: the circuit also exposes `signer_pubkey_hash` as a public input
 /// (Pedersen commitment to the secp256k1 (x, y) pubkey). The Oracle keeps a registry
@@ -15,7 +17,7 @@
 use std::ecdsa_secp256k1;
 use std::hash::pedersen_hash;
 
-use crate::merkle::DOMAIN_SIGNED_SIGNALS;
+use crate::merkle::{DOMAIN_RISK_SIGNED_SIGNALS, DOMAIN_SIGNED_SIGNALS};
 
 /// Domain tag for the secp256k1-pubkey-hash commitment.
 /// Pedersen hash of [tag, x_hi, x_lo, y_hi, y_lo].
@@ -44,10 +46,16 @@ pub fn compute_signer_pubkey_hash(pubkey_x: [u8; 32], pubkey_y: [u8; 32]) -> Fie
 
 /// Compute the Pedersen digest the provider signs over.
 ///
+/// `domain` is the signing proof type's tag: DOMAIN_SIGNED_SIGNALS for
+/// COMPLIANCE_SIGNED (0x07), DOMAIN_RISK_SIGNED_SIGNALS for RISK_SCORE_SIGNED (0x08).
+/// It is a parameter, not a constant, so every caller names its proof type and a
+/// signature issued for one type cannot satisfy another. A new signed proof type
+/// MUST add its own tag (see test_signed_domain_tags_distinct).
+///
 /// Layout (22 field elements, audit F-6: chain_id + oracle_address bind the
 /// signed payload to a specific deployment so a single signature cannot mint
 /// attestations on multiple Oracle instances or chains):
-///   [0]:    DOMAIN_SIGNED_SIGNALS
+///   [0]:    domain
 ///   [1]:    chain_id
 ///   [2]:    oracle_address
 ///   [3]:    provider_set_hash
@@ -56,6 +64,7 @@ pub fn compute_signer_pubkey_hash(pubkey_x: [u8; 32], pubkey_y: [u8; 32]) -> Fie
 ///   [20]:   timestamp
 ///   [21]:   submitter
 pub fn compute_signed_payload_hash(
+    domain: Field,
     chain_id: Field,
     oracle_address: Field,
     provider_set_hash: Field,
@@ -65,7 +74,7 @@ pub fn compute_signed_payload_hash(
     submitter: Field,
 ) -> Field {
     let mut input: [Field; 22] = [0; 22];
-    input[0] = DOMAIN_SIGNED_SIGNALS;
+    input[0] = domain;
     input[1] = chain_id;
     input[2] = oracle_address;
     input[3] = provider_set_hash;
@@ -128,8 +137,8 @@ fn test_coordinate_to_fields_pattern() {
 fn test_signed_payload_hash_deterministic() {
     let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
     let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
-    let h1 = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
-    let h2 = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h1 = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h2 = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
     assert(h1 == h2);
 }
 
@@ -138,8 +147,8 @@ fn test_signed_payload_hash_changes_on_signal_mutation() {
     let signals_a: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
     let signals_b: [u32; 8] = [11, 20, 30, 0, 0, 0, 0, 0];
     let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
-    let h_a = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals_a, weights, 1700000000, 0xcafe);
-    let h_b = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals_b, weights, 1700000000, 0xcafe);
+    let h_a = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals_a, weights, 1700000000, 0xcafe);
+    let h_b = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals_b, weights, 1700000000, 0xcafe);
     assert(h_a != h_b);
 }
 
@@ -147,8 +156,8 @@ fn test_signed_payload_hash_changes_on_signal_mutation() {
 fn test_signed_payload_hash_changes_on_submitter_mutation() {
     let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
     let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
-    let h_a = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
-    let h_b = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xbeef);
+    let h_a = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h_b = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xbeef);
     assert(h_a != h_b);
 }
 
@@ -156,8 +165,8 @@ fn test_signed_payload_hash_changes_on_submitter_mutation() {
 fn test_signed_payload_hash_changes_on_chain_id_mutation() {
     let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
     let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
-    let h_a = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
-    let h_b = compute_signed_payload_hash(8453, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h_a = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h_b = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 8453, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
     assert(h_a != h_b, "chain_id must alter the digest");
 }
 
@@ -165,9 +174,40 @@ fn test_signed_payload_hash_changes_on_chain_id_mutation() {
 fn test_signed_payload_hash_changes_on_oracle_address_mutation() {
     let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
     let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
-    let h_a = compute_signed_payload_hash(1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
-    let h_b = compute_signed_payload_hash(1, 0xfeed, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h_a = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h_b = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xfeed, 0xdead, signals, weights, 1700000000, 0xcafe);
     assert(h_a != h_b, "oracle_address must alter the digest");
+}
+
+#[test]
+fn test_signed_payload_hash_changes_on_domain() {
+    // The same bundle signed for 0x07 and for 0x08 yields different digests, so a
+    // signature over one cannot verify as the other (review #5).
+    let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
+    let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
+    let h_07 = compute_signed_payload_hash(DOMAIN_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    let h_08 = compute_signed_payload_hash(DOMAIN_RISK_SIGNED_SIGNALS, 1, 0xabcd, 0xdead, signals, weights, 1700000000, 0xcafe);
+    assert(h_07 != h_08, "domain tag must alter the digest");
+}
+
+#[test]
+fn test_signed_domain_tags_distinct() {
+    // Every tag a provider signature or signer commitment is computed under. A new
+    // signed proof type adds its tag here; a collision would let a signature for one
+    // type satisfy another.
+    let tags: [Field; 4] = [
+        DOMAIN_SIGNED_SIGNALS,
+        DOMAIN_RISK_SIGNED_SIGNALS,
+        crate::multi_sig::DOMAIN_MULTI_SIGNED_SIGNALS,
+        DOMAIN_SIGNER_PUBKEY,
+    ];
+    for i in 0..4 {
+        for j in 0..4 {
+            if i != j {
+                assert(tags[i] != tags[j], "signed-payload domain tags must be distinct");
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +229,7 @@ fn test_parity_with_sdk_signed_payload_hash() {
     let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
     let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
     let actual = compute_signed_payload_hash(
+        DOMAIN_SIGNED_SIGNALS,
         1,
         0xabcd1234,
         0xdead,
@@ -203,6 +244,27 @@ fn test_parity_with_sdk_signed_payload_hash() {
     // copying the printed `[parity] signed_payload_hash` value here.
     let expected: Field = 0x161ce9164a86defd6b8c44e9923690407bea0488eb15bd91b99ce71438dae106;
     assert(actual == expected, "signed_payload_hash drifted from xochi-sdk pedersen.ts");
+}
+
+#[test]
+fn test_parity_with_sdk_risk_signed_payload_hash() {
+    // RISK_SCORE_SIGNED (0x08) digest: same inputs as the 0x07 vector above under
+    // DOMAIN_RISK_SIGNED_SIGNALS. Pinned byte-for-byte in xochi-sdk's
+    // test/provider-pedersen.test.ts ("Noir parity vectors").
+    let signals: [u32; 8] = [10, 20, 30, 0, 0, 0, 0, 0];
+    let weights: [u32; 8] = [50, 30, 20, 0, 0, 0, 0, 0];
+    let actual = compute_signed_payload_hash(
+        DOMAIN_RISK_SIGNED_SIGNALS,
+        1,
+        0xabcd1234,
+        0xdead,
+        signals,
+        weights,
+        1700000000,
+        0xcafe,
+    );
+    let expected: Field = 0x237db3dd775fcc4721519a93dbab793d4971ddba8ed977495de3d4ea88088007;
+    assert(actual == expected, "risk signed_payload_hash drifted from xochi-sdk pedersen.ts");
 }
 
 #[test]
