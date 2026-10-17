@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/facets/behavior-v1.schema.json",
+  "title": "aid:behavior/* — open content envelope",
+  "description": "Envelope for the extensible AI-behaviour profile namespace. Any `aid:behavior/<name>/vN` facet MUST use this envelope; `profile` is free-form under the sub-namespace's own schema (registered as an ERC-8419 scheme descriptor when ATTESTED).",
+  "type": "object",
+  "required": ["facetType", "subject", "observedAt", "profile"],
+  "additionalProperties": false,
+  "properties": {
+    "facetType": { "type": "string", "pattern": "^aid:behavior/[a-z0-9-]+/v[0-9]+$" },
+    "subject": { "type": "string", "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "observedAt": { "type": "integer" },
+    "schema": { "type": "string", "description": "URI of the sub-namespace schema" },
+    "profile": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Suggested core keys for aid:behavior/core/v1: runtime {framework, model, hosting, teeAttested}, skills {categories[], count}, industries[], interaction {protocols[] (A2A, MCP, x402, ...), languages[]}, tasks {categories[], avgCompletionSeconds, acceptanceRate}, autonomyLevel"
+    }
+  }
+}

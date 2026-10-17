@@ -1,0 +1,293 @@
+{
+  "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+  "state": 1,
+  "binding": {
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "agentId": 10387,
+    "boundAt": 1790000000
+  },
+  "lastSeen": 1790000000,
+  "livenessWindow": 7776000,
+  "successor": null,
+  "documentDigest": "0x6aa70c55ed3573b0446167a24052cee674c5787ec693a06e7bd241ae1531d1ca",
+  "document": {
+    "version": "aid-document/v1",
+    "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+    "binding": {
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 10387
+    },
+    "facets": [
+      {
+        "facetType": "aid:tasks/erc8414/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x4141414141414141414141414141414141414141414141414141414141414141",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "final"
+      },
+      {
+        "facetType": "aid:review/erc8004/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x4242424242424242424242424242424242424242424242424242424242424242",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "final"
+      },
+      {
+        "facetType": "aid:behavior/core/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x4343434343434343434343434343434343434343434343434343434343434343",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "final"
+      },
+      {
+        "facetType": "aid:finance/observed/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x4444444444444444444444444444444444444444444444444444444444444444",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "provisional"
+      },
+      {
+        "facetType": "aid:skills/erc8338/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x4545454545454545454545454545454545454545454545454545454545454545",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "final"
+      },
+      {
+        "facetType": "aid:core/kya/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x4444444444444444444444444444444444444444",
+        "validUntil": 1799000000,
+        "observedAt": 1790600000,
+        "subjectWindow": {
+          "from": 1790000000,
+          "until": 1790700000
+        },
+        "committedAt": {
+          "anchor": "ots",
+          "proof": {
+            "ots": "AAE="
+          },
+          "log": {
+            "uri": "https://issuer.example.invalid/commitments",
+            "position": 9
+          }
+        },
+        "digest": "0x4646464646464646464646464646464646464646464646464646464646464646",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8414",
+          "chainId": 11155111
+        },
+        "finality": "final"
+      }
+    ]
+  },
+  "onChainFacets": {},
+  "registrationFile": {
+    "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+    "name": "demo-agent",
+    "description": "fixture",
+    "image": "",
+    "active": true
+  },
+  "trustedTimestamps": {
+    "0x4141414141414141414141414141414141414141414141414141414141414141": 1790600000,
+    "0x4242424242424242424242424242424242424242424242424242424242424242": 1790600000,
+    "0x4343434343434343434343434343434343434343434343434343434343434343": 1790600000,
+    "0x4444444444444444444444444444444444444444444444444444444444444444": 1790600000,
+    "0x4545454545454545454545454545454545454545454545454545454545454545": 1790600000,
+    "0x4646464646464646464646464646464646464646464646464646464646464646": 1790800000
+  },
+  "issuerLogs": {
+    "eip155:11155111:0x4444444444444444444444444444444444444444": {
+      "uri": "https://issuer.example.invalid/commitments",
+      "declaredAt": 1789000000
+    }
+  },
+  "logEntries": {
+    "https://issuer.example.invalid/commitments": [
+      {
+        "tag": "0x9f6d1bdeb1f8894d1883453faaa8f4b9e2bd12c49cb66a8cf9d7cf2ef9414d36",
+        "content": "0x4141414141414141414141414141414141414141414141414141414141414141"
+      },
+      {
+        "tag": "0x9f6d1bdeb1f8894d1883453faaa8f4b9e2bd12c49cb66a8cf9d7cf2ef9414d36",
+        "content": "0x5151515151515151515151515151515151515151515151515151515151515151",
+        "supersedes": "0x4141414141414141414141414141414141414141414141414141414141414141",
+        "provenAt": 1790650000,
+        "anchor": "ots"
+      },
+      {
+        "tag": "0x192888676de69d668d54ea3c3be2e7d40bd45ec624e1abb11f6e5c5c48518d56",
+        "content": "0x4242424242424242424242424242424242424242424242424242424242424242"
+      },
+      {
+        "tag": "0x192888676de69d668d54ea3c3be2e7d40bd45ec624e1abb11f6e5c5c48518d56",
+        "content": "0x5252525252525252525252525252525252525252525252525252525252525252",
+        "supersedes": "0x4242424242424242424242424242424242424242424242424242424242424242",
+        "provenAt": 1790800000,
+        "anchor": "ots"
+      },
+      {
+        "tag": "0x2c84c20a9d6b51385e5c1f4c141448d5b619fb0b82d7eb9168690f7bf4011c9a",
+        "content": "0x4343434343434343434343434343434343434343434343434343434343434343"
+      },
+      {
+        "tag": "0x2c84c20a9d6b51385e5c1f4c141448d5b619fb0b82d7eb9168690f7bf4011c9a",
+        "content": "0x5353535353535353535353535353535353535353535353535353535353535353",
+        "supersedes": "0x4343434343434343434343434343434343434343434343434343434343434343"
+      },
+      {
+        "tag": "0xfb0a873d5514ef880c0c535dc16a88bf21ff9033f16c4bc074c9da39b0902c85",
+        "content": "0x4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      {
+        "tag": "0xfb0a873d5514ef880c0c535dc16a88bf21ff9033f16c4bc074c9da39b0902c85",
+        "content": "0x5454545454545454545454545454545454545454545454545454545454545454",
+        "supersedes": "0x4444444444444444444444444444444444444444444444444444444444444444",
+        "provenAt": 1790800000,
+        "anchor": "ots"
+      },
+      {
+        "tag": "0x562c6ea9fba8f48c7ebe68f655a3141f7a351754bfa3b3c7212e6175cf92ca3a",
+        "content": "0x4545454545454545454545454545454545454545454545454545454545454545"
+      },
+      {
+        "tag": "0x562c6ea9fba8f48c7ebe68f655a3141f7a351754bfa3b3c7212e6175cf92ca3a",
+        "content": "0x5555555555555555555555555555555555555555555555555555555555555555",
+        "supersedes": "0x4545454545454545454545454545454545454545454545454545454545454545",
+        "provenAt": 1790696400,
+        "anchor": "ots"
+      },
+      {
+        "tag": "0xb780858d3b65888204f367cf998432facba177509132b3bfb74714a2c5cd86aa",
+        "content": "0x4646464646464646464646464646464646464646464646464646464646464646"
+      },
+      {
+        "tag": "0xb780858d3b65888204f367cf998432facba177509132b3bfb74714a2c5cd86aa",
+        "content": "0x5656565656565656565656565656565656565656565656565656565656565656",
+        "supersedes": "0x4646464646464646464646464646464646464646464646464646464646464646",
+        "provenAt": 1790900000,
+        "anchor": "ots"
+      }
+    ]
+  }
+}
