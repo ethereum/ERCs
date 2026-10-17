@@ -13,7 +13,7 @@ We provide a list of sample PBM implementation for reference.
 <!-- - `contracts/attest-unlock-pbm/XXXX.sol` - contract to demonstrate a 3rd party attestation to allow unwrap of a PBM -->
 - `contracts/XXXX.sol` - Interface contract
 - `contracts/ERC20.sol` - ERC20 token contract for unit tests
-- `test/XXXXX.js` - Unit tests for livecycle of the PBM implementation
+- `test/XXXXX.js` - Unit tests for lifecycle of the PBM implementation
 
 ### Used javascript based testing libraries for solidity
 
