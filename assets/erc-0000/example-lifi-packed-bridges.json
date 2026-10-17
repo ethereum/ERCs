@@ -1,0 +1,1275 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "LI.FI Diamond - packed bridge facets",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+                },
+                {
+                    "chainId": 10,
+                    "address": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+                },
+                {
+                    "chainId": 56,
+                    "address": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+                },
+                {
+                    "chainId": 137,
+                    "address": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+                },
+                {
+                    "chainId": 8453,
+                    "address": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+                },
+                {
+                    "chainId": 42161,
+                    "address": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "LI.FI",
+        "contractName": "LiFiDiamond",
+        "info": {
+            "url": "https://github.com/lifinance/contracts"
+        }
+    },
+    "display": {
+        "formats": {
+            "startBridgeTokensViaCBridgeNativePacked()": {
+                "intent": "Bridge native token via cBridge",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Recipient",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "nonce",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Nonce",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "maxSlippage",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Max slippage",
+                                    "format": "unit",
+                                    "params": {
+                                        "base": "%",
+                                        "decimals": 4
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    }
+                ]
+            },
+            "startBridgeTokensViaCBridgeERC20Packed()": {
+                "intent": "Bridge token via cBridge",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Recipient",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "sendingAssetId",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Token sent",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "amount",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Amount sent",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "nonce",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Nonce",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "maxSlippage",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Max slippage",
+                                    "format": "unit",
+                                    "params": {
+                                        "base": "%",
+                                        "decimals": 4
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "startBridgeTokensViaCBridgeNativeMin(bytes32 transactionId,address receiver,uint64 destinationChainId,uint64 nonce,uint32 maxSlippage)": {
+                "intent": "Bridge native token via cBridge",
+                "fields": [
+                    {
+                        "path": "receiver",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    },
+                    {
+                        "path": "nonce",
+                        "label": "Nonce",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "maxSlippage",
+                        "label": "Max slippage",
+                        "format": "unit",
+                        "params": {
+                            "base": "%",
+                            "decimals": 4
+                        }
+                    }
+                ]
+            },
+            "startBridgeTokensViaCBridgeERC20Min(bytes32 transactionId,address receiver,uint64 destinationChainId,address sendingAssetId,uint256 amount,uint64 nonce,uint32 maxSlippage)": {
+                "intent": "Bridge token via cBridge",
+                "fields": [
+                    {
+                        "path": "receiver",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "sendingAssetId",
+                        "label": "Token sent",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "amount",
+                        "label": "Amount sent",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "nonce",
+                        "label": "Nonce",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "maxSlippage",
+                        "label": "Max slippage",
+                        "format": "unit",
+                        "params": {
+                            "base": "%",
+                            "decimals": 4
+                        }
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL2NativePacked()": {
+                "intent": "Bridge native token via Hop (from L2)",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Recipient",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "bonderFee",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Bonder fee",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                                        "nativeCurrencyAddress": [
+                                            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "amountOutMin",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Min received after source swap",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                                        "nativeCurrencyAddress": [
+                                            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL2ERC20Packed()": {
+                "intent": "Bridge token via Hop (from L2)",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Recipient",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "sendingAssetId",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Token sent",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "amount",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Amount sent",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "bonderFee",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Bonder fee",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "amountOutMin",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Min received after source swap",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "destinationAmountOutMin",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Min received on destination",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "destinationDeadline",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination swap deadline",
+                                    "format": "date",
+                                    "params": {
+                                        "encoding": "timestamp"
+                                    }
+                                },
+                                {
+                                    "name": "wrapper",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Hop AMM wrapper",
+                                    "format": "addressName"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL2NativeMin(bytes8 transactionId,address receiver,uint256 destinationChainId,uint256 bonderFee,uint256 amountOutMin,uint256 destinationAmountOutMin,uint256 destinationDeadline,address hopBridge)": {
+                "intent": "Bridge native token via Hop (from L2)",
+                "fields": [
+                    {
+                        "path": "receiver",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    },
+                    {
+                        "path": "bonderFee",
+                        "label": "Bonder fee",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                            "nativeCurrencyAddress": [
+                                "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                            ]
+                        }
+                    },
+                    {
+                        "path": "amountOutMin",
+                        "label": "Min received after source swap",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                            "nativeCurrencyAddress": [
+                                "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                            ]
+                        }
+                    },
+                    {
+                        "path": "destinationAmountOutMin",
+                        "label": "Min received on destination",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                            "nativeCurrencyAddress": [
+                                "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                            ]
+                        }
+                    },
+                    {
+                        "path": "destinationDeadline",
+                        "label": "Destination swap deadline",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
+                    {
+                        "path": "hopBridge",
+                        "label": "Hop AMM wrapper",
+                        "format": "addressName"
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL2ERC20Min(bytes8 transactionId,address receiver,uint256 destinationChainId,address sendingAssetId,uint256 minAmount,uint256 bonderFee,uint256 amountOutMin,uint256 destinationAmountOutMin,uint256 destinationDeadline,address hopBridge)": {
+                "intent": "Bridge token via Hop (from L2)",
+                "fields": [
+                    {
+                        "path": "receiver",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "sendingAssetId",
+                        "label": "Token sent",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "minAmount",
+                        "label": "Amount sent",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "bonderFee",
+                        "label": "Bonder fee",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "amountOutMin",
+                        "label": "Min received after source swap",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "destinationAmountOutMin",
+                        "label": "Min received on destination",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "destinationDeadline",
+                        "label": "Destination swap deadline",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
+                    {
+                        "path": "hopBridge",
+                        "label": "Hop AMM wrapper",
+                        "format": "addressName"
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL1NativePacked()": {
+                "intent": "Bridge native token via Hop (from L1)",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Recipient",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "destinationAmountOutMin",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Min received on destination",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                                        "nativeCurrencyAddress": [
+                                            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "relayer",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Relayer",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "relayerFee",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Relayer fee",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                                        "nativeCurrencyAddress": [
+                                            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "hopBridge",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Hop bridge",
+                                    "format": "addressName"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL1ERC20Packed()": {
+                "intent": "Bridge token via Hop (from L1)",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Recipient",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "sendingAssetId",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Token sent",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "amount",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Amount sent",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "destinationAmountOutMin",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Min received on destination",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "relayer",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Relayer",
+                                    "format": "addressName"
+                                },
+                                {
+                                    "name": "relayerFee",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Relayer fee",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                        "tokenPath": "sendingAssetId"
+                                    }
+                                },
+                                {
+                                    "name": "hopBridge",
+                                    "schema": {
+                                        "type": "address"
+                                    },
+                                    "label": "Hop bridge",
+                                    "format": "addressName"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL1NativeMin(bytes8 transactionId,address receiver,uint256 destinationChainId,uint256 destinationAmountOutMin,address relayer,uint256 relayerFee,address hopBridge)": {
+                "intent": "Bridge native token via Hop (from L1)",
+                "fields": [
+                    {
+                        "path": "receiver",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    },
+                    {
+                        "path": "destinationAmountOutMin",
+                        "label": "Min received on destination",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                            "nativeCurrencyAddress": [
+                                "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                            ]
+                        }
+                    },
+                    {
+                        "path": "relayer",
+                        "label": "Relayer",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "relayerFee",
+                        "label": "Relayer fee",
+                        "format": "tokenAmount",
+                        "params": {
+                            "token": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+                            "nativeCurrencyAddress": [
+                                "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+                            ]
+                        }
+                    },
+                    {
+                        "path": "hopBridge",
+                        "label": "Hop bridge",
+                        "format": "addressName"
+                    }
+                ]
+            },
+            "startBridgeTokensViaHopL1ERC20Min(bytes8 transactionId,address receiver,uint256 destinationChainId,address sendingAssetId,uint256 minAmount,uint256 destinationAmountOutMin,address relayer,uint256 relayerFee,address hopBridge)": {
+                "intent": "Bridge token via Hop (from L1)",
+                "fields": [
+                    {
+                        "path": "receiver",
+                        "label": "Recipient",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "sendingAssetId",
+                        "label": "Token sent",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "minAmount",
+                        "label": "Amount sent",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "destinationAmountOutMin",
+                        "label": "Min received on destination",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "relayer",
+                        "label": "Relayer",
+                        "format": "addressName"
+                    },
+                    {
+                        "path": "relayerFee",
+                        "label": "Relayer fee",
+                        "format": "tokenAmount",
+                        "params": {
+                            "tokenPath": "sendingAssetId"
+                        }
+                    },
+                    {
+                        "path": "hopBridge",
+                        "label": "Hop bridge",
+                        "format": "addressName"
+                    }
+                ]
+            },
+            "startBridgeTokensViaAcrossV4NativePacked()": {
+                "intent": "Bridge native token via Across",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "depositor",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Refund address",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Recipient",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "receivingAssetId",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Token received",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "outputAmount",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 32
+                                    },
+                                    "label": "Amount received",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 8
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "exclusiveRelayer",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Exclusive relayer",
+                                    "format": "raw",
+                                    "visible": "optional"
+                                },
+                                {
+                                    "name": "quoteTimestamp",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Quote timestamp",
+                                    "format": "date",
+                                    "params": {
+                                        "encoding": "timestamp"
+                                    }
+                                },
+                                {
+                                    "name": "fillDeadline",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Fill deadline",
+                                    "format": "date",
+                                    "params": {
+                                        "encoding": "timestamp"
+                                    },
+                                    "visible": "optional"
+                                },
+                                {
+                                    "name": "exclusivityParameter",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "message",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "toEnd": true
+                                    },
+                                    "label": "Message executed on destination",
+                                    "format": "raw"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    }
+                ]
+            },
+            "startBridgeTokensViaAcrossV4ERC20Packed()": {
+                "intent": "Bridge token via Across",
+                "fields": [
+                    {
+                        "path": "@.data",
+                        "customEncoding": {
+                            "type": "object",
+                            "entries": [
+                                {
+                                    "name": "transactionId",
+                                    "offset": 4,
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 8
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "depositor",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Refund address",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "receiver",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Recipient",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "sendingAssetId",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Token sent",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "receivingAssetId",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Token received",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "inputAmount",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 16
+                                    },
+                                    "label": "Amount sent",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "outputAmount",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 32
+                                    },
+                                    "label": "Amount received",
+                                    "format": "raw"
+                                },
+                                {
+                                    "name": "destinationChainId",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 8
+                                    },
+                                    "label": "Destination chain",
+                                    "format": "chainId"
+                                },
+                                {
+                                    "name": "exclusiveRelayer",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "length": 32
+                                    },
+                                    "label": "Exclusive relayer",
+                                    "format": "raw",
+                                    "visible": "optional"
+                                },
+                                {
+                                    "name": "quoteTimestamp",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Quote timestamp",
+                                    "format": "date",
+                                    "params": {
+                                        "encoding": "timestamp"
+                                    }
+                                },
+                                {
+                                    "name": "fillDeadline",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "label": "Fill deadline",
+                                    "format": "date",
+                                    "params": {
+                                        "encoding": "timestamp"
+                                    },
+                                    "visible": "optional"
+                                },
+                                {
+                                    "name": "exclusivityParameter",
+                                    "schema": {
+                                        "type": "uint",
+                                        "bytes": 4
+                                    },
+                                    "visible": "never"
+                                },
+                                {
+                                    "name": "message",
+                                    "schema": {
+                                        "type": "bytes",
+                                        "toEnd": true
+                                    },
+                                    "label": "Message executed on destination",
+                                    "format": "raw"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "startBridgeTokensViaAcrossV4NativeMin((bytes8 transactionId,bytes32 receiver,bytes32 depositor,uint64 destinationChainId,bytes32 receivingAssetId,uint256 outputAmount,bytes32 exclusiveRelayer,uint32 quoteTimestamp,uint32 fillDeadline,uint32 exclusivityParameter,bytes message) _parameters)": {
+                "intent": "Bridge native token via Across",
+                "fields": [
+                    {
+                        "path": "@.value",
+                        "label": "Amount sent",
+                        "format": "amount"
+                    },
+                    {
+                        "path": "_parameters.depositor",
+                        "label": "Refund address",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.receiver",
+                        "label": "Recipient",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.receivingAssetId",
+                        "label": "Token received",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.outputAmount",
+                        "label": "Amount received",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "_parameters.exclusiveRelayer",
+                        "label": "Exclusive relayer",
+                        "format": "raw",
+                        "visible": "optional"
+                    },
+                    {
+                        "path": "_parameters.quoteTimestamp",
+                        "label": "Quote timestamp",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
+                    {
+                        "path": "_parameters.fillDeadline",
+                        "label": "Fill deadline",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        },
+                        "visible": "optional"
+                    },
+                    {
+                        "path": "_parameters.message",
+                        "label": "Message executed on destination",
+                        "format": "raw"
+                    }
+                ]
+            },
+            "startBridgeTokensViaAcrossV4ERC20Min((bytes8 transactionId,bytes32 receiver,bytes32 depositor,uint64 destinationChainId,bytes32 receivingAssetId,uint256 outputAmount,bytes32 exclusiveRelayer,uint32 quoteTimestamp,uint32 fillDeadline,uint32 exclusivityParameter,bytes message) _parameters,bytes32 sendingAssetId,uint256 inputAmount)": {
+                "intent": "Bridge token via Across",
+                "fields": [
+                    {
+                        "path": "sendingAssetId",
+                        "label": "Token sent",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "inputAmount",
+                        "label": "Amount sent",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.depositor",
+                        "label": "Refund address",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.receiver",
+                        "label": "Recipient",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.receivingAssetId",
+                        "label": "Token received",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.outputAmount",
+                        "label": "Amount received",
+                        "format": "raw"
+                    },
+                    {
+                        "path": "_parameters.destinationChainId",
+                        "label": "Destination chain",
+                        "format": "chainId"
+                    },
+                    {
+                        "path": "_parameters.exclusiveRelayer",
+                        "label": "Exclusive relayer",
+                        "format": "raw",
+                        "visible": "optional"
+                    },
+                    {
+                        "path": "_parameters.quoteTimestamp",
+                        "label": "Quote timestamp",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
+                    {
+                        "path": "_parameters.fillDeadline",
+                        "label": "Fill deadline",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        },
+                        "visible": "optional"
+                    },
+                    {
+                        "path": "_parameters.message",
+                        "label": "Message executed on destination",
+                        "format": "raw"
+                    }
+                ]
+            }
+        }
+    }
+}

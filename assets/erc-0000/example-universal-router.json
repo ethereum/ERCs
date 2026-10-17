@@ -1,0 +1,120 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Uniswap Universal Router",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x66a9893cC07D91D95644AEDD05D03f95e1dBA8Af"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Uniswap",
+        "contractName": "Universal Router",
+        "info": {
+            "url": "https://docs.uniswap.org/contracts/universal-router/overview"
+        }
+    },
+    "display": {
+        "formats": {
+            "execute(bytes commands,bytes[] inputs,uint256 deadline)": {
+                "$id": "Universal Router Execute",
+                "intent": "Execute swap",
+                "fields": [
+                    {
+                        "path": "deadline",
+                        "label": "Valid until",
+                        "format": "date",
+                        "params": {
+                            "encoding": "timestamp"
+                        }
+                    },
+                    {
+                        "path": "commands",
+                        "label": "Commands",
+                        "customEncoding": {
+                            "type": "sequence",
+                            "element": {
+                                "type": "uint",
+                                "bytes": 1
+                            }
+                        }
+                    },
+                    {
+                        "path": "inputs[]",
+                        "label": "Command input",
+                        "switch": {
+                            "expression": {
+                                "path": "commands[$index]",
+                                "mask": "0x3f"
+                            },
+                            "cases": {
+                                "0x00": {
+                                    "(address recipient,uint256 amountIn,uint256 amountOutMinimum,bytes path,bool payerIsUser)": {
+                                        "intent": "Execute swap with exact input and minimum output",
+                                        "fields": [
+                                            {
+                                                "path": "recipient",
+                                                "label": "Recipient",
+                                                "format": "addressName"
+                                            },
+                                            {
+                                                "path": "amountIn",
+                                                "label": "Amount in",
+                                                "format": "raw"
+                                            },
+                                            {
+                                                "path": "amountOutMinimum",
+                                                "label": "Minimum amount out",
+                                                "format": "raw"
+                                            },
+                                            {
+                                                "path": "path",
+                                                "label": "Swap path",
+                                                "format": "raw"
+                                            },
+                                            {
+                                                "path": "payerIsUser",
+                                                "label": "Pay from wallet",
+                                                "format": "raw"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0x04": {
+                                    "(address token,address recipient,uint256 amountMinimum)": {
+                                        "intent": "Sweep remaining balance",
+                                        "fields": [
+                                            {
+                                                "path": "token",
+                                                "label": "Token",
+                                                "format": "addressName"
+                                            },
+                                            {
+                                                "path": "recipient",
+                                                "label": "Recipient",
+                                                "format": "addressName"
+                                            },
+                                            {
+                                                "path": "amountMinimum",
+                                                "label": "Minimum amount",
+                                                "format": "tokenAmount",
+                                                "params": {
+                                                    "tokenPath": "token"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "$default": "reject"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
