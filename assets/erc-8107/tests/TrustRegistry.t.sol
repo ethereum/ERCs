@@ -2012,6 +2012,11 @@ contract TrustRegistryTest is Test {
             registry.getIdentityGate(coordinator, MEV_COORDINATION);
         assertEq(gatekeeper, ALICE);
         assertEq(p.maxPathLength, 5);
+        assertEq(uint8(p.minEdgeTrust), uint8(TrustLevel.Marginal));
+        assertEq(p.scope, UNIVERSAL);
+        assertTrue(p.enforceExpiry);
+        assertEq(p.requiredAnchors.length, 1);
+        assertEq(p.requiredAnchors[0], ANCHOR);
         assertTrue(enabled);
     }
 
@@ -2042,7 +2047,10 @@ contract TrustRegistryTest is Test {
     function test_VerifyPath_AnchoredMaxPathLengthOneReturnsFalse() public {
         _grant(aliceKey, ALICE, ANCHOR, TrustLevel.Full, UNIVERSAL, 1);
         _anchorAttests(CAROL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 2);
 
+        ValidationParams memory direct = _params(1, TrustLevel.Marginal, UNIVERSAL, true, new bytes32[](0));
+        assertTrue(registry.verifyPath(_path(_nodes2(ALICE, CAROL)), direct), "direct edge exists");
         assertFalse(registry.verifyPath(_path(_nodes2(ALICE, CAROL)), _anchoredAt(1)), "no intermediary");
         assertFalse(registry.verifyPath(_path(_nodes3(ALICE, ANCHOR, CAROL)), _anchoredAt(1)), "too long");
         assertTrue(registry.verifyPath(_path(_nodes3(ALICE, ANCHOR, CAROL)), _anchoredAt(2)), "room for the anchor");
