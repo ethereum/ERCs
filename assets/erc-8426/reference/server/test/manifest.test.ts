@@ -2,7 +2,16 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import type { PrivateKeyAccount } from "viem/accounts";
 
-import { buildHarness, createClock, newSigner, capabilityTokenFromUrl, encodeProof, type Harness } from "./helpers.js";
+import {
+  buildHarness,
+  createClock,
+  newSigner,
+  capabilityTokenFromUrl,
+  encodeProof,
+  signChallenge,
+  withProof,
+  type Harness,
+} from "./helpers.js";
 import { createPassStore } from "../src/passStore.js";
 import { defaultConfig } from "../src/config.js";
 
@@ -133,6 +142,19 @@ describe("GET /manifest/:tokenId", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("binding_mismatch");
+
+    // The same refusal when the acquire URN is present but not in the
+    // action's place: an acquire challenge with feed pushed in as the second
+    // resource is a feed proof by position, and "a proof for any other action
+    // MUST NOT resolve the manifest".
+    const acquire = await request(h.app).get(`/manifest/${TOKEN_ID}/challenge?address=${account.address}`);
+    const shuffled = (acquire.body.message as string).replace("Resources:\n", "Resources:\n- urn:wallet-pass:action:feed\n");
+    expect(shuffled).not.toBe(acquire.body.message);
+    const shuffledSignature = await account.signMessage({ message: shuffled });
+    const out = await presentProof(h, shuffled, shuffledSignature);
+    expect(out.status).toBe(400);
+    expect(out.body.error).toBe("binding_mismatch");
+    expect(out.body.formats).toBeUndefined();
   });
 
   it("carries the challenge URI on every 401 from the gated path", async () => {
@@ -240,6 +262,64 @@ describe("GET /manifest/:tokenId", () => {
 
     // Rotation retires URLs; it is not a content change.
     expect(buyerFirst.res.body.updatedAt).toBe(sellerFirst.res.body.updatedAt);
+  });
+
+  it("treats every spelling of a token id as one token, so rotation reaches links issued under another spelling", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const seller = newSigner();
+    const buyer = newSigner();
+    const padded = `0${TOKEN_ID}`;
+    // Ownership is recorded under the canonical id only: a claim through the
+    // padded spelling must read the chain, and key the store, as `412`.
+    h.chain.setOwner(h.config.contract, TOKEN_ID, seller.address);
+
+    const claimAs = async (account: PrivateKeyAccount, spelling: string) => {
+      const challenge = await request(h.app).get(`/manifest/${spelling}/challenge?address=${account.address}`);
+      expect(challenge.status).toBe(200);
+      const message = challenge.body.message as string;
+      const signature = await account.signMessage({ message });
+      return withProof(request(h.app).get(`/manifest/${spelling}`), message, signature);
+    };
+
+    // The seller acquires through the padded spelling. The URLs it gets name
+    // the token canonically and work.
+    const sellerRes = await claimAs(seller, padded);
+    expect(sellerRes.status).toBe(200);
+    const sellerApple = new URL(sellerRes.body.formats.apple as string).pathname;
+    const sellerFeed = new URL(h.passStore.actionLinks(padded).feed!).pathname;
+    const download = await request(h.app).get(sellerApple);
+    expect(download.status).toBe(200);
+    expect(download.body.tokenId).toBe(TOKEN_ID);
+    expect((await request(h.app).post(sellerFeed)).status).toBe(200);
+
+    // Sold. The buyer's first claim comes through the canonical spelling and
+    // must rotate the seller's URLs, whichever spelling issued them.
+    h.chain.setOwner(h.config.contract, TOKEN_ID, buyer.address);
+    const buyerRes = await claimAs(buyer, TOKEN_ID);
+    expect(buyerRes.status).toBe(200);
+    expect((await request(h.app).get(sellerApple)).status).toBe(404);
+    expect((await request(h.app).post(sellerFeed)).status).toBe(404);
+
+    // A repeat claim by the buyer under the other spelling is not a first
+    // claim, so nothing rotates; an owner rotation under one spelling then
+    // retires the URLs obtained under the other.
+    const buyerAgain = await claimAs(buyer, padded);
+    expect(buyerAgain.status).toBe(200);
+    expect(buyerAgain.body.formats.apple).toBe(buyerRes.body.formats.apple);
+    const buyerApple = new URL(buyerRes.body.formats.apple as string).pathname;
+    const rotate = await signChallenge(h, buyer, TOKEN_ID, "rotate");
+    const rotated = await withProof(request(h.app).post(`/manifest/${TOKEN_ID}/rotate`), rotate.message, rotate.signature);
+    expect(rotated.status).toBe(200);
+    expect((await request(h.app).get(buyerApple)).status).toBe(404);
+
+    // The canonical form is bounded to uint256, as `ownerOf` is: the largest
+    // id is a token (refused here only for want of a proof), one past it is
+    // not an id at all.
+    const max = (1n << 256n) - 1n;
+    expect((await request(h.app).get(`/manifest/${max}`)).status).toBe(401);
+    const tooBig = await request(h.app).get(`/manifest/${max + 1n}`);
+    expect(tooBig.status).toBe(400);
+    expect(tooBig.body.error).toBe("invalid_request");
   });
 });
 

@@ -119,13 +119,17 @@ export async function authorize(input: AuthorizeInput, deps: AuthorizeDeps): Pro
 
   // 5. The resources bind exactly the chain, contract, token, and action being
   //    executed. The CAIP-19 asset id ties the first three together; the action
-  //    URN names the fourth. The SIWE Chain ID must agree as well.
+  //    URN names the fourth. Each has a fixed place in the message (Example
+  //    challenge: the token is the first resource, the action the second), so
+  //    they are read by position, not searched for: a message that also lists
+  //    the expected action somewhere else is a proof for whatever sits in the
+  //    action's place. The SIWE Chain ID must agree as well.
   const expectedAsset = assetId(target.chainId, target.contract, target.tokenId);
   const expectedAction = actionUrn(target.action);
   const bound =
     parsed.chainId === target.chainId &&
-    resources.includes(expectedAsset) &&
-    resources.includes(expectedAction);
+    resources[0] === expectedAsset &&
+    resources[1] === expectedAction;
   if (!bound) {
     return { ok: false, error: "binding_mismatch" };
   }

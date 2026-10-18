@@ -166,6 +166,26 @@ describe("POST /action", () => {
     expect(res.body.error).toBe("binding_mismatch");
   });
 
+  it("rejects a proof whose resources carry the action out of position", async () => {
+    const h = buildHarness();
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    // A feed challenge, re-serialized with the acquire URN pushed in as the
+    // second resource and feed demoted to third. Both URNs are still present;
+    // by the fixed places the spec gives them (the token first, the action
+    // second) this is an acquire proof, and an acquire proof cannot run feed.
+    const issued = await issueChallenge(h.app, account, h.config.contract);
+    const message = issued.replace("Resources:\n", `Resources:\n- urn:wallet-pass:action:${h.config.acquireAction}\n`);
+    expect(message).not.toBe(issued);
+    const signature = await account.signMessage({ message });
+
+    const res = await submitAction(h.app, message, signature, h.config.contract);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("binding_mismatch");
+    expect(res.body.executed).toBeUndefined();
+  });
+
   it("rejects when ownership flips between challenge and action (transfer window)", async () => {
     const h = buildHarness();
     const account = newSigner();

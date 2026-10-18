@@ -9,7 +9,11 @@ import { getAddress, type Address } from "viem";
 ///    - urn:wallet-pass:action:feed
 
 /// A token id is accepted as a string so arbitrarily large ids survive without
-///  precision loss. It is validated as a non-negative integer.
+///  precision loss. It is validated as a non-negative integer no wider than
+///  uint256 and reduced to its canonical decimal form: `412` and `0412` are
+///  one token to `ownerOf`, so they must be one key in every store and one
+///  asset id in every challenge, or a rotation under one spelling would miss
+///  links issued under the other.
 export type TokenId = string;
 
 export function normalizeTokenId(value: string | number | bigint): TokenId {
@@ -17,7 +21,11 @@ export function normalizeTokenId(value: string | number | bigint): TokenId {
   if (!/^[0-9]+$/.test(asString)) {
     throw new Error(`invalid token id: ${asString}`);
   }
-  return asString;
+  const canonical = BigInt(asString);
+  if (canonical >= 1n << 256n) {
+    throw new Error(`invalid token id: ${asString}`);
+  }
+  return canonical.toString();
 }
 
 /// Build the CAIP-19 asset id for an ERC-721 token. The contract is
