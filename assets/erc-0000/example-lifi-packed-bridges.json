@@ -45,7 +45,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -59,9 +60,6 @@
                                 },
                                 {
                                     "name": "receiver",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Recipient",
                                     "format": "addressName"
                                 },
@@ -111,7 +109,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -125,9 +124,6 @@
                                 },
                                 {
                                     "name": "receiver",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Recipient",
                                     "format": "addressName"
                                 },
@@ -142,9 +138,6 @@
                                 },
                                 {
                                     "name": "sendingAssetId",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Token sent",
                                     "format": "addressName"
                                 },
@@ -268,7 +261,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -282,9 +276,6 @@
                                 },
                                 {
                                     "name": "receiver",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Recipient",
                                     "format": "addressName"
                                 },
@@ -342,7 +333,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -356,9 +348,6 @@
                                 },
                                 {
                                     "name": "receiver",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Recipient",
                                     "format": "addressName"
                                 },
@@ -373,9 +362,6 @@
                                 },
                                 {
                                     "name": "sendingAssetId",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Token sent",
                                     "format": "addressName"
                                 },
@@ -441,9 +427,6 @@
                                 },
                                 {
                                     "name": "wrapper",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Hop AMM wrapper",
                                     "format": "addressName"
                                 }
@@ -588,7 +571,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -602,9 +586,6 @@
                                 },
                                 {
                                     "name": "receiver",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Recipient",
                                     "format": "addressName"
                                 },
@@ -634,9 +615,6 @@
                                 },
                                 {
                                     "name": "relayer",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Relayer",
                                     "format": "addressName"
                                 },
@@ -657,9 +635,6 @@
                                 },
                                 {
                                     "name": "hopBridge",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Hop bridge",
                                     "format": "addressName"
                                 }
@@ -678,7 +653,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -692,9 +668,6 @@
                                 },
                                 {
                                     "name": "receiver",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Recipient",
                                     "format": "addressName"
                                 },
@@ -709,9 +682,6 @@
                                 },
                                 {
                                     "name": "sendingAssetId",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Token sent",
                                     "format": "addressName"
                                 },
@@ -741,9 +711,6 @@
                                 },
                                 {
                                     "name": "relayer",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Relayer",
                                     "format": "addressName"
                                 },
@@ -761,9 +728,6 @@
                                 },
                                 {
                                     "name": "hopBridge",
-                                    "schema": {
-                                        "type": "address"
-                                    },
                                     "label": "Hop bridge",
                                     "format": "addressName"
                                 }
@@ -883,7 +847,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -1007,7 +972,8 @@
                 "fields": [
                     {
                         "path": "@.data",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {

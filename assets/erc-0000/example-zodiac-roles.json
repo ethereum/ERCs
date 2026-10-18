@@ -28,7 +28,8 @@
                     {
                         "path": "roleKey",
                         "label": "Role",
-                        "customEncoding": { "type": "string", "length": 32 }
+                        "format": "customEncoding",
+                        "params": { "type": "string", "length": 32 }
                     },
                     {
                         "path": "targetAddress",

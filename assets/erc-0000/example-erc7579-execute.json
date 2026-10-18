@@ -31,7 +31,8 @@
                     {
                         "path": "mode",
                         "label": "Mode",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -81,7 +82,8 @@
                             },
                             "cases": {
                                 "0x00": {
-                                    "customEncoding": {
+                                    "format": "customEncoding",
+                                    "params": {
                                         "type": "object",
                                         "entries": [
                                             {
@@ -130,7 +132,8 @@
                                     }
                                 },
                                 "0xff": {
-                                    "customEncoding": {
+                                    "format": "customEncoding",
+                                    "params": {
                                         "type": "object",
                                         "entries": [
                                             {
