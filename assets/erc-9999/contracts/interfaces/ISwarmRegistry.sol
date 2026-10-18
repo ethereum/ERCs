@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {SAITypes as T} from "../SAITypes.sol";
 
-/// @title  ISwarmRegistry — Swarm AI Framework registry (reference v0.2)
+/// @title  ISwarmRegistry — Swarm AI Framework registry (reference v0.3)
 /// @notice The registry is the normative record of swarms: their specification and charter
 ///         commitments, lifecycle state, phases, membership ledger, objective binding,
 ///         attached resources, decision-point authorities and the posture vocabulary. It
@@ -18,8 +18,8 @@ interface ISwarmRegistry /* is IERC165, IERC6372 */ {
     // ------------------------------------------------------------------ lifecycle events
 
     event SwarmFormed(bytes32 indexed swarmId, address indexed initiator, bytes32 indexed parentId,
-                      bytes32 specHash, bytes32 charterHash, string charterURI, bytes32 originKind, bytes32 originRef,
-                      bytes32 predecessorId);
+                      bytes32 specHash, bytes32 charterHash, bytes32 commitmentHash, string charterURI,
+                      bytes32 originKind, bytes32 originRef, bytes32 predecessorId);
     event SwarmActivated(bytes32 indexed swarmId, uint64 at, uint64 hardDeadline, address by);
     event SwarmSuspended(bytes32 indexed swarmId, T.Reason reason, address by);
     event SwarmResumed(bytes32 indexed swarmId, address by);
@@ -28,7 +28,8 @@ interface ISwarmRegistry /* is IERC165, IERC6372 */ {
     event SwarmDissolved(bytes32 indexed swarmId, uint64 at, address by);
     event SwarmSucceeded(bytes32 indexed swarmId, bytes32 indexed successorId, address by);
     event CharterAmended(bytes32 indexed swarmId, uint32 indexed charterVersion, uint32 commitmentVersion, bool material,
-                         bytes32 charterHash, bytes32 objectiveHash, string charterURI, uint64 exitUntil, address by);
+                         bytes32 charterHash, bytes32 objectiveHash, bytes32 commitmentHash, string charterURI,
+                         uint64 exitUntil, address by);
     event CharterURIUpdated(bytes32 indexed swarmId, string charterURI);
     event AuthorityTransferred(bytes32 indexed swarmId, T.DecisionPoint indexed decisionPoint,
                                address indexed previous, address next);
@@ -68,7 +69,7 @@ interface ISwarmRegistry /* is IERC165, IERC6372 */ {
     function specHashOf(T.SwarmSpec calldata spec) external pure returns (bytes32);
 
     /// Forms a swarm in state FORMING. `msg.sender` is recorded as the initiator for ever.
-    function form(T.SwarmSpec calldata spec, bytes32 charterHash, string calldata charterURI,
+    function form(T.SwarmSpec calldata spec, bytes32 charterHash, bytes32 commitmentHash, string calldata charterURI,
                   bytes32 parentId, T.Origin calldata origin, T.ObjectiveInput calldata objective)
         external returns (bytes32 swarmId);
 
@@ -85,14 +86,15 @@ interface ISwarmRegistry /* is IERC165, IERC6372 */ {
 
     /// Forms a successor swarm, carrying the listed members as admitted candidates of the
     /// successor, and concludes this swarm SUPERSEDED.
-    function succeed(bytes32 swarmId, T.SwarmSpec calldata newSpec, bytes32 charterHash, string calldata charterURI,
-                     T.ObjectiveInput calldata objective, address[] calldata carried, bytes32[] calldata roles)
+    function succeed(bytes32 swarmId, T.SwarmSpec calldata newSpec, bytes32 charterHash, bytes32 commitmentHash,
+                     string calldata charterURI, T.ObjectiveInput calldata objective,
+                     address[] calldata carried, bytes32[] calldata roles)
         external returns (bytes32 successorId);
 
     // ------------------------------------------------------------------ charter, authority, account
 
     function amend(bytes32 swarmId, bytes32 charterHash, string calldata charterURI, bytes32 objectiveHash,
-                   bool material) external;                                                                      // AMEND authority
+                   bytes32 commitmentHash, bool material) external;                                              // AMEND authority
     function setCharterURI(bytes32 swarmId, string calldata charterURI) external;                                // AMEND authority
     function transferAuthority(bytes32 swarmId, T.DecisionPoint decisionPoint, address newAuthority) external;  // the current ADDRESS holder
     function setAccount(bytes32 swarmId, address account) external;                                              // SET_ACCOUNT authority
@@ -109,8 +111,8 @@ interface ISwarmRegistry /* is IERC165, IERC6372 */ {
     function suspendMember(bytes32 swarmId, address account) external;                             // REMOVE authority
     function reinstate(bytes32 swarmId, address account) external;                                 // REINSTATE authority
     function remove(bytes32 swarmId, address account) external;                                    // REMOVE authority; ADMIT authority for a candidate
-    function challenge(bytes32 swarmId, address account) external returns (bool evaluated, bool eligible); // anyone: re-evaluates eligibility
-    function expel(bytes32 swarmId, address account) external;                                     // anyone after the ineligible grace
+    function challenge(bytes32 swarmId, address account) external returns (bool evaluated, bool eligible); // anyone: re-evaluates eligibility (false suspends, true reinstates)
+    function expel(bytes32 swarmId, address account) external;                                     // anyone after the ineligible grace; re-evaluates, true reinstates
     function substitute(bytes32 swarmId, address previous, address next) external;                 // ADMIT authority
 
     // ------------------------------------------------------------------ objective and process

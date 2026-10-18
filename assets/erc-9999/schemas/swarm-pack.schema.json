@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "swarm-pack.schema.json",
   "title": "SwarmPack",
-  "description": "Root object of the off-chain Swarm Pack. charterHash = SHA-256 over the JCS (RFC 8785) canonical form of this object; objectiveHash = SHA-256 over the canonical form of the objective member; a phase's descriptorHash SHOULD be the digest of the matching mode.phases member. No digest is stored inside the member it covers. The pack carries everything a candidate's decision to join depends on and everything an allocation rule or indexer needs that the registry does not execute: the charter text, the objective descriptor, the collaboration structure per phase, the roles, the resource manifest, the decision-point descriptions and the version chain. It never overrides the on-chain SwarmSpec; where the two disagree, the spec is what runs.",
+  "description": "Root object of the off-chain Swarm Pack. charterHash = SHA-256 over the JCS (RFC 8785) canonical form of this object; objectiveHash = SHA-256 over the canonical form of the objective member; commitmentHash = SHA-256 over the canonical form of the commitment member (zero on-chain when the pack has none); a phase's descriptorHash SHOULD be the digest of the matching mode.phases member. No digest is stored inside the member it covers. The pack carries everything a candidate's decision to join depends on and everything an allocation rule or indexer needs that the registry does not execute: the charter text, the objective descriptor, the economic commitment, the collaboration structure per phase, the roles, the resource manifest, the decision-point descriptions and the version chain. It never overrides the on-chain SwarmSpec; where the two disagree, the spec is what runs.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -164,6 +164,77 @@
         }
       }
     },
+    "commitment": {
+      "type": "object",
+      "description": "The members' economic commitment: what they are owed and what they are exposed to. Committed on-chain as commitmentHash; any change of this member is a material amendment by construction (the registry compares the hash, never reads the text). Members beyond the five below are allowed and are covered by the hash.",
+      "additionalProperties": true,
+      "properties": {
+        "allocation": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "phase",
+              "rule"
+            ],
+            "properties": {
+              "phase": {
+                "type": "string",
+                "description": "Name of the phase the rule applies to (mode.phases[].name)"
+              },
+              "rule": {
+                "enum": [
+                  "equal",
+                  "role-weighted",
+                  "contribution-metered",
+                  "ranked",
+                  "winner-take-all",
+                  "base-plus-ranked",
+                  "conditional",
+                  "other"
+                ]
+              },
+              "params": {
+                "type": "object"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "How outcome value maps to members, per phase; what the payoff posture declares in words"
+        },
+        "costs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Costs members bear: metered resources, bonds, fees"
+        },
+        "liabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What members may be held to: delivery obligations, penalties, indemnities"
+        },
+        "dataAccess": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Data members receive or expose"
+        },
+        "externalActions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actions taken in the members' name through the swarm account or otherwise"
+        }
+      }
+    },
     "mode": {
       "type": "object",
       "additionalProperties": false,
@@ -230,33 +301,6 @@
               "selection": {
                 "type": "string",
                 "description": "SELECT phases: how the ADVANCE authority chooses who carries over"
-              },
-              "allocation": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": [
-                  "rule"
-                ],
-                "properties": {
-                  "rule": {
-                    "enum": [
-                      "equal",
-                      "role-weighted",
-                      "contribution-metered",
-                      "ranked",
-                      "winner-take-all",
-                      "base-plus-ranked",
-                      "conditional",
-                      "other"
-                    ]
-                  },
-                  "params": {
-                    "type": "object"
-                  },
-                  "description": {
-                    "type": "string"
-                  }
-                }
               },
               "inputWindow": {
                 "type": "integer",

@@ -8,7 +8,7 @@ import {SignatureChecker} from "./SignatureChecker.sol";
 import {IEligibility} from "../interfaces/IEligibility.sol";
 
 /// @title  MembershipLib — two-sided admission, departure, suspension, challenge, substitution,
-///         contributions (v0.2)
+///         contributions (v0.3)
 /// @notice External library executed in the registry's context (DELEGATECALL).
 library MembershipLib {
     using S for S.Store;
@@ -113,6 +113,9 @@ library MembershipLib {
         _suspendMember(st, id, account, m, T.SuspensionCause.AUTHORITY);
     }
 
+    /// Reinstatement on judgment: the REINSTATE authority lifts a suspension of either cause; for an
+    /// INELIGIBLE suspension the module must agree. Reinstatement on evidence — anyone, through
+    /// `challenge` or `expel`, once the module answers `true` again — needs no authority.
     function reinstate(S.Store storage st, bytes32 id, address account) external {
         T.Swarm storage s = st.live(id);
         S.requireOpen(s);
@@ -123,15 +126,7 @@ library MembershipLib {
             address module = st.roleOf(id, m.roleId).eligibility;
             if (module != address(0) && !S.eligible(module, id, m.roleId, account)) revert SAI_Ineligible();
         }
-        m.status = T.MemberStatus.ACTIVE;
-        m.suspension = T.SuspensionCause.NONE;
-        m.suspendedAt = 0;
-        st.counts[id].suspended -= 1;
-        st.counts[id].active += 1;
-        S.RoleCounts storage rc = st.roleCounts[id][m.roleId];
-        rc.suspended -= 1;
-        rc.active += 1;
-        emit E.MemberReinstated(id, account, msg.sender);
+        _reinstate(st, id, account, m);
     }
 
     function remove(S.Store storage st, bytes32 id, address account) external {
@@ -149,28 +144,48 @@ library MembershipLib {
         _exit(st, id, account, m, T.ExitReason.REMOVED, false);
     }
 
+    /// A `false` answer returned with less than this fraction of the pre-call gas remaining is
+    /// treated as unevaluable: under EIP-150 a call that ran out of gas inside the module leaves
+    /// at most one sixty-fourth of the forwarded gas per catching layer, so a module that catches
+    /// its own reads and answers `false` cannot be made to suspend an honest member by a caller
+    /// that starves it. A challenger who means the question supplies ample gas.
+    uint256 private constant GAS_RESERVE_DIVISOR = 8;
+
+    /// Re-evaluation on evidence, by anyone. An ACTIVE member answered `false` is suspended
+    /// INELIGIBLE; a member SUSPENDED(INELIGIBLE) answered `true` is reinstated; every other
+    /// evaluated answer changes nothing; an unevaluable call changes nothing and does not revert.
     function challenge(S.Store storage st, bytes32 id, address account) external returns (bool evaluated, bool eligible) {
         T.Swarm storage s = st.live(id);
         S.requireOpen(s);
         T.Member storage m = st.members[id][account];
-        if (S.derived(s, m) != T.MemberStatus.ACTIVE) revert SAI_NotMember();
+        T.MemberStatus stt = S.derived(s, m);
+        bool suspendedIneligible = stt == T.MemberStatus.SUSPENDED && m.suspension == T.SuspensionCause.INELIGIBLE;
+        if (stt != T.MemberStatus.ACTIVE && !suspendedIneligible) revert SAI_NotMember();
         address module = st.roleOf(id, m.roleId).eligibility;
         if (module == address(0)) revert SAI_NoModule();
-        (bool ok, bytes memory ret) = module.staticcall(
-            abi.encodeWithSelector(IEligibility.isEligible.selector, id, m.roleId, account));
-        if (!ok || ret.length != 32) return (false, false);
-        eligible = abi.decode(ret, (bool));
-        evaluated = true;
+        (evaluated, eligible) = _evaluate(module, id, m.roleId, account);
+        if (!evaluated) return (false, false);
         emit E.Challenged(id, account, msg.sender, eligible);
-        if (!eligible) _suspendMember(st, id, account, m, T.SuspensionCause.INELIGIBLE);
+        if (!eligible && stt == T.MemberStatus.ACTIVE) _suspendMember(st, id, account, m, T.SuspensionCause.INELIGIBLE);
+        if (eligible && suspendedIneligible) _reinstate(st, id, account, m);
     }
 
+    /// Expulsion after the grace period re-adjudicates on current evidence: `false` exits the
+    /// member INELIGIBLE, `true` reinstates it instead, an unevaluable module leaves the
+    /// suspension in place and reverts so that the caller knows nothing was decided.
     function expel(S.Store storage st, bytes32 id, address account) external {
         T.Swarm storage s = st.live(id);
         S.requireOpen(s);
         T.Member storage m = st.members[id][account];
         if (S.derived(s, m) != T.MemberStatus.SUSPENDED || m.suspension != T.SuspensionCause.INELIGIBLE) revert SAI_NotSuspended();
         if (block.timestamp <= m.suspendedAt + st.specs[id].ineligibleGrace) revert SAI_GraceRunning();
+        address module = st.roleOf(id, m.roleId).eligibility;
+        if (module != address(0)) {
+            (bool evaluated, bool eligible) = _evaluate(module, id, m.roleId, account);
+            if (!evaluated) revert SAI_Unevaluable();
+            emit E.Challenged(id, account, msg.sender, eligible);
+            if (eligible) { _reinstate(st, id, account, m); return; }
+        }
         _exit(st, id, account, m, T.ExitReason.INELIGIBLE, false);
     }
 
@@ -266,6 +281,35 @@ library MembershipLib {
         st.roleCounts[id][m.roleId].active += 1;
         s.lastActivity = uint64(block.timestamp);
         emit E.MemberActivated(id, account, m.roleId, s.phase);
+    }
+
+    /// The module call of `challenge` and `expel`: a revert, a malformed return or a `false`
+    /// returned with too little gas left are all "unevaluable".
+    function _evaluate(address module, bytes32 id, bytes32 roleId, address account)
+        private view returns (bool evaluated, bool eligible)
+    {
+        uint256 g0 = gasleft();
+        (bool ok, bytes memory ret) = module.staticcall(
+            abi.encodeWithSelector(IEligibility.isEligible.selector, id, roleId, account));
+        if (!ok || ret.length != 32) return (false, false);
+        uint256 answer = abi.decode(ret, (uint256));
+        if (answer > 1) return (false, false); // not a boolean: malformed, hence unevaluable
+        eligible = answer == 1;
+        if (!eligible && gasleft() < g0 / GAS_RESERVE_DIVISOR) return (false, false);
+        evaluated = true;
+    }
+
+    function _reinstate(S.Store storage st, bytes32 id, address account, T.Member storage m) private {
+        m.status = T.MemberStatus.ACTIVE;
+        m.suspension = T.SuspensionCause.NONE;
+        m.suspendedAt = 0;
+        m.lastActivity = uint64(block.timestamp);
+        st.counts[id].suspended -= 1;
+        st.counts[id].active += 1;
+        S.RoleCounts storage rc = st.roleCounts[id][m.roleId];
+        rc.suspended -= 1;
+        rc.active += 1;
+        emit E.MemberReinstated(id, account, msg.sender);
     }
 
     function _suspendMember(S.Store storage st, bytes32 id, address account, T.Member storage m, T.SuspensionCause cause) private {

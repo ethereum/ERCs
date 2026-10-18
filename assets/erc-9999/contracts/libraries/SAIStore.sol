@@ -50,7 +50,11 @@ library SAIStore {
         if (!isAuthorized(st, id, dp, msg.sender)) revert SAI_NotAuthorized();
     }
 
+    /// Nobody is authorized for anything in a dissolved swarm, whatever the kind of the authority:
+    /// a representative's power ends with the swarm, so that an account bound to it answers
+    /// "who may act after dissolution" by its own recovery rule and never by the REPRESENT kind.
     function isAuthorized(Store storage st, bytes32 id, T.DecisionPoint dp, address account) internal view returns (bool) {
+        if (st.swarms[id].state == T.LifecycleState.DISSOLVED) return false;
         T.Authority storage a = st.authorities[id][uint256(dp)];
         if (a.kind == T.AuthorityKind.ADDRESS) return account == a.target;
         if (a.kind == T.AuthorityKind.INITIATOR) return account == st.swarms[id].initiator;
@@ -157,8 +161,8 @@ library SAIStore {
 /// same signatures (qualified event access).
 interface ISwarmRegistryEvents {
     event SwarmFormed(bytes32 indexed swarmId, address indexed initiator, bytes32 indexed parentId,
-                      bytes32 specHash, bytes32 charterHash, string charterURI, bytes32 originKind, bytes32 originRef,
-                      bytes32 predecessorId);
+                      bytes32 specHash, bytes32 charterHash, bytes32 commitmentHash, string charterURI,
+                      bytes32 originKind, bytes32 originRef, bytes32 predecessorId);
     event SwarmActivated(bytes32 indexed swarmId, uint64 at, uint64 hardDeadline, address by);
     event SwarmSuspended(bytes32 indexed swarmId, T.Reason reason, address by);
     event SwarmResumed(bytes32 indexed swarmId, address by);
@@ -167,7 +171,8 @@ interface ISwarmRegistryEvents {
     event SwarmDissolved(bytes32 indexed swarmId, uint64 at, address by);
     event SwarmSucceeded(bytes32 indexed swarmId, bytes32 indexed successorId, address by);
     event CharterAmended(bytes32 indexed swarmId, uint32 indexed charterVersion, uint32 commitmentVersion, bool material,
-                         bytes32 charterHash, bytes32 objectiveHash, string charterURI, uint64 exitUntil, address by);
+                         bytes32 charterHash, bytes32 objectiveHash, bytes32 commitmentHash, string charterURI,
+                         uint64 exitUntil, address by);
     event CharterURIUpdated(bytes32 indexed swarmId, string charterURI);
     event AuthorityTransferred(bytes32 indexed swarmId, T.DecisionPoint indexed decisionPoint,
                                address indexed previous, address next);

@@ -10,7 +10,7 @@ import {LifecycleLib} from "./libraries/LifecycleLib.sol";
 import {MembershipLib} from "./libraries/MembershipLib.sol";
 import {ResourceLib} from "./libraries/ResourceLib.sol";
 
-/// @title  SwarmRegistry — Swarm AI Framework reference registry (v0.2)
+/// @title  SwarmRegistry — Swarm AI Framework reference registry (v0.3)
 /// @notice Non-upgradeable, permissionless. One instance, one clock (block timestamps). The
 ///         registry holds the normative record of swarms and executes only the transitions of
 ///         ISwarmRegistry, each gated by the authority the swarm's hashed specification assigns.
@@ -62,11 +62,11 @@ contract SwarmRegistry is ISwarmRegistry {
 
     function specHashOf(T.SwarmSpec calldata spec) external pure returns (bytes32) { return keccak256(abi.encode(spec)); }
 
-    function form(T.SwarmSpec calldata spec, bytes32 charterHash, string calldata charterURI,
+    function form(T.SwarmSpec calldata spec, bytes32 charterHash, bytes32 commitmentHash, string calldata charterURI,
                   bytes32 parentId, T.Origin calldata origin, T.ObjectiveInput calldata objective)
         external returns (bytes32 swarmId)
     {
-        swarmId = LifecycleLib.form(st, spec, charterHash, charterURI, parentId, origin, objective, bytes32(0));
+        swarmId = LifecycleLib.form(st, spec, charterHash, commitmentHash, charterURI, parentId, origin, objective, bytes32(0));
         _bump(swarmId);
     }
 
@@ -90,19 +90,22 @@ contract SwarmRegistry is ISwarmRegistry {
 
     function dissolve(bytes32 swarmId) external { LifecycleLib.dissolve(st, swarmId); _bump(swarmId); }
 
-    function succeed(bytes32 swarmId, T.SwarmSpec calldata newSpec, bytes32 charterHash, string calldata charterURI,
-                     T.ObjectiveInput calldata objective, address[] calldata carried, bytes32[] calldata roles)
+    function succeed(bytes32 swarmId, T.SwarmSpec calldata newSpec, bytes32 charterHash, bytes32 commitmentHash,
+                     string calldata charterURI, T.ObjectiveInput calldata objective,
+                     address[] calldata carried, bytes32[] calldata roles)
         external returns (bytes32 successorId)
     {
-        successorId = LifecycleLib.succeed(st, swarmId, newSpec, charterHash, charterURI, objective, carried, roles);
+        successorId = LifecycleLib.succeed(st, swarmId, newSpec, charterHash, commitmentHash, charterURI, objective, carried, roles);
         _bump(swarmId);
         _bump(successorId);
     }
 
     // ------------------------------------------------------------------ charter, authority, account
 
-    function amend(bytes32 swarmId, bytes32 charterHash, string calldata charterURI, bytes32 objectiveHash, bool material) external {
-        LifecycleLib.amend(st, swarmId, charterHash, charterURI, objectiveHash, material);
+    function amend(bytes32 swarmId, bytes32 charterHash, string calldata charterURI, bytes32 objectiveHash,
+                   bytes32 commitmentHash, bool material) external
+    {
+        LifecycleLib.amend(st, swarmId, charterHash, charterURI, objectiveHash, commitmentHash, material);
         _bump(swarmId);
     }
 

@@ -74,6 +74,7 @@ error SAI_NotCandidate();
 error SAI_NotSuspended();
 error SAI_NoModule();
 error SAI_GraceRunning();
+error SAI_Unevaluable();
 error SAI_SuccessorHasSeat();
 error SAI_InitiatorRoleSeated();
 error SAI_RoleMismatch();

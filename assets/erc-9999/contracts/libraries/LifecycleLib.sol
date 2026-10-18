@@ -17,8 +17,9 @@ library LifecycleLib {
 
     // ------------------------------------------------------------------ formation
 
-    function form(S.Store storage st, T.SwarmSpec calldata spec, bytes32 charterHash, string calldata charterURI,
-                  bytes32 parentId, T.Origin memory origin, T.ObjectiveInput calldata objective, bytes32 predecessorId)
+    function form(S.Store storage st, T.SwarmSpec calldata spec, bytes32 charterHash, bytes32 commitmentHash,
+                  string calldata charterURI, bytes32 parentId, T.Origin memory origin,
+                  T.ObjectiveInput calldata objective, bytes32 predecessorId)
         public returns (bytes32 id)
     {
         SpecValidator.validate(spec, st.terms);
@@ -35,6 +36,7 @@ library LifecycleLib {
         T.Swarm storage s = st.swarms[id];
         s.specHash = keccak256(abi.encode(spec));
         s.charterHash = charterHash;
+        s.commitmentHash = commitmentHash;
         s.charterVersion = 1;
         s.commitmentVersion = 1;
         s.charterURI = charterURI;
@@ -63,7 +65,8 @@ library LifecycleLib {
         o.obligation = objective.obligation;
         o.milestoneCount = objective.milestoneCount;
 
-        emit E.SwarmFormed(id, msg.sender, parentId, s.specHash, charterHash, charterURI, origin.kind, origin.ref, predecessorId);
+        emit E.SwarmFormed(id, msg.sender, parentId, s.specHash, charterHash, commitmentHash, charterURI,
+                           origin.kind, origin.ref, predecessorId);
     }
 
     function _storeSpec(S.Store storage st, bytes32 id, T.SwarmSpec calldata spec) private {
@@ -249,7 +252,7 @@ library LifecycleLib {
     }
 
     function succeed(S.Store storage st, bytes32 id, T.SwarmSpec calldata newSpec, bytes32 charterHash,
-                     string calldata charterURI, T.ObjectiveInput calldata objective,
+                     bytes32 commitmentHash, string calldata charterURI, T.ObjectiveInput calldata objective,
                      address[] calldata carried, bytes32[] calldata roles)
         external returns (bytes32 successorId)
     {
@@ -258,7 +261,7 @@ library LifecycleLib {
         st.auth(id, T.DecisionPoint.SUCCEED);
         if (roles.length != carried.length) revert SAI_CarriedShape();
 
-        successorId = form(st, newSpec, charterHash, charterURI, s.parentId,
+        successorId = form(st, newSpec, charterHash, commitmentHash, charterURI, s.parentId,
                            T.Origin({kind: ORIGIN_SUCCESSION, ref: id}), objective, id);
         for (uint256 i = 0; i < carried.length; i++) {
             if (S.derived(s, st.members[id][carried[i]]) != T.MemberStatus.ACTIVE) revert SAI_NotCarriedMember();
@@ -275,8 +278,11 @@ library LifecycleLib {
 
     // ------------------------------------------------------------------ charter, authority, account
 
+    /// An amendment is material by construction when it changes the objective hash or the
+    /// commitment hash; the `material` flag can only add to that (a textual change the authority
+    /// declares material), never subtract from it. Zero hashes mean "unchanged".
     function amend(S.Store storage st, bytes32 id, bytes32 charterHash, string calldata charterURI,
-                   bytes32 objectiveHash, bool material) external
+                   bytes32 objectiveHash, bytes32 commitmentHash, bool material) external
     {
         T.Swarm storage s = st.live(id);
         S.requireOpen(s);
@@ -287,19 +293,24 @@ library LifecycleLib {
         s.charterVersion += 1;
         s.lastAmendedAt = uint64(block.timestamp);
         s.lastActivity = uint64(block.timestamp);
+        T.Objective storage o = st.objectives[id];
+        if (objectiveHash != bytes32(0) && objectiveHash != o.objectiveHash) {
+            o.objectiveHash = objectiveHash;
+            o.version = s.charterVersion;
+            material = true;
+        }
+        if (commitmentHash != bytes32(0) && commitmentHash != s.commitmentHash) {
+            s.commitmentHash = commitmentHash;
+            material = true;
+        }
         uint64 exitUntil;
         if (material) {
             s.commitmentVersion += 1;
             exitUntil = uint64(block.timestamp) + st.specs[id].amendmentExitWindow;
             s.exitWindowUntil = exitUntil;
         }
-        T.Objective storage o = st.objectives[id];
-        if (objectiveHash != bytes32(0) && objectiveHash != o.objectiveHash) {
-            o.objectiveHash = objectiveHash;
-            o.version = s.charterVersion;
-        }
         emit E.CharterAmended(id, s.charterVersion, s.commitmentVersion, material, charterHash, o.objectiveHash,
-                              charterURI, exitUntil, msg.sender);
+                              s.commitmentHash, charterURI, exitUntil, msg.sender);
     }
 
     function setCharterURI(S.Store storage st, bytes32 id, string calldata charterURI) external {

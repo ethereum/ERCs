@@ -199,8 +199,9 @@ library SAITypes {
     struct Swarm {
         bytes32        specHash;
         bytes32        charterHash;
+        bytes32        commitmentHash;     // SHA-256 of the pack's `commitment` member; zero when none
         uint32         charterVersion;     // incremented by every amendment
-        uint32         commitmentVersion;  // incremented by material amendments only
+        uint32         commitmentVersion;  // incremented by material amendments (a changed objective or commitment hash, or a declared one)
         string         charterURI;
         address        initiator;          // the account that submitted the formation
         Origin         origin;             // what the formation came from
