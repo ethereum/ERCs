@@ -1,0 +1,437 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "swarm-pack.schema.json",
+  "title": "SwarmPack",
+  "description": "Root object of the off-chain Swarm Pack. charterHash = SHA-256 over the JCS (RFC 8785) canonical form of this object; objectiveHash = SHA-256 over the canonical form of the objective member; a phase's descriptorHash SHOULD be the digest of the matching mode.phases member. No digest is stored inside the member it covers. The pack carries everything a candidate's decision to join depends on and everything an allocation rule or indexer needs that the registry does not execute: the charter text, the objective descriptor, the collaboration structure per phase, the roles, the resource manifest, the decision-point descriptions and the version chain. It never overrides the on-chain SwarmSpec; where the two disagree, the spec is what runs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "specHash",
+    "charter",
+    "objective",
+    "mode",
+    "roles",
+    "resources",
+    "prev"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Charter version; equals the registry's charterVersion after the amendment that published it"
+    },
+    "specHash": {
+      "$ref": "#/$defs/bytes32",
+      "description": "The on-chain SwarmSpec this pack describes"
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "description": "Informative mirror of the on-chain Origin record: how the swarm came to exist",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$",
+          "description": "sai.origin.initiator | joint | task | trigger | decision | succession, or an extension; keccak256 of this string is the on-chain kind"
+        },
+        "ref": {
+          "$ref": "#/$defs/bytes32",
+          "description": "The on-chain reference the kind gives meaning to"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "charter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Primary human-readable charter document inside the pack (Markdown)"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256",
+          "description": "SHA-256 of the charter document's bytes"
+        }
+      }
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "goal",
+        "successCriteria",
+        "acceptance"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "TERMINAL",
+            "MILESTONED",
+            "EXPLORATORY",
+            "STANDING"
+          ]
+        },
+        "goal": {
+          "type": "string"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "successCriteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "milestones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "index",
+              "title",
+              "criteria"
+            ],
+            "properties": {
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "title": {
+                "type": "string"
+              },
+              "criteria": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "acceptance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "verifier",
+                "judge",
+                "collective",
+                "obligation",
+                "other"
+              ],
+              "description": "What the on-chain acceptanceAuthority is: a verifier contract, a designated judge, a collective-decision adapter, an obligation adapter reading a bound external duty such as a task tender"
+            },
+            "authority": {
+              "$ref": "#/$defs/address"
+            },
+            "policyId": {
+              "$ref": "#/$defs/bytes32",
+              "description": "collective: the decision policy the adapter files under"
+            },
+            "obligation": {
+              "$ref": "#/$defs/externalRef"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "amendmentRule": {
+          "type": "string",
+          "description": "Who may amend the objective and what members may do when it changes; MUST be consistent with the AMEND authority and amendmentExitWindow"
+        }
+      }
+    },
+    "mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phases"
+      ],
+      "properties": {
+        "namedProfile": {
+          "type": "string",
+          "description": "Informative label: cooperation, competition, co-opetition, tender, staged-elimination, debate, ensemble, pipeline, hierarchical, standing-committee, internal-market"
+        },
+        "phases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "payoff",
+              "topology",
+              "coordination",
+              "boundary",
+              "admission",
+              "description"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "payoff": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$",
+                "description": "Dotted name of the registered payoff term; keccak256 of this string is the on-chain term. Base terms: sai.payoff.shared, sai.payoff.exclusive, sai.payoff.mixed"
+              },
+              "topology": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$",
+                "description": "Dotted name of the registered topology term. Base terms: sai.topology.redundant, partitioned, sequential, hierarchical, iterative, free"
+              },
+              "coordination": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$",
+                "description": "Dotted name of the registered coordination term. Base terms: sai.coordination.leader, collective, market, automated, none"
+              },
+              "boundary": {
+                "enum": [
+                  "OPEN",
+                  "GATED",
+                  "CLOSED"
+                ]
+              },
+              "admission": {
+                "enum": [
+                  "RECRUIT",
+                  "INHERIT",
+                  "SELECT"
+                ]
+              },
+              "description": {
+                "type": "string"
+              },
+              "selection": {
+                "type": "string",
+                "description": "SELECT phases: how the ADVANCE authority chooses who carries over"
+              },
+              "allocation": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "rule"
+                ],
+                "properties": {
+                  "rule": {
+                    "enum": [
+                      "equal",
+                      "role-weighted",
+                      "contribution-metered",
+                      "ranked",
+                      "winner-take-all",
+                      "base-plus-ranked",
+                      "conditional",
+                      "other"
+                    ]
+                  },
+                  "params": {
+                    "type": "object"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              },
+              "inputWindow": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Informative mirror of the spec's inputWindow in seconds; 0 = unbounded"
+              },
+              "contributions": {
+                "type": "string",
+                "description": "Informative: what a contribution record means in this phase and how its hash is formed"
+              }
+            }
+          }
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "roleId",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "roleId": {
+            "$ref": "#/$defs/bytes32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "eligibility": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "module": {
+                "$ref": "#/$defs/address"
+              },
+              "description": {
+                "type": "string"
+              },
+              "requires": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Human-readable predicates, e.g. 'trust assertion level >= 3 under scheme X from issuers A, B', 'agent identity ACTIVE', 'registered agent with reputation >= r'"
+              }
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "digest",
+          "digestKind",
+          "purpose"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$",
+            "description": "sai.resource.<name>: skill, dataset, tool, code, model, document, oracle, fund, or an extension kind; keccak256 of this string is the on-chain kind"
+          },
+          "anchor": {
+            "$ref": "#/$defs/externalRef",
+            "description": "On-chain anchor (a token-bound skill, a registered dataset, a fund contract); absent for a purely off-chain resource"
+          },
+          "digest": {
+            "$ref": "#/$defs/bytes32",
+            "description": "Commitment to the resource content under digestKind; the on-chain record compares, never computes"
+          },
+          "digestKind": {
+            "type": "string",
+            "minLength": 1,
+            "description": "How digest was computed: sha-256, keccak256, or a name an adapter defines for what its anchored contracts report; keccak256 of this string is the on-chain digestKind"
+          },
+          "uri": {
+            "type": "string",
+            "description": "Transport hint for the content; never a verification source"
+          },
+          "roleId": {
+            "$ref": "#/$defs/bytes32",
+            "description": "Role whose members may use the resource; absent = every member"
+          },
+          "provider": {
+            "$ref": "#/$defs/address",
+            "description": "Who provides or manages the resource; may differ from the attaching authority and from the anchor's controller"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "terms": {
+            "type": "string",
+            "description": "Usage terms, e.g. the licensing or metering the anchored skill enforces and who pays"
+          }
+        }
+      }
+    },
+    "decisionPoints": {
+      "type": "object",
+      "description": "Informative description of each authority, keyed by decision point name (ACTIVATE ... REPRESENT): who holds it and, for collective decisions, which policy the adapter files under",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "policyId": {
+            "$ref": "#/$defs/bytes32"
+          },
+          "adapter": {
+            "$ref": "#/$defs/address"
+          }
+        }
+      }
+    },
+    "prev": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "charterHash of the previous version as sha256:<hex>; null at version 1"
+    }
+  },
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "externalRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chainId",
+        "target",
+        "id"
+      ],
+      "properties": {
+        "chainId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "target": {
+          "$ref": "#/$defs/address"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      }
+    }
+  }
+}

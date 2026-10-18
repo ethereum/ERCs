@@ -1,0 +1,28 @@
+{
+  "description": "charterHash = SHA-256 over the RFC 8785 (JCS) canonical form of the Swarm Pack root; objectiveHash = SHA-256 over the canonical form of the `objective` member; a phase's descriptorHash = SHA-256 over the canonical form of the matching `mode.phases` member. Computed from the example packs under assets/erc-sai/examples.",
+  "vectors": [
+    {
+      "file": "swarm-pack-cooperative-tender.json",
+      "canonicalLength": 5773,
+      "canonicalSha256": "0x185408d856cca7ac6643373104eb3b911444e173092ce0cf4bc0f5c9552716c2",
+      "charterHash": "0x185408d856cca7ac6643373104eb3b911444e173092ce0cf4bc0f5c9552716c2",
+      "objectiveHash": "0xcd3c6cd602e91dc5aa86a65760ce4ac8deeea9c5bc7ac65f04da72134d3554ac",
+      "phaseDescriptorHashes": [
+        "0x24bc11916d5be8d512557346677cc5d0027c9cd35631598f250aa139633f2794"
+      ],
+      "canonicalPrefix": "{\"charter\":{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"path\":\"charter.md\"},\"dec"
+    },
+    {
+      "file": "swarm-pack-two-phase-tender.json",
+      "canonicalLength": 5115,
+      "canonicalSha256": "0x8b1e72ef6cb72eb6a737122c7e5a7abadece40114f61c4f37fb478a79bc24009",
+      "charterHash": "0x8b1e72ef6cb72eb6a737122c7e5a7abadece40114f61c4f37fb478a79bc24009",
+      "objectiveHash": "0x5c1d87d09ca4df58fd98731e967891c4d47716da575034ba7037c784e26dd849",
+      "phaseDescriptorHashes": [
+        "0x88ba3801f38779bae44ca24c620097029e47f665b0666c21b4b99efbba84d436",
+        "0x34bf6cba179a73ca7ee14b1c542adf55bf94e7209dd2459fb8358d7d36fd0082"
+      ],
+      "canonicalPrefix": "{\"charter\":{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"path\":\"charter.md\"},\"dec"
+    }
+  ]
+}
