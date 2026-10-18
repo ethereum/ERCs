@@ -3,7 +3,7 @@ eip: 9999
 title: Swarm AI Framework
 description: Registry and charter model through which agents form, bound, run and dissolve purpose-bound swarms with declared collaboration structure
 author: Gary Yang (@garyyang-finchip)
-discussions-to: https://ethereum-magicians.org/t/draft-erc-swarm-ai-framework/0
+discussions-to: https://ethereum-magicians.org/t/draft-erc-swarm-ai-framework-registry-and-charter-model-for-purpose-bound-agent-swarms/29998
 status: Draft
 type: Standards Track
 category: ERC
