@@ -151,7 +151,14 @@
     "digest": {
       "type": "string",
       "pattern": "^0x[0-9a-fA-F]{64}$",
-      "description": "keccak256 of canonical content, or a commitment when access.mode == ZK"
+      "description": "hash of the JCS-canonical content per digestAlg (default keccak256), or a commitment when access.mode == ZK"
+    },
+    "digestAlg": {
+      "enum": [
+        "keccak256",
+        "sha256"
+      ],
+      "description": "hash function over the JCS-canonical content that `digest` carries; absent = keccak256. Ignored when access.mode == ZK (digest is a commitment)."
     },
     "access": {
       "type": "object",

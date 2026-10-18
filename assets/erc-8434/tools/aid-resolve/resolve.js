@@ -41,6 +41,8 @@
 //  - FINALITY: `finality` is reported (absent = "final"); a provisional facet may be current but is never
 //    presented as final. A current provisional facet with `finalizeBy` is reported `finalization: "open"`
 //    before that time and `"overdue"` at or after it when the issuer's declared log shows no supersession.
+//  - CONTENT DIGEST: `digest` of a PUBLIC/GATED facet is the hash of the JCS-canonical content per `digestAlg`
+//    (absent = keccak256; sha256 also admitted); verifyContent(facet, content) checks plaintext against it.
 //  - ALSO KNOWN AS: each `alsoKnownAs` link is reported `confirmed` only when the linked AID's Document
 //    (ctx.linkedDocuments / ctx.fetchLinkedDocument) lists this AID back; otherwise `unconfirmed`, or
 //    `unchecked` when that Document was not available. A one-sided link never merges profiles.
@@ -235,6 +237,20 @@ function finalizationOf(facet, now, exclusivity) {
 
 const lcAid = (x) => String(x || "").toLowerCase();
 
+/** Content digest of a PUBLIC/GATED facet: hash of the JCS-canonical content per `digestAlg` (absent = keccak256). */
+function contentDigest(content, digestAlg) {
+  const bytes = ethers.toUtf8Bytes(canonicalize(content));
+  const alg = digestAlg || "keccak256";
+  if (alg === "keccak256") return ethers.keccak256(bytes);
+  if (alg === "sha256") return ethers.sha256(bytes);
+  throw new Error("unsupported digestAlg: " + alg);
+}
+/** True when `content` is the plaintext behind `facet.digest` (never for ZK facets, whose digest is a commitment). */
+function verifyContent(facet, content) {
+  if (facet.access && facet.access.mode === "ZK") return false;
+  return contentDigest(content, facet.digestAlg).toLowerCase() === String(facet.digest).toLowerCase();
+}
+
 /** Mutual-link check for `alsoKnownAs` (see the ERC, §1): a link is `confirmed` only when the linked AID's Document lists this
  *  AID back in its own `alsoKnownAs`; `unconfirmed` when the linked Document was read and does not; `unchecked` when it was
  *  not available. ctx.linkedDocuments maps CAIP-10 -> AID Document (fixture mode); ctx.fetchLinkedDocument(aid) may load one. */
@@ -411,5 +427,5 @@ async function main() {
   console.log(JSON.stringify(await resolveSnapshot(snap, now, ctx), null, 2));
 }
 
-module.exports = { supersessionTimingOf, finalizationOf, alsoKnownAsOf, resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, supersessionMap, logTag, STATE };
+module.exports = { supersessionTimingOf, finalizationOf, alsoKnownAsOf, contentDigest, verifyContent, resolveSnapshot, snapshotFromChain, reconstructIntervals, verifyCommitment, timingOf, toleranceOf, ANCHOR_TOLERANCE, exclusivityOf, supersessionMap, logTag, STATE };
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
