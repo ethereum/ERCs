@@ -1410,25 +1410,16 @@
                     "$ref": "#/$customEncoding/bytes"
                 },
                 {
-                    "$ref": "#/$customEncoding/string"
-                },
-                {
                     "$ref": "#/$customEncoding/address"
                 },
                 {
                     "$ref": "#/$customEncoding/bool"
                 },
                 {
-                    "$ref": "#/$customEncoding/bitfield"
-                },
-                {
                     "$ref": "#/$customEncoding/object"
                 },
                 {
                     "$ref": "#/$customEncoding/sequence"
-                },
-                {
-                    "$ref": "#/$customEncoding/switchNode"
                 }
             ]
         },
@@ -1500,47 +1491,6 @@
                 }
             ]
         },
-        "string": {
-            "title": "UTF-8 text, with trailing zero bytes removed when the width is fixed",
-            "type": "object",
-            "properties": {
-                "type": {
-                    "const": "string"
-                },
-                "length": {
-                    "type": "integer",
-                    "minimum": 0
-                },
-                "lengthFrom": {
-                    "type": "string"
-                },
-                "toEnd": {
-                    "description": "If true, the node consumes all remaining bytes of its buffer, so it MUST be the last entry of its enclosing object.",
-                    "const": true
-                }
-            },
-            "required": [
-                "type"
-            ],
-            "additionalProperties": false,
-            "oneOf": [
-                {
-                    "required": [
-                        "length"
-                    ]
-                },
-                {
-                    "required": [
-                        "lengthFrom"
-                    ]
-                },
-                {
-                    "required": [
-                        "toEnd"
-                    ]
-                }
-            ]
-        },
         "address": {
             "type": "object",
             "properties": {
@@ -1569,126 +1519,6 @@
             },
             "required": [
                 "type"
-            ],
-            "additionalProperties": false
-        },
-        "bitfield": {
-            "type": "object",
-            "properties": {
-                "type": {
-                    "const": "bitfield"
-                },
-                "bytes": {
-                    "description": "Width of the value in bytes. Exactly one of `bytes` and `bitwidth` MUST be present.",
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 32
-                },
-                "bitwidth": {
-                    "description": "Width of the value in bits. The node consumes ceil(bitwidth / 8) bytes; the unused most significant bits are padding. Exactly one of `bytes` and `bitwidth` MUST be present.",
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 256
-                },
-                "endian": {
-                    "enum": [
-                        "be",
-                        "le"
-                    ]
-                },
-                "bitranges": {
-                    "type": "array",
-                    "items": {
-                        "oneOf": [
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-                                    },
-                                    "bit": {
-                                        "type": "integer",
-                                        "minimum": 0
-                                    },
-                                    "label": {
-                                        "type": "string"
-                                    },
-                                    "format": {
-                                        "$ref": "#/$customEncoding/entryFormat"
-                                    },
-                                    "params": {
-                                        "type": "object"
-                                    },
-                                    "visible": {
-                                        "$ref": "#/$format/rules"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "bit"
-                                ],
-                                "additionalProperties": false
-                            },
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-                                    },
-                                    "bits": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "integer",
-                                            "minimum": 0
-                                        },
-                                        "minItems": 2,
-                                        "maxItems": 2
-                                    },
-                                    "signed": {
-                                        "description": "If true, the bit range is decoded as a two's complement signed integer instead of an unsigned one.",
-                                        "type": "boolean",
-                                        "default": false
-                                    },
-                                    "label": {
-                                        "type": "string"
-                                    },
-                                    "format": {
-                                        "$ref": "#/$customEncoding/entryFormat"
-                                    },
-                                    "params": {
-                                        "type": "object"
-                                    },
-                                    "visible": {
-                                        "$ref": "#/$format/rules"
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "bits"
-                                ],
-                                "additionalProperties": false
-                            }
-                        ]
-                    }
-                }
-            },
-            "required": [
-                "type",
-                "bitranges"
-            ],
-            "oneOf": [
-                {
-                    "required": [
-                        "bytes"
-                    ]
-                },
-                {
-                    "required": [
-                        "bitwidth"
-                    ]
-                }
             ],
             "additionalProperties": false
         },
@@ -1778,42 +1608,11 @@
                 },
                 "element": {
                     "$ref": "#/$customEncoding/node"
-                },
-                "count": {
-                    "type": "integer",
-                    "minimum": 0
-                },
-                "countFrom": {
-                    "type": "string"
                 }
             },
             "required": [
                 "type",
                 "element"
-            ],
-            "additionalProperties": false
-        },
-        "switchNode": {
-            "title": "switch used as a customEncoding node (inline, reads from the buffer at the cursor)",
-            "type": "object",
-            "properties": {
-                "type": {
-                    "const": "switch"
-                },
-                "expression": {
-                    "$ref": "#/$customEncoding/node"
-                },
-                "payloadFrom": {
-                    "type": "string"
-                },
-                "cases": {
-                    "$ref": "#/$customEncoding/switchCases"
-                }
-            },
-            "required": [
-                "type",
-                "expression",
-                "cases"
             ],
             "additionalProperties": false
         },
