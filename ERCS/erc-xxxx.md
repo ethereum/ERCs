@@ -1,27 +1,31 @@
 ---
 eip: XXXX
-title: Token Transfer Pause Signal
-description: Lets NFT contracts signal that holder transfers are paused, temporarily or permanently, for all or a range of token IDs
+title: Permanent Locks for Lockable Tokens
+description: Extends default lockable tokens with permanent locks, multi-token support, and mint and burn rules
 author: Ryan Ghods (@ryanio)
-discussions-to: https://ethereum-magicians.org/t/erc-draft-token-transfer-pause-signal/XXXXX
+discussions-to: https://ethereum-magicians.org/t/erc-draft-permanent-locks-for-lockable-tokens/XXXXX
 status: Draft
 type: Standards Track
 category: ERC
 created: 2026-10-19
-requires: 165, 721, 1155
+requires: 165, 721, 1155, 6982
 ---
 
 ## Abstract
 
-This proposal defines a minimal interface for [ERC-721](./eip-721.md) and [ERC-1155](./eip-1155.md) contracts to report that transfers between holders are paused, either for every token in the contract or for a range of token IDs, while minting and burning may continue. A pause can be temporary or permanent, so the same interface covers both a trading pause during a mint and a non-transferable (soulbound) collection. It adds two view functions, one event that covers a token ID range in a single log, and one custom error. Marketplaces, wallets, and indexers can use it to stop offering listings, offers, and sales that the contract would reject.
+This proposal extends [ERC-6982](./eip-6982.md) so that a lock can be marked permanent, so that the same interface applies to [ERC-1155](./eip-1155.md) contracts as well as [ERC-721](./eip-721.md) contracts, and so that minting and burning are defined while tokens are locked. Contracts keep using ERC-6982's `DefaultLocked` and `Locked` events to lock and unlock tokens. This proposal adds two events, two view functions, and one custom error. Marketplaces, wallets, and indexers can then tell a temporary trading pause, such as one during a public mint, from a collection that will never be transferable.
 
 ## Motivation
 
-Creators often disable secondary transfers for a period: while a public mint is running, before a reveal, during a migration, or permanently for non-transferable credentials. Today a marketplace learns this only when a fulfillment reverts, or when the creator contacts each marketplace to flag the collection by hand. Users create listings and offers that cannot fill, and buyers pay gas for failed transactions.
+Creators often disable secondary transfers for a period: while a public mint is running, before a reveal, or during a migration. Other collections are non-transferable for good, such as credentials, memberships, and achievement badges. In both cases marketplaces need to stop offering listings, offers, and sales that the contract would reject.
 
-[ERC-5192](./eip-5192.md) signals a permanent lock per token. It has no way to cover a whole collection in one event, so a 10,000 token collection needs 10,000 logs to lock, and again to unlock. Its semantics are also those of soulbound tokens, not of a temporary pause. [ERC-6454](./eip-6454.md) exposes a transferability view, but has no event, so indexers have to poll every token to notice a change.
+ERC-6982 already gives contracts a way to lock or unlock every token with one `DefaultLocked` event, and to override single tokens with `Locked` events. It leaves three gaps:
 
-A pause that covers the whole contract and lifts later is the common case in practice. This proposal makes that case one event in each direction, and leaves per-token and per-range pauses possible with the same event. A collection that is non-transferable for good uses the same event once, marked permanent, so consumers can tell it apart from a pause that will lift.
+1. A consumer cannot tell a lock that will lift from one that never will. A wallet cannot label a token as non-transferable, and a marketplace cannot tell whether to keep orders for when trading resumes.
+2. ERC-6982 requires ERC-721, so ERC-1155 contracts have no equivalent signal.
+3. ERC-6982 does not say whether minting and burning continue while tokens are locked. Pausing trading during a mint depends on minting continuing.
+
+[ERC-5192](./eip-5192.md) covers permanent locks, but only with one event per token, so a 10,000 token collection needs 10,000 logs at deployment.
 
 ## Specification
 
@@ -30,106 +34,105 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ### Definitions
 
 - A *holder transfer* is a transfer of a token where both the sender (`from`) and the recipient (`to`) are not the zero address. Mints (`from` is the zero address) and burns (`to` is the zero address) are not holder transfers.
-- A token is *paused* when `transfersPaused(tokenId)` returns `true`.
-- A token is *permanently paused* when `transfersPausedPermanently(tokenId)` returns `true`.
+- A token is *locked* when ERC-6982's `locked(tokenId)` returns `true`.
+- A token is *permanently locked* when `permanentlyLocked(tokenId)` returns `true`.
+- For an ERC-1155 contract, `tokenId` is the token type ID, and a token ID *exists* once at least one unit of it has been minted.
 
 ### Interface
 
-A compliant contract MUST implement [ERC-721](./eip-721.md) or [ERC-1155](./eip-1155.md), and MUST implement the following interface:
+A compliant contract MUST implement ERC-721 or ERC-1155, MUST implement ERC-6982, and MUST implement the following interface:
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.4;
 
-/// @dev The ERC-165 identifier for this interface is 0x8035b47e.
-interface IERCXXXX /* is IERC165 */ {
-    /// @notice Emitted when the paused status of every token ID in the
-    ///  inclusive range [fromTokenId, toTokenId] is set to `paused`.
-    ///  `permanent` is true when the pause can never be lifted.
-    event TransferPauseUpdated(uint256 fromTokenId, uint256 toTokenId, bool paused, bool permanent);
+/// @dev The ERC-165 identifier for this interface is 0x752cf662.
+interface IERCXXXX /* is IERC165, IERC6982 */ {
+    /// @notice Emitted when every token in the contract becomes permanently locked.
+    event DefaultPermanentlyLocked();
 
-    /// @notice Thrown when a holder transfer of a paused token is attempted.
-    error TokenTransferPaused(uint256 tokenId);
+    /// @notice Emitted when `tokenId` becomes permanently locked.
+    event PermanentlyLocked(uint256 indexed tokenId);
 
-    /// @notice Returns true if holder transfers of `tokenId` are paused.
-    function transfersPaused(uint256 tokenId) external view returns (bool);
+    /// @notice Thrown when a holder transfer of a locked token is attempted.
+    error TokenLocked(uint256 tokenId);
 
-    /// @notice Returns true if holder transfers of `tokenId` are paused and
-    ///  the pause can never be lifted.
-    function transfersPausedPermanently(uint256 tokenId) external view returns (bool);
+    /// @notice Returns true if every token in the contract is permanently locked.
+    function defaultPermanentlyLocked() external view returns (bool);
+
+    /// @notice Returns true if `tokenId` is permanently locked.
+    function permanentlyLocked(uint256 tokenId) external view returns (bool);
 }
 ```
 
 ### Behavior
 
-1. The contract MUST return `true` from `supportsInterface(0x8035b47e)`, as defined by [ERC-165](./eip-165.md).
-2. `transfersPaused` and `transfersPausedPermanently` MUST NOT revert for any `tokenId`, including token IDs that have not been minted.
-3. While a token is paused, the contract MUST revert every holder transfer of that token. This includes transfers made by the holder and by any approved operator.
-4. While a token is paused, the contract MAY allow that token ID to be minted and burned.
-5. A holder transfer that reverts because the token is paused SHOULD revert with `TokenTransferPaused(tokenId)`.
-6. Every change to the value returned by `transfersPaused` or `transfersPausedPermanently` for any token ID MUST happen in a transaction that emits `TransferPauseUpdated` with a range containing that token ID and the new values as `paused` and `permanent`. The return values MUST NOT change as a function of block number, timestamp, or any other state that changes without such a transaction.
-7. `fromTokenId` MUST be less than or equal to `toTokenId`. The range is inclusive and applies to token IDs that have not yet been minted.
-8. To pause or unpause every token in the contract, the contract SHOULD emit `TransferPauseUpdated(0, type(uint256).max, paused, permanent)`.
-9. The contract MUST NOT emit `TransferPauseUpdated` with `permanent` set to `true` and `paused` set to `false`.
-10. If `transfersPausedPermanently(tokenId)` returns `true`, then `transfersPaused(tokenId)` MUST also return `true`, and both MUST keep returning `true` for that token ID for the life of the contract. The contract MUST NOT emit `TransferPauseUpdated` with `permanent` set to `false` for a range that contains a permanently paused token ID.
-11. The contract MAY emit `TransferPauseUpdated` for a range whose status did not change.
-12. The contract SHOULD NOT revert `approve` or `setApprovalForAll` solely because a token is paused and not permanently paused.
+1. The contract MUST return `true` from `supportsInterface` for both `0x752cf662` and the ERC-6982 identifier `0x6b61a747`, as defined by [ERC-165](./eip-165.md).
+2. The requirements of ERC-6982 apply to ERC-1155 contracts that implement this proposal, with `tokenId` read as the token type ID.
+3. Locking restricts holder transfers only. A locked status MUST NOT by itself prevent minting. The contract MAY allow burning locked tokens.
+4. While a token is permanently locked, the contract MUST revert every holder transfer of that token, including transfers made by the holder and by any approved operator.
+5. A holder transfer that reverts because the token is locked SHOULD revert with `TokenLocked(tokenId)`.
+6. When the contract emits `DefaultPermanentlyLocked`, `defaultLocked()` MUST already return `true`.
+7. After the contract emits `DefaultPermanentlyLocked`:
+   1. `defaultLocked()` and `defaultPermanentlyLocked()` MUST return `true` for the life of the contract.
+   2. `locked(tokenId)` and `permanentlyLocked(tokenId)` MUST return `true` for every token ID that exists, regardless of any earlier `Locked` event.
+   3. The contract MUST NOT emit `DefaultLocked(false)` or `Locked(tokenId, false)` for any token ID.
+8. When the contract emits `PermanentlyLocked(tokenId)`, `locked(tokenId)` MUST already return `true`.
+9. After the contract emits `PermanentlyLocked(tokenId)`, `locked(tokenId)` and `permanentlyLocked(tokenId)` MUST return `true` for as long as the token exists, and the contract MUST NOT emit `Locked(tokenId, false)`.
+10. `permanentlyLocked(tokenId)` MUST return `true` if and only if `DefaultPermanentlyLocked` or `PermanentlyLocked(tokenId)` has been emitted. Like ERC-6982's `locked`, it MUST revert if the token does not exist.
+11. The return values of `defaultPermanentlyLocked` and `permanentlyLocked` MUST NOT change except in a transaction that emits the corresponding event.
+12. The contract SHOULD NOT revert `approve` or `setApprovalForAll` solely because a token is locked and not permanently locked.
 
 ### Consumers
 
-1. When a later `TransferPauseUpdated` log overlaps an earlier one, consumers MUST apply them in log order, so that the latest log decides the status of each token ID in the overlap.
-2. Consumers SHOULD NOT create, display, or fulfill listings, offers, or sales of a paused token. Consumers MAY keep existing orders and show them again when the token is unpaused.
-3. Consumers SHOULD store ranges as ranges and SHOULD NOT expand a range into per-token records.
-4. Consumers MAY call `transfersPaused` and `transfersPausedPermanently` to confirm the current status, for example after processing logs out of order.
-5. Consumers MAY present a permanently paused token as non-transferable, and a paused token that is not permanently paused as temporarily unavailable for trading.
+1. Consumers SHOULD NOT create, display, or fulfill listings, offers, or sales of a locked token.
+2. Consumers MAY keep existing orders for a token that is locked and not permanently locked, and show them again when the token is unlocked.
+3. Consumers MAY present a permanently locked token as non-transferable, and a token that is locked and not permanently locked as temporarily unavailable for trading.
+4. After a contract emits `DefaultPermanentlyLocked`, consumers SHOULD treat every token in the contract as permanently locked, including tokens minted later.
 
 ## Rationale
 
-### Range event
+### Building on ERC-6982
 
-A single log that covers a range lets a contract pause or unpause a whole collection for the cost of one event, whatever its supply. The `fromTokenId`/`toTokenId` shape follows the `BatchMetadataUpdate` event of [ERC-4906](./eip-4906.md), which indexers already handle. A contract that pauses a single token emits a range where both bounds are that token ID.
+An earlier draft of this proposal defined its own range event for pausing a whole collection. [ERC-6982](./eip-6982.md) already covers that case with `DefaultLocked`, and per-token exceptions with `Locked`. Reusing it means existing ERC-6982 contracts keep working, and indexers learn one base standard. This proposal adds only what ERC-6982 leaves open. A range event is not included: the default status covers a whole collection, `Locked` covers single tokens, and nothing in the motivating cases needs a partial range.
 
-The range covers token IDs that do not exist yet. This is the case a mint needs: a creator pauses the full range at deployment, mints proceed while every new token is already paused, and one unpause event opens trading for all of them.
+### Separate permanence events
 
-### Status in the event
+ERC-6982 is Final, so its events cannot gain a field. Separate `DefaultPermanentlyLocked` and `PermanentlyLocked` events let a contract mark permanence without changing how ERC-6982 consumers read lock status. Behavior rules 6 and 8 require the lock to be in place before it is marked permanent, so a consumer that only understands ERC-6982 still sees the token as locked.
 
-An earlier draft of this proposal emitted only the range and required consumers to call the view function to learn the new status. For a contract-wide range, a consumer could not learn the status of each token without one call per token. Including `paused` and `permanent` in the event lets a consumer update its state from logs alone. Behavior rule 6 keeps the logs and the view in agreement, and the view stays available as a check.
+Permanence goes one way. A contract can move a token from locked to permanently locked, but never back. A consumer that has seen a permanence event can rely on it without polling.
 
-### Permanent pauses
+### Strict reverts only for permanent locks
 
-Non-transferable collections, such as credentials, memberships, and achievement badges, need the same signal as a mint-time pause: marketplaces should stop offering trades. They also need consumers to know the pause will never lift, so that a wallet can label the token as non-transferable instead of "trading paused", and a marketplace can stop holding orders in case trading resumes.
-
-A separate proposal for collection-wide soulbound tokens would give indexers two event shapes for the same question. Folding permanence into this event keeps one log type, and one contract-wide log at deployment covers an entire non-transferable collection. Behavior rule 10 makes permanence one way: a contract can move a token from temporarily paused to permanently paused, but never back. A consumer that has seen `permanent` set for a token ID can rely on it.
-
-A permanent pause still allows burning, so holders of a non-transferable token can dispose of it if the contract supports burns.
-
-### No time-based changes
-
-Some pauses have a known end, such as the close of a public mint. Allowing `transfersPaused` to flip at a timestamp would make the logs stale with no event to notice, which defeats the purpose of the event. Contracts with a scheduled end need one transaction to lift the pause. This proposal also leaves out a field for the expected end time. Pauses often end early or late, and a consumer that trusted a stale end time would offer orders that revert.
+ERC-6982 notes that a locked token may still be transferable under some conditions, for example when a designated protector wallet starts the transfer. This proposal keeps that flexibility for temporary locks, since marketplaces only need to know not to offer the token. A permanent lock is a promise to holders that the token is non-transferable, so behavior rule 4 makes that promise binding on the contract.
 
 ### Mints and burns
 
-Pausing secondary trading during a mint is the main use case, so the pause applies only to holder transfers. A contract that also needs to block mints or burns can do so on its own; this proposal does not describe it.
+Pausing secondary trading during a mint is the main temporary use case, so locking restricts holder transfers only. A permanently locked collection still allows burning, so holders of a non-transferable token can dispose of it if the contract supports burns.
+
+### ERC-1155
+
+ERC-6982's interface uses only a `tokenId`, which maps directly to an ERC-1155 token type ID. Applying the same events and functions to ERC-1155 gives multi-token contracts a lock signal without a parallel standard. Existence for ERC-1155 is defined by minting because ERC-6982 requires `locked` to revert for tokens that do not exist.
+
+### No time-based changes
+
+ERC-6982 requires `defaultLocked` to reflect the most recent `DefaultLocked` event, so lock status already changes only through events. Behavior rule 11 applies the same rule to permanence. Some pauses have a known end, such as the close of a public mint, but this proposal leaves out an end time field. Pauses often end early or late, and a consumer that trusted a stale end time would offer orders that revert.
 
 ### Approvals
 
-Blocking `approve` and `setApprovalForAll` during a temporary pause would stop holders from preparing listings and would add no protection, since the transfer itself already reverts. Consumers already decide whether to show an order based on the pause status.
+Blocking `approve` and `setApprovalForAll` during a temporary lock would stop holders from preparing listings and would add no protection, since the transfer itself already reverts or is not offered.
 
-### Function and error names
+### Relationship to ERC-5192
 
-`transfersPaused` is a question about holder transfers only, which is why it is not named `isTransferable` or `locked`. The error is named `TokenTransferPaused` because Solidity does not allow an error and a function to share a name in one contract.
-
-### Relationship to ERC-5192 and ERC-6454
-
-This proposal does not replace either. [ERC-5192](./eip-5192.md) is Final, so a range event cannot be added to it. A contract can implement ERC-5192 alongside this interface. When it does, `transfersPaused(tokenId)` should return `true` for every token where `locked(tokenId)` returns `true`, so that consumers reading either signal agree. A permanently non-transferable collection can emit one contract-wide `TransferPauseUpdated(0, type(uint256).max, true, true)` event at deployment instead of one `Locked` event per token.
+ERC-5192 and ERC-6982 share the `locked(uint256)` function, so a contract can implement both. A permanently locked token under this proposal is what ERC-5192 calls a soulbound token. A permanently non-transferable collection can emit `DefaultLocked(true)` and `DefaultPermanentlyLocked()` once at deployment instead of one ERC-5192 `Locked` event per token.
 
 ## Backwards Compatibility
 
-This proposal adds a new interface and does not change [ERC-721](./eip-721.md) or [ERC-1155](./eip-1155.md) behavior when tokens are not paused. Contracts deployed before this proposal do not implement it, and consumers continue to handle them as they do today.
+Every contract that implements this proposal is also a valid ERC-6982 contract. Consumers that only understand ERC-6982 see permanently locked tokens as locked, which is the safe reading. Contracts deployed before this proposal do not implement it, and consumers continue to handle them as they do today.
 
 ## Reference Implementation
 
-The following [ERC-721](./eip-721.md) contract pauses holder transfers for the whole collection at deployment. The owner can unpause, pause again, or make the pause permanent, after which it can no longer be changed. It uses the `_update` hook of OpenZeppelin Contracts 5.x, which runs for mints, burns, and transfers.
+The following ERC-721 contract locks every token at deployment. The owner can unlock, lock again, or make the lock permanent, after which it can no longer change. It uses the `_update` hook of OpenZeppelin Contracts 5.x, which runs for mints, burns, and transfers. The `IERC6982` interface is copied from ERC-6982.
 
 ```solidity
 // SPDX-License-Identifier: CC0-1.0
@@ -138,69 +141,88 @@ pragma solidity ^0.8.20;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PausableDrop is ERC721, Ownable, IERCXXXX {
-    error TransferPauseIsPermanent();
+interface IERC6982 {
+    event DefaultLocked(bool locked);
+    event Locked(uint256 indexed tokenId, bool locked);
+    function defaultLocked() external view returns (bool);
+    function locked(uint256 tokenId) external view returns (bool);
+}
 
-    bool private _transfersPaused;
-    bool private _permanent;
+contract LockableDrop is ERC721, Ownable, IERC6982, IERCXXXX {
+    error LockIsPermanent();
 
-    constructor() ERC721("Pausable Drop", "DROP") Ownable(msg.sender) {
-        _setTransfersPaused(true);
+    bool private _defaultLocked;
+    bool private _defaultPermanentlyLocked;
+
+    constructor() ERC721("Lockable Drop", "DROP") Ownable(msg.sender) {
+        _setDefaultLocked(true);
     }
 
     function mint(address to, uint256 tokenId) external onlyOwner {
         _mint(to, tokenId);
     }
 
-    function setTransfersPaused(bool paused) external onlyOwner {
-        _setTransfersPaused(paused);
+    function setDefaultLocked(bool isLocked) external onlyOwner {
+        _setDefaultLocked(isLocked);
     }
 
-    function pauseTransfersPermanently() external onlyOwner {
-        _transfersPaused = true;
-        _permanent = true;
-        emit TransferPauseUpdated(0, type(uint256).max, true, true);
+    function lockPermanently() external onlyOwner {
+        if (!_defaultLocked) _setDefaultLocked(true);
+        _defaultPermanentlyLocked = true;
+        emit DefaultPermanentlyLocked();
     }
 
-    function transfersPaused(uint256 /* tokenId */) public view returns (bool) {
-        return _transfersPaused;
+    function defaultLocked() external view returns (bool) {
+        return _defaultLocked;
     }
 
-    function transfersPausedPermanently(uint256 /* tokenId */) public view returns (bool) {
-        return _permanent;
+    function locked(uint256 tokenId) external view returns (bool) {
+        _requireOwned(tokenId);
+        return _defaultLocked;
+    }
+
+    function defaultPermanentlyLocked() external view returns (bool) {
+        return _defaultPermanentlyLocked;
+    }
+
+    function permanentlyLocked(uint256 tokenId) external view returns (bool) {
+        _requireOwned(tokenId);
+        return _defaultPermanentlyLocked;
     }
 
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return interfaceId == type(IERCXXXX).interfaceId || super.supportsInterface(interfaceId);
+        return interfaceId == type(IERC6982).interfaceId
+            || interfaceId == type(IERCXXXX).interfaceId
+            || super.supportsInterface(interfaceId);
     }
 
-    function _setTransfersPaused(bool paused) internal {
-        if (_permanent) revert TransferPauseIsPermanent();
-        _transfersPaused = paused;
-        emit TransferPauseUpdated(0, type(uint256).max, paused, false);
+    function _setDefaultLocked(bool isLocked) internal {
+        if (_defaultPermanentlyLocked) revert LockIsPermanent();
+        _defaultLocked = isLocked;
+        emit DefaultLocked(isLocked);
     }
 
     function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
         address from = _ownerOf(tokenId);
-        if (from != address(0) && to != address(0) && transfersPaused(tokenId)) {
-            revert TokenTransferPaused(tokenId);
+        if (from != address(0) && to != address(0) && _defaultLocked) {
+            revert TokenLocked(tokenId);
         }
         return super._update(to, tokenId, auth);
     }
 }
 ```
 
-An [ERC-1155](./eip-1155.md) contract applies the same check to each ID in `_update(from, to, ids, values)`.
+An ERC-1155 contract applies the same check to each ID in `_update(from, to, ids, values)`.
 
 ## Security Considerations
 
-The pause status is reported by the token contract itself. A contract can report `false` and still revert transfers, or report `true` and allow them. Consumers should treat the signal as a way to hide orders that will fail, and should keep simulating fulfillments rather than trusting the signal to approve them.
+The lock status is reported by the token contract itself. A contract can report a token as unlocked and still revert transfers, or report it as permanently locked and allow them. Consumers should treat the signal as a way to hide orders that will fail, and should keep simulating fulfillments rather than trusting the signal to approve them.
 
-Whoever controls the pause controls the secondary market for the affected tokens. A creator can make a pause permanent at any time, which removes the secondary market for good. A creator can also pause transfers indefinitely without marking the pause permanent, or pause just before a sale to make outstanding orders unfillable. Holders and buyers should be able to see who can change the pause and whether it can be lifted. Consumers may want to show that information alongside the token.
+Whoever controls the lock controls the secondary market for the affected tokens. A creator can make a lock permanent at any time, which removes the secondary market for good. A creator can also keep a temporary lock in place indefinitely, or lock just before a sale to make outstanding orders unfillable. Holders and buyers should be able to see who can change the lock and whether it can still be lifted. Consumers may want to show that information alongside the token.
 
-The pause status can change between the time an order is created and the time it is filled. A buyer's transaction can revert if the creator pauses in the same block. Consumers should check the status close to fulfillment.
+The lock status can change between the time an order is created and the time it is filled. A buyer's transaction can revert if the creator locks in the same block. Consumers should check the status close to fulfillment.
 
-A malicious or careless contract can emit many overlapping ranges, or ranges that cover token IDs it will never mint. Consumers that store ranges as ranges, and merge or cap them per contract, avoid unbounded storage growth. Consumers calling `transfersPaused` should bound the gas they pass to the call, since the function runs arbitrary contract code.
+Consumers calling `locked` or `permanentlyLocked` should bound the gas they pass to the call, since the functions run arbitrary contract code, and should handle the revert these functions raise for tokens that do not exist.
 
 ## Copyright
 
