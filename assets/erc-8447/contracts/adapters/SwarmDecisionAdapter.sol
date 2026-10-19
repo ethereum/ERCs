@@ -13,12 +13,13 @@ import {IACDFPolicyRegistry} from "./interfaces/IACDFPolicyRegistry.sol";
 ///         `open` a proposal: the adapter checks that it really holds the point, that the supplied
 ///         roster is exactly the active members of the deciding role at this moment, registers a
 ///         fresh policy version whose fixed roster is that snapshot, and files a CONSUMER_FILED
-///         issue bound to the swarm, the decision point, the exact registry call proposed and the
-///         charter version. Once the issue is Final with a decision, anyone may `execute`: a Yes
-///         performs the recorded call on the registry as the authority (unless a material amendment
-///         changed the members' commitments in between), a No records that nothing is to be done,
-///         a NoDecision is the status quo and triggers nothing. Members admitted after the snapshot
-///         take part in later decisions, never in the one under way.
+///         issue bound to the swarm, the decision point, the exact registry call proposed, the
+///         charter version and the phase. Once the issue is Final with a decision, anyone may
+///         `execute`: a Yes performs the recorded call on the registry as the authority — unless the
+///         swarm's commitment version or phase has changed since filing: a decision is taken under
+///         one set of commitments and in one phase, and is performed under no other — a No records
+///         that nothing is to be done, a NoDecision is the status quo and triggers nothing. Members
+///         admitted after the snapshot take part in later decisions, never in the one under way.
 contract SwarmDecisionAdapter {
     ISwarmRegistry      public immutable swarms;
     IACDFRegistry       public immutable decisions;
@@ -41,6 +42,7 @@ contract SwarmDecisionAdapter {
         T.DecisionPoint decisionPoint;
         uint32          charterVersion;     // charter version the proposal was filed under (part of the subject)
         uint32          commitmentVersion;  // a material amendment in between invalidates the proposal
+        uint32          phase;              // phase the proposal was filed in (part of the subject); an advance in between invalidates it
         bytes           call;               // exact registry calldata proposed
     }
 
@@ -143,14 +145,14 @@ contract SwarmDecisionAdapter {
             chainId: block.chainid,
             target: address(swarms),
             id: uint256(swarmId),
-            dataHash: keccak256(abi.encode(dp, call, s.charterVersion))
+            dataHash: keccak256(abi.encode(dp, call, s.charterVersion, s.phase))
         });
         input.question = questionOf(dp);
         input.effectYes = EFFECT_YES;
         input.effectNo = EFFECT_NO;
         input.disposition = DISPOSITION;
-        // one unfinished binding proceeding per concrete proposal
-        input.obligationId = keccak256(abi.encode(swarmId, dp, call));
+        // one unfinished binding proceeding per concrete proposal; a proposal is a call in a phase
+        input.obligationId = keccak256(abi.encode(swarmId, dp, call, s.phase));
         input.consumerDeadline = consumerDeadline;
         issueId = decisions.file(input);
 
@@ -160,6 +162,7 @@ contract SwarmDecisionAdapter {
         p.decisionPoint = dp;
         p.charterVersion = s.charterVersion;
         p.commitmentVersion = s.commitmentVersion;
+        p.phase = s.phase;
         p.call = call;
         emit ProposalOpened(issueId, swarmId, dp, policyId, call, consumerDeadline);
     }
@@ -238,8 +241,13 @@ contract SwarmDecisionAdapter {
             emit ProposalEnacted(issueId, EFFECT_NO);
             return;
         }
-        // a proposal decided under one set of member commitments is not executed under another
-        require(swarms.getSwarm(p.swarmId).commitmentVersion == p.commitmentVersion, "SAIDecision: commitments changed");
+        // a proposal decided under one set of member commitments and in one phase is not executed
+        // under another: `advance` is relative, so a Yes obtained in an earlier phase would perform a
+        // different transition than the one voted on, and after a SELECT advance it would have been
+        // decided by a roster that is no longer the swarm's
+        T.Swarm memory now = swarms.getSwarm(p.swarmId);
+        require(now.commitmentVersion == p.commitmentVersion, "SAIDecision: commitments changed");
+        require(now.phase == p.phase, "SAIDecision: phase changed");
         (bool ok, bytes memory err) = address(swarms).call(p.call);
         if (ok) {
             p.enacted = true;
