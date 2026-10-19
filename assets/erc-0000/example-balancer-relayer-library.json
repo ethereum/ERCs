@@ -37,7 +37,8 @@
                     {
                         "path": "authorization",
                         "label": "Signed authorization",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
@@ -88,13 +89,15 @@
                     {
                         "path": "poolId",
                         "label": "Pool",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
                                     "name": "poolAddress",
                                     "schema": {
-                                        "type": "address"
+                                        "type": "address",
+                                        "bytes": 20
                                     }
                                 },
                                 {
@@ -167,7 +170,8 @@
                                                         {
                                                             "path": "minBptAmountOut",
                                                             "label": "Minimum pool tokens out",
-                                                            "customEncoding": {
+                                                            "format": "customEncoding",
+                                                            "params": {
                                                                 "type": "switch",
                                                                 "expression": {
                                                                     "type": "uint",
@@ -212,7 +216,8 @@
                     {
                         "path": "outputReference",
                         "label": "Save result as",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "switch",
                             "expression": {
                                 "type": "uint",
@@ -239,13 +244,15 @@
                     {
                         "path": "poolId",
                         "label": "Pool",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "object",
                             "entries": [
                                 {
                                     "name": "poolAddress",
                                     "schema": {
-                                        "type": "address"
+                                        "type": "address",
+                                        "bytes": 20
                                     }
                                 },
                                 {
@@ -304,7 +311,8 @@
                                             {
                                                 "path": "bptAmountIn",
                                                 "label": "Pool tokens in",
-                                                "customEncoding": {
+                                                "format": "customEncoding",
+                                                "params": {
                                                     "type": "switch",
                                                     "expression": {
                                                         "type": "uint",
@@ -348,7 +356,8 @@
                                                                     {
                                                                         "path": "bptAmountIn",
                                                                         "label": "Pool tokens in",
-                                                                        "customEncoding": {
+                                                                        "format": "customEncoding",
+                                                                        "params": {
                                                                             "type": "switch",
                                                                             "expression": {
                                                                                 "type": "uint",
@@ -390,7 +399,8 @@
                                                                     {
                                                                         "path": "bptAmountIn",
                                                                         "label": "Pool tokens in",
-                                                                        "customEncoding": {
+                                                                        "format": "customEncoding",
+                                                                        "params": {
                                                                             "type": "switch",
                                                                             "expression": {
                                                                                 "type": "uint",
@@ -440,7 +450,8 @@
                     {
                         "path": "outputReferences[].key",
                         "label": "Save result as",
-                        "customEncoding": {
+                        "format": "customEncoding",
+                        "params": {
                             "type": "switch",
                             "expression": {
                                 "type": "uint",
