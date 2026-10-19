@@ -1546,10 +1546,17 @@
             "properties": {
                 "type": {
                     "const": "address"
+                },
+                "bytes": {
+                    "enum": [
+                        20,
+                        32
+                    ]
                 }
             },
             "required": [
-                "type"
+                "type",
+                "bytes"
             ],
             "additionalProperties": false
         },
@@ -1708,7 +1715,7 @@
                             },
                             "schema": {
                                 "$ref": "#/$customEncoding/node",
-                                "description": "The byte layout of the entry. MAY be omitted when `format` is one of addressName, tokenTicker, amount, tokenAmount, date, duration, unit, enum, chainId, nftName, which imply a layout (address for addressName and tokenTicker, 32-byte uint for the others)."
+                                "description": "The byte layout of the entry. MAY be omitted when `format` is one of addressName, amount, tokenAmount, date, duration, unit, enum, chainId, nftName, which imply a layout (32-byte address for addressName, 32-byte uint for the others)."
                             },
                             "visible": {
                                 "$ref": "#/$format/rules"
@@ -1741,7 +1748,6 @@
                                     "format": {
                                         "enum": [
                                             "addressName",
-                                            "tokenTicker",
                                             "amount",
                                             "tokenAmount",
                                             "date",

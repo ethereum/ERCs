@@ -43,7 +43,8 @@
                                     {
                                         "name": "to",
                                         "schema": {
-                                            "type": "address"
+                                            "type": "address",
+                                            "bytes": 20
                                         }
                                     },
                                     {

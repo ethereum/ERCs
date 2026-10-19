@@ -96,7 +96,8 @@
                                 {
                                     "name": "poolAddress",
                                     "schema": {
-                                        "type": "address"
+                                        "type": "address",
+                                        "bytes": 20
                                     }
                                 },
                                 {
@@ -250,7 +251,8 @@
                                 {
                                     "name": "poolAddress",
                                     "schema": {
-                                        "type": "address"
+                                        "type": "address",
+                                        "bytes": 20
                                     }
                                 },
                                 {
