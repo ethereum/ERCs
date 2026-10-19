@@ -7,7 +7,6 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {TrustRegistry, IENS, INameWrapper, IAddrResolver} from "../contracts/TrustRegistry.sol";
 import {
     ITrustRegistry,
-    ITrustRegistryExtended,
     TrustLevel,
     TrustAttestation,
     ValidationParams,
@@ -23,6 +22,7 @@ import {
     InvalidMaxPathLength,
     InvalidMinEdgeTrust,
     TooManyRequiredAnchors,
+    UnsatisfiableAnchors,
     BatchLengthMismatch,
     EmptyBatch,
     BatchTrustorMismatch,
@@ -1186,14 +1186,16 @@ contract TrustRegistryTest is Test {
     // ───────────────────────────────────────────────────────────────────────────
 
     /// @dev Asserts one verdict from verifyPath and both gate hooks. The gate is keyed
-    ///      to the path's first node and the terminal node is bound to an address, so
-    ///      every gate-specific check passes and only path verification decides.
+    ///      to the path's first node and the terminal node is bound to an address and
+    ///      has a controller, so every gate-specific check passes and only path
+    ///      verification decides.
     function _assertVerdicts(bytes32[] memory nodes, ValidationParams memory p, bool expected, string memory why)
         internal
     {
         bytes32 target = nodes[nodes.length - 1];
         address targetAddr = address(uint160(uint256(target)));
         _bindAddr(target, targetAddr);
+        if (ens.owner(target) == address(0)) ens.setOwner(target, targetAddr);
         vm.prank(coordinator);
         registry.setIdentityGate(MEV_COORDINATION, nodes[0], p);
 
@@ -1977,6 +1979,99 @@ contract TrustRegistryTest is Test {
 
         _assertVerdicts(_nodes2(ALICE, CAROL), _defaultParams(), true, "unanchored gate admits a direct path");
         _assertVerdicts(_nodes2(ALICE, CAROL), _anchored(), false, "anchored gate rejects a direct path");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Gate constraints: required anchors need room for an intermediary
+    // ───────────────────────────────────────────────────────────────────────────
+
+    function _anchoredAt(uint8 maxLen) internal pure returns (ValidationParams memory p) {
+        p = _anchored();
+        p.maxPathLength = maxLen;
+    }
+
+    /// @dev Only intermediaries satisfy an anchor and a one-edge path has none, so this
+    ///      gate could admit no participant. It is rejected when configured
+    function test_SetIdentityGate_RejectsAnchoredGateWithMaxPathLengthOne() public {
+        vm.prank(coordinator);
+        vm.expectRevert(abi.encodeWithSelector(UnsatisfiableAnchors.selector, uint8(1)));
+        registry.setIdentityGate(MEV_COORDINATION, ALICE, _anchoredAt(1));
+
+        (,, bool enabled) = registry.getIdentityGate(coordinator, MEV_COORDINATION);
+        assertFalse(enabled, "nothing stored");
+    }
+
+    /// @dev A rejected reconfiguration leaves the existing gate as it was
+    function test_SetIdentityGate_RejectedAnchoredReconfigurationKeepsGate() public {
+        _setGate(_anchored());
+        vm.prank(coordinator);
+        vm.expectRevert(abi.encodeWithSelector(UnsatisfiableAnchors.selector, uint8(1)));
+        registry.setIdentityGate(MEV_COORDINATION, BOB, _anchoredAt(1));
+
+        (bytes32 gatekeeper, ValidationParams memory p, bool enabled) =
+            registry.getIdentityGate(coordinator, MEV_COORDINATION);
+        assertEq(gatekeeper, ALICE);
+        assertEq(p.maxPathLength, 5);
+        assertEq(uint8(p.minEdgeTrust), uint8(TrustLevel.Marginal));
+        assertEq(p.scope, UNIVERSAL);
+        assertTrue(p.enforceExpiry);
+        assertEq(p.requiredAnchors.length, 1);
+        assertEq(p.requiredAnchors[0], ANCHOR);
+        assertTrue(enabled);
+    }
+
+    /// @dev Two edges leave room for one intermediary: the gate is accepted, admits a
+    ///      path through the anchor, and rejects one that misses it
+    function test_SetIdentityGate_AcceptsAnchoredGateWithMaxPathLengthTwo() public {
+        _grant(aliceKey, ALICE, ANCHOR, TrustLevel.Full, UNIVERSAL, 1);
+        _anchorAttests(CAROL, 1);
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 2);
+        _grant(bobKey, BOB, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+
+        _assertVerdicts(_nodes3(ALICE, ANCHOR, CAROL), _anchoredAt(2), true, "intermediate anchor");
+        _assertVerdicts(_nodes3(ALICE, BOB, CAROL), _anchoredAt(2), false, "anchor missing");
+        (, ValidationParams memory p,) = registry.getIdentityGate(coordinator, MEV_COORDINATION);
+        assertEq(p.maxPathLength, 2);
+        assertEq(p.requiredAnchors.length, 1);
+    }
+
+    /// @dev Without anchors, maxPathLength 1 stays a valid gate and admits a direct path
+    function test_SetIdentityGate_AcceptsUnanchoredGateWithMaxPathLengthOne() public {
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 1);
+        ValidationParams memory direct = _params(1, TrustLevel.Marginal, UNIVERSAL, true, new bytes32[](0));
+        _assertVerdicts(_nodes2(ALICE, CAROL), direct, true, "direct path, no anchors");
+    }
+
+    /// @dev The constraint is gate-only. Called directly with the same parameters,
+    ///      verifyPath does not revert: it returns false, as for any missed anchor
+    function test_VerifyPath_AnchoredMaxPathLengthOneReturnsFalse() public {
+        _grant(aliceKey, ALICE, ANCHOR, TrustLevel.Full, UNIVERSAL, 1);
+        _anchorAttests(CAROL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 2);
+
+        ValidationParams memory direct = _params(1, TrustLevel.Marginal, UNIVERSAL, true, new bytes32[](0));
+        assertTrue(registry.verifyPath(_path(_nodes2(ALICE, CAROL)), direct), "direct edge exists");
+        assertFalse(registry.verifyPath(_path(_nodes2(ALICE, CAROL)), _anchoredAt(1)), "no intermediary");
+        assertFalse(registry.verifyPath(_path(_nodes3(ALICE, ANCHOR, CAROL)), _anchoredAt(1)), "too long");
+        assertTrue(registry.verifyPath(_path(_nodes3(ALICE, ANCHOR, CAROL)), _anchoredAt(2)), "room for the anchor");
+    }
+
+    /// @dev Every configuration the Validation Parameters Constraints accept is still
+    ///      accepted, except a non-empty requiredAnchors with maxPathLength 1
+    function testFuzz_SetIdentityGate_OnlyUnsatisfiableAnchorsAreNewlyRejected(uint8 maxLen, uint8 anchorCount) public {
+        maxLen = uint8(bound(maxLen, 1, 10));
+        anchorCount = uint8(bound(anchorCount, 0, 10));
+        ValidationParams memory p = _params(maxLen, TrustLevel.Marginal, UNIVERSAL, true, new bytes32[](anchorCount));
+
+        vm.prank(coordinator);
+        if (anchorCount != 0 && maxLen == 1) {
+            vm.expectRevert(abi.encodeWithSelector(UnsatisfiableAnchors.selector, uint8(1)));
+            registry.setIdentityGate(MEV_COORDINATION, ALICE, p);
+        } else {
+            registry.setIdentityGate(MEV_COORDINATION, ALICE, p);
+            (,, bool enabled) = registry.getIdentityGate(coordinator, MEV_COORDINATION);
+            assertTrue(enabled);
+        }
     }
 
     // ───────────────────────────────────────────────────────────────────────────
@@ -2990,6 +3085,149 @@ contract TrustRegistryTest is Test {
         );
     }
 
+    /// @dev The addr record survives re-registration. Until the new registrant (dave)
+    ///      sets it, the gate admits the previous holder's address and not the new one
+    function test_ValidateParticipantAddress_StaleAddrAfterReRegistration() public {
+        _gatedChainToCarol();
+        TrustPath memory path = _path(_nodes3(ALICE, BOB, CAROL));
+
+        ens.setOwner(CAROL, dave); // re-registration by a new registrant, addr untouched
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "stale addr");
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, dave, path), "new registrant");
+
+        resolver.setAddr(CAROL, dave);
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "after setAddr");
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, dave, path), "new record");
+    }
+
+    /// @dev A registration that sets addr in the same transaction leaves no stale window
+    function test_ValidateParticipantAddress_RegistrationWithAddrClosesWindow() public {
+        _gatedChainToCarol();
+        TrustPath memory path = _path(_nodes3(ALICE, BOB, CAROL));
+
+        ens.setOwner(CAROL, dave);
+        resolver.setAddr(CAROL, dave);
+
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "previous holder");
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, dave, path), "new registrant");
+    }
+
+    /// @dev A wrapped terminal past its NameWrapper expiry has no controller, so its
+    ///      surviving addr record no longer admits anyone; a NameWrapper renewal that
+    ///      restores the holder restores admission. Node-based validation is unaffected
+    function test_ValidateParticipantAddress_WrappedTerminalPastWrapperExpiry() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(bobKey, BOB, WRAPPED, TrustLevel.Full, UNIVERSAL, 1);
+        _setGate(_defaultParams());
+        TrustPath memory path = _path(_nodes3(ALICE, BOB, WRAPPED));
+
+        uint64 regExpiry = uint64(block.timestamp) + 30 days;
+        _wrap2LD(WRAPPED, regExpiry);
+        _bindAddr(WRAPPED, carol);
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "active");
+
+        vm.warp(regExpiry + 90 days);
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "last second");
+
+        vm.warp(regExpiry + 90 days + 1);
+        assertEq(wrapper.ownerOf(uint256(WRAPPED)), address(0));
+        assertEq(registry.resolveAgent(WRAPPED), carol, "the addr record survives");
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "no controller");
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, WRAPPED, path),
+            "node-based validation does not consult control"
+        );
+
+        // The registration was renewed without the wrapper; a NameWrapper renewal resyncs it
+        wrapper.setWrappedData(WRAPPED, alice, PARENT_CANNOT_CONTROL | IS_DOT_ETH, regExpiry + 365 days + 90 days);
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "resynced");
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // Registration continuity (Wrapped Name Lifecycle). The registry does not
+    // enforce it: these tests pin that its verdict is the same across a renewal and
+    // across a re-registration by another party, which is why the specification
+    // places the continuity check on the coordinator.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    /// @dev G -> T -> M2 with T unwrapped. G endorsed T while T was registered to bob;
+    ///      after re-registration by dave, dave endorses M2 and the inherited edge
+    ///      carries the path through every entry point
+    function test_Continuity_UnwrappedReRegistrationInheritsInboundEdge() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1); // G -> T, while bob holds T
+        _setGate(_defaultParams());
+        _bindAddr(CAROL, carol);
+        TrustPath memory path = _path(_nodes3(ALICE, BOB, CAROL));
+        assertFalse(registry.verifyPath(path, _defaultParams()), "no T -> M2 yet");
+
+        ens.setOwner(BOB, dave); // T lapses and dave registers it
+        uint64 n = registry.getNonce(BOB) + 1;
+        TrustAttestation memory att = _att(BOB, CAROL, TrustLevel.Full, UNIVERSAL, 0, n);
+        registry.setTrust(att, _sign(daveKey, att)); // new registrant endorses M2
+
+        assertTrue(registry.verifyPath(path, _defaultParams()), "verifyPath");
+        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, path), "by node");
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "by address");
+    }
+
+    /// @dev The same path with T wrapped, across a renewal by the holder and across a
+    ///      re-registration by another party after the grace period. The registry
+    ///      returns the same verdict in both, so it cannot tell them apart
+    function test_Continuity_WrappedRenewalAndReRegistrationLookAlike() public {
+        uint64 regExpiry = uint64(block.timestamp + 30 days);
+        _wrap2LD(WRAPPED, regExpiry); // held by alice
+        _grant(bobKey, BOB, WRAPPED, TrustLevel.Full, UNIVERSAL, 1); // G -> T, while active
+        TrustAttestation memory att = _att(WRAPPED, CAROL, TrustLevel.Full, UNIVERSAL, 0, 1);
+        registry.setTrust(att, _sign(aliceKey, att)); // T -> M, by the original holder
+        vm.prank(coordinator);
+        registry.setIdentityGate(MEV_COORDINATION, BOB, _defaultParams());
+        TrustPath memory toCarol = _path(_nodes3(BOB, WRAPPED, CAROL));
+        TrustPath memory toDave = _path(_nodes3(BOB, WRAPPED, DAVE));
+
+        uint256 snap = vm.snapshotState();
+
+        // Renewal within grace through the NameWrapper: the holder keeps the name
+        vm.warp(regExpiry + 10 days);
+        wrapper.setWrappedData(WRAPPED, alice, PARENT_CANNOT_CONTROL | IS_DOT_ETH, regExpiry + 365 days + 90 days);
+        vm.warp(regExpiry + 90 days + 1);
+        att = _att(WRAPPED, DAVE, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(att, _sign(aliceKey, att));
+        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, toCarol), "renewal: M");
+        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, toDave), "renewal: M2");
+
+        vm.revertToState(snap);
+
+        // No renewal: past the grace period the name is re-registered by mallory
+        vm.warp(regExpiry + 90 days + 1);
+        assertTrue(
+            registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, toCarol),
+            "lapsed: stored edges persist"
+        );
+        wrapper.setWrappedData(WRAPPED, mallory, PARENT_CANNOT_CONTROL | IS_DOT_ETH, uint64(block.timestamp + 455 days));
+        att = _att(WRAPPED, DAVE, TrustLevel.Full, UNIVERSAL, 0, 2);
+        registry.setTrust(att, _sign(malloryKey, att)); // the new registrant endorses M2
+        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, CAROL, toCarol), "re-reg: M");
+        assertTrue(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, DAVE, toDave), "re-reg: M2");
+    }
+
+    /// @dev A lapsed unwrapped holder keeps its registry ownership, and with it the
+    ///      resolver's authorisation, so it can repoint addr and the gate follows. The
+    ///      mock resolver does not check authorisation; the fork suite shows the
+    ///      deployed PublicResolver accepting the lapsed holder's setAddr
+    function test_ValidateParticipantAddress_LapsedUnwrappedHolderRepoints() public {
+        _gatedChainToCarol();
+        TrustPath memory path = _path(_nodes3(ALICE, BOB, CAROL));
+
+        vm.warp(block.timestamp + 365 days); // past any registrar expiry and grace period
+        assertEq(ens.owner(CAROL), carol, "the registry cannot see the lapse");
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "before repoint");
+
+        vm.prank(carol);
+        resolver.setAddr(CAROL, mallory);
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, carol, path), "old address");
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, mallory, path), "repointed");
+    }
+
     function test_ValidateParticipantAddress_RevertsWhenNoGate() public {
         _bindAddr(CAROL, carol);
 
@@ -3146,13 +3384,13 @@ contract TrustRegistryTest is Test {
     function test_ERC165_PublishedIdentifiersAreStable() public pure {
         assertEq(type(IERC165).interfaceId, bytes4(0x01ffc9a7), "IERC165 id");
         assertEq(type(ITrustRegistry).interfaceId, bytes4(0x94f0ee34), "ITrustRegistry id");
-        assertEq(type(ITrustRegistryExtended).interfaceId, bytes4(0x93e686a3), "ITrustRegistryExtended id");
     }
 
-    /// @dev This implementation does not provide on-chain graph search, so it MUST NOT
-    ///      advertise the extension
-    function test_ERC165_DoesNotAdvertiseUnimplementedExtension() public view {
-        assertFalse(registry.supportsInterface(type(ITrustRegistryExtended).interfaceId));
+    /// @dev 0x93e686a3 identified the OPTIONAL ITrustRegistryExtended of earlier drafts,
+    ///      which this revision withdraws. The reference implementation never provided
+    ///      it and does not report it.
+    function test_ERC165_DoesNotAdvertiseWithdrawnExtension() public view {
+        assertFalse(registry.supportsInterface(bytes4(0x93e686a3)));
     }
 
     /// @dev Required by ERC-165
@@ -3376,6 +3614,29 @@ contract TrustRegistryTest is Test {
             vm.expectRevert(expected[i]);
             registry.verifyPath(p, bad[i]);
 
+            vm.prank(coordinator);
+            vm.expectRevert(expected[i]);
+            registry.setIdentityGate(MEV_COORDINATION, ALICE, bad[i]);
+        }
+    }
+
+    /// @dev Row 4 is gate-only and comes after rows 1-3: parameters that also violate
+    ///      an earlier row revert with that row's error
+    function test_RevertOrder_SetIdentityGate_4_UnsatisfiableAnchors() public {
+        bytes32[] memory one = new bytes32[](1);
+        ValidationParams[4] memory bad = [
+            _params(0, TrustLevel.Marginal, UNIVERSAL, true, one),
+            _params(1, TrustLevel.Unknown, UNIVERSAL, true, one),
+            _params(1, TrustLevel.Marginal, UNIVERSAL, true, new bytes32[](11)),
+            _params(1, TrustLevel.Marginal, UNIVERSAL, true, one)
+        ];
+        bytes[4] memory expected = [
+            abi.encodeWithSelector(InvalidMaxPathLength.selector, uint8(0)),
+            abi.encodeWithSelector(InvalidMinEdgeTrust.selector, TrustLevel.Unknown),
+            abi.encodeWithSelector(TooManyRequiredAnchors.selector, uint256(11)),
+            abi.encodeWithSelector(UnsatisfiableAnchors.selector, uint8(1))
+        ];
+        for (uint256 i = 0; i < 4; i++) {
             vm.prank(coordinator);
             vm.expectRevert(expected[i]);
             registry.setIdentityGate(MEV_COORDINATION, ALICE, bad[i]);

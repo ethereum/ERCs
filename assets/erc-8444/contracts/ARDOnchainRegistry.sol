@@ -8,8 +8,9 @@ import {SignatureChecker} from "./libraries/SignatureChecker.sol";
 
 /// @title  ARD Onchain Registry — reference kernel
 /// @notice Thin by design: the kernel stores a record's kind, anchor, descriptor commitment, canonical
-///         URN and status, plus domain claims and the kind table. Prices, escrow, credit and identity
-///         state live in the anchored contracts and are only ever referenced. Not upgradeable.
+///         URN, status and attestor (the controller that committed the descriptor), plus domain claims
+///         and the kind table. Prices, escrow, credit and identity state live in the anchored contracts
+///         and are only ever referenced. Controllers are derived at call time, never stored. Not upgradeable.
 contract ARDOnchainRegistry is IARDOnchainRegistry {
     // ------------------------------------------------------------------ EIP-712
 
@@ -69,7 +70,7 @@ contract ARDOnchainRegistry is IARDOnchainRegistry {
             descriptorURI: descriptorURI,
             urn: urn,
             status: Status.Active,
-            registrant: msg.sender,
+            attestor: msg.sender,
             updatedAt: uint64(block.timestamp)
         });
         emit Registered(recordId, kind, target, id, msg.sender, descriptorHash, descriptorURI, urn);
@@ -84,6 +85,7 @@ contract ARDOnchainRegistry is IARDOnchainRegistry {
         r.descriptorHash = descriptorHash;
         r.descriptorURI = descriptorURI;
         r.urn = urn;
+        r.attestor = msg.sender; // the current controller adopts what it commits
         r.updatedAt = uint64(block.timestamp);
         emit DescriptorUpdated(recordId, descriptorHash, descriptorURI, urn);
     }

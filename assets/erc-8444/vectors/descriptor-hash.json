@@ -8,6 +8,7 @@
   ],
   "resolvedMembers": [
     "value:anchor",
+    "value:adopted",
     "value:binding",
     "value:level",
     "value:status",

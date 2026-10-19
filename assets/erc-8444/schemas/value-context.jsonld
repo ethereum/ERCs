@@ -16,6 +16,7 @@
     "value:indexes": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#indexes", "@container": "@set" },
 
     "value:anchor": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#anchor" },
+    "value:adopted": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#adopted" },
     "value:binding": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#binding" },
     "value:level": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#level" },
     "value:status": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#status" },

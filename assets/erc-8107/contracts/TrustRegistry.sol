@@ -22,6 +22,7 @@ import {
     InvalidMaxPathLength,
     InvalidMinEdgeTrust,
     TooManyRequiredAnchors,
+    UnsatisfiableAnchors,
     BatchLengthMismatch,
     EmptyBatch,
     BatchTrustorMismatch,
@@ -52,9 +53,8 @@ interface IAddrResolver {
 
 /// @title ENS Trust Registry
 /// @notice Reference implementation of ERC-8107
-/// @dev Implements the REQUIRED `ITrustRegistry` surface only. The OPTIONAL
-///      `ITrustRegistryExtended` functions (on-chain graph search, adjacency
-///      enumeration) are deliberately omitted: ERC-8107 pushes path search to
+/// @dev Implements `ITrustRegistry` and nothing beyond it. ERC-8107 defines no
+///      on-chain graph search or adjacency enumeration: it pushes path search to
 ///      off-chain indexers and keeps on-chain cost at O(path length).
 /// @author Kwame Bryan (@KBryan)
 contract TrustRegistry is ITrustRegistry, EIP712 {
@@ -127,8 +127,7 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     }
 
     /// @inheritdoc IERC165
-    /// @dev Reports ITrustRegistry only. ITrustRegistryExtended is deliberately not
-    ///      implemented, so it is deliberately not advertised.
+    /// @dev Reports ITrustRegistry and IERC165 only
     function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return interfaceId == type(ITrustRegistry).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
@@ -428,6 +427,13 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     {
         requireValidParams(params);
 
+        // Only intermediary nodes satisfy an anchor, and a one-edge path has none, so
+        // such a gate could admit no participant. Gate-only: verifyPath returns false
+        // for these parameters rather than reverting.
+        if (params.requiredAnchors.length != 0 && params.maxPathLength < 2) {
+            revert UnsatisfiableAnchors(params.maxPathLength);
+        }
+
         IdentityGate storage gate = _gates[msg.sender][coordinationType];
         gate.gatekeeperNode = gatekeeperNode;
         gate.params = params;
@@ -545,6 +551,9 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
         // The terminal node MUST be bound to the participant address
         if (resolveAgent(path.nodes[path.nodes.length - 1]) != participant) return false;
+
+        // A name nobody controls cannot vouch for its addr record, which may be stale
+        if (controllerOf(path.nodes[path.nodes.length - 1]) == address(0)) return false;
 
         return _verifyPath(path, params, false);
     }

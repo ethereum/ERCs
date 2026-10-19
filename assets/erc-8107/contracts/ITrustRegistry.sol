@@ -56,6 +56,7 @@ error GateNotFound(bytes32 coordinationType);
 error InvalidMaxPathLength(uint8 provided);
 error InvalidMinEdgeTrust(TrustLevel provided);
 error TooManyRequiredAnchors(uint256 provided);
+error UnsatisfiableAnchors(uint8 maxPathLength);
 error BatchLengthMismatch();
 error EmptyBatch();
 error BatchTrustorMismatch();
@@ -303,57 +304,5 @@ interface ITrustRegistry is IERC165 {
         bytes32 coordinationType,
         address participant,
         TrustPath calldata path
-    ) external view returns (bool isValid);
-}
-
-/// @title ENS Trust Registry - OPTIONAL Extensions
-/// @notice Convenience and on-chain-search functions. NOT required for ERC-8107 compliance.
-/// @dev On-chain graph traversal is expensive and DoS-prone; prefer off-chain path
-///      computation with `verifyPath`. Provided for completeness only.
-interface ITrustRegistryExtended is ITrustRegistry {
-    /// @notice Get agents trusted by a given agent (paginated)
-    /// @dev OPTIONAL - useful for indexing but not required
-    function getTrustees(bytes32 trustorNode, TrustLevel minLevel, bytes32 scope, uint256 offset, uint256 limit)
-        external
-        view
-        returns (bytes32[] memory trustees, uint256 total);
-
-    /// @notice Get agents that trust a given agent (paginated)
-    /// @dev OPTIONAL - useful for indexing but not required
-    function getTrustors(bytes32 trusteeNode, TrustLevel minLevel, bytes32 scope, uint256 offset, uint256 limit)
-        external
-        view
-        returns (bytes32[] memory trustors, uint256 total);
-
-    /// @notice Validate an agent through on-chain graph traversal
-    /// @dev OPTIONAL - expensive, prefer off-chain computation with verifyPath
-    /// @param validatorNode The validating agent's perspective
-    /// @param targetNode The agent to validate
-    /// @param params Validation parameters
-    /// @param marginalThreshold Number of marginal attestations required (for accumulation)
-    /// @param fullThreshold Number of full attestations required
-    function validateAgent(
-        bytes32 validatorNode,
-        bytes32 targetNode,
-        ValidationParams calldata params,
-        uint8 marginalThreshold,
-        uint8 fullThreshold
-    ) external view returns (bool isValid, uint8 pathLength, uint8 marginalCount, uint8 fullCount);
-
-    /// @notice Check if any trust path exists
-    /// @dev OPTIONAL - expensive, prefer off-chain computation
-    function pathExists(bytes32 fromNode, bytes32 toNode, uint8 maxDepth)
-        external
-        view
-        returns (bool exists, uint8 depth);
-
-    /// @notice Validate participant without pre-computed path
-    /// @dev OPTIONAL - expensive, prefer validateParticipantWithPath
-    function validateParticipant(
-        address coordinator,
-        bytes32 coordinationType,
-        bytes32 participantNode,
-        uint8 marginalThreshold,
-        uint8 fullThreshold
     ) external view returns (bool isValid);
 }
