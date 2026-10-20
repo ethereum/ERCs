@@ -13,7 +13,7 @@ requires: 165, 721, 1155, 6982
 
 ## Abstract
 
-This proposal extends [ERC-6982](./eip-6982.md) so that a lock can be marked permanent, so that the same interface applies to [ERC-1155](./eip-1155.md) contracts as well as [ERC-721](./eip-721.md) contracts, and so that minting and burning are defined while tokens are locked. Contracts keep using ERC-6982's `DefaultLocked` and `Locked` events to lock and unlock tokens. This proposal adds two events, two view functions, and one custom error. Marketplaces, wallets, and indexers can then tell a temporary trading pause, such as one during a public mint, from a collection that will never be transferable.
+This proposal extends [ERC-6982](./eip-6982.md) so that a lock can be marked permanent, so that the same interface applies to [ERC-1155](./eip-1155.md) contracts as well as [ERC-721](./eip-721.md) contracts, and so that minting and burning are defined while tokens are locked. Contracts keep using ERC-6982's `DefaultLocked` and `Locked` events to lock and unlock tokens. This proposal adds one event, one view function, and one custom error. Marketplaces, wallets, and indexers can then tell a temporary trading pause, such as one during a public mint, from a collection that will never be transferable.
 
 ## Motivation
 
@@ -21,7 +21,7 @@ Creators often disable secondary transfers for a period: while a public mint is 
 
 ERC-6982 already gives contracts a way to lock or unlock every token with one `DefaultLocked` event, and to override single tokens with `Locked` events. It leaves three gaps:
 
-1. A consumer cannot tell a lock that will lift from one that never will. A wallet cannot label a token as non-transferable, and a marketplace cannot tell whether to keep orders for when trading resumes.
+1. A consumer cannot tell a collection-wide lock that will lift from one that never will. A wallet cannot label a token as non-transferable, and a marketplace cannot tell whether to keep orders for when trading resumes.
 2. ERC-6982 requires ERC-721, so ERC-1155 contracts have no equivalent signal.
 3. ERC-6982 does not say whether minting and burning continue while tokens are locked. Pausing trading during a mint depends on minting continuing.
 
@@ -35,7 +35,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 - A *holder transfer* is a transfer of a token where both the sender (`from`) and the recipient (`to`) are not the zero address. Mints (`from` is the zero address) and burns (`to` is the zero address) are not holder transfers.
 - A token is *locked* when ERC-6982's `locked(tokenId)` returns `true`.
-- A token is *permanently locked* when `permanentlyLocked(tokenId)` returns `true`.
+- A contract is *permanently locked* once it has emitted `DefaultPermanentlyLocked`.
 - For an ERC-1155 contract, `tokenId` is the token type ID, and a token ID *exists* once at least one unit of it has been minted.
 
 ### Interface
@@ -46,49 +46,40 @@ A compliant contract MUST implement ERC-721 or ERC-1155, MUST implement ERC-6982
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.4;
 
-/// @dev The ERC-165 identifier for this interface is 0x752cf662.
+/// @dev The ERC-165 identifier for this interface is 0xcc2ac4c9.
 interface IERCXXXX /* is IERC165, IERC6982 */ {
     /// @notice Emitted when every token in the contract becomes permanently locked.
     event DefaultPermanentlyLocked();
-
-    /// @notice Emitted when `tokenId` becomes permanently locked.
-    event PermanentlyLocked(uint256 indexed tokenId);
 
     /// @notice Thrown when a holder transfer of a locked token is attempted.
     error TokenLocked(uint256 tokenId);
 
     /// @notice Returns true if every token in the contract is permanently locked.
     function defaultPermanentlyLocked() external view returns (bool);
-
-    /// @notice Returns true if `tokenId` is permanently locked.
-    function permanentlyLocked(uint256 tokenId) external view returns (bool);
 }
 ```
 
 ### Behavior
 
-1. The contract MUST return `true` from `supportsInterface` for both `0x752cf662` and the ERC-6982 identifier `0x6b61a747`, as defined by [ERC-165](./eip-165.md).
+1. The contract MUST return `true` from `supportsInterface` for both `0xcc2ac4c9` and the ERC-6982 identifier `0x6b61a747`, as defined by [ERC-165](./eip-165.md).
 2. The requirements of ERC-6982 apply to ERC-1155 contracts that implement this proposal, with `tokenId` read as the token type ID.
 3. Locking restricts holder transfers only. A locked status MUST NOT by itself prevent minting. The contract MAY allow burning locked tokens.
-4. While a token is permanently locked, the contract MUST revert every holder transfer of that token, including transfers made by the holder and by any approved operator.
-5. A holder transfer that reverts because the token is locked SHOULD revert with `TokenLocked(tokenId)`.
-6. When the contract emits `DefaultPermanentlyLocked`, `defaultLocked()` MUST already return `true`.
-7. After the contract emits `DefaultPermanentlyLocked`:
-   1. `defaultLocked()` and `defaultPermanentlyLocked()` MUST return `true` for the life of the contract.
-   2. `locked(tokenId)` and `permanentlyLocked(tokenId)` MUST return `true` for every token ID that exists, regardless of any earlier `Locked` event.
+4. A holder transfer that reverts because the token is locked SHOULD revert with `TokenLocked(tokenId)`.
+5. When the contract emits `DefaultPermanentlyLocked`, `defaultLocked()` MUST already return `true`.
+6. After the contract emits `DefaultPermanentlyLocked`:
+   1. `defaultLocked()` MUST return `true` for the life of the contract, and `locked(tokenId)` MUST return `true` for every token ID that exists, including token IDs minted later and regardless of any earlier `Locked` event.
+   2. The contract MUST revert every holder transfer, including transfers made by the holder and by any approved operator.
    3. The contract MUST NOT emit `DefaultLocked(false)` or `Locked(tokenId, false)` for any token ID.
-8. When the contract emits `PermanentlyLocked(tokenId)`, `locked(tokenId)` MUST already return `true`.
-9. After the contract emits `PermanentlyLocked(tokenId)`, `locked(tokenId)` and `permanentlyLocked(tokenId)` MUST return `true` for as long as the token exists, and the contract MUST NOT emit `Locked(tokenId, false)`.
-10. `permanentlyLocked(tokenId)` MUST return `true` if and only if `DefaultPermanentlyLocked` or `PermanentlyLocked(tokenId)` has been emitted. Like ERC-6982's `locked`, it MUST revert if the token does not exist.
-11. The return values of `defaultPermanentlyLocked` and `permanentlyLocked` MUST NOT change except in a transaction that emits the corresponding event.
-12. The contract SHOULD NOT revert `approve` or `setApprovalForAll` solely because a token is locked and not permanently locked.
+7. `defaultPermanentlyLocked()` MUST return `false` until the contract emits `DefaultPermanentlyLocked`, and `true` from then on.
+8. The contract SHOULD NOT revert `approve` or `setApprovalForAll` solely because a token is locked while `defaultPermanentlyLocked()` returns `false`.
 
 ### Consumers
 
 1. Consumers SHOULD NOT create, display, or fulfill listings, offers, or sales of a locked token.
-2. Consumers MAY keep existing orders for a token that is locked and not permanently locked, and show them again when the token is unlocked.
-3. Consumers MAY present a permanently locked token as non-transferable, and a token that is locked and not permanently locked as temporarily unavailable for trading.
-4. After a contract emits `DefaultPermanentlyLocked`, consumers SHOULD treat every token in the contract as permanently locked, including tokens minted later.
+2. Consumers MAY keep existing orders for a locked token while the contract's `defaultPermanentlyLocked()` returns `false`, and show them again when the token is unlocked.
+3. Consumers MAY present every token of a permanently locked contract as non-transferable, and other locked tokens as temporarily unavailable for trading.
+4. After a contract emits `DefaultPermanentlyLocked`, consumers SHOULD treat every token in the contract as non-transferable, including tokens minted later.
+5. Consumers MAY treat a holder transfer that reverts with `TokenLocked` as a lock on that token, even when they have not seen a lock event.
 
 ## Rationale
 
@@ -96,15 +87,25 @@ interface IERCXXXX /* is IERC165, IERC6982 */ {
 
 An earlier draft of this proposal defined its own range event for pausing a whole collection. [ERC-6982](./eip-6982.md) already covers that case with `DefaultLocked`, and per-token exceptions with `Locked`. Reusing it means existing ERC-6982 contracts keep working, and indexers learn one base standard. This proposal adds only what ERC-6982 leaves open. A range event is not included: the default status covers a whole collection, `Locked` covers single tokens, and nothing in the motivating cases needs a partial range.
 
-### Separate permanence events
+### A separate permanence event
 
-ERC-6982 is Final, so its events cannot gain a field. Separate `DefaultPermanentlyLocked` and `PermanentlyLocked` events let a contract mark permanence without changing how ERC-6982 consumers read lock status. Behavior rules 6 and 8 require the lock to be in place before it is marked permanent, so a consumer that only understands ERC-6982 still sees the token as locked.
+ERC-6982 is Final, so its events cannot gain a field. A separate `DefaultPermanentlyLocked` event lets a contract mark permanence without changing how ERC-6982 consumers read lock status. Behavior rule 5 requires the lock to be in place before it is marked permanent, so a consumer that only understands ERC-6982 still sees every token as locked.
 
-Permanence goes one way. A contract can move a token from locked to permanently locked, but never back. A consumer that has seen a permanence event can rely on it without polling.
+Permanence goes one way. A contract can move from locked to permanently locked, but never back. A consumer that has seen the event can rely on it without polling.
+
+### Permanence for whole collections only
+
+Permanence applies to the whole contract, not to single tokens. The motivating cases lock whole collections: a drop pauses trading for every token, and a credential collection is non-transferable from the start. A per-token permanence event and view would double the interface for a case [ERC-5192](./eip-5192.md) already covers for ERC-721, since a contract can implement ERC-5192 alongside this proposal through the shared `locked(uint256)` function. An ERC-1155 contract that needs one token type to stay non-transferable can keep it locked with ERC-6982's `Locked(tokenId, true)`.
+
+`defaultPermanentlyLocked()` is kept as a view so that a consumer can read permanence before any token is minted, and so that an indexer can re-read it after a chain reorganization removes the event.
+
+### A standard revert
+
+`TokenLocked(tokenId)` gives every compliant contract the same revert data for a transfer blocked by a lock. A consumer that simulates or submits a fill can recognize the failure and stop offering the order, instead of reporting an unknown revert.
 
 ### Strict reverts only for permanent locks
 
-ERC-6982 notes that a locked token may still be transferable under some conditions, for example when a designated protector wallet starts the transfer. This proposal keeps that flexibility for temporary locks, since marketplaces only need to know not to offer the token. A permanent lock is a promise to holders that the token is non-transferable, so behavior rule 4 makes that promise binding on the contract.
+ERC-6982 notes that a locked token may still be transferable under some conditions, for example when a designated protector wallet starts the transfer. This proposal keeps that flexibility for temporary locks, since marketplaces only need to know not to offer the token. A permanent lock is a promise to holders that the token is non-transferable, so behavior rule 6 makes that promise binding on the contract.
 
 ### Mints and burns
 
@@ -116,7 +117,7 @@ ERC-6982's interface uses only a `tokenId`, which maps directly to an ERC-1155 t
 
 ### No time-based changes
 
-ERC-6982 requires `defaultLocked` to reflect the most recent `DefaultLocked` event, so lock status already changes only through events. Behavior rule 11 applies the same rule to permanence. Some pauses have a known end, such as the close of a public mint, but this proposal leaves out an end time field. Pauses often end early or late, and a consumer that trusted a stale end time would offer orders that revert.
+ERC-6982 requires `defaultLocked` to reflect the most recent `DefaultLocked` event, so lock status already changes only through events. Behavior rule 7 applies the same rule to permanence. Some pauses have a known end, such as the close of a public mint, but this proposal leaves out an end time field. Pauses often end early or late, and a consumer that trusted a stale end time would offer orders that revert.
 
 ### Approvals
 
@@ -124,11 +125,11 @@ Blocking `approve` and `setApprovalForAll` during a temporary lock would stop ho
 
 ### Relationship to ERC-5192
 
-ERC-5192 and ERC-6982 share the `locked(uint256)` function, so a contract can implement both. A permanently locked token under this proposal is what ERC-5192 calls a soulbound token. A permanently non-transferable collection can emit `DefaultLocked(true)` and `DefaultPermanentlyLocked()` once at deployment instead of one ERC-5192 `Locked` event per token.
+ERC-5192 and ERC-6982 share the `locked(uint256)` function, so a contract can implement both. Every token of a permanently locked contract is what ERC-5192 calls a soulbound token. A permanently non-transferable collection can emit `DefaultLocked(true)` and `DefaultPermanentlyLocked()` once at deployment instead of one ERC-5192 `Locked` event per token. ERC-5192 remains the way to make single tokens soulbound.
 
 ## Backwards Compatibility
 
-Every contract that implements this proposal is also a valid ERC-6982 contract. Consumers that only understand ERC-6982 see permanently locked tokens as locked, which is the safe reading. Contracts deployed before this proposal do not implement it, and consumers continue to handle them as they do today.
+Every contract that implements this proposal is also a valid ERC-6982 contract. Consumers that only understand ERC-6982 see the tokens of a permanently locked contract as locked, which is the safe reading. Contracts deployed before this proposal do not implement it, and consumers continue to handle them as they do today.
 
 ## Reference Implementation
 
@@ -185,11 +186,6 @@ contract LockableDrop is ERC721, Ownable, IERC6982, IERCXXXX {
         return _defaultPermanentlyLocked;
     }
 
-    function permanentlyLocked(uint256 tokenId) external view returns (bool) {
-        _requireOwned(tokenId);
-        return _defaultPermanentlyLocked;
-    }
-
     function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
         return interfaceId == type(IERC6982).interfaceId
             || interfaceId == type(IERCXXXX).interfaceId
@@ -222,7 +218,7 @@ Whoever controls the lock controls the secondary market for the affected tokens.
 
 The lock status can change between the time an order is created and the time it is filled. A buyer's transaction can revert if the creator locks in the same block. Consumers should check the status close to fulfillment.
 
-Consumers calling `locked` or `permanentlyLocked` should bound the gas they pass to the call, since the functions run arbitrary contract code, and should handle the revert these functions raise for tokens that do not exist.
+Consumers calling `locked` or `defaultPermanentlyLocked` should bound the gas they pass to the call, since the functions run arbitrary contract code, and should handle the revert `locked` raises for tokens that do not exist.
 
 ## Copyright
 
