@@ -28,7 +28,7 @@ const STAGNANT = "Stagnant";
 const BOT_LABELS = ["created-by-bot", "1272989785"];
 
 /** Pull requests are rate limited harder than other endpoints, so space them out. */
-const WAIT_MS = 5000;
+const RATE_LIMIT_DELAY_MS = 5000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -67,27 +67,29 @@ const weeksAgo = (weeks) => {
  * is equivalent and free, which is why the job needs `fetch-depth: 0`.
  */
 const getLastModifiedDates = (dir) => {
+  // Each commit is introduced by a NUL, so a date can never be mistaken for a
+  // path. A text marker could not promise that: a file named after the marker
+  // would be read as a date and attributed to every path following it.
   const stdout = execFileSync(
     "git",
-    ["log", "--format=__C__%cI", "--name-only", "--diff-filter=AMR", "--", `${dir}/`],
+    ["log", "--format=%x00%cI", "--name-only", "--diff-filter=AMR", "--", `${dir}/`],
     { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }
   );
 
   const dates = new Map();
-  let commitDate = null;
-  for (const line of stdout.split("\n")) {
-    if (line.startsWith("__C__")) {
-      commitDate = line.slice("__C__".length).trim();
-      continue;
+  for (const commit of stdout.split("\0")) {
+    const [commitDate, ...paths] = commit.split("\n");
+    if (!commitDate) continue;
+    for (const file of paths) {
+      // git log is newest first, so a path's first appearance is its latest change.
+      if (file && !dates.has(file)) dates.set(file, commitDate.trim());
     }
-    // git log is newest first, so a path's first appearance is its latest change.
-    const file = line.trim();
-    if (file && commitDate && !dates.has(file)) dates.set(file, commitDate);
   }
   return dates;
 };
 
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---/;
+// The s flag is what makes `.` match the newlines inside the block.
+const FRONTMATTER_RE = /^---\r?\n(.*?)\r?\n---/s;
 
 const parseFrontmatter = (contents) => {
   const match = contents.match(FRONTMATTER_RE);
@@ -151,9 +153,9 @@ const deleteBranch = async (github, context, core, branch) => {
 };
 
 /**
- * `master` carries no branch protection, so a squash merge would otherwise
- * succeed through a red check or over a reviewer's objection. Nothing is merged
- * unless the pull request is clean, unopposed and passing.
+ * This does not rely on knowing what branch protection `master` carries.
+ * Nothing is merged unless the pull request is clean, unopposed and passing,
+ * so a red check or a reviewer's objection stops the merge either way.
  */
 const isSafeToMerge = async (github, context, core, pr) => {
   const { data: pull } = await github.rest.pulls.get({ ...context.repo, pull_number: pr.num });
@@ -200,7 +202,11 @@ const mergeElapsedPRs = async (github, context, core, config, botPRs, lastModifi
   const elapsed = botPRs.filter((pr) => pr.createdAt < cutoff);
   core.info(`${elapsed.length} pull requests have passed the ${MERGE_DELAY_WEEKS} week notice period`);
 
-  for (const pr of elapsed) {
+  for (const [index, pr] of elapsed.entries()) {
+    // Paced here rather than in each branch below, so a new exit path cannot
+    // skip it. Nothing to wait for before the first call.
+    if (index) await sleep(RATE_LIMIT_DELAY_MS);
+
     const lastModified = lastModifiedDates.get(pr.paths[0]);
     if (lastModified && new Date(lastModified) > pr.createdAt) {
       try {
@@ -215,13 +221,9 @@ const mergeElapsedPRs = async (github, context, core, config, botPRs, lastModifi
       } catch (error) {
         core.warning(`could not close #${pr.num}: ${error.message}`);
       }
-      await sleep(WAIT_MS);
       continue;
     }
-    if (!(await isSafeToMerge(github, context, core, pr))) {
-      await sleep(WAIT_MS);
-      continue;
-    }
+    if (!(await isSafeToMerge(github, context, core, pr))) continue;
 
     try {
       await github.rest.pulls.merge({
@@ -237,7 +239,6 @@ const mergeElapsedPRs = async (github, context, core, config, botPRs, lastModifi
       // Typically a conflict or a failing check; left open for a human.
       core.warning(`could not merge #${pr.num}: ${error.message}`);
     }
-    await sleep(WAIT_MS);
   }
 };
 
@@ -382,7 +383,9 @@ module.exports = async ({ github, context, core, dryRun }) => {
   if (batch.length < candidates.length)
     core.info(`opening ${batch.length} this run; the remaining ${candidates.length - batch.length} follow on later runs`);
 
-  for (const candidate of batch) {
+  for (const [index, candidate] of batch.entries()) {
+    if (index) await sleep(RATE_LIMIT_DELAY_MS);
+
     try {
       const { data: blob } = await github.rest.repos.getContent({
         ...context.repo,
@@ -401,6 +404,5 @@ module.exports = async ({ github, context, core, dryRun }) => {
       // One bad proposal must not stop the rest of the run.
       core.error(`failed to stagnate ${config.kind}-${candidate.erc}: ${error.message}`);
     }
-    await sleep(WAIT_MS);
   }
 };
