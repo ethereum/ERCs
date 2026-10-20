@@ -3,7 +3,7 @@ eip: XXXX
 title: Permanent Locks for Lockable Tokens
 description: Extends default lockable tokens with permanent locks, multi-token support, and mint and burn rules
 author: Ryan Ghods (@ryanio)
-discussions-to: https://ethereum-magicians.org/t/erc-draft-permanent-locks-for-lockable-tokens/XXXXX
+discussions-to: https://ethereum-magicians.org/t/erc-draft-permanent-locks-for-lockable-tokens-erc-6982-extension/30030
 status: Draft
 type: Standards Track
 category: ERC
