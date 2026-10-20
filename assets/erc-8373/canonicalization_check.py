@@ -51,7 +51,10 @@ def check(raw: bytes, facet: dict) -> str:
     try:
         text = raw.decode('utf-8', errors='strict')
         pairs = json.loads(text, object_pairs_hook=_ObjectPairs)
-    except (UnicodeDecodeError, ValueError):
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        # deep nesting (e.g. "["*n + "]"*n) can stay under max_statement_bytes while
+        # exceeding the interpreter's parse-recursion depth; a crash there is not a
+        # verdict, so it is refused the same as any other malformed input.
         return 'reject:not_canonical'
     if not isinstance(pairs, _ObjectPairs) or len({k for k, _ in pairs}) != len(pairs):
         return 'reject:not_canonical'
