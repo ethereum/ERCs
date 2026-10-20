@@ -1,22 +1,22 @@
 // @ts-check
 /**
- * Moves ERCs that have gone six months without an edit to Stagnant.
+ * Moves proposals that have gone six months without an edit to Stagnant.
  *
- * Each eligible ERC gets a pull request flipping its status, which is squash
- * merged two weeks later. That delay is the author's notice period: the pull
- * request mentions them, and EIP-1 lets them resurrect the proposal at any time.
+ * Each eligible proposal gets a pull request flipping its status, which is
+ * squash merged two weeks later. That delay is the author's notice period: the
+ * pull request mentions them, and EIP-1 lets them resurrect it at any time.
  *
  * This replaces ethereum/EIP-Bot, which runs the same process for ethereum/EIPs
  * but looks for proposals in a hardcoded `EIPS/` directory that does not exist
- * here. It was archived in January 2023, so it cannot be fixed upstream.
+ * here. It was archived in January 2023, so it cannot be fixed upstream. Nothing
+ * here is ERC-specific: the directory, branch prefix and title prefix come from
+ * the repository name, so this can replace EIP-Bot in ethereum/EIPs too.
  */
 
 const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const PROPOSALS_DIR = "ERCS";
-const DEFAULT_BRANCH = "master";
 const STAGNATION_CUTOFF_MONTHS = 6;
 const MERGE_DELAY_WEEKS = 2;
 /** Stays under GitHub's secondary rate limit; the rest are picked up on later runs. */
@@ -31,6 +31,23 @@ const BOT_LABELS = ["created-by-bot", "1272989785"];
 const WAIT_MS = 5000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Everything repository-specific is resolved here, so the same script can be
+ * dropped into ethereum/EIPs and retire EIP-Bot in both places. The proposal
+ * kind is derived from the repository name (ERCs gives ERC, EIPs gives EIP),
+ * and each part can be overridden with an environment variable on the step.
+ */
+const resolveConfig = (context) => {
+  const fromRepo = (context.repo.repo || "").replace(/s$/i, "").toUpperCase();
+  const kind = (process.env.PROPOSAL_KIND || fromRepo || "ERC").toUpperCase();
+  return {
+    kind,
+    dir: process.env.PROPOSALS_DIR || `${kind}S`,
+    branchPrefix: process.env.BRANCH_PREFIX || `mark-${kind.toLowerCase()}-`,
+    defaultBranch: process.env.DEFAULT_BRANCH || "master"
+  };
+};
 
 const monthsAgo = (months) => {
   const date = new Date();
@@ -49,10 +66,10 @@ const weeksAgo = (weeks) => {
  * The EIPs bot spends an API request per proposal on this; reading the checkout
  * is equivalent and free, which is why the job needs `fetch-depth: 0`.
  */
-const getLastModifiedDates = () => {
+const getLastModifiedDates = (dir) => {
   const stdout = execFileSync(
     "git",
-    ["log", "--format=__C__%cI", "--name-only", "--diff-filter=AMR", "--", `${PROPOSALS_DIR}/`],
+    ["log", "--format=__C__%cI", "--name-only", "--diff-filter=AMR", "--", `${dir}/`],
     { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }
   );
 
@@ -134,12 +151,51 @@ const deleteBranch = async (github, context, core, branch) => {
 };
 
 /**
+ * `master` carries no branch protection, so a squash merge would otherwise
+ * succeed through a red check or over a reviewer's objection. Nothing is merged
+ * unless the pull request is clean, unopposed and passing.
+ */
+const isSafeToMerge = async (github, context, core, pr) => {
+  const { data: pull } = await github.rest.pulls.get({ ...context.repo, pull_number: pr.num });
+
+  if (pull.mergeable === false || ["dirty", "blocked"].includes(pull.mergeable_state)) {
+    core.warning(`not merging #${pr.num}: mergeable_state is ${pull.mergeable_state}`);
+    return false;
+  }
+
+  const reviews = await github.paginate(github.rest.pulls.listReviews, {
+    ...context.repo,
+    pull_number: pr.num,
+    per_page: 100
+  });
+  if (reviews.some((review) => review.state === "CHANGES_REQUESTED")) {
+    core.warning(`not merging #${pr.num}: a reviewer has requested changes`);
+    return false;
+  }
+
+  const { data: checks } = await github.rest.checks.listForRef({
+    ...context.repo,
+    ref: pull.head.sha,
+    per_page: 100
+  });
+  const failed = checks.check_runs.filter((run) =>
+    ["failure", "timed_out", "cancelled", "action_required"].includes(run.conclusion)
+  );
+  if (failed.length) {
+    core.warning(`not merging #${pr.num}: ${failed.map((run) => run.name).join(", ")} did not pass`);
+    return false;
+  }
+
+  return true;
+};
+
+/**
  * Squash merges this bot's pull requests once the notice period has elapsed,
  * unless the proposal was edited after the pull request was opened. An edit
  * during the notice period means someone is working on it, so the pull request
  * is closed instead of moving a revived proposal to Stagnant.
  */
-const mergeElapsedPRs = async (github, context, core, botPRs, lastModifiedDates) => {
+const mergeElapsedPRs = async (github, context, core, config, botPRs, lastModifiedDates) => {
   const cutoff = weeksAgo(MERGE_DELAY_WEEKS);
   const elapsed = botPRs.filter((pr) => pr.createdAt < cutoff);
   core.info(`${elapsed.length} pull requests have passed the ${MERGE_DELAY_WEEKS} week notice period`);
@@ -162,6 +218,11 @@ const mergeElapsedPRs = async (github, context, core, botPRs, lastModifiedDates)
       await sleep(WAIT_MS);
       continue;
     }
+    if (!(await isSafeToMerge(github, context, core, pr))) {
+      await sleep(WAIT_MS);
+      continue;
+    }
+
     try {
       await github.rest.pulls.merge({
         ...context.repo,
@@ -180,8 +241,8 @@ const mergeElapsedPRs = async (github, context, core, botPRs, lastModifiedDates)
   }
 };
 
-const openStagnantPR = async (github, context, core, candidate, baseSha) => {
-  const branch = `mark-erc-${candidate.erc}-stagnant`;
+const openStagnantPR = async (github, context, core, config, candidate, baseSha) => {
+  const branch = `${config.branchPrefix}${candidate.erc}-stagnant`;
 
   const updated = setStatusToStagnant(candidate.contents);
   if (updated === candidate.contents)
@@ -205,34 +266,37 @@ const openStagnantPR = async (github, context, core, candidate, baseSha) => {
   }
 
   try {
-    await createStagnantCommitAndPR(github, context, core, candidate, branch, updated);
+    await createStagnantCommitAndPR(github, context, core, config, candidate, branch, updated);
   } catch (error) {
     await deleteBranch(github, context, core, branch);
     throw error;
   }
 };
 
-const createStagnantCommitAndPR = async (github, context, core, candidate, branch, updated) => {
+const createStagnantCommitAndPR = async (github, context, core, config, candidate, branch, updated) => {
   await github.rest.repos.createOrUpdateFileContents({
     ...context.repo,
     path: candidate.file,
     branch,
     sha: candidate.blobSha,
-    message: `Move ERC-${candidate.erc} to ${STAGNANT}`,
+    message: `Move ${config.kind}-${candidate.erc} to ${STAGNANT}`,
     content: Buffer.from(updated).toString("base64")
   });
 
   const { data: pull } = await github.rest.pulls.create({
     ...context.repo,
-    base: DEFAULT_BRANCH,
+    base: config.defaultBranch,
     head: branch,
-    title: `Move ERC-${candidate.erc} to ${STAGNANT}`,
+    title: `Move ${config.kind}-${candidate.erc} to ${STAGNANT}`,
     body: [
-      `ERC-${candidate.erc} has not been edited since ${candidate.lastModified.slice(0, 10)},`,
+      `${config.kind}-${candidate.erc} has not been edited since ${candidate.lastModified.slice(0, 10)},`,
       `more than ${STAGNATION_CUTOFF_MONTHS} months ago, so it is being moved from`,
       `${candidate.status} to ${STAGNANT} as described in EIP-1.\n`,
       `\nThis will be merged in ${MERGE_DELAY_WEEKS} weeks. A Stagnant proposal can be`,
       `resurrected at any time by opening a pull request moving it back to Draft.\n`,
+      `\nClosing this pull request does not stop it: nothing on ${config.defaultBranch}`,
+      `changes, so the next weekly run resets this branch and opens it again. To keep`,
+      `${config.kind}-${candidate.erc} out of ${STAGNANT}, edit the file.\n`,
       `\nauthors: ${candidate.author || "unknown"}\n`
     ].join(" ")
   });
@@ -243,16 +307,19 @@ const createStagnantCommitAndPR = async (github, context, core, candidate, branc
     labels: BOT_LABELS
   });
 
-  core.info(`opened #${pull.number} for ERC-${candidate.erc}`);
+  core.info(`opened #${pull.number} for ${config.kind}-${candidate.erc}`);
 };
 
 module.exports = async ({ github, context, core, dryRun }) => {
+  const config = resolveConfig(context);
+  core.info(`looking for stagnant ${config.kind}s in ${config.dir}/ on ${config.defaultBranch}`);
+
   const openPRs = await fetchOpenPRs(github, context);
   core.info(`found ${openPRs.length} open pull requests`);
 
-  const lastModifiedDates = getLastModifiedDates();
+  const lastModifiedDates = getLastModifiedDates(config.dir);
   if (!dryRun)
-    await mergeElapsedPRs(github, context, core, openPRs.filter((pr) => pr.isBot), lastModifiedDates);
+    await mergeElapsedPRs(github, context, core, config, openPRs.filter((pr) => pr.isBot), lastModifiedDates);
 
   // Any file with an open pull request is left alone. This covers proposals with
   // active work in flight, and this bot's own pending pull requests, so nothing
@@ -261,12 +328,12 @@ module.exports = async ({ github, context, core, dryRun }) => {
   const stagnationCutoff = monthsAgo(STAGNATION_CUTOFF_MONTHS);
 
   const candidates = [];
-  for (const name of fs.readdirSync(PROPOSALS_DIR)) {
+  for (const name of fs.readdirSync(config.dir)) {
     if (!name.endsWith(".md")) continue;
-    const file = `${PROPOSALS_DIR}/${name}`;
+    const file = `${config.dir}/${name}`;
     if (excluded.has(file)) continue;
 
-    const contents = fs.readFileSync(path.join(PROPOSALS_DIR, name), "utf8");
+    const contents = fs.readFileSync(path.join(config.dir, name), "utf8");
     const frontmatter = parseFrontmatter(contents);
     if (!frontmatter || !frontmatter.status) {
       core.warning(`could not read a status from ${file}`);
@@ -289,18 +356,18 @@ module.exports = async ({ github, context, core, dryRun }) => {
 
   // Oldest first, so the longest abandoned proposals are handled first.
   candidates.sort((a, b) => a.lastModified.localeCompare(b.lastModified));
-  core.info(`${candidates.length} ERCs are eligible for ${STAGNANT}`);
+  core.info(`${candidates.length} ${config.kind}s are eligible for ${STAGNANT}`);
 
   await core.summary
     .addHeading("Auto Stagnant Bot", 2)
     .addRaw(dryRun ? "Dry run: nothing was changed.\n\n" : "")
     .addTable([
       [
-        { data: "ERC", header: true },
+        { data: config.kind, header: true },
         { data: "Status", header: true },
         { data: "Last edited", header: true }
       ],
-      ...candidates.map((c) => [`ERC-${c.erc}`, c.status, c.lastModified.slice(0, 10)])
+      ...candidates.map((c) => [`${config.kind}-${c.erc}`, c.status, c.lastModified.slice(0, 10)])
     ])
     .write();
 
@@ -308,7 +375,7 @@ module.exports = async ({ github, context, core, dryRun }) => {
 
   const { data: base } = await github.rest.repos.getBranch({
     ...context.repo,
-    branch: DEFAULT_BRANCH
+    branch: config.defaultBranch
   });
 
   const batch = candidates.slice(0, MAX_NEW_PRS_PER_RUN);
@@ -326,12 +393,13 @@ module.exports = async ({ github, context, core, dryRun }) => {
         github,
         context,
         core,
+        config,
         { ...candidate, blobSha: blob.sha },
         base.commit.sha
       );
     } catch (error) {
       // One bad proposal must not stop the rest of the run.
-      core.error(`failed to stagnate ERC-${candidate.erc}: ${error.message}`);
+      core.error(`failed to stagnate ${config.kind}-${candidate.erc}: ${error.message}`);
     }
     await sleep(WAIT_MS);
   }

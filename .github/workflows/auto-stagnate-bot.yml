@@ -16,7 +16,9 @@ permissions:
 
 jobs:
   auto_stagnant_bot:
-    if: github.repository == 'ethereum/ERCs'
+    # The script derives the proposal kind, directory and branch prefix from
+    # the repository name, so this runs unchanged in ethereum/EIPs.
+    if: github.repository == 'ethereum/ERCs' || github.repository == 'ethereum/EIPs'
     runs-on: ubuntu-latest
     name: Auto Stagnant Bot
     steps:
@@ -31,6 +33,10 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry-run }}
         with:
+          # Must be a token with write access to this repository: it creates
+          # refs, opens pull requests and merges them. In ethereum/ERCs that is
+          # eip-review-bot, which is what the review bot's secrets.TOKEN holds;
+          # a read-only token such as eth-bot's would 403 on the first createRef.
           github-token: ${{ secrets.TOKEN }}
           script: |
             const markStagnant = require('${{ github.workspace }}/.github/scripts/mark-stagnant-ercs.js')
