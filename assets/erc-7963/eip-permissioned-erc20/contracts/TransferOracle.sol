@@ -66,13 +66,6 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
     address public immutable permissionedToken;
 
     /**
-     * @notice The entity authorized to submit new transfer approvals (e.g., the token issuer).
-     * @dev Set during construction, can be transferred via Ownable.transferOwnership.
-     *      We alias `owner()` from Ownable to represent the issuer for clarity.
-     */
-    address public immutable issuer;
-
-    /**
      * @notice Mapping from a composite key to a list of approvals.
      * @dev Key: keccak256(abi.encode(issuer_address, sender_address, recipient_address))
      *      Value: Array of approvals valid for this triplet.
@@ -121,7 +114,6 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
         }
         verifier = RiscZeroVerifier(_verifier);
         permissionedToken = _token;
-        issuer = _initialIssuer; // Store immutable issuer reference
     }
 
     // --- External Functions ---
@@ -205,7 +197,7 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < listLength; ++i) {
             TransferApproval storage currentApproval = approvalList[i];
 
-            if (currentApproval.expiry <= block.timestamp) {
+            if (currentApproval.expiry != 0 && currentApproval.expiry <= block.timestamp) {
                 continue;
             }
             if (amount >= currentApproval.minAmt && amount <= currentApproval.maxAmt) {
@@ -267,8 +259,7 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
             approval.sender == address(0) ||
             approval.recipient == address(0) ||
             approval.minAmt > approval.maxAmt ||
-            approval.expiry <= block.timestamp ||
-            approval.expiry > type(uint256).max
+            (approval.expiry != 0 && approval.expiry <= block.timestamp)
         ) {
             revert TransferOracle__InvalidApprovalData();
         }
@@ -309,6 +300,14 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
     // --- View Functions ---
 
     /**
+     * @notice Returns the entity currently authorized to submit transfer approvals.
+     * @dev Aliases Ownable.owner(), including after ownership transfer or renunciation.
+     */
+    function issuer() external view returns (address) {
+        return owner();
+    }
+
+    /**
      * @notice Returns the current issuer address.
      * @dev Convenience function aliasing Ownable.owner().
      */
@@ -335,4 +334,4 @@ contract TransferOracle is ITransferOracle, Ownable, ReentrancyGuard {
     function isProofUsed(bytes32 _proofId) external view returns (bool) {
         return _consumedProofIds[_proofId];
     }
-} 
+}
