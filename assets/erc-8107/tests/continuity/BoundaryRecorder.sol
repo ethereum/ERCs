@@ -52,8 +52,16 @@ abstract contract BoundaryRecorder is Test {
         }
     }
 
-    function _proof(bytes32 parent, string memory label) internal pure returns (RB.NameProof memory) {
-        return RB.NameProof(true, parent, label);
+    /// `labels` from the node up to the root, as in RB.NameProof
+    function _proof(string[] memory labels) internal pure returns (RB.NameProof memory) {
+        return RB.NameProof(true, labels);
+    }
+
+    /// The proof for `label`.eth
+    function _proof(string memory label) internal pure returns (RB.NameProof memory) {
+        string[] memory labels = new string[](2);
+        (labels[0], labels[1]) = (label, "eth");
+        return _proof(labels);
     }
 
     function _node(bytes32 parent, string memory label) internal pure returns (bytes32) {

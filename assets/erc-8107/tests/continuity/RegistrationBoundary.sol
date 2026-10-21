@@ -8,21 +8,29 @@ interface IBaseRegistrarEvents {
     event NameRenewed(uint256 indexed id, uint256 expires);
 }
 
+interface INameWrapperEvents {
+    event NameWrapped(bytes32 indexed node, bytes name, address owner, uint32 fuses, uint64 expiry);
+}
+
 /// @title Registration-boundary continuity policy (coordinator side, non-normative)
 /// @notice Reference for the coordinator check under ERC-8107 "Wrapped Name Lifecycle".
-///         An attestation stays eligible only while no `.eth` second-level name it
-///         involves, as trustor or trustee, has been registered again since the
-///         attestation's `TrustSet` event. `NameRenewed` never moves the boundary.
+///         An attestation stays eligible only while no name it involves, as trustor or
+///         trustee, has been registered again since the attestation's `TrustSet` event.
+///         A `.eth` second-level name is registered again on a BaseRegistrar
+///         `NameRegistered` for its label; `NameRenewed` never moves the boundary. A name
+///         below one is registered again whenever its second-level ancestor is, and on a
+///         NameWrapper `NameWrapped` for the name or for an ancestor of it below the
+///         second-level name. Names outside `.eth` are not checked.
 ///
 ///         This checks REGISTRATION continuity, not CONTROLLER continuity: a transfer
-///         within one registration emits no `NameRegistered` and leaves attestations
-///         eligible. It is applied in addition to `verifyPath`, whose verdict it never
+///         within one registration, or a parent reassigning a subname that still has a
+///         holder, emits neither event and leaves attestations eligible. It is applied in addition to `verifyPath`, whose verdict it never
 ///         widens, and it fails closed (`Unknown`) whenever the evidence it needs is
 ///         missing or inconsistent.
 ///
 ///         Inputs are what a coordinator holds off-chain: logs from `eth_getLogs` for the
-///         registry and the BaseRegistrar, a block window the caller asserts is complete
-///         for both emitters, and the name behind each path node. The function is `view`
+///         registry, the BaseRegistrar and the NameWrapper, a block window the caller
+///         asserts is complete for all three emitters, and the name behind each path node. The function is `view`
 ///         only because it reads the stored records to apply scope fallback.
 library RegistrationBoundary {
     /// namehash("eth")
@@ -37,19 +45,19 @@ library RegistrationBoundary {
         uint32 logIndex;
     }
 
-    /// `logs` MUST hold every log the registry and the BaseRegistrar emitted in
-    /// [fromBlock, toBlock], ordered by (blockNumber, txIndex, logIndex)
+    /// `logs` MUST hold every log the registry, the BaseRegistrar and the NameWrapper
+    /// emitted in [fromBlock, toBlock], ordered by (blockNumber, txIndex, logIndex)
     struct History {
         uint64 fromBlock;
         uint64 toBlock;
         Log[] logs;
     }
 
-    /// A node's preimage one level up: node == keccak256(parent, keccak256(label))
+    /// The name behind a node, label by label from the node up to the root, so that
+    /// node == namehash(labels): "sub.alice.eth" is ["sub", "alice", "eth"]
     struct NameProof {
         bool known;
-        bytes32 parent;
-        string label;
+        string[] labels;
     }
 
     enum Verdict {
@@ -67,7 +75,8 @@ library RegistrationBoundary {
         NotEndorsed,
         NoTrustSet,
         RecordMismatch,
-        ReRegistered
+        ReRegistered,
+        ReWrapped
     }
 
     struct Result {
@@ -80,6 +89,7 @@ library RegistrationBoundary {
     struct Query {
         ITrustRegistry registry;
         address baseRegistrar;
+        address nameWrapper; // zero where the network has no NameWrapper
         bytes32[] nodes;
         bytes32 scope;
         NameProof[] proofs; // one per node
@@ -89,13 +99,14 @@ library RegistrationBoundary {
     function evaluate(
         ITrustRegistry registry,
         address baseRegistrar,
+        address nameWrapper,
         bytes32[] memory nodes,
         bytes32 scope,
         NameProof[] memory proofs,
         History memory h,
         uint64 head
     ) internal view returns (Result memory) {
-        return evaluate(Query(registry, baseRegistrar, nodes, scope, proofs, head), h);
+        return evaluate(Query(registry, baseRegistrar, nameWrapper, nodes, scope, proofs, head), h);
     }
 
     function evaluate(Query memory q, History memory h) internal view returns (Result memory r) {
@@ -103,20 +114,18 @@ library RegistrationBoundary {
         if (!_ordered(h)) return _unknown(Reason.HistoryUnordered, 0, bytes32(0));
         if (q.proofs.length != q.nodes.length) return _unknown(Reason.NoNameProof, 0, bytes32(0));
 
-        // Which nodes are .eth 2LDs, and their BaseRegistrar token ids. A node whose
+        // For each node under .eth: the BaseRegistrar token id of its 2LD (itself or an
+        // ancestor), and the nodes from it up to, not including, the 2LD. A node whose
         // name cannot be verified fails closed: without it the coordinator cannot tell
         // whether the rule applies
-        bool[] memory is2LD = new bool[](q.nodes.length);
+        bool[] memory underEth = new bool[](q.nodes.length);
         uint256[] memory tokenId = new uint256[](q.nodes.length);
+        bytes32[][] memory below2LD = new bytes32[][](q.nodes.length);
         for (uint256 i = 0; i < q.nodes.length; i++) {
-            NameProof memory p = q.proofs[i];
-            if (!p.known) return _unknown(Reason.NoNameProof, i, q.nodes[i]);
-            bytes32 labelhash = keccak256(bytes(p.label));
-            if (keccak256(abi.encodePacked(p.parent, labelhash)) != q.nodes[i]) {
-                return _unknown(Reason.NameProofMismatch, i, q.nodes[i]);
-            }
-            is2LD[i] = p.parent == ETH_NODE;
-            tokenId[i] = uint256(labelhash);
+            if (!q.proofs[i].known) return _unknown(Reason.NoNameProof, i, q.nodes[i]);
+            bool ok;
+            (ok, underEth[i], tokenId[i], below2LD[i]) = _name(q.proofs[i].labels, q.nodes[i]);
+            if (!ok) return _unknown(Reason.NameProofMismatch, i, q.nodes[i]);
         }
 
         for (uint256 i = 0; i + 1 < q.nodes.length; i++) {
@@ -125,8 +134,14 @@ library RegistrationBoundary {
             if (r.verdict != Verdict.Eligible) return r;
             for (uint256 n = i; n <= i + 1; n++) {
                 // trustor, then trustee
-                if (is2LD[n] && _registeredAfter(h, q.baseRegistrar, tokenId[n], at)) {
+                if (!underEth[n]) continue;
+                if (_registeredAfter(h, q.baseRegistrar, tokenId[n], at)) {
                     return Result(Verdict.Ineligible, Reason.ReRegistered, i, q.nodes[n]);
+                }
+                for (uint256 k = 0; k < below2LD[n].length; k++) {
+                    if (_wrappedAfter(h, q.nameWrapper, below2LD[n][k], at)) {
+                        return Result(Verdict.Ineligible, Reason.ReWrapped, i, q.nodes[n]);
+                    }
                 }
             }
         }
@@ -192,6 +207,46 @@ library RegistrationBoundary {
             ) return true;
         }
         return false;
+    }
+
+    /// Every NameWrapped counts, whether the name is wrapped for the first time, wrapped
+    /// again after an unwrap, or created again by its parent after its NameWrapper
+    /// expiry. A live reassignment by the parent emits TransferSingle, not NameWrapped
+    function _wrappedAfter(History memory h, address wrapper, bytes32 node, uint256 at) private pure returns (bool) {
+        for (uint256 k = at + 1; k < h.logs.length; k++) {
+            Log memory l = h.logs[k];
+            if (
+                l.emitter == wrapper && l.topics.length == 2 && l.topics[0] == INameWrapperEvents.NameWrapped.selector
+                    && l.topics[1] == node
+            ) return true;
+        }
+        return false;
+    }
+
+    /// Hashes `labels` from the root down and checks the result against `node`. For a
+    /// name under .eth with at least two labels, also returns its 2LD's token id and the
+    /// nodes below the 2LD on the way to `node`, `node` included
+    function _name(string[] memory labels, bytes32 node)
+        private
+        pure
+        returns (bool ok, bool underEth, uint256 tokenId, bytes32[] memory below)
+    {
+        uint256 len = labels.length;
+        bytes32[] memory at = new bytes32[](len); // at[j]: the node named by labels[j..]
+        bytes32 n = bytes32(0);
+        for (uint256 j = len; j > 0; j--) {
+            n = keccak256(abi.encodePacked(n, keccak256(bytes(labels[j - 1]))));
+            at[j - 1] = n;
+        }
+        if (n != node) return (false, false, 0, below);
+        if (len < 2 || at[len - 1] != ETH_NODE) {
+            return (true, false, 0, below);
+        }
+        below = new bytes32[](len - 2);
+        for (uint256 j = 0; j + 2 < len; j++) {
+            below[j] = at[j];
+        }
+        return (true, true, uint256(keccak256(bytes(labels[len - 2]))), below);
     }
 
     function _ordered(History memory h) private pure returns (bool) {
