@@ -73,8 +73,13 @@ contract KYABridge8004 {
     {
         if (trustedIssuers.length == 0) revert IKYATypes.KYA_EmptyIssuers();
         if (responseMap.length == 0) revert BadResponseMap();
+        // level 0 is "not verified / failed" and is also what a missing, revoked, expired or binding-violated
+        // assertion resolves to; it MUST mirror as 0 so that an unassessed agent can never be given a score
+        if (responseMap[0] != 0) revert BadResponseMap();
         for (uint256 i = 0; i < responseMap.length; i++) {
             if (responseMap[i] > 100) revert BadResponseMap();
+            // the bridge mirrors ordered levels only (checked below), so a higher level MUST NOT map lower
+            if (i > 0 && responseMap[i] < responseMap[i - 1]) revert BadResponseMap();
         }
         // a bridge mirrors ordered levels only, and every declared level MUST have a mapping, so that a
         // declared result can never be refused at sync time as unmapped (Section 8)
