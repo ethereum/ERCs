@@ -168,6 +168,30 @@
         "controller": {
           "$ref": "urn:auf:v1:common.schema.json#/$defs/caip10"
         },
+        "underlying": {
+          "type": "object",
+          "description": "What the element is a claim against: a Unit reference (optionally a port of it), a CAIP-19 asset, a CAIP-10 account or a URI. Elements with the same underlying and no same-claim or distinct-claim declaration between them are overlap candidates (Section 3.8).",
+          "required": [
+            "ref"
+          ],
+          "properties": {
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "port": {
+              "type": "string",
+              "minLength": 1
+            },
+            "share": {
+              "$ref": "urn:auf:v1:common.schema.json#/$defs/share"
+            },
+            "basis": {
+              "$ref": "urn:auf:v1:common.schema.json#/$defs/evidence"
+            }
+          },
+          "additionalProperties": false
+        },
         "expectedAcks": {
           "type": "array",
           "items": {
@@ -203,7 +227,9 @@
             "pledges",
             "depends-on",
             "exchanges",
-            "controls"
+            "controls",
+            "same-claim",
+            "distinct-claim"
           ]
         },
         {

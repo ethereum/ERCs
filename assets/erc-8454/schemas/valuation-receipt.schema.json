@@ -4,111 +4,296 @@
   "title": "AUF valuation receipt content",
   "description": "Content of an assertion of kind valuation (ERC Section 10): subject, assessment boundary, interest, snapshot, method, inputs and result.",
   "type": "object",
-  "required": ["auf", "kind", "subject", "interest", "snapshot", "method", "inputs", "result"],
+  "required": [
+    "auf",
+    "kind",
+    "subject",
+    "interest",
+    "snapshot",
+    "method",
+    "inputs",
+    "result"
+  ],
   "properties": {
-    "auf": { "$ref": "urn:auf:v1:common.schema.json#/$defs/aufVersion" },
-    "kind": { "const": "valuation" },
-    "subject": { "$ref": "urn:auf:v1:common.schema.json#/$defs/subject" },
+    "auf": {
+      "$ref": "urn:auf:v1:common.schema.json#/$defs/aufVersion"
+    },
+    "kind": {
+      "const": "valuation"
+    },
+    "subject": {
+      "$ref": "urn:auf:v1:common.schema.json#/$defs/subject"
+    },
     "assessmentBoundary": {
       "type": "object",
-      "required": ["hash"],
+      "required": [
+        "hash"
+      ],
       "properties": {
-        "hash": { "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32" },
-        "deltaURI": { "type": "string" },
-        "notes": { "type": "string" }
+        "hash": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32"
+        },
+        "deltaURI": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "interest": {
       "type": "object",
-      "required": ["id", "perspective"],
+      "required": [
+        "id",
+        "perspective"
+      ],
       "properties": {
-        "id": { "$ref": "urn:auf:v1:common.schema.json#/$defs/identifier" },
-        "perspective": { "enum": ["holder", "user", "executor", "funder", "counterparty", "analyst"] },
-        "detail": { "type": "string" }
+        "id": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/identifier"
+        },
+        "perspective": {
+          "enum": [
+            "holder",
+            "user",
+            "executor",
+            "funder",
+            "counterparty",
+            "analyst"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "snapshot": {
       "type": "object",
-      "required": ["asOf"],
+      "required": [
+        "asOf"
+      ],
       "properties": {
-        "asOf": { "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp" },
-        "observations": { "type": "array", "items": { "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32" } },
-        "hash": { "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32" }
+        "asOf": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp"
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32"
+          }
+        },
+        "hash": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32"
+        }
       },
       "additionalProperties": false
     },
     "method": {
       "type": "object",
-      "required": ["id"],
+      "required": [
+        "id"
+      ],
       "properties": {
-        "id": { "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32", "description": "methodId (canonical hash of the method descriptor)." },
-        "name": { "$ref": "urn:auf:v1:common.schema.json#/$defs/identifier" },
-        "params": { "type": "object" },
-        "paramsHash": { "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32" }
+        "id": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32",
+          "description": "methodId (canonical hash of the method descriptor)."
+        },
+        "name": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/identifier"
+        },
+        "params": {
+          "type": "object"
+        },
+        "paramsHash": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32"
+        }
       },
       "additionalProperties": false
     },
     "inputs": {
       "type": "object",
       "properties": {
-        "data": { "type": "array", "items": { "type": "object" } },
-        "estimates": { "type": "array", "items": { "type": "string" } },
-        "missing": { "type": "array", "items": { "type": "object", "required": ["item"], "properties": { "item": { "type": "string" }, "reason": { "type": "string" } } } },
-        "coverage": { "type": "string" }
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "estimates": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "coverage": {
+          "type": "string"
+        },
+        "overlaps": {
+          "type": "array",
+          "description": "Claim groups and overlap candidates within the assessment boundary and how the method treated each (Section 10.6).",
+          "items": {
+            "type": "object",
+            "required": [
+              "elements",
+              "treatment"
+            ],
+            "properties": {
+              "elements": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32"
+                }
+              },
+              "treatment": {
+                "enum": [
+                  "counted-once",
+                  "netted",
+                  "excluded",
+                  "unresolved"
+                ]
+              },
+              "basis": {
+                "$ref": "urn:auf:v1:common.schema.json#/$defs/evidence"
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },
-    "result": { "$ref": "#/$defs/result" },
+    "result": {
+      "$ref": "#/$defs/result"
+    },
     "horizon": {
       "type": "object",
       "properties": {
-        "from": { "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp" },
-        "to": { "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp" }
+        "from": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp"
+        },
+        "to": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp"
+        }
       },
       "additionalProperties": false
     },
-    "validUntil": { "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp" },
-    "evaluator": { "type": "string" },
-    "notes": { "type": "string" },
-    "evidence": { "$ref": "urn:auf:v1:common.schema.json#/$defs/evidence" },
-    "extensions": { "$ref": "urn:auf:v1:common.schema.json#/$defs/extensions" }
+    "validUntil": {
+      "$ref": "urn:auf:v1:common.schema.json#/$defs/timestamp"
+    },
+    "evaluator": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "evidence": {
+      "$ref": "urn:auf:v1:common.schema.json#/$defs/evidence"
+    },
+    "extensions": {
+      "$ref": "urn:auf:v1:common.schema.json#/$defs/extensions"
+    }
   },
   "additionalProperties": false,
   "$defs": {
     "uncertainty": {
       "type": "object",
-      "required": ["type"],
-      "properties": { "type": { "type": "string" }, "parameters": { "type": "object" } },
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "object"
+        }
+      },
       "additionalProperties": false
     },
     "result": {
       "type": "object",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
         "kind": {
           "enum": [
-            "monetary", "interval", "distribution", "scenario", "vector", "conditional",
-            "score", "grade", "not-valuable", "insufficient-evidence", "not-applicable"
+            "monetary",
+            "interval",
+            "distribution",
+            "scenario",
+            "vector",
+            "conditional",
+            "score",
+            "grade",
+            "not-valuable",
+            "insufficient-evidence",
+            "not-applicable"
           ]
         },
-        "value": { "type": "string" },
-        "denomination": { "$ref": "urn:auf:v1:common.schema.json#/$defs/denomination" },
-        "decimals": { "type": "integer", "minimum": 0, "maximum": 36 },
-        "low": { "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString" },
-        "high": { "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString" },
-        "distribution": { "type": "object" },
+        "value": {
+          "type": "string"
+        },
+        "denomination": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/denomination"
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 36
+        },
+        "low": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString"
+        },
+        "high": {
+          "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString"
+        },
+        "distribution": {
+          "type": "object"
+        },
         "scenarios": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name", "value"],
+            "required": [
+              "name",
+              "value"
+            ],
             "properties": {
-              "name": { "type": "string" },
-              "probability": { "$ref": "urn:auf:v1:common.schema.json#/$defs/unsignedDecimalString" },
-              "value": { "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString" },
-              "conditions": { "type": "string" }
+              "name": {
+                "type": "string"
+              },
+              "probability": {
+                "$ref": "urn:auf:v1:common.schema.json#/$defs/unsignedDecimalString"
+              },
+              "value": {
+                "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString"
+              },
+              "conditions": {
+                "type": "string"
+              }
             },
             "additionalProperties": false
           }
@@ -117,55 +302,185 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name", "kind", "value"],
+            "required": [
+              "name",
+              "kind",
+              "value"
+            ],
             "properties": {
-              "name": { "type": "string" },
-              "kind": { "type": "string" },
-              "value": { "type": "string" },
-              "denomination": { "type": "string" }
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "denomination": {
+                "type": "string"
+              }
             },
             "additionalProperties": false
           }
         },
-        "conditions": { "type": "string" },
+        "conditions": {
+          "type": "string"
+        },
         "scale": {},
-        "schema": { "type": "string" },
-        "reason": { "type": "string" },
-        "missing": { "type": "array", "items": { "type": "string" } },
-        "uncertainty": { "$ref": "#/$defs/uncertainty" }
+        "schema": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "missing": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/uncertainty"
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "monetary" } } },
-          "then": { "required": ["value", "denomination"], "properties": { "value": { "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString" } } }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "monetary"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "value",
+              "denomination"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "urn:auf:v1:common.schema.json#/$defs/decimalString"
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "kind": { "const": "interval" } } },
-          "then": { "required": ["low", "high", "denomination"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "interval"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "low",
+              "high",
+              "denomination"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "const": "scenario" } } },
-          "then": { "required": ["scenarios", "denomination"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "scenario"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "scenarios",
+              "denomination"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "const": "distribution" } } },
-          "then": { "required": ["distribution", "denomination"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "distribution"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "distribution",
+              "denomination"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "const": "vector" } } },
-          "then": { "required": ["components"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "vector"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "components"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "const": "conditional" } } },
-          "then": { "required": ["conditions", "value", "denomination"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "conditional"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "conditions",
+              "value",
+              "denomination"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "enum": ["score", "grade"] } } },
-          "then": { "required": ["value", "scale"] }
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "score",
+                  "grade"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "value",
+              "scale"
+            ]
+          }
         },
         {
-          "if": { "properties": { "kind": { "enum": ["not-valuable", "insufficient-evidence", "not-applicable"] } } },
-          "then": { "required": ["reason"], "not": { "required": ["value"] } }
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "not-valuable",
+                  "insufficient-evidence",
+                  "not-applicable"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ],
+            "not": {
+              "required": [
+                "value"
+              ]
+            }
+          }
         }
       ],
       "additionalProperties": false

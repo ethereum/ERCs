@@ -1,0 +1,64 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Revenue right on the Summarizer business, token form",
+    "summary": "Fund F holds 400 RST tokens, the tokenized form of a 40% assignment of the license fee stream of the Summarizer Skill Business. The position declares its underlying: Unit 1, port fees-in, share 0.4.",
+    "tags": [
+      "revenue-right",
+      "position",
+      "overlap-vector"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111/erc20:0x00000000000000000000000000000000000000dd",
+      "label": "RST revenue-share tokens (40% of the license fee stream of Unit 1)",
+      "underlying": {
+        "ref": "auf:eip155:11155111:0x00000000000000000000000000000000000000f0:1@1",
+        "port": "fees-in",
+        "share": "0.4",
+        "basis": [
+          "urn:x:terms:rst-tokenization-2026"
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "type": "holds",
+      "from": "unit",
+      "to": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+      "quantity": {
+        "amount": "400",
+        "unit": "RST"
+      },
+      "share": "0.4",
+      "counterparty": "eip155:11155111:0x00000000000000000000000000000000000000f1",
+      "basis": [
+        "urn:x:terms:rst-tokenization-2026"
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "id": "distributions-in",
+      "direction": "in",
+      "class": "funds",
+      "template": "auf:port:funds-in@1",
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "account": "eip155:11155111:0x00000000000000000000000000000000000000e8",
+      "conditions": "monthly distributions to RST holders"
+    }
+  ],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000f8",
+    "settlementAccounts": [
+      "eip155:11155111:0x00000000000000000000000000000000000000e8"
+    ]
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}

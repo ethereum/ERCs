@@ -1,0 +1,81 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 11,
+    "version": 1,
+    "boundaryHash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8"
+  },
+  "assessmentBoundary": {
+    "hash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8"
+  },
+  "interest": {
+    "id": "auf:interest:net-equity@1",
+    "perspective": "analyst"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [
+        {
+          "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xbf23010d19fd5a7d50374c2fabecb5ff326b5176a478fb34ddf523eace24f182)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        },
+        {
+          "element": "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xbf23010d19fd5a7d50374c2fabecb5ff326b5176a478fb34ddf523eace24f182)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ],
+      "liabilities": []
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+        "source": "RST balance"
+      },
+      {
+        "element": "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73",
+        "source": "assignment agreement"
+      },
+      {
+        "receipt": "0xbf23010d19fd5a7d50374c2fabecb5ff326b5176a478fb34ddf523eace24f182",
+        "use": "value of the whole fee stream"
+      }
+    ],
+    "overlaps": [
+      {
+        "elements": [
+          "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73"
+        ],
+        "treatment": "unresolved",
+        "notes": "same underlying (Unit 1, port fees-in, share 0.4), no same-claim or distinct-claim declaration, no acknowledgment by the obligor"
+      }
+    ],
+    "coverage": "the two positions only"
+  },
+  "result": {
+    "kind": "interval",
+    "low": "45.12",
+    "high": "90.24",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Exception vector \"Overlap under different references\", undeclared case: low = the candidates counted once (45.12), high = counted separately (90.24); no point estimate is given."
+}

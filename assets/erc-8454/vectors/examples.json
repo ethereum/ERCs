@@ -350,6 +350,138 @@
           }
         }
       ]
+    },
+    {
+      "unitId": 8,
+      "file": "examples/revenue-right-token.json",
+      "boundaryHash": "0x765530338e98914d55b2b2d6f58551e2bc8d223428dd0b173625f88491d6684b",
+      "contains": [],
+      "controller": "0x00000000000000000000000000000000000000f8",
+      "companions": [
+        {
+          "file": "revenue-right-token.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x43fb547a33c0c8c4384a982dc428c0ad90dd844123a00a64efbb51fd2a427c09",
+          "profile": "auf:characterization:v1@1"
+        }
+      ]
+    },
+    {
+      "unitId": 9,
+      "file": "examples/revenue-right-contract.json",
+      "boundaryHash": "0x5c7ae35c58ef49099159b9772cb603c39b50d00fe76e72cfa2c6d99d0f5849c8",
+      "contains": [],
+      "controller": "0x00000000000000000000000000000000000000f9",
+      "companions": [
+        {
+          "file": "revenue-right-contract.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x45e9ef8980996e0a56f59bc2d8e9250b858ffd53a016c6c05ded7185456c15f4",
+          "profile": "auf:characterization:v1@1"
+        }
+      ]
+    },
+    {
+      "unitId": 10,
+      "file": "examples/revenue-holdings-declared.json",
+      "boundaryHash": "0xb3ab97fe54b77bfa92256bd7ae1e947048a09df80fa888936ad3b5b6da6b4fc8",
+      "contains": [
+        {
+          "unitId": 8,
+          "version": 1
+        },
+        {
+          "unitId": 9,
+          "version": 1
+        }
+      ],
+      "controller": "0x00000000000000000000000000000000000000f7",
+      "companions": [
+        {
+          "file": "revenue-holdings-declared.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x21c0212908e867a36af5552a2df2a4cc2c707ec25e8fd9399170a13467f3de8a",
+          "profile": "auf:characterization:v1@1"
+        },
+        {
+          "file": "revenue-holdings-declared.valuation.net-equity.json",
+          "kind": "valuation",
+          "contentHash": "0x19240705405bcfdee3153ac0a95f0686c5020e2d59f73c66abfbb9126db9bbe8",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0xb3ab97fe54b77bfa92256bd7ae1e947048a09df80fa888936ad3b5b6da6b4fc8",
+            "snapshotHash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64",
+            "resultKind": 1,
+            "decimals": 2,
+            "value": "4512",
+            "denominationId": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        }
+      ]
+    },
+    {
+      "unitId": 11,
+      "file": "examples/revenue-holdings-undeclared.json",
+      "boundaryHash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8",
+      "contains": [
+        {
+          "unitId": 8,
+          "version": 1
+        },
+        {
+          "unitId": 9,
+          "version": 1
+        }
+      ],
+      "controller": "0x00000000000000000000000000000000000000d2",
+      "companions": [
+        {
+          "file": "revenue-holdings-undeclared.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0xe6a3013d7580c33a7c63cde2839689c78551275d02051972fb22b7f8ee4eec76",
+          "profile": "auf:characterization:v1@1"
+        },
+        {
+          "file": "revenue-holdings-undeclared.valuation.net-equity.interval.json",
+          "kind": "valuation",
+          "contentHash": "0xaa2d2830ed185ab06ee2ca921ef11df332c2ec43409eea35589672c6f1c8079c",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8",
+            "snapshotHash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64",
+            "resultKind": 2,
+            "decimals": 2,
+            "value": "0",
+            "denominationId": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        },
+        {
+          "file": "revenue-holdings-undeclared.valuation.net-equity.insufficient-evidence.json",
+          "kind": "valuation",
+          "contentHash": "0xb39c762903fab7e812759f42293be961b793edd078916ba690010837c5402542",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8",
+            "snapshotHash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64",
+            "resultKind": 10,
+            "decimals": 0,
+            "value": "0",
+            "denominationId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        }
+      ]
     }
   ]
 }

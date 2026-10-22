@@ -209,6 +209,11 @@
       "name": "unsupported-extension",
       "rule": "A document with an extension member marked required whose identifier the consumer does not know is reported as unsupported.",
       "test": "tools/resolve.js (reports unsupported)"
+    },
+    {
+      "name": "overlap-under-different-references",
+      "rule": "Two positions with different element ids but the same underlying are one claim group only when a same-claim relation with a basis links them; then the net-equity method counts the entitlement once (45.12). Without a same-claim or distinct-claim declaration the overlap is unresolved and no point monetary value is admissible: the receipt is an interval (low 45.12 counted once, high 90.24 counted separately) or insufficient-evidence listing the pair under inputs.overlaps.",
+      "example": "examples/revenue-holdings-declared.valuation.net-equity.json, examples/revenue-holdings-undeclared.valuation.net-equity.interval.json, examples/revenue-holdings-undeclared.valuation.net-equity.insufficient-evidence.json; tools/resolve.js --unit 11 (reports the unresolved overlap)"
     }
   ]
 }

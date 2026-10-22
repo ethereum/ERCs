@@ -1,0 +1,43 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Combined revenue holdings as seen by an analyst (overlap undeclared)",
+    "summary": "An analyst contains both holdings without establishing whether they are one claim or two. The resolver reports an unresolved overlap candidate (same underlying, no declaration), and a point-valued sum is not admissible.",
+    "tags": [
+      "composite",
+      "overlap-vector"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "unit",
+      "ref": "auf:eip155:11155111:0x00000000000000000000000000000000000000f0:8@1",
+      "label": "Token form, version 1"
+    },
+    {
+      "kind": "unit",
+      "ref": "auf:eip155:11155111:0x00000000000000000000000000000000000000f0:9@1",
+      "label": "Contractual form, version 1"
+    }
+  ],
+  "relations": [
+    {
+      "type": "contains",
+      "from": "unit",
+      "to": "0x475372ac7f32957f68bf3e4ba8ea9ef94e27b8f90b92d7c9a604480e000556c2"
+    },
+    {
+      "type": "contains",
+      "from": "unit",
+      "to": "0x7d9d7343e16451f00c98f5efb58563bdfd331fa245c35df10eef4bdb577cf1f6"
+    }
+  ],
+  "ports": [],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000d2"
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}
