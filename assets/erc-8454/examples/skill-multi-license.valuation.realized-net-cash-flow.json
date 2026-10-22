@@ -1,0 +1,48 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 1,
+    "version": 1,
+    "boundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+  },
+  "assessmentBoundary": {
+    "hash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+  },
+  "interest": {
+    "id": "auf:interest:whole@1",
+    "perspective": "analyst",
+    "detail": "realized net cash flow of the business over October 2026 (an observation result, not a value)"
+  },
+  "snapshot": {
+    "asOf": "2026-10-31T23:59:59Z",
+    "hash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1"
+  },
+  "method": {
+    "id": "0x51ac1ab7eca131d0073c7c03024471be2e6fb28313e9c07a031ba4312731e8d5",
+    "name": "auf:method:realized-net-cash-flow@1",
+    "params": {
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc"
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "observation": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1"
+      }
+    ],
+    "coverage": "as in the observation record; card payments of licensee C not covered"
+  },
+  "result": {
+    "kind": "monetary",
+    "value": "65.00",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "horizon": {
+    "from": "2026-10-01T00:00:00Z",
+    "to": "2026-10-31T23:59:59Z"
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef"
+}

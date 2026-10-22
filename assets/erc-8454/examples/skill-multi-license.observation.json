@@ -1,0 +1,81 @@
+{
+  "auf": "1.0",
+  "kind": "observation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 1,
+    "version": 1,
+    "boundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+  },
+  "window": {
+    "from": "2026-10-01T00:00:00Z",
+    "to": "2026-10-31T23:59:59Z"
+  },
+  "snapshotAt": "2026-10-31T23:59:59Z",
+  "assets": [
+    {
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "opening": "0",
+      "closing": "65",
+      "inflow": "100",
+      "outflow": "35",
+      "minted": "0",
+      "burned": "0",
+      "adjustments": [],
+      "transfers": [
+        {
+          "port": "fees-in",
+          "direction": "in",
+          "amount": "100",
+          "counterparty": "licensees A, B, C",
+          "evidence": [
+            "urn:x:tx:fees-2026-10"
+          ]
+        },
+        {
+          "port": "hosting-out",
+          "direction": "out",
+          "amount": "30",
+          "counterparty": "compute provider",
+          "evidence": [
+            "urn:x:tx:hosting-2026-10"
+          ]
+        },
+        {
+          "port": "hosting-out",
+          "direction": "out",
+          "amount": "5",
+          "counterparty": "payment rail",
+          "evidence": [
+            "urn:x:tx:fees-2026-10"
+          ]
+        }
+      ]
+    }
+  ],
+  "nonCash": [
+    {
+      "subject": "0x3f13ce02d4a85ecacba5b5a5e6658105bf3f9208088d43b2d394a1c1ca00d656",
+      "kind": "depreciation",
+      "from": "v3 current",
+      "to": "v3 one month older; no successor released",
+      "basis": [
+        "urn:x:note:depreciation-policy"
+      ]
+    }
+  ],
+  "coverage": {
+    "observed": [
+      "stable balance and transfers of the treasury account",
+      "license invoices"
+    ],
+    "missing": [
+      {
+        "item": "off-chain card payments of licensee C",
+        "reason": "not yet reconciled"
+      }
+    ],
+    "method": "indexer over the treasury account plus invoice export",
+    "source": "urn:x:indexer:example"
+  }
+}

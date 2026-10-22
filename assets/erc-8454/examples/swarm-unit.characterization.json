@@ -1,0 +1,84 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 4,
+    "version": 1,
+    "boundaryHash": "0x73afc9b7e08e024340af3c673585d4dda9498c9900ba4d3fa287a6e62e9dc405"
+  },
+  "roles": [
+    {
+      "role": "source",
+      "scope": {
+        "type": "port",
+        "id": "deliverable-out"
+      },
+      "mechanism": "production",
+      "conditions": "accepted task deliveries earn tender payouts"
+    },
+    {
+      "role": "sink",
+      "scope": {
+        "type": "element",
+        "id": "0xe8c3cf60551907b7311c40afa1cecf3f98c7ad14ef1fc404fd09206d32ac14fe"
+      },
+      "mechanism": "consumption",
+      "conditions": "model tokens consumed per task"
+    },
+    {
+      "role": "damping",
+      "scope": {
+        "type": "port",
+        "id": "model-fees-out"
+      },
+      "mechanism": "resource-use"
+    },
+    {
+      "role": "container",
+      "scope": {
+        "type": "element",
+        "id": "0xe8c8cde00958908af6b3dfdd061eb686f88e1db5cf025111c86f67110149443e"
+      },
+      "mechanism": "funds"
+    },
+    {
+      "role": "control",
+      "scope": {
+        "type": "port",
+        "id": "decisions-in"
+      },
+      "mechanism": "governance",
+      "conditions": "council decisions under the charter"
+    },
+    {
+      "role": "pledge",
+      "scope": {
+        "type": "element",
+        "id": "0x7f20c153c6f7cfbaaaea42173b10f6ab6d53f30bc343f0485b4404100be1ddb1"
+      },
+      "mechanism": "performance-guarantee",
+      "conditions": "commitment to deliver; failure forfeits the payout",
+      "state": "in progress"
+    }
+  ],
+  "attributes": {
+    "linearity": "nonlinear",
+    "determinism": "stochastic",
+    "timeVariance": "time-varying",
+    "memory": "history-dependent"
+  },
+  "structure": {
+    "profile": "auf:structure:chip@1",
+    "interfaces": [
+      "deliverable-out",
+      "funds-in",
+      "model-fees-out",
+      "decisions-in"
+    ]
+  },
+  "knowledge": {
+    "status": "classified",
+    "notes": "Sub-unit treasuries are inside the boundary through containment; the model is an external dependency with a usage right only."
+  }
+}

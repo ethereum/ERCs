@@ -1,0 +1,214 @@
+{
+  "fixedPoint": "18 decimals, truncating division (as AUFValuationLib.sol)",
+  "vectors": [
+    {
+      "name": "net-equity",
+      "method": "auf:method:net-equity@1",
+      "inputs": {
+        "denomination": "USD",
+        "assets": [
+          {
+            "element": "cash",
+            "quantity": "100",
+            "price": "1"
+          }
+        ],
+        "liabilities": [
+          {
+            "element": "payable due now",
+            "quantity": "30",
+            "price": "1"
+          }
+        ]
+      },
+      "fixedPoint": {
+        "assetsWad": [
+          "100000000000000000000"
+        ],
+        "liabilitiesWad": [
+          "30000000000000000000"
+        ]
+      },
+      "expected": {
+        "kind": "monetary",
+        "value": "70.00",
+        "denomination": "USD",
+        "valueWad": "70000000000000000000"
+      }
+    },
+    {
+      "name": "realized-net-cash-flow",
+      "method": "auf:method:realized-net-cash-flow@1",
+      "inputs": {
+        "asset": "USD stable",
+        "inflows": [
+          "100"
+        ],
+        "outflows": [
+          "30",
+          "5"
+        ],
+        "note": "settled revenue 100, compute expense 30, external fees 5, no internal transfers"
+      },
+      "fixedPoint": {
+        "inflowsWad": [
+          "100000000000000000000"
+        ],
+        "outflowsWad": [
+          "30000000000000000000",
+          "5000000000000000000"
+        ]
+      },
+      "expected": {
+        "kind": "monetary",
+        "value": "65.00",
+        "denomination": "USD",
+        "valueWad": "65000000000000000000"
+      }
+    },
+    {
+      "name": "finite-horizon-dcf",
+      "method": "auf:method:finite-horizon-dcf@1",
+      "inputs": {
+        "denomination": "USD",
+        "cashflows": [
+          "65",
+          "65"
+        ],
+        "rate": "0.1",
+        "terminalValue": "0"
+      },
+      "fixedPoint": {
+        "cashflowsWad": [
+          "65000000000000000000",
+          "65000000000000000000"
+        ],
+        "rateWad": "100000000000000000",
+        "terminalValueWad": "0"
+      },
+      "expected": {
+        "kind": "monetary",
+        "value": "112.81",
+        "denomination": "USD",
+        "valueWad": "112809917355371900690",
+        "exact": "65/1.1 + 65/1.21 = 112.80991735537190082644..."
+      }
+    },
+    {
+      "name": "conditional-payoff",
+      "method": "auf:method:conditional-payoff@1",
+      "inputs": {
+        "denomination": "USD",
+        "scenarios": [
+          {
+            "name": "success",
+            "probability": "0.6",
+            "payoff": "100"
+          },
+          {
+            "name": "failure",
+            "probability": "0.4",
+            "payoff": "0"
+          }
+        ],
+        "rate": "0.1",
+        "periods": 1,
+        "probabilityBasis": "declared",
+        "costsIncluded": false
+      },
+      "fixedPoint": {
+        "payoffsWad": [
+          "100000000000000000000",
+          "0"
+        ],
+        "probabilitiesWad": [
+          "600000000000000000",
+          "400000000000000000"
+        ],
+        "rateWad": "100000000000000000",
+        "periods": 1
+      },
+      "expected": {
+        "kind": "scenario",
+        "value": "54.55",
+        "denomination": "USD",
+        "valueWad": "54545454545454545400",
+        "exact": "(0.6 x 100 + 0.4 x 0) / 1.1 = 54.5454..."
+      }
+    },
+    {
+      "name": "conditional-payoff-obligation",
+      "method": "auf:method:conditional-payoff@1",
+      "inputs": {
+        "denomination": "USD",
+        "scenarios": [
+          {
+            "name": "task fails",
+            "probability": "0.4",
+            "payoff": "-100"
+          },
+          {
+            "name": "task accepted",
+            "probability": "0.6",
+            "payoff": "0"
+          }
+        ],
+        "rate": "0.1",
+        "periods": 1,
+        "probabilityBasis": "estimated",
+        "costsIncluded": true
+      },
+      "fixedPoint": {
+        "payoffsWad": [
+          "-100000000000000000000",
+          "0"
+        ],
+        "probabilitiesWad": [
+          "400000000000000000",
+          "600000000000000000"
+        ],
+        "rateWad": "100000000000000000",
+        "periods": 1
+      },
+      "expected": {
+        "kind": "scenario",
+        "value": "-36.36",
+        "denomination": "USD",
+        "valueWad": "-36363636363636363600",
+        "exact": "(0.4 x -100 + 0.6 x 0) / 1.1 = -36.3636..."
+      }
+    }
+  ],
+  "exceptions": [
+    {
+      "name": "missing-evidence",
+      "rule": "A receipt whose inputs lack a price for a material position has result kind insufficient-evidence and lists the position under inputs.missing; it never values the position at zero.",
+      "example": "examples/contingent-obligation-unit.valuation.insufficient-evidence.json"
+    },
+    {
+      "name": "boundary-change",
+      "rule": "A receipt recorded for version 1 of a Unit is not returned as a valuation of version 2; assertions are kept per (unitId, version) and assertionCount(unitId, 2) does not include it.",
+      "test": "test/Vectors.t.sol#testBoundaryChangeSeparatesReceipts"
+    },
+    {
+      "name": "internal-transfer",
+      "rule": "A payment between two elements of the same Unit that crosses no port is not inflow or outflow of the Unit; the realized net cash flow attributable to it is 0.",
+      "example": "examples/swarm-unit.json (relation exchanges between the two sub-units)"
+    },
+    {
+      "name": "shared-right",
+      "rule": "A skill included by two child Units with share 1/2 each is counted once at the parent level by the net-equity method.",
+      "example": "examples/swarm-unit.valuation.net-equity.json"
+    },
+    {
+      "name": "expired-or-revoked",
+      "rule": "An assertion past validUntil, revoked or superseded is returned only when marked as such and is never presented as current.",
+      "test": "test/AUFAssertionRegistry.t.sol#testRevoke, testSupersede"
+    },
+    {
+      "name": "unsupported-extension",
+      "rule": "A document with an extension member marked required whose identifier the consumer does not know is reported as unsupported.",
+      "test": "tools/resolve.js (reports unsupported)"
+    }
+  ]
+}

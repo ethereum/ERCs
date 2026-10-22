@@ -1,0 +1,77 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 1,
+    "version": 1,
+    "boundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+  },
+  "assessmentBoundary": {
+    "hash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+  },
+  "interest": {
+    "id": "auf:interest:net-equity@1",
+    "perspective": "holder"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [
+        {
+          "element": "0x1e753103d4a6e1908f5d7fb776a3b24e2b1b38a02165709adbdfd25bc34f6c1e",
+          "quantity": "100",
+          "price": "1",
+          "priceSource": "stable at par",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ],
+      "liabilities": [
+        {
+          "element": "0x7866a0f7476ff5de045940017d6d428c6d1fd8be077a1fd8af1f811d07fb0542",
+          "quantity": "30",
+          "price": "1",
+          "priceSource": "invoice",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0x1e753103d4a6e1908f5d7fb776a3b24e2b1b38a02165709adbdfd25bc34f6c1e",
+        "source": "balance at snapshot"
+      },
+      {
+        "element": "0x7866a0f7476ff5de045940017d6d428c6d1fd8be077a1fd8af1f811d07fb0542",
+        "source": "invoice"
+      }
+    ],
+    "missing": [
+      {
+        "item": "license receivables",
+        "reason": "not priced in this receipt; see revenue-right valuation"
+      },
+      {
+        "item": "0x3f13ce02d4a85ecacba5b5a5e6658105bf3f9208088d43b2d394a1c1ca00d656",
+        "reason": "no observable price for the skill asset itself"
+      }
+    ],
+    "coverage": "cash and the open payable only"
+  },
+  "result": {
+    "kind": "monetary",
+    "value": "70.00",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Vector \"Net equity\": cash 100, payable 30, no other positions. The skill asset and the receivables are deliberately left out and listed as missing."
+}
