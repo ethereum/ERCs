@@ -26,7 +26,9 @@ interface INameWrapperEvents {
 ///         within one registration, or a parent reassigning a subname that still has a
 ///         holder, emits neither event and leaves attestations eligible. It is applied in addition to `verifyPath`, whose verdict it never
 ///         widens, and it fails closed (`Unknown`) whenever the evidence it needs is
-///         missing or inconsistent.
+///         missing or inconsistent. It does not apply the liveness check for a wrapped
+///         trustor under "Wrapped Name Lifecycle", which reads the trustor's controller at
+///         the decision; a coordinator applies that check as well.
 ///
 ///         Inputs are what a coordinator holds off-chain: logs from `eth_getLogs` for the
 ///         registry, the BaseRegistrar and the NameWrapper, a block window the caller
