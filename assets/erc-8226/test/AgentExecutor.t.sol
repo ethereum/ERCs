@@ -56,7 +56,7 @@ contract AgentExecutorTest is Test {
         actions[0] = bytes32(TRANSFER_FROM);
         actions[1] = bytes32(APPROVE);
         actions[2] = bytes32(SWAP);
-        IAgentMandate.GrantMandateParams memory p = IAgentMandate.GrantMandateParams({
+        IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
             agent: agent,
             validFrom: 0,
             validUntil: uint48(block.timestamp + 1 days),
@@ -71,7 +71,7 @@ contract AgentExecutorTest is Test {
             deadline: 0
         });
         vm.prank(principal);
-        mandate.grantMandate(p, "");
+        mandate.grantMandate(params, "");
 
         vm.startPrank(admin);
         mandate.grantRole(mandate.RECORDER_ROLE(), address(executor));
@@ -89,7 +89,7 @@ contract AgentExecutorTest is Test {
     }
 
     function test_AmountArgReadByIndexWithDynamicArgBefore() public {
-        // swap(uint256 a, uint256[] t, uint256 amount): amount is arg index 2. The dynamic `t` at index 1
+        // swap(uint256 minimumOut, uint256[] path, uint256 amount): amount is arg index 2. The dynamic `path` at index 1
         // only stores an offset in its head slot, so amount still sits at 4 + 32*2 and must decode as 42.
         vm.prank(executorOwner);
         executor.setAction(SWAP, true, true, 2);
@@ -101,7 +101,7 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         executor.execute(address(token), abi.encodeWithSelector(SWAP, uint256(111), arr, uint256(42)));
 
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 42);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 42);
     }
 
     function test_ApproveWithAmountAtDifferentIndex() public {
@@ -113,7 +113,7 @@ contract AgentExecutorTest is Test {
         executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(400)));
 
         assertEq(token.allowance(address(executor), spender), 400);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 400);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 400);
     }
 
     function test_Misconfig_ValueBearingActionAsValueless_BypassesCap() public {
@@ -126,7 +126,7 @@ contract AgentExecutorTest is Test {
         executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(700)));
 
         assertEq(token.allowance(address(executor), spender), 700); // the forwarded call still ran
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 0); // but the cap was untouched
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 0); // but the cap was untouched
     }
 
     function test_RevertsAmountIndexOutOfRange() public {
@@ -205,7 +205,7 @@ contract AgentExecutorTest is Test {
 
     function test_RevertsWhenRevoked() public {
         vm.prank(principal);
-        mandate.revokeMandate(agent, principal, 0, "");
+        mandate.revokeMandate(agent, principal, address(token), 0, "");
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -265,6 +265,6 @@ contract AgentExecutorTest is Test {
     function test_TransfersAndRecords() public {
         _transfer(recipient, 500);
         assertEq(token.balanceOf(recipient), 500);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 500);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 500);
     }
 }

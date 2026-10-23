@@ -35,6 +35,6 @@ abstract contract RamsGated {
 
         _;
 
-        if (agentCall) rams.recordExecution(msg.sender, holder, action, amount);
+        if (agentCall) rams.recordExecution(msg.sender, holder, address(this), action, amount);
     }
 }
