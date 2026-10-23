@@ -3228,6 +3228,29 @@ contract TrustRegistryTest is Test {
         assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, mallory, path), "repointed");
     }
 
+    /// @dev Denial excludes a name, not the address it resolves to: with two endorsed
+    ///      names resolving to one address, denying one still admits the address through
+    ///      the other, with no new endorsement
+    function test_ValidateParticipantAddress_DeniedNameAliasStillAdmitsAddress() public {
+        _grant(aliceKey, ALICE, BOB, TrustLevel.Full, UNIVERSAL, 1);
+        _grant(aliceKey, ALICE, CAROL, TrustLevel.Full, UNIVERSAL, 2);
+        _setGate(_defaultParams());
+        _bindAddr(BOB, mallory);
+        _bindAddr(CAROL, mallory);
+        TrustPath memory viaBob = _path(_nodes2(ALICE, BOB));
+        TrustPath memory viaCarol = _path(_nodes2(ALICE, CAROL));
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, mallory, viaBob), "via bob");
+        assertTrue(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, mallory, viaCarol), "via carol");
+
+        _deny(ALICE, alice, BOB, UNIVERSAL);
+        assertFalse(registry.validateParticipantAddress(coordinator, MEV_COORDINATION, mallory, viaBob), "denied name");
+        assertTrue(
+            registry.validateParticipantAddress(coordinator, MEV_COORDINATION, mallory, viaCarol),
+            "the alias still admits the address"
+        );
+        assertFalse(registry.validateParticipantWithPath(coordinator, MEV_COORDINATION, BOB, viaBob), "by node: denied");
+    }
+
     function test_ValidateParticipantAddress_RevertsWhenNoGate() public {
         _bindAddr(CAROL, carol);
 
