@@ -11,3 +11,6 @@ server/coverage/
 # Editor / OS
 .DS_Store
 *.log
+
+# Foundry libraries (installed per reference/README.md, not vendored)
+contracts/lib/

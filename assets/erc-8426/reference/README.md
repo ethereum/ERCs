@@ -9,6 +9,7 @@ This code exists to teach the specification, not to ship a product. Everything i
 | Spec section | Where it lives here |
 | --- | --- |
 | Contract interface (`IERC721WalletPass`, `0xef5f1e71`) | `contracts/src/IERC721WalletPass.sol` (interface verbatim), `contracts/src/ERC721WalletPass.sol` (minimal ERC-721 implementation) |
+| Issuer identity commitment (OPTIONAL, `IERC721WalletPassIssuer`, `0x470be7e9`) | `contracts/src/IERC721WalletPassIssuer.sol` (interface verbatim), identifier asserted in `contracts/test/ERC721WalletPass.t.sol` |
 | `PassUpdate` / `BatchPassUpdate` events | `contracts/src/ERC721WalletPass.sol` (a mutable per-token level emits `PassUpdate`; `refreshPasses` emits an inclusive `BatchPassUpdate`), tests in `contracts/test/ERC721WalletPass.t.sol` |
 | Pass manifest | `server/src/passStore.ts` (manifest shape and capability mapping), `GET /manifest/:tokenId` in `server/src/app.ts` |
 | Acquisition URLs (capability URLs, rotation) | `server/src/passStore.ts` (`rotateOnTransfer`), `GET /passes/:format/:token` |

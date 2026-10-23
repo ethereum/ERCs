@@ -7,6 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ERC721WalletPass} from "../src/ERC721WalletPass.sol";
 import {IERC721WalletPass} from "../src/IERC721WalletPass.sol";
+import {IERC721WalletPassIssuer} from "../src/IERC721WalletPassIssuer.sol";
 
 contract ERC721WalletPassTest is Test {
     // Redeclared so the tests can assert on emission with expectEmit.
@@ -41,6 +42,13 @@ contract ERC721WalletPassTest is Test {
     /// The whole standard hangs on this constant being correct.
     function test_InterfaceIdEqualsSpecValue() public pure {
         assertEq(type(IERC721WalletPass).interfaceId, bytes4(0xef5f1e71));
+    }
+
+    /// The OPTIONAL issuer identity commitment has its own identifier; the
+    ///  core interface id above is unchanged by it.
+    function test_IssuerCommitmentInterfaceIdEqualsSpecValue() public pure {
+        assertEq(type(IERC721WalletPassIssuer).interfaceId, bytes4(0x470be7e9));
+        assertTrue(type(IERC721WalletPassIssuer).interfaceId != type(IERC721WalletPass).interfaceId);
     }
 
     function test_SupportsWalletPassInterface() public view {
