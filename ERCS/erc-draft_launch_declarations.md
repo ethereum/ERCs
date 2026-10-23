@@ -1,0 +1,447 @@
+---
+eip: 99906
+title: Launch Declarations
+description: Typed facts a launchpad declares for a token launch, such as the creator's identity and liquidity locks, keyed to ERC-8376 launch ids
+author: Priors contributors (@priors-agents)
+discussions-to: https://ethereum-magicians.org/t/erc-tba-launch-declarations-an-extension-of-erc-8376/30038
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-10-20
+requires: 165, 712, 721, 1271, 8004, 8376
+---
+
+## Abstract
+
+This proposal extends [ERC-8376](./eip-8376.md) with the facts a launchpad declares when it launches a token: the
+creator and the [ERC-8004](./eip-8004.md) identity it holds, the supply allocated outside the sale and how it vests, the
+lock that holds the launch's liquidity and who financed that liquidity, and where the creator's fees are paid. When the
+ERC-8376 directory lists the launch, a declarations contract records them under its ERC-8376 `launchId`, with the
+creator taken from the directory and the venue the directory names as the only writer. Otherwise it records them under
+an identifier scoped to the launchpad that declares them, which no other address can write under. A launchpad can name
+a creator outside the directory, or attach a creator's identity, only with that creator's authorization: the creator
+calls, or signs it. Nothing declared can be changed, so detectors, wallets and lenders can compare what a launchpad
+declared with what they observe.
+
+## Motivation
+
+A buyer judging a new token sees inferred signals at best. Who launched it, whether that creator has a record to lose,
+how much supply it kept and on what schedule, and whether the liquidity is locked or borrowed are not declared anywhere
+a scanner or a contract can read.
+
+ERC-8376 lists launches in a directory and has detectors infer twelve signals about the deployer's conduct after the
+fact. Two of its abuse patterns refer to a declaration it never defines: `PATTERN_INSIDER_ALLOCATION` is an
+"undisclosed pre-allocation", and `PATTERN_RETAINED_CONTROL` is control kept "contrary to what was disclosed at
+launch". While nothing is declared in a form a detector can read, it cannot tell a disclosed allocation from an
+undisclosed one.
+
+The launchpad knows these facts when it launches: it mints the supply, sends the allocations, seeds the pool and sets
+the fee recipient. Declaring them in the launch transaction costs little, and makes each one a public claim by the
+launchpad that a detector can check against the chain. Declaring the creator's identity lets a reader fetch that
+identity's record, such as its ERC-8004 reputation, at the moment it decides whether to buy or to lend.
+
+[ERC-7572](./eip-7572.md) lets a contract point at metadata of its choosing. That is not enough here: a detector
+comparing a declared allocation with the transfers it sees needs typed fields, and a lender that decides inside a
+transaction whether to finance a launch needs to read them from a contract.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT
+RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Interface
+
+A declarations contract MUST implement `ILaunchDeclarations` and [ERC-165](./eip-165.md), returning `true` for the
+interface identifier of `ILaunchDeclarations` and for `0x01ffc9a7`.
+
+```solidity
+interface ILaunchDeclarations {
+    enum IdKind { None, Erc8376, Venue }
+
+    struct Declaration {
+        IdKind kind;
+        address token;
+        address creator;
+        address venue;
+        address identityRegistry;
+        uint256 agentId;
+        uint64 declaredAt;
+    }
+
+    struct Allocation {
+        address holder;
+        uint256 amount;
+        uint64 vestStart;
+        uint64 vestEnd;
+        uint64 declaredAt;
+    }
+
+    struct Liquidity {
+        address liquidityLocks;
+        uint256 lockId;
+        address lender;
+        address asset;
+        uint256 financed;
+        uint64 dueAt;
+        uint64 declaredAt;
+    }
+
+    struct FeeRecipient {
+        address feeRights;
+        address recipient;
+        uint64 declaredAt;
+    }
+
+    event CreatorDeclared(bytes32 indexed declarationId, IdKind kind, address indexed token, address indexed creator, address venue, address identityRegistry, uint256 agentId);
+    event AllocationDeclared(bytes32 indexed declarationId, address indexed holder, uint256 amount, uint64 vestStart, uint64 vestEnd);
+    event LiquidityDeclared(bytes32 indexed declarationId, address liquidityLocks, uint256 lockId, address lender, address asset, uint256 financed, uint64 dueAt);
+    event FeeRecipientDeclared(bytes32 indexed declarationId, address feeRights, address recipient);
+
+    function launchDirectory() external view returns (address);
+    function declareListedCreator(bytes32 launchId, address identityRegistry, uint256 agentId, uint256 deadline, bytes calldata creatorSignature) external;
+    function declareVenueCreator(address token, address creator, address identityRegistry, uint256 agentId, uint256 deadline, bytes calldata creatorSignature) external returns (bytes32 declarationId);
+    function venueNonce(address venue, address token, address creator) external view returns (uint256);
+    function declareAllocation(bytes32 declarationId, address holder, uint256 amount, uint64 vestStart, uint64 vestEnd) external;
+    function declareLiquidity(bytes32 declarationId, address liquidityLocks, uint256 lockId, address lender, address asset, uint256 financed, uint64 dueAt) external;
+    function declareFeeRecipient(bytes32 declarationId, address feeRights, address recipient) external;
+    function getDeclaration(bytes32 declarationId) external view returns (Declaration memory);
+    function allocationsOf(bytes32 declarationId, uint256 start, uint256 limit) external view returns (Allocation[] memory);
+    function liquidityOf(bytes32 declarationId, uint256 start, uint256 limit) external view returns (Liquidity[] memory);
+    function feeRecipientsOf(bytes32 declarationId, uint256 start, uint256 limit) external view returns (FeeRecipient[] memory);
+    function declarationIdsOf(address token, uint256 start, uint256 limit) external view returns (bytes32[] memory);
+    function declarationIdsBy(address creator, uint256 start, uint256 limit) external view returns (bytes32[] memory);
+}
+```
+
+### Terms
+
+- The **directory** is the ERC-8376 `ILaunchDirectory` whose address `launchDirectory()` returns. `launchDirectory()`
+  MUST NOT change.
+- A **venue** is, as in ERC-8376, the launchpad, bonding curve or sale contract through which a token is launched. Here
+  it is also the address that writes a declaration.
+- The **creator** is the party that brought the launch, which ERC-8376 calls the deployer: the applicant, not the
+  factory that created the token.
+- A **declaration** is the creator, its identity and the facts a venue declares about one launch, under one
+  `declarationId`.
+
+### Identifiers
+
+A declaration has one of two kinds of identifier.
+
+- **ERC-8376 identifiers** (`IdKind.Erc8376`). For a launch the directory lists, at whatever ERC-8376 conformance level,
+  the `declarationId` is the launch's ERC-8376 `launchId`. A venue SHOULD declare every launch the directory lists under
+  its `launchId`, and SHOULD NOT also declare it under a venue-scoped identifier.
+- **Venue-scoped identifiers** (`IdKind.Venue`). For a launch the directory does not list, such as a launch at a venue
+  outside ERC-8376, or at a venue at ERC-8376's consumer level that does not list its launches, the `declarationId` is
+  derived as shown below, where `venue` is the caller and `nonce` is the number of venue-scoped declarations the
+  contract recorded earlier for the same `venue`, `token` and `creator`. `venueNonce(venue, token, creator)` MUST return
+  that number.
+
+```
+declarationId = keccak256(abi.encode(VENUE_SCOPED, block.chainid, venue, token, creator, nonce))
+VENUE_SCOPED  = keccak256("erc.launch-declarations.venue-scoped")
+```
+
+The venue is part of a venue-scoped identifier, as the escrow is part of an ERC-8376 `launchId`: two venues launching
+the same token for the same creator get different identifiers, and no address can produce the identifier of another
+venue's declaration. `VENUE_SCOPED` keeps the two kinds apart. Without it the preimage would have the shape of a
+`launchId`, and a venue that lists its own launches, and so is the escrow named in their identifiers, would derive for
+the same token, creator and nonce the `launchId` of a launch the directory lists.
+
+`IdKind.None` is the kind of an identifier under which nothing is declared.
+
+### Opening a declaration
+
+`declareListedCreator(launchId, identityRegistry, agentId, deadline, creatorSignature)` opens a declaration under an
+ERC-8376 identifier.
+
+- It MUST revert unless the caller is the directory's `venueOf(launchId)`. A launch the directory does not list has no
+  venue, so nobody can declare under its `launchId` before it is listed.
+- It MUST record the directory's `tokenOf(launchId)` as the token and its `deployerOf(launchId)` as the creator, and
+  MUST revert if either is the zero address. The creator of an ERC-8376 declaration is therefore always the deployer
+  ERC-8376 records.
+- When `identityRegistry` is not the zero address, it MUST revert unless the creator authorized the declaration, as
+  defined below. Without an identity it needs no authorization: it names the deployer the directory already records.
+
+`declareVenueCreator(token, creator, identityRegistry, agentId, deadline, creatorSignature)` opens a declaration under
+a venue-scoped identifier.
+
+- It MUST NOT restrict its caller beyond the creator's authorization. The caller is the declaration's venue.
+- It MUST revert if `token` or `creator` is the zero address.
+- It MUST revert unless the creator authorized the declaration, as defined below.
+- It MUST derive the identifier as above, and return it.
+
+Both functions:
+
+- MUST revert if a declaration already exists under the identifier.
+- MUST check the creator's identity. `identityRegistry` and `agentId` name the creator's identity in an ERC-8004
+  identity registry, or in another [ERC-721](./eip-721.md) registry, and are both zero when the creator declares none.
+  When `identityRegistry` is the zero address, the call MUST revert unless `agentId` is zero. Otherwise it MUST revert
+  unless the registry has code and the creator is the registry's `ownerOf(agentId)`, or the registry's
+  `getAgentWallet(agentId)` where the registry provides that function.
+- MUST record the caller as the venue, the kind, the identity and the block timestamp as `declaredAt`, add the
+  identifier to the list of its token and the list of its creator, and emit `CreatorDeclared`.
+
+### The creator's authorization
+
+The creator authorizes a declaration either by being the caller, or by signing it. A signature is over the
+[EIP-712](./eip-712.md) typed data below, in the domain whose `name` is "Launch Declarations", whose `version` is "1",
+whose `chainId` is the current chain id and whose `verifyingContract` is the declarations contract:
+
+```
+CreatorAuthorization(bytes32 declarationId,address venue,address token,address creator,address identityRegistry,uint256 agentId,uint256 deadline)
+```
+
+`declarationId` is the identifier being opened: the `launchId`, or the venue-scoped identifier derived with
+`venueNonce(venue, token, creator)` as its nonce. `venue` is the caller, and the other fields are the call's arguments,
+with `token` and `creator` read from the directory for an ERC-8376 identifier.
+
+- When the caller is the creator, the call MUST accept it as authorized, whatever `deadline` and `creatorSignature` are.
+- Otherwise the call MUST revert if `block.timestamp` is after `deadline`, and MUST revert unless `creatorSignature`
+  is valid for the creator: either a 65-byte signature from which `ecrecover` returns the creator, with `s` at most
+  half the secp256k1 group order, or, where the creator has code, a signature for which its
+  [ERC-1271](./eip-1271.md) `isValidSignature(digest, creatorSignature)` returns `0x1626ba7e`.
+
+An authorization opens one declaration, at one venue, for one token, one creator and one identity, on one chain and
+at one declarations contract. Once it is used it cannot be used again: an ERC-8376 identifier opens once, and a
+venue-scoped one includes the nonce, which moves on.
+
+### Declaring facts
+
+`declareAllocation`, `declareLiquidity` and `declareFeeRecipient` MUST revert unless the caller is the venue of an
+existing declaration `declarationId`. Each MUST append one fact to the declaration, with the block timestamp as its
+`declaredAt`, and emit the matching event. A declaration can hold any number of each fact. Facts can be declared after
+the launch, such as liquidity that reaches a pool when a bonding curve completes.
+
+- **Allocation.** `amount` of the token, in its base units, was or will be allocated to `holder` outside the public
+  sale, and vests linearly from `vestStart` to `vestEnd`. Equal times mean the whole amount is free at that time; zero
+  for both means it is free from launch. `holder` MAY be a vesting contract. The call MUST revert if `holder` or
+  `amount` is zero, or if `vestEnd` is before `vestStart`.
+- **Liquidity.** The launch's liquidity, or a part of it, is held in the lock `lockId` of `liquidityLocks`, a contract
+  implementing the Liquidity Locks proposal (a separate draft). If a lender financed that liquidity, `lender` lent
+  `financed` of `asset` (the zero address for the native currency) toward it, due at `dueAt` (zero for no due date). The
+  call MUST revert if `liquidityLocks` is zero, if `lender` is zero and any of `asset`, `financed` and `dueAt` is not,
+  and if `lender` is not zero and `financed` is.
+- **Fee recipient.** The token's creator fees are accounted in `feeRights`, a contract implementing the Creator Fee
+  Rights proposal (a separate draft), and `recipient` was their recipient when declared. The call MUST revert if
+  `feeRights` or `recipient` is zero.
+
+The declarations contract stores these addresses and ids as given, and does not call them.
+
+### Amendment and supersession
+
+A declaration is never amended and never superseded.
+
+- A declaration, and every fact declared under it, MUST NOT be changed or removed. Opening a declaration again under
+  its identifier reverts, as required above.
+- A fact declared later does not replace an earlier one. A venue that declared a fact wrongly declares the right one as
+  well. Both remain, and a reader tells the correction by its later `declaredAt`.
+- A relaunch is a new launch with its own declaration: under its own `launchId`, or under a venue-scoped identifier
+  with the next nonce. Opening it MUST NOT change any earlier declaration or its facts. No declaration names another as
+  superseded: a reader reads every declaration of a token through `declarationIdsOf`, as an ERC-8376 consumer checks
+  every launch of a token, and SHOULD NOT treat the newest as replacing the others.
+
+### Reading
+
+- `getDeclaration(declarationId)` MUST return the declaration, and for an identifier with none a `Declaration` whose
+  kind is `IdKind.None` and whose other fields are zero. It MUST NOT revert.
+- `allocationsOf(declarationId, start, limit)`, `liquidityOf(declarationId, start, limit)` and
+  `feeRecipientsOf(declarationId, start, limit)` MUST return the facts of `declarationId` in the order they were
+  declared, starting at position `start` and returning at most `limit`, and an empty list when `start` is at or past
+  the end, as for an identifier with none.
+- `declarationIdsOf(token, start, limit)` MUST return the identifiers of the declarations of `token`, of both kinds, in
+  the order they were opened, starting at position `start` and returning at most `limit`, and an empty list when
+  `start` is at or past the end. `declarationIdsBy(creator, start, limit)` MUST do the same for the declarations whose
+  creator is `creator`.
+
+### Relation to ERC-8376
+
+- An ERC-8376 declaration is reached from a token or a deployer through the directory's `launchesOf` and `launchesBy`,
+  as well as through `declarationIdsOf` and `declarationIdsBy`, and its identifier is the one every ERC-8376 interface
+  is keyed on.
+- A venue-scoped declaration is outside ERC-8376's coverage. It never appears in `launchesOf` or `launchesBy`, and
+  ERC-8376 consumers treat its token as having no launch record; declaring it does not change that. It is reached only
+  through `declarationIdsOf` and `declarationIdsBy`.
+- A token MAY have several declarations, as it MAY have several launches under ERC-8376: relaunches, launches at
+  several venues, and launches by several creators.
+- This proposal changes nothing in ERC-8376: its directory, identifiers, signals and obligations stay as they are.
+
+### Use by ERC-8376 detectors
+
+ERC-8376's `ILaunchDetector.observe` takes some figures as supplied `ChainInputs` instead of deriving them.
+Declarations are an on-chain source for them:
+
+- `deployerWallets`: the declared creator, to which a detector adds the wallets it attributes to the creator by funding.
+- `deployerAllocation`: the declared allocations whose holder is one of those wallets.
+- `lockSinks`: the declared `liquidityLocks` contracts.
+- `lpToken`, or `lockedLiquidity` where positions are non-fungible, and `lpLockRemaining`: the position, amount and
+  unlock time of each declared lock, read from its Liquidity Locks contract, with `lpLockRemaining` taken from the lock
+  that unlocks first, as ERC-8376 takes the shortest.
+
+A declared figure is the venue's claim. A detector SHOULD check it against chain state before supplying it, since
+ERC-8376 holds a detector's bond to the figures it supplies, and SHOULD treat an allocation that the chain shows and the
+declarations omit as undisclosed in the sense of `PATTERN_INSIDER_ALLOCATION`.
+
+## Rationale
+
+- **An extension, not a second directory.** ERC-8376 already resolves a token or a deployer to its launches.
+  Declarations hang off its `launchId`, so a detector that holds a launch reads the declared facts with one more call,
+  and only launches ERC-8376 does not list need an identifier of their own.
+- **The venue declares.** ERC-8376 has the venue declare the deployer, because the venue knows who applied. The same
+  party knows the allocations, the lock and the fee recipient. For an ERC-8376 identifier the writer is the directory's
+  `venueOf(launchId)`. The directory lists a launch only for the escrow named in its identifier, and that escrow names
+  the venue in the same call, so no other address can become a launch's venue, and an escrow can name a venue only for
+  its own launches. The escrow itself does not write: one escrow can hold launches for several venues, and a launchpad
+  that lists its own launches is both.
+- **The creator is read, not repeated.** Taking the creator of an ERC-8376 declaration from `deployerOf` means the two
+  can never disagree, and a venue cannot attach an identity to a launch whose recorded deployer does not hold it.
+- **A venue-scoped identifier shaped like a `launchId`.** Its fields follow ERC-8376's derivation with the venue in the
+  escrow's place, so it has the same properties: bound to one chain, distinct per venue and per relaunch, and impossible
+  to squat. The domain tag keeps it from ever equalling a `launchId`.
+- **The identity is checked when it is declared.** A reader that shows "launched by agent #n" looks up that agent's
+  record. The check means the creator held the identity at that moment, as its owner or as the agent wallet whose
+  control ERC-8004 has the owner prove. The identity can change hands later; the declaration says who held it at launch.
+- **The creator consents.** Holding an identity is not agreeing to a launch. Without consent any address could name a
+  creator with a good record, attach its genuine identity, declare facts under it and appear in its history through
+  `declarationIdsBy`. A venue-scoped declaration has nothing else behind it, so it always needs the creator's
+  authorization. An ERC-8376 declaration names the deployer that the directory already records on the venue's word,
+  which ERC-8376 accepts, so requiring a signature for the name alone would add nothing the directory does not already
+  say. What it adds is the identity, the claim a reader acts on, so attaching one needs the creator's authorization.
+  A creator that is its own venue just calls; one that launches through a launchpad signs once, in its launch request.
+- **Typed data a wallet can show.** The authorization spells out the venue, the token, the creator and the identity,
+  so a wallet shows the creator what it signs. The declaration identifier binds the nonce or the `launchId`, the domain
+  binds the chain and the contract, and the deadline bounds how long an unused authorization stays good. ERC-1271 lets
+  an agent's smart account authorize, since agents often hold their keys behind one. Low-`s` signatures only, so that
+  a signature has one valid form.
+- **Facts are appended, never edited.** A launch's facts do not all exist at once: liquidity often reaches a pool after
+  launch. Appending each fact with its time lets a venue declare it when it happens, and lets a reader see a fact
+  declared after the event it describes.
+- **No amendment, no supersession.** A declaration is worth reading because the venue is held to it. A venue able to
+  amend an allocation, or to mark a declaration superseded, could withdraw an allocation once its holder had sold, which
+  is the conduct ERC-8376's patterns describe. A wrong fact is corrected by declaring the right one beside it, and a
+  reader sees both with their times. A relaunch is not a correction: ERC-8376 counts it as another launch, and an
+  abusive earlier launch still counts against a clean relaunch, so its declaration stands beside the earlier one. Under
+  an ERC-8376 identifier a replacement would have no identifier of its own anyway, since a launch has one `launchId`.
+- **A source for the detector's inputs.** ERC-8376 leaves the deployer's wallets and allocation, the lock addresses and
+  the lock figures to whoever runs a detector. Declarations put them on chain, written by the venue at launch, so two
+  detectors start from the same figures and either can show where the other departed from them.
+- **Pointers, not copies.** A lock and a fee stream are named by contract and id, and are not read. This proposal does
+  not depend on the interfaces of the Liquidity Locks and Creator Fee Rights drafts, and a reader verifies the lock and
+  the fee stream with the contracts it trusts.
+- **Views as well as events.** Events let an indexer rebuild every declaration. Views let a contract, such as a lender
+  deciding whether to finance a launch's liquidity, read the facts in the transaction that acts on them.
+- **Paged lists.** Any address can open venue-scoped declarations of its own launches of any token, and a venue can
+  declare as many facts as it likes under its own declarations, so every list can be made arbitrarily long. All of
+  them, by token, by creator and of each kind of fact, are read in pages, so a contract can bound what a read costs.
+
+## Backwards Compatibility
+
+No backward compatibility issues found. Venues at any ERC-8376 conformance level, and venues that do not implement
+ERC-8376, can declare without changing how they settle. A launchpad whose launch contract cannot be changed can declare
+venue-scoped facts from an address it controls and publish that address, with each creator's signature; it can
+declare under an ERC-8376 identifier only if that address is the venue its escrow names.
+
+## Test Cases
+
+A conforming declarations contract, next to an ERC-8376 directory, passes these cases:
+
+- A launchpad that lists its own launches lists a launch and declares its creator, with the identity the applicant
+  authorized in its launch request, an allocation, its liquidity and its fee recipient in one transaction.
+  `getDeclaration(launchId)` returns kind `Erc8376`, the applicant as creator and the launchpad as venue, and the fact
+  views and both lists return what it declared.
+- An escrow lists a launch of token T by deployer C with venue V. V's declaration records `tokenOf(launchId)` as the
+  token and `deployerOf(launchId)` as the creator and emits `CreatorDeclared`. For a launch whose deployer does not hold
+  identity N, declaring N reverts.
+- Under an ERC-8376 identifier, the escrow, the deployer and any other address cannot declare. The venue can, once.
+- Before the escrow lists a launch, nobody, its future venue included, can declare under its predictable `launchId`,
+  and nobody but the escrow can list it. Once it is listed, the venue can declare.
+- A listed launch with a zero deployer or a zero token cannot be declared.
+- A venue that creator C never authorized cannot declare token T for C, with or without C's identity, nor with a
+  signature by another key, and `declarationIdsBy(C)` stays empty. C declaring as its own venue, and venue V with C's
+  signature, both can.
+- Under an ERC-8376 identifier, attaching the deployer's identity without its signature, or with another key's,
+  reverts, and with its signature succeeds. Without an identity no signature is needed.
+- C's signature for V, T and identity N cannot be used by another venue, for another token, without the identity, in
+  its high-`s` form, or a second time. A signature for a listed launch cannot open its relaunch, and one past its
+  deadline reverts.
+- A signature made for another declarations contract, or for another chain id, reverts; the same fields signed for this
+  contract and chain succeed.
+- A contract creator authorizes through ERC-1271 with a signature its key made. A signature by another key, or a
+  creator contract that does not implement ERC-1271, reverts.
+- Venue V declaring T for C twice gets the venue-scoped identifiers with nonces 0 and 1, and `venueNonce(V, T, C)`
+  reads 0, 1 and 2 along the way. Another creator at the same venue starts at nonce 0.
+- Two venues declaring T for C get different identifiers, and neither can declare facts under the other's.
+- An address that declares its own launch of T before venue V declares T for C gets its own identifier: V's identifier
+  is the one derived from V with nonce 0, the declaration records who wrote it, and the first address cannot declare
+  facts under V's.
+- A launchpad that is the escrow in its own `launchId`s declares the same token and creator under both kinds, in either
+  order. The identifiers differ, although the derivation without `VENUE_SCOPED` equals the `launchId`.
+- The same venue-scoped declaration under chain id 4663 gets the identifier derived with 4663.
+- The owner of identity N, and the agent wallet its owner set, can be declared with N. Another address, an id never
+  issued, and the former owner after a transfer cannot. A registry without `getAgentWallet` is read through `ownerOf`
+  alone. A registry address without code reverts with the identity error, under either kind of identifier. A zero
+  registry with a non-zero `agentId` reverts.
+- Only the declaration's venue can declare facts, and only for an existing declaration. Allocations, liquidity (without
+  financing, financed in a token, and financed in the native currency) and fee recipients are returned in the order
+  declared, each with its time, and every empty or inconsistent field named above reverts.
+- Three days after a declaration was opened with an allocation, its venue declares the liquidity and a corrected
+  amount for the same holder. Both are appended with their own time, the first allocation and the declaration are
+  unchanged, and opening the declaration again reverts.
+- A launch declared with an allocation is relaunched thirty days later and declared again with another allocation, and
+  a venue outside ERC-8376 declares two launches of the same token. Each is a new declaration, the first one and its
+  allocation are unchanged, and `declarationIdsOf` lists all four, oldest first.
+- `getDeclaration` of an identifier with no declaration returns kind `None` and zero fields, and the fact views return
+  empty lists.
+- One token with two listed launches, one venue-scoped launch by the same creator and one by another creator:
+  `declarationIdsOf` returns all four, oldest first, while the directory's `launchesOf` returns the two listed ones.
+- With five declarations of a token, `declarationIdsOf(token, 1, 2)` returns the second and the third,
+  `declarationIdsOf(token, 5, 10)` returns an empty list, and `declarationIdsOf(token, 1, type(uint256).max)` returns
+  four.
+- With five facts of each kind, `allocationsOf(id, 1, 2)` returns the second and third allocations, `liquidityOf` and
+  `feeRecipientsOf` return the pages asked for, and a page past the end is empty. After the venue adds 300 more
+  allocations, a call limited to 300,000 gas still reads the first ten.
+
+## Reference Implementation
+
+`LaunchDeclarations` accompanies this proposal with its tests, a mock ERC-8376 directory, a mock ERC-8004 identity
+registry, a mock ERC-1271 wallet, and a mock launchpad that lists a launch and declares its facts in one transaction
+with the creator's signature. It stores each declaration and its facts, keeps the venue-scoped nonce per venue, token
+and creator, appends identifiers to per-token and per-creator lists, and exposes the digest a creator signs as
+`authorizationDigest`.
+
+## Security Considerations
+
+- **A declaration is a claim.** It proves only that the venue made it. Its value is that it can be checked: a detector
+  compares declared allocations with transfers, a declared lock with the lock contract, and a declared fee recipient
+  with the fee-rights contract, and a mismatch is evidence against the venue and the creator.
+- **Who wrote it.** Any address can open venue-scoped declarations naming any token, and any creator that authorizes
+  it. Readers SHOULD count only declarations whose venue they trust, and SHOULD obtain the address of the declarations
+  contract from a source independent of the launch, as ERC-8376 asks of its directory. For an ERC-8376 declaration, the
+  venue is the one the escrow named, and a reader that trusts an escrow's listings can trust its venue on the same
+  terms.
+- **Consent, and its limits.** A venue-scoped declaration, and any declaration that carries an identity, was
+  authorized by its creator, and the identity check shows the creator held the identity at that moment. An ERC-8376
+  declaration without an identity names the deployer on the venue's word, as the directory does, so a reader SHOULD
+  treat that creator as the venue's claim. An authorization says only that the creator agreed to be named for that
+  token at that venue; it does not vouch for the facts the venue declares afterwards.
+- **Signing ahead.** A creator that launches through a factory signs before its token exists, so it signs the address
+  the token will have, which a factory deploying with `CREATE2` makes known in advance. An unused authorization stays
+  good until its deadline for the venue it names, so creators SHOULD set a short deadline. A contract creator's
+  ERC-1271 logic decides what it accepts, and a reader relies on that logic as much as on the creator's key.
+- **Pointers are not verified.** The declarations contract calls neither the lock nor the fee-rights contract. A reader
+  checks that the lock holds liquidity of a pool that trades the token, its unlock time and its beneficiary, and that
+  the locker cannot release it early, and reads the fee-rights contract's current recipient for the token.
+- **Late facts.** Facts can be appended at any time. A reader SHOULD weigh a fact declared after the event it
+  describes, such as an allocation declared after its holder sold, as a correction and not as a disclosure.
+- **Absence.** A token with no declaration, or with no allocation declared, may still have allocations. A token with
+  no declaration is outside this proposal's coverage, as an unlisted token is outside ERC-8376's, and SHOULD be
+  presented as unknown, not as safe.
+- **Long lists.** The lists by token and by creator can be lengthened by anyone, and a venue can lengthen the fact
+  lists of its own declarations, so every list is read in pages. A contract SHOULD read a page of a size it can afford,
+  and SHOULD NOT assume that a first page is the whole list.
+- **Identities change hands.** An ERC-8004 identity can be transferred after launch. The declaration records who held
+  it at launch; a reader looking up the identity's record decides whether a later owner answers for it.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
