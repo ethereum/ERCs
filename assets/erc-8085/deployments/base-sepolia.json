@@ -1,0 +1,51 @@
+{
+  "network": "Base Sepolia",
+  "chainId": 84532,
+  "deployedAt": "2025-12-09T06:10:52.733Z",
+  "blockNumber": 34746182,
+  "contracts": {
+    "DualModeTokenFactory": {
+      "address": "0x64EeF485F82918bBf61dd5349300F5a84f907140",
+      "basescan": "https://sepolia.basescan.org/address/0x64EeF485F82918bBf61dd5349300F5a84f907140#code"
+    },
+    "DualModeToken (Implementation)": {
+      "address": "0xd8714b3E2B490585c22d5a7a030f3946e46940c4",
+      "basescan": "https://sepolia.basescan.org/address/0xd8714b3E2B490585c22d5a7a030f3946e46940c4#code"
+    },
+    "MintVerifier": {
+      "address": "0x0C9F3208b44d26B7e5D0ab145d49b050F5C7fFa5",
+      "basescan": "https://sepolia.basescan.org/address/0x0C9F3208b44d26B7e5D0ab145d49b050F5C7fFa5#code"
+    },
+    "MintRolloverVerifier": {
+      "address": "0x8F1C5De7b7193B0Ce1E9886E5f1c58aE3A5491dF",
+      "basescan": "https://sepolia.basescan.org/address/0x8F1C5De7b7193B0Ce1E9886E5f1c58aE3A5491dF#code"
+    },
+    "ActiveTransferVerifier": {
+      "address": "0x791cd059fA2b4B2d4015408eF6624BBD2F80d50E",
+      "basescan": "https://sepolia.basescan.org/address/0x791cd059fA2b4B2d4015408eF6624BBD2F80d50E#code"
+    },
+    "FinalizedTransferVerifier": {
+      "address": "0x96Bb15bE0a79C1f17dFed17b9D57c3DE1C5eA205",
+      "basescan": "https://sepolia.basescan.org/address/0x96Bb15bE0a79C1f17dFed17b9D57c3DE1C5eA205#code"
+    },
+    "RolloverTransferVerifier": {
+      "address": "0xEB85CA2d80da109fe9348a9B17F2E683BEaa4a07",
+      "basescan": "https://sepolia.basescan.org/address/0xEB85CA2d80da109fe9348a9B17F2E683BEaa4a07#code"
+    }
+  },
+  "cryptoParams": {
+    "subtreeLevels": 16,
+    "rootTreeLevels": 20,
+    "subtreeCapacity": 65536,
+    "initialSubtreeEmptyRoot": "0x2a7c7c9b6ce5880b9f6f228d72bf6a575a526f29c66ecceef8b753d38bba7323",
+    "initialFinalizedEmptyRoot": "0x224ccc25981822d4c5b6fc199fbc74828488741c7151a6159ecfaab7c2a8bac9"
+  },
+  "compiler": {
+    "version": "0.8.20",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true
+  }
+}

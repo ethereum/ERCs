@@ -1,0 +1,66 @@
+@startuml
+title Alice's Private Transfer ERC-20 to Bob with ZWToken Awareness
+
+actor Alice1
+actor "Alice2 / Relayer" as Alice2
+actor Bob
+participant "ZWToken Contract" as ZW
+participant "Underlying Token" as U
+
+== Alice1 Wraps Token into ZWToken ==
+Alice1 -> U : underlying.approve(ZWToken Contract, amount)
+Alice1 <-- U
+Alice1 -> ZW : ZWToken.deposit(to=Alice1, id=0, amount, data="")
+ZW -> U : underlying.transferFrom(Alice1, ZWToken Contract, amount)
+ZW <-- U
+ZW -> ZW : mint ZWToken(amount) to Alice1
+ZW -> ZW : emit Deposited(Alice1, Alice1, id=0,amount)
+Alice1 <-- ZW
+
+note right of Alice1 : Alice1 can do anything with ZWToken before burning
+
+== Alice1 Burns ZWToken ==
+Alice1 -> Alice1 : Generate a provable burn address (e.g., using Poseidon hash)
+Alice1 -> ZW : ZWToken.transfer(to=provable burn address, id=0, amount)
+alt Contract-maintained commitment
+    ZW -> ZW : update commitment
+    ZW -> ZW : emit CommitmentUpdated(id=0, commitment, to, amount)
+end
+Alice1 <-- ZW
+
+== Alice1 Generates Proof of Provable Burn Address for Reminting ==
+alt Contract-maintained commitment
+    Alice1 -> ZW : fetch commit data / event CommitmentUpdated
+    Alice1 <-- ZW
+else Protocol-level MPT commitment
+    Alice1 -> ZW : eth_getProof
+    Alice1 <-- ZW
+end
+Alice1 -> Alice1 : rebuild commitment
+Alice1 -> Alice1 : generate proof for reminting
+
+== Alice2 / Relayer Remints ZWToken to Bob ==
+Alice1 -> Alice2 : provide proof for reminting
+Alice1 <-- Alice2
+Alice2 -> ZW : ZWToken.remint(to=Bob, id=0, amount, data={commitment,nullifiers,proverData,relayerData,redeem=false,proof})
+ZW -> ZW : check nullifier
+ZW -> ZW : mark nullifier as used
+ZW -> ZW : verify ZK proof
+ZW -> ZW : mint amount ZWToken to Bob
+alt Contract-maintained commitment\n(Bob might be a provable burn address)
+    ZW -> ZW : update commitment
+    ZW -> ZW : emit CommitmentUpdated(id=0, commitment, to, amount)
+end
+ZW -> ZW : emit Reminted(from= Alice2 / Relayer,to=Bob, id=0, amount, redeem=false)
+Alice2 <-- ZW
+
+note right of Bob: Bob can do anything with ZWToken before unwrapping
+
+== Bob Unwraps ZWToken ==
+Bob -> ZW : ZWToken.withdraw(to=Bob, id=0, amount, data="")
+ZW -> ZW : burn ZWToken
+ZW -> U : underlying.transfer(to=Bob, amount)
+ZW <-- U
+ZW -> ZW : emit Withdrawn(from=Bob, to=Bob, id=0, amount)
+Bob <-- ZW
+@enduml

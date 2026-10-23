@@ -155,7 +155,7 @@ This will open the card defined in `./onboard.html`. This card invites you to se
 
 Once you click on the `Set Script URI` button your wallet will ask permission to call the `setScriptURI(address contractAddress, string[] uri)` function.
 
-## Test your regsitry
+## Test your registry
 
 1. switch to a new directory and clone the tokenscript viewer repo:
 ```bash

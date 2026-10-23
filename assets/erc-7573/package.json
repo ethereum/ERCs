@@ -1,7 +1,7 @@
 {
   "name": "@finmath.net/dvp",
-  "version": "0.3.1",
-  "description": "Solidity Conditional-upon-Transfer-Decryption for DvP",
+  "version": "0.9.0",
+  "description": "Solidity Conditional-upon-Transfer-Decryption for DvP and nDvP",
   "author": "Christian Fries, Peter Kohl-Landgraf",
   "license": "ISC",
   "homepage": "https://github.com/finmath/finmath-smart-derivative-contract#readme",
@@ -29,11 +29,14 @@
   },
   "keywords": [
     "Delivery versus Payment",
+    "Cross-Chain DvP",
+    "Multi-Party DvP",
     "HTLC",
-    "EIP-7573"
+    "EIP-7573",
+    "Decryption Oracle"
   ],
   "bugs": {
-    "url": "https://github.com/finmath/finmath-smart-derivative-contract/issues"
+    "url": "https://gitlab.com/finmath/finmath-decryption-oracle/-/issues"
   },
   "publishConfig": {
     "access": "public"
