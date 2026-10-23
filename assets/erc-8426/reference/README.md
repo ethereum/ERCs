@@ -44,7 +44,7 @@ The server suite exercises the floor property by property: replayed nonce reject
 
 This is a single-process reference. The nonce store, pass store, and capability mappings are in memory; a production deployment swaps in persistent storage.
 
-Pass generation itself (PKPass signing with Apple certificates, Google Wallet object and JWT minting, platform push) is out of the specification's scope, so acquisition URLs here resolve to JSON stubs that demonstrate the capability mapping and its rotation, not `application/vnd.apple.pkpass` content. The [deployment notes](../implementation-notes.md) cover what a production deployment adds.
+Pass generation itself (PKPass signing with Apple certificates, Google Wallet object and JWT minting, platform push) is out of the specification's scope, so acquisition URLs here resolve to JSON stubs that demonstrate the capability mapping and its rotation, not `application/vnd.apple.pkpass` content. The [platform notes](../implementation-notes.md) cover what the platforms add on top.
 
 Capability rotation has two operational triggers here: the gated manifest path rotates on a new owner's first claim (`rotateOnTransfer`), as Gated acquisition requires, and the rotate route rotates on the owner's signed request (`rotateOnOwnerRequest`). A production deployment adds the third, a transfer watcher, so that rotation also happens when the implementation observes the transfer before the new owner claims. Action links are opaque capabilities that resolve to a stub action here; a production pass generator embeds them in the signed pass. Key management for user accounts is out of scope; tests generate throwaway keys at runtime.
 
