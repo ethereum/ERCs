@@ -1,0 +1,92 @@
+{
+  "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+  "state": 1,
+  "binding": {
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "agentId": 10387,
+    "boundAt": 1790000000
+  },
+  "lastSeen": 1790000000,
+  "livenessWindow": 7776000,
+  "successor": null,
+  "documentDigest": "0x84338d25121ef8ccab309a603154f7cae8619d19eee136cade0dc533026060a0",
+  "document": {
+    "version": "aid-document/v1",
+    "aid": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+    "binding": {
+      "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      "agentId": 10387
+    },
+    "facets": [
+      {
+        "facetType": "aid:review/erc8004/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+        "validUntil": 1799000000,
+        "observedAt": 1790700000,
+        "digest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8004-reputation",
+          "chainId": 11155111,
+          "registry": "0x0000000000000000000000000000000000008004",
+          "agentId": 10387,
+          "tag1": "*"
+        }
+      },
+      {
+        "facetType": "aid:review/erc8004/v1",
+        "provenance": "ATTESTED",
+        "issuer": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+        "validUntil": 1799000000,
+        "observedAt": 1791100000,
+        "digest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8004-reputation",
+          "chainId": 11155111,
+          "registry": "0x0000000000000000000000000000000000008004",
+          "agentId": 10387,
+          "tag1": "*"
+        }
+      },
+      {
+        "facetType": "aid:skills/erc8338/v1",
+        "provenance": "OBSERVED",
+        "issuer": "eip155:11155111:0x65ab82feC38c3A5F2A5b0bd96cB3255E7A45ae42",
+        "validUntil": 1799000000,
+        "observedAt": 1790700000,
+        "digest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "access": {
+          "mode": "PUBLIC"
+        },
+        "resolver": {
+          "kind": "erc8338",
+          "chainId": 11155111
+        }
+      }
+    ]
+  },
+  "onChainFacets": {},
+  "registrationFile": {
+    "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+    "name": "demo-agent",
+    "description": "fixture",
+    "image": "",
+    "active": true
+  },
+  "authorityIntervals": [
+    {
+      "from": 1790000000,
+      "until": 1790500000
+    },
+    {
+      "from": 1791000000,
+      "until": null
+    }
+  ]
+}

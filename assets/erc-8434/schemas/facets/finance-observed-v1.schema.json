@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/facets/finance-observed-v1.schema.json",
+  "title": "aid:finance/observed/v1 — content document",
+  "description": "On-chain financial-behaviour profile of the anchor over an observation window. Computed by a profiler from chain data under an algorithm pinned by `algorithm` (an ERC-8419 schemeId whose descriptor hashes the algorithm). Default access mode is ZK: only keccak256(JCS(this)) (or a commitment) is published; fields are disclosed by predicate proofs or to GATED parties.",
+  "type": "object",
+  "required": ["facetType", "subject", "window", "algorithm", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "facetType": { "const": "aid:finance/observed/v1" },
+    "subject": { "type": "string", "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "window": {
+      "type": "object", "required": ["fromBlock", "toBlock", "fromTime", "toTime"], "additionalProperties": false,
+      "properties": {
+        "fromBlock": { "type": "integer" }, "toBlock": { "type": "integer" },
+        "fromTime": { "type": "integer" }, "toTime": { "type": "integer" }
+      }
+    },
+    "algorithm": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$", "description": "ERC-8419 schemeId pinning the metric algorithm version" },
+    "chains": { "type": "array", "items": { "type": "integer" }, "description": "chains aggregated (informative; the subject is chain-scoped)" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "txCount": { "type": "integer", "minimum": 0 },
+        "txPerDay": { "type": "number", "minimum": 0 },
+        "volumeUsdTotal": { "type": "number", "minimum": 0 },
+        "volumeUsdMedian": { "type": "number", "minimum": 0 },
+        "inflowUsd": { "type": "number", "minimum": 0 },
+        "outflowUsd": { "type": "number", "minimum": 0 },
+        "netDirection": { "type": "number", "minimum": -1, "maximum": 1, "description": "(inflow-outflow)/(inflow+outflow)" },
+        "counterpartyCount": { "type": "integer", "minimum": 0 },
+        "counterpartyDispersion": { "type": "number", "minimum": 0, "maximum": 1, "description": "1 - HHI of counterparty volume shares" },
+        "topCounterpartyShare": { "type": "number", "minimum": 0, "maximum": 1 },
+        "leverageMax": { "type": "number", "minimum": 0 },
+        "leverageMean": { "type": "number", "minimum": 0 },
+        "protocolMix": { "type": "object", "additionalProperties": { "type": "number" }, "description": "share of volume by protocol category (dex, lending, perps, nft, payments, ...)" },
+        "stablecoinShare": { "type": "number", "minimum": 0, "maximum": 1 },
+        "gasSpentNative": { "type": "number", "minimum": 0 },
+        "ageDays": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Intent / behaviour features derived from metrics by the same pinned algorithm",
+      "properties": {
+        "intentLabels": { "type": "array", "items": { "type": "string" } },
+        "riskAppetite": { "type": "number", "minimum": 0, "maximum": 1 },
+        "regularity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "notes": { "type": "string" }
+      }
+    },
+    "predicates": {
+      "type": "array",
+      "description": "Predicates the profiler is prepared to prove in ZK against the commitment of this document",
+      "items": {
+        "type": "object", "required": ["id", "field", "op", "value"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "field": { "type": "string" },
+          "op": { "enum": ["lt", "lte", "gt", "gte", "eq", "in_range"] },
+          "value": {}
+        }
+      }
+    }
+  }
+}
