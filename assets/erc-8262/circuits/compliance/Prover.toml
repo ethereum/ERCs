@@ -1,0 +1,11 @@
+signals = [20, 0, 0, 0, 0, 0, 0, 0]
+weights = [100, 0, 0, 0, 0, 0, 0, 0]
+weight_sum = 100
+provider_ids = ["1", "0", "0", "0", "0", "0", "0", "0"]
+num_providers = 1
+jurisdiction_id = 0
+provider_set_hash = "0x14b6becf762f80a24078e62fc9a7eca246b8e406d19962dda817b173f30a94b2"
+config_hash = "0x18574f427f33c6c77af53be06544bd749c9a1db855599d950af61ea613df8405"
+timestamp = "1700000000"
+meets_threshold = true
+submitter = "0xdead"
