@@ -347,6 +347,8 @@ An assertion is current when its status is active and the current time lies with
 
 Resolvers MUST return expired, revoked and superseded assertions on request, marked as such, and MUST NOT present them as current. A valuation receipt recorded for one version of a Unit is not a valuation of any other version (Section 10.4).
 
+Revocation and supersession act on one assertion. They do not change the status of assertions that cite it: a valuation receipt that rests on an observation keeps its own status when the observation is revoked, because only the receipt's asserter can revoke or supersede the receipt. The dependency is carried by the citation (Section 10.3) and surfaced by resolvers as the evidence status of the receipt (Section 10.6); an evaluator whose evidence has been withdrawn is expected to supersede its receipt.
+
 ### 7. Characterization
 
 A characterization content document follows `auf:characterization:v1@1` and has the members `roles`, `attributes`, `models`, `structure`, `applications`, `knowledge`, `evidence` and `extensions`. All members are OPTIONAL, but a document with no `roles`, no `structure` and no `knowledge` member is not useful and SHOULD NOT be recorded.
@@ -419,6 +421,8 @@ For every asset whose members are all present, the record MUST satisfy
 closing - opening = inflow - outflow + minted - burned + sum(adjustments)
 ```
 
+The equation is evaluated exactly on the decimal strings as recorded: a conforming check compares the two sides in exact decimal arithmetic and MUST NOT round either side to a fixed number of places or pass the quantities through binary floating point.
+
 Quantities of different assets MUST NOT be added. Converting quantities into a common unit of account requires a price source and time point, which belong to a valuation, not to an observation.
 
 #### 8.3 Coverage, missing values and non-cash changes
@@ -467,7 +471,7 @@ The same Unit can have different values for different interests and perspectives
 
 #### 10.3 Snapshot and assessment boundary
 
-`snapshot` is `{ "asOf": <timestamp>, "observations": [<assertionIds>], "hash": <0x hash> }` where `hash` is the canonical hash of the observation and state documents used. `assessmentBoundary` is `{ "hash": <0x hash>, "deltaURI": <string>, "notes": <string> }`. When the evaluator values the Unit exactly as defined, `assessmentBoundary.hash` MUST equal the subject `boundaryHash`. When the evaluator adds or removes elements (for example includes a compute purchase obligation the definition omitted), `assessmentBoundary.hash` MUST be the canonical hash of the evaluator's own Unit Definition document, `deltaURI` MUST resolve to a description of the differences, and the receipt MUST still name the original subject. An evaluator MUST NOT publish a new version of the subject Unit for this purpose unless it is the Definition Controller.
+`snapshot` is `{ "asOf": <timestamp>, "observations": [<assertionIds>], "hash": <0x hash> }` where `hash` is the canonical hash of the observation and state documents used. A receipt cites an observation by listing the observation's assertion identifier in `observations`; a receipt that rests on registered observations SHOULD cite them there, so that their status can be resolved later (Section 10.6). A registered observation of the same subject version whose `contentHash` equals the receipt's `hash` counts as cited as well. Data that is not a registered assertion (indexer output, prices, private records) is described under `inputs.data` and bound by `hash` alone. `assessmentBoundary` is `{ "hash": <0x hash>, "deltaURI": <string>, "notes": <string> }`. When the evaluator values the Unit exactly as defined, `assessmentBoundary.hash` MUST equal the subject `boundaryHash`. When the evaluator adds or removes elements (for example includes a compute purchase obligation the definition omitted), `assessmentBoundary.hash` MUST be the canonical hash of the evaluator's own Unit Definition document, `deltaURI` MUST resolve to a description of the differences, and the receipt MUST still name the original subject. An evaluator MUST NOT publish a new version of the subject Unit for this purpose unless it is the Definition Controller.
 
 #### 10.4 Comparability
 
@@ -500,6 +504,19 @@ The on-chain valuation core (Section 11) carries `methodId`, `interestId`, `asse
 Resolvers MUST present, with every valuation, its interest, perspective, denomination, as-of time, horizon, result kind, method identifier and whether the assessment boundary differs from the subject boundary. Resolvers MUST NOT aggregate valuations across different interests, denominations or assessment boundaries, and MUST NOT sum the valuations of a composite's parts into a valuation of the composite unless a method with a declared composability mode is applied.
 
 A declared composability mode is necessary for aggregation and is not sufficient. The precondition for adding positions reached through different elements or different contained Units is a resolved claim set (Section 3.8). A method with mode `additive`, `sub-additive`, `super-additive` or `conditional`, applied to a boundary in which positions it would add are unresolved overlap candidates, MUST NOT produce a `monetary` result for that interest. It MUST produce `interval` (with `low` the result when the candidates are counted once, `high` the result when they are counted separately, and no point `value`) or `insufficient-evidence` with the candidates listed under `inputs.overlaps` as `unresolved`. An evaluator that resolves an overlap on its own evidence MUST state the treatment and its `basis` under `inputs.overlaps`; resolvers MUST report a point value whose receipt does not do so as non-conforming.
+
+A receipt rests on the observations it cites (Section 10.3), and their status can change after the receipt is recorded. When presenting a receipt, a resolver MUST resolve the status of every cited observation and MUST present an evidence status with the receipt, determined as the first row of the following table that applies, together with, for each cited observation, its assertion identifier, its status, its `supersededBy` when superseded, and whether it was inside its validity window at the receipt's as-of time.
+
+| Evidence status | Condition |
+|---|---|
+| `not-cited` | The receipt cites no registered observation. |
+| `withdrawn` | At least one cited observation has status revoked. |
+| `superseded` | At least one cited observation has status superseded. |
+| `unresolved` | At least one citation cannot be resolved, or resolves to an assertion that is not an observation. |
+| `expired` | At least one cited observation was outside its validity window at the receipt's as-of time. |
+| `supported` | Every cited observation has status active and was inside its validity window at the receipt's as-of time. |
+
+A receipt whose evidence status is `withdrawn` MUST NOT be presented as current. Its own status is unchanged, since only its asserter can revoke or supersede it (Section 6.4); the evaluator SHOULD supersede it with a corrected receipt or with a receipt of kind `insufficient-evidence`. The end of an observation's validity window after the receipt's as-of time is not withdrawal: the receipt is a statement as of that time, its evidence status remains `supported`, and resolvers MUST NOT mark the receipt withdrawn, expired or otherwise non-current on that ground. Revocation states that the observation was wrong; the end of a validity window states only that the observation window has passed.
 
 ### 11. Assertion Registry interface
 
@@ -735,6 +752,8 @@ IAUFAssertionRegistry  0x46ae6e24
 
 **Overlap is declared, not inferred.** Two references to one entitlement cannot be recognized from the references themselves, and a registry standard cannot define the identity of off-chain claims. The framework therefore records what can be recorded (what a position is a claim against, who states that two positions are one claim or two, on what basis, confirmed by whom) and attaches the consequence to the valuation statement: where the claim set is unresolved, the only admissible results are an interval or a statement of insufficient evidence. Composability of a method remains a declaration about the method, never a license to add.
 
+**Withdrawal propagates by presentation, not by status.** An assertion's status belongs to its asserter alone, so revoking an observation cannot flip the receipts that cite it; if it could, any observer could silence any evaluator, and a status would depend on a graph walk at write time. The framework records the dependency where it arises (the receipt cites its evidence) and places the consequence where it is consumed: a resolver must show the evidence status with every receipt and must not present a receipt on withdrawn evidence as current. The time distinction is kept for the same reason that receipts carry an as-of time: evidence that was valid at that time and expired later does not become false, whereas evidence that its own asserter withdrew was never what it claimed to be.
+
 **No universal conservation law.** A Tellegen-type identity holds for any element types once flows satisfy conservation at nodes and potentials derive from node potentials. Whether economic value differences behave as node potentials, whether multi-asset exchange and liabilities are fully inside the model, and what the product of flow and potential means, are premises that a model must state. The identity is therefore offered as a consistency check inside the financial-circuit profile, never as a normative statement that every Unit conserves economic value.
 
 **Content-addressed methods.** A method identifier that hashes only a URL does not fix anything, because the code behind the URL can change. Hashing a descriptor that includes input and output schemas and the algorithm version fixes what a receipt means. Parameters and evidence are bound per receipt. Registration is a discovery convenience; it is not an approval.
@@ -804,6 +823,7 @@ and its `boundaryHash` is the Keccak-256 digest of that byte string:
 5. Expired or revoked evidence: an assertion past `validUntil`, or with status revoked or superseded, MUST be returned only when marked as such and MUST NOT be presented as current.
 6. Unsupported extension: a document with an extension member marked `"required": true` whose identifier the consumer does not know MUST be reported as unsupported.
 7. Overlap under different references: two Units hold one 40% revenue entitlement, one as a token position and one as a contractual right, with different element identifiers and the same `underlying`; the entitlement is worth 45.12 counted once. A composite that contains both and declares `same-claim` between the two positions with a basis MUST be valued by the net-equity method with the entitlement counted once (45.12). A composite that contains both and declares nothing has an unresolved overlap: a resolver MUST report it, and a net-equity receipt over it MUST NOT be `monetary`; it MUST be `interval` with `low` 45.12 and `high` 90.24 and no point value, or `insufficient-evidence` listing the pair under `inputs.overlaps` as `unresolved`.
+8. Withdrawn evidence: observer X records observation O about version 1 of a Unit; evaluator Y records receipt V, as of time `t`, citing O in `snapshot.observations` with `snapshot.hash` equal to the canonical hash of O's content; X then revokes O after finding a measurement error. Expected: O has status revoked and is not current; V keeps status active (`revoke(V)` by X reverts, and so does an assertion by X that names V in `supersedes`) and the assertion count of the version is unchanged; a resolver presenting V MUST show evidence status `withdrawn`, MUST list O as revoked, and MUST NOT present V as current, while still returning V on request. Contrast: evaluator Y records receipt V2, as of time `t`, citing observation O2 whose validity window ends after `t`; once that window has ended, O2 is no longer current, but V2's evidence status is `supported` and V2 remains current until its own validity ends or it is superseded. Had O2's window ended before `t`, V2's evidence status would be `expired` and V2 would still be returned as current.
 
 ### Registry behavior
 
@@ -814,6 +834,7 @@ and its `boundaryHash` is the Keccak-256 digest of that byte string:
 5. Superseding an assertion of another asserter, of another kind, of another Unit, or one that is not active reverts; after a successful supersession the earlier assertion has status superseded and `supersededBy` set.
 6. `byController` is true for an assertion recorded by the Definition Controller and remains true after the controller is changed.
 7. `assertStatementBySig` with an expired deadline, a wrong nonce or a signature by another key reverts; a valid ERC-1271 contract signature is accepted.
+8. Revoking an observation leaves a valuation that cites it active and keeps the assertion count unchanged; `revoke` of that valuation by the observer reverts; the evaluator can supersede it.
 
 ## Reference Implementation
 
@@ -834,7 +855,7 @@ The reference implementation, schemas, vectors and worked examples are provided 
 
 **Double counting.** Acyclic containment does not prevent the same resource from reaching a parent along two paths, and a shared skill is not a separate full asset in every Unit that uses it. Methods must handle shared rights, internal transfers and overlapping contributions explicitly, and resolvers must not add valuations of parts into a valuation of a composite without such a method. Cyclic entitlement structures require a method that declares a joint solution, an approximation or that it is unsupported; recursive summation would produce a number that looks precise and is wrong. Two references to one claim are the hardest case, because nothing in the references reveals the overlap: the framework asks positions to declare their underlying, lets controllers and parents declare `same-claim` or `distinct-claim` with a basis, lets the obligor confirm it, and forbids point values over an unresolved overlap (Sections 3.8 and 10.6).
 
-**Stale and superseded statements.** Receipts and characterizations age. Validity windows, revocation and supersession exist so that readers can tell current statements from historical ones. Consumers should refuse to act on expired or superseded assertions and should re-resolve the subject version before acting.
+**Stale and superseded statements.** Receipts and characterizations age. Validity windows, revocation and supersession exist so that readers can tell current statements from historical ones. Consumers should refuse to act on expired or superseded assertions and should re-resolve the subject version before acting. A receipt can also outlive its evidence: when a cited observation is revoked the receipt keeps its status, and only the evidence status that resolvers present with it (Section 10.6) reveals that it rests on withdrawn evidence. Consumers should read receipts together with their evidence status and should not act on one whose evidence is withdrawn; a reader that looks at the receipt's status alone can be shown a valuation whose basis has been retracted. Conversely, an observer cannot revoke or supersede another party's receipt, so a withdrawal is visible to every reader and is never a silent erasure.
 
 **Controller key compromise.** A compromised Definition Controller can publish a misleading new version. Earlier versions remain immutable and earlier assertions remain bound to their versions, so the history is auditable. Controllers of valuable Units should use multisignature or collectively governed accounts, and consumers should notice sudden boundary changes.
 

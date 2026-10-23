@@ -214,6 +214,81 @@
       "name": "overlap-under-different-references",
       "rule": "Two positions with different element ids but the same underlying are one claim group only when a same-claim relation with a basis links them; then the net-equity method counts the entitlement once (45.12). Without a same-claim or distinct-claim declaration the overlap is unresolved and no point monetary value is admissible: the receipt is an interval (low 45.12 counted once, high 90.24 counted separately) or insufficient-evidence listing the pair under inputs.overlaps.",
       "example": "examples/revenue-holdings-declared.valuation.net-equity.json, examples/revenue-holdings-undeclared.valuation.net-equity.interval.json, examples/revenue-holdings-undeclared.valuation.net-equity.insufficient-evidence.json; tools/resolve.js --unit 11 (reports the unresolved overlap)"
+    },
+    {
+      "name": "withdrawn-evidence",
+      "rule": "O -> V -> revoke(O): observer X records observation O, evaluator Y records receipt V citing O (snapshot.observations, snapshot.hash), X revokes O. O is revoked and not current; V keeps status active (X cannot revoke or supersede V; the assertion count is unchanged); a resolver presents V with evidence status withdrawn, lists O as revoked, and does not present V as current. Contrast: receipt V2 cites observation O2 whose validity window ends after V2's as-of time; after the window ends, O2 is not current but V2's evidence status is supported and V2 is current. Had O2's window ended before the as-of time, the evidence status would be expired and V2 would still be returned as current.",
+      "sequence": [
+        {
+          "step": 1,
+          "actor": "observer X",
+          "action": "assertStatement(kind observation) -> O",
+          "status": {
+            "O": "active"
+          }
+        },
+        {
+          "step": 2,
+          "actor": "evaluator Y",
+          "action": "assertStatement(kind valuation) -> V, content cites O in snapshot.observations and carries snapshot.hash = contentHash(O)",
+          "status": {
+            "O": "active",
+            "V": "active"
+          },
+          "resolver": {
+            "V": {
+              "current": true,
+              "evidence": "supported"
+            }
+          }
+        },
+        {
+          "step": 3,
+          "actor": "observer X",
+          "action": "revoke(O)",
+          "status": {
+            "O": "revoked",
+            "V": "active"
+          },
+          "assertionCount": "unchanged",
+          "reverts": [
+            "revoke(V) by X: AUF_NotAsserter",
+            "an assertion by X with supersedes = V: AUF_SupersedeMismatch"
+          ],
+          "resolver": {
+            "O": {
+              "current": false
+            },
+            "V": {
+              "current": false,
+              "evidence": "withdrawn",
+              "observations": [
+                {
+                  "id": "O",
+                  "status": "revoked"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "step": 4,
+          "actor": "evaluator Y",
+          "action": "supersede(V) with a corrected receipt or one of kind insufficient-evidence (expected, not required)",
+          "status": {
+            "V": "superseded"
+          }
+        }
+      ],
+      "evidenceStatuses": [
+        "not-cited",
+        "withdrawn",
+        "superseded",
+        "unresolved",
+        "expired",
+        "supported"
+      ],
+      "test": "test/AUFAssertionRegistry.t.sol#testRevokedObservationLeavesDependentReceiptActive (registry); tools/test/resolve-evidence.test.js (resolver output)"
     }
   ]
 }
