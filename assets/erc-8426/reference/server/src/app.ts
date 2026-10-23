@@ -224,12 +224,18 @@ export function createApp(deps: AppDeps): Express {
           refuse(res, gate.status, gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error });
           return;
         }
-        // Gated acquisition: a proven account that is not the account passes
-        // were last issued to is making its first claim, so the acquisition
-        // URLs rotate before the manifest is returned. The very first claim
-        // for a token only records the account; there is no earlier holder
-        // whose URLs need retiring, so nothing rotates. The account is
-        // recorded before rotating so the fresh links are issued to it.
+        // Gated acquisition: rotation is keyed by entitled account. This
+        // server's entitlement is bare ownerOf, so at most one account is
+        // entitled at a time and the per-account rule reduces to: a proven
+        // account that is not the account passes were last issued to is
+        // making its first claim, the previous account has lost entitlement,
+        // so its URLs are retired before the manifest is returned. The very
+        // first claim for a token only records the account; there is no
+        // earlier holder whose URLs need retiring, so nothing rotates. The
+        // account is recorded before rotating so the fresh links are issued
+        // to it. A server that extends entitlement (ERC-4907 users, delegates)
+        // keeps a set of issued-to accounts per token and retires only the
+        // URLs of the account whose entitlement ended.
         const last = passStore.lastIssuedTo(tokenId);
         passStore.recordIssuance(tokenId, gate.account);
         if (last !== undefined && !isAddressEqual(last, gate.account)) {
