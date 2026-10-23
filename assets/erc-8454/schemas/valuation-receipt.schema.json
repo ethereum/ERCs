@@ -148,7 +148,7 @@
         },
         "overlaps": {
           "type": "array",
-          "description": "Claim groups and overlap candidates within the assessment boundary and how the method treated each (Section 10.6).",
+          "description": "Claim groups, unresolved pairs and pairs the evaluator resolved on its own evidence within the assessment boundary, with the treatment the method applied to each (Section 10.6).",
           "items": {
             "type": "object",
             "required": [
@@ -166,6 +166,7 @@
               "treatment": {
                 "enum": [
                   "counted-once",
+                  "distinct",
                   "netted",
                   "excluded",
                   "unresolved"

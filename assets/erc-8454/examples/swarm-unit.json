@@ -53,6 +53,16 @@
       "kind": "financial-position",
       "ref": "eip155:11155111:0x00000000000000000000000000000000000000e4",
       "label": "Swarm treasury (swarm account)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000e2",
+      "label": "Treasury of agent A (position of the contained sub-unit)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000e3",
+      "label": "Treasury of agent B (position of the contained sub-unit)"
     }
   ],
   "relations": [
@@ -115,6 +125,22 @@
       "from": "0x871dbe4f79806bc54399faad58bc6db88be780e0647f5627102e93a3226b4e20",
       "to": "0x563146aab13119abe383e3b4f07ba7af21d39b6ed0bcf8d37168653e7053f715",
       "scope": "intermediate deliverables between the sub-units (internal transfer, crosses no port)"
+    },
+    {
+      "type": "distinct-claim",
+      "elements": [
+        "0xe8c8cde00958908af6b3dfdd061eb686f88e1db5cf025111c86f67110149443e",
+        "0xae4d10a2fb26cc2c1ac00e8cec50f6095d51cb9ca35040c8439d9f98b7164c13",
+        "0x5aeb2b65744761bc79f18d40baf69f03221c2bea775b751a434d115224ebb408",
+        "0x874beddf623c4cd0d40c852a94b7a71026c468d2c29c6d933aaf2bc24387be54"
+      ],
+      "scope": "three treasury accounts and one subscription payable: four different claims",
+      "basis": [
+        "eip155:11155111:0x00000000000000000000000000000000000000e4",
+        "eip155:11155111:0x00000000000000000000000000000000000000e2",
+        "eip155:11155111:0x00000000000000000000000000000000000000e3",
+        "urn:x:invoice:model-subscription:2026-11"
+      ]
     }
   ],
   "ports": [

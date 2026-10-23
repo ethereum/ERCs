@@ -16,7 +16,7 @@
   },
   "snapshot": {
     "asOf": "2026-11-01T00:00:00Z",
-    "hash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64"
+    "hash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2"
   },
   "method": {
     "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
@@ -28,14 +28,14 @@
           "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
           "quantity": "1",
           "price": "45.12",
-          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xbf23010d19fd5a7d50374c2fabecb5ff326b5176a478fb34ddf523eace24f182)",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
           "priceAt": "2026-11-01T00:00:00Z"
         },
         {
           "element": "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73",
           "quantity": "1",
           "price": "45.12",
-          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xbf23010d19fd5a7d50374c2fabecb5ff326b5176a478fb34ddf523eace24f182)",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
           "priceAt": "2026-11-01T00:00:00Z"
         }
       ],

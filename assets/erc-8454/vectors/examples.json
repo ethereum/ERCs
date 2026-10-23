@@ -5,23 +5,23 @@
     {
       "unitId": 1,
       "file": "examples/skill-multi-license.json",
-      "boundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a",
+      "boundaryHash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1",
       "contains": [],
       "controller": "0x00000000000000000000000000000000000000f1",
       "companions": [
         {
           "file": "skill-multi-license.characterization.json",
           "kind": "characterization",
-          "contentHash": "0xb901abd20a485ac4195354e2515d3f1774a9195b53db62fcc2d4ee5442314e9a",
+          "contentHash": "0xb92cfa00ed02c5f7eb76db4f87b54135dffc36ba043c963b4005a25470bcf086",
           "profile": "auf:characterization:v1@1"
         },
         {
           "file": "skill-multi-license.observation.json",
           "kind": "observation",
-          "contentHash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1",
+          "contentHash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b",
           "profile": "auf:observation:v1@1",
           "core": {
-            "snapshotHash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1",
+            "snapshotHash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b",
             "windowStart": 1790812800,
             "windowEnd": 1793491199
           }
@@ -29,13 +29,13 @@
         {
           "file": "skill-multi-license.valuation.realized-net-cash-flow.json",
           "kind": "valuation",
-          "contentHash": "0xf2ec02c0d8ee6a9701eb175f69ba273db3058f36235ea13badc1a6a3408a84a3",
+          "contentHash": "0x8f71726fdf0698443bc8a179e962472312ede0b40705b778e9d9dec27b9629e7",
           "profile": "auf:method:realized-net-cash-flow@1",
           "core": {
             "methodId": "0x51ac1ab7eca131d0073c7c03024471be2e6fb28313e9c07a031ba4312731e8d5",
             "interestId": "0x93b59c859e870e0bccceb6518099af0b1c3b96134f2ba940bd9e57426828a681",
-            "assessmentBoundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a",
-            "snapshotHash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1",
+            "assessmentBoundaryHash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1",
+            "snapshotHash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b",
             "resultKind": 1,
             "decimals": 2,
             "value": "6500",
@@ -47,13 +47,13 @@
         {
           "file": "skill-multi-license.valuation.net-equity.json",
           "kind": "valuation",
-          "contentHash": "0x09e4af14aa3445f9610774d36ced92a7a9356af37a02277065e0e5434bc7c5e3",
+          "contentHash": "0xaa38cd5d95402da95e6ac15cb2a53c58b4d411d426a0abbd6f72acb4d4b9c28e",
           "profile": "auf:method:net-equity@1",
           "core": {
             "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
             "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
-            "assessmentBoundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a",
-            "snapshotHash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1",
+            "assessmentBoundaryHash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1",
+            "snapshotHash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b",
             "resultKind": 1,
             "decimals": 2,
             "value": "7000",
@@ -65,13 +65,13 @@
         {
           "file": "skill-multi-license.valuation.revenue-right-dcf.json",
           "kind": "valuation",
-          "contentHash": "0xbf23010d19fd5a7d50374c2fabecb5ff326b5176a478fb34ddf523eace24f182",
+          "contentHash": "0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232",
           "profile": "auf:method:finite-horizon-dcf@1",
           "core": {
             "methodId": "0xc87ccdce9b29353f5516392f5dd0d505b373965910baa6e7e95b49431cf22d22",
             "interestId": "0x4c1b68016dc3f594b00ab3dbca10785549b6647f31fa8461a12d1f4e73f927d1",
-            "assessmentBoundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a",
-            "snapshotHash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1",
+            "assessmentBoundaryHash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1",
+            "snapshotHash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b",
             "resultKind": 1,
             "decimals": 2,
             "value": "11281",
@@ -83,7 +83,7 @@
       ],
       "v2": {
         "file": "examples/skill-multi-license.v2.json",
-        "boundaryHash": "0x50f64db1bb34d37cb7ee2b2af17b7aa8f9839b14b89d09f2bdf2cd4cb59260a7"
+        "boundaryHash": "0x95970e56d96bb7753cfbc4819e2b061915e3873a4f7df54ef111fbbf1584ced6"
       }
     },
     {
@@ -119,7 +119,7 @@
     {
       "unitId": 4,
       "file": "examples/swarm-unit.json",
-      "boundaryHash": "0x73afc9b7e08e024340af3c673585d4dda9498c9900ba4d3fa287a6e62e9dc405",
+      "boundaryHash": "0xe02cd13e8d8509ed740198f9bd2094f4cd557cba9a9151a925c652cde5f7a423",
       "contains": [
         {
           "unitId": 2,
@@ -135,18 +135,18 @@
         {
           "file": "swarm-unit.characterization.json",
           "kind": "characterization",
-          "contentHash": "0x97aced7a7cc91f09fc369fc25dbcd100179c0a4081060d4bc93a2bd2a9829317",
+          "contentHash": "0xa9de40fd4df2c557844df22f7a6b6a4d0656358937603ac1c4c4de698456c13b",
           "profile": "auf:characterization:v1@1"
         },
         {
           "file": "swarm-unit.valuation.net-equity.json",
           "kind": "valuation",
-          "contentHash": "0xb6ee700112b92ad15abe016f789ec0e54eb0ada49c64658539654aeaca3c9c7d",
+          "contentHash": "0x727774bc4218a2835fe769e67e4a175368d1ef4b048ce873fb30dbf98d3c93dd",
           "profile": "auf:method:net-equity@1",
           "core": {
             "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
             "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
-            "assessmentBoundaryHash": "0x73afc9b7e08e024340af3c673585d4dda9498c9900ba4d3fa287a6e62e9dc405",
+            "assessmentBoundaryHash": "0xe02cd13e8d8509ed740198f9bd2094f4cd557cba9a9151a925c652cde5f7a423",
             "snapshotHash": "0x6bea02bebf9fc37cc4178205e2be91bfe6f7298e4a4db8d68d28f5faa181fd2e",
             "resultKind": 1,
             "decimals": 2,
@@ -159,12 +159,12 @@
         {
           "file": "swarm-unit.valuation.fulfillment-claim.json",
           "kind": "valuation",
-          "contentHash": "0xb16a6612fedb2a604a01706ec8d94e39df303d634c7a6cc14e7befcff6a18fd6",
+          "contentHash": "0xae125833586ee46d4235c82068604714eb33026b09eca6adbc5fdf705817f9d0",
           "profile": "auf:method:conditional-payoff@1",
           "core": {
             "methodId": "0x75c34f058eccff31530191dc7c5ab32bc9fe2c5e8377333cf23ca3c4d02f676f",
             "interestId": "0x989be3bc1862293dec08c63370d60996b13d74c8e2f090519953aab0f114127c",
-            "assessmentBoundaryHash": "0x73afc9b7e08e024340af3c673585d4dda9498c9900ba4d3fa287a6e62e9dc405",
+            "assessmentBoundaryHash": "0xe02cd13e8d8509ed740198f9bd2094f4cd557cba9a9151a925c652cde5f7a423",
             "snapshotHash": "0xbd320bfd840b5c2342724cc3472c2c55d33ecc1f4e5c75704fdd4f20680b91fd",
             "resultKind": 4,
             "decimals": 2,
@@ -406,13 +406,13 @@
         {
           "file": "revenue-holdings-declared.valuation.net-equity.json",
           "kind": "valuation",
-          "contentHash": "0x19240705405bcfdee3153ac0a95f0686c5020e2d59f73c66abfbb9126db9bbe8",
+          "contentHash": "0xc46650c964a06ebc722c7ed71e11fef9ae21203b363bcab4ade0af0847007cb8",
           "profile": "auf:method:net-equity@1",
           "core": {
             "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
             "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
             "assessmentBoundaryHash": "0xb3ab97fe54b77bfa92256bd7ae1e947048a09df80fa888936ad3b5b6da6b4fc8",
-            "snapshotHash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64",
+            "snapshotHash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2",
             "resultKind": 1,
             "decimals": 2,
             "value": "4512",
@@ -448,13 +448,13 @@
         {
           "file": "revenue-holdings-undeclared.valuation.net-equity.interval.json",
           "kind": "valuation",
-          "contentHash": "0xaa2d2830ed185ab06ee2ca921ef11df332c2ec43409eea35589672c6f1c8079c",
+          "contentHash": "0x52f51671a5bbfd02ba204c2bba73550e873518d008f72e8c86250d518e3b29db",
           "profile": "auf:method:net-equity@1",
           "core": {
             "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
             "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
             "assessmentBoundaryHash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8",
-            "snapshotHash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64",
+            "snapshotHash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2",
             "resultKind": 2,
             "decimals": 2,
             "value": "0",
@@ -466,17 +466,101 @@
         {
           "file": "revenue-holdings-undeclared.valuation.net-equity.insufficient-evidence.json",
           "kind": "valuation",
-          "contentHash": "0xb39c762903fab7e812759f42293be961b793edd078916ba690010837c5402542",
+          "contentHash": "0x3da90761f625491ae173bf511c927063eed2f3cbc74903b427792a4cf366bd72",
           "profile": "auf:method:net-equity@1",
           "core": {
             "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
             "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
             "assessmentBoundaryHash": "0xd540ed55e09fd544e0050f5c06ffac69bcc778b7c630026923a9e598bad0e3e8",
-            "snapshotHash": "0xfba590c315468a1c52c149b3f7d51d92fe9b9e69949f1e6ea5c18740ff187d64",
+            "snapshotHash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2",
             "resultKind": 10,
             "decimals": 0,
             "value": "0",
             "denominationId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        }
+      ]
+    },
+    {
+      "unitId": 12,
+      "file": "examples/revenue-holdings-silent.json",
+      "boundaryHash": "0xf1cd5ea322a40284f56d251cdf6819a522abf1263a155c0746cae519f72af3d3",
+      "contains": [],
+      "controller": "0x00000000000000000000000000000000000000d3",
+      "companions": [
+        {
+          "file": "revenue-holdings-silent.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x5625f8f2a54bafaef2521084cbc0b4cc9e1a7006d2ec7c47fa3028e24fec9452",
+          "profile": "auf:characterization:v1@1"
+        },
+        {
+          "file": "revenue-holdings-silent.valuation.net-equity.interval.json",
+          "kind": "valuation",
+          "contentHash": "0xb3f633ef7b7456d547951ce1b088702ccedb0706275b55e296b7979b2d95ef1f",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0xf1cd5ea322a40284f56d251cdf6819a522abf1263a155c0746cae519f72af3d3",
+            "snapshotHash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2",
+            "resultKind": 2,
+            "decimals": 2,
+            "value": "0",
+            "denominationId": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        },
+        {
+          "file": "revenue-holdings-silent.valuation.net-equity.insufficient-evidence.json",
+          "kind": "valuation",
+          "contentHash": "0xbfca3101fbce34b8c60ce86c9c198bd52242bdc479b900bbefaa73bbbc758b57",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0xf1cd5ea322a40284f56d251cdf6819a522abf1263a155c0746cae519f72af3d3",
+            "snapshotHash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2",
+            "resultKind": 10,
+            "decimals": 0,
+            "value": "0",
+            "denominationId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        }
+      ]
+    },
+    {
+      "unitId": 13,
+      "file": "examples/revenue-holdings-distinct.json",
+      "boundaryHash": "0x9be7cb89e0e581556cbaff05f61001f4b3cb1caa0d8f9c8c1cd35b2ad6c976f9",
+      "contains": [],
+      "controller": "0x00000000000000000000000000000000000000fa",
+      "companions": [
+        {
+          "file": "revenue-holdings-distinct.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x47a7dbe1dd7698375d2a5fd9b307ee1b5ed8a08e3e37b5f8220b47bea52303a5",
+          "profile": "auf:characterization:v1@1"
+        },
+        {
+          "file": "revenue-holdings-distinct.valuation.net-equity.json",
+          "kind": "valuation",
+          "contentHash": "0xd5e3460c398ed9d2425c387c88699e5e4c94c9636f13b0acdf1bbfa3f7b61404",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0x9be7cb89e0e581556cbaff05f61001f4b3cb1caa0d8f9c8c1cd35b2ad6c976f9",
+            "snapshotHash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2",
+            "resultKind": 1,
+            "decimals": 2,
+            "value": "9024",
+            "denominationId": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
             "asOf": 1793491200,
             "horizonEnd": 0
           }

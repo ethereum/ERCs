@@ -289,6 +289,28 @@
         "supported"
       ],
       "test": "test/AUFAssertionRegistry.t.sol#testRevokedObservationLeavesDependentReceiptActive (registry); tools/test/resolve-evidence.test.js (resolver output)"
+    },
+    {
+      "name": "additivity-must-be-established",
+      "rule": "Two positions of different claim groups are additive only when a distinct-claim declaration with a basis covers the pair (or the evaluator states treatment distinct with a basis under inputs.overlaps). A missing underlying, two different underlying references, two URIs for what may be one entitlement, or simply the absence of a detected overlap never establish distinctness: the pair is unresolved and the net-equity receipt is an interval (45.12 counted once, 90.24 counted separately) or insufficient-evidence. With a distinct-claim declaration (two separate assignments of 40% each) the method counts the tranches separately (90.24); the resolver reports the declaration as claimed until the controller of the underlying endorses either position, and as confirmed after.",
+      "cases": [
+        {
+          "case": "silent",
+          "definition": "examples/revenue-holdings-silent.json (no underlying on the token position; the assignment under a URL, with an underlying that names the fee stream under another URI; no declaration)",
+          "expected": "unresolved pair, no overlap candidate; receipts examples/revenue-holdings-silent.valuation.net-equity.interval.json (45.12 to 90.24) and examples/revenue-holdings-silent.valuation.net-equity.insufficient-evidence.json; a point-valued receipt is reported as non-conforming"
+        },
+        {
+          "case": "declared distinct",
+          "definition": "examples/revenue-holdings-distinct.json (same underlying, distinct-claim set with the two agreements as basis)",
+          "expected": "pair resolved as distinct (claimed); receipt examples/revenue-holdings-distinct.valuation.net-equity.json monetary 90.24 with treatment distinct and basis"
+        },
+        {
+          "case": "evaluator-side evidence",
+          "definition": "examples/revenue-holdings-silent.json",
+          "expected": "a monetary receipt whose inputs.overlaps states treatment distinct with a basis for the pair is accepted; the pair stays unresolved at the definition level and is still reported"
+        }
+      ],
+      "test": "tools/test/resolve-claims.test.js"
     }
   ]
 }

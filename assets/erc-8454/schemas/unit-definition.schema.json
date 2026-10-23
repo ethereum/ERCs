@@ -251,9 +251,47 @@
     "relation": {
       "type": "object",
       "required": [
-        "type",
-        "from",
-        "to"
+        "type"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "from",
+            "to"
+          ],
+          "not": {
+            "required": [
+              "elements"
+            ]
+          }
+        },
+        {
+          "required": [
+            "elements"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "same-claim",
+                "distinct-claim"
+              ]
+            }
+          },
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "from"
+                ]
+              },
+              {
+                "required": [
+                  "to"
+                ]
+              }
+            ]
+          }
+        }
       ],
       "properties": {
         "type": {
@@ -264,6 +302,15 @@
         },
         "to": {
           "$ref": "#/$defs/endpoint"
+        },
+        "elements": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "urn:auf:v1:common.schema.json#/$defs/hex32"
+          },
+          "description": "Set form of an identity relation (same-claim, distinct-claim): the relation holds between every pair of the listed elements; used in place of from and to (Section 3.4)."
         },
         "scope": {
           "type": "string"

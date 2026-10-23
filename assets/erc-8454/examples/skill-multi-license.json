@@ -176,6 +176,24 @@
       "from": "0x590b6caa3dc99f05fa3fb9ad3a3d501b8cb9f54cefa7ec0cb23e39dfd93e94c4",
       "to": "0xfcbebbecff638c8597fb0db7b30f0b9170d462dd1e26974e337738d06de72ac7",
       "scope": "invocations"
+    },
+    {
+      "type": "distinct-claim",
+      "elements": [
+        "0x7edb5c93b1a992d1ed031f45cb31d3099eb21ff20d4ee4cb968708d646b46aaa",
+        "0x9a3da9b87afac074bd561dc6f28ef12130f1a5ef99e085630be769826da9499e",
+        "0xe3d73cda65ffb378581c8e6ec40129b65ec251a0b938feb2fcaf1bbb3b5b7b6b",
+        "0x7866a0f7476ff5de045940017d6d428c6d1fd8be077a1fd8af1f811d07fb0542",
+        "0x1e753103d4a6e1908f5d7fb776a3b24e2b1b38a02165709adbdfd25bc34f6c1e"
+      ],
+      "scope": "receivables from different licensees under separate agreements, one hosting invoice and one treasury account: five different claims",
+      "basis": [
+        "urn:x:agreement:eip155:11155111:0x00000000000000000000000000000000000000a1",
+        "urn:x:agreement:eip155:11155111:0x00000000000000000000000000000000000000a2",
+        "urn:x:agreement:eip155:11155111:0x00000000000000000000000000000000000000a3",
+        "urn:x:invoice:hosting:2026-10",
+        "eip155:11155111:0x00000000000000000000000000000000000000e1"
+      ]
     }
   ],
   "ports": [

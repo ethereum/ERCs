@@ -5,10 +5,10 @@
     "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
     "unitId": 1,
     "version": 1,
-    "boundaryHash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+    "boundaryHash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1"
   },
   "assessmentBoundary": {
-    "hash": "0xa576933632eecf4a520f91958ab5f740b8462adf28d0aee606a48b25f5c8941a"
+    "hash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1"
   },
   "interest": {
     "id": "auf:interest:whole@1",
@@ -17,7 +17,7 @@
   },
   "snapshot": {
     "asOf": "2026-10-31T23:59:59Z",
-    "hash": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1"
+    "hash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b"
   },
   "method": {
     "id": "0x51ac1ab7eca131d0073c7c03024471be2e6fb28313e9c07a031ba4312731e8d5",
@@ -29,7 +29,7 @@
   "inputs": {
     "data": [
       {
-        "observation": "0x195372bb627d6f4d1568e6b17bdc09c1ce30ba938b0fb1c09b07746c908021c1"
+        "observation": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b"
       }
     ],
     "coverage": "as in the observation record; card payments of licensee C not covered"
