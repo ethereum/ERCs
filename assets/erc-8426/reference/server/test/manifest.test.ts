@@ -44,6 +44,9 @@ describe("GET /manifest/:tokenId", () => {
     const res = await request(app).get(`/manifest/${TOKEN_ID}`);
 
     expect(res.status).toBe(200);
+    // Pass manifest: served as application/json, version 1 for this shape.
+    expect(res.headers["content-type"]).toMatch(/^application\/json\b/);
+    expect(res.body.version).toBe(1);
     expect(res.body.formats.apple).toContain(`${config.baseUrl}/passes/apple/`);
     expect(res.body.formats.google).toContain(`${config.baseUrl}/passes/google/`);
     expect(Number.isInteger(res.body.updatedAt)).toBe(true);

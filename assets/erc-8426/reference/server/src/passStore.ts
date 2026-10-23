@@ -5,10 +5,11 @@ import type { ServerConfig } from "./config.js";
 import { normalizeTokenId } from "./caip.js";
 
 /// The pass manifest, exactly the shape the standard defines under "Pass
-///  manifest": a REQUIRED `formats` map with at least one platform entry, and
-///  an OPTIONAL `updatedAt` Unix timestamp (integer seconds) of the last
-///  content change.
+///  manifest": a REQUIRED `version` (the integer 1 for this shape), a
+///  REQUIRED `formats` map with at least one platform entry, and an OPTIONAL
+///  `updatedAt` Unix timestamp (integer seconds) of the last content change.
 export interface PassManifest {
+  version: 1;
   formats: {
     apple: string;
     google: string;
@@ -132,6 +133,7 @@ export function createPassStore(config: ServerConfig, now: () => number = Date.n
 
   function toManifest(passes: TokenPasses): PassManifest {
     return {
+      version: 1,
       formats: {
         apple: `${config.baseUrl}/passes/apple/${passes.apple}`,
         google: `${config.baseUrl}/passes/google/${passes.google}`,
