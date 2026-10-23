@@ -1,0 +1,247 @@
+---
+eip: 99904
+title: Creator Fee Rights
+description: A launched token's creator fee stream, with its history, a public claim and a recipient only the recipient can change
+author: Priors contributors (@priors-agents)
+discussions-to: https://ethereum-magicians.org/t/erc-tba-creator-fee-rights/30027
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-10-20
+requires: 20, 165
+---
+
+## Abstract
+
+This proposal defines one interface for the creator fee stream of each token a launchpad launches: who receives it,
+what it has earned since launch, what can be claimed now, and a claim anyone can call that always pays the recipient.
+Only the current recipient can name a new recipient, as only the owner of an [ERC-173](./eip-173.md) contract can name
+a new owner, and no administrator, launchpad setting or upgrade can change a launched token's recipient or lower its
+creator share. Every credit to a stream is logged in the transaction where the fee accrues, so a lender can recount what
+the stream has earned. A creator can then point its stream at a contract that repays its lenders first, and cannot take
+it back while it owes.
+
+## Motivation
+
+Most token launchpads pay the creator of each token a share of the fees charged on its trades. That stream is paid in
+the asset the token trades against, it has an on-chain history, and repaying a loan from it needs no sale into a pool.
+It is an asset a lender can lend against. Two things stop lenders from doing so today.
+
+Each launchpad models the stream its own way. Some take a recipient address at launch and hold fees in an escrow, one
+makes the stream a transferable NFT, others keep lists of beneficiaries or reward recipients. A lender has to integrate
+each launchpad to read the history it sizes a line on.
+
+A lender also needs to know that the creator cannot redirect the stream once it is pledged. When the creator can change
+the recipient at will, or the launchpad's operator can, a pledge is worth nothing. A rule that only the current
+recipient can name a new one makes the pledge hold: with the recipient set to a contract that repays lenders first, only
+that contract can hand the stream back, and it does so once no lender has a claim.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT
+RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Terms
+
+- The **launchpad** is the set of contracts that launch a token and charge fees on its trades.
+- The **fee rights contract** implements the interface below. It may be one of the launchpad's contracts, such as the
+  one that charges the fees, or an escrow the launchpad pays fees into.
+- A token is **registered** once the fee rights contract has named its first recipient. Its **stream** is the creator
+  fees credited to it, its **recipient** is the address claims pay, and its **creator share** is the part of each fee
+  charged on the token that is credited to its stream.
+- An **asset** is the [ERC-20](./eip-20.md) token a fee is paid in. A launchpad that charges fees in the native currency
+  credits them wrapped.
+- Amounts are in an asset's base units and are what the fee rights contract credits and sends. For an asset that
+  charges a fee on transfer, a recipient receives less than the amount sent.
+
+The rules below bind the fee rights contract and every contract of the launchpad that decides how much of a fee
+reaches it.
+
+### Interface
+
+A fee rights contract MUST implement `ICreatorFeeRights` and [ERC-165](./eip-165.md), returning `true` for the
+interface identifier of `ICreatorFeeRights` and for `0x01ffc9a7`.
+
+```solidity
+interface ICreatorFeeRights {
+    event CreatorFeesAccrued(address indexed token, address indexed asset, uint256 amount);
+    event CreatorFeesClaimed(address indexed token, address indexed recipient, address indexed asset, uint256 amount);
+    event FeeRecipientChanged(address indexed token, address indexed from, address indexed to);
+
+    function feeRecipient(address token) external view returns (address);
+    function accruedTotal(address token, address asset) external view returns (uint256);
+    function claimable(address token, address asset) external view returns (uint256);
+    function claim(address token, address asset) external returns (uint256);
+    function setFeeRecipient(address token, address newRecipient) external;
+}
+```
+
+### Registration
+
+- How a token is registered is up to the launchpad. It SHOULD register a token in the transaction that launches it.
+- Registration MUST revert if the token or the recipient is the zero address, and MUST emit
+  `FeeRecipientChanged(token, address(0), recipient)`. A token already registered MUST NOT be registered again.
+- `feeRecipient(token)` MUST return the current recipient of a registered token and the zero address for any other
+  token, and MUST NOT revert.
+
+### Changing the recipient
+
+- `setFeeRecipient(token, newRecipient)` MUST revert unless called by `feeRecipient(token)`, and MUST revert if
+  `newRecipient` is the zero address. Otherwise it MUST set the recipient to `newRecipient` and emit
+  `FeeRecipientChanged` with the previous recipient as `from` and `newRecipient` as `to`.
+- A registered token's recipient MUST NOT change in any other way: no administrator role, launchpad setting, second
+  registration or upgrade may change it. The fee rights contract MUST NOT be upgradeable.
+- A recipient may be a contract. It names a new recipient by calling `setFeeRecipient` itself.
+
+### The creator share
+
+- A registered token's creator share MUST NOT be lowered: no administrator role, launchpad setting or upgrade may
+  lower it.
+- Where the launchpad sets the fee rate charged on trades of a registered token, it SHOULD NOT be able to lower that
+  rate either.
+
+### Accrual
+
+- Fees MUST be credited where they accrue: the creator share of each fee charged on a trade of a registered token, or
+  of each batch of its fees settled from a pool, MUST be credited to its stream in the transaction that charges or
+  settles it.
+- Each credit of a non-zero amount MUST emit one `CreatorFeesAccrued` with that amount. A credit that rounds down to
+  zero MUST NOT emit it; it changes no figure, so a recount loses nothing.
+- A stream MUST be credited only with its creator share of the fees charged on its token. The fee rights contract MUST
+  NOT credit a stream with anything else, neither funds sent to it directly nor funds paid in by any account other than
+  the launchpad, so that no one, the recipient included, can add to a stream's history with their own funds.
+- `accruedTotal(token, asset)` MUST return the sum of the `amount` of every `CreatorFeesAccrued` the contract emitted
+  for `token` and `asset`.
+- `claimable(token, asset)` MUST return `accruedTotal(token, asset)` less the sum of the `amount` of every
+  `CreatorFeesClaimed` the contract emitted for `token` and `asset`.
+
+### Claiming
+
+- `claim(token, asset)` MUST be callable by any account. It MUST send `claimable(token, asset)` of `asset` to
+  `feeRecipient(token)`, whoever the caller is, emit `CreatorFeesClaimed` with that recipient and the amount sent, and
+  return the amount sent. For an asset that charges a fee on transfer, the recipient receives less than that amount.
+- When `claimable(token, asset)` is zero, `claim` MUST return zero, MUST NOT transfer anything and MUST NOT emit
+  `CreatorFeesClaimed`.
+- Fees credited but not yet claimed when the recipient changes are paid to whoever is the recipient when `claim` is
+  called.
+
+## Rationale
+
+- **One rule, taken from ERC-173.** ERC-173 already says who can hand on control of a contract: its current owner.
+  This proposal applies the same rule to each launched token's fee stream, and adds what a lender needs on top of it:
+  the stream's history, what is claimable now, and a claim anyone can trigger. The rule is what makes a pledge hold:
+  once the recipient is a contract that repays lenders first, the creator has no call left that redirects the fees.
+- **No administrator, no upgrade.** A recipient rule that an operator key or an upgrade could override would make
+  every pledge depend on the launchpad's keys. Lenders already trust the launchpad to pay fees in; this proposal
+  removes the need to also trust it not to take the stream away. The same holds for the creator share: a share an
+  administrator could cut to zero would leave the recipient rule worth nothing.
+- **Accrual events, not only a total.** `accruedTotal` is what a lender sizes a line on. A total the launchpad only
+  reports would have to be taken on trust. One event per credit, in the transaction where the fee is charged or
+  settled, lets a lender recount the total and match each credit to the trade or settlement that produced it.
+- **Fees only.** If any account could credit a stream, a creator could pay its own funds in, claim them back, and show
+  a history of fees no trader paid.
+- **Anyone claims, the recipient is paid.** A repay-first contract, a keeper or a lender can trigger a claim without
+  the recipient's key, and no caller chooses where the fees go, so an open claim moves nothing away from the recipient.
+- **Unclaimed fees follow the right.** Paying whoever is the recipient at the time of the claim keeps a change of
+  recipient to one write, whatever the number of assets. A recipient that wants what was credited before it hands the
+  right on claims first.
+- **One step, and never to the zero address.** As in ERC-173, a change of recipient takes one call. Unlike ERC-173,
+  the right cannot be renounced: fees credited to no one would be stuck or lost.
+- **Registration is an event, not a function.** Launchpads launch tokens in different ways, so the interface does not
+  fix the call that registers one. It fixes the event: the first `FeeRecipientChanged` with `from` set to the zero
+  address, as ERC-173 asks a contract to emit `OwnershipTransferred` when it is created. An indexer finds every
+  registered token from that event alone.
+- **No accrual function in the interface.** Fees reach a fee rights contract in different ways: in a pool hook during
+  a swap, when a locker collects a position's fees, in a bonding curve's buys and sells. Readers need the events and
+  the totals, not the call that produced them.
+- **No share function.** What the creator share is a share of (a swap fee, a pool's fees, a bonding-curve fee, a split
+  between several beneficiaries) differs between launchpads, so one number would not mean the same thing everywhere.
+  Implementations can expose it; the rule is that it cannot be lowered.
+- **Keyed by token, not an NFT.** Readers find a launch by its token address, and most launchpads already keep a
+  recipient per token. A right that is an [ERC-721](./eip-721.md) token brings approvals and operators with it: an
+  account other than the recipient could move the stream, which a pledge to a lender cannot allow. A wrapper that is
+  itself the recipient, or an extension of this proposal, can issue an ERC-721 token for the right under its own rules
+  on who may move it, so that NFT lien and collateral contracts, such as those of [ERC-5604](./eip-5604.md) and
+  [ERC-7565](./eip-7565.md), can hold it.
+- **Not a royalty, a vesting schedule or a launch escrow.** [ERC-2981](./eip-2981.md) tells a marketplace what royalty
+  to pay on an NFT sale, and the payment is voluntary; this stream is paid on every trade. [ERC-5725](./eip-5725.md)
+  makes a fixed schedule of tokens a transferable claim; a fee stream has no schedule and grows with trading.
+  [ERC-8376](./eip-8376.md) escrows a launch's sale proceeds so that buyers can be refunded; this proposal lets a
+  creator pledge its later fee income to a creditor.
+
+## Backwards Compatibility
+
+No backward compatibility issues found. A launchpad that already keeps a creator fee recipient per token can expose this
+interface in a new contract for the tokens it launches from then on. An adapter cannot add the recipient rule or the
+accrual events to a launchpad that lacks them, so tokens already launched keep their launchpad's own rules.
+
+## Test Cases
+
+A conforming launchpad passes these cases, each for a token launched by a creator C with a creator share of 5000 basis
+points:
+
+- The launch emits `FeeRecipientChanged(token, address(0), C)`, and `feeRecipient(token)` returns C. Registering the
+  token again, or registering any token with a zero recipient, reverts. A token never registered has the zero address as
+  its recipient and nothing to claim.
+- A trade that charges a fee of 100 units credits 50 units in the same transaction: it emits `CreatorFeesAccrued` with
+  50, and `accruedTotal` and `claimable` rise by 50.
+- A trade that charges a fee of 1 base unit credits nothing: half a unit rounds down to zero, no `CreatorFeesAccrued`
+  is emitted, and `accruedTotal` and `claimable` stay at zero.
+- Funds sent to the fee rights contract directly, or paid in by C, are not credited.
+- A claim sent by any account pays C, emits `CreatorFeesClaimed`, sets `claimable` to zero and leaves `accruedTotal`
+  unchanged. A second claim returns zero, transfers nothing and emits nothing.
+- In an asset that keeps 1% of every transfer, a fee of 100 units reaches the contract as 99 and credits 49.5. A claim
+  sends 49.5 and reports 49.5 in `CreatorFeesClaimed`, C receives 49.005, `claimable` falls to zero, and the contract
+  keeps only what another stream in that asset is owed.
+- `setFeeRecipient` by any account but C reverts, the launchpad and its administrator included. To the zero address it
+  reverts. By C it changes the recipient and emits `FeeRecipientChanged`, and C can no longer change it.
+- Fees credited before a change of recipient are paid to the new recipient.
+- After the launchpad's administrator lowers the creator share of new launches to 1000 basis points, a fee of 100 units
+  on the token still credits 50 units, and a fee of 100 units on a token launched afterwards credits 10.
+- After trades, claims and changes of recipient on two tokens in two assets, the sums of the amounts in the
+  `CreatorFeesAccrued` and `CreatorFeesClaimed` logs give `accruedTotal` and `claimable`, and the contract holds exactly
+  what is claimable.
+- C sets the recipient to a repay-first payee whose lender is owed 60 units. C, the launchpad and its administrator
+  cannot change the recipient, and the payee refuses to hand the stream back while its lender is owed. A fee of 200
+  units is charged, its 100 credited units are claimed to the payee and swept: the lender receives 60, C receives 40,
+  and the payee hands the stream back to C.
+
+## Reference Implementation
+
+`CreatorFeeEscrow` accompanies this proposal with its tests. One launchpad registers each token with it at launch and
+pays in each fee it charges on the token, in the same transaction. The escrow fixes the token's creator share at
+registration, credits that share of what arrives to the token's stream, and sends the rest to the launchpad's protocol
+recipient at once. Its administrator can set the creator share of future launches and the protocol recipient, and
+nothing else. The escrow has no code that runs other code in its context, so it cannot be upgraded; a test checks its
+bytecode for this.
+
+## Security Considerations
+
+- **The launchpad is still trusted to pay fees in.** A fee rights contract can only credit what reaches it. A launchpad
+  that stops routing fees, or that can lower the fee rate of a launched token's pool, starves a stream without touching
+  its recipient. Lenders SHOULD check that the fee path and the fee rate of a launched token cannot be changed, and
+  price what can.
+- **Wash trading.** Credits are real fees, but a trader who is also the recipient gets its share of each fee back, so
+  trading with itself costs it only the rest of the fee and the pool's spread. With a high creator share, such a history
+  is cheap to make. Lenders SHOULD weigh a history by who traded, not only by its total.
+- **A recipient that cannot hand back.** A contract recipient with no way to call `setFeeRecipient` holds the stream
+  for good, and claims keep paying it. Creators SHOULD point their stream only at contracts that state when they hand
+  it back, such as a repay-first payee once no creditor has a claim.
+- **One-step changes.** A change of recipient takes effect at once, and a mistyped address loses the stream, as a
+  mistyped owner loses an ERC-173 contract. Interfaces SHOULD confirm the new recipient before submitting.
+- **Unclaimed fees move with the right.** A recipient that hands the right on without claiming first gives away what
+  was credited to it. A payee SHOULD claim and settle before it hands a stream back.
+- **Blocked recipients.** If an asset refuses transfers to the recipient, claims of that asset revert until the
+  recipient names a new one; the credit stays.
+- **Assets that charge on transfer.** Such an asset reaches the fee rights contract short, and reaches the recipient
+  short again. A fee rights contract SHOULD credit what arrived, not what was sent. Events report what was credited and
+  sent, so readers sizing a stream in such an asset SHOULD count what arrives at the recipient.
+- **Which contract to read.** Anyone can deploy a contract with this interface and report any token in it. Readers
+  SHOULD confirm that the contract they read is the one the token's launchpad pays fees into, for example from the
+  launch transaction itself.
+- **Re-entrancy.** `claim` and the accrual path transfer assets. Implementations SHOULD update their records before
+  transferring and guard against re-entry.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
