@@ -126,5 +126,5 @@ export async function signChallenge(
 /// Attach a signed proof to a request in the two headers Gated acquisition
 ///  defines.
 export function withProof(req: request.Test, message: string, signature: string): request.Test {
-  return req.set("X-Wallet-Pass-Proof", encodeProof(message)).set("X-Wallet-Pass-Signature", signature);
+  return req.set("Wallet-Pass-Proof", encodeProof(message)).set("Wallet-Pass-Signature", signature);
 }

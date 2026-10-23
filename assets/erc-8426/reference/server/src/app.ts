@@ -376,14 +376,16 @@ interface GateFail {
 ///  and contract.
 ///
 ///  A SIWE message contains line breaks, which HTTP headers cannot carry, so
-///  the message is passed base64url-encoded in `X-Wallet-Pass-Proof` and the
-///  signature in `X-Wallet-Pass-Signature`. This keeps manifest resolution a
-///  GET while still carrying a full challenge.
+///  the message is passed base64url-encoded in `Wallet-Pass-Proof` and the
+///  signature in `Wallet-Pass-Signature`. This keeps manifest resolution a
+///  GET while still carrying a full challenge. The `X-` prefixed names that
+///  earlier drafts used are still accepted (the spec says a Pass Issuer MAY);
+///  when both forms are present the unprefixed one wins.
 async function checkGatedProof(req: Request, tokenId: string, deps: AppDeps, action: string): Promise<GateOk | GateFail> {
   const query = action === deps.config.acquireAction ? "" : `?action=${action}`;
   const challenge = `${deps.config.baseUrl}/manifest/${tokenId}/challenge${query}`;
-  const encoded = req.get("x-wallet-pass-proof");
-  const signature = req.get("x-wallet-pass-signature");
+  const encoded = req.get("wallet-pass-proof") ?? req.get("x-wallet-pass-proof");
+  const signature = req.get("wallet-pass-signature") ?? req.get("x-wallet-pass-signature");
   if (!encoded || !signature) {
     // Gated acquisition: point the client at the challenge endpoint for this token.
     return { ok: false, status: 401, error: "proof_required", challenge };

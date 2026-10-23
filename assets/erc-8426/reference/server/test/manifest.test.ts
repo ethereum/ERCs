@@ -33,8 +33,8 @@ async function claimManifest(h: Harness, account: PrivateKeyAccount) {
 function presentProof(h: Harness, message: string, signature: string) {
   return request(h.app)
     .get(`/manifest/${TOKEN_ID}`)
-    .set("X-Wallet-Pass-Proof", encodeProof(message))
-    .set("X-Wallet-Pass-Signature", signature);
+    .set("Wallet-Pass-Proof", encodeProof(message))
+    .set("Wallet-Pass-Signature", signature);
 }
 
 describe("GET /manifest/:tokenId", () => {
@@ -82,11 +82,40 @@ describe("GET /manifest/:tokenId", () => {
     const signature = await account.signMessage({ message });
     const res = await request(h.app)
       .get(`/manifest/${TOKEN_ID}`)
-      .set("X-Wallet-Pass-Proof", encodeProof(message))
-      .set("X-Wallet-Pass-Signature", signature);
+      .set("Wallet-Pass-Proof", encodeProof(message))
+      .set("Wallet-Pass-Signature", signature);
     expect(res.status).toBe(200);
     expect(res.headers["cache-control"]).toBe("no-store");
     expect(res.body.formats.apple).toContain("/passes/apple/");
+  });
+
+  it("still accepts the X-prefixed proof header names earlier drafts used, preferring the unprefixed ones", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    const first = await claimManifest(h, account);
+    expect(first.res.status).toBe(200);
+
+    // Legacy names alone resolve (the spec says a Pass Issuer MAY accept them).
+    const { message, signature } = await signChallenge(h, account, TOKEN_ID, h.config.acquireAction);
+    const legacy = await request(h.app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("X-Wallet-Pass-Proof", encodeProof(message))
+      .set("X-Wallet-Pass-Signature", signature);
+    expect(legacy.status).toBe(200);
+    expect(legacy.body.formats.apple).toContain("/passes/apple/");
+
+    // Both forms present: the unprefixed one is used. A garbage legacy value
+    // next to a good unprefixed proof must not break the request.
+    const fresh = await signChallenge(h, account, TOKEN_ID, h.config.acquireAction);
+    const both = await request(h.app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("Wallet-Pass-Proof", encodeProof(fresh.message))
+      .set("Wallet-Pass-Signature", fresh.signature)
+      .set("X-Wallet-Pass-Proof", "not-a-proof")
+      .set("X-Wallet-Pass-Signature", "0xdead");
+    expect(both.status).toBe(200);
   });
 
   it("refuses the challenge endpoint without a valid claimed address", async () => {
@@ -115,8 +144,8 @@ describe("GET /manifest/:tokenId", () => {
 
     const res = await request(h.app)
       .get(`/manifest/${TOKEN_ID}`)
-      .set("X-Wallet-Pass-Proof", encodeProof(message))
-      .set("X-Wallet-Pass-Signature", signature);
+      .set("Wallet-Pass-Proof", encodeProof(message))
+      .set("Wallet-Pass-Signature", signature);
 
     expect(res.status).toBe(200);
     expect(res.body.formats.apple).toContain("/passes/apple/");
@@ -140,8 +169,8 @@ describe("GET /manifest/:tokenId", () => {
 
     const res = await request(h.app)
       .get(`/manifest/${TOKEN_ID}`)
-      .set("X-Wallet-Pass-Proof", encodeProof(message))
-      .set("X-Wallet-Pass-Signature", signature);
+      .set("Wallet-Pass-Proof", encodeProof(message))
+      .set("Wallet-Pass-Signature", signature);
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("binding_mismatch");
