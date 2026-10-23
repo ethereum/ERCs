@@ -34,6 +34,12 @@ contract MockIdentityRegistry8004 {
         emit MetadataSet(agentId, "agentWallet", "agentWallet", abi.encode(wallet));
     }
 
+    /// @dev test-only: a registry that changes the wallet WITHOUT emitting MetadataSet (what AID's interval rule must detect)
+    function setAgentWalletSilently(uint256 agentId, address wallet) external {
+        require(_owner[agentId] == msg.sender, "not owner");
+        _wallet[agentId] = wallet;
+    }
+
     /// @dev like ERC-8004: a transfer clears the agent wallet
     function transfer(uint256 agentId, address to) external {
         require(_owner[agentId] == msg.sender, "not owner");

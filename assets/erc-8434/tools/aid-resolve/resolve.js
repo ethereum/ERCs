@@ -43,6 +43,9 @@
 //    before that time and `"overdue"` at or after it when the issuer's declared log shows no supersession.
 //  - CONTENT DIGEST: `digest` of a PUBLIC/GATED facet is the hash of the JCS-canonical content per `digestAlg`
 //    (absent = keccak256; sha256 also admitted); verifyContent(facet, content) checks plaintext against it.
+//  - RECONSTRUCTABILITY: the event history must explain the live owner/wallet; if it does not (a registry changed the
+//    wallet without MetadataSet), the agent's intervals are reported as not reconstructable and agentId-keyed evidence
+//    is not attributable.
 //  - ALSO KNOWN AS: each `alsoKnownAs` link is reported `confirmed` only when the linked AID's Document
 //    (ctx.linkedDocuments / ctx.fetchLinkedDocument) lists this AID back; otherwise `unconfirmed`, or
 //    `unchecked` when that Document was not available. A one-sided link never merges profiles.
@@ -66,6 +69,8 @@ const REG_ABI = [
 ];
 const ID_ABI = [
   "function tokenURI(uint256) view returns (string)",
+  "function ownerOf(uint256) view returns (address)",
+  "function getAgentWallet(uint256) view returns (address)",
   "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
   "event MetadataSet(uint256 indexed agentId, string indexed indexedMetadataKey, string metadataKey, bytes metadataValue)",
 ];
@@ -149,6 +154,18 @@ async function reconstructIntervals(p, reg, anchor, fromBlock) {
       if (!holds && predFrom != null) { predSpans.push({ from: predFrom, until: ev.at }); predFrom = null; }
     }
     if (predFrom != null) predSpans.push({ from: predFrom, until: null });
+    // the event history must account for the live relation: a wallet or owner that differs from what the events imply means the
+    // registry changed it without an event, and the intervals of this agent cannot be trusted (ERC, §3 / §11 "ERC-8004")
+    // (reads that fail leave the check undone: an unreachable registry is not evidence of a silent change; a burned token
+    // reverts ownerOf and is read as the zero address, which the Transfer-to-zero event also implies)
+    let liveOwner = null, liveWallet = null;
+    try { liveOwner = await id.ownerOf(span.agentId); } catch (e) { if (e && e.code === "CALL_EXCEPTION" && e.data !== null) liveOwner = ethers.ZeroAddress; }
+    try { liveWallet = await id.getAgentWallet(span.agentId); } catch {}
+    if (liveOwner != null && liveWallet != null && (liveOwner.toLowerCase() !== owner.toLowerCase() || liveWallet.toLowerCase() !== wallet.toLowerCase())) {
+      intervals.unreconstructable = intervals.unreconstructable || [];
+      intervals.unreconstructable.push({ registry: span.registry, agentId: span.agentId, reason: `live relation (owner ${liveOwner}, wallet ${liveWallet}) is not explained by the event history (owner ${owner}, wallet ${wallet})` });
+      continue;
+    }
     for (const i of intersectSpans([span], predSpans)) intervals.push({ ...i, registry: span.registry, agentId: span.agentId });
   }
   return intervals;
@@ -331,6 +348,8 @@ async function resolveSnapshot(snap, now, ctx = {}) {
     resolvedState = "STALE"; reasons.push("registration file active=false");
   }
   const intervals = snap.authorityIntervals || [];
+  const broken = snap.authorityIntervalsUnreconstructable || [];
+  for (const b of broken) reasons.push(`authority intervals not reconstructable for agent ${b.agentId} on ${b.registry}: ${b.reason}`);
   // document integrity
   let document = null;
   if (snap.document) {
@@ -373,6 +392,7 @@ async function resolveSnapshot(snap, now, ctx = {}) {
     // authority intervals
     const observed = f.observedAt ?? f.validFrom ?? null;
     const agentKeyed = f.resolver && AGENT_KEYED.has(f.resolver.kind);
+    if (agentKeyed && broken.length) { facets.unattributable.push({ ...tag, reason: "authority intervals not reconstructable" }); continue; }
     if (intervals.length && observed != null) {
       tag.attribution = inIntervals(observed, intervals) ? "in-interval" : "outside-interval";
       if (agentKeyed && tag.attribution === "outside-interval") { facets.unattributable.push({ ...tag, reason: "observed outside every authority interval" }); continue; }
@@ -409,7 +429,9 @@ async function snapshotFromChain(rpc, registry, anchor, fetchImpl, fromBlock = 0
     try { const id = new ethers.Contract(b.registry, ID_ABI, p); registrationFile = await loadURI(await id.tokenURI(b.agentId), fetchImpl); } catch {}
   }
   const authorityIntervals = await reconstructIntervals(p, reg, anchor, fromBlock);
+  const broken = authorityIntervals.unreconstructable;
   return {
+    ...(broken && broken.length ? { authorityIntervalsUnreconstructable: broken } : {}),
     aid: `eip155:${net.chainId}:${anchor}`, state: Number(st),
     binding: b.registry === ethers.ZeroAddress ? null : { registry: b.registry, agentId: Number(b.agentId), boundAt: Number(b.boundAt) },
     lastSeen: Number(ls), livenessWindow: Number(lw), successor: succ === ethers.ZeroAddress ? null : succ,
