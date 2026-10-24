@@ -1,0 +1,1 @@
+{"keyManagement":{"type":"pre-shared-demo-key"},"mode":"encrypted","objects":{"LICENSE":{"ciphertext":"bafkreigqm2rhjrbb2jysinef4b4kmizut3tv4wey5rsrshzz5uwwoj444e","plaintextHash":"0xe825b04990185d4b0d1ecf5261f90dbbc66212eecca5cdc8fb45f6f91c001214"}},"profile":"x-test-sha256-xor-stream-v1","schemaVersion":"1.0"}
