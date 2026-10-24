@@ -1,0 +1,30 @@
+[
+  {
+    "name": "preregistration-id-formula",
+    "invariant": "ID",
+    "level": "MUST",
+    "description": "preregistrationId == keccak256(abi.encode(chainid, registry, author, criteriaDigest, taskRef)).",
+    "steps": [
+      {
+        "call": "preregister",
+        "from": "author",
+        "timestamp": 1000,
+        "args": {
+          "criteriaDigest": "0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29",
+          "taskRef": "0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f",
+          "obligationCount": 3,
+          "obligationFlags": "0x70",
+          "expiry": 2000,
+          "verifier": "verifier",
+          "supersedes": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expect": {
+          "ok": true,
+          "bind": "p1",
+          "checkId": true,
+          "preregistrationId": "0x512b2bd580b8311e1f340ce0c00930db143cc56209adfab13236d7dfa9982941"
+        }
+      }
+    ]
+  }
+]
