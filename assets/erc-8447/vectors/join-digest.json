@@ -1,0 +1,48 @@
+{
+  "description": "EIP-712 digests of Join(bytes32 swarmId,address account,bytes32 roleId,bytes32 charterHash,uint256 seatEpoch,uint32 phase,uint256 deadline) under EIP712Domain(name 'SAI', version '1', chainId 1, verifyingContract 0x3333...3333). The seat epoch and phase bind a signature to one seat in one phase.",
+  "domain": {
+    "name": "SAI",
+    "version": "1",
+    "chainId": 1,
+    "verifyingContract": "0x3333333333333333333333333333333333333333"
+  },
+  "typeHash": "0x32e9a5f017f0deecc5e71d05e5e3bbf7a4704863aadf7f1e0a8bd510001f88a8",
+  "vectors": [
+    {
+      "value": {
+        "swarmId": "0xbd3c823badd1d3f1b151e2de0e9de495e69d32f65c852a063a2d001b378ec881",
+        "account": "0x4444444444444444444444444444444444444444",
+        "roleId": "0x0e3a19745aa9b7079f93a3673c0bba2e976f355a1a9469cbe536fcb9df620fc1",
+        "charterHash": "0x9edc4c003e3161f91b057534fc5d1264021930a49d2d951cb025a7f99e721988",
+        "seatEpoch": 0,
+        "phase": 0,
+        "deadline": 1800086400
+      },
+      "digest": "0x3b9223f397f4a158c6f648c3db748b4bf8b78b17d1c3ecb48fd38da1b297f3f6"
+    },
+    {
+      "value": {
+        "swarmId": "0xbd3c823badd1d3f1b151e2de0e9de495e69d32f65c852a063a2d001b378ec881",
+        "account": "0x4444444444444444444444444444444444444444",
+        "roleId": "0x0e3a19745aa9b7079f93a3673c0bba2e976f355a1a9469cbe536fcb9df620fc1",
+        "charterHash": "0x9edc4c003e3161f91b057534fc5d1264021930a49d2d951cb025a7f99e721988",
+        "seatEpoch": 1,
+        "phase": 0,
+        "deadline": 1800086400
+      },
+      "digest": "0xa247ade8a1e102fd9b2cd96143860fd3568aab9780ab9e0f7cee24ff28a24196"
+    },
+    {
+      "value": {
+        "swarmId": "0x304174887d21dc7948d0eee8df7659e3b04fe93219878a1d2a8e20feaf99300f",
+        "account": "0x5555555555555555555555555555555555555555",
+        "roleId": "0x547a47511e635e41ca797b5efef145fb3281fb1c297d6dd25d6d4804b50336d9",
+        "charterHash": "0x12805760aec2095d10b45b564c7519ccbc176b6a21cb4d29d5aba873a4dbe5b1",
+        "seatEpoch": 0,
+        "phase": 1,
+        "deadline": 1900000000
+      },
+      "digest": "0x2e0a083cfda70dd806eb77f7a9bdb76c03b5ffa6a2870cce3e9a09989a0ffd5e"
+    }
+  ]
+}
