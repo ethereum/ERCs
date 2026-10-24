@@ -308,6 +308,11 @@
           "case": "evaluator-side evidence",
           "definition": "examples/revenue-holdings-silent.json",
           "expected": "a monetary receipt whose inputs.overlaps states treatment distinct with a basis for the pair is accepted; the pair stays unresolved at the definition level and is still reported"
+        },
+        {
+          "case": "confirmation binds to the relation",
+          "definition": "examples/revenue-holdings-distinct.json (relationId of its distinct-claim declaration listed in examples.json)",
+          "expected": "a description-endorsement whose subject is the relationId, on version 1 of Unit 13, by the Definition Controller of Unit 1 (the underlying of both tranches) makes the declaration confirmed; an endorsement of the token position alone (on Unit 8 or on Unit 13), an endorsement of the relationId on another version, or one by an account that controls no covered position leaves it claimed; with different obligors (Unit 1), a pair is confirmed only when an account for each side has endorsed the declaration"
         }
       ],
       "test": "tools/test/resolve-claims.test.js"

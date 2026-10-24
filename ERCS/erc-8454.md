@@ -165,6 +165,14 @@ Structural relations (`contains`) MUST form a directed acyclic graph across Unit
 
 Identity relations link elements of the same definition and MUST NOT start or end at `"unit"`. Because element identifiers depend only on `kind` and `ref`, a composite that contains the holders of two positions can list those positions among its own elements and state the identity relation between them; this is how a parent reconciles claims held through different children (Section 3.8). The set form lets a definition state in one relation that all of its positions are distinct claims.
 
+An identity relation has an identifier
+
+```text
+relationId = keccak256( UTF-8( JCS(relation) ) )
+```
+
+the canonical hash (Section 3.2) of the relation object exactly as it appears in the definition, `basis` included. It names one declaration in one definition, and it is the subject of acknowledgments of that declaration (Sections 3.8 and 5).
+
 #### 3.5 Ports
 
 A port object has the members `id` (R), `direction` (R), `class` (R), `template`, `asset`, `account`, `conditions`, `stateEffects` and `extensions`.
@@ -201,7 +209,7 @@ A *position* is an element of kind `financial-position`. Two positions of differ
 
 Resolvers MUST report every claim group that occurs more than once in a tree and every unresolved pair, marking overlap candidates, together with the definitions in which the declarations were made and their `basis`. Resolvers MUST NOT merge elements with different identifiers into one claim, and MUST NOT treat positions as distinct, on the strength of labels, shares, counterparties, amounts or the syntax of references.
 
-A `description-endorsement` acknowledgment (Section 5) of either element by the account that controls the underlying (its issuer or obligor, the relation's `counterparty`, or the Definition Controller of the underlying Unit) confirms a `same-claim` or `distinct-claim` declaration. A declaration without such an acknowledgment is claimed, not confirmed, and resolvers SHOULD report which of the two it is. The `basis` of a `distinct-claim` declaration SHOULD be checkable: separate source agreements, different obligors, or disjoint cash-flow schedules.
+A `same-claim` or `distinct-claim` declaration is confirmed by a `description-endorsement` acknowledgment (Section 5) whose subject is the declaration itself, its `relationId`, recorded on the Unit version that carries the declaration, by an account that controls the underlying of a position the declaration covers: the position's issuer or obligor, the `counterparty` of the relation that includes it, or the Definition Controller of the underlying Unit. Confirmation is assessed per pair of covered positions: a pair is confirmed when one such account for both positions has endorsed the declaration, or when such an account for each of the two positions has. An endorsement of an element confirms the description of that element and nothing about its relation to any other element; an endorsement recorded on another Unit version, or before the declaration existed, confirms nothing about the declaration. A declaration without a confirming endorsement is claimed, not confirmed, and resolvers SHOULD report which of the two it is, per pair. The `basis` of a `distinct-claim` declaration SHOULD be checkable: separate source agreements, different obligors, or disjoint cash-flow schedules.
 
 The framework does not decide which of two references is authoritative or whether a claim exists. It records the statement, its basis and its confirmation; Section 10.6 states what an evaluator may conclude from them: positions are added only when someone has stated, with a basis, that they are not one claim.
 
@@ -274,18 +282,18 @@ Registry rules:
 4. Versions are immutable once published. A correction is a new version.
 5. `acknowledge` MUST record `block.timestamp` for the tuple (unitId, version, elementId, kind, msg.sender) and MUST revert when the version does not exist or `kind` is `None`. `withdrawAcknowledgment` MUST reset the record to zero and MUST revert when no record exists.
 
-The registry does not validate that `elementId` belongs to the definition, that the acknowledging account controls the element, or that the definition at `descriptorURI` hashes to `boundaryHash`. Resolvers perform these checks (Sections 3.2 and 5.3).
+The `elementId` parameter of `acknowledge`, `withdrawAcknowledgment` and `acknowledgedAt` carries the subject of the acknowledgment: the `elementId` of an element or the `relationId` of an identity relation (Section 3.4). The registry does not validate that the subject belongs to the definition, that the acknowledging account controls the element or the underlying, or that the definition at `descriptorURI` hashes to `boundaryHash`. Resolvers perform these checks (Sections 3.2, 3.8 and 5.3).
 
 ### 5. Acknowledgments
 
 #### 5.1 Meaning
 
-An acknowledgment is a statement by its account about one element of one Unit version. Its meaning is fixed by its kind and nothing else:
+An acknowledgment is a statement by its account about one subject of one Unit version: an element, or an identity relation of Section 3.4. Its meaning is fixed by its kind and nothing else:
 
 - `Participation`: the account states that it takes part in the Unit in the role described for the element.
 - `ResourceUse`: the account authorizes the use of the element under the terms of the relation that includes it.
 - `FundOperation`: the account authorizes the fund operation described for the element (for example a funds port settling to an account the acknowledging party controls).
-- `DescriptionEndorsement`: the account states that the description of the element is accurate.
+- `DescriptionEndorsement`: the account states that the description of the element is accurate; for an identity relation, that the relation and its basis are accurate (Section 3.8). An endorsement of an element says nothing about any relation, and an endorsement of a relation says nothing about the elements beyond what the relation states.
 
 Kinds MUST NOT be collapsed into a single boolean by resolvers or consumers.
 
@@ -295,7 +303,7 @@ A Unit Definition MAY state, per element, which acknowledgment kinds it expects 
 
 #### 5.3 Resolver rules
 
-A resolver MUST report, per element, which expected acknowledgments are present, by which accounts, and whether the acknowledging account is a plausible controller of the element. For token-bound elements the plausible controller is the current token owner or an account it has approved; for account elements it is the account itself; for other elements the resolver MUST state that controllership was not verified. An element with missing expected acknowledgments is claimed, not confirmed.
+A resolver MUST report, per element, which expected acknowledgments are present, by which accounts, and whether the acknowledging account is a plausible controller of the element. For token-bound elements the plausible controller is the current token owner or an account it has approved; for account elements it is the account itself; for other elements the resolver MUST state that controllership was not verified. An element with missing expected acknowledgments is claimed, not confirmed. For an identity relation the resolver reads the endorsements of its `relationId` on the declaring version and applies the confirmation rule of Section 3.8.
 
 ### 6. Assertions
 
@@ -764,7 +772,7 @@ IAUFAssertionRegistry  0x46ae6e24
 
 **Registry records, not tokens.** A Unit is a registry record with a controller rather than a token because many Units (a static skill with several licenses, a portfolio defined by an analyst, a set of model rights) have no single settlement account and no transferable whole. Tokenizing a Unit, giving it an account or binding it to a swarm account are profiles layered on top; the kernel only needs the boundary, the assertions and the receipts.
 
-**Typed acknowledgments.** Participation, resource-use authorization, fund-operation authorization and endorsement of a description are different commitments. A single boolean would force a model owner who merely confirms "yes, that is my model" into appearing to authorize its use. External dependencies are never asked to sign, so that independent analysis remains possible.
+**Typed acknowledgments.** Participation, resource-use authorization, fund-operation authorization and endorsement of a description are different commitments. A single boolean would force a model owner who merely confirms "yes, that is my model" into appearing to authorize its use. External dependencies are never asked to sign, so that independent analysis remains possible. A claim declaration is confirmed by endorsing the declaration, not a position it mentions: an issuer who endorsed position A in one version never reviewed a later statement that A is distinct from B, so the subject of that confirmation is the relation's own identifier on the version that carries it. The registry needed no change for this, because an acknowledgment's subject was always an opaque identifier.
 
 **Why AIFi in the name.** The framework is meant to be the economic base layer for the whole family of AI-native economic objects, not for agents alone. The term is defined generically in the Abstract; the openness of the framework rests on its generic definitions and interoperable data model, not on the word.
 
@@ -785,6 +793,14 @@ kind = "skill"
 ref  = "eip155:11155111/erc721:0x00000000000000000000000000000000000000aa/1"
 elementId = keccak256("skill:eip155:11155111/erc721:0x00000000000000000000000000000000000000aa/1")
           = 0x3f13ce02d4a85ecacba5b5a5e6658105bf3f9208088d43b2d394a1c1ca00d656
+```
+
+### Relation identifiers
+
+```text
+relation = {"type":"distinct-claim","elements":["0x1111111111111111111111111111111111111111111111111111111111111111","0x2222222222222222222222222222222222222222222222222222222222222222"],"basis":["urn:x:agreement:a","urn:x:agreement:b"]}
+JCS      = {"basis":["urn:x:agreement:a","urn:x:agreement:b"],"elements":["0x1111111111111111111111111111111111111111111111111111111111111111","0x2222222222222222222222222222222222222222222222222222222222222222"],"type":"distinct-claim"}
+relationId = keccak256(JCS) = 0x278b09b08d758f53df11e5e824c5253aa96ed5b102ae7b365cf8ebbb96d45223
 ```
 
 ### Canonicalization
@@ -826,7 +842,7 @@ and its `boundaryHash` is the Keccak-256 digest of that byte string:
 6. Unsupported extension: a document with an extension member marked `"required": true` whose identifier the consumer does not know MUST be reported as unsupported.
 7. Overlap under different references: two Units hold one 40% revenue entitlement, one as a token position and one as a contractual right, with different element identifiers and the same `underlying`; the entitlement is worth 45.12 counted once. A composite that contains both and declares `same-claim` between the two positions with a basis MUST be valued by the net-equity method with the entitlement counted once (45.12). A composite that contains both and declares nothing has an unresolved pair that is also an overlap candidate: a resolver MUST report it, and a net-equity receipt over it MUST NOT be `monetary`; it MUST be `interval` with `low` 45.12 and `high` 90.24 and no point value, or `insufficient-evidence` listing the pair under `inputs.overlaps` as `unresolved`.
 8. Withdrawn evidence: observer X records observation O about version 1 of a Unit; evaluator Y records receipt V, as of time `t`, citing O in `snapshot.observations` with `snapshot.hash` equal to the canonical hash of O's content; X then revokes O after finding a measurement error. Expected: O has status revoked and is not current; V keeps status active (`revoke(V)` by X reverts, and so does an assertion by X that names V in `supersedes`) and the assertion count of the version is unchanged; a resolver presenting V MUST show evidence status `withdrawn`, MUST list O as revoked, and MUST NOT present V as current, while still returning V on request. Contrast: evaluator Y records receipt V2, as of time `t`, citing observation O2 whose validity window ends after `t`; once that window has ended, O2 is no longer current, but V2's evidence status is `supported` and V2 remains current until its own validity ends or it is superseded. Had O2's window ended before `t`, V2's evidence status would be `expired` and V2 would still be returned as current.
-9. Additivity must be established: a composite lists the two revenue positions of vector 7 under different references, one without `underlying` and one whose `underlying` names the entitlement under another URI, and declares nothing about their relation. No overlap candidate is detected, yet the pair is unresolved: a resolver MUST report it, and a net-equity receipt over the composite MUST NOT be `monetary`; it MUST be `interval` with `low` 45.12 and `high` 90.24 and no point value, or `insufficient-evidence`, listing the pair as `unresolved`. Two positions that declare the same `underlying`, the token position and a second assignment agreement for a further 40%, covered by a `distinct-claim` declaration with both agreements as basis, are resolved as distinct: the net-equity method counts them separately (90.24), and the resolver reports the pair as distinct and claimed until the controller of the underlying endorses either element, and as confirmed after. The evidence that makes positions additive is a declaration with a basis, or the evaluator's own `distinct` treatment with a basis under `inputs.overlaps`; it is never the absence of a flag.
+9. Additivity must be established: a composite lists the two revenue positions of vector 7 under different references, one without `underlying` and one whose `underlying` names the entitlement under another URI, and declares nothing about their relation. No overlap candidate is detected, yet the pair is unresolved: a resolver MUST report it, and a net-equity receipt over the composite MUST NOT be `monetary`; it MUST be `interval` with `low` 45.12 and `high` 90.24 and no point value, or `insufficient-evidence`, listing the pair as `unresolved`. Two positions that declare the same `underlying`, the token position and a second assignment agreement for a further 40%, covered by a `distinct-claim` declaration with both agreements as basis, are resolved as distinct: the net-equity method counts them separately (90.24), and the resolver reports the pair as distinct and claimed until the controller of the underlying endorses either element, and as confirmed after. The evidence that makes positions additive is a declaration with a basis, or the evaluator's own `distinct` treatment with a basis under `inputs.overlaps`; it is never the absence of a flag. Confirmation binds to the declaration: an endorsement of position A alone, an endorsement of A recorded before the parent declared A distinct from B, or an endorsement of the declaration on another Unit version leave the declaration claimed; only an endorsement whose subject is the declaration's `relationId`, on the declaring version, by an account that controls the underlying of the covered positions, makes it confirmed.
 
 ### Registry behavior
 
@@ -838,6 +854,7 @@ and its `boundaryHash` is the Keccak-256 digest of that byte string:
 6. `byController` is true for an assertion recorded by the Definition Controller and remains true after the controller is changed.
 7. `assertStatementBySig` with an expired deadline, a wrong nonce or a signature by another key reverts; a valid ERC-1271 contract signature is accepted.
 8. Revoking an observation leaves a valuation that cites it active and keeps the assertion count unchanged; `revoke` of that valuation by the observer reverts; the evaluator can supersede it.
+9. `acknowledge` records a `DescriptionEndorsement` whose subject is a `relationId` exactly as it records one whose subject is an `elementId`; `acknowledgedAt` returns it for that subject and version only, and `withdrawAcknowledgment` clears it.
 
 ## Reference Implementation
 
@@ -856,7 +873,7 @@ The reference implementation, schemas, vectors and worked examples are provided 
 
 **Evaluator collusion and spam.** Anyone can record assertions. A Unit can be flooded with favorable valuations by colluding or disposable accounts. The registry keeps every assertion attributable and enumerable so that consumers can filter by asserter, by evidence and by independence; eligibility requirements for evaluators, stakes, and dispute processes are matters for profiles and for the systems that consume receipts. Eligibility of an evaluator never confers representation or asset rights over the Unit.
 
-**Double counting.** Acyclic containment does not prevent the same resource from reaching a parent along two paths, and a shared skill is not a separate full asset in every Unit that uses it. Methods must handle shared rights, internal transfers and overlapping contributions explicitly, and resolvers must not add valuations of parts into a valuation of a composite without such a method. Cyclic entitlement structures require a method that declares a joint solution, an approximation or that it is unsupported; recursive summation would produce a number that looks precise and is wrong. Two references to one claim are the hardest case, because nothing in the references reveals the overlap: the framework asks positions to declare their underlying, lets controllers and parents declare `same-claim` or `distinct-claim` with a basis, lets the obligor confirm it, and forbids point values over an unresolved pair (Sections 3.8 and 10.6). Silence is never read as distinctness: a pair of positions that nobody has declared one claim or distinct claims stays unresolved, so omitting `underlying` or spelling one entitlement as two URIs does not unlock addition.
+**Double counting.** Acyclic containment does not prevent the same resource from reaching a parent along two paths, and a shared skill is not a separate full asset in every Unit that uses it. Methods must handle shared rights, internal transfers and overlapping contributions explicitly, and resolvers must not add valuations of parts into a valuation of a composite without such a method. Cyclic entitlement structures require a method that declares a joint solution, an approximation or that it is unsupported; recursive summation would produce a number that looks precise and is wrong. Two references to one claim are the hardest case, because nothing in the references reveals the overlap: the framework asks positions to declare their underlying, lets controllers and parents declare `same-claim` or `distinct-claim` with a basis, lets the obligor confirm it, and forbids point values over an unresolved pair (Sections 3.8 and 10.6). Silence is never read as distinctness: a pair of positions that nobody has declared one claim or distinct claims stays unresolved, so omitting `underlying` or spelling one entitlement as two URIs does not unlock addition. Nor is a stale endorsement read as confirmation: a declaration counts as confirmed only through an endorsement of its own `relationId` on the declaring version, so an endorsement of one position, recorded earlier or on another version, cannot be made to vouch for a relation its author never saw.
 
 **Stale and superseded statements.** Receipts and characterizations age. Validity windows, revocation and supersession exist so that readers can tell current statements from historical ones. Consumers should refuse to act on expired or superseded assertions and should re-resolve the subject version before acting. A receipt can also outlive its evidence: when a cited observation is revoked the receipt keeps its status, and only the evidence status that resolvers present with it (Section 10.6) reveals that it rests on withdrawn evidence. Consumers should read receipts together with their evidence status and should not act on one whose evidence is withdrawn; a reader that looks at the receipt's status alone can be shown a valuation whose basis has been retracted. Conversely, an observer cannot revoke or supersede another party's receipt, so a withdrawal is visible to every reader and is never a silent erasure.
 

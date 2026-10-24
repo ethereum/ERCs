@@ -81,9 +81,36 @@
           }
         }
       ],
+      "declarations": [
+        {
+          "type": "distinct-claim",
+          "elements": [
+            "0x7edb5c93b1a992d1ed031f45cb31d3099eb21ff20d4ee4cb968708d646b46aaa",
+            "0x9a3da9b87afac074bd561dc6f28ef12130f1a5ef99e085630be769826da9499e",
+            "0xe3d73cda65ffb378581c8e6ec40129b65ec251a0b938feb2fcaf1bbb3b5b7b6b",
+            "0x7866a0f7476ff5de045940017d6d428c6d1fd8be077a1fd8af1f811d07fb0542",
+            "0x1e753103d4a6e1908f5d7fb776a3b24e2b1b38a02165709adbdfd25bc34f6c1e"
+          ],
+          "relationId": "0xc7195dfca4578b676d7568c92b3f8d67f10fe4a2be50fa711367404688a5c0fb"
+        }
+      ],
       "v2": {
         "file": "examples/skill-multi-license.v2.json",
-        "boundaryHash": "0x95970e56d96bb7753cfbc4819e2b061915e3873a4f7df54ef111fbbf1584ced6"
+        "boundaryHash": "0x95970e56d96bb7753cfbc4819e2b061915e3873a4f7df54ef111fbbf1584ced6",
+        "declarations": [
+          {
+            "type": "distinct-claim",
+            "elements": [
+              "0x7edb5c93b1a992d1ed031f45cb31d3099eb21ff20d4ee4cb968708d646b46aaa",
+              "0x9a3da9b87afac074bd561dc6f28ef12130f1a5ef99e085630be769826da9499e",
+              "0xe3d73cda65ffb378581c8e6ec40129b65ec251a0b938feb2fcaf1bbb3b5b7b6b",
+              "0xec69dcd93efdde0aa8099c8117bb66d932bbca55c791ed5ddbe8af83770b241b",
+              "0x7866a0f7476ff5de045940017d6d428c6d1fd8be077a1fd8af1f811d07fb0542",
+              "0x1e753103d4a6e1908f5d7fb776a3b24e2b1b38a02165709adbdfd25bc34f6c1e"
+            ],
+            "relationId": "0x01ad96e40225848a00aea6b9028667e745193a674258a43dc85983ead50663ca"
+          }
+        ]
       }
     },
     {
@@ -99,7 +126,8 @@
           "contentHash": "0x93b47f82e3fb08b7681e873b5391070c488b5ae23ab945ac827eef57e0a2434b",
           "profile": "auf:characterization:v1@1"
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 3,
@@ -114,7 +142,8 @@
           "contentHash": "0x47a91734b9369f186414e84fc33b6632c43b45283f2a6f75e8f69f2aa7ef055d",
           "profile": "auf:characterization:v1@1"
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 4,
@@ -173,6 +202,18 @@
             "asOf": 1793491200,
             "horizonEnd": 1796083200
           }
+        }
+      ],
+      "declarations": [
+        {
+          "type": "distinct-claim",
+          "elements": [
+            "0xe8c8cde00958908af6b3dfdd061eb686f88e1db5cf025111c86f67110149443e",
+            "0xae4d10a2fb26cc2c1ac00e8cec50f6095d51cb9ca35040c8439d9f98b7164c13",
+            "0x5aeb2b65744761bc79f18d40baf69f03221c2bea775b751a434d115224ebb408",
+            "0x874beddf623c4cd0d40c852a94b7a71026c468d2c29c6d933aaf2bc24387be54"
+          ],
+          "relationId": "0x7d94657e1df8d990e88004a4bb41679e665fa2cd50dab88875df4bdd8148000c"
         }
       ]
     },
@@ -243,7 +284,8 @@
             "horizonEnd": 0
           }
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 6,
@@ -305,7 +347,8 @@
             "horizonEnd": 0
           }
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 7,
@@ -349,7 +392,8 @@
             "horizonEnd": 1798761599
           }
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 8,
@@ -364,7 +408,8 @@
           "contentHash": "0x43fb547a33c0c8c4384a982dc428c0ad90dd844123a00a64efbb51fd2a427c09",
           "profile": "auf:characterization:v1@1"
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 9,
@@ -379,7 +424,8 @@
           "contentHash": "0x45e9ef8980996e0a56f59bc2d8e9250b858ffd53a016c6c05ded7185456c15f4",
           "profile": "auf:characterization:v1@1"
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 10,
@@ -420,6 +466,16 @@
             "asOf": 1793491200,
             "horizonEnd": 0
           }
+        }
+      ],
+      "declarations": [
+        {
+          "type": "same-claim",
+          "elements": [
+            "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+            "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73"
+          ],
+          "relationId": "0x87c89f3289b733c03385a83adf51408af4377f8cf016e0af6d323307c0952034"
         }
       ]
     },
@@ -481,7 +537,8 @@
             "horizonEnd": 0
           }
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 12,
@@ -532,7 +589,8 @@
             "horizonEnd": 0
           }
         }
-      ]
+      ],
+      "declarations": []
     },
     {
       "unitId": 13,
@@ -565,7 +623,18 @@
             "horizonEnd": 0
           }
         }
+      ],
+      "declarations": [
+        {
+          "type": "distinct-claim",
+          "elements": [
+            "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+            "0xc90d9ed2c8d8487fa68e4cf353fe9f05310e081c2d16b2e6fdeeeae7dd02d469"
+          ],
+          "relationId": "0xbbcb123881bcb62f2897d5324e8582e040224cae17224b827342b936ff205dad"
+        }
       ]
     }
-  ]
+  ],
+  "note": "declarations lists the identity relations of each definition with their relationId, the subject of a confirming description-endorsement (Sections 3.4 and 3.8)."
 }

@@ -68,5 +68,20 @@
     "preimage": "skill:eip155:11155111/erc721:0x00000000000000000000000000000000000000aa/1",
     "elementId": "0x3f13ce02d4a85ecacba5b5a5e6658105bf3f9208088d43b2d394a1c1ca00d656"
   },
-  "note": "profileId / interestId / denominationId / descriptorKind = keccak256(UTF-8(identifier)); methodId = keccak256(UTF-8(JCS(descriptor)))"
+  "relationIdExample": {
+    "relation": {
+      "type": "distinct-claim",
+      "elements": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "0x2222222222222222222222222222222222222222222222222222222222222222"
+      ],
+      "basis": [
+        "urn:x:agreement:a",
+        "urn:x:agreement:b"
+      ]
+    },
+    "jcs": "{\"basis\":[\"urn:x:agreement:a\",\"urn:x:agreement:b\"],\"elements\":[\"0x1111111111111111111111111111111111111111111111111111111111111111\",\"0x2222222222222222222222222222222222222222222222222222222222222222\"],\"type\":\"distinct-claim\"}",
+    "relationId": "0x278b09b08d758f53df11e5e824c5253aa96ed5b102ae7b365cf8ebbb96d45223"
+  },
+  "note": "profileId / interestId / denominationId / descriptorKind = keccak256(UTF-8(identifier)); methodId = keccak256(UTF-8(JCS(descriptor))); relationId = keccak256(UTF-8(JCS(relation))) for identity relations (Section 3.4)"
 }
