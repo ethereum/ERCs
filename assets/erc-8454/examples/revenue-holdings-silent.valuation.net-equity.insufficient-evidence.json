@@ -1,0 +1,80 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 12,
+    "version": 1,
+    "boundaryHash": "0xf1cd5ea322a40284f56d251cdf6819a522abf1263a155c0746cae519f72af3d3"
+  },
+  "assessmentBoundary": {
+    "hash": "0xf1cd5ea322a40284f56d251cdf6819a522abf1263a155c0746cae519f72af3d3"
+  },
+  "interest": {
+    "id": "auf:interest:net-equity@1",
+    "perspective": "analyst"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [
+        {
+          "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        },
+        {
+          "element": "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ],
+      "liabilities": []
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98"
+      },
+      {
+        "element": "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2"
+      }
+    ],
+    "overlaps": [
+      {
+        "elements": [
+          "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2"
+        ],
+        "treatment": "unresolved"
+      }
+    ],
+    "missing": [
+      {
+        "item": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98 / 0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2",
+        "reason": "distinctness of the two positions not established; a distinct-claim declaration with a basis (separate source agreements, different obligors or disjoint cash-flow schedules), or evidence of the same kind stated by the evaluator, is required before they can be added"
+      }
+    ],
+    "coverage": "the two positions only"
+  },
+  "result": {
+    "kind": "insufficient-evidence",
+    "reason": "unresolved pair: the token position and the assignment are neither one claim group nor declared distinct",
+    "missing": [
+      "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98 / 0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2"
+    ]
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Exception vector \"Additivity must be established\", silent case, alternative statement to the interval receipt."
+}

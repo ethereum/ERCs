@@ -1,0 +1,196 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Research Swarm Alpha (economic boundary)",
+    "summary": "A purpose-bound agent swarm treated as one economic Unit: two agent sub-units, a coordinator, an external model license with a payable, a task obligation and a treasury. The organizational boundary (membership, roles, charter) stays in the swarm registry; this Unit states what is economically included and under which terms.",
+    "tags": [
+      "swarm",
+      "composite",
+      "chip"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "x:finchip.ai:swarm",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000ee:0x5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+      "label": "Swarm registry record (organizational boundary)"
+    },
+    {
+      "kind": "unit",
+      "ref": "auf:eip155:11155111:0x00000000000000000000000000000000000000f0:2@1",
+      "label": "Agent A sub-unit, version 1"
+    },
+    {
+      "kind": "unit",
+      "ref": "auf:eip155:11155111:0x00000000000000000000000000000000000000f0:3@1",
+      "label": "Agent B sub-unit, version 1"
+    },
+    {
+      "kind": "agent",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000a3",
+      "label": "Coordinator agent C",
+      "expectedAcks": [
+        "participation"
+      ]
+    },
+    {
+      "kind": "model",
+      "ref": "urn:x:model:provider-example:frontier-v9",
+      "label": "External frontier model (API access only)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "urn:x:liability:model-subscription:2026-11",
+      "label": "Model subscription payable for November"
+    },
+    {
+      "kind": "task",
+      "ref": "eip155:11155111/erc721:0x00000000000000000000000000000000000000bb/17",
+      "label": "Task tender 17 (translation corpus), accepted by the swarm"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000e4",
+      "label": "Swarm treasury (swarm account)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000e2",
+      "label": "Treasury of agent A (position of the contained sub-unit)"
+    },
+    {
+      "kind": "financial-position",
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000000e3",
+      "label": "Treasury of agent B (position of the contained sub-unit)"
+    }
+  ],
+  "relations": [
+    {
+      "type": "depends-on",
+      "from": "unit",
+      "to": "0x32e51ccf6fefc6b86ea5827cb99b67b7616c60cf45d87a2d9a58e0e2afe0b0b4",
+      "scope": "membership, roles and charter are kept by the swarm registry; this Unit does not restate them"
+    },
+    {
+      "type": "contains",
+      "from": "unit",
+      "to": "0x871dbe4f79806bc54399faad58bc6db88be780e0647f5627102e93a3226b4e20"
+    },
+    {
+      "type": "contains",
+      "from": "unit",
+      "to": "0x563146aab13119abe383e3b4f07ba7af21d39b6ed0bcf8d37168653e7053f715"
+    },
+    {
+      "type": "licenses",
+      "from": "unit",
+      "to": "0xe8c3cf60551907b7311c40afa1cecf3f98c7ad14ef1fc404fd09206d32ac14fe",
+      "scope": "API access, 1,000,000 tokens per month",
+      "exclusive": false,
+      "validFrom": "2026-11-01T00:00:00Z",
+      "validUntil": "2026-11-30T23:59:59Z"
+    },
+    {
+      "type": "owes",
+      "from": "unit",
+      "to": "0xae4d10a2fb26cc2c1ac00e8cec50f6095d51cb9ca35040c8439d9f98b7164c13",
+      "quantity": {
+        "amount": "30",
+        "unit": "USD"
+      },
+      "scope": "due 2026-11-30"
+    },
+    {
+      "type": "commits",
+      "from": "unit",
+      "to": "0x7f20c153c6f7cfbaaaea42173b10f6ab6d53f30bc343f0485b4404100be1ddb1",
+      "scope": "deliver the translated corpus before the tender deadline",
+      "counterparty": "eip155:11155111:0x00000000000000000000000000000000000000b1",
+      "obligations": "delivery accepted by the acceptance authority of the tender"
+    },
+    {
+      "type": "holds",
+      "from": "unit",
+      "to": "0xe8c8cde00958908af6b3dfdd061eb686f88e1db5cf025111c86f67110149443e"
+    },
+    {
+      "type": "controls",
+      "from": "0x4681400ed361b8de87b7db945dd639ba7f09e62caae7a6e1e23e18ccda7faeb5",
+      "to": "0xe8c8cde00958908af6b3dfdd061eb686f88e1db5cf025111c86f67110149443e",
+      "scope": "budget decisions under the swarm charter"
+    },
+    {
+      "type": "exchanges",
+      "from": "0x871dbe4f79806bc54399faad58bc6db88be780e0647f5627102e93a3226b4e20",
+      "to": "0x563146aab13119abe383e3b4f07ba7af21d39b6ed0bcf8d37168653e7053f715",
+      "scope": "intermediate deliverables between the sub-units (internal transfer, crosses no port)"
+    },
+    {
+      "type": "distinct-claim",
+      "elements": [
+        "0xe8c8cde00958908af6b3dfdd061eb686f88e1db5cf025111c86f67110149443e",
+        "0xae4d10a2fb26cc2c1ac00e8cec50f6095d51cb9ca35040c8439d9f98b7164c13",
+        "0x5aeb2b65744761bc79f18d40baf69f03221c2bea775b751a434d115224ebb408",
+        "0x874beddf623c4cd0d40c852a94b7a71026c468d2c29c6d933aaf2bc24387be54"
+      ],
+      "scope": "three treasury accounts and one subscription payable: four different claims",
+      "basis": [
+        "eip155:11155111:0x00000000000000000000000000000000000000e4",
+        "eip155:11155111:0x00000000000000000000000000000000000000e2",
+        "eip155:11155111:0x00000000000000000000000000000000000000e3",
+        "urn:x:invoice:model-subscription:2026-11"
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "id": "deliverable-out",
+      "direction": "out",
+      "class": "deliverable",
+      "template": "auf:port:deliverable-out@1",
+      "conditions": "task deliveries"
+    },
+    {
+      "id": "funds-in",
+      "direction": "in",
+      "class": "funds",
+      "template": "auf:port:funds-in@1",
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "account": "eip155:11155111:0x00000000000000000000000000000000000000e4",
+      "conditions": "task payouts and funding"
+    },
+    {
+      "id": "model-fees-out",
+      "direction": "out",
+      "class": "funds",
+      "template": "auf:port:funds-out@1",
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "account": "eip155:11155111:0x00000000000000000000000000000000000000e4",
+      "conditions": "model subscription"
+    },
+    {
+      "id": "decisions-in",
+      "direction": "in",
+      "class": "control",
+      "template": "auf:port:control-in@1",
+      "conditions": "decisions of the swarm council change budgets and task acceptance"
+    }
+  ],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000a3",
+    "representatives": [
+      {
+        "account": "eip155:11155111:0x00000000000000000000000000000000000000e4",
+        "scope": "swarm account acting under the charter"
+      }
+    ],
+    "settlementAccounts": [
+      "eip155:11155111:0x00000000000000000000000000000000000000e4"
+    ],
+    "notes": "Definition control sits with the coordinator; representation sits with the swarm account under its charter."
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}

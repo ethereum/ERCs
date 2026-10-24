@@ -1,0 +1,27 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 9,
+    "version": 1,
+    "boundaryHash": "0x5c7ae35c58ef49099159b9772cb603c39b50d00fe76e72cfa2c6d99d0f5849c8"
+  },
+  "roles": [
+    {
+      "role": "container",
+      "scope": {
+        "type": "element",
+        "id": "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73"
+      },
+      "mechanism": "rights",
+      "conditions": "entitlement to 40% of the fee stream under the assignment"
+    }
+  ],
+  "structure": {
+    "profile": "auf:structure:simple@1"
+  },
+  "knowledge": {
+    "status": "classified"
+  }
+}

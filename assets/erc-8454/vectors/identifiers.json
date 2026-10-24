@@ -1,0 +1,87 @@
+{
+  "profileIds": {
+    "auf:role:source@1": "0x1dc615c00ff5aa4d5a9e01d486f68b7a8d0c0ed724b960d955dd9167447e9d3f",
+    "auf:role:sink@1": "0x5fcf43930a2c51186230c8f3d18cd23040b27b183f95554beef4e6c29c96ddbf",
+    "auf:role:conductor@1": "0x22a1ee0131166096d86ed189d159824401e98e568b820f93873af405b25e0b1b",
+    "auf:role:damping@1": "0xa6e1f915041cc0dfbb23a324dfb3dd9c0153817703775c8f2655d2c87db900ba",
+    "auf:role:container@1": "0x8b2cf1eb6cee329605421bfcb5ee0066acd35293bc9659b07bf77bfd4437d1df",
+    "auf:role:pledge@1": "0x563a2acac10b99b225ed4cb1d0272224a3c5a0442a4822fa1c82e319d0f64b45",
+    "auf:role:valve@1": "0x7b7533c37914e177d95a675a6d3c10b130e4a28ecbf2b5d12fba98bea3a679b9",
+    "auf:role:control@1": "0xe85ac17685a8b0780a6b7c0bf0bc70dcfcfde1dd2e308f8051150c8e9fa5e0c9",
+    "auf:structure:simple@1": "0x0a709994a6dce1993ecd841860d7360bd7aa21b01aa4abf910621ccd75a075ab",
+    "auf:structure:composite@1": "0x14d0b6b8a452f1afdb9021a5982f1a8601461b1d6f25c6a5a7bfe2acbdfbd080",
+    "auf:structure:chip@1": "0xc1df91c7a55a95741b9e80de15eadbad110fa87466314789f6f4fcef6fb1a6ea",
+    "auf:application:credit@1": "0x6a897a9046b05b3f6d22969e95d64735cbd00a398e37a175a48ece5cd525eae0",
+    "auf:model:financial-circuit@1": "0x64595448c32e99ec8b057113fd8b6782baa5c410f5153e916fb79b5505e2fa38",
+    "auf:characterization:v1@1": "0xa95ac67e63b0f953096f5b4b725cc52c051a6b6f9a0bb5d5eb8e9673c859ed48",
+    "auf:observation:v1@1": "0x72aa51a169997ba1c40d028c965c3b1300b2e30d62806c68cda7e7cab7e57f52",
+    "auf:method:net-equity@1": "0x468043fbb7b48d608d566e943e86fde48bd8921b51684f572aab2f99623ba3ba",
+    "auf:method:realized-net-cash-flow@1": "0x080e09be4ad0036aed6120c995286328a1da938086382419ddd72739efc96d0e",
+    "auf:method:finite-horizon-dcf@1": "0x9f8a526034fd688cf58ec02b7fdc818629ec253a74a39a835e2b7aa42bd2f735",
+    "auf:method:conditional-payoff@1": "0x694e5f7c01b4b4e45cff70eff92f4a5a8c6f1fd88f0b3bbf193aba2b47de407a",
+    "auf:interest:whole@1": "0x93b59c859e870e0bccceb6518099af0b1c3b96134f2ba940bd9e57426828a681",
+    "auf:interest:net-equity@1": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+    "auf:interest:revenue-right@1": "0x4c1b68016dc3f594b00ab3dbca10785549b6647f31fa8461a12d1f4e73f927d1",
+    "auf:interest:usage-right@1": "0xa10c6b6bf91b348ab9f98f9f670d74c1d56244d965d73450f29b1d1bc5678eb3",
+    "auf:interest:fulfillment-claim@1": "0x989be3bc1862293dec08c63370d60996b13d74c8e2f090519953aab0f114127c",
+    "auf:interest:obligation@1": "0xc5d69d15a60f832594b142bcdfacf43cbac680da7de939e045ac438763c0d150",
+    "auf:interest:position@1": "0x97e24563cb4d3f219f064399b5679c8d121df4a9a8b66073617079ff66c9bc2e",
+    "auf:port:funds-in@1": "0x320601e37f211870f87c1568ca73f538944fe3b40f2571932accb2904cb412d1",
+    "auf:port:funds-out@1": "0x08415239080c2bb50b7c9018223997a50ae77081f9a9128dae9875505db87529",
+    "auf:port:service-out@1": "0x39ab439c55d11cf0759631b40f0f3c12b69ed123b447e4d717749592e335f83e",
+    "auf:port:deliverable-in@1": "0x7cf1d6fd5f9858387279be18fee62e9fa42a14d52d39927334b1a8f281672c49",
+    "auf:port:deliverable-out@1": "0x9747744304092c953b5b9639a726ab9c0cbb1b4945b25da05744961fa6e7ac06",
+    "auf:port:commitment-in@1": "0xfc63494f93f20bf1adf5cdeef20c62546ed5875ba43203fc21a6305f246f7433",
+    "auf:port:control-in@1": "0x000792e6767b0f0b48db3621906ccc1001468f804647e4b2c969c1a05982c660"
+  },
+  "descriptorKinds": {
+    "auf:method": "0xfee577c4dcef7dc5b99f98a66d162078bb1099aaca05288a945b56734184a876",
+    "auf:profile": "0x2d592f1360b697dfcd5c647286194c6d57426cb61cbdf3e7bdfd96ba82ab97ab",
+    "auf:schema": "0x61bb44872697e5a46181e199b304ed616e4c11700f8f87678c3a8fc5353b0700"
+  },
+  "denominationIds": {
+    "USD": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+    "EUR": "0xfff16d60be267153303bbfa66e593fb8d06e24ea5ef24b6acca5224c2ca6b907",
+    "eip155:1/slip44:60": "0xd418f2f00c124224c8ff2bdc60a7c78b9df3751bf619a35fe99b83fb438e46da"
+  },
+  "methodIds": {
+    "auf:method:conditional-payoff@1": {
+      "file": "methods/conditional-payoff.json",
+      "methodId": "0x75c34f058eccff31530191dc7c5ab32bc9fe2c5e8377333cf23ca3c4d02f676f"
+    },
+    "auf:method:finite-horizon-dcf@1": {
+      "file": "methods/finite-horizon-dcf.json",
+      "methodId": "0xc87ccdce9b29353f5516392f5dd0d505b373965910baa6e7e95b49431cf22d22"
+    },
+    "auf:method:net-equity@1": {
+      "file": "methods/net-equity.json",
+      "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007"
+    },
+    "auf:method:realized-net-cash-flow@1": {
+      "file": "methods/realized-net-cash-flow.json",
+      "methodId": "0x51ac1ab7eca131d0073c7c03024471be2e6fb28313e9c07a031ba4312731e8d5"
+    }
+  },
+  "elementIdExample": {
+    "kind": "skill",
+    "ref": "eip155:11155111/erc721:0x00000000000000000000000000000000000000aa/1",
+    "preimage": "skill:eip155:11155111/erc721:0x00000000000000000000000000000000000000aa/1",
+    "elementId": "0x3f13ce02d4a85ecacba5b5a5e6658105bf3f9208088d43b2d394a1c1ca00d656"
+  },
+  "relationIdExample": {
+    "relation": {
+      "type": "distinct-claim",
+      "elements": [
+        "0x1111111111111111111111111111111111111111111111111111111111111111",
+        "0x2222222222222222222222222222222222222222222222222222222222222222"
+      ],
+      "basis": [
+        "urn:x:agreement:a",
+        "urn:x:agreement:b"
+      ]
+    },
+    "jcs": "{\"basis\":[\"urn:x:agreement:a\",\"urn:x:agreement:b\"],\"elements\":[\"0x1111111111111111111111111111111111111111111111111111111111111111\",\"0x2222222222222222222222222222222222222222222222222222222222222222\"],\"type\":\"distinct-claim\"}",
+    "relationId": "0x278b09b08d758f53df11e5e824c5253aa96ed5b102ae7b365cf8ebbb96d45223"
+  },
+  "note": "profileId / interestId / denominationId / descriptorKind = keccak256(UTF-8(identifier)); methodId = keccak256(UTF-8(JCS(descriptor))); relationId = keccak256(UTF-8(JCS(relation))) for identity relations (Section 3.4)"
+}
