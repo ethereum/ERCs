@@ -81,6 +81,10 @@ describe("POST /action", () => {
     const first = await submitAction(h.app, message, signature, h.config.contract);
     expect(first.status).toBe(200);
 
+    // Inside the repeat window an identical request is answered with the first
+    // outcome (see repeat.test.ts); the replay check is on the nonce itself,
+    // which the first request spent.
+    h.clock.advance(h.config.repeatWindowSeconds * 1000);
     const replay = await submitAction(h.app, message, signature, h.config.contract);
     expect(replay.status).toBe(401);
     expect(replay.body.error).toBe("nonce_invalid");

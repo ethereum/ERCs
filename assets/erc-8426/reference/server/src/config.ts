@@ -43,6 +43,13 @@ export interface ServerConfig {
   ///  is what stops replay inside the window.
   nonceTtlSeconds: number;
 
+  /// How long the outcome of a completed request is kept so that a repeat of
+  ///  an identical request is answered with it rather than handled again. The
+  ///  standard: "a repeat of an identical request is not a replay"; devices
+  ///  retry a request they abandoned, so one tap can arrive twice. Seconds,
+  ///  not minutes: the window covers a device's retry, not a user's.
+  repeatWindowSeconds: number;
+
   /// Which of the two spec configurations the manifest endpoint operates in.
   manifestMode: ManifestMode;
 
@@ -77,6 +84,7 @@ export function defaultConfig(overrides: Partial<ServerConfig> = {}): ServerConf
     contract: getAddress("0x5F9B5a1cdED9d6B3f5E8a2C47B0e13d6A8F4c2e1"),
     challengeTtlSeconds: 300,
     nonceTtlSeconds: 600,
+    repeatWindowSeconds: 30,
     manifestMode: "public",
     acquireAction: "acquire",
     rotateAction: "rotate",

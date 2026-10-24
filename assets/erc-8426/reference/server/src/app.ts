@@ -11,6 +11,7 @@ import { normalizeTokenId } from "./caip.js";
 import { authorize, statusFor, type AuthorizeTarget } from "./authorize.js";
 import { authorizeCapabilityAction, capabilityStatusFor, resolveActionLink } from "./capability.js";
 import { executeAction } from "./actions.js";
+import { createRepeatStore, requestKey, type Outcome, type RepeatStore } from "./repeatStore.js";
 
 export interface AppDeps {
   config: ServerConfig;
@@ -18,6 +19,9 @@ export interface AppDeps {
   verifier: SignatureVerifier;
   chain: ChainReader;
   passStore: PassStore;
+  /// Recent outcomes, so an identical repeat is answered with the first
+  ///  outcome (see repeatStore.ts). Built from the config window when omitted.
+  repeats?: RepeatStore;
   /// Injectable clock (epoch milliseconds), shared with `authorize` so the
   ///  whole request sees one consistent notion of "now".
   now?: () => number;
@@ -45,6 +49,7 @@ function refuse(res: Response, status: number, body: Record<string, unknown>): v
 export function createApp(deps: AppDeps): Express {
   const { config, passStore } = deps;
   const now = deps.now ?? Date.now;
+  const repeats = deps.repeats ?? createRepeatStore(config.repeatWindowSeconds * 1000);
   const app = express();
   // A proof body carries a short SIWE message and a signature; nothing larger
   // is legitimate, and authorize() caps the message again before parsing.
@@ -158,13 +163,23 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
-      const result = await authorize({ message, signature, target }, deps);
-      if (!result.ok) {
-        refuse(res, statusFor(result.error), { error: result.error });
-        return;
+      // An identical repeat (same message, signature and declared target) is
+      // the same request: a device that abandoned its POST and sent it again
+      // gets the first outcome, and the nonce is consumed once. A request that
+      // differs in any field has its own key and meets the nonce store.
+      const key = requestKey("action", message, signature, String(target.chainId), target.contract, target.tokenId, target.action);
+      const outcome = await repeats.join(key, now(), async (): Promise<Outcome> => {
+        const result = await authorize({ message, signature, target }, deps);
+        if (!result.ok) {
+          return { status: statusFor(result.error), body: { error: result.error } };
+        }
+        return { status: 200, body: { ok: true, ...executeAction(target, result.account) } };
+      });
+      if (outcome.status === 200) {
+        res.status(200).json(outcome.body);
+      } else {
+        refuse(res, outcome.status, outcome.body);
       }
-
-      res.status(200).json({ ok: true, ...executeAction(target, result.account) });
     }),
   );
 
@@ -338,22 +353,37 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
-      const result = await authorizeCapabilityAction(
-        { capability: String(req.params.capability), requestedAction: requested },
-        deps,
-      );
-      if (!result.ok) {
-        refuse(res, capabilityStatusFor(result.error), { error: result.error });
+      // Same rule as /action: one tap can arrive as two identical POSTs, and
+      // the second is the same request, not a second action.
+      const capability = String(req.params.capability);
+      // Rotation wins over the repeat window: a link that has rotated away
+      // resolves to nothing, and is refused before the repeat store is
+      // consulted. The binding is part of the key, so a recorded outcome is
+      // only ever returned for the link as it was when the action ran.
+      const binding = resolveActionLink(capability, deps);
+      if (!binding) {
+        refuse(res, capabilityStatusFor("unknown_capability"), { error: "unknown_capability" });
         return;
       }
-
-      const target: AuthorizeTarget = {
-        chainId: config.chainId,
-        contract: config.contract,
-        tokenId: result.binding.tokenId,
-        action: result.binding.action,
-      };
-      res.status(200).json({ ok: true, ...executeAction(target, result.owner) });
+      const key = requestKey("capability", capability, requested ?? "", JSON.stringify(binding));
+      const outcome = await repeats.join(key, now(), async (): Promise<Outcome> => {
+        const result = await authorizeCapabilityAction({ capability, requestedAction: requested }, deps);
+        if (!result.ok) {
+          return { status: capabilityStatusFor(result.error), body: { error: result.error } };
+        }
+        const target: AuthorizeTarget = {
+          chainId: config.chainId,
+          contract: config.contract,
+          tokenId: result.binding.tokenId,
+          action: result.binding.action,
+        };
+        return { status: 200, body: { ok: true, ...executeAction(target, result.owner) } };
+      });
+      if (outcome.status === 200) {
+        res.status(200).json(outcome.body);
+      } else {
+        refuse(res, outcome.status, outcome.body);
+      }
     }),
   );
 
