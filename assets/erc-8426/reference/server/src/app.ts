@@ -527,12 +527,13 @@ async function checkGatedProof(proof: ProofHeaders, tokenId: string, deps: AppDe
     return { ok: false, status: 400, error: "invalid_request" };
   }
 
-  let message: string;
-  try {
-    message = Buffer.from(encoded, "base64url").toString("utf8");
-  } catch {
+  // base64url (RFC 4648 section 5). Clients omit padding; a padded value is
+  // still accepted. Buffer.from never throws and would also take the standard
+  // alphabet, so the shape is checked first.
+  if (!isBase64Url(encoded)) {
     return { ok: false, status: 400, error: "invalid_message" };
   }
+  const message = Buffer.from(encoded, "base64url").toString("utf8");
 
   const target: AuthorizeTarget = {
     chainId: deps.config.chainId,
@@ -548,4 +549,14 @@ async function checkGatedProof(proof: ProofHeaders, tokenId: string, deps: AppDe
       : { ok: false, status, error: result.error };
   }
   return { ok: true, account: result.account };
+}
+
+/// base64url without padding, or with the one or two `=` that complete the last group.
+function isBase64Url(value: string): boolean {
+  const m = /^([A-Za-z0-9_-]+)(={0,2})$/.exec(value);
+  if (!m) return false;
+  const body = m[1] ?? "";
+  const pad = m[2] ?? "";
+  if (pad.length === 0) return body.length % 4 !== 1;
+  return (body.length + pad.length) % 4 === 0 && body.length % 4 === 4 - pad.length;
 }

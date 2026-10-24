@@ -24,4 +24,4 @@ npm install
 npx vitest run
 ```
 
-Expected: 16 contract tests and 62 server tests pass.
+Expected: 16 contract tests and 63 server tests pass.

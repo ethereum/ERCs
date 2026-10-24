@@ -154,6 +154,32 @@ describe("GET /manifest/:tokenId", () => {
     expect(half.body.error).toBe("proof_required");
   });
 
+  it("accepts a padded proof, and refuses a proof that is not base64url as invalid_message", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    const a = await signChallenge(h, account, TOKEN_ID);
+    const unpadded = encodeProof(a.message);
+    const padded = unpadded + "=".repeat((4 - (unpadded.length % 4)) % 4);
+    expect(padded).not.toBe(unpadded);
+    const ok = await request(h.app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("Wallet-Pass-Proof", padded)
+      .set("Wallet-Pass-Signature", a.signature);
+    expect(ok.status).toBe(200);
+
+    for (const bad of ["not a proof!", unpadded.replace(/-|_/g, "+") + "+/", unpadded + "==="]) {
+      const b = await signChallenge(h, account, TOKEN_ID);
+      const res = await request(h.app)
+        .get(`/manifest/${TOKEN_ID}`)
+        .set("Wallet-Pass-Proof", bad)
+        .set("Wallet-Pass-Signature", b.signature);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("invalid_message");
+    }
+  });
+
   it("re-mints action links bound to the owner at the first claim, so links minted before any claim never refuse the owner", async () => {
     const h = buildHarness({ manifestMode: "gated" });
     const owner = newSigner();
