@@ -1,0 +1,106 @@
+{
+  "profile": "pq_key_binding.v0",
+  "description": "Anchored PQ-key binding \u2014 the verifier RE-DERIVES the binding's content-address from raw bytes; the key manifest is discovery only. canonical_content = JCS(statement); canonical_content_sha256 = sha256(canonical_content). For a NIP-01 carrier also: event_id = sha256(compact-JSON [0,pubkey,created_at,kind,tags,content]). DUAL-ALGORITHM CONVERGENCE: vector 1 (invinoveritas) uses ML-DSA-65 (lattice) with a Nostr carrier; vector 2 (KYA-L4) uses SLH-DSA-SHA2-192s (hash-based) anchored on-chain via OCP \u2014 two independent NIST-PQC families reproducing byte-compatible content-addresses under ONE profile via the same JCS canon, proving {algorithm} is a field, not a fork. Signature checks (BIP-340 / ML-DSA / SLH-DSA) are the separate deep lane; this suite pins the self-verifying content-address both must sign.",
+  "vectors": [
+    {
+      "name": "invinoveritas-pq-key-binding-v1-live",
+      "note": "Fede's FIRST REAL live binding (api.babyblueviper.com/.well-known/pq-key-binding.json): binds the pinned invinoveritas verifier secp256k1 key 6786e18a\u2026 to an ML-DSA-65 (FIPS-204) PQ key, OTS-anchored to Bitcoin. Independently recomputed byte-exact.",
+      "statement": {
+        "schema": "invinoveritas.pq_key_binding.v1",
+        "secp256k1_pubkey": "6786e18a864893a900bd9858e650f67ccc3513f248fed374b591e2ff6922fbb7",
+        "pq_pubkey": "336f2fd2cbc38f5eac4de77f1ae23cb917c95c74aab5b68e31b54fb973892872213afb844d623c9d546493ce63418969c7748772f7ca4005f49eb03cf4b6aa49f828744372a410a015170082622d6eb3ec3e585b5c8eed608c4302adfcfc80075a91dbfb73a44c59317279b974957ae4021cda18f2150530216482d2b1af791db0a79e2087c4230150bd2e2e39cbd9ce73601c7c6dcdf9a3b38360960f6e309870d4404abd57c729a6086bb963e4aa038c2dadd284c75aedb6ec170c4fd050b881079c97ee6b7016736dc5185434a7c9dd4dfaa46f13957b0aa5344b1aef2a9efa92c64dc01683e5c30a231ddd0ea49ec8a034ef25b32ae23e729ad5afcaa2a8c19b82dbbd0e78b6ffce388b5f958bed58b9ade7faaa532550a7a27113fcc931ac4907ed98bec04370872d580dd1743518d92dd7ec0843bd9c4efcf87f06f8577b86c34fec39e760685188910df1bb6bc894ec184cf4f6a651598e739a9a98e259b6b9735cccfa592d0991a75930d92de1a5e3f9c5140540d9c2d845cc96b522aa089dfcdb7c1c8af164020811fb47680e8f0b66ca77fb7dd0510a549d225456e69767ac22e8c42ed78989586946a9be44ca5a32ef563919061b5f577aa136878ebd4a6a31cf520a9b474923b9adf8978d4113839634b8df01a117974de143634214cf2d15a5d03b970576b638bc8cbe9e3c697e36d465a7be7feab8a2e0abe14b410cc50a152c8a6d550b4e302a5f9a032d33536c443661984e8f7ac017c47600b31b61f0100351ff54bfef9d2c88888a4336e6394b0e041963c9d840aa157b23268e56d72d890c889a8b081647a79658258e4d11583d54fb30f7d13fcda9dd502f0f0b2e9fc039df89b33e03170d1573375c269aab02053b8f502502b6e70469fc724b477a5dfd7b00610bcbd40e965130a91f70661bfe989d3e3381015acbd6c840254358d4d2c89a1a2b7c090d3601b6c9bb742b146ae8ecda0135639615033137281168c3647ee52e6ae77ad9fbe77fa01b6d10370b963c89f36a89f8f9193101b8ad199518a4f8f4433bc1013dbdaa31c0eedcf9e5b8f63114228955f3e7d0d9553f237c9bdc4b7b512ff644547b758809b017e8f61a62e30d2ed7d116fcf81a6cc8641c78e19c516363dc47b83dcda109fa19c7f9c20b15be214342ec0196449c55d12c8a51db1afd66f2f7e3ff315db18241b7f02e830efff2bb2a20f1dacb7284ad9f2a0abff9841961f4968b45690d1327877a991c6665f64539442e3a485529349b367945b3c0315eb0f8c7e14813172f6d34679cee5c12aadd41c3a1586d801ab3cace5154424fa923f7d92e5bd9640fafdb15b66c5726da0407d2ab0bac63d2b84ded1bf1518d69c3e590692da36f4dd9dfee83fbee8c157729d83f740bb33e98db9529e6a53e9087faf8a18d7b73f88f2eb370c0e274f0bcaeeb11660e50c3c6d60363782530b29825b0d0a5b6841f3c46ea921fd34f3b1bbbc13a0f2a79e0dd17172913b62f460485245373f147572b6a2036263af923835ba640db43072805d1509458262898182476234b686853b5ec2f91c143df64d2018185bc50409447d8d7c53549bdc2a4ca0885a90f825f8fcdf6aa09e25021331c8966e0829ae958a2ec5d35fcf747243dcee905df359970842e0fb830fb33d6f09b09e4d3efc9fb852254f6d814d3532a1e276751804dfbc49ecaf6ebd5c30b4ceac879041cd560b2c9e7e1067926a7fbee17c7fd2cb58bfb2bcfb83eb8af6187fa107f6f190d652206bb64e340d45c0268e286067b3551c705f9710ff09ce96ab1780fb0bb6d2cd98987e0a99537470f6a0c055c276e50524e63d39ba8f024b87a4ec9f8c3d3ac328f2df0ee4a3cdbc744c73c47b0e14600ea58cde14ea43f6b44cd45c5f8e94ccaa04449790e7f02c6cf957bb96f3382430fdbfb367c256be67147a00aa9a6aa4e9d5578148542617c63f6820760fe8a63dd016be6e8bba868081cfbcf39ae2a34f49a0952b4d677d79841246ffda1b64dab3f21fbb793e60712819b6a4ff863d049bcbd89b523fbb927176ea57cb3681c795e7787c5a08bce5fc478d373d320f583daf3c8ae97504d8eeb06651ee7f9de7870a72f64a90f2cc5d995925c388bf3aa447510279fb546e4666eb3a429e85df63e49daa222692b37df0847b7ff3f795bbf3c45089366c14a22c9b235fe66359d548dad162b1d3c56fb586c9139941d0e1ae206292666423c8507fe7d73b464a306dd2921ba34cebfd1ce7eda250a69685e72d8357ab341fc2713658112c875c98a9583891136f50821741daae28bd8f9ec1a23d1763d0b8b262bb609f76ab2667649fd0df841ea04134aad7015a8aaffe9f01f87d61bf117dd75b3e44c43a79b194ccf925c3d22683cb56ab416f8cc8999bfcff4e5504c2e6525a918ed24f50c32d8723e04a899a6094fd9bf3d881e8c35397f9d445878c3f8843f364d4fb1731e7b26910bd34ec2bfe375c1c73b270801716034aebfcd072af508c062651fcec60a95e652004bd05fab95ad8ac11d3023aace6f575fd2e33dfc13ee93fa3d1ed68771297cd21bcb45a5e7068ae99307e35bd04143a96bb17313908908c2ca2dafc11bf19a4c049a69d27720192635330c61223f9a08e6a4957b575be3cba96bf5961ab28ab58b0cac034991eb6dd3997cd2533ef7437c367c1643ff136bd1e7e161a93ca0efa0d32c50c1594c574d47efcaef88979af7d78335640ba7c82912a406373b089e92",
+        "algorithm": "ML-DSA-65",
+        "profile": "nist-fips204",
+        "bound_at": 1785416066
+      },
+      "carrier": {
+        "kind": 30078,
+        "pubkey": "6786e18a864893a900bd9858e650f67ccc3513f248fed374b591e2ff6922fbb7",
+        "created_at": 1785416066,
+        "tags": [
+          [
+            "d",
+            "invinoveritas-pq-key-binding-v1"
+          ],
+          [
+            "t",
+            "invinoveritas"
+          ],
+          [
+            "t",
+            "pq-key-binding"
+          ],
+          [
+            "schema",
+            "invinoveritas.pq_key_binding.v1"
+          ]
+        ]
+      },
+      "expected": {
+        "canonical_content_sha256": "7b85c0aef61fdb99ebd7ee391e9bfeec37d9e0d50139fe937d403a50eb6d1997",
+        "event_id": "14a7335db681753638bc3395afee2c7358ee53ecd15ca523fc0ca38465510445"
+      }
+    },
+    {
+      "name": "kya-l4-pq-key-binding-v0-slh-dsa",
+      "note": "KYA-L4 PRODUCTION binding (SLH-DSA-SHA2-192s, SPHINCS+, NIST level 3 to match ML-DSA-65): binds the 0xFf9a\u2026ca14 classical identity to a hash-based PQ key, OCP-anchored on Ethereum MAINNET \u2014 record(bytes32) of this content-address at TruthAnchor 0x1e2A118a2bf1C240aE6fDe187c07f905D360f094, tx 0x469655a08accf0300def211bf0c9ebd463e65b89f4ede1ac372ed2796e7ba916 (block 25646404). The anchor tx is sent BY 0xFf9a, so it doubles as the classical proof-of-possession; the SLH-DSA companion signs the content-address (sig 16224 B). No NIP-01 carrier. Served live + recomputed in-browser at ai.verticecriativo.pt/quantum. Same JCS canon as vector 1 \u2192 byte-compatible content-address, different NIST-PQC family.",
+      "statement": {
+        "schema": "kya.pq_key_binding.v0",
+        "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+        "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+        "algorithm": "SLH-DSA-SHA2-192s",
+        "bound_at": 1785422037,
+        "profile": "pq_key_binding.v0"
+      },
+      "expected": {
+        "canonical_content_sha256": "b26a01590215926373544dc82d22fadc8d97c98debaae5d6ce8899b83ffd05da"
+      }
+    },
+    {
+      "name": "kya-l4-pq-key-binding-v0-rotation-1-slh-dsa",
+      "note": "ROTATION binding #1 (#133): same classical identity 0xFf9a, NEW SLH-DSA key 8488157a…, links predecessor via predecessor_content_address = vector 2's cc b26a0159…. Dual-signed over its own content-address by the PREDECESSOR PQ key (continuity — the old key authorizes the rotation, so it survives the classical break) AND by the new key (possession); both signatures + the served artifact live in pq-key-binding-v0.rotation.json (deep lane, SLH-DSA verify in-browser). Here the hash lane pins the content-address the chain resolves over; the in-force resolution across {vector2, this} is exercised in pq-key-binding-v0.rotation-vectors.json via cutoff_enforce.py.",
+      "statement": {
+        "schema": "kya.pq_key_binding.v0",
+        "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+        "pq_pubkey": "8488157a2b55ba45f7dd6768db29bc9013936ea668a3001ca33cc817328c373c714d84d3872f1bb619bec02268ab34b5",
+        "algorithm": "SLH-DSA-SHA2-192s",
+        "bound_at": 1788000000,
+        "profile": "pq_key_binding.v0",
+        "predecessor_content_address": "b26a01590215926373544dc82d22fadc8d97c98debaae5d6ce8899b83ffd05da",
+        "rotation_index": 1
+      },
+      "expected": {
+        "canonical_content_sha256": "4fe636a4d0db42061aec75dc07747fdd3be68d0d2985d783e71a0cfa98960028"
+      }
+    },
+    {
+      "name": "kya-example-binding-v0-slh-dsa",
+      "note": "A DEDICATED example binding (SLH-DSA key 0b15e3ba…) used only to demonstrate the revocation lane (#134), so the production genesis/rotation chain is untouched. Content-address recomputes here; it is the target of the revocation in the next vector.",
+      "statement": {
+        "schema": "kya.pq_key_binding.v0",
+        "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+        "pq_pubkey": "0b15e3baa3918b23b1a975d4aa2039cda772e4c5f070096ceebfed05e3c0933f26058db24d618704c66a4e41e25962c7",
+        "algorithm": "SLH-DSA-SHA2-192s",
+        "bound_at": 1786000000,
+        "profile": "pq_key_binding.v0"
+      },
+      "expected": {
+        "canonical_content_sha256": "964af387798109a23d12bab0cc10c578dc27b61d494cf79591cf82f53c72a471"
+      }
+    },
+    {
+      "name": "kya-key-revocation-v0-of-example",
+      "note": "A REVOCATION statement — its own class (schema kya.pq_key_revocation.v0), NOT a binding: it names the binding it revokes by content-address (964af387… above) and is PQ-authorized by that binding's key (pq_key_revocation.v0, signature in pq-key-binding-v0.revocation.json). It carries NO trusted revoked_at — a revocation takes effect at ITS OWN anchor time (never a self-declared field). The hash lane pins its content-address; the temporal rule is exercised in pq-key-binding-v0.revocation-vectors.json.",
+      "statement": {
+        "schema": "kya.pq_key_revocation.v0",
+        "revokes_content_address": "964af387798109a23d12bab0cc10c578dc27b61d494cf79591cf82f53c72a471",
+        "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+        "profile": "pq_key_binding.v0",
+        "reason": "example: key-compromise"
+      },
+      "expected": {
+        "canonical_content_sha256": "f01f7087637a7e0cd8d6c7576310ed71401b6cd3abd2b14fb785553934480cc5"
+      }
+    }
+  ]
+}

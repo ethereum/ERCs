@@ -1,0 +1,48 @@
+{
+  "profile": "pq_key_binding.v0/rotation",
+  "description": "Exercises the ROTATION in-force rule against a real two-binding chain (#133): kya-l4-genesis (SLH-DSA key 638c79a2…, anchored on Ethereum mainnet at 1785423299) rotated to kya-l4-rotation-1 (NEW SLH-DSA key 8488157a…, links predecessor via predecessor_content_address). The rotation binding is genuine, not fabricated: it is dual-signed over its own content-address by the PREDECESSOR key (continuity) and the new key (possession) — see pq-key-binding-v0.rotation.json, verified in the deep lane. Run with cutoff_enforce.py: `python3 cutoff_enforce.py pq-key-binding-v0.rotation-vectors.json`. Each case asserts the RESOLUTION step (which binding governs at the artifact's anchor time, by which reason) — the boundary between two rotations is the point, not the aggregate. Cases 6-7 close the loop: after a rotation, a POST-CUTOFF artifact must carry a companion under the NEW in-force key; a companion valid only under the retired key no longer admits — that is rotation actually being enforced. rotation-1's binding_anchor_time (1788000000) is its intended on-chain anchor; the mainnet record() for it is the production-hardening step (as vector 2 was for genesis).",
+  "bindings": [
+    { "name": "kya-l4-genesis", "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14", "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa", "binding_anchor_time": 1785423299 },
+    { "name": "kya-l4-rotation-1", "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14", "pq_pubkey": "8488157a2b55ba45f7dd6768db29bc9013936ea668a3001ca33cc817328c373c714d84d3872f1bb619bec02268ab34b5", "binding_anchor_time": 1788000000 }
+  ],
+  "consumer_cutoff": 1795000000,
+  "cases": [
+    {
+      "name": "artifact before any binding → ungoverned",
+      "artifact": { "anchor_time": 1785000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "at genesis anchor → genesis governs",
+      "artifact": { "anchor_time": 1785423299, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "BETWEEN rotations → genesis still governs",
+      "artifact": { "anchor_time": 1786500000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "exactly AT rotation anchor → rotation-1 governs",
+      "artifact": { "anchor_time": 1788000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-rotation-1", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "after rotation → rotation-1 governs",
+      "artifact": { "anchor_time": 1789000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-rotation-1", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "post-cutoff after rotation, companion under NEW in-force key → admit",
+      "consumer_cutoff": 1787000000,
+      "artifact": { "anchor_time": 1789000000, "anchored": true, "pq_companion": { "present": true, "valid": true, "pq_pubkey": "8488157a2b55ba45f7dd6768db29bc9013936ea668a3001ca33cc817328c373c714d84d3872f1bb619bec02268ab34b5" } },
+      "expected": { "resolved": "kya-l4-rotation-1", "resolution_reason": "resolved_at_anchor_time", "rule": "valid_pq_companion", "decision": "ADMIT" }
+    },
+    {
+      "name": "post-cutoff after rotation, companion under RETIRED key → reject (rotation enforced)",
+      "consumer_cutoff": 1787000000,
+      "artifact": { "anchor_time": 1789000000, "anchored": true, "pq_companion": { "present": true, "valid": true, "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa" } },
+      "expected": { "resolved": "kya-l4-rotation-1", "resolution_reason": "resolved_at_anchor_time", "rule": "post_cutoff_no_valid_companion", "decision": "REJECT" }
+    }
+  ]
+}
