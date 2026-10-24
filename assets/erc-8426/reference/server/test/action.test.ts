@@ -4,7 +4,13 @@ import type { Express } from "express";
 import type { PrivateKeyAccount } from "viem/accounts";
 
 import { buildChallengeMessage, generateSiweNonce } from "../src/siwe.js";
-import { buildHarness, newSigner, type Harness } from "./helpers.js";
+import { getAddress, isAddressEqual, recoverMessageAddress, type Address, type Hex } from "viem";
+import { createApp } from "../src/app.js";
+import { defaultConfig } from "../src/config.js";
+import { createNonceStore } from "../src/nonceStore.js";
+import { createPassStore } from "../src/passStore.js";
+import { eoaSignatureVerifier, type SignatureVerifier } from "../src/verifiers.js";
+import { buildHarness, createClock, encodeProof, FakeChainReader, newSigner, type Harness } from "./helpers.js";
 
 const TOKEN_ID = "412";
 const ACTION = "feed";
@@ -326,5 +332,81 @@ describe("POST /action", () => {
     const notHex = await submitAction(h.app, garbage.message, "nothex", h.config.contract);
     expect(notHex.status).toBe(400);
     expect(notHex.body.error).toBe("invalid_request");
+  });
+});
+
+/// A contract account (ERC-1271) as a verifier sees it: the account has no
+///  key of its own, and its `isValidSignature` accepts a signature made by its
+///  keyholder, wrapped with a trailing 32-byte marker so it is longer than an
+///  EOA signature. The injected verifier stands in for the chain call that the
+///  production verifier makes, and falls through to EOA recovery otherwise.
+function contractAccountVerifier(contractAccount: Address, keyholder: Address): SignatureVerifier {
+  const eoa = eoaSignatureVerifier();
+  const marker = "c0".repeat(32);
+  return {
+    async verify({ address, message, signature }) {
+      if (!isAddressEqual(address, contractAccount)) {
+        return eoa.verify({ address, message, signature });
+      }
+      if (signature.length !== 2 + 130 + 64 || !signature.endsWith(marker)) {
+        return false;
+      }
+      const inner = signature.slice(0, 2 + 130) as Hex;
+      return isAddressEqual(await recoverMessageAddress({ message, signature: inner }), keyholder);
+    },
+  };
+}
+
+describe("contract-account signatures (ERC-1271)", () => {
+  it("authorizes an action for a contract account through an injected verifier, and refuses a wrong signature", async () => {
+    const config = defaultConfig({ manifestMode: "gated" });
+    const clock = createClock();
+    const chain = new FakeChainReader();
+    const keyholder = newSigner();
+    const intruder = newSigner();
+    const contractAccount = getAddress("0x00000000000000000000000000000000c0ffee01");
+    const app = createApp({
+      config,
+      nonces: createNonceStore(),
+      verifier: contractAccountVerifier(contractAccount, keyholder.address),
+      chain,
+      passStore: createPassStore(config, clock.now),
+      now: clock.now,
+    });
+    chain.setOwner(config.contract, TOKEN_ID, contractAccount);
+    const wrap1271 = (sig: Hex) => `${sig}${"c0".repeat(32)}`;
+
+    const challengeFor = async () => {
+      const res = await request(app)
+        .post("/challenge")
+        .send({ account: contractAccount, chainId: 1, contract: config.contract, tokenId: TOKEN_ID, action: ACTION });
+      expect(res.status).toBe(200);
+      return res.body.message as string;
+    };
+
+    // The keyholder signs for the contract account: the proof verifies, the
+    // fresh read names the contract account, and the action runs for it.
+    const message = await challengeFor();
+    const ok = await submitAction(app, message, wrap1271(await keyholder.signMessage({ message })), config.contract);
+    expect(ok.status).toBe(200);
+    expect(ok.body.executed).toBe(true);
+    expect(ok.body.account).toBe(contractAccount);
+
+    // Someone else's key, wrapped the same way, is not the account's signature.
+    const second = await challengeFor();
+    const bad = await submitAction(app, second, wrap1271(await intruder.signMessage({ message: second })), config.contract);
+    expect(bad.status).toBe(401);
+    expect(bad.body.error).toBe("signature_invalid");
+
+    // The gated manifest path takes the same verifier.
+    const acquire = await request(app).get(`/manifest/${TOKEN_ID}/challenge?address=${contractAccount}`);
+    expect(acquire.status).toBe(200);
+    const acquireMessage = acquire.body.message as string;
+    const manifest = await request(app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("Wallet-Pass-Proof", encodeProof(acquireMessage))
+      .set("Wallet-Pass-Signature", wrap1271(await keyholder.signMessage({ message: acquireMessage })));
+    expect(manifest.status).toBe(200);
+    expect(manifest.body.formats.apple).toContain("/passes/apple/");
   });
 });

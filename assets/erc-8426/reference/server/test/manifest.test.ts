@@ -118,6 +118,63 @@ describe("GET /manifest/:tokenId", () => {
     expect(both.status).toBe(200);
   });
 
+  it("refuses a mixed pair of proof header names as invalid_request, in either direction", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const account = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, account.address);
+
+    const a = await signChallenge(h, account, TOKEN_ID);
+    const plainProofLegacySig = await request(h.app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("Wallet-Pass-Proof", encodeProof(a.message))
+      .set("X-Wallet-Pass-Signature", a.signature);
+    expect(plainProofLegacySig.status).toBe(400);
+    expect(plainProofLegacySig.body.error).toBe("invalid_request");
+
+    const b = await signChallenge(h, account, TOKEN_ID);
+    const legacyProofPlainSig = await request(h.app)
+      .get(`/manifest/${TOKEN_ID}`)
+      .set("X-Wallet-Pass-Proof", encodeProof(b.message))
+      .set("Wallet-Pass-Signature", b.signature);
+    expect(legacyProofPlainSig.status).toBe(400);
+    expect(legacyProofPlainSig.body.error).toBe("invalid_request");
+
+    // The rotation route reads the same pair rule.
+    const c = await signChallenge(h, account, TOKEN_ID, h.config.rotateAction);
+    const rotateMixed = await request(h.app)
+      .post(`/manifest/${TOKEN_ID}/rotate`)
+      .set("Wallet-Pass-Proof", encodeProof(c.message))
+      .set("X-Wallet-Pass-Signature", c.signature);
+    expect(rotateMixed.status).toBe(400);
+    expect(rotateMixed.body.error).toBe("invalid_request");
+
+    // One header alone is still a missing proof, not a mixed pair.
+    const half = await request(h.app).get(`/manifest/${TOKEN_ID}`).set("Wallet-Pass-Proof", encodeProof(a.message));
+    expect(half.status).toBe(401);
+    expect(half.body.error).toBe("proof_required");
+  });
+
+  it("re-mints action links bound to the owner at the first claim, so links minted before any claim never refuse the owner", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const owner = newSigner();
+    h.chain.setOwner(h.config.contract, TOKEN_ID, owner.address);
+
+    // A pass generator ran before any claim: its links were issued to no one.
+    const early = new URL(h.passStore.actionLinks(TOKEN_ID).feed!).pathname;
+
+    const claim = await claimManifest(h, owner);
+    expect(claim.res.status).toBe(200);
+
+    const current = new URL(h.passStore.actionLinks(TOKEN_ID).feed!).pathname;
+    expect(current).not.toBe(early);
+    expect((await request(h.app).post(early)).status).toBe(404);
+
+    const tap = await request(h.app).post(current);
+    expect(tap.status).toBe(200);
+    expect(tap.body.executed).toBe(true);
+    expect(tap.body.account).toBe(owner.address);
+  });
+
   it("refuses the challenge endpoint without a valid claimed address", async () => {
     const { app } = buildHarness({ manifestMode: "gated" });
     const res = await request(app).get(`/manifest/${TOKEN_ID}/challenge`);

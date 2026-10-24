@@ -21,8 +21,15 @@ import { createHash } from "node:crypto";
 ///  While the first request is in flight, a repeat awaits the same promise, so
 ///  the action runs once however many identical requests arrive together. Once
 ///  it has completed, the recorded outcome is returned until the window
-///  closes; after that the repeat is a new request, and on the signed route
-///  the nonce store refuses it.
+///  closes; the window is measured from when the handler resolved, not from
+///  when the request arrived, so a slow handler does not shorten it. After the
+///  window the repeat is a new request, and on the signed route the nonce
+///  store refuses it.
+///
+///  A 503 (read_failed) is never recorded. It says the request could not be
+///  judged, not how it was judged, so a retry is judged afresh: a capability
+///  link retried after Retry-After meets a fresh read, and a signed retry meets
+///  the nonce store (see the /action route for why it needs a fresh challenge).
 ///
 ///  This is a reference simplification: one process, one map. A production
 ///  verifier would keep the same keys in a shared store with a TTL so that a
@@ -49,7 +56,15 @@ export function requestKey(...parts: string[]): string {
   return hash.digest("base64url");
 }
 
-export function createRepeatStore(windowMs: number): RepeatStore {
+/// Outcomes that are not recorded: the fresh read could not be taken, so there
+///  is no verdict to repeat.
+function isRecordable(outcome: Outcome): boolean {
+  return outcome.status !== 503;
+}
+
+/// `now` is read when a handler resolves, to stamp its completion; it defaults
+///  to the wall clock and is injected alongside the app's clock in tests.
+export function createRepeatStore(windowMs: number, now: () => number = Date.now): RepeatStore {
   const inFlight = new Map<string, Promise<Outcome>>();
   const completed = new Map<string, { outcome: Outcome; completedAtMs: number }>();
 
@@ -74,7 +89,9 @@ export function createRepeatStore(windowMs: number): RepeatStore {
       }
       const run = handler().then(
         (outcome) => {
-          completed.set(key, { outcome, completedAtMs: nowMs });
+          if (isRecordable(outcome)) {
+            completed.set(key, { outcome, completedAtMs: now() });
+          }
           inFlight.delete(key);
           return outcome;
         },

@@ -32,10 +32,11 @@ const OWNER_OF_ABI = [
 
 /// Production reader: call ERC-721 `ownerOf` through a viem public client.
 ///
-///  A real deployment SHOULD point the client at its best view of the latest
-///  safe chain head (see the standard's Security Considerations on read
-///  freshness and reorganizations); that is a client configuration concern and
-///  is left to the operator.
+///  The read SHOULD be taken at the latest block and SHOULD NOT be taken at
+///  the safe or finalized block, whose lag would let a sold token keep acting
+///  for the seller (see the standard's Security Considerations on read
+///  freshness and reorganizations). viem's readContract reads at the latest
+///  block by default; the RPC endpoint behind the client is the operator's.
 export function publicClientChainReader(client: PublicClient): ChainReader {
   return {
     async ownerOf(contract, tokenId) {

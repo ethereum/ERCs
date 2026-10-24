@@ -4,7 +4,7 @@ import type { Express } from "express";
 import type { PrivateKeyAccount } from "viem/accounts";
 
 import { createRepeatStore, requestKey } from "../src/repeatStore.js";
-import { buildHarness, newSigner, signChallenge, withProof, type Harness } from "./helpers.js";
+import { buildHarness, createClock, newSigner, signChallenge, withProof, type Harness } from "./helpers.js";
 
 const TOKEN_ID = "412";
 const ACTION = "feed";
@@ -62,7 +62,8 @@ describe("a repeat of an identical request is not a replay (Authorization of pas
   });
 
   it("returns the recorded outcome inside the window and runs afresh after it", async () => {
-    const store = createRepeatStore(30_000);
+    const clock = createClock(0);
+    const store = createRepeatStore(30_000, clock.now);
     let runs = 0;
     const handler = async () => ({ status: 200, body: { run: ++runs } });
     const key = requestKey("capability", "cap", "");
@@ -70,6 +71,121 @@ describe("a repeat of an identical request is not a replay (Authorization of pas
     expect((await store.join(key, 29_999, handler)).body.run).toBe(1);
     expect((await store.join(key, 30_000, handler)).body.run).toBe(2);
     expect(runs).toBe(2);
+  });
+
+  it("measures the repeat window from when the handler completed, not from when the request arrived", async () => {
+    const clock = createClock(0);
+    const store = createRepeatStore(30_000, clock.now);
+    let runs = 0;
+    // A slow handler: the request arrives at 0 and completes at 20 s.
+    const slow = async () => {
+      clock.advance(20_000);
+      return { status: 200, body: { run: ++runs } };
+    };
+    const key = requestKey("action", "slow", "");
+    expect((await store.join(key, clock.now(), slow)).body.run).toBe(1);
+
+    // 25 s after completion (45 s after arrival) is still inside the window.
+    clock.set(45_000);
+    expect((await store.join(key, clock.now(), slow)).body.run).toBe(1);
+    // 30 s after completion the window has closed.
+    clock.set(50_000);
+    expect((await store.join(key, clock.now(), slow)).body.run).toBe(2);
+  });
+
+  it("never records a read_failed outcome, so the next identical request is judged afresh", async () => {
+    const clock = createClock(0);
+    const store = createRepeatStore(30_000, clock.now);
+    let runs = 0;
+    const handler = async () => {
+      runs += 1;
+      return runs === 1 ? { status: 503, body: { error: "read_failed" } } : { status: 200, body: { ok: true } };
+    };
+    const key = requestKey("capability", "cap", "");
+    expect((await store.join(key, 0, handler)).status).toBe(503);
+    expect((await store.join(key, 1_000, handler)).status).toBe(200);
+    expect(runs).toBe(2);
+  });
+
+  it("judges a capability link retried after read_failed afresh, and performs it once the chain recovers", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const owner = newSigner();
+    const links = await issuePassTo(h, owner);
+
+    // The route's own read succeeds, the read inside the handler fails.
+    h.chain.failOneRead(1);
+    const failed = await request(h.app).post(links.feed!);
+    expect(failed.status).toBe(503);
+    expect(failed.body.error).toBe("read_failed");
+    expect(failed.headers["retry-after"]).toBe("5");
+
+    // The identical retry, well inside the repeat window, is not answered
+    // with the recorded 503: it meets a fresh read and the action runs.
+    h.clock.advance(5_000);
+    const retry = await request(h.app).post(links.feed!);
+    expect(retry.status).toBe(200);
+    expect(retry.body.executed).toBe(true);
+  });
+
+  it("refuses a signed retry after read_failed as nonce_invalid, and a fresh challenge then succeeds", async () => {
+    const h = buildHarness();
+    const { account, message, signature } = await primed(h);
+
+    h.chain.failOneRead(1);
+    const failed = await submitAction(h.app, message, signature, h.config.contract);
+    expect(failed.status).toBe(503);
+    expect(failed.body.error).toBe("read_failed");
+    expect(failed.headers["retry-after"]).toBe("5");
+
+    // The nonce was spent before the read (the specification's check order),
+    // and the 503 was not recorded, so the same proof meets the nonce store.
+    h.clock.advance(5_000);
+    const same = await submitAction(h.app, message, signature, h.config.contract);
+    expect(same.status).toBe(401);
+    expect(same.body.error).toBe("nonce_invalid");
+
+    const freshMessage = await issueChallenge(h.app, account, h.config.contract);
+    const fresh = await submitAction(h.app, freshMessage, await account.signMessage({ message: freshMessage }), h.config.contract);
+    expect(fresh.status).toBe(200);
+    expect(fresh.body.executed).toBe(true);
+  });
+
+  it("answers an identical rotate repeat with the first outcome and rotates once", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const owner = newSigner();
+    await issuePassTo(h, owner);
+    const { message, signature } = await signChallenge(h, owner, TOKEN_ID, h.config.rotateAction);
+
+    const first = await withProof(request(h.app).post(`/manifest/${TOKEN_ID}/rotate`), message, signature);
+    expect(first.status).toBe(200);
+    expect(first.body).toEqual({ ok: true, rotated: true });
+    const afterFirst = h.passStore.actionLinks(TOKEN_ID).feed;
+
+    // The device resent the POST: same proof, same owner, inside the window.
+    h.clock.advance(2_000);
+    const again = await withProof(request(h.app).post(`/manifest/${TOKEN_ID}/rotate`), message, signature);
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual(first.body);
+    expect(h.passStore.actionLinks(TOKEN_ID).feed).toBe(afterFirst);
+
+    // Past the window the same proof is a replay, and the nonce store refuses it.
+    h.clock.advance(h.config.repeatWindowSeconds * 1000);
+    const late = await withProof(request(h.app).post(`/manifest/${TOKEN_ID}/rotate`), message, signature);
+    expect(late.status).toBe(401);
+    expect(late.body.error).toBe("nonce_invalid");
+  });
+
+  it("treats a rotate repeat after the token changed hands as a new request", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const owner = newSigner();
+    await issuePassTo(h, owner);
+    const { message, signature } = await signChallenge(h, owner, TOKEN_ID, h.config.rotateAction);
+    const first = await withProof(request(h.app).post(`/manifest/${TOKEN_ID}/rotate`), message, signature);
+    expect(first.status).toBe(200);
+
+    h.chain.setOwner(h.config.contract, TOKEN_ID, newSigner().address);
+    const again = await withProof(request(h.app).post(`/manifest/${TOKEN_ID}/rotate`), message, signature);
+    expect(again.status).not.toBe(200);
   });
 
   it("keys requests by every part, so one differing field is a different request", () => {

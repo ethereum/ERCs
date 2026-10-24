@@ -48,13 +48,15 @@ function refuse(res: Response, status: number, body: Record<string, unknown>): v
 ///  the repeat store is consulted and its result is part of the key, so a
 ///  repeat that arrives after an ownership change is a new request and meets
 ///  the fresh read instead of a recorded success. A read that cannot be taken
-///  gets its own tag; the handler then answers read_failed as usual.
+///  gets its own tag; the handler then answers read_failed as usual, and the
+///  repeat store never records a read_failed outcome (see repeatStore.ts), so
+///  no retry can inherit one under this tag.
 async function entitlementTag(deps: AppDeps, tokenId: string): Promise<string> {
   try {
     const owner = await deps.chain.ownerOf(deps.config.contract, tokenId);
     return owner === null ? "none" : owner.toLowerCase();
   } catch {
-    return `read_failed:${Date.now()}`;
+    return "read_failed";
   }
 }
 
@@ -64,7 +66,7 @@ async function entitlementTag(deps: AppDeps, tokenId: string): Promise<string> {
 export function createApp(deps: AppDeps): Express {
   const { config, passStore } = deps;
   const now = deps.now ?? Date.now;
-  const repeats = deps.repeats ?? createRepeatStore(config.repeatWindowSeconds * 1000);
+  const repeats = deps.repeats ?? createRepeatStore(config.repeatWindowSeconds * 1000, now);
   const app = express();
   // A proof body carries a short SIWE message and a signature; nothing larger
   // is legitimate, and authorize() caps the message again before parsing.
@@ -182,6 +184,13 @@ export function createApp(deps: AppDeps): Express {
       // the same request: a device that abandoned its POST and sent it again
       // gets the first outcome, and the nonce is consumed once. A request that
       // differs in any field has its own key and meets the nonce store.
+      //
+      // A read_failed (503) is never recorded, so a retry is judged afresh.
+      // This server keeps the specification's check order, in which the nonce
+      // is consumed before the fresh ownership read, so the presentation that
+      // met the failed read has already spent its nonce: the retry after
+      // Retry-After needs a fresh challenge, and the same proof presented
+      // again is refused as nonce_invalid (401).
       const key = requestKey(
         "action",
         message,
@@ -257,8 +266,11 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
+      // The identical-repeat rule covers state-changing actions only: a
+      // repeated manifest request is never answered from a record, so every
+      // acquire proof meets the nonce store and the fresh read on its own.
       if (config.manifestMode === "gated") {
-        const gate = await checkGatedProof(req, tokenId, deps, config.acquireAction);
+        const gate = await checkGatedProof(readProofHeaders(req), tokenId, deps, config.acquireAction);
         if (!gate.ok) {
           refuse(res, gate.status, gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error });
           return;
@@ -269,15 +281,19 @@ export function createApp(deps: AppDeps): Express {
         // account that is not the account passes were last issued to is
         // making its first claim, the previous account has lost entitlement,
         // so its URLs are retired before the manifest is returned. The very
-        // first claim for a token only records the account; there is no
-        // earlier holder whose URLs need retiring, so nothing rotates. The
-        // account is recorded before rotating so the fresh links are issued
-        // to it. A server that extends entitlement (ERC-4907 users, delegates)
-        // keeps a set of issued-to accounts per token and retires only the
-        // URLs of the account whose entitlement ended.
+        // first claim for a token rotates too: links a pass generator minted
+        // before any claim were issued to no one (issuedTo undefined) and
+        // would refuse the owner's own tap as not_owner, so they are re-minted
+        // bound to the proven account. Links are always minted bound to the
+        // account last recorded, so comparing against that record (undefined
+        // included) compares against the live links' issuedTo. The account is
+        // recorded before rotating so the fresh links are issued to it. A
+        // server that extends entitlement (ERC-4907 users, delegates) keeps a
+        // set of issued-to accounts per token and retires only the URLs of
+        // the account whose entitlement ended.
         const last = passStore.lastIssuedTo(tokenId);
         passStore.recordIssuance(tokenId, gate.account);
-        if (last !== undefined && !isAddressEqual(last, gate.account)) {
+        if (last === undefined || !isAddressEqual(last, gate.account)) {
           passStore.rotateOnTransfer(tokenId);
         }
       }
@@ -316,6 +332,13 @@ export function createApp(deps: AppDeps): Express {
   // in the same headers, but for the rotate action: an acquire proof cannot
   // rotate, and a rotate proof cannot acquire or act. The proof's fresh read
   // means only the current owner can rotate.
+  //
+  // Rotation changes state, so it takes the same repeat treatment as /action:
+  // an identical repeat (same proof headers, same fresh read) gets the first
+  // outcome instead of nonce_invalid, and the rotation runs once. The fresh
+  // read's tag is part of the key, so a repeat after the token changed hands
+  // is a new request. A request without a complete proof pair changes nothing
+  // and is answered directly.
   app.post(
     "/manifest/:tokenId/rotate",
     wrap(async (req, res) => {
@@ -327,27 +350,45 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
 
-      const gate = await checkGatedProof(req, tokenId, deps, config.rotateAction);
-      if (!gate.ok) {
-        refuse(res, gate.status, gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error });
-        return;
+      const proof = readProofHeaders(req);
+      const run = async (): Promise<Outcome> => {
+        const gate = await checkGatedProof(proof, tokenId, deps, config.rotateAction);
+        if (!gate.ok) {
+          return {
+            status: gate.status,
+            body: gate.challenge ? { error: gate.error, challenge: gate.challenge } : { error: gate.error },
+          };
+        }
+        // The proven owner is who the fresh links are issued to. The response
+        // carries no acquisition URL: "a proof for any other action MUST NOT
+        // resolve the manifest" (Gated acquisition), so the owner acquires the
+        // new pass through the manifest route with an acquire proof.
+        passStore.recordIssuance(tokenId, gate.account);
+        passStore.rotateOnOwnerRequest(tokenId);
+        return { status: 200, body: { ok: true, rotated: true } };
+      };
+      const outcome =
+        proof.kind === "proof"
+          ? await repeats.join(
+              requestKey("rotate", tokenId, proof.encoded, proof.signature, await entitlementTag(deps, tokenId)),
+              now(),
+              run,
+            )
+          : await run();
+      if (outcome.status === 200) {
+        res.setHeader("Cache-Control", "no-store");
+        res.status(200).json(outcome.body);
+      } else {
+        refuse(res, outcome.status, outcome.body);
       }
-
-      // The proven owner is who the fresh links are issued to. The response
-      // carries no acquisition URL: "a proof for any other action MUST NOT
-      // resolve the manifest" (Gated acquisition), so the owner acquires the
-      // new pass through the manifest route with an acquire proof.
-      passStore.recordIssuance(tokenId, gate.account);
-      passStore.rotateOnOwnerRequest(tokenId);
-      res.setHeader("Cache-Control", "no-store");
-      res.status(200).json({ ok: true, rotated: true });
     }),
   );
 
   // GET /links/:capability: describe an action link without performing it.
   // A link embedded in an installed pass is followed by devices, previewers,
-  // and crawlers that prefetch it, so the GET MUST be side-effect free (see
-  // the deployment notes); only the POST below performs the action. The
+  // and crawlers that prefetch it, so the GET MUST NOT perform the action
+  // (the specification's Pass Issuer requirements for capability links);
+  // only the POST below performs it. The
   // description carries nothing a bearer could not already learn from the
   // pass, and in the public configuration no action link exists at all.
   app.get(
@@ -414,6 +455,35 @@ export function createApp(deps: AppDeps): Express {
   return app;
 }
 
+/// The proof headers as presented. Each name form is a pair: both unprefixed
+///  (`Wallet-Pass-Proof` and `Wallet-Pass-Signature`) or both `X-` prefixed.
+///  A complete unprefixed pair wins when both complete pairs are present, and
+///  a complete legacy pair is used otherwise. A proof under one form with a
+///  signature under the other is a mixed pair: it is refused as
+///  invalid_request, never stitched together. Anything short of one complete
+///  pair is a missing proof.
+type ProofHeaders =
+  | { kind: "proof"; encoded: string; signature: string }
+  | { kind: "missing" }
+  | { kind: "mixed" };
+
+function readProofHeaders(req: Request): ProofHeaders {
+  const proof = req.get("wallet-pass-proof");
+  const signature = req.get("wallet-pass-signature");
+  const legacyProof = req.get("x-wallet-pass-proof");
+  const legacySignature = req.get("x-wallet-pass-signature");
+  if (proof && signature) {
+    return { kind: "proof", encoded: proof, signature };
+  }
+  if (legacyProof && legacySignature) {
+    return { kind: "proof", encoded: legacyProof, signature: legacySignature };
+  }
+  if ((proof || signature) && (legacyProof || legacySignature)) {
+    return { kind: "mixed" };
+  }
+  return { kind: "missing" };
+}
+
 interface GateOk {
   ok: true;
   /// The proven account, so the manifest handler can tell a first claim by a
@@ -440,16 +510,18 @@ interface GateFail {
 ///  signature in `Wallet-Pass-Signature`. This keeps manifest resolution a
 ///  GET while still carrying a full challenge. The `X-` prefixed names that
 ///  earlier drafts used are still accepted (the spec says a Pass Issuer MAY);
-///  when both forms are present the unprefixed one wins.
-async function checkGatedProof(req: Request, tokenId: string, deps: AppDeps, action: string): Promise<GateOk | GateFail> {
+///  see readProofHeaders for how the two forms combine.
+async function checkGatedProof(proof: ProofHeaders, tokenId: string, deps: AppDeps, action: string): Promise<GateOk | GateFail> {
   const query = action === deps.config.acquireAction ? "" : `?action=${action}`;
   const challenge = `${deps.config.baseUrl}/manifest/${tokenId}/challenge${query}`;
-  const encoded = req.get("wallet-pass-proof") ?? req.get("x-wallet-pass-proof");
-  const signature = req.get("wallet-pass-signature") ?? req.get("x-wallet-pass-signature");
-  if (!encoded || !signature) {
+  if (proof.kind === "missing") {
     // Gated acquisition: point the client at the challenge endpoint for this token.
     return { ok: false, status: 401, error: "proof_required", challenge };
   }
+  if (proof.kind === "mixed") {
+    return { ok: false, status: 400, error: "invalid_request" };
+  }
+  const { encoded, signature } = proof;
   // As on /action: hex or nothing, with the length left to the verifier.
   if (!isHex(signature)) {
     return { ok: false, status: 400, error: "invalid_request" };

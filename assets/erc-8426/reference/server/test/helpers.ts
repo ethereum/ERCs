@@ -35,9 +35,16 @@ export function createClock(startMs: number = Date.UTC(2026, 7, 7, 15, 4, 5)) {
 export class FakeChainReader implements ChainReader {
   private owners = new Map<string, Address>();
   private failing = false;
+  private failAfter: number | undefined;
 
   failReads(failing: boolean): void {
     this.failing = failing;
+  }
+
+  /// Let `skip` reads succeed, then fail exactly one: a flaky RPC that fails
+  ///  the read inside the handler after the route's own read succeeded.
+  failOneRead(skip = 0): void {
+    this.failAfter = skip;
   }
 
   setOwner(contract: Address, tokenId: string, owner: Address): void {
@@ -51,6 +58,13 @@ export class FakeChainReader implements ChainReader {
   async ownerOf(contract: Address, tokenId: string): Promise<Address | null> {
     if (this.failing) {
       throw new Error("rpc unavailable");
+    }
+    if (this.failAfter !== undefined) {
+      if (this.failAfter === 0) {
+        this.failAfter = undefined;
+        throw new Error("rpc unavailable");
+      }
+      this.failAfter -= 1;
     }
     return this.owners.get(this.key(contract, tokenId)) ?? null;
   }
