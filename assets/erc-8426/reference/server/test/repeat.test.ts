@@ -162,6 +162,38 @@ describe("a repeat of an identical request is not a replay (Authorization of pas
     expect(again.body).toEqual(a.body);
   });
 
+  it("refuses a capability repeat after the token changed hands, instead of serving the recorded success", async () => {
+    const h = buildHarness({ manifestMode: "gated" });
+    const owner = newSigner();
+    const links = await issuePassTo(h, owner);
+
+    const first = await request(h.app).post(links.feed!);
+    expect(first.status).toBe(200);
+
+    // Sold within the window, before any rotation. The repeat is byte for byte
+    // the first request, but the fresh read is part of what makes a request
+    // identical, so it is judged afresh and refused.
+    h.chain.setOwner(h.config.contract, TOKEN_ID, newSigner().address);
+    h.clock.advance(1_000);
+    const again = await request(h.app).post(links.feed!);
+    expect(again.status).toBe(403);
+    expect(again.body.error).toBe("not_owner");
+  });
+
+  it("refuses a signed repeat after the token changed hands, instead of serving the recorded success", async () => {
+    const h = buildHarness();
+    const { message, signature } = await primed(h);
+
+    const first = await submitAction(h.app, message, signature, h.config.contract);
+    expect(first.status).toBe(200);
+
+    h.chain.setOwner(h.config.contract, TOKEN_ID, newSigner().address);
+    h.clock.advance(1_000);
+    const again = await submitAction(h.app, message, signature, h.config.contract);
+    expect(again.status).not.toBe(200);
+    expect(["not_owner", "nonce_invalid"]).toContain(again.body.error);
+  });
+
   it("treats a capability POST with a different body as a different request", async () => {
     const h = buildHarness({ manifestMode: "gated" });
     const owner = newSigner();

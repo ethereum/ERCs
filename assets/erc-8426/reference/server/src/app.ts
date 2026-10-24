@@ -43,6 +43,21 @@ function refuse(res: Response, status: number, body: Record<string, unknown>): v
   res.status(status).json(body);
 }
 
+/// The entitlement a repeat is judged against. A repeat is identical only if
+///  the world it would execute in is the same: the fresh read is taken before
+///  the repeat store is consulted and its result is part of the key, so a
+///  repeat that arrives after an ownership change is a new request and meets
+///  the fresh read instead of a recorded success. A read that cannot be taken
+///  gets its own tag; the handler then answers read_failed as usual.
+async function entitlementTag(deps: AppDeps, tokenId: string): Promise<string> {
+  try {
+    const owner = await deps.chain.ownerOf(deps.config.contract, tokenId);
+    return owner === null ? "none" : owner.toLowerCase();
+  } catch {
+    return `read_failed:${Date.now()}`;
+  }
+}
+
 /// Build the reference server. Every collaborator is injected so a test can
 ///  supply an EOA-only verifier and a fake chain reader, and a deployment can
 ///  supply viem-backed ones, without touching the routes.
@@ -167,7 +182,16 @@ export function createApp(deps: AppDeps): Express {
       // the same request: a device that abandoned its POST and sent it again
       // gets the first outcome, and the nonce is consumed once. A request that
       // differs in any field has its own key and meets the nonce store.
-      const key = requestKey("action", message, signature, String(target.chainId), target.contract, target.tokenId, target.action);
+      const key = requestKey(
+        "action",
+        message,
+        signature,
+        String(target.chainId),
+        target.contract,
+        target.tokenId,
+        target.action,
+        await entitlementTag(deps, target.tokenId),
+      );
       const outcome = await repeats.join(key, now(), async (): Promise<Outcome> => {
         const result = await authorize({ message, signature, target }, deps);
         if (!result.ok) {
@@ -365,7 +389,7 @@ export function createApp(deps: AppDeps): Express {
         refuse(res, capabilityStatusFor("unknown_capability"), { error: "unknown_capability" });
         return;
       }
-      const key = requestKey("capability", capability, requested ?? "", JSON.stringify(binding));
+      const key = requestKey("capability", capability, requested ?? "", JSON.stringify(binding), await entitlementTag(deps, binding.tokenId));
       const outcome = await repeats.join(key, now(), async (): Promise<Outcome> => {
         const result = await authorizeCapabilityAction({ capability, requestedAction: requested }, deps);
         if (!result.ok) {
