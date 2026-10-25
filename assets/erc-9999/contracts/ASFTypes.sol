@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 /// @title  ASFTypes — shared types of the Agent Safety and Security Framework (ASF)
 /// @notice Two registry objects (Safety Specification, Safety Binding), the binding lifecycle,
-///         the suspension restriction vocabulary, the enforcement-location bit set, intervener
-///         rights and the requirement grammar consumed by `check`.
+///         the response-requirement bit set of suspensions, the enforcement-location bit set,
+///         intervener rights and the requirement grammar consumed by `check`.
 library ASFTypes {
     // ------------------------------------------------------------------ specification registry
 
@@ -23,7 +23,7 @@ library ASFTypes {
     enum BindingState {
         None,       // 0 — no record
         Active,     // 1 — the adopter maintains the adoption
-        Suspended,  // 2 — the adoption is paused under a named restriction
+        Suspended,  // 2 — the adoption is paused under a set of response requirements
         Terminated  // 3 — the adoption ended; terminal, the record is never reused
     }
 
@@ -104,6 +104,7 @@ library ASFTypes {
         BindingState state;
         uint8 restrictions;        // bit set of RESTRICT_* while Suspended, else 0
         bytes32 responseRef;       // content hash of the response document while Suspended, else 0
+        address suspendedBy;       // account that recorded the current suspension while Suspended, else 0
     }
 
     // ------------------------------------------------------------------------- requirements
@@ -130,7 +131,8 @@ library ASFTypes {
         ScopeMismatch,          // 10
         EnforcementMismatch,    // 11 — required enforcement locations not all declared
         ParentNotSatisfied,     // 12 — an ancestor binding is not currently satisfied
-        SpecRegistryUnavailable // 13 — the specification registry could not be queried (Unknown)
+        SpecRegistryUnavailable,// 13 — the specification registry could not be queried (Unknown)
+        IntervenerMismatch      // 14 — a required intervener is missing or holds fewer rights than required
     }
 
     /// @notice How the clause results of a requirement set combine.
@@ -141,7 +143,9 @@ library ASFTypes {
     }
 
     /// @notice One clause of a requirement set. Zero values are wildcards for `adopter`, `subjectKey`,
-    ///         `scopeKey` and `enforcement`; an empty `versions` list admits every version.
+    ///         `scopeKey` and `enforcement`; an empty `versions` list admits every version. `interveners`
+    ///         lists accounts that the binding must name as interveners with at least the given rights;
+    ///         an entry whose account is zero stands for some intervener other than the adopter.
     struct Clause {
         address specRegistry;
         bytes32 specId;
@@ -150,6 +154,7 @@ library ASFTypes {
         bytes32 subjectKey;
         bytes32 scopeKey;
         uint16 enforcement;
+        Intervener[] interveners;
     }
 
     struct RequirementSet {

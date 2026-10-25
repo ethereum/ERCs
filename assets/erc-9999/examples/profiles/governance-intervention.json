@@ -3,7 +3,7 @@
   "kind": "profile-descriptor",
   "identifier": "asf:profile:governance/intervention@1",
   "family": "governance-accountability",
-  "summary": "Who may suspend, resume or terminate the binding, under which authority basis, with which combinable response requirements, and how a disputed intervention is resolved. A danger label creates no power: every intervener's rights are granted in the binding itself, and every response states its scope, what it prohibits, allows and keeps running, how in-flight actions are handled, how long it lasts and who may resume.",
+  "summary": "Who may suspend, resume or terminate the binding, under which authority basis, with which combinable response requirements, and how a disputed intervention is resolved. A danger label creates no power: every intervener's rights are granted in the binding itself, a suspension recorded by an intervener is lifted only by an intervener holding the resume right (never by the adopter), and every response states its scope, what it prohibits, allows and keeps running, how in-flight actions are handled, how long it lasts and who may resume.",
   "evaluatesOver": [
     "state"
   ],
@@ -89,7 +89,7 @@
         "binding record",
         "state transition events"
       ],
-      "resultMeaning": "every transition was made by an account holding the corresponding right",
+      "resultMeaning": "every transition was made by an account holding the corresponding right, and no intervener's suspension was lifted by the adopter",
       "trustAssumptions": [
         "the binding registry"
       ]

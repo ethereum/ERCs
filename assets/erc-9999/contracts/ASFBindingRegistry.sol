@@ -132,6 +132,7 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         b.state = T.BindingState.Suspended;
         b.restrictions = restrictions;
         b.responseRef = responseRef;
+        b.suspendedBy = msg.sender;
         b.stateChangedAt = uint64(block.timestamp);
         emit BindingStateChanged(
             bindingId, T.BindingState.Active, T.BindingState.Suspended, restrictions, responseRef, msg.sender, reasonRef
@@ -142,9 +143,12 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         T.Binding storage b = _existing(bindingId);
         if (b.state != T.BindingState.Suspended) revert ASFErrors.InvalidState();
         if (rightsOf(bindingId, msg.sender) & T.RIGHT_RESUME == 0) revert ASFErrors.NotAuthorized();
+        // an intervener's suspension is not the adopter's to lift: only an intervener holding RIGHT_RESUME may
+        if (b.suspendedBy != b.adopter && msg.sender == b.adopter) revert ASFErrors.NotAuthorized();
         b.state = T.BindingState.Active;
         b.restrictions = 0;
         b.responseRef = bytes32(0);
+        b.suspendedBy = address(0);
         b.stateChangedAt = uint64(block.timestamp);
         emit BindingStateChanged(
             bindingId, T.BindingState.Suspended, T.BindingState.Active, 0, bytes32(0), msg.sender, reasonRef
@@ -159,6 +163,7 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         b.state = T.BindingState.Terminated;
         b.restrictions = 0;
         b.responseRef = bytes32(0);
+        b.suspendedBy = address(0);
         b.stateChangedAt = uint64(block.timestamp);
         emit BindingStateChanged(bindingId, previous, T.BindingState.Terminated, 0, bytes32(0), msg.sender, reasonRef);
     }
@@ -235,29 +240,32 @@ contract ASFBindingRegistry is IASFBindingRegistry {
     }
 
     function check(T.RequirementSet calldata requirement, bytes32[] calldata bindingIds)
-        external view returns (T.Verdict verdict, T.Reason[] memory reasons)
+        external view returns (T.Verdict verdict, T.Reason[] memory reasons, uint8[] memory restrictions)
     {
         _validateRequirement(requirement);
         uint256 n = requirement.clauses.length;
         if (bindingIds.length != n) revert ASFErrors.LengthMismatch();
         reasons = new T.Reason[](n);
+        restrictions = new uint8[](n);
         uint256 satisfied;
         uint256 unknown;
         for (uint256 i = 0; i < n; i++) {
-            (T.Verdict v, T.Reason r,) = _evaluate(bindingIds[i], requirement.clauses[i]);
+            (T.Verdict v, T.Reason r, uint8 x) = _evaluate(bindingIds[i], requirement.clauses[i]);
             reasons[i] = r;
+            restrictions[i] = x;
             if (v == T.Verdict.Satisfied) satisfied++;
             else if (v == T.Verdict.Unknown) unknown++;
         }
         if (requirement.combinator == T.Combinator.All) {
-            if (satisfied == n) return (T.Verdict.Satisfied, reasons);
-            if (satisfied + unknown == n) return (T.Verdict.Unknown, reasons);
-            return (T.Verdict.NotSatisfied, reasons);
+            if (satisfied == n) verdict = T.Verdict.Satisfied;
+            else if (satisfied + unknown == n) verdict = T.Verdict.Unknown;
+            else verdict = T.Verdict.NotSatisfied;
+        } else {
+            uint256 k = requirement.combinator == T.Combinator.Any ? 1 : requirement.k;
+            if (satisfied >= k) verdict = T.Verdict.Satisfied;
+            else if (satisfied + unknown >= k) verdict = T.Verdict.Unknown;
+            else verdict = T.Verdict.NotSatisfied;
         }
-        uint256 k = requirement.combinator == T.Combinator.Any ? 1 : requirement.k;
-        if (satisfied >= k) return (T.Verdict.Satisfied, reasons);
-        if (satisfied + unknown >= k) return (T.Verdict.Unknown, reasons);
-        return (T.Verdict.NotSatisfied, reasons);
     }
 
     function requirementId(T.RequirementSet calldata requirement) external pure returns (bytes32) {
@@ -291,6 +299,36 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         expired = b.validUntil != 0 && block.timestamp >= b.validUntil;
     }
 
+    /// @dev The response set in force for a binding: the union of the sets of every suspended record among the
+    ///      binding and its ancestors, or empty when any record in that chain is terminated or outside its window
+    ///      (a chain that is not in force keeps no path open). `broken` is true when some ancestor is not Active
+    ///      or outside its window.
+    function _chainSets(T.Binding storage b) private view returns (uint8 union, bool broken) {
+        bool dead;
+        if (b.state == T.BindingState.Suspended) union = b.restrictions;
+        if (b.state == T.BindingState.Terminated) dead = true;
+        (bool notYet, bool expired) = _inWindow(b);
+        if (notYet || expired) dead = true;
+        bytes32 pid = b.parentBindingId;
+        while (pid != bytes32(0)) {
+            T.Binding storage p = _bindings[pid];
+            if (p.state == T.BindingState.Suspended) {
+                union |= p.restrictions;
+                broken = true;
+            } else if (p.state != T.BindingState.Active) {
+                dead = true;
+                broken = true;
+            }
+            (bool pNotYet, bool pExpired) = _inWindow(p);
+            if (pNotYet || pExpired) {
+                dead = true;
+                broken = true;
+            }
+            pid = p.parentBindingId;
+        }
+        if (dead) union = 0;
+    }
+
     function _evaluate(bytes32 bindingId, T.Clause calldata clause)
         private view returns (T.Verdict, T.Reason, uint8)
     {
@@ -298,7 +336,10 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         T.Binding storage b = _bindings[bindingId];
         if (b.state == T.BindingState.None) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, 0);
         if (b.state == T.BindingState.Terminated) return (T.Verdict.NotSatisfied, T.Reason.Terminated, 0);
-        if (b.state == T.BindingState.Suspended) return (T.Verdict.NotSatisfied, T.Reason.Suspended, b.restrictions);
+        if (b.state == T.BindingState.Suspended) {
+            (uint8 own,) = _chainSets(b);
+            return (T.Verdict.NotSatisfied, T.Reason.Suspended, own);
+        }
         (bool notYet, bool expired) = _inWindow(b);
         if (notYet) return (T.Verdict.NotSatisfied, T.Reason.NotYetValid, 0);
         if (expired) return (T.Verdict.NotSatisfied, T.Reason.Expired, 0);
@@ -324,17 +365,16 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         if (clause.enforcement & b.enforcement != clause.enforcement) {
             return (T.Verdict.NotSatisfied, T.Reason.EnforcementMismatch, 0);
         }
-        // ancestors: every binding this one is derived from must itself be satisfied now
-        bytes32 pid = b.parentBindingId;
-        while (pid != bytes32(0)) {
-            T.Binding storage p = _bindings[pid];
-            if (p.state != T.BindingState.Active) {
-                return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, p.restrictions);
+        // required interveners: named accounts (or, for a zero account, some intervener other than the adopter)
+        // must hold at least the required rights on this binding
+        for (uint256 i = 0; i < clause.interveners.length; i++) {
+            if (!_hasIntervener(bindingId, clause.interveners[i])) {
+                return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
             }
-            (bool pNotYet, bool pExpired) = _inWindow(p);
-            if (pNotYet || pExpired) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, 0);
-            pid = p.parentBindingId;
         }
+        // ancestors: every binding this one is derived from must itself be satisfied now
+        (uint8 sets, bool broken) = _chainSets(b);
+        if (broken) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, sets);
         // the pinned specification registry must still be queryable; a dependency failure is Unknown, never a pass
         if (!_supportsSpecRegistry(b.specRegistry)) {
             return (T.Verdict.Unknown, T.Reason.SpecRegistryUnavailable, 0);
@@ -342,8 +382,23 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         return (T.Verdict.Satisfied, T.Reason.None, 0);
     }
 
+    function _hasIntervener(bytes32 bindingId, T.Intervener calldata required) private view returns (bool) {
+        if (required.account != address(0)) {
+            return _rights[bindingId][required.account] & required.rights == required.rights;
+        }
+        T.Intervener[] storage list = _interveners[bindingId];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i].rights & required.rights == required.rights) return true;
+        }
+        return false;
+    }
+
     function _validateClause(T.Clause calldata clause) private pure {
         if (clause.specRegistry == address(0) || clause.specId == bytes32(0)) revert ASFErrors.InvalidRequirement();
+        for (uint256 i = 0; i < clause.interveners.length; i++) {
+            uint8 rights = clause.interveners[i].rights;
+            if (rights == 0 || rights > T.RIGHT_ALL) revert ASFErrors.InvalidRequirement();
+        }
     }
 
     function _validateRequirement(T.RequirementSet calldata requirement) private pure {

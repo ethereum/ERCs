@@ -42,10 +42,12 @@ interface IASFBindingRegistry /* is IERC165 */ {
 
     /// @notice Active -> Suspended under a non-empty set of response requirements, with the response document
     ///         reference (scope, parameters, in-flight handling, duration, who may resume) and the reason
-    ///         reference (the evidence or decision behind the transition). Adopter or intervener with RIGHT_SUSPEND.
+    ///         reference (the evidence or decision behind the transition). Adopter or intervener with RIGHT_SUSPEND;
+    ///         the caller is recorded as `suspendedBy`.
     function suspend(bytes32 bindingId, uint8 restrictions, bytes32 responseRef, bytes32 reasonRef) external;
 
-    /// @notice Suspended -> Active. Adopter or intervener with RIGHT_RESUME.
+    /// @notice Suspended -> Active. Adopter or intervener with RIGHT_RESUME, except that a suspension recorded by
+    ///         an intervener can only be lifted by an intervener holding RIGHT_RESUME, never by the adopter.
     function resume(bytes32 bindingId, bytes32 reasonRef) external;
 
     /// @notice Active or Suspended -> Terminated (terminal). Adopter or intervener with RIGHT_TERMINATE.
@@ -70,14 +72,18 @@ interface IASFBindingRegistry /* is IERC165 */ {
 
     /// @notice Registry-level check of one binding against one clause at the current block time.
     ///         Pure registry logic: existence, state, validity window, pinned specification, adopter,
-    ///         subject, scope, declared enforcement locations and the ancestor chain. No policy is evaluated.
+    ///         subject, scope, declared enforcement locations, required interveners and the ancestor chain.
+    ///         No policy is evaluated. `restrictions` is the set of response requirements in force for the
+    ///         binding: the union of the sets of every suspended record among the binding and its ancestors,
+    ///         or empty when a record in that chain is terminated or outside its validity window.
     function checkBinding(bytes32 bindingId, ASFTypes.Clause calldata clause)
         external view returns (ASFTypes.Verdict verdict, ASFTypes.Reason reason, uint8 restrictions);
 
     /// @notice Evaluates a requirement set. `bindingIds[i]` is the candidate for `clauses[i]`
-    ///         (bytes32(0) = none supplied). `Unknown` never counts as satisfied.
+    ///         (bytes32(0) = none supplied). `Unknown` never counts as satisfied. `restrictions[i]` is the
+    ///         response set in force for clause i, as defined for `checkBinding`.
     function check(ASFTypes.RequirementSet calldata requirement, bytes32[] calldata bindingIds)
-        external view returns (ASFTypes.Verdict verdict, ASFTypes.Reason[] memory reasons);
+        external view returns (ASFTypes.Verdict verdict, ASFTypes.Reason[] memory reasons, uint8[] memory restrictions);
 
     /// @notice keccak256(abi.encode(requirement)); reverts for malformed requirement sets.
     function requirementId(ASFTypes.RequirementSet calldata requirement) external pure returns (bytes32);

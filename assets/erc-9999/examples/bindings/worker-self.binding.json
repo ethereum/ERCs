@@ -58,13 +58,21 @@
             "terminate"
           ],
           "basis": "self"
+        },
+        {
+          "role": "task publisher",
+          "rights": [
+            "suspend"
+          ],
+          "basis": "tender admission requirement"
         }
       ],
       "allowedModes": [
+        "no-new-risk",
         "full-stop"
       ],
       "dispute": "the tender's acceptance authority",
-      "recovery": "the worker resumes after review"
+      "recovery": "the worker resumes its own suspensions after review; a suspension by the task publisher is lifted by the publisher or by termination and a fresh adoption"
     }
   },
   "authorityBasis": [
@@ -85,8 +93,17 @@
       "coverage": "full"
     }
   ],
+  "interveners": [
+    {
+      "ref": "eip155:11155111:0x00000000000000000000000000000000000a11ce",
+      "rights": [
+        "suspend"
+      ],
+      "role": "task publisher"
+    }
+  ],
   "metadata": {
     "salt": "0x0000000000000000000000000000000000000000000000000000000000000041",
-    "note": "The worker's own commitment that a tender's acceptance authority can require (adopter == subject)."
+    "note": "The worker's own commitment that a tender's acceptance authority can require (adopter == subject). The task publisher is named as an intervener with the suspend right, as the tender admission requirement demands; the worker cannot lift the publisher's suspension."
   }
 }

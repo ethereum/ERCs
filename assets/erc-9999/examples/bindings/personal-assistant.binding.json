@@ -103,7 +103,8 @@
         {
           "role": "guardian",
           "rights": [
-            "suspend"
+            "suspend",
+            "resume"
           ],
           "basis": "guardian agreement"
         }
@@ -117,7 +118,7 @@
         "cancelOrder"
       ],
       "dispute": "decision mechanism named by the principal",
-      "recovery": "principal resumes after review"
+      "recovery": "the guardian lifts its own suspensions after review; the principal lifts its own, or terminates and adopts afresh"
     }
   },
   "authorityBasis": [
@@ -158,7 +159,8 @@
     {
       "ref": "eip155:11155111:0x0000000000000000000000000000000000006a2d",
       "rights": [
-        "suspend"
+        "suspend",
+        "resume"
       ],
       "role": "guardian"
     }

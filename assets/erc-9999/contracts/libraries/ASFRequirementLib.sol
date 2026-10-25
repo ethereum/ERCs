@@ -28,6 +28,9 @@ library ASFRequirementLib {
             c.subjectKey = r.clauses[i].subjectKey;
             c.scopeKey = r.clauses[i].scopeKey;
             c.enforcement = r.clauses[i].enforcement;
+            for (uint256 j = 0; j < r.clauses[i].interveners.length; j++) {
+                c.interveners.push(r.clauses[i].interveners[j]);
+            }
         }
     }
 
@@ -44,7 +47,8 @@ library ASFRequirementLib {
                 adopter: c.adopter,
                 subjectKey: c.subjectKey,
                 scopeKey: c.scopeKey,
-                enforcement: c.enforcement
+                enforcement: c.enforcement,
+                interveners: c.interveners
             });
         }
     }

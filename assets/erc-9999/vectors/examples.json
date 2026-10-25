@@ -13,7 +13,7 @@
   },
   "bindings": {
     "personal-assistant.binding.json": {
-      "paramsHash": "0x43a92416bf2f1c73fecec8414212990693c6f184f3f40202defbe22ea974f566",
+      "paramsHash": "0xe32c7525c4dd8d1fed7a1afbc30a0f2d87d5c296003e5476b3f5b4d7dee883a7",
       "authorityRef": "0x25c253dca062b324dad1dc6e9ac265fc7ed4478f8255cbfa342f8a12eb37886e",
       "enforcement": 18,
       "bindingId": "0x17fff4e549c63902b0051a8c87cda260164337ca5c82d876bb5f5fe218d3ff3f",
@@ -27,7 +27,7 @@
       "parentBindingId": "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
     "worker-self.binding.json": {
-      "paramsHash": "0xf1c7affd90c6321f98b880b164ffa793c7202faba5c21b85706ace959b18c401",
+      "paramsHash": "0xa3ef566acea60acf056d46051c89cd2162d8910cb843a5f8d97a94295393e239",
       "authorityRef": "0xf2ffa8a8e45408895b937e3b11fb04f483236cd0cd7e71e652e6c8d6d36a137b",
       "enforcement": 2,
       "bindingId": "0x0ce9a993e9d3719752d4d7d818c4303e4d666b8bc1448e18a999a87b892e83e7",
@@ -44,10 +44,10 @@
   "requirements": {
     "swarm-admission.requirement.json": {
       "documentHash": "0x1aaa0e9eee369e3dfff8fc59d975c0e7bd074151739b665e8eac26a037992065",
-      "requirementId": "0xd12fbc1302c75f4271a89ee0c4494c29403bd54123ddfa65625ca12d5e4dac47"
+      "requirementId": "0xc32c3f461b38b1fd374328cd992203278a35cf18bfcda0cf15f84ffa5079f673"
     },
     "tender-admission.requirement.json": {
-      "documentHash": "0x0b796d657f9958a20b03870e8736cc83f10aef742c829dc7c02f965a7d361a67",
+      "documentHash": "0xc2c48fa2e8e9eda979740e343a23770b37acb27636d6ebd658e59d0317238119",
       "requirementId": null
     }
   },
@@ -66,7 +66,7 @@
     },
     "asf:profile:governance/intervention@1": {
       "profileId": "0x983ee76569373430ab86b01469d70568e95741b6d65f7f6ada9cf5354d0ec411",
-      "descriptorHash": "0xb450e3fd9c96b4ed96f4bf0ef8a512fe9ad865405676e5dc66ee779b00580692"
+      "descriptorHash": "0xf37a3754eaeb010978d425c2790c255fe5854d0bd5af62a3eb1f06ab0512de4e"
     },
     "asf:profile:information/untrusted-input@1": {
       "profileId": "0x9c02cc65ebdc625053ca7360bd89818db2cb46960fdd7a094a02ff1d299674a9",

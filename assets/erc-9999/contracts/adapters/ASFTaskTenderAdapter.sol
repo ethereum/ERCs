@@ -37,7 +37,9 @@ contract ASFTaskTenderAdapter {
     );
 
     /// @param template_ Requirement whose clauses leave `adopter` and `subjectKey` at zero; the adapter fills
-    ///        both with the fulfiller at judgment time so that only the fulfiller's own adoptions count.
+    ///        both with the fulfiller at judgment time so that only the fulfiller's own adoptions count. The
+    ///        clauses may require interveners (for example the task publisher with the suspend right), so that a
+    ///        suspension of the fulfiller's binding is not the fulfiller's own to lift.
     constructor(IASFBindingRegistry registry_, ITaskTenderKernel task_, T.RequirementSet memory template_) {
         require(address(registry_) != address(0) && address(task_) != address(0), "ASFTender: zero address");
         registry_.requirementId(template_);
@@ -90,7 +92,7 @@ contract ASFTaskTenderAdapter {
             }
             if (bindingIds[c] == bytes32(0)) bindingIds[c] = fallbackId;
         }
-        (verdict, reasons) = registry.check(req, bindingIds);
+        (verdict, reasons,) = registry.check(req, bindingIds);
     }
 
     /// @notice Judges a pending submission by the fulfiller's safety bindings. Permissionless: every
