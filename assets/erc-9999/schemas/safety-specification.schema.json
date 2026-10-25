@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/asf/safety-specification.schema.json",
+  "title": "ASF Safety Specification document",
+  "type": "object",
+  "required": [
+    "asf", "kind", "name", "version", "protects", "applicability", "constraints", "authority",
+    "evidence", "enforcement", "failureHandling", "remedies", "profiles"
+  ],
+  "properties": {
+    "asf": { "const": "1.0" },
+    "kind": { "const": "safety-specification" },
+    "name": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string" },
+    "publisher": {
+      "type": "object",
+      "description": "Informative. The on-chain publisher of the specification is authoritative.",
+      "properties": { "ref": { "$ref": "common.schema.json#/$defs/ref" }, "name": { "type": "string" } },
+      "additionalProperties": true
+    },
+    "version": { "type": "integer", "minimum": 1, "description": "MUST equal the registry version this document is published as." },
+    "protects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["domain"],
+        "properties": {
+          "domain": { "$ref": "common.schema.json#/$defs/protectedDomain" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "properties": {
+        "subjects": { "type": "array", "items": { "type": "string" } },
+        "tasks": { "type": "array", "items": { "type": "string" } },
+        "resources": { "type": "array", "items": { "type": "string" } },
+        "environments": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "profile", "family", "statement", "scope", "enforcedBy"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "profile": { "$ref": "common.schema.json#/$defs/identifier" },
+          "family": { "$ref": "common.schema.json#/$defs/family" },
+          "statement": { "type": "string", "minLength": 1 },
+          "parameters": { "type": "object" },
+          "scope": {
+            "type": "string",
+            "enum": ["action", "state", "trajectory", "group", "relation"],
+            "description": "What the constraint is evaluated over: one action, the current state, the history, the combined behaviour of several subjects, or a relation between trajectories (for example information isolation)."
+          },
+          "enforcedBy": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "Channel ids from enforcement.channels that check this constraint."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "authority": {
+      "type": "object",
+      "required": ["whoMayAdopt", "whoMayEnforce", "authorityBasis"],
+      "properties": {
+        "whoMayAdopt": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "whoMayEnforce": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "authorityBasis": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Kinds of external permission records a binding under this specification is expected to cite."
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "binds"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "kind": { "type": "string", "enum": ["attestation", "proof", "audit", "runtime-log", "test-result", "declaration", "decision"] },
+          "source": { "type": "string" },
+          "binds": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "enum": ["subject", "instance", "version", "action", "rule-version", "purpose", "state", "validity"] }
+          },
+          "validity": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "enforcement": {
+      "type": "object",
+      "required": ["channels"],
+      "properties": {
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "location", "coverage"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "description": { "type": "string" },
+              "mechanism": { "$ref": "common.schema.json#/$defs/mechanism" },
+              "location": { "$ref": "common.schema.json#/$defs/enforcementLocation" },
+              "coverage": { "type": "string", "enum": ["full", "partial"] },
+              "knownBypasses": { "type": "array", "items": { "type": "string" } }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "failureHandling": {
+      "type": "object",
+      "required": ["unknown", "denied", "dependencyFailure"],
+      "properties": {
+        "unknown": { "$ref": "common.schema.json#/$defs/failureAction" },
+        "denied": { "$ref": "common.schema.json#/$defs/failureAction" },
+        "dependencyFailure": { "$ref": "common.schema.json#/$defs/failureAction" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "remedies": {
+      "type": "object",
+      "required": ["suspensionModes"],
+      "properties": {
+        "suspensionModes": { "type": "array", "minItems": 1, "items": { "$ref": "common.schema.json#/$defs/restriction" } },
+        "recovery": { "type": "string" },
+        "dispute": { "type": "string" },
+        "compensation": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "profiles": {
+      "type": "object",
+      "required": ["required"],
+      "properties": {
+        "required": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/identifier" } },
+        "optional": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/identifier" } }
+      },
+      "additionalProperties": false
+    },
+    "limitations": { "type": "array", "items": { "type": "string" } },
+    "extensions": { "$ref": "common.schema.json#/$defs/extensions" },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

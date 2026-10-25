@@ -1,0 +1,42 @@
+{
+  "asf": "1.0",
+  "kind": "profile-descriptor",
+  "identifier": "asf:profile:behavior/monitoring-integrity@1",
+  "family": "behavior-goals",
+  "summary": "The monitors, alerts and tests that watch the subject are outside the subject's own authority: the subject may not disable, redirect or weaken them, and a task instruction never extends to them. Changes to monitoring need an independent authorization.",
+  "evaluatesOver": ["action", "state"],
+  "parameterSchema": {
+    "type": "object",
+    "required": ["protectedMonitors", "modificationAuthority", "alertRecipients"],
+    "properties": {
+      "protectedMonitors": { "type": "array", "items": { "type": "string" } },
+      "modificationAuthority": { "type": "string", "description": "Reference of the account or decision mechanism that may change monitoring; never the monitored subject." },
+      "alertRecipients": { "type": "array", "items": { "type": "string" } },
+      "subagentVetoBinding": { "type": "boolean", "description": "A safety objection raised by a sub-agent cannot be overruled by the orchestrating agent alone." }
+    },
+    "additionalProperties": false
+  },
+  "partialOrder": {
+    "defined": false,
+    "rule": "Not comparable in general; a derived binding MUST keep protectedMonitors and modificationAuthority unchanged and MAY only add alert recipients."
+  },
+  "verification": [
+    {
+      "method": "runtime-monitoring",
+      "location": "runtime",
+      "inputs": ["configuration change log", "alert delivery log"],
+      "resultMeaning": "no change to a protected monitor originated from the subject and every alert reached its recipients",
+      "trustAssumptions": ["the monitoring plane runs where the subject cannot modify it"]
+    },
+    {
+      "method": "human-review",
+      "location": "collective",
+      "inputs": ["incident record"],
+      "resultMeaning": "a reviewer confirmed that a flagged change was authorized",
+      "trustAssumptions": []
+    }
+  ],
+  "limitations": [
+    "A monitor the subject can edit as part of its task is not protected by writing it into a list; the location field of the enforcing channel decides."
+  ]
+}

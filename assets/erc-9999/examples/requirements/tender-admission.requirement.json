@@ -1,0 +1,29 @@
+{
+  "asf": "1.0",
+  "kind": "requirement-set",
+  "name": "Tender admission: fulfillers hold their own Personal Assistant Safety v1 binding",
+  "combinator": "all",
+  "clauses": [
+    {
+      "role": "fulfiller",
+      "specification": {
+        "registry": "eip155:11155111:0x00000000000000000000000000000000000a5f01",
+        "specId": "0x899c35f7a9a397ee81c993eb699bcbd33ab5fe08969a150b35a7623cea743285",
+        "name": "Personal Assistant Safety"
+      },
+      "versions": [
+        1
+      ],
+      "adopter": "self",
+      "subject": "self",
+      "scope": "any",
+      "enforcement": [
+        "account"
+      ]
+    }
+  ],
+  "metadata": {
+    "consumer": "ASFTaskTenderAdapter: adopter and subject are filled with the fulfiller at judgment time",
+    "note": "specId is filled by tools/build-examples.js from the specification example"
+  }
+}
