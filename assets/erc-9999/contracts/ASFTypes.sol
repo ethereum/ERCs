@@ -144,8 +144,10 @@ library ASFTypes {
 
     /// @notice One clause of a requirement set. Zero values are wildcards for `adopter`, `subjectKey`,
     ///         `scopeKey` and `enforcement`; an empty `versions` list admits every version. `interveners`
-    ///         lists accounts that the binding must name as interveners with at least the given rights;
-    ///         an entry whose account is zero stands for some intervener other than the adopter.
+    ///         lists accounts that the binding must name as interveners with at least the given rights; a
+    ///         clause that names interveners also closes the resume right: no account it does not name may
+    ///         hold RIGHT_RESUME on the binding. Zero accounts are not allowed (a wildcard cannot establish
+    ///         independence from the adopter, who chooses the interveners).
     struct Clause {
         address specRegistry;
         bytes32 specId;

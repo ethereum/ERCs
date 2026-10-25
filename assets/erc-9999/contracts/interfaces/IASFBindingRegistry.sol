@@ -72,7 +72,8 @@ interface IASFBindingRegistry /* is IERC165 */ {
 
     /// @notice Registry-level check of one binding against one clause at the current block time.
     ///         Pure registry logic: existence, state, validity window, pinned specification, adopter,
-    ///         subject, scope, declared enforcement locations, required interveners and the ancestor chain.
+    ///         subject, scope, declared enforcement locations, required interveners (presence with rights, and
+    ///         no unnamed holder of RIGHT_RESUME when the clause names interveners) and the ancestor chain.
     ///         No policy is evaluated. `restrictions` is the set of response requirements in force for the
     ///         binding: the union of the sets of every suspended record among the binding and its ancestors,
     ///         or empty when a record in that chain is terminated or outside its validity window.

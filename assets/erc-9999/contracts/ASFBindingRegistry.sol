@@ -365,12 +365,17 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         if (clause.enforcement & b.enforcement != clause.enforcement) {
             return (T.Verdict.NotSatisfied, T.Reason.EnforcementMismatch, 0);
         }
-        // required interveners: named accounts (or, for a zero account, some intervener other than the adopter)
-        // must hold at least the required rights on this binding
-        for (uint256 i = 0; i < clause.interveners.length; i++) {
-            if (!_hasIntervener(bindingId, clause.interveners[i])) {
-                return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
+        // required interveners: every named account must hold at least the required rights on this binding, and
+        // when a clause names interveners it also closes the resume right: no account the clause does not name may
+        // hold RIGHT_RESUME, otherwise the adopter could lift any intervener's suspension through an account of its own
+        if (clause.interveners.length != 0) {
+            for (uint256 i = 0; i < clause.interveners.length; i++) {
+                T.Intervener calldata req = clause.interveners[i];
+                if (_rights[bindingId][req.account] & req.rights != req.rights) {
+                    return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
+                }
             }
+            if (!_resumeClosed(bindingId, clause)) return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
         }
         // ancestors: every binding this one is derived from must itself be satisfied now
         (uint8 sets, bool broken) = _chainSets(b);
@@ -382,22 +387,25 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         return (T.Verdict.Satisfied, T.Reason.None, 0);
     }
 
-    function _hasIntervener(bytes32 bindingId, T.Intervener calldata required) private view returns (bool) {
-        if (required.account != address(0)) {
-            return _rights[bindingId][required.account] & required.rights == required.rights;
-        }
+    /// @dev True when every intervener of the binding that holds RIGHT_RESUME is named by the clause.
+    function _resumeClosed(bytes32 bindingId, T.Clause calldata clause) private view returns (bool) {
         T.Intervener[] storage list = _interveners[bindingId];
         for (uint256 i = 0; i < list.length; i++) {
-            if (list[i].rights & required.rights == required.rights) return true;
+            if (list[i].rights & T.RIGHT_RESUME == 0) continue;
+            bool named;
+            for (uint256 j = 0; j < clause.interveners.length; j++) {
+                if (clause.interveners[j].account == list[i].account) { named = true; break; }
+            }
+            if (!named) return false;
         }
-        return false;
+        return true;
     }
 
     function _validateClause(T.Clause calldata clause) private pure {
         if (clause.specRegistry == address(0) || clause.specId == bytes32(0)) revert ASFErrors.InvalidRequirement();
         for (uint256 i = 0; i < clause.interveners.length; i++) {
-            uint8 rights = clause.interveners[i].rights;
-            if (rights == 0 || rights > T.RIGHT_ALL) revert ASFErrors.InvalidRequirement();
+            T.Intervener calldata iv = clause.interveners[i];
+            if (iv.account == address(0) || iv.rights == 0 || iv.rights > T.RIGHT_ALL) revert ASFErrors.InvalidRequirement();
         }
     }
 
