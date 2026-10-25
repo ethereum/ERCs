@@ -20,6 +20,8 @@ identities. With the identity owner's signed consent, a backer puts itself behin
 then asks the backer before each draw (`canBorrow`), tells it of each draw (`onBorrow`), takes the principal of each
 defaulted loan from the backer's balance and tells it (`onDefault`), and tells it when part of the line is no longer
 its concern (`onRelease`). A backer can refuse a draw. It cannot stop a repayment, a default or the end of its backing.
+After a default, the backer, or anyone for it, can pay in a part of its charge it left unpaid (`payLoss`), and money
+paid toward the defaulted loan (`recover`) goes first to that part, then back to the backer, then to the lender's fee.
 
 ## Motivation
 
@@ -94,11 +96,16 @@ interface IBackedCreditLine is IAgentCreditLine {
     event BackerSet(uint256 indexed agentId, address indexed backer, uint256 line);
     event BackerCharged(uint256 indexed loanId, uint256 indexed agentId, address indexed backer, uint256 principal, uint256 paid);
     event BackerHookFailed(uint256 indexed agentId, address indexed backer, bytes4 selector);
+    event LossPaid(uint256 indexed loanId, address indexed backer, address indexed payer, uint256 amount);
+    event Recovered(uint256 indexed loanId, address indexed backer, address indexed payer, uint256 amount, uint256 toBacker);
 
     function backerOf(uint256 agentId) external view returns (address);
     function backedLine(uint256 agentId) external view returns (uint256 line, uint256 outstanding);
     function backerOfLoan(uint256 loanId) external view returns (address);
     function consentNonce(uint256 agentId) external view returns (uint256);
+    function lossInfo(uint256 loanId) external view returns (uint256 paid, uint256 unpaid, uint256 recovered, uint256 returned);
+    function payLoss(uint256 loanId, uint256 amount) external returns (uint256 taken);
+    function recover(uint256 loanId, uint256 amount) external returns (uint256 taken);
     function setBacker(uint256 agentId, address backer, uint256 line, uint256 deadline, bytes calldata ownerConsent) external;
     function removeBacker(uint256 agentId) external;
 }
@@ -208,7 +215,38 @@ When `markDefault(loanId)` marks a loan drawn under a backer defaulted, the lend
 4. MUST emit `BackerCharged(loanId, agentId, backer, principal, paid)`.
 5. MUST then call `onDefault(lender, agentId, loanId, principal, paid)` on the backer, as a notification.
 
-What the lender does about a part of the principal the backer did not pay is outside this proposal.
+The backer, or anyone for it, can pay in later, through `payLoss`, a part of the principal the backer did not pay. What
+else the lender does about that part, such as lending no more under that backer until it is paid, is outside this
+proposal.
+
+### After a default
+
+For each loan drawn under a backer and marked defaulted, the lender keeps four amounts, and `lossInfo(loanId)` MUST
+return them: `paid`, what the backer has paid of its charge; `unpaid`, the part of the charge still unpaid; `recovered`,
+all that `recover` has taken for the loan; and `returned`, the part of `recovered` that went to the backer. The default
+sets `paid` to the `paid` of `BackerCharged` and `unpaid` to the principal less `paid`. For any other `loanId`,
+`lossInfo` MUST return zeros.
+
+`payLoss(loanId, amount)` pays a part of the charge the backer left unpaid. It:
+
+- MUST revert unless the loan was drawn under a backer and is `Defaulted`, or if `taken`, the least of `amount` and
+  `unpaid`, is zero.
+- MUST take `taken` from `msg.sender` with the asset's `transferFrom`, add it to `paid`, subtract it from `unpaid`, emit
+  `LossPaid(loanId, backer, msg.sender, taken)`, and return `taken`. What it takes counts as paid by the backer, whoever
+  sends it.
+
+`recover(loanId, amount)` pays toward the loan after its default. It:
+
+- MUST revert unless the loan was drawn under a backer and is `Defaulted`, or if `taken`, the least of `amount` and the
+  loan's principal and fee less `recovered`, is zero.
+- MUST take `taken` from `msg.sender` with the asset's `transferFrom` and apply it in this order: to `unpaid`, which it
+  lowers, the lender keeping that part; then to the backer, up to `paid` less `returned`, which it MUST transfer to the
+  backer and add to `returned`; then to the fee, the lender keeping that part.
+- MUST add `taken` to `recovered`, emit `Recovered(loanId, backer, msg.sender, taken, toBacker)`, with `toBacker` the
+  part transferred to the backer, and return `taken`.
+
+Neither function calls the backer. `amountDue` and `repay` stay as the Agent Credit Lines draft defines them: a
+defaulted loan is not repaid, and its status stays `Defaulted`.
 
 ### Releases
 
@@ -256,9 +294,11 @@ behind.
   backer agreed to defaults.
 - **The loss is taken before the backer is told.** The lender takes the principal from the backer's balance, up to its
   allowance, and only then calls `onDefault`. A default is paid without calling the backer (unless the token itself
-  calls it, as the next point covers), and the backer cannot act on a default before paying for it. A backer whose
-  collateral is another asset keeps enough of the lent asset at hand, or has a contract that holds it give the
-  allowance.
+  calls it, as the next point covers), and the backer cannot act on a default before paying for it. It also keeps a
+  conversion of collateral out of a transaction someone else times: anyone may call `markDefault` once `defaultableAt`
+  has passed, so a swap made inside the hook would run where its caller can build a sandwich around it. A backer whose
+  collateral is another asset keeps enough of the lent asset at hand, has a contract that holds it give the allowance,
+  or reads `dueAt` from `loanInfo` and converts during the grace period, in its own transaction.
 - **Calls to the asset are bounded too.** With a token that calls the holder during a transfer, as
   [ERC-777](./eip-777.md) tokens call `tokensToSend`, the backer's own code runs inside the lender's `transferFrom`.
   If that call could use all the gas left, or return data the lender had to copy, a backer could make every default
@@ -268,6 +308,13 @@ behind.
   most lenders today.
 - **The principal, not the fee.** The principal is what left the lender; the fee is income it expected. A lender that
   wants its fees covered too can price that into the line.
+- **After a default: the unpaid part, then the backer, then the fee.** A loan opens once and closes once in the Agent
+  Credit Lines draft, so money that arrives after a default goes through `recover`, not `repay`, and the loan stays
+  `Defaulted`. The backer owed the whole principal, so a recovery first pays what it left unpaid, which also settles that
+  part of its charge. The backer then gets back what it paid, since it bore that loss, and the fee comes last, since the
+  backer never covered it. `payLoss` is the backer's side: what it pays late counts as paid at the default, so a later
+  recovery returns it, and a backer that converts its collateral slowly can still settle its charge. `lossInfo` keeps
+  all of it per loan, where a contract can read it; a contract cannot read `BackerCharged`.
 - **A backer can stop money leaving, never money coming back.** `canBorrow` and `onBorrow` can refuse a draw: the
   backer carries the risk, and it has to know of every loan it carries. `repay` does not call the backer, and a
   default, a removal or a replacement goes ahead whatever the backer does. A repayment a backer could block would turn
@@ -329,6 +376,20 @@ A conforming lender and backer pass these cases, each for an identity whose owne
   `onDefault(lender, agentId, loanId, 10 units, 10 units)`.
 - A backer holding 4 units pays 4 of a 10-unit default; with an allowance of 3 units it pays 3; with no allowance, or
   when the token refuses the transfer, it pays nothing, and each loan is still marked defaulted.
+- When a backer holding 4 units pays 4 of a 10-unit default and its `onDefault` reverts, the line still goes down to 40
+  units, `BackerHookFailed` is emitted, and `lossInfo` returns 4 units paid, 6 unpaid, nothing recovered and nothing
+  returned. `lossInfo` returns zeros for an active loan, a repaid one and a `loanId` never issued.
+- After a default that left 6 units unpaid, `payLoss` of 100 units takes 6, emits `LossPaid` and leaves 10 paid and
+  nothing unpaid, and a second `payLoss` reverts. `payLoss` and `recover` revert for an active loan, a repaid one and a
+  `loanId` never issued.
+- After a default where the backer paid 4 of 10 units, recoveries of 5, 3 and 100 units take 5 units (to the unpaid
+  part), 3 (1 to the unpaid part, 2 to the backer) and 2 units and 23,334 base units (2 to the backer, then the fee).
+  The backer has its 4 units back, the lender has 6 units and the fee, and another `recover` reverts. A backer that
+  paid all 10 units at the default gets the first 10 recovered; one that paid 4 and then 6 through `payLoss` gets back
+  10 from a recovery of the whole amount due. Neither `payLoss` nor `recover` makes any call to the backer.
+- After any sequence of `payLoss` and `recover` calls, the backer never has back more than it paid, nothing is taken
+  beyond the principal and the fee, and the fee is reached only once nothing is unpaid and the backer has all it paid
+  back.
 - When the token's `transferFrom` returns `false`, uses all its gas, or reverts or returns with as much data as its gas
   can pay for, or its `balanceOf` uses all its gas, a default sent with 1,000,000 gas still completes, with `paid`
   zero, the whole principal unpaid and the backer told. Such data costs the default less than one and a half times the
@@ -356,8 +417,8 @@ A conforming lender and backer pass these cases, each for an identity whose owne
 
 Two contracts accompany this proposal with their tests. `BackedCreditLine` is a lender derived from the reference
 lender of the Agent Credit Lines draft: it lends only behind a backer, gives each notification and each call to the
-asset during a default 100,000 gas, refuses re-entry from any hook, and gives no new credit under a backer that left
-part of a loss unpaid. `StakeBacker` is a backer that pays a defaulted principal
+asset during a default 100,000 gas, refuses re-entry from any hook, and gives no new credit under a backer while part
+of a loss it was charged is unpaid. `StakeBacker` is a backer that pays a defaulted principal
 from its stake: its manager can withdraw only stake that no line holds, it approves each lender for exactly its lines
 there, it refuses draws once the identity has changed hands or defaulted, and anyone can bring its records back in line
 with a lender's after a notification that failed.
@@ -367,7 +428,7 @@ with a lender's after a notification that failed.
 - **A backer's cover is its balance and its allowance.** The lender takes a loss from what the backer holds when the
   loan defaults, and a backer can move its funds or lower its allowance before then. Lenders should read the backer's
   balance and allowance before each draw, prefer backers whose stake cannot leave while their lines are open, and stop
-  lending under a backer that left a loss unpaid.
+  lending under a backer until it pays a loss it left unpaid.
 - **A lender is trusted with the allowance.** A lender can take up to the allowance at any time. Backers should approve
   only lenders they have reviewed, and only for the lines they stand behind there.
 - **Consents.** A consent lets the backer it names act until its deadline. Owners should sign short deadlines. Using a
@@ -380,7 +441,12 @@ with a lender's after a notification that failed.
 - **Re-entry.** Every hook is a call into a contract the lender did not write. Lenders should make the calls after
   their own state changes and guard `borrow`, `repay`, `markDefault`, `setBacker` and `removeBacker` against re-entry.
 - **Missed notifications.** A notification that fails is logged, not retried. A backer should be able to rebuild its
-  records from `backerOf`, `backedLine` and `loanInfo`.
+  records from `backerOf`, `backedLine`, `loanInfo` and `lossInfo`, which gives, for each defaulted loan, what the
+  backer paid and what came back to it.
+- **Which call pays what.** What `payLoss` takes counts as the backer's, and a later recovery returns it to the backer.
+  A borrower or a collector paying toward a defaulted loan uses `recover`. A recovery transfers the backer's part to the
+  backer, so a token that refuses transfers to the backer's address makes the recoveries that reach that part revert;
+  the part that goes to what the backer left unpaid comes first and can still be recovered.
 - **Self-backing.** An owner can back its own identity through a contract of its own. A backer is worth what it holds
   and what it has approved; its existence tells a lender nothing by itself.
 - **Tokens.** A token that takes a fee on transfer makes `paid` overstate what reached the lender. A token that calls
