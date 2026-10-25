@@ -102,7 +102,6 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         b.createdAt = uint64(block.timestamp);
         b.stateChangedAt = uint64(block.timestamp);
         b.state = T.BindingState.Active;
-        b.restriction = T.Restriction.None;
 
         _bySubject[input.subjectKey][msg.sender].push(bindingId);
         _byScope[input.scopeKey][msg.sender].push(bindingId);
@@ -119,22 +118,23 @@ contract ASFBindingRegistry is IASFBindingRegistry {
             input.parentBindingId
         );
         emit BindingStateChanged(
-            bindingId, T.BindingState.None, T.BindingState.Active, T.Restriction.None, msg.sender, bytes32(0)
+            bindingId, T.BindingState.None, T.BindingState.Active, 0, bytes32(0), msg.sender, bytes32(0)
         );
     }
 
     // ---------------------------------------------------------------------------- lifecycle
 
-    function suspend(bytes32 bindingId, T.Restriction restriction, bytes32 reasonRef) external {
+    function suspend(bytes32 bindingId, uint8 restrictions, bytes32 responseRef, bytes32 reasonRef) external {
         T.Binding storage b = _existing(bindingId);
         if (b.state != T.BindingState.Active) revert ASFErrors.InvalidState();
-        if (restriction == T.Restriction.None) revert ASFErrors.InvalidRestriction();
+        if (restrictions == 0 || restrictions > T.RESTRICT_ALL) revert ASFErrors.InvalidRestriction();
         if (rightsOf(bindingId, msg.sender) & T.RIGHT_SUSPEND == 0) revert ASFErrors.NotAuthorized();
         b.state = T.BindingState.Suspended;
-        b.restriction = restriction;
+        b.restrictions = restrictions;
+        b.responseRef = responseRef;
         b.stateChangedAt = uint64(block.timestamp);
         emit BindingStateChanged(
-            bindingId, T.BindingState.Active, T.BindingState.Suspended, restriction, msg.sender, reasonRef
+            bindingId, T.BindingState.Active, T.BindingState.Suspended, restrictions, responseRef, msg.sender, reasonRef
         );
     }
 
@@ -143,10 +143,11 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         if (b.state != T.BindingState.Suspended) revert ASFErrors.InvalidState();
         if (rightsOf(bindingId, msg.sender) & T.RIGHT_RESUME == 0) revert ASFErrors.NotAuthorized();
         b.state = T.BindingState.Active;
-        b.restriction = T.Restriction.None;
+        b.restrictions = 0;
+        b.responseRef = bytes32(0);
         b.stateChangedAt = uint64(block.timestamp);
         emit BindingStateChanged(
-            bindingId, T.BindingState.Suspended, T.BindingState.Active, T.Restriction.None, msg.sender, reasonRef
+            bindingId, T.BindingState.Suspended, T.BindingState.Active, 0, bytes32(0), msg.sender, reasonRef
         );
     }
 
@@ -156,9 +157,10 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         if (rightsOf(bindingId, msg.sender) & T.RIGHT_TERMINATE == 0) revert ASFErrors.NotAuthorized();
         T.BindingState previous = b.state;
         b.state = T.BindingState.Terminated;
-        b.restriction = T.Restriction.None;
+        b.restrictions = 0;
+        b.responseRef = bytes32(0);
         b.stateChangedAt = uint64(block.timestamp);
-        emit BindingStateChanged(bindingId, previous, T.BindingState.Terminated, T.Restriction.None, msg.sender, reasonRef);
+        emit BindingStateChanged(bindingId, previous, T.BindingState.Terminated, 0, bytes32(0), msg.sender, reasonRef);
     }
 
     function setParamsLocator(bytes32 bindingId, string calldata locator) external {
@@ -226,7 +228,7 @@ contract ASFBindingRegistry is IASFBindingRegistry {
     // -------------------------------------------------------------------------------- check
 
     function checkBinding(bytes32 bindingId, T.Clause calldata clause)
-        external view returns (T.Verdict verdict, T.Reason reason, T.Restriction restriction)
+        external view returns (T.Verdict verdict, T.Reason reason, uint8 restrictions)
     {
         _validateClause(clause);
         return _evaluate(bindingId, clause);
@@ -290,54 +292,54 @@ contract ASFBindingRegistry is IASFBindingRegistry {
     }
 
     function _evaluate(bytes32 bindingId, T.Clause calldata clause)
-        private view returns (T.Verdict, T.Reason, T.Restriction)
+        private view returns (T.Verdict, T.Reason, uint8)
     {
-        if (bindingId == bytes32(0)) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, T.Restriction.None);
+        if (bindingId == bytes32(0)) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, 0);
         T.Binding storage b = _bindings[bindingId];
-        if (b.state == T.BindingState.None) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, T.Restriction.None);
-        if (b.state == T.BindingState.Terminated) return (T.Verdict.NotSatisfied, T.Reason.Terminated, T.Restriction.None);
-        if (b.state == T.BindingState.Suspended) return (T.Verdict.NotSatisfied, T.Reason.Suspended, b.restriction);
+        if (b.state == T.BindingState.None) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, 0);
+        if (b.state == T.BindingState.Terminated) return (T.Verdict.NotSatisfied, T.Reason.Terminated, 0);
+        if (b.state == T.BindingState.Suspended) return (T.Verdict.NotSatisfied, T.Reason.Suspended, b.restrictions);
         (bool notYet, bool expired) = _inWindow(b);
-        if (notYet) return (T.Verdict.NotSatisfied, T.Reason.NotYetValid, T.Restriction.None);
-        if (expired) return (T.Verdict.NotSatisfied, T.Reason.Expired, T.Restriction.None);
+        if (notYet) return (T.Verdict.NotSatisfied, T.Reason.NotYetValid, 0);
+        if (expired) return (T.Verdict.NotSatisfied, T.Reason.Expired, 0);
         if (clause.specRegistry != b.specRegistry || clause.specId != b.specId) {
-            return (T.Verdict.NotSatisfied, T.Reason.SpecMismatch, T.Restriction.None);
+            return (T.Verdict.NotSatisfied, T.Reason.SpecMismatch, 0);
         }
         if (clause.versions.length != 0) {
             bool found;
             for (uint256 i = 0; i < clause.versions.length; i++) {
                 if (clause.versions[i] == b.version) { found = true; break; }
             }
-            if (!found) return (T.Verdict.NotSatisfied, T.Reason.VersionMismatch, T.Restriction.None);
+            if (!found) return (T.Verdict.NotSatisfied, T.Reason.VersionMismatch, 0);
         }
         if (clause.adopter != address(0) && clause.adopter != b.adopter) {
-            return (T.Verdict.NotSatisfied, T.Reason.AdopterMismatch, T.Restriction.None);
+            return (T.Verdict.NotSatisfied, T.Reason.AdopterMismatch, 0);
         }
         if (clause.subjectKey != bytes32(0) && clause.subjectKey != b.subjectKey) {
-            return (T.Verdict.NotSatisfied, T.Reason.SubjectMismatch, T.Restriction.None);
+            return (T.Verdict.NotSatisfied, T.Reason.SubjectMismatch, 0);
         }
         if (clause.scopeKey != bytes32(0) && clause.scopeKey != b.scopeKey) {
-            return (T.Verdict.NotSatisfied, T.Reason.ScopeMismatch, T.Restriction.None);
+            return (T.Verdict.NotSatisfied, T.Reason.ScopeMismatch, 0);
         }
         if (clause.enforcement & b.enforcement != clause.enforcement) {
-            return (T.Verdict.NotSatisfied, T.Reason.EnforcementMismatch, T.Restriction.None);
+            return (T.Verdict.NotSatisfied, T.Reason.EnforcementMismatch, 0);
         }
         // ancestors: every binding this one is derived from must itself be satisfied now
         bytes32 pid = b.parentBindingId;
         while (pid != bytes32(0)) {
             T.Binding storage p = _bindings[pid];
             if (p.state != T.BindingState.Active) {
-                return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, p.restriction);
+                return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, p.restrictions);
             }
             (bool pNotYet, bool pExpired) = _inWindow(p);
-            if (pNotYet || pExpired) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, T.Restriction.None);
+            if (pNotYet || pExpired) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, 0);
             pid = p.parentBindingId;
         }
         // the pinned specification registry must still be queryable; a dependency failure is Unknown, never a pass
         if (!_supportsSpecRegistry(b.specRegistry)) {
-            return (T.Verdict.Unknown, T.Reason.SpecRegistryUnavailable, T.Restriction.None);
+            return (T.Verdict.Unknown, T.Reason.SpecRegistryUnavailable, 0);
         }
-        return (T.Verdict.Satisfied, T.Reason.None, T.Restriction.None);
+        return (T.Verdict.Satisfied, T.Reason.None, 0);
     }
 
     function _validateClause(T.Clause calldata clause) private pure {

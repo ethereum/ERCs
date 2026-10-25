@@ -3,18 +3,50 @@
   "kind": "profile-descriptor",
   "identifier": "asf:profile:economic/shared-budget@1",
   "family": "multi-agent-system",
-  "summary": "Several subjects draw on one budget. Each member's local cap is not enough: the total is enforced by one coordinator through reservation, commitment, release and reconciliation on every path that can spend.",
-  "evaluatesOver": ["group", "action"],
+  "summary": "Several subjects draw on one budget. Each member's local cap is not enough: the total is enforced by one coordinator on every path that can spend. The coordination model (reservation, commitment, release, reconciliation) is a requirement of this profile, not of the registry; declaring the model is not enough to claim that the shared constraint is enforced.",
+  "evaluatesOver": [
+    "group",
+    "action"
+  ],
   "parameterSchema": {
     "type": "object",
-    "required": ["denomination", "totalCap", "coordination", "coordinator", "members"],
+    "required": [
+      "denomination",
+      "totalCap",
+      "coordination",
+      "coordinator",
+      "members"
+    ],
     "properties": {
-      "denomination": { "type": "string" },
-      "totalCap": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
-      "coordination": { "type": "string", "enum": ["reserve-commit-release"] },
-      "coordinator": { "type": "string", "description": "Reference of the contract or service that holds reservations." },
-      "members": { "type": "array", "items": { "type": "string" } },
-      "settlementUnknownPolicy": { "type": "string", "enum": ["reconcile-before-retry"] }
+      "denomination": {
+        "type": "string"
+      },
+      "totalCap": {
+        "type": "string",
+        "pattern": "^[0-9]+(\\.[0-9]+)?$"
+      },
+      "coordination": {
+        "type": "string",
+        "enum": [
+          "reserve-commit-release"
+        ]
+      },
+      "coordinator": {
+        "type": "string",
+        "description": "Reference of the contract or service that holds reservations."
+      },
+      "members": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "settlementUnknownPolicy": {
+        "type": "string",
+        "enum": [
+          "reconcile-before-retry"
+        ]
+      }
     },
     "additionalProperties": false
   },
@@ -26,12 +58,26 @@
     {
       "method": "on-chain-guard",
       "location": "contract",
-      "inputs": ["reservation ledger", "spend request"],
+      "inputs": [
+        "reservation ledger",
+        "spend request"
+      ],
       "resultMeaning": "the request was reserved against the total before it could execute",
-      "trustAssumptions": ["every spending path routes through the coordinator; paths that do not are declared as bypasses"]
+      "trustAssumptions": [
+        "every spending path routes through the coordinator; paths that do not are declared as bypasses"
+      ]
     }
   ],
   "limitations": [
     "Cross-chain or cross-service budgets need a stated consistency model; this profile covers one coordinator on one chain."
+  ],
+  "requirements": [
+    "One metering scope: the agents, channels, resources and time window that share one authoritative metering state, and its unit, are stated.",
+    "The invariant consumed + unsettled reserved <= total holds on every path that can spend; no exposure is counted twice and every pending exposure has an owner.",
+    "A reservation needs authority: an account that is not entitled to spend cannot lock the budget of others by reserving.",
+    "A reservation preserves no future right to execute: if the authorization is revoked after reserving, the execution does not proceed on the strength of the reservation.",
+    "Commitment and effect are kept separate: a ledger mark, a submitted transaction and a completed external payment are three facts.",
+    "An unknown outcome does not release the reservation: a timeout does not prove that a payment failed, and an expired reservation does not prove that a late action cannot land; the budget is reused only when the mechanism prevents late effects or an authoritative result allows release.",
+    "A logical operation is distinct from its submission attempts: a retry under a new attempt identifier is not a new, payable operation."
   ]
 }

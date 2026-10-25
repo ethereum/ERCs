@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-/// @title  ASFTypes — shared types of the Agent Safety Framework (ASF)
+/// @title  ASFTypes — shared types of the Agent Safety and Security Framework (ASF)
 /// @notice Two registry objects (Safety Specification, Safety Binding), the binding lifecycle,
 ///         the suspension restriction vocabulary, the enforcement-location bit set, intervener
 ///         rights and the requirement grammar consumed by `check`.
@@ -27,16 +27,17 @@ library ASFTypes {
         Terminated  // 3 — the adoption ended; terminal, the record is never reused
     }
 
-    /// @notice Restriction that accompanies a suspension (the completability vocabulary).
-    ///         Profiles map their own semantics onto these five modes.
-    enum Restriction {
-        None,          // 0 — only valid while Active
-        NoNewRisk,     // 1 — no action that adds exposure, obligations or new counterparties
-        Shrink,        // 2 — only actions that reduce the current scope, exposure or authority
-        EssentialOnly, // 3 — only the actions a profile lists as necessary to keep a service alive
-        DeriskOnly,    // 4 — only unwinding, repayment, cancellation and recovery actions
-        FullStop       // 5 — nothing under the binding may proceed
-    }
+    /// @notice Response requirements that accompany a suspension, as a combinable bit set. They are
+    ///         different dimensions of one response (prohibitions, capability reductions, duties to continue,
+    ///         permitted recovery paths, a stop target) and can be set together; the response document
+    ///         referenced by `responseRef` carries scope, parameters, in-flight handling, duration and who may
+    ///         resume. `RESTRICT_FULL_STOP` dominates every other bit for the paths it covers.
+    uint8 internal constant RESTRICT_NO_NEW_RISK = 1;    // no action that adds exposure, obligations or counterparties
+    uint8 internal constant RESTRICT_SHRINK = 2;         // only actions that reduce scope, exposure or authority
+    uint8 internal constant RESTRICT_ESSENTIAL_ONLY = 4; // the duties a profile lists as necessary continue
+    uint8 internal constant RESTRICT_DERISK_ONLY = 8;    // unwinding, repayment, cancellation and recovery stay open
+    uint8 internal constant RESTRICT_FULL_STOP = 16;     // nothing under the binding may proceed
+    uint8 internal constant RESTRICT_ALL = 31;
 
     /// @notice Intervener rights bit set.
     uint8 internal constant RIGHT_SUSPEND = 1;
@@ -101,7 +102,8 @@ library ASFTypes {
         uint64 createdAt;
         uint64 stateChangedAt;
         BindingState state;
-        Restriction restriction;
+        uint8 restrictions;        // bit set of RESTRICT_* while Suspended, else 0
+        bytes32 responseRef;       // content hash of the response document while Suspended, else 0
     }
 
     // ------------------------------------------------------------------------- requirements
@@ -118,7 +120,7 @@ library ASFTypes {
         None,                   // 0 — satisfied
         NoBinding,              // 1 — no binding supplied or unknown binding id
         Terminated,             // 2
-        Suspended,              // 3 — see the returned Restriction
+        Suspended,              // 3 — see the returned restrictions bit set
         NotYetValid,            // 4 — before max(validFrom, createdAt)
         Expired,                // 5 — after validUntil
         SpecMismatch,           // 6 — other specRegistry or specId

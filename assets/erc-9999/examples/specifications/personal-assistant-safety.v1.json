@@ -11,15 +11,33 @@
   "protects": [
     {
       "domain": "assets-economic",
-      "description": "funds held by the principal's account"
+      "description": "funds held by the principal's account",
+      "roles": [
+        "principal"
+      ]
     },
     {
       "domain": "information-privacy",
-      "description": "mail, documents and contacts the assistant reads"
+      "description": "mail, documents and contacts the assistant reads",
+      "roles": [
+        "principal",
+        "counterparty"
+      ]
     },
     {
       "domain": "control-rules",
-      "description": "the account's permissions and the monitoring that watches the assistant"
+      "description": "the account's permissions and the monitoring that watches the assistant",
+      "roles": [
+        "principal"
+      ]
+    },
+    {
+      "domain": "human-public",
+      "description": "recipients of messages the assistant sends and persons it transacts with",
+      "roles": [
+        "counterparty",
+        "bystander"
+      ]
     }
   ],
   "applicability": {
@@ -38,7 +56,17 @@
     "environments": [
       "an isolated runtime whose configuration the assistant cannot change"
     ],
-    "notes": "One binding per account; a second account needs its own binding."
+    "notes": "One binding per account; a second account needs its own binding.",
+    "permittedUses": [
+      "mail triage and replies the principal would send",
+      "purchases and payments the principal asked for",
+      "calendar and document handling for the principal"
+    ],
+    "prohibitedUses": [
+      "sending messages that deceive or pressure a recipient",
+      "moving funds to accounts the principal did not name",
+      "using the principal's data for any purpose other than the current task"
+    ]
   },
   "constraints": [
     {
@@ -209,7 +237,24 @@
     ],
     "recovery": "the principal resumes after reviewing the incident record",
     "dispute": "the decision mechanism named in the binding parameters",
-    "compensation": "outside this specification"
+    "compensation": "outside this specification",
+    "reversibility": "mixed",
+    "interventionWindow": "before the next autonomous payment; the account checks every call",
+    "serviceContinuity": [
+      "reading the principal's own mail and calendar",
+      "repayment and order cancellation"
+    ],
+    "incidentReporting": {
+      "channels": [
+        "the guardian",
+        "the principal's incident channel named in the binding parameters"
+      ],
+      "evidenceRequirements": [
+        "the action or message concerned",
+        "its source labels",
+        "the time and the account"
+      ]
+    }
   },
   "profiles": {
     "required": [

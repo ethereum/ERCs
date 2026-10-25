@@ -11,15 +11,27 @@
   "protects": [
     {
       "domain": "assets-economic",
-      "description": "the swarm's shared funds and the task escrow"
+      "description": "the swarm's shared funds and the task escrow",
+      "roles": [
+        "principal",
+        "operator"
+      ]
     },
     {
-      "domain": "third-party-public",
-      "description": "counterparties of the swarm's transactions"
+      "domain": "human-public",
+      "description": "counterparties of the swarm's transactions",
+      "roles": [
+        "counterparty",
+        "public"
+      ]
     },
     {
       "domain": "control-rules",
-      "description": "membership, roles and the charter's change rules"
+      "description": "membership, roles and the charter's change rules",
+      "roles": [
+        "principal",
+        "operator"
+      ]
     }
   ],
   "applicability": {
@@ -36,7 +48,15 @@
     "environments": [
       "any; the shared-budget coordinator is on chain"
     ],
-    "notes": "The swarm's organizer adopts for the swarm; each member adopts for itself as a derived binding of the swarm's binding."
+    "notes": "The swarm's organizer adopts for the swarm; each member adopts for itself as a derived binding of the swarm's binding.",
+    "permittedUses": [
+      "deliveries under the standing task",
+      "payments to counterparties the charter admits"
+    ],
+    "prohibitedUses": [
+      "leverage or positions the charter does not authorize",
+      "payments outside the shared budget's coordinator"
+    ]
   },
   "constraints": [
     {
@@ -198,7 +218,23 @@
     ],
     "recovery": "a charter decision resumes the swarm binding; member bindings resume with it",
     "dispute": "the charter's decision mechanism",
-    "compensation": "the task escrow rules"
+    "compensation": "the task escrow rules",
+    "reversibility": "partially-reversible",
+    "interventionWindow": "before the coordinator commits the next reservation",
+    "serviceContinuity": [
+      "repayment",
+      "cancellation of open orders",
+      "withdrawal to the treasury"
+    ],
+    "incidentReporting": {
+      "channels": [
+        "the charter's decision mechanism"
+      ],
+      "evidenceRequirements": [
+        "coordinator ledger entries",
+        "the member and action concerned"
+      ]
+    }
   },
   "profiles": {
     "required": [

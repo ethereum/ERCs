@@ -26,7 +26,8 @@ interface IASFBindingRegistry /* is IERC165 */ {
         bytes32 indexed bindingId,
         ASFTypes.BindingState previous,
         ASFTypes.BindingState current,
-        ASFTypes.Restriction restriction,
+        uint8 restrictions,
+        bytes32 responseRef,
         address actor,
         bytes32 reasonRef
     );
@@ -39,8 +40,10 @@ interface IASFBindingRegistry /* is IERC165 */ {
     ///         exceed the maximum depth.
     function adopt(ASFTypes.BindingInput calldata input) external returns (bytes32 bindingId);
 
-    /// @notice Active -> Suspended under a named restriction. Adopter or intervener with RIGHT_SUSPEND.
-    function suspend(bytes32 bindingId, ASFTypes.Restriction restriction, bytes32 reasonRef) external;
+    /// @notice Active -> Suspended under a non-empty set of response requirements, with the response document
+    ///         reference (scope, parameters, in-flight handling, duration, who may resume) and the reason
+    ///         reference (the evidence or decision behind the transition). Adopter or intervener with RIGHT_SUSPEND.
+    function suspend(bytes32 bindingId, uint8 restrictions, bytes32 responseRef, bytes32 reasonRef) external;
 
     /// @notice Suspended -> Active. Adopter or intervener with RIGHT_RESUME.
     function resume(bytes32 bindingId, bytes32 reasonRef) external;
@@ -69,7 +72,7 @@ interface IASFBindingRegistry /* is IERC165 */ {
     ///         Pure registry logic: existence, state, validity window, pinned specification, adopter,
     ///         subject, scope, declared enforcement locations and the ancestor chain. No policy is evaluated.
     function checkBinding(bytes32 bindingId, ASFTypes.Clause calldata clause)
-        external view returns (ASFTypes.Verdict verdict, ASFTypes.Reason reason, ASFTypes.Restriction restriction);
+        external view returns (ASFTypes.Verdict verdict, ASFTypes.Reason reason, uint8 restrictions);
 
     /// @notice Evaluates a requirement set. `bindingIds[i]` is the candidate for `clauses[i]`
     ///         (bytes32(0) = none supplied). `Unknown` never counts as satisfied.

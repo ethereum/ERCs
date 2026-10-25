@@ -3,38 +3,38 @@
     "Personal Assistant Safety": {
       "file": "specifications/personal-assistant-safety.v1.json",
       "specId": "0x899c35f7a9a397ee81c993eb699bcbd33ab5fe08969a150b35a7623cea743285",
-      "contentHash": "0xf38ad0c96f9226c531409645e2bfa33e038c054ab5e238de898dae9e96286d86"
+      "contentHash": "0xe418a676cfab27ff1e420cd6d3d44a6fda446628bbfefd9a2becb5d9f73fd432"
     },
     "Swarm Shared Funds": {
       "file": "specifications/swarm-shared-funds.v1.json",
       "specId": "0x2503d18c94ea1a5bd487cc8f1f8bde84f51623c8426e450214d92218a327f0dd",
-      "contentHash": "0xf904b2cd306325816a993a258d8268558ac67c3b4206a3187d22bff56b36b9fd"
+      "contentHash": "0x742677b7faac6a42c52490330c70b4f23c0b4d455f0126817b56bb7f91aee2ab"
     }
   },
   "bindings": {
     "personal-assistant.binding.json": {
-      "paramsHash": "0x0f7e4a682a8a5fe368464649218919149a57c6cdaec46d08a8a228ecfb799343",
+      "paramsHash": "0x43a92416bf2f1c73fecec8414212990693c6f184f3f40202defbe22ea974f566",
       "authorityRef": "0x25c253dca062b324dad1dc6e9ac265fc7ed4478f8255cbfa342f8a12eb37886e",
       "enforcement": 18,
       "bindingId": "0x17fff4e549c63902b0051a8c87cda260164337ca5c82d876bb5f5fe218d3ff3f",
       "parentBindingId": "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
     "swarm-charter.binding.json": {
-      "paramsHash": "0x84e48b4df0791d8444e00fcedfe9f74ca516ecb195d90d2f802d88b9328c8328",
+      "paramsHash": "0xbd7d58e114414999131498febb661a7a3a483c8648d984722397556339213f65",
       "authorityRef": "0xa6da89077296d6c938ee08f838638cfcdc5793fb11ed8ab8cb550f3a4e289dce",
       "enforcement": 48,
       "bindingId": "0x118fa978c4f4d42f9b1ab112aa01f382d8a2cd74aea40b0efc6c4804ba1db895",
       "parentBindingId": "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
     "worker-self.binding.json": {
-      "paramsHash": "0x49d1710b4350694bb344a30b4c823e3406daab1df6d17c86d80ef8af9f786d83",
+      "paramsHash": "0xf1c7affd90c6321f98b880b164ffa793c7202faba5c21b85706ace959b18c401",
       "authorityRef": "0xf2ffa8a8e45408895b937e3b11fb04f483236cd0cd7e71e652e6c8d6d36a137b",
       "enforcement": 2,
       "bindingId": "0x0ce9a993e9d3719752d4d7d818c4303e4d666b8bc1448e18a999a87b892e83e7",
       "parentBindingId": "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
     "swarm-member-a.binding.json": {
-      "paramsHash": "0x912cfa3979a68b6ce752c15228684b17c66fa811a1c8587c1f552cf2469d484b",
+      "paramsHash": "0xadcb8190a2f6c42e8a7d6276f1d76cd82d30df22a00ddf0549ef6deabebf576b",
       "authorityRef": "0xa50f96d2e7cb95469557a859dc206e9d4f28a465d37da0cea23af0923a99b18c",
       "enforcement": 18,
       "bindingId": "0x546a02b67f089035679abc295537cc76c3e72b094a71929515716280a461d8e9",
@@ -62,11 +62,11 @@
     },
     "asf:profile:economic/shared-budget@1": {
       "profileId": "0xfdbf28e78d1daf54c98785838cc5a5493d9585816ceb7a89148512ea3742c44f",
-      "descriptorHash": "0x4b2ffdd4ef72574ebc73f9560fd88b69e82afb5e98c532c56cb9e7c999cad531"
+      "descriptorHash": "0x3c1d44f876d5b875ff648774d00cb52dfe1c551f0d8ecdfe8ca77828d820b3c6"
     },
     "asf:profile:governance/intervention@1": {
       "profileId": "0x983ee76569373430ab86b01469d70568e95741b6d65f7f6ada9cf5354d0ec411",
-      "descriptorHash": "0x4d13cd66eda0c31fd0a089dcffda17b9480471ad87b076c7daa723a813370a49"
+      "descriptorHash": "0xb450e3fd9c96b4ed96f4bf0ef8a512fe9ad865405676e5dc66ee779b00580692"
     },
     "asf:profile:information/untrusted-input@1": {
       "profileId": "0x9c02cc65ebdc625053ca7360bd89818db2cb46960fdd7a094a02ff1d299674a9",
@@ -75,6 +75,16 @@
     "asf:profile:supply-chain/pinned-dependencies@1": {
       "profileId": "0xf3ee542de406f218ec9afdf9aaad2d99364116413e232f53ce289806c957be93",
       "descriptorHash": "0xcd4e55c6e8f5beeaba10827aa0a9f83b21017bc2583b153430ed01a1f6d07d12"
+    }
+  },
+  "responses": {
+    "guardian-derisk-only.response.json": {
+      "restrictionsBits": 9,
+      "responseRef": "0xda45ad5bf7b0b070d8e382ba213acf8a85c01612742d7cd8814853bfc12c8c1b"
+    },
+    "principal-full-stop.response.json": {
+      "restrictionsBits": 16,
+      "responseRef": "0xef4b6c4d2cf2337a49635367eeba29c7d35a65ebada8859594b68ea158825afa"
     }
   }
 }

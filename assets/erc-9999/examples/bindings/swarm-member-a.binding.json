@@ -21,7 +21,7 @@
     "registry": "eip155:11155111:0x00000000000000000000000000000000000a5f01",
     "specId": "0x2503d18c94ea1a5bd487cc8f1f8bde84f51623c8426e450214d92218a327f0dd",
     "version": 1,
-    "contentHash": "0xf904b2cd306325816a993a258d8268558ac67c3b4206a3187d22bff56b36b9fd",
+    "contentHash": "0x742677b7faac6a42c52490330c70b4f23c0b4d455f0126817b56bb7f91aee2ab",
     "locator": "ipfs://example/swarm-shared-funds.v1.json",
     "name": "Swarm Shared Funds"
   },

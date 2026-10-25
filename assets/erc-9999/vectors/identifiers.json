@@ -30,13 +30,12 @@
     "resume": 2,
     "terminate": 4
   },
-  "restriction": {
-    "none": 0,
+  "restrictionBits": {
     "no-new-risk": 1,
     "shrink": 2,
-    "essential-only": 3,
-    "derisk-only": 4,
-    "full-stop": 5
+    "essential-only": 4,
+    "derisk-only": 8,
+    "full-stop": 16
   },
   "combinator": {
     "all": 0,

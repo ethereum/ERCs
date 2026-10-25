@@ -3,29 +3,77 @@
   "kind": "profile-descriptor",
   "identifier": "asf:profile:governance/intervention@1",
   "family": "governance-accountability",
-  "summary": "Who may suspend, resume or terminate the binding, under which authority basis, with which restriction modes, and how a disputed intervention is resolved. A danger label creates no power: every intervener's rights are granted in the binding itself.",
-  "evaluatesOver": ["state"],
+  "summary": "Who may suspend, resume or terminate the binding, under which authority basis, with which combinable response requirements, and how a disputed intervention is resolved. A danger label creates no power: every intervener's rights are granted in the binding itself, and every response states its scope, what it prohibits, allows and keeps running, how in-flight actions are handled, how long it lasts and who may resume.",
+  "evaluatesOver": [
+    "state"
+  ],
   "parameterSchema": {
     "type": "object",
-    "required": ["interveners", "allowedModes", "dispute"],
+    "required": [
+      "interveners",
+      "allowedModes",
+      "dispute"
+    ],
     "properties": {
       "interveners": {
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["role", "rights", "basis"],
+          "required": [
+            "role",
+            "rights",
+            "basis"
+          ],
           "properties": {
-            "role": { "type": "string" },
-            "rights": { "type": "array", "items": { "type": "string", "enum": ["suspend", "resume", "terminate"] } },
-            "basis": { "type": "string" }
+            "role": {
+              "type": "string"
+            },
+            "rights": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "suspend",
+                  "resume",
+                  "terminate"
+                ]
+              }
+            },
+            "basis": {
+              "type": "string"
+            }
           },
           "additionalProperties": false
         }
       },
-      "allowedModes": { "type": "array", "items": { "type": "string", "enum": ["no-new-risk", "shrink", "essential-only", "derisk-only", "full-stop"] } },
-      "deriskActions": { "type": "array", "items": { "type": "string" }, "description": "Actions that stay available under derisk-only." },
-      "dispute": { "type": "string", "description": "Reference of the decision mechanism that settles contested interventions." },
-      "recovery": { "type": "string" }
+      "allowedModes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "no-new-risk",
+            "shrink",
+            "essential-only",
+            "derisk-only",
+            "full-stop"
+          ]
+        },
+        "description": "Response requirements that may appear, alone or combined, in a suspension under this binding."
+      },
+      "deriskActions": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Actions that stay available under derisk-only."
+      },
+      "dispute": {
+        "type": "string",
+        "description": "Reference of the decision mechanism that settles contested interventions."
+      },
+      "recovery": {
+        "type": "string"
+      }
     },
     "additionalProperties": false
   },
@@ -37,12 +85,22 @@
     {
       "method": "on-chain-guard",
       "location": "contract",
-      "inputs": ["binding record", "state transition events"],
+      "inputs": [
+        "binding record",
+        "state transition events"
+      ],
       "resultMeaning": "every transition was made by an account holding the corresponding right",
-      "trustAssumptions": ["the binding registry"]
+      "trustAssumptions": [
+        "the binding registry"
+      ]
     }
   ],
   "limitations": [
     "The registry enforces who may transition; whether a given intervention was justified is a matter for the dispute mechanism."
+  ],
+  "requirements": [
+    "Every intervener listed under this profile holds exactly the rights the binding grants on chain; the parameters never widen them.",
+    "Every suspension references a response document stating initiator and basis, scope, prohibited, allowed and continuing actions, in-flight handling, duration and who may resume.",
+    "The existence of a report, claim or risk label confers no right to suspend; the right comes from the binding."
   ]
 }

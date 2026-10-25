@@ -12,8 +12,9 @@ import {IASFBindingRegistry} from "../interfaces/IASFBindingRegistry.sol";
 ///           looser one, and there is no execution path that skips the check;
 ///         * the owner (the principal) chooses which bindings are presented, the registry decides whether
 ///           they satisfy the requirement at execution time;
-///         * completability: while every failing clause is a suspension under `DeriskOnly`, calls the owner
-///           listed as de-risking actions (repay, cancel, unwind) still go through; everything else stops.
+///         * completability: while every failing clause is a suspension whose response requirements include
+///           `RESTRICT_DERISK_ONLY` and not `RESTRICT_FULL_STOP`, calls the owner listed as de-risking actions
+///           (repay, cancel, unwind) still go through; everything else stops.
 ///         A production account would be an account-abstraction module; the logic is the same.
 contract ASFGuardedAccount {
     using R for R.Stored;
@@ -104,13 +105,14 @@ contract ASFGuardedAccount {
         revert BindingNotSatisfied(verdict, reasons);
     }
 
-    /// Every failing clause is a suspension whose restriction is DeriskOnly.
+    /// Every failing clause is a suspension that keeps de-risking open and does not stop everything.
     function _onlyDeriskSuspensions(T.Reason[] memory reasons) private view returns (bool) {
         if (_bindingIds.length != reasons.length) return false;
         for (uint256 i = 0; i < reasons.length; i++) {
             if (reasons[i] == T.Reason.None) continue;
             if (reasons[i] != T.Reason.Suspended) return false;
-            if (registry.bindingOf(_bindingIds[i]).restriction != T.Restriction.DeriskOnly) return false;
+            uint8 r = registry.bindingOf(_bindingIds[i]).restrictions;
+            if (r & T.RESTRICT_DERISK_ONLY == 0 || r & T.RESTRICT_FULL_STOP != 0) return false;
         }
         return true;
     }

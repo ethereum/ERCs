@@ -20,7 +20,7 @@
     "registry": "eip155:11155111:0x00000000000000000000000000000000000a5f01",
     "specId": "0x899c35f7a9a397ee81c993eb699bcbd33ab5fe08969a150b35a7623cea743285",
     "version": 1,
-    "contentHash": "0xf38ad0c96f9226c531409645e2bfa33e038c054ab5e238de898dae9e96286d86",
+    "contentHash": "0xe418a676cfab27ff1e420cd6d3d44a6fda446628bbfefd9a2becb5d9f73fd432",
     "locator": "ipfs://example/personal-assistant-safety.v1.json",
     "name": "Personal Assistant Safety"
   },
