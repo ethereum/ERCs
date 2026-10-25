@@ -309,6 +309,7 @@ A reference `SealedBidTender` contract and the four normative mechanism contract
 **Adapters that act.** An adapter authorised to mutate a target is a privileged actor and must be audited as such. Its authority comes from the target's client or pre-authorisation rules, never from the award or mechanism. Its permissions, funding, identifier reservation, content initialisation and acceptance policy all need to satisfy the declared integration profile.
 
 [^1]:
+
     ```csl-json
     {
       "type": "article-journal",
@@ -335,6 +336,7 @@ A reference `SealedBidTender` contract and the four normative mechanism contract
     ```
 
 [^2]:
+
     ```csl-json
     {
       "type": "article-journal",
