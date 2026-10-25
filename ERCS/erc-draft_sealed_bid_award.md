@@ -49,7 +49,7 @@ where `chainId` is the chain on which `targetContract` is deployed and `targetId
 
 ### Payment denomination
 
-Before bidding opens, the target or its authorised adapter MUST publish the payment asset and the integer unit used for `reserve`, every bid `amount`, and every award `price`. All three MUST use that same denomination. For an ERC-20 asset, amounts MUST be expressed in the token's smallest units; for the native asset, in its smallest units. `bondAsset` defines only the bond and MUST NOT be interpreted as the payment asset.
+Before bidding opens, the target or its authorised adapter MUST publish the payment asset and the integer unit used for `reserve`, every bid `amount`, and every award `price`. All three MUST use that same denomination. For an [ERC-20](./eip-20.md) asset, amounts MUST be expressed in the token's smallest units; for the native asset, in its smallest units. `bondAsset` defines only the bond and MUST NOT be interpreted as the payment asset.
 
 The target's content commitment described below MUST bind the payment asset, its chain, and this unit convention, together with the work description and the acceptance policy bidders rely on. These terms MUST remain fixed for this tender. An integration MUST NOT consume an award using another payment denomination.
 
