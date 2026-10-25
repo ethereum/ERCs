@@ -8,7 +8,7 @@ status: Draft
 type: Standards Track
 category: ERC
 created: 2026-10-20
-requires: 20, 165, 721, 7254
+requires: 20, 165, 721, 7254, 8183
 ---
 
 ## Abstract
@@ -20,16 +20,20 @@ agent's owner or an address the owner chose. What a creditor does not take, up t
 reserve for it, so a lender that takes repayment only in full is repaid once its reserve covers what is due. The owner
 adds creditors, each junior to the ones before, and cannot remove a creditor that still has a claim. A small creditor
 interface lets any lender take part, and any payer, explorer or lender can tell that an identity's revenue address is
-encumbered. An optional part lets the holders of an [ERC-7254](./eip-7254.md) revenue-sharing token share what the
-creditors leave, with the token as the payee's beneficiary.
+encumbered. An optional part lets the payee be the provider of an [ERC-8183](./eip-8183.md) job: ERC-8183 pays the
+provider and takes the work only from it, so the payee submits the work for the owner and is paid by the job. Another
+lets the holders of an [ERC-7254](./eip-7254.md) revenue-sharing token share what the creditors leave, with the token
+as the payee's beneficiary.
 
 ## Motivation
 
 Lending to an agent against what it earns is safest when repayment comes from the earnings themselves, before the agent
 or its owner can spend them. Agent revenue already arrives at addresses the agent names: a pay-to address for HTTP
-payments signed with [ERC-3009](./eip-3009.md) transfers, the provider address of an [ERC-8183](./eip-8183.md) job, the
+payments signed with [ERC-3009](./eip-3009.md) transfers, the provider address of an ERC-8183 job, the
 payment wallet of an [ERC-8004](./eip-8004.md) identity. None of these says anything about what happens to the money
-once it arrives.
+once it arrives. A payee can be the first two: a pay-to address, and a job's provider. It cannot be set as an ERC-8004
+payment wallet as that proposal is specified, since ERC-8004 sets `agentWallet` only with the new wallet's signature
+and a payee validates none (Rationale).
 
 Lenders that route revenue through a contract of their own today can only trust their own contract, and nobody else can
 tell that the address is encumbered. A common payee interface lets several lenders share one revenue address with a
@@ -133,6 +137,34 @@ cannot make every sweep fail.
   the identity owes; it MUST return the amount taken. It MUST NOT take what it cannot apply now in order to hold it for
   a later repayment: what it leaves stays in the payee's reserve for it and is offered again at the next sweep.
 
+### Acting as an ERC-8183 provider (optional)
+
+ERC-8183 pays a job's escrow to the job's provider when the job is completed, and accepts a budget proposal and the
+submission of the work only from that provider. A payee that is to be a job's provider implements
+`IRepayFirstProvider`, and MUST then return `true` from `supportsInterface` for the interface identifier of
+`IRepayFirstProvider`.
+
+```solidity
+interface IRepayFirstProvider {
+    event OperatorSet(address indexed operator);
+
+    function operator() external view returns (address);
+    function setOperator(address operator) external;
+    function setJobBudget(address commerce, uint256 jobId, uint256 amount, bytes calldata optParams) external;
+    function submitJob(address commerce, uint256 jobId, bytes32 deliverable, bytes calldata optParams) external;
+}
+```
+
+- `operator()` MUST return the address last set with `setOperator` while the owner that set it still owns the identity,
+  and the zero address otherwise, including when the registry cannot name an owner. `setOperator(operator)` MUST revert
+  unless called by the owner, and MUST emit `OperatorSet`.
+- `setJobBudget(commerce, jobId, amount, optParams)` MUST call `setBudget(jobId, amount, optParams)` on `commerce`, and
+  `submitJob(commerce, jobId, deliverable, optParams)` MUST call `submit(jobId, deliverable, optParams)` on it. Both
+  MUST revert unless called by the owner or by `operator()` when it is not the zero address, and MUST revert when the
+  call to `commerce` reverts.
+- A payee MUST NOT make any other call for the owner or the operator. What a job pays the payee on completion is a plain
+  transfer, which sweeps pay out like any other revenue.
+
 ### Paying holders after creditors (optional)
 
 An agent can pay the holders of a token from what its creditors leave. The token implements `IHoldersAfterCreditors`
@@ -201,6 +233,24 @@ agent's revenue.
 - **The identity, not the owner.** The payee belongs to the identity; after a transfer the new owner controls it but
   inherits its creditors. Whether a debt follows the identity or its former owner is each creditor's choice, expressed
   through `amountOwed` and `hasClaim`.
+- **The payee is the provider.** ERC-8183 takes the submission only from a job's provider and pays the provider. An
+  adapter set as the provider in front of the payee would be paid in its place and hold each payment until someone moved
+  it on, and readers would have to check the adapter's routing as well as the payee. As the provider, the payee is paid
+  directly, and since ERC-8183 sets a job's provider once, before funding, a job that names the payee cannot be pointed
+  elsewhere.
+- **Two calls, not a general one.** A call forwarded for the owner to any function would let the owner call a token from
+  the payee and move its balance outside a sweep. `setBudget` and `submit` move nothing out of the payee: a token has
+  neither function, and outside a sweep the payee holds no approval. They take `optParams` as ERC-8183's reference
+  implementation does.
+- **An operator that lapses with its owner.** The key that does the agent's work can submit it without holding the
+  identity. Like a beneficiary, it stops acting for the agent once the owner that named it no longer holds the identity.
+- **A pay-to address, not an ERC-8004 payment wallet.** ERC-8004's `setAgentWallet` takes the new wallet's signature:
+  [EIP-712](./eip-712.md) for an account without code, [ERC-1271](./eip-1271.md) for a contract. A payee validates no
+  signature, so it cannot be set as `agentWallet`. Accepting the owner's signatures would be the wrong way to allow it:
+  Permit2 and some tokens accept ERC-1271 signatures for transfers, so the owner could sign the payee's balance away
+  outside a sweep. A payee that validates only an `agentWallet` digest it computes itself would avoid that, but ERC-8004
+  leaves the typed data of that digest to each registry; whether such a part is worth specifying, or a pay-to address is
+  enough, is left open.
 - **Holders as the beneficiary.** With seniority by order of addition, a token added as a creditor would rank ahead of
   every lender added after it, the opposite of holders last. As the beneficiary, the token receives only what every
   creditor, present or future, left. A splitter that pays fixed tranches in order before a residual recipient gives the
@@ -255,7 +305,18 @@ A conforming payee passes these cases, each for one identity whose owner receive
 - After the identity is burned, with no beneficiary set, a sweep of 100 units with one creditor owed 30 units pays it 30
   units, forwards nothing, and leaves 70 units in the payee.
 
-A token implementing the optional part passes these cases, with the token as the beneficiary and two holders of 75%
+A payee implementing the ERC-8183 provider part passes these cases, for a job whose provider is the payee:
+
+- With one creditor owed 30 units at a share of 10000, the owner proposes a budget of 50 units through the payee and the
+  client funds it; the owner's own address cannot submit, and the owner submits through the payee; the evaluator
+  completes, the job pays the payee 50 units, and a sweep pays the creditor 30 units and forwards 20 units.
+- An operator the owner set proposes a budget and submits. After the identity is transferred, `operator()` is the zero
+  address, the operator can do neither, and the new owner can.
+- Any other account can neither propose a budget, submit, nor set the operator, and after the identity is burned no one
+  can propose a budget or submit.
+- With a token or an address with no code named as `commerce`, both calls revert and the payee's balance is unchanged.
+
+A token implementing the holders part passes these cases, with the token as the beneficiary and two holders of 75%
 and 25% of its supply:
 
 - With one creditor owed 20 units, a sweep of 100 units pays it 20 units and forwards 80 units to the token; a sync by
@@ -279,17 +340,19 @@ and 25% of its supply:
 `RepayFirstPayee` and a factory that deploys one payee per identity at a CREATE2 address known before deployment
 accompany this proposal with their tests. The payee calls each creditor with a fixed gas budget and holds at most eight
 creditors. It keys each creditor's reserves by the place it was given when added, never reused, so removing a creditor
-ends its reserves in every token without listing them.
+ends its reserves in every token without listing them. It implements `IRepayFirstProvider`; its tests run a job through
+a minimal ERC-8183 contract, from creation to the sweep.
 
 `HoldersAfterCreditorsToken`, an ERC-20 token that implements ERC-7254 and `IHoldersAfterCreditors`, accompanies the
-optional part with its tests. Its reward assets are fixed when it is deployed. Unlike ERC-7254's own reference, which
+holders part with its tests. Its reward assets are fixed when it is deployed. Unlike ERC-7254's own reference, which
 counts the remainder below one unit of a claim as withdrawn, it keeps that remainder claimable.
 
 ## Security Considerations
 
 - **The revenue address can be changed.** Payers pay whatever address the agent advertises. An owner can advertise a
-  new address and route future revenue around the payee. Creditors SHOULD check, where the address is on chain (such as
-  an ERC-8004 payment wallet), that it still points to the payee before each draw, and price the rest as unsecured.
+  new address and route future revenue around the payee. Creditors SHOULD check, where the agent publishes the address
+  on chain, that it still points to the payee before each draw, and price the rest as unsecured. A payee cannot be the
+  agent's ERC-8004 payment wallet (Rationale), so what payers send to `agentWallet` does not reach it.
 - **Creditors are trusted with their own figures.** A creditor reports its own `amountOwed`. A creditor the owner added
   can over-report and take up to its share of every sweep, or leave it in its reserve, out of the owner's reach until
   the creditor reports less or leaves. Owners SHOULD add only lenders they borrowed from.
@@ -301,6 +364,11 @@ counts the remainder below one unit of a claim as withdrawn, it keeps that remai
   so that the agent's expected revenue covers what is due before the due time.
 - **Creditor calls.** Creditors are external contracts; a payee MUST approve only `offer`, MUST reset the approval, and
   SHOULD bound the gas of each call and guard against re-entry into `sweep`, `addCreditor` and `removeCreditor`.
+- **Jobs.** A job pays the provider it names, so the payee is paid only by jobs that name it. As with an advertised
+  address, creditors that count on job revenue SHOULD check that the jobs name the payee as their provider. An operator
+  can propose budgets and submit work for any job that names the payee, but cannot move the payee's balance; the owner
+  can replace it at any time. `commerce` is whatever address the caller names: the payee calls only `setBudget` and
+  `submit` on it, and SHOULD guard those calls against re-entry as it guards its creditor calls.
 - **Tokens.** Tokens that take a fee on transfer, rebase, or block addresses change what a sweep can pay. Balances are
   measured, not assumed, so accounting stays correct, but a blocked creditor is paid nothing and what it is offered
   stays in its reserve. A token whose balances fall on their own can leave the reserves above the balance; sweeps then
