@@ -23,7 +23,8 @@ A price set while the base token was not trading is never used. The unwind settl
 pays the lender's base tokens to a fallback address the lender names, and leaves the holder's part in the position
 token, so a token whose transfer registry blocks an address cannot strand a position. When, past the due date, no price
 has come for a delay the lender lists, at least 14 days, or once a day has passed since the base token stopped trading
-for good, anyone may instead hand the position over to the lender without a price.
+for good, anyone may instead hand the position over without a price: the lender takes the quote, up to what it is
+owed, and the position token too if that quote falls short.
 
 ## Motivation
 
@@ -282,8 +283,9 @@ interface ICreditMatchedLiquidity {
   fails, for one call or for longer, never stands in for a price missing for the whole delay.
 - A `SessionBreak` never makes a hand-over due, however long it lasts: the contract waits for the reopening price.
 - To hand a position over, `unwind` MUST remove all of the position's liquidity, collect the quote owed to the position
-  token, up to `owed`, for the lender, and transfer the position token, with everything still owed to it, to
-  `lenderFallback()`. No amount it moves or reports may depend on a price, and it MUST NOT transfer the base token. It
+  token, up to `owed`, for the lender, and then transfer the position token, with everything still owed to it, to the
+  holder when the quote the lender received equals `owed`, and to `lenderFallback()` otherwise. Neither an amount it
+  moves or reports nor where the position token goes may depend on a price, and it MUST NOT transfer the base token. It
   MUST set `owed` to zero and the status to `HandedOver`, and emit `PositionHandedOver`, not `PositionUnwound`, with
   `recovered` set to the quote the lender received, at most `owed`, and `outstanding` set to `owed` minus `recovered`.
 
@@ -347,17 +349,18 @@ interface ICreditMatchedLiquidity {
 - **A hand-over when no price comes.** Without one, a feed that dies after the due date leaves the holder a free option:
   close if the asset recovers, walk away if it does not, while the lender waits on a feed that may never return. Only
   the base leg of an unwind needs a price; the quote leg does not. So once a hand-over is due, `unwind` collects the
-  quote up to `owed` and gives the lender the position token for the rest. Without a price the base cannot be split
-  between the lender and the holder, so the token goes to the lender whole; the holder had the term and the delay to
-  close, and closing needs no price. The pool's price decides only how much of what goes to the lender arrives as
-  quote, so moving it before a hand-over gains nobody anything.
-- **A silent feed, not a late one.** A hand-over gives the lender more than an unwind at a price would, the holder's
-  part of the position, so a lender gains from triggering one, and the rule must not hand over on a price that is
-  only late. A session that has just opened has no price yet, and a feed can fall behind `maxPriceAge` for a while.
-  The hand-over therefore waits until the feed has given no answer the contract could price for the whole delay, or a
-  halt has lasted it, which a live feed, or a halt that ends with trading resuming, does not reach; an unknown status
-  waits for the silent feed too. A session break never counts, however long a source reports it: breaks are scheduled
-  and end with a price.
+  quote up to `owed`. When that quote covers `owed`, the lender is paid in full and everything left in the position
+  token is the holder's, which takes no price to tell, so the token goes to the holder, as after an unwind at a price.
+  When it falls short, the base cannot be split between the lender and the holder without a price, so the token goes
+  to the lender whole, for the rest; the holder had the term and the delay to close, and closing needs no price. The
+  pool's price at the hand-over decides which of the two happens; Security Considerations cover moving it.
+- **A silent feed, not a late one.** A hand-over whose quote falls short of `owed` gives the lender more than an unwind
+  at a price would, the holder's part of the position, so a lender gains from triggering one, and the rule must not
+  hand over on a price that is only late. A session that has just opened has no price yet, and a feed can fall behind
+  `maxPriceAge` for a while. The hand-over therefore waits until the feed has given no answer the contract could price
+  for the whole delay, or a halt has lasted it, which a live feed, or a halt that ends with trading resuming, does not
+  reach; an unknown status waits for the silent feed too. A session break never counts, however long a source reports
+  it: breaks are scheduled and end with a price.
 - **The hand-over delay is the lender's, with a floor.** The delay is a term like `gapBps`: the lender lists it and the
   position records it, so a holder knows at opening how long past the due date it can still close, and lenders can
   compete on it; one delay fixed in this proposal would not fit every base token and every lender. It MUST still be at
@@ -450,6 +453,11 @@ The positions in the tests are full-range, so this one is worth 50,000 at 250, a
   unwind by a stranger hands the position over: the lender receives 25,000 quote, and the position token with the 100
   base still in it at its fallback address; no base token moves; the status is `HandedOver`; and `PositionHandedOver`
   reports 25,000 recovered and 250 outstanding.
+- With the pool's price at 300 at that time, the quote withdrawn, 27,386.13, covers what is owed: the lender receives
+  25,250, the holder receives the position token with 91.287 base and 2,136.13 quote still in it, the status is
+  `HandedOver`, and `PositionHandedOver` reports 25,250 recovered and nothing outstanding. The same holds a day after a
+  terminal status; with the pool pushed back to 250 before the call, the quote falls short and the lender receives the
+  position token with the 100 base, as above.
 - At the hand-over time, a feed whose last answer is two days old is late, not silent, and the unwind reverts until
   that answer is more than 14 days old; a fresh answer of zero counts as silence and hands the position over.
 - A session break that runs past the hand-over time, even one reported for weeks with the feed silent, never hands
@@ -509,11 +517,12 @@ movement of the quote token by balance. It is not audited and must never be depl
   can differ from the last by more than `gapBps`. A position can then be worth less than it owes when it first becomes
   unwindable, and the lender takes the shortfall; `gapBps` and `unwindBps` are its only protection, since there is no
   price in a closed market at which an unwind could do better. A halt, a delisting or a redemption can gap further, or
-  end with no price at all; past the hand-over delay, or a day after a terminal status began, the lender then takes the
-  position without a price.
-- **The hand-over and the holder.** A hand-over gives the lender the whole position token: the holder's part of the
-  base, and any quote beyond `owed`, go with it, and whatever the lender returns of it is settled outside this
-  interface. A holder that wants to keep its part has to close before `dueAt + handoverDelay`; closing needs no price,
+  end with no price at all; past the hand-over delay, or a day after a terminal status began, the position is then
+  handed over without a price.
+- **The hand-over and the holder.** A hand-over whose quote falls short of `owed` gives the lender the whole position
+  token: the holder's part of the base goes with it, and whatever the lender returns of it is settled outside this
+  interface. One whose quote covers `owed` gives the holder the position token, as an unwind at a price would. A holder
+  that wants to be sure of keeping its part has to close before `dueAt + handoverDelay`; closing needs no price,
   so no outage or halt stops it. A terminal status hands a position over `TERMINAL_GRACE`, one day, after the `since`
   its source reports, before its due date too, so holders of a base token that can be delisted or redeemed SHOULD
   watch its status and keep the quote to close at hand.
@@ -552,17 +561,21 @@ movement of the quote token by balance. It is not audited and must never be depl
 - **Telling a hand-over from an unwind.** A hand-over emits `PositionHandedOver` and leaves the status `HandedOver`; an
   unwind emits `PositionUnwound` and leaves `Unwound`, and neither emits the other's event. `shortfall` in an unwind is
   a loss valued at the feed's price. `outstanding` in a hand-over is not valued: it is what the quote did not cover,
-  and the lender holds the position token against it, which may be worth more or less. A reader that builds a credit
-  history SHOULD NOT count `outstanding` as a loss. A hand-over before `dueAt + handoverDelay` can only come from a
-  terminal status of the base token, not from the holder; one at or after that time means the holder had not repaid by
-  then.
+  and when it is not zero the lender holds the position token against it, which may be worth more or less; when it is
+  zero the holder has the position token. A reader that builds a credit history SHOULD NOT count `outstanding` as a
+  loss. A hand-over before `dueAt + handoverDelay` can only come from a terminal status of the base token, not from the
+  holder; one at or after that time means the holder had not repaid by then.
 - **Pool-price manipulation.** Lenders that valued pool shares from the pool's own reserves have been drained by flash
   loans that moved those reserves within one transaction, the Warp Finance exploit of 2020 being the best known. This
   interface never values a position from its pool. The pool's price still sets the proportions of a mint: a holder whose
   opening is sandwiched deposits at a moved price and loses as any liquidity provider would. The gap check makes such
   an opening revert when it would leave the lender exposed, and holders SHOULD open through a private route or a
   contract that bounds the pool's price against the feed's. At an unwind a moved pool price changes the mix withdrawn,
-  not its value at the feed's price.
+  not its value at the feed's price. At a hand-over it decides whether the quote withdrawn covers `owed`, and so whether
+  the position token goes to the holder or to the lender: a lender that pushes the pool's price down before calling
+  `unwind` can make the quote fall short and take the whole position, the holder's part included, as any hand-over
+  that falls short does. It can do so only once a hand-over is due; a holder that wants to be sure of its part closes
+  before then, which needs no price.
 - **Fee accounting.** Fees are what the position manager credits to the position token. Quote fees pay the lender before
   the holder, and base fees stay in the position until it is closed or unwound, so no fee leaves for the holder while
   anything is owed. `health` may leave out fees not yet credited, which only makes a position look worse than it is. A
@@ -572,10 +585,11 @@ movement of the quote token by balance. It is not audited and must never be depl
 - **Transfer-blocked tokens.** A tokenized stock's registry can block any address. No base token passes through the
   contract at closing, unwinding or a hand-over: at an unwind the lender's base goes from the position manager to
   `lenderFallback()` and the holder's part stays owed to the position token, and at a hand-over all of the base stays
-  owed to the position token the lender receives. If the registry blocks the pool or the position manager, no base can
-  leave it; the unwind then pays the quote, gives the position token, with all of its base, to the lender's fallback
-  address and reports the base it could not pay as shortfall. The holder's part of that base is then held by the lender,
-  outside this interface. A quote token that blocks the contract or the holder can stop `applyFees` and `close`.
+  owed to the position token, which the lender or the holder receives. If the registry blocks the pool or the position
+  manager, no base can leave it; the unwind then pays the quote, gives the position token, with all of its base, to the
+  lender's fallback address and reports the base it could not pay as shortfall. The holder's part of that base is then
+  held by the lender, outside this interface. A quote token that blocks the contract or the holder can stop `applyFees`
+  and `close`.
 - **Tokens that do not move exact amounts.** A token that charges on transfer, or rebases, makes the amount requested
   differ from the amount received. Accounting by the amount requested would let a holder close while the lender
   receives less than it lent, and would overstate what fees and unwinds repaid. Measuring each movement by balance keeps
