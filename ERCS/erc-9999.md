@@ -1,6 +1,6 @@
 ---
 eip: 9999
-title: Agent Safety and Security Framework
+title: Agent Safety Framework (ASF)
 description: Registry of versioned safety specifications and of the scoped, attributable adoption relations that bind subjects to them
 author: Gary Yang (@garyyang-finchip)
 discussions-to: https://ethereum-magicians.org/t/draft-erc-agent-safety-framework-asf-a-registry-of-versioned-safety-specifications-and-of-the-scoped-attributable-adoption-relations-that-bind-agents-to-them/30073
@@ -13,7 +13,7 @@ requires: 165
 
 ## Abstract
 
-This ERC defines the Agent Safety and Security Framework (ASF): two registry objects and one check through which the safety and security arrangements that govern autonomous systems become protocol objects with a source, a version, a scope, an attributable adoption relation and a lifecycle.
+This ERC defines the Agent Safety Framework (ASF): two registry objects and one check through which the safety arrangements that govern autonomous systems become protocol objects with a source, a version, a scope, an attributable adoption relation and a lifecycle.
 
 Two objects are standardized. A Safety Specification is a reusable, versioned, content-addressed document that states which protected interests a set of requirements serves, which constraints apply, who may adopt and enforce them, which evidence is expected, through which channels and at which locations the constraints are enforced, how unknown conditions and failures are handled, and which remedies are pre-accepted. A Safety Binding is the attributable statement, made on chain by the adopting account itself, that it adopts one pinned version of a specification for one subject within one scope, under a named external authority basis and declared enforcement locations, for a validity window, with named interveners and an explicit lifecycle. Bindings can be derived from other bindings without ever widening them.
 
@@ -538,7 +538,7 @@ IASFBindingRegistry        0x1ff33bef
 
 **No power from labels.** Reports, claims and risk labels are how a system learns about harm, and also how a system can be attacked: by flooding, by impersonating a victim or an adjudicator, by turning a report's content into instructions, by presenting counts as findings. The consumer rules therefore separate statement, acceptance, finding and action, require responses and withdrawals to travel with the statements, and deny every label any effect of its own.
 
-**Why "safety and security" in the name.** The framework governs arrangements that cover unauthorized access and theft, non-malicious capability failures, harmful uses within granted authority, the rights of persons and service continuity, and the abuse of control and accountability mechanisms themselves. Security alone would narrow the reading to attacks, credentials and access control; safety alone would narrow it to harm avoidance. Both words name what the arrangements are for; the Terminology section keeps the five underlying questions apart.
+**Why "safety" in the name.** The framework governs arrangements that cover unauthorized access and theft, non-malicious capability failures, harmful uses within granted authority, the rights of persons and service continuity, and the abuse of control and accountability mechanisms themselves. The word is used in the broad sense that the Terminology section gives it: a safety arrangement states what is protected and how, whether the threat is an attacker, a capability failure or a misuse within granted authority, and the five underlying questions (security, safety in the narrow sense, alignment, control, assurance) are kept apart rather than collapsed into a label.
 
 ## Backwards Compatibility
 

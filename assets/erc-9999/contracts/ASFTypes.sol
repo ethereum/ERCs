@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.20;
 
-/// @title  ASFTypes — shared types of the Agent Safety and Security Framework (ASF)
+/// @title  ASFTypes — shared types of the Agent Safety Framework (ASF)
 /// @notice Two registry objects (Safety Specification, Safety Binding), the binding lifecycle,
 ///         the response-requirement bit set of suspensions, the enforcement-location bit set,
 ///         intervener rights and the requirement grammar consumed by `check`.
