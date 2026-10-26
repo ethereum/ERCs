@@ -7,13 +7,9 @@ pragma solidity ^0.8.21;
 // be an ERC-7579 validator (type id 1) and serve both targets.
 
 interface IFrameValidator is IERC7579Module {
-    // sigHash = TXPARAM(0x08), frameIndex = TXPARAM(0x0A), allowedScope = FRAMEPARAM(frameIndex, 0x06).
+    // Transaction context (sigHash, frameIndex, allowedScope, frame contents) MUST be read
+    // via EIP-8141 introspection (TXPARAM / FRAMEPARAM / FRAMEDATA*), not account-supplied inputs.
     // Returns APPROVE_NONE (0x0) on failure; the account masks the result with allowedScope.
     // MAY revert for failures unrelated to the core validation logic (e.g. decoding errors).
-    function validateFrame(
-        bytes32 sigHash,
-        uint256 frameIndex,
-        uint8 allowedScope,
-        bytes calldata data
-    ) external view returns (uint8 approvalMode);
+    function validateFrame(bytes calldata data) external view returns (uint8 approvalMode);
 }

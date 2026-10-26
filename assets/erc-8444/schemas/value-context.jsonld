@@ -1,0 +1,28 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "value": "https://eips.ethereum.org/assets/eip-8444/ns#",
+
+    "value:kind": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#kind" },
+    "value:controller": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#controller", "@type": "@id" },
+    "value:controllers": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#controllers", "@type": "@id", "@container": "@set" },
+    "value:terms": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#terms", "@type": "@json" },
+    "value:settlement": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#settlement", "@type": "@json", "@container": "@set" },
+    "value:provenance": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#provenance", "@type": "@json" },
+    "value:credit": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#credit", "@type": "@json", "@container": "@set" },
+    "value:dispute": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#dispute", "@type": "@json" },
+    "value:eligibility": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#eligibility", "@type": "@json" },
+    "value:registration": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#registration", "@type": "@id" },
+    "value:indexes": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#indexes", "@container": "@set" },
+
+    "value:anchor": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#anchor" },
+    "value:adopted": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#adopted" },
+    "value:binding": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#binding" },
+    "value:level": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#level" },
+    "value:status": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#status" },
+    "value:aliases": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#aliases", "@container": "@set" },
+    "value:canonical": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#canonical" },
+    "value:registry": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#registry" },
+    "value:descriptorHash": { "@id": "https://eips.ethereum.org/assets/eip-8444/ns#descriptorHash" }
+  }
+}

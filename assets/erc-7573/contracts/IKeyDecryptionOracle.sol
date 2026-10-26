@@ -25,6 +25,16 @@ import "./IKeyDecryptionOracleCallback.sol";
  * A best-effort implementation MAY restore it to pending after a failed callback so it can be retried.
  */
 interface IKeyDecryptionOracle {
+    /**
+     * @dev One key reference requested for verification and its semantic role. Despite the
+     * historical name, encryptedKey MAY be publicly readable authenticated external-settlement
+     * metadata; possession of it MUST NOT itself authorize release of the underlying key.
+     */
+    struct EncryptedKey {
+        bytes32 keyId;
+        bytes encryptedKey;
+    }
+
     /*------------------------------------------- EVENTS -------------------------------------------------------------*/
 
     /**
@@ -46,17 +56,18 @@ interface IKeyDecryptionOracle {
     );
 
     /**
-     * @dev Emitted when a verification is requested (issued by requestVerifyEncryptedKey).
+     * @dev Emitted when atomic verification of an encrypted-key batch is requested
+     * (issued by requestVerifyEncryptedKeys).
      * @param sender The requester (msg.sender) that issued the request.
      * @param id Consumer-defined context emitted with the request.
-     * @param encryptedKey Encryption of a key for which verification is requested.
-     * @param callback Receiver of the verification.
+     * @param keys Complete role-tagged encrypted-key set to verify.
+     * @param callback Receiver of the verification result.
      * @param requestId Correlation id for the fulfillment.
      */
-    event VerificationRequested(
+    event EncryptedKeysVerificationRequested(
         address indexed sender,
         uint256 id,
-        bytes encryptedKey,
+        EncryptedKey[] keys,
         IKeyDecryptionOracleCallback indexed callback,
         uint256 indexed requestId
     );
@@ -98,13 +109,15 @@ interface IKeyDecryptionOracle {
      * @dev Optional but recommended: emitted by the oracle proxy after attempting the callback.
      * Off-chain services SHOULD use these events to decide whether a fulfillment needs retry.
      *
-     * selector identifies which callback method was attempted.
+     * selector identifies which callback method was attempted. reason contains
+     * callback revert/return data when available and can be empty (for example, on OOG).
      */
     event CallbackFailed(
         uint256 indexed requestId,
         address indexed callback,
         bytes4 indexed selector,
-        uint256 consumerId
+        uint256 consumerId,
+        bytes reason
     );
 
     /*------------------------------------------- FUNCTIONALITY: REQUESTS --------------------------------------------*/
@@ -130,20 +143,25 @@ interface IKeyDecryptionOracle {
     ) external payable returns (uint256 requestId);
 
     /**
-     * @notice Performs a verification of the given encryptedKey:
-     * decrypts and extracts associated contract/transaction (see key format), and calculates a hash
-     * of the decrypted key. The tuple (hash, contract, transaction) is passed back to the callback
-     * without exposing the decrypted key.
+     * @notice Performs atomic verification of a role-tagged encrypted-key batch. The oracle
+     * extracts the common receiver and transaction and calculates each decrypted key's hash,
+     * without exposing any decrypted key.
      *
-     * @dev Emits a {VerificationRequested} event.
+     * @dev Emits an {EncryptedKeysVerificationRequested} event. Implementations MUST reject
+     * an empty batch, duplicate keyIds and empty encrypted keys, and MUST impose a documented
+     * finite maximum batch size. A single-element batch is valid. Array order has no semantic meaning.
+     * The proxy MUST retain or commit to the exact requested `(keyId, encryptedKey)` set so a
+     * fulfillment cannot substitute, omit or add a key. Every reference MUST authenticate its
+     * keyId and the same one-use settlement context, and that context MUST match this request's
+     * id and stored consumer context.
      * @param id Consumer-defined context emitted with the request.
-     * @param encryptedKey Encryption of a key.
+     * @param keys Complete role-tagged encrypted-key set to verify.
      * @param callback The callback contract.
      * @return requestId Oracle-assigned correlation identifier passed to the callback.
      */
-    function requestVerifyEncryptedKey(
+    function requestVerifyEncryptedKeys(
         uint256 id,
-        bytes calldata encryptedKey,
+        EncryptedKey[] calldata keys,
         IKeyDecryptionOracleCallback callback
     ) external payable returns (uint256 requestId);
 
@@ -152,7 +170,10 @@ interface IKeyDecryptionOracle {
      * contract (receiverContract) and transaction. The generated keys are passed to the callback contract.
      *
      * @dev Emits an {EncryptedHashedKeysGenerationRequested} event.
-     * Implementations MUST reject an empty `keyIds` array and duplicate identifiers.
+     * Implementations MUST reject an empty `keyIds` array and duplicate identifiers and MUST
+     * impose a documented finite maximum batch size. Every generated reference MUST authenticate
+     * its keyId and a common one-use settlement context bound to the requesting contract, `id`,
+     * and the full generation context.
      * @param id Consumer-defined context emitted with the request.
      * @param callback The callback contract.
      * @param receiverContract Contract that is eligible to receive the decryption.
@@ -186,19 +207,24 @@ interface IKeyDecryptionOracle {
     function fulfillDecryption(uint256 requestId, bytes calldata key) external;
 
     /**
-     * @dev Fulfillment of a verification request (issued by requestVerifyEncryptedKey).
-     * Best-effort + calldata fallback: see fulfillDecryption.
+     * @dev Fulfillment of a batch verification request (issued by requestVerifyEncryptedKeys).
+     * The result is all-or-nothing: partial success is forbidden. The proxy MUST require exactly
+     * one result with the unchanged encryptedKey for every requested keyId, independent of array
+     * order. If `verified` is true, every hashedKey MUST be non-empty and every key MUST resolve
+     * to the same receiverContract and transaction. If false, receiverContract MUST be address(0),
+     * transaction MUST be empty, and consumers MUST ignore hashedKey values. Best-effort + calldata
+     * fallback: see fulfillDecryption.
      *
      * @param requestId Correlation id from the request event.
-     * @param encryptedKey Encrypted key.
-     * @param hashedKey Hash of the key.
-     * @param receiverContract Contract that is eligible to receive the decryption.
-     * @param transaction Transaction that is eligible to request decryption.
+     * @param verified True only if the complete batch was verified.
+     * @param keys Complete result set, identified by keyId and echoing every requested encryptedKey.
+     * @param receiverContract Common contract eligible to receive decryption, or address(0) on rejection.
+     * @param transaction Common transaction eligible to request decryption, or empty on rejection.
      */
-    function fulfillVerification(
+    function fulfillEncryptedKeysVerification(
         uint256 requestId,
-        bytes calldata encryptedKey,
-        bytes calldata hashedKey,
+        bool verified,
+        IKeyDecryptionOracleCallback.EncryptedHashedKey[] calldata keys,
         address receiverContract,
         bytes calldata transaction
     ) external;

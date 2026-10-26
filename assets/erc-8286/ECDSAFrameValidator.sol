@@ -25,14 +25,17 @@ contract ECDSAFrameValidator is IFrameValidator {
         return moduleTypeId == MODULE_TYPE_FRAME_VALIDATOR;
     }
 
-    function validateFrame(bytes32, uint256, uint8 allowedScope, bytes calldata data)
-        external
-        view
-        override
-        returns (uint8 approvalMode)
-    {
+    function validateFrame(bytes calldata data) external view override returns (uint8 approvalMode) {
         address owner = ownerOf[msg.sender];
         if (owner == address(0) || data.length != 65) return APPROVE_NONE; // data: r(32) || s(32) || v(1)
+
+        // Confirm the caller really is the account this transaction is being validated for;
+        // the frame context itself is read via introspection (see _allowedScope).
+        uint256 sender;
+        assembly {
+            sender := verbatim_1i_1o(hex"b0", 0x02) // TXPARAM sender
+        }
+        if (address(uint160(sender)) != msg.sender) return APPROVE_NONE;
 
         bytes32 r = bytes32(data[0:32]);
         bytes32 s = bytes32(data[32:64]);
@@ -40,9 +43,20 @@ contract ECDSAFrameValidator is IFrameValidator {
 
         address signer = ecrecover(_authDigest(), v, r, s);
         if (signer != address(0) && signer == owner) {
-            return allowedScope; // account masks this with the frame's allowed scope
+            // Read allowed scope from the executing VERIFY frame; do not trust account inputs.
+            return _allowedScope(); // account masks this with the frame's allowed scope
         }
         return APPROVE_NONE;
+    }
+
+    function _allowedScope() internal view returns (uint8 allowedScope) {
+        uint256 frameIndex;
+        uint256 allowedRaw;
+        assembly {
+            frameIndex := verbatim_1i_1o(hex"b0", 0x0a) // TXPARAM currently executing frame index
+            allowedRaw := verbatim_2i_1o(hex"b3", frameIndex, 0x06) // FRAMEPARAM(frameIndex, param=0x06)
+        }
+        return uint8(allowedRaw) & 0x3;
     }
 
     // A signature in VERIFY-frame data cannot sign over TXPARAM(0x08) (that hash commits the

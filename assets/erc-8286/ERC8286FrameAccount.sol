@@ -28,6 +28,11 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
     bytes1 internal constant EXECTYPE_DEFAULT = 0x00; // revert-all (atomic batch)
     bytes1 internal constant EXECTYPE_TRY = 0x01; // try (not part of an atomic batch)
 
+    // Execution routes (see "Execution"). This reference account is protocol-dispatched:
+    // it defines no execute entrypoint, so SENDER frames call their targets directly.
+    uint8 internal constant EXECUTION_ROUTE_PROTOCOL = 0x00;
+    uint8 internal constant EXECUTION_ROUTE_CONTRACT = 0x01;
+
     mapping(address => bool) public isValidatorInstalled;
 
     modifier onlySelf() {
@@ -38,12 +43,10 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
     function verify(bytes calldata data) external override returns (uint8 approvalMode) {
         uint256 frameIndex;
         uint256 frameMode;
-        bytes32 sigHash;
         uint256 allowedRaw;
         assembly {
             frameIndex := verbatim_1i_1o(hex"b0", 0x0a) // TXPARAM currently executing frame index
             frameMode := verbatim_2i_1o(hex"b3", frameIndex, 0x02) // FRAMEPARAM(frameIndex, param=0x02 mode)
-            sigHash := verbatim_1i_1o(hex"b0", 0x08) // TXPARAM canonical signing hash
             allowedRaw := verbatim_2i_1o(hex"b3", frameIndex, 0x06) // FRAMEPARAM(frameIndex, param=0x06 allowed scope)
         }
 
@@ -58,8 +61,9 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
 
         uint8 allowedScope = uint8(allowedRaw) & APPROVE_SCOPE_MASK;
 
-        approvalMode =
-            IFrameValidator(validator).validateFrame(sigHash, frameIndex, allowedScope, validatorData);
+        // Validator reads sigHash / frameIndex / allowedScope / frame contents via
+        // EIP-8141 introspection; the account only forwards validator-specific calldata.
+        approvalMode = IFrameValidator(validator).validateFrame(validatorData);
 
         // Mask to the frame's allowance; the account is the final authority.
         uint8 granted = approvalMode & allowedScope;
@@ -67,6 +71,15 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
         // If execution is approved, every presented SENDER-frame mode must be supported;
         // otherwise clear the execution bit, leaving payment (if any) intact.
         if ((granted & APPROVE_EXECUTION) != 0 && !_senderFramesSupported()) {
+            granted &= APPROVE_PAYMENT;
+        }
+
+        // A contract-dispatched account only approves execution if every SENDER frame
+        // resolves to itself, so that every operation passes through its execute.
+        if (
+            (granted & APPROVE_EXECUTION) != 0 && executionRoute() == EXECUTION_ROUTE_CONTRACT
+                && !_allSenderFramesTargetSelf()
+        ) {
             granted &= APPROVE_PAYMENT;
         }
 
@@ -80,6 +93,12 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
 
     function supportsApprovalMode(uint8 approvalMode) public pure override returns (bool) {
         return approvalMode <= APPROVE_SCOPE_MASK;
+    }
+
+    // Protocol-dispatched: SENDER frames call their targets directly and this account takes
+    // no part in execution, so it implements no ERC-7579 execution interface.
+    function executionRoute() public pure override returns (uint8) {
+        return EXECUTION_ROUTE_PROTOCOL;
     }
 
     function installModule(uint256 moduleTypeId, address module, bytes calldata initData)
@@ -160,6 +179,25 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
             if (_frameMode(i) != MODE_SENDER) continue;
             bytes1 execType = _inAtomicBatch(i) ? EXECTYPE_DEFAULT : EXECTYPE_TRY;
             if (!_supportsExecMode(callType, execType)) return false;
+        }
+        return true;
+    }
+
+    // Used only by a contract-dispatched account: every SENDER frame must resolve to this
+    // account, so that no operation can bypass its execute.
+    function _allSenderFramesTargetSelf() internal view returns (bool) {
+        uint256 numFrames;
+        assembly {
+            numFrames := verbatim_1i_1o(hex"b0", 0x09) // TXPARAM len(frames)
+        }
+
+        for (uint256 i = 0; i < numFrames; i++) {
+            if (_frameMode(i) != MODE_SENDER) continue;
+            uint256 target;
+            assembly {
+                target := verbatim_2i_1o(hex"b3", i, 0x00) // FRAMEPARAM(frameIndex=i, param=0x00 resolved_target)
+            }
+            if (address(uint160(target)) != address(this)) return false;
         }
         return true;
     }

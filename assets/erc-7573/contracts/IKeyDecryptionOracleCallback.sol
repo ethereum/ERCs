@@ -21,7 +21,7 @@ pragma solidity >=0.8.0 <0.9.0;
  */
 interface IKeyDecryptionOracleCallback {
     /**
-     * @dev One generated encrypted/hashed key and its semantic role.
+     * @dev One generated or verified encrypted/hashed key and its semantic role.
      */
     struct EncryptedHashedKey {
         bytes32 keyId;
@@ -47,19 +47,20 @@ interface IKeyDecryptionOracleCallback {
     event DecryptionDenied(address sender, uint256 requestId);
 
     /**
-     * @dev Emitted when the verification of an encrypted key has been obtained.
+     * @dev Emitted when verification of an atomic encrypted-key batch has completed.
      * @param sender The sender (oracle/proxy).
      * @param requestId The oracle-assigned request identifier.
-     * @param encryptedKey Encrypted key.
-     * @param hashedKey Hashed key, or empty if verification failed.
-     * @param receiverContract The receiving contract, or empty if verification failed.
-     * @param transaction The transaction id, or empty if verification failed.
+     * @param verified True only if the complete batch was verified.
+     * @param keys The complete requested key set, identified by keyId. On rejection,
+     *        hashedKey values MAY be empty but keyId and encryptedKey MUST still echo the request.
+     * @param receiverContract The common receiving contract, or address(0) on rejection.
+     * @param transaction The common transaction, or empty bytes on rejection.
      */
-    event EncryptedKeyVerified(
+    event EncryptedKeysVerificationCompleted(
         address sender,
         uint256 requestId,
-        bytes encryptedKey,
-        bytes hashedKey,
+        bool verified,
+        EncryptedHashedKey[] keys,
         address receiverContract,
         bytes transaction
     );
@@ -100,18 +101,21 @@ interface IKeyDecryptionOracleCallback {
     function onKeyDenied(uint256 requestId) external;
 
     /**
-     * @notice Called from the (possibly external) decryption oracle proxy.
-     * @dev Implementations SHOULD emit {EncryptedKeyVerified} (if eligible).
+     * @notice Called from the (possibly external) decryption oracle proxy after atomic
+     * verification of an encrypted-key batch.
+     * @dev Implementations MUST correlate the complete, role-tagged set to the pending
+     * request and SHOULD emit {EncryptedKeysVerificationCompleted} (if eligible).
+     * Implementations MUST use `verified`, rather than empty values, as the result status.
      * @param requestId The oracle-assigned request identifier.
-     * @param encryptedKey Encrypted key.
-     * @param hashedKey Hashed key, or empty if verification failed.
-     * @param receiverContract The receiving contract, or empty if verification failed.
-     * @param transaction The transaction id, or empty if verification failed.
+     * @param verified True only if the complete batch was verified; partial success is forbidden.
+     * @param keys The complete requested key set, identified by keyId. Array order has no meaning.
+     * @param receiverContract The common receiving contract, or address(0) on rejection.
+     * @param transaction The common transaction, or empty bytes on rejection.
      */
-    function onEncryptedKeyVerified(
+    function onEncryptedKeysVerificationCompleted(
         uint256 requestId,
-        bytes calldata encryptedKey,
-        bytes calldata hashedKey,
+        bool verified,
+        EncryptedHashedKey[] calldata keys,
         address receiverContract,
         bytes calldata transaction
     ) external;
