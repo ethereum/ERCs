@@ -24,7 +24,8 @@
         {
           "ref": "eip155:11155111:0x00000000000000000000000000000000000a11ce",
           "rights": [
-            "suspend"
+            "suspend",
+            "resume"
           ],
           "role": "task publisher"
         }
@@ -32,7 +33,7 @@
     }
   ],
   "metadata": {
-    "consumer": "ASFTaskTenderAdapter: adopter and subject are filled with the fulfiller at judgment time; the intervener requirement is kept, so that a suspension by the task publisher is not the fulfiller's own to lift",
+    "consumer": "ASFTaskTenderAdapter: adopter and subject are filled with the fulfiller at judgment time; the intervener requirement is kept, so that a suspension by the task publisher is not the fulfiller's own to lift and stands against the fulfiller for the subject and the specification through every binding the adapter scans; the publisher holds the resume right so that it can also lift its own stop",
     "note": "specId is filled by tools/build-examples.js from the specification example"
   }
 }

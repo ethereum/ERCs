@@ -57,6 +57,9 @@ library ASFTypes {
     /// @notice Maximum depth of a derived-binding chain (root has depth 0).
     uint8 internal constant MAX_DEPTH = 8;
 
+    /// @notice Maximum number of interveners of one binding.
+    uint256 internal constant MAX_INTERVENERS = 16;
+
     /// @notice An account entitled to some lifecycle transitions of a binding besides the adopter.
     struct Intervener {
         address account;
@@ -102,9 +105,19 @@ library ASFTypes {
         uint64 createdAt;
         uint64 stateChangedAt;
         BindingState state;
-        uint8 restrictions;        // bit set of RESTRICT_* while Suspended, else 0
-        bytes32 responseRef;       // content hash of the response document while Suspended, else 0
-        address suspendedBy;       // account that recorded the current suspension while Suspended, else 0
+        uint8 restrictions;        // bit set of RESTRICT_* of the current or last suspension; cleared by resume
+        bytes32 responseRef;       // content hash of its response document; cleared by resume
+        address suspendedBy;       // account that recorded it; cleared by resume, kept through termination
+    }
+
+    /// @notice A standing stop: an intervener's suspension recorded against the adopter for the subject and the
+    ///         specification, independently of the binding it was recorded through. It outlives the termination
+    ///         of that binding and is lifted only by an account holding RIGHT_RESUME on it (Section 8.5).
+    struct Stop {
+        bytes32 bindingId;         // binding through which the stop was recorded; zero when no stop stands
+        uint8 restrictions;        // response set of the stop
+        bytes32 responseRef;
+        uint64 since;
     }
 
     /// @notice Storage of a binding registry, shared with the externally linked evaluation library.
@@ -112,6 +125,16 @@ library ASFTypes {
         mapping(bytes32 => Binding) bindings;
         mapping(bytes32 => Intervener[]) interveners;
         mapping(bytes32 => mapping(address => uint8)) rights;
+        mapping(bytes32 => Stop) stops; // keyed by stopKey(adopter, subjectKey, specRegistry, specId, intervener)
+        mapping(bytes32 => mapping(address => bytes32[])) bySubject; // (subjectKey, adopter) -> binding ids
+        mapping(bytes32 => mapping(address => bytes32[])) byScope;   // (scopeKey, adopter) -> binding ids
+    }
+
+    /// @notice Key of a standing stop.
+    function stopKey(address adopter, bytes32 subjectKey, address specRegistry, bytes32 specId, address intervener)
+        internal pure returns (bytes32)
+    {
+        return keccak256(abi.encode(adopter, subjectKey, specRegistry, specId, intervener));
     }
 
     // ------------------------------------------------------------------------- requirements
@@ -139,7 +162,9 @@ library ASFTypes {
         EnforcementMismatch,    // 11 — required enforcement locations not all declared
         ParentNotSatisfied,     // 12 — an ancestor binding is not currently satisfied
         SpecRegistryUnavailable,// 13 — the specification registry could not be queried (Unknown)
-        IntervenerMismatch      // 14 — a required intervener is missing or holds fewer rights than required
+        IntervenerMismatch,     // 14 — a required intervener is missing or holds fewer rights than required
+        StoppedByIntervener     // 15 — an account the clause names holds a standing stop against the adopter
+                                //      for the subject and the specification (see the returned restrictions)
     }
 
     /// @notice How the clause results of a requirement set combine.

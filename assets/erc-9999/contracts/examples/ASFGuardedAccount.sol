@@ -107,15 +107,19 @@ contract ASFGuardedAccount {
         revert BindingNotSatisfied(verdict, reasons);
     }
 
-    /// Every failing clause is a suspension, of the binding itself or of one of its ancestors, whose response set
-    /// in force (as returned by the registry per clause) keeps de-risking open and does not stop everything.
-    /// The clause binding's own record is never consulted: a derived binding's record carries no set while
-    /// its ancestor is suspended.
+    /// Every failing clause is a suspension, of the binding itself, of one of its ancestors, or standing against the
+    /// adopter through another binding (an intervener the clause names stopped it), whose response set in force (as
+    /// returned by the registry per clause) keeps de-risking open and does not stop everything. The clause binding's
+    /// own record is never consulted: a derived binding's record carries no set while its ancestor is suspended,
+    /// and a fresh binding carries none while a stop stands against its adopter.
     function _onlyDeriskSuspensions(T.Reason[] memory reasons, uint8[] memory sets) private pure returns (bool) {
         if (reasons.length != sets.length) return false;
         for (uint256 i = 0; i < reasons.length; i++) {
             if (reasons[i] == T.Reason.None) continue;
-            if (reasons[i] != T.Reason.Suspended && reasons[i] != T.Reason.ParentNotSatisfied) return false;
+            if (
+                reasons[i] != T.Reason.Suspended && reasons[i] != T.Reason.ParentNotSatisfied
+                    && reasons[i] != T.Reason.StoppedByIntervener
+            ) return false;
             uint8 r = sets[i];
             if (r & T.RESTRICT_DERISK_ONLY == 0 || r & T.RESTRICT_FULL_STOP != 0) return false;
         }

@@ -10,9 +10,9 @@ interface IERC165Probe {
 }
 
 /// @title  ASFEvaluation — the registry-level check of the Safety Binding registry
-/// @notice Holds the evaluation of one binding against one clause (Section 10.1 of the ERC), the combinators
-///         (Section 10.3), the requirement validation (Section 10.4) and the response-set rule over a derivation
-///         chain. The registry links this library externally and delegates `check` and `checkBinding` to it
+/// @notice Holds the evaluation of one binding against one clause (Section 10.1 of the ERC), including the
+///         standing stops of Section 8.5, the combinators (Section 10.3), the requirement validation (Section 10.4)
+///         and the response-set rule over a derivation chain. The registry links this library externally and delegates `check` and `checkBinding` to it
 ///         with its own storage, so that the registry's deployed code stays below the per-transaction gas cap of
 ///         networks that meter code deposit heavily; the registry's ABI and behaviour are unchanged by the split.
 ///         The library reads the registry's storage through `T.Store` and never writes.
@@ -210,6 +210,16 @@ library ASFEvaluation {
                 }
             }
             if (!resumeClosed(s, bindingId, clause)) return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
+            // standing stops: a stop recorded by an account the clause names applies to the adopter for the
+            // subject and the specification, through whichever binding it was recorded, so that holding a sibling
+            // binding or terminating and adopting afresh does not escape it
+            for (uint256 i = 0; i < clause.interveners.length; i++) {
+                T.Stop storage stop =
+                    s.stops[T.stopKey(b.adopter, b.subjectKey, b.specRegistry, b.specId, clause.interveners[i].account)];
+                if (stop.bindingId != bytes32(0)) {
+                    return (T.Verdict.NotSatisfied, T.Reason.StoppedByIntervener, stop.restrictions);
+                }
+            }
         }
         // ancestors: every binding this one is derived from must itself be satisfied now
         (uint8 sets, bool broken) = chainSets(s, b);

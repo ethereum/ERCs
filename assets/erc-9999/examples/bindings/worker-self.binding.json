@@ -97,13 +97,14 @@
     {
       "ref": "eip155:11155111:0x00000000000000000000000000000000000a11ce",
       "rights": [
-        "suspend"
+        "suspend",
+        "resume"
       ],
       "role": "task publisher"
     }
   ],
   "metadata": {
     "salt": "0x0000000000000000000000000000000000000000000000000000000000000041",
-    "note": "The worker's own commitment that a tender's acceptance authority can require (adopter == subject). The task publisher is named as an intervener with the suspend right, as the tender admission requirement demands; the worker cannot lift the publisher's suspension."
+    "note": "The worker's own commitment that a tender's acceptance authority can require (adopter == subject). The task publisher is named as an intervener with the suspend and resume rights, as the tender admission requirement demands; the worker cannot lift the publisher's suspension, and that suspension stands against the worker for this subject and specification even if the worker terminates this binding and adopts another."
   }
 }

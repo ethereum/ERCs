@@ -1,6 +1,6 @@
 {
   "IASFSpecificationRegistry": "0x9bddde77",
-  "IASFBindingRegistry": "0x1ff33bef",
+  "IASFBindingRegistry": "0x2db6eb8a",
   "IERC165": "0x01ffc9a7",
   "note": "XOR of the selectors of all functions declared in the interface (ERC-165), excluding supportsInterface."
 }

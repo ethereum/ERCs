@@ -38,8 +38,10 @@ contract ASFTaskTenderAdapter {
 
     /// @param template_ Requirement whose clauses leave `adopter` and `subjectKey` at zero; the adapter fills
     ///        both with the fulfiller at judgment time so that only the fulfiller's own adoptions count. The
-    ///        clauses may require interveners (for example the task publisher with the suspend right), so that a
-    ///        suspension of the fulfiller's binding is not the fulfiller's own to lift.
+    ///        clauses may require interveners (for example the task publisher with the suspend and resume rights),
+    ///        so that a suspension of the fulfiller's binding is not the fulfiller's own to lift, and the
+    ///        publisher's stop stands against the fulfiller for the subject and the specification through every
+    ///        binding it scans (Section 8.5 of the ERC): a sibling binding or a fresh adoption does not escape it.
     constructor(IASFBindingRegistry registry_, ITaskTenderKernel task_, T.RequirementSet memory template_) {
         require(address(registry_) != address(0) && address(task_) != address(0), "ASFTender: zero address");
         registry_.requirementId(template_);
@@ -85,10 +87,17 @@ contract ASFTaskTenderAdapter {
         bindingIds = new bytes32[](req.clauses.length);
         for (uint256 c = 0; c < req.clauses.length; c++) {
             bytes32 fallbackId;
+            T.Reason fallbackReason;
             for (uint256 i = 0; i < candidates.length; i++) {
                 (T.Verdict v, T.Reason r,) = registry.checkBinding(candidates[i], req.clauses[c]);
                 if (v == T.Verdict.Satisfied) { bindingIds[c] = candidates[i]; break; }
-                if (r != T.Reason.SpecMismatch && fallbackId == bytes32(0)) fallbackId = candidates[i];
+                // the candidate reported on refusal: the first that matches the specification, preferring a live
+                // record over a terminated one so that the reason explains the refusal
+                if (r == T.Reason.SpecMismatch) continue;
+                if (fallbackId == bytes32(0) || (fallbackReason == T.Reason.Terminated && r != T.Reason.Terminated)) {
+                    fallbackId = candidates[i];
+                    fallbackReason = r;
+                }
             }
             if (bindingIds[c] == bytes32(0)) bindingIds[c] = fallbackId;
         }
