@@ -107,6 +107,13 @@ library ASFTypes {
         address suspendedBy;       // account that recorded the current suspension while Suspended, else 0
     }
 
+    /// @notice Storage of a binding registry, shared with the externally linked evaluation library.
+    struct Store {
+        mapping(bytes32 => Binding) bindings;
+        mapping(bytes32 => Intervener[]) interveners;
+        mapping(bytes32 => mapping(address => uint8)) rights;
+    }
+
     // ------------------------------------------------------------------------- requirements
 
     /// @notice Result of a registry-level check. `Unknown` never satisfies a requirement.

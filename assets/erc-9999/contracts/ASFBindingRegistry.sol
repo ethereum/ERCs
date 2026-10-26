@@ -3,12 +3,9 @@ pragma solidity ^0.8.20;
 
 import {ASFTypes as T} from "./ASFTypes.sol";
 import {ASFErrors} from "./ASFErrors.sol";
+import {ASFEvaluation} from "./libraries/ASFEvaluation.sol";
 import {IASFBindingRegistry} from "./interfaces/IASFBindingRegistry.sol";
 import {IASFSpecificationRegistry} from "./interfaces/IASFSpecificationRegistry.sol";
-
-interface IERC165Probe {
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
 
 /// @title  ASFBindingRegistry — reference implementation of the Safety Binding registry
 /// @notice Records adoption relations and their lifecycle, indexes them by (subject, adopter) and
@@ -16,12 +13,14 @@ interface IERC165Probe {
 ///         What it deliberately does not do: decide whether the adopter may speak for the subject or the
 ///         resource (consumers verify that against the permission source named in `authorityRef`),
 ///         evaluate any policy, or enforce anything by itself.
+///         The evaluation (`check`, `checkBinding`) lives in the externally linked `ASFEvaluation` library,
+///         which runs on this contract's storage through DELEGATECALL; the split keeps the registry's deployed
+///         code within the per-transaction gas cap of networks that meter code deposit heavily and changes
+///         neither the ABI nor the behaviour.
 contract ASFBindingRegistry is IASFBindingRegistry {
     uint256 private constant MAX_INTERVENERS = 16;
 
-    mapping(bytes32 => T.Binding) private _bindings;
-    mapping(bytes32 => T.Intervener[]) private _interveners;
-    mapping(bytes32 => mapping(address => uint8)) private _rights;
+    T.Store private _s;
     mapping(bytes32 => mapping(address => bytes32[])) private _bySubject;
     mapping(bytes32 => mapping(address => bytes32[])) private _byScope;
 
@@ -35,7 +34,7 @@ contract ASFBindingRegistry is IASFBindingRegistry {
 
     function adopt(T.BindingInput calldata input) external returns (bytes32 bindingId) {
         bindingId = computeBindingId(msg.sender, input);
-        T.Binding storage b = _bindings[bindingId];
+        T.Binding storage b = _s.bindings[bindingId];
         if (b.state != T.BindingState.None) revert ASFErrors.BindingExists();
 
         // validity window: validUntil is exclusive; 0 = open-ended
@@ -45,7 +44,7 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         }
 
         // pinned specification version: registry must be queryable and the content hash must match
-        _requireSpecRegistry(input.specRegistry);
+        if (!ASFEvaluation.supportsSpecRegistry(input.specRegistry)) revert ASFErrors.SpecRegistryNotSupported();
         T.SpecificationVersion memory v;
         try IASFSpecificationRegistry(input.specRegistry).versionOf(input.specId, input.version) returns (
             T.SpecificationVersion memory got
@@ -59,7 +58,7 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         // derived binding: same pinned version, window inside the parent's, bounded depth
         uint8 depth;
         if (input.parentBindingId != bytes32(0)) {
-            T.Binding storage p = _bindings[input.parentBindingId];
+            T.Binding storage p = _s.bindings[input.parentBindingId];
             if (p.state != T.BindingState.Active) revert ASFErrors.ParentNotActive();
             if (p.specRegistry != input.specRegistry || p.specId != input.specId || p.version != input.version) {
                 revert ASFErrors.ParentMismatch();
@@ -79,9 +78,9 @@ contract ASFBindingRegistry is IASFBindingRegistry {
             if (iv.account == address(0)) revert ASFErrors.ZeroIntervener();
             if (iv.account == msg.sender) revert ASFErrors.DuplicateIntervener();
             if (iv.rights == 0 || iv.rights > T.RIGHT_ALL) revert ASFErrors.InvalidRights();
-            if (_rights[bindingId][iv.account] != 0) revert ASFErrors.DuplicateIntervener();
-            _rights[bindingId][iv.account] = iv.rights;
-            _interveners[bindingId].push(iv);
+            if (_s.rights[bindingId][iv.account] != 0) revert ASFErrors.DuplicateIntervener();
+            _s.rights[bindingId][iv.account] = iv.rights;
+            _s.interveners[bindingId].push(iv);
         }
 
         b.adopter = msg.sender;
@@ -200,14 +199,14 @@ contract ASFBindingRegistry is IASFBindingRegistry {
 
     function intervenersOf(bytes32 bindingId) external view returns (T.Intervener[] memory) {
         _existing(bindingId);
-        return _interveners[bindingId];
+        return _s.interveners[bindingId];
     }
 
     function rightsOf(bytes32 bindingId, address account) public view returns (uint8) {
-        T.Binding storage b = _bindings[bindingId];
+        T.Binding storage b = _s.bindings[bindingId];
         if (b.state == T.BindingState.None) return 0;
         if (account == b.adopter) return T.RIGHT_ALL;
-        return _rights[bindingId][account];
+        return _s.rights[bindingId][account];
     }
 
     function countBySubject(bytes32 subjectKey, address adopter) external view returns (uint256) {
@@ -232,192 +231,30 @@ contract ASFBindingRegistry is IASFBindingRegistry {
 
     // -------------------------------------------------------------------------------- check
 
-    function checkBinding(bytes32 bindingId, T.Clause calldata clause)
+    /// @dev Both checks run in the externally linked evaluation library on this contract's storage; the calldata
+    ///      after the selector is forwarded as is, so the registry carries no decoder of its own.
+    function checkBinding(bytes32, T.Clause calldata)
         external view returns (T.Verdict verdict, T.Reason reason, uint8 restrictions)
     {
-        _validateClause(clause);
-        return _evaluate(bindingId, clause);
+        return ASFEvaluation.checkBinding(_s, msg.data[4:]);
     }
 
-    function check(T.RequirementSet calldata requirement, bytes32[] calldata bindingIds)
+    function check(T.RequirementSet calldata, bytes32[] calldata)
         external view returns (T.Verdict verdict, T.Reason[] memory reasons, uint8[] memory restrictions)
     {
-        _validateRequirement(requirement);
-        uint256 n = requirement.clauses.length;
-        if (bindingIds.length != n) revert ASFErrors.LengthMismatch();
-        reasons = new T.Reason[](n);
-        restrictions = new uint8[](n);
-        uint256 satisfied;
-        uint256 unknown;
-        for (uint256 i = 0; i < n; i++) {
-            (T.Verdict v, T.Reason r, uint8 x) = _evaluate(bindingIds[i], requirement.clauses[i]);
-            reasons[i] = r;
-            restrictions[i] = x;
-            if (v == T.Verdict.Satisfied) satisfied++;
-            else if (v == T.Verdict.Unknown) unknown++;
-        }
-        if (requirement.combinator == T.Combinator.All) {
-            if (satisfied == n) verdict = T.Verdict.Satisfied;
-            else if (satisfied + unknown == n) verdict = T.Verdict.Unknown;
-            else verdict = T.Verdict.NotSatisfied;
-        } else {
-            uint256 k = requirement.combinator == T.Combinator.Any ? 1 : requirement.k;
-            if (satisfied >= k) verdict = T.Verdict.Satisfied;
-            else if (satisfied + unknown >= k) verdict = T.Verdict.Unknown;
-            else verdict = T.Verdict.NotSatisfied;
-        }
+        return ASFEvaluation.check(_s, msg.data[4:]);
     }
 
     function requirementId(T.RequirementSet calldata requirement) external pure returns (bytes32) {
-        _validateRequirement(requirement);
+        ASFEvaluation.validateRequirementCalldata(requirement);
         return keccak256(abi.encode(requirement));
     }
 
     // ----------------------------------------------------------------------------- internal
 
     function _existing(bytes32 bindingId) private view returns (T.Binding storage b) {
-        b = _bindings[bindingId];
+        b = _s.bindings[bindingId];
         if (b.state == T.BindingState.None) revert ASFErrors.UnknownBinding();
-    }
-
-    function _requireSpecRegistry(address specRegistry) private view {
-        if (!_supportsSpecRegistry(specRegistry)) revert ASFErrors.SpecRegistryNotSupported();
-    }
-
-    function _supportsSpecRegistry(address specRegistry) private view returns (bool) {
-        if (specRegistry.code.length == 0) return false;
-        try IERC165Probe(specRegistry).supportsInterface(type(IASFSpecificationRegistry).interfaceId) returns (bool ok) {
-            return ok;
-        } catch {
-            return false;
-        }
-    }
-
-    function _inWindow(T.Binding storage b) private view returns (bool notYet, bool expired) {
-        uint64 from = b.validFrom > b.createdAt ? b.validFrom : b.createdAt;
-        notYet = block.timestamp < from;
-        expired = b.validUntil != 0 && block.timestamp >= b.validUntil;
-    }
-
-    /// @dev The response set in force for a binding: the union of the sets of every suspended record among the
-    ///      binding and its ancestors, or empty when any record in that chain is terminated or outside its window
-    ///      (a chain that is not in force keeps no path open). `broken` is true when some ancestor is not Active
-    ///      or outside its window.
-    function _chainSets(T.Binding storage b) private view returns (uint8 union, bool broken) {
-        bool dead;
-        if (b.state == T.BindingState.Suspended) union = b.restrictions;
-        if (b.state == T.BindingState.Terminated) dead = true;
-        (bool notYet, bool expired) = _inWindow(b);
-        if (notYet || expired) dead = true;
-        bytes32 pid = b.parentBindingId;
-        while (pid != bytes32(0)) {
-            T.Binding storage p = _bindings[pid];
-            if (p.state == T.BindingState.Suspended) {
-                union |= p.restrictions;
-                broken = true;
-            } else if (p.state != T.BindingState.Active) {
-                dead = true;
-                broken = true;
-            }
-            (bool pNotYet, bool pExpired) = _inWindow(p);
-            if (pNotYet || pExpired) {
-                dead = true;
-                broken = true;
-            }
-            pid = p.parentBindingId;
-        }
-        if (dead) union = 0;
-    }
-
-    function _evaluate(bytes32 bindingId, T.Clause calldata clause)
-        private view returns (T.Verdict, T.Reason, uint8)
-    {
-        if (bindingId == bytes32(0)) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, 0);
-        T.Binding storage b = _bindings[bindingId];
-        if (b.state == T.BindingState.None) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, 0);
-        if (b.state == T.BindingState.Terminated) return (T.Verdict.NotSatisfied, T.Reason.Terminated, 0);
-        if (b.state == T.BindingState.Suspended) {
-            (uint8 own,) = _chainSets(b);
-            return (T.Verdict.NotSatisfied, T.Reason.Suspended, own);
-        }
-        (bool notYet, bool expired) = _inWindow(b);
-        if (notYet) return (T.Verdict.NotSatisfied, T.Reason.NotYetValid, 0);
-        if (expired) return (T.Verdict.NotSatisfied, T.Reason.Expired, 0);
-        if (clause.specRegistry != b.specRegistry || clause.specId != b.specId) {
-            return (T.Verdict.NotSatisfied, T.Reason.SpecMismatch, 0);
-        }
-        if (clause.versions.length != 0) {
-            bool found;
-            for (uint256 i = 0; i < clause.versions.length; i++) {
-                if (clause.versions[i] == b.version) { found = true; break; }
-            }
-            if (!found) return (T.Verdict.NotSatisfied, T.Reason.VersionMismatch, 0);
-        }
-        if (clause.adopter != address(0) && clause.adopter != b.adopter) {
-            return (T.Verdict.NotSatisfied, T.Reason.AdopterMismatch, 0);
-        }
-        if (clause.subjectKey != bytes32(0) && clause.subjectKey != b.subjectKey) {
-            return (T.Verdict.NotSatisfied, T.Reason.SubjectMismatch, 0);
-        }
-        if (clause.scopeKey != bytes32(0) && clause.scopeKey != b.scopeKey) {
-            return (T.Verdict.NotSatisfied, T.Reason.ScopeMismatch, 0);
-        }
-        if (clause.enforcement & b.enforcement != clause.enforcement) {
-            return (T.Verdict.NotSatisfied, T.Reason.EnforcementMismatch, 0);
-        }
-        // required interveners: every named account must hold at least the required rights on this binding, and
-        // when a clause names interveners it also closes the resume right: no account the clause does not name may
-        // hold RIGHT_RESUME, otherwise the adopter could lift any intervener's suspension through an account of its own
-        if (clause.interveners.length != 0) {
-            for (uint256 i = 0; i < clause.interveners.length; i++) {
-                T.Intervener calldata req = clause.interveners[i];
-                if (_rights[bindingId][req.account] & req.rights != req.rights) {
-                    return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
-                }
-            }
-            if (!_resumeClosed(bindingId, clause)) return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
-        }
-        // ancestors: every binding this one is derived from must itself be satisfied now
-        (uint8 sets, bool broken) = _chainSets(b);
-        if (broken) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, sets);
-        // the pinned specification registry must still be queryable; a dependency failure is Unknown, never a pass
-        if (!_supportsSpecRegistry(b.specRegistry)) {
-            return (T.Verdict.Unknown, T.Reason.SpecRegistryUnavailable, 0);
-        }
-        return (T.Verdict.Satisfied, T.Reason.None, 0);
-    }
-
-    /// @dev True when every intervener of the binding that holds RIGHT_RESUME is named by the clause.
-    function _resumeClosed(bytes32 bindingId, T.Clause calldata clause) private view returns (bool) {
-        T.Intervener[] storage list = _interveners[bindingId];
-        for (uint256 i = 0; i < list.length; i++) {
-            if (list[i].rights & T.RIGHT_RESUME == 0) continue;
-            bool named;
-            for (uint256 j = 0; j < clause.interveners.length; j++) {
-                if (clause.interveners[j].account == list[i].account) { named = true; break; }
-            }
-            if (!named) return false;
-        }
-        return true;
-    }
-
-    function _validateClause(T.Clause calldata clause) private pure {
-        if (clause.specRegistry == address(0) || clause.specId == bytes32(0)) revert ASFErrors.InvalidRequirement();
-        for (uint256 i = 0; i < clause.interveners.length; i++) {
-            T.Intervener calldata iv = clause.interveners[i];
-            if (iv.account == address(0) || iv.rights == 0 || iv.rights > T.RIGHT_ALL) revert ASFErrors.InvalidRequirement();
-        }
-    }
-
-    function _validateRequirement(T.RequirementSet calldata requirement) private pure {
-        uint256 n = requirement.clauses.length;
-        if (n == 0) revert ASFErrors.InvalidRequirement();
-        if (requirement.combinator == T.Combinator.KOf) {
-            if (requirement.k == 0 || requirement.k > n) revert ASFErrors.InvalidRequirement();
-        } else if (requirement.k != 0) {
-            revert ASFErrors.InvalidRequirement();
-        }
-        for (uint256 i = 0; i < n; i++) _validateClause(requirement.clauses[i]);
     }
 
     function _slice(bytes32[] storage list, uint256 offset, uint256 limit) private view returns (bytes32[] memory out) {
