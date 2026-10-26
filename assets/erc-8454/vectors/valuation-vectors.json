@@ -316,6 +316,28 @@
         }
       ],
       "test": "tools/test/resolve-claims.test.js"
+    },
+    {
+      "name": "interval-over-liabilities",
+      "rule": "The bounds of an interval forced by unresolved pairs are the minimum and maximum of the method's result over the admissible resolutions (each unresolved pair read as one claim or two, consistent with the declarations and with transitivity), never \"counted once\" for low and \"counted separately\" for high: for two liabilities the once reading is the upper bound. A held position and an owed position are never one claim, so a mixed boundary with one unresolved pair on each side has bounds that are the sums of the per-pair extremes. low MUST NOT exceed high; a resolver that can recompute the bounds from the receipt's inputs reports an interval that differs.",
+      "cases": [
+        {
+          "case": "two debts, one obligor, two references",
+          "definition": "examples/hosting-payables.json (no declaration)",
+          "expected": "net equity interval [-200.00, -100.00] (examples/hosting-payables.valuation.net-equity.interval.json) or insufficient-evidence; [-100.00, -200.00] is rejected by the validator and the resolver"
+        },
+        {
+          "case": "mixed boundary",
+          "definition": "examples/revenue-and-payables-mixed.json (held revenue pair of vector 9, owed debt pair, no declaration)",
+          "expected": "two unresolved pairs, four cross-side pairs distinct by construction; interval [-154.88, -9.76] = [45.12 - 200.00, 90.24 - 100.00] (examples/revenue-and-payables-mixed.valuation.net-equity.interval.json); an interval such as [-154.88, -54.88] is reported as differing from the extremes over the 4 admissible resolutions"
+        },
+        {
+          "case": "chained pairs",
+          "definition": "three debts A, B, C with A and C declared distinct and A?B, B?C unresolved",
+          "expected": "admissible resolutions {A}{B}{C}, {AB}{C}, {A}{BC} -> [-300, -200]; {ABC} and {AC}{B} are not admissible"
+        }
+      ],
+      "test": "tools/test/resolve-intervals.test.js"
     }
   ]
 }

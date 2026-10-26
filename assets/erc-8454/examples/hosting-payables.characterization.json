@@ -1,0 +1,28 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 14,
+    "version": 1,
+    "boundaryHash": "0x22ef743e7dacd65090b4feb7c301716f09d82b6efead74fc78fba1a10f1505bf"
+  },
+  "roles": [
+    {
+      "role": "damping",
+      "scope": {
+        "type": "port",
+        "id": "hosting-out"
+      },
+      "mechanism": "resource-use",
+      "conditions": "hosting cost"
+    }
+  ],
+  "structure": {
+    "profile": "auf:structure:simple@1"
+  },
+  "knowledge": {
+    "status": "insufficient-evidence",
+    "notes": "Whether the ledger entry records the invoice or a second debt is not established; no same-claim or distinct-claim declaration."
+  }
+}

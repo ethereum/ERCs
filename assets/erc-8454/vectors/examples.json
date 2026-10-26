@@ -634,6 +634,92 @@
           "relationId": "0xbbcb123881bcb62f2897d5324e8582e040224cae17224b827342b936ff205dad"
         }
       ]
+    },
+    {
+      "unitId": 14,
+      "file": "examples/hosting-payables.json",
+      "boundaryHash": "0x22ef743e7dacd65090b4feb7c301716f09d82b6efead74fc78fba1a10f1505bf",
+      "contains": [],
+      "controller": "0x00000000000000000000000000000000000000d4",
+      "companions": [
+        {
+          "file": "hosting-payables.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x64ddbe201448158664c4d116d9bf85152812646702bd181d55cf67bb9535a49e",
+          "profile": "auf:characterization:v1@1"
+        },
+        {
+          "file": "hosting-payables.valuation.net-equity.interval.json",
+          "kind": "valuation",
+          "contentHash": "0x622b5524bd2a8b9b39b0b527e81f66ff67f753c07c8fcb8fe32d6540c3e31d5d",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0x22ef743e7dacd65090b4feb7c301716f09d82b6efead74fc78fba1a10f1505bf",
+            "snapshotHash": "0x588a66fbceeb80c6f9a4d2df0eaa7ae126280402c215bde841aa3ab22f8c52b8",
+            "resultKind": 2,
+            "decimals": 2,
+            "value": "0",
+            "denominationId": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        },
+        {
+          "file": "hosting-payables.valuation.net-equity.insufficient-evidence.json",
+          "kind": "valuation",
+          "contentHash": "0x92b585bf8f0e053b5dd815373a92632dd0d94d7802795473f2d8ea625c875add",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0x22ef743e7dacd65090b4feb7c301716f09d82b6efead74fc78fba1a10f1505bf",
+            "snapshotHash": "0x588a66fbceeb80c6f9a4d2df0eaa7ae126280402c215bde841aa3ab22f8c52b8",
+            "resultKind": 10,
+            "decimals": 0,
+            "value": "0",
+            "denominationId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        }
+      ],
+      "declarations": []
+    },
+    {
+      "unitId": 15,
+      "file": "examples/revenue-and-payables-mixed.json",
+      "boundaryHash": "0x87306b067acd757f8499c0933c27f2fda3320d7a9209f0ed670339db8e92d443",
+      "contains": [],
+      "controller": "0x00000000000000000000000000000000000000d3",
+      "companions": [
+        {
+          "file": "revenue-and-payables-mixed.characterization.json",
+          "kind": "characterization",
+          "contentHash": "0x6ffbdbd8b9d2097f49c93d7686601ee341a6ec9c788a53fd0bf86f07e1ee5a8a",
+          "profile": "auf:characterization:v1@1"
+        },
+        {
+          "file": "revenue-and-payables-mixed.valuation.net-equity.interval.json",
+          "kind": "valuation",
+          "contentHash": "0xd068fbb77a3e4b7161d0fe655c57870d7b1cde000ca47fd50e2e049a5d00c90d",
+          "profile": "auf:method:net-equity@1",
+          "core": {
+            "methodId": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+            "interestId": "0x26910e4924975fae7c723c9d3b43f9fa35fd201589c70ac969fcad8860c5080d",
+            "assessmentBoundaryHash": "0x87306b067acd757f8499c0933c27f2fda3320d7a9209f0ed670339db8e92d443",
+            "snapshotHash": "0x3d680913e783622548bec545be4d174499cbfa2a01ee0f61c34f84924526da81",
+            "resultKind": 2,
+            "decimals": 2,
+            "value": "0",
+            "denominationId": "0xc4ae21aac0c6549d71dd96035b7e0bdb6c79ebdba8891b666115bc976d16a29e",
+            "asOf": 1793491200,
+            "horizonEnd": 0
+          }
+        }
+      ],
+      "declarations": []
     }
   ],
   "note": "declarations lists the identity relations of each definition with their relationId, the subject of a confirming description-endorsement (Sections 3.4 and 3.8)."
