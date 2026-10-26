@@ -30,7 +30,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 An `x-chain` URL has the following form.
 
 ```
-x-chain:0x<interoperable-address>[?block=<block>]
+x-chain:0x<interoperable-address>[?finalized=<value>]
 ```
 
 `<interoperable-address>` is the lowercase hexadecimal encoding of a version 1 [ERC-7930](./eip-7930.md) Interoperable Address containing both a chain reference and a target address. The `AddressLength` field MUST NOT be zero. The hexadecimal string MUST be lowercase and MUST contain no bytes beyond the end of the Interoperable Address.
@@ -43,17 +43,9 @@ x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913
 
 A URL that is not well formed under this section is unsupported. A client that supports this ERC handles an unsupported `x-chain` URL as defined under Client behavior.
 
-#### The block parameter
+#### The finalized parameter
 
-The OPTIONAL `block` query parameter selects the block at which the call is made. The following values are defined.
-
-- `latest`. The latest block. This is the default when the parameter is absent.
-- `safe`. The safe block.
-- `finalized`. The finalized block.
-- A `0x`-prefixed hexadecimal block number. The call is made at exactly that block.
-- `latest-N`, where `N` is a decimal count of blocks. The client reads the head block number once, subtracts `N`, and makes the call at exactly that number. `latest-0` equals the head block.
-
-If `N` is larger than the head block number, or the client cannot serve the selected block, for example on a pruned node, the call MUST fail. The client MUST NOT substitute another block. A `block` value not matching one of the forms above makes the URL unsupported.
+The OPTIONAL `finalized` query parameter selects the block at which the call is made. When it is present with a non-empty value, for example `?finalized=true`, the client makes the call at the finalized block. Otherwise the client makes the call at the latest block. If the client cannot serve the finalized block on the destination chain, the call MUST fail, and the client MUST NOT fall back to the latest block.
 
 The callback does not learn which block was used, because the result is identical to the result of `eth_call`. A contract that needs the block number MUST have the remote function return it.
 
@@ -87,7 +79,7 @@ Lookups on the destination chain count toward the client's ERC-3668 lookup limit
 
 [ERC-3668](./eip-3668.md) does not require a gateway to be an HTTP service, and allows URLs of any scheme. The client already trusts its own RPC connections, so it can answer a cross-chain read without adding a third party. A client that supports this ERC ignores all other URLs, so it never sends the request to a third-party gateway. It returns exactly what `eth_call` returns, so callbacks work as they do with any ERC-3668 gateway. Nested `x-chain` URLs are not followed, which limits each call to one cross-chain hop and prevents loops between chains.
 
-Clients that do not support this ERC are detected with a `data:` URL rather than an HTTP gateway. Existing CCIP-Read clients skip URL schemes they do not support, and most read a `data:` URL as a gateway response with the answer inside the URL, so the callback receives `0xff` without any server or third party. `0xff` was chosen because no ABI encoded result is a single byte, so it cannot be mistaken for a real result. The `block` parameter reuses the standard `eth_call` block tags and adds `latest-N` for contracts that want to stay a fixed number of blocks behind the head.
+Clients that do not support this ERC are detected with a `data:` URL rather than an HTTP gateway. Existing CCIP-Read clients skip URL schemes they do not support, and most read a `data:` URL as a gateway response with the answer inside the URL, so the callback receives `0xff` without any server or third party. `0xff` was chosen because no ABI encoded result is a single byte, so it cannot be mistaken for a real result. The only block choice is latest or finalized, because other chains may not offer the same block tags, and finalized is the guarantee most contracts need. Contracts that must also serve clients without support for this ERC can operate their own gateway instead, at the cost of trusting that gateway, for example through a standard offchain signer.
 
 ## Backwards Compatibility
 
@@ -104,7 +96,7 @@ x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913
 The ENS registry on Ethereum mainnet, chain id 1, contract `0x00000000000c2e074ec69a0dfb2997ba6c7d2e1e`, read at the finalized block.
 
 ```
-x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?block=finalized
+x-chain:0x0001000001011400000000000c2e074ec69a0dfb2997ba6c7d2e1e?finalized=true
 ```
 
 A contract that reads the USDC contract on Base reverts with `OffchainLookup` and this `urls` list.
@@ -138,7 +130,7 @@ contract RemoteSupplyReader {
     error XChainUnsupported();
 
     string constant REMOTE_URL =
-        "x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913?block=finalized";
+        "x-chain:0x0001000002210514833589fcd6edb6e08f4c7c32d4f71b54bda02913?finalized=true";
     string constant FALLBACK_URL = "data:application/json,{\"data\":\"0xff\"}";
 
     function remoteTotalSupply() external view returns (uint256) {
@@ -168,7 +160,7 @@ contract RemoteSupplyReader {
 
 ## Security Considerations
 
-The result is only as reliable as the client's RPC connection to the destination chain, and the contract cannot verify it, so contracts should not use it to authorize a state change without a proof. The same call can behave differently on different EVM chains, so a client that supports one chain should not assume it supports another. `latest` can be reorganized, especially on rollups, so contracts that act on the result should consider `safe` or `finalized`.
+The result is only as reliable as the client's RPC connection to the destination chain, and the contract cannot verify it, so contracts should not use it to authorize a state change without a proof. The same call can behave differently on different EVM chains, so a client that supports one chain should not assume it supports another. `latest` can be reorganized, especially on rollups, so contracts that act on the result should consider `?finalized=true`.
 
 ## Copyright
 
