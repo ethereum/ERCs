@@ -70,9 +70,13 @@ const getLastModifiedDates = (dir) => {
   // Each commit is introduced by a NUL, so a date can never be mistaken for a
   // path. A text marker could not promise that: a file named after the marker
   // would be read as a date and attributed to every path following it.
+  // core.quotePath is pinned rather than inherited: with it on, a path
+  // containing a newline is emitted as one quoted token, so it cannot break
+  // across lines and hand its commit date to the path on the next line.
   const stdout = execFileSync(
     "git",
-    ["log", "--format=%x00%cI", "--name-only", "--diff-filter=AMR", "--", `${dir}/`],
+    ["-c", "core.quotePath=true", "log", "--format=%x00%cI", "--name-only",
+     "--diff-filter=AMR", "--", `${dir}/`],
     { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }
   );
 
@@ -81,8 +85,11 @@ const getLastModifiedDates = (dir) => {
     const [commitDate, ...paths] = commit.split("\n");
     if (!commitDate) continue;
     for (const file of paths) {
+      // A quoted path held a character git had to escape, so it is not one of
+      // the proposals this bot manages.
+      if (!file || file.startsWith('"')) continue;
       // git log is newest first, so a path's first appearance is its latest change.
-      if (file && !dates.has(file)) dates.set(file, commitDate.trim());
+      if (!dates.has(file)) dates.set(file, commitDate.trim());
     }
   }
   return dates;
@@ -94,10 +101,12 @@ const FRONTMATTER_RE = /^---\r?\n(.*?)\r?\n---/s;
 const parseFrontmatter = (contents) => {
   const match = contents.match(FRONTMATTER_RE);
   if (!match) return null;
-  const attributes = {};
+  // A Map, like the dates above: an object would answer to inherited names
+  // such as `constructor` for a field that is not in the frontmatter.
+  const attributes = new Map();
   for (const line of match[1].split(/\r?\n/)) {
     const attribute = line.match(/^([a-zA-Z-]+):\s*(.*)$/);
-    if (attribute) attributes[attribute[1]] = attribute[2].trim();
+    if (attribute) attributes.set(attribute[1], attribute[2].trim());
   }
   return attributes;
 };
@@ -336,11 +345,12 @@ module.exports = async ({ github, context, core, dryRun }) => {
 
     const contents = fs.readFileSync(path.join(config.dir, name), "utf8");
     const frontmatter = parseFrontmatter(contents);
-    if (!frontmatter || !frontmatter.status) {
+    const status = frontmatter && frontmatter.get("status");
+    if (!status) {
       core.warning(`could not read a status from ${file}`);
       continue;
     }
-    if (!STAGNATABLE_STATUSES.includes(frontmatter.status.toLowerCase())) continue;
+    if (!STAGNATABLE_STATUSES.includes(status.toLowerCase())) continue;
 
     const lastModified = lastModifiedDates.get(file);
     if (!lastModified || new Date(lastModified) >= stagnationCutoff) continue;
@@ -348,9 +358,9 @@ module.exports = async ({ github, context, core, dryRun }) => {
     candidates.push({
       file,
       contents,
-      erc: frontmatter.eip,
-      status: frontmatter.status,
-      author: frontmatter.author,
+      erc: frontmatter.get("eip"),
+      status,
+      author: frontmatter.get("author"),
       lastModified
     });
   }
