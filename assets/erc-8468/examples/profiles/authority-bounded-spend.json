@@ -1,0 +1,45 @@
+{
+  "asf": "1.0",
+  "kind": "profile-descriptor",
+  "identifier": "asf:profile:authority/bounded-spend@1",
+  "family": "identity-authority",
+  "summary": "Bounded spending authority for one subject: per-action and rolling-window caps, allowed assets and allowed targets. Evaluated over each action and over the subject's trajectory within the window.",
+  "evaluatesOver": ["action", "trajectory"],
+  "parameterSchema": {
+    "type": "object",
+    "required": ["denomination", "perActionCap", "windowCap", "windowSeconds"],
+    "properties": {
+      "denomination": { "type": "string" },
+      "perActionCap": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
+      "windowCap": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?$" },
+      "windowSeconds": { "type": "integer", "minimum": 1 },
+      "allowedAssets": { "type": "array", "items": { "type": "string" } },
+      "allowedTargets": { "type": "array", "items": { "type": "string" } },
+      "aboveCapRequires": { "type": "string", "enum": ["principal-confirmation", "refuse"] }
+    },
+    "additionalProperties": false
+  },
+  "partialOrder": {
+    "defined": true,
+    "rule": "B is not wider than A when B.denomination == A.denomination, B.perActionCap <= A.perActionCap, B.windowCap <= A.windowCap, B.windowSeconds >= A.windowSeconds, B.allowedAssets is a subset of A.allowedAssets (an absent list in A means unrestricted, in B means empty) and B.allowedTargets is a subset of A.allowedTargets."
+  },
+  "verification": [
+    {
+      "method": "on-chain-guard",
+      "location": "account",
+      "inputs": ["action target", "action value", "asset", "window history of the account"],
+      "resultMeaning": "the action is within the caps at execution time",
+      "trustAssumptions": ["the account module is the only path through which the subject can spend"]
+    },
+    {
+      "method": "runtime-monitoring",
+      "location": "runtime",
+      "inputs": ["tool-call stream"],
+      "resultMeaning": "no spend tool call exceeded the caps",
+      "trustAssumptions": ["the runtime is not under the subject's control"]
+    }
+  ],
+  "limitations": [
+    "Caps in a denomination other than the asset's own depend on a price source; the price source is part of the trust assumptions."
+  ]
+}

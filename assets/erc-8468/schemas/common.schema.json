@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/asf/common.schema.json",
+  "title": "ASF common definitions",
+  "$defs": {
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$"
+    },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]{40}$"
+    },
+    "accountRef": {
+      "type": "string",
+      "description": "CAIP-10 style account reference, lowercase hex: eip155:<chainId>:<0x...>",
+      "pattern": "^eip155:[0-9]+:0x[0-9a-f]{40}$"
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A subject or resource reference string (CAIP-2/10/19, did:, urn: or a framework-specific reference)."
+    },
+    "identifier": {
+      "type": "string",
+      "description": "Profile or vocabulary identifier: asf:<class>:<name>@<version> or x:<namespace>:<name>@<version>",
+      "pattern": "^(asf|x):[a-z0-9-]+(:[a-z0-9/.-]+)+@[0-9]+$"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "identity-authority",
+        "information-privacy",
+        "execution-supply-chain",
+        "behavior-goals",
+        "assets-economic",
+        "multi-agent-system",
+        "human-public",
+        "governance-accountability"
+      ]
+    },
+    "protectedDomain": {
+      "type": "string",
+      "enum": [
+        "assets-economic",
+        "information-privacy",
+        "control-rules",
+        "credit-eligibility",
+        "human-public"
+      ],
+      "description": "What is protected: assets and economic positions; information and privacy; control and rules (accounts, infrastructure, rule-making power, the controls themselves); credit and eligibility; the rights and welfare of persons, society and the public (the principal included)."
+    },
+    "enforcementLocation": {
+      "type": "string",
+      "enum": [
+        "self",
+        "account",
+        "runtime",
+        "custodian",
+        "contract",
+        "collective"
+      ]
+    },
+    "restriction": {
+      "type": "string",
+      "enum": [
+        "no-new-risk",
+        "shrink",
+        "essential-only",
+        "derisk-only",
+        "full-stop"
+      ],
+      "description": "One response requirement; several may be combined in one suspension (bit set on chain: no-new-risk 1, shrink 2, essential-only 4, derisk-only 8, full-stop 16)."
+    },
+    "failureAction": {
+      "type": "string",
+      "enum": [
+        "refuse",
+        "wait",
+        "handoff",
+        "degrade"
+      ]
+    },
+    "timestamp": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "validity": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "until": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "mechanism": {
+      "type": "object",
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mechanism kind, for example a proposal reference such as erc-7715, a product name or an internal identifier."
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Instance reference: contract reference, codehash, domain id, URL or document hash."
+        },
+        "version": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Extension members keyed by identifier. A member with required = true MUST be understood by consumers.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "affectedRole": {
+      "type": "string",
+      "enum": [
+        "principal",
+        "operator",
+        "counterparty",
+        "bystander",
+        "public"
+      ],
+      "description": "Role of an affected party relative to the delegation: the principal on whose behalf the subject acts, the operator running it, a counterparty of its actions, a bystander, or the public."
+    }
+  }
+}
