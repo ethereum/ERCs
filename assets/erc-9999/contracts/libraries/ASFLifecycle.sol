@@ -8,11 +8,12 @@ import {IASFSpecificationRegistry} from "../interfaces/IASFSpecificationRegistry
 import {ASFEvaluation} from "./ASFEvaluation.sol";
 
 /// @title  ASFLifecycle — the writes of the Safety Binding registry
-/// @notice Holds `adopt` (Section 7, registry rules 1 to 6) and the transitions `suspend`, `resume` and `terminate`
-///         (Section 8) together with the standing stops of Section 8.5. The registry links this library externally
-///         and delegates the four writes to it with its own storage, for the same reason as `ASFEvaluation`: the registry's deployed code must stay below the
-///         per-transaction gas cap of networks that meter code deposit heavily. `msg.sender` is the registry's
-///         caller (DELEGATECALL), events are emitted by the registry, and the behaviour is the one the ERC states.
+/// @notice Holds `adopt` (Section 7, registry rules 1 to 6), the transitions `suspend`, `resume` and `terminate`
+///         (Section 8) and the standing stops of Section 8.5 (`liftStop`, `setStopLifter`). The registry links this
+///         library externally and delegates its writes to it with its own storage, for the same reason as
+///         `ASFEvaluation`: the registry's deployed code must stay below the per-transaction gas cap of networks
+///         that meter code deposit heavily. `msg.sender` is the registry's caller (DELEGATECALL), events are
+///         emitted by the registry, and the behaviour is the one the ERC states.
 library ASFLifecycle {
     /// @dev Section 3.3: keccak256(abi.encode(chainId, bindingRegistry, adopter, subjectKey, scopeKey, specRegistry,
     ///      specId, version, salt)); `address(this)` is the registry, since the library runs through DELEGATECALL.
@@ -148,35 +149,43 @@ library ASFLifecycle {
         b.responseRef = responseRef;
         b.suspendedBy = msg.sender;
         b.stateChangedAt = uint64(block.timestamp);
-        // an intervener's suspension is also a standing stop against the adopter for the subject and the
-        // specification: it is not escaped by holding or creating another binding (Section 8.5)
-        if (msg.sender != b.adopter) {
-            s.stops[stopKeyOf(b, msg.sender)] = T.Stop({
-                bindingId: bindingId, restrictions: restrictions, responseRef: responseRef, since: uint64(block.timestamp)
-            });
-        }
+        // an intervener's suspension is also recorded into its standing stop against the adopter for the subject
+        // and the specification: it is not escaped by holding or creating another binding (Section 8.5)
+        if (msg.sender != b.adopter) recordStop(s, b, bindingId, restrictions, responseRef);
         emit IASFBindingRegistry.BindingStateChanged(
             bindingId, T.BindingState.Active, T.BindingState.Suspended, restrictions, responseRef, msg.sender, reasonRef
         );
     }
 
+    /// @dev A new stop when none stands; otherwise the union of the response sets, the latest binding and the
+    ///      latest response document supplied. A later suspension never narrows or replaces a standing stop.
+    function recordStop(T.Store storage s, T.Binding storage b, bytes32 bindingId, uint8 restrictions, bytes32 responseRef)
+        internal
+    {
+        T.Stop storage stop = s.stops[stopKeyOf(b, msg.sender)];
+        if (stop.bindingId == bytes32(0)) {
+            stop.restrictions = restrictions;
+            stop.since = uint64(block.timestamp);
+        } else {
+            stop.restrictions |= restrictions;
+        }
+        stop.bindingId = bindingId;
+        if (responseRef != bytes32(0)) stop.responseRef = responseRef;
+        emit IASFBindingRegistry.StopRecorded(
+            b.adopter, b.subjectKey, b.specRegistry, b.specId, msg.sender, bindingId, stop.restrictions, stop.responseRef
+        );
+    }
+
     function resume(T.Store storage s, bytes32 bindingId, bytes32 reasonRef) external {
         T.Binding storage b = existing(s, bindingId);
-        if (b.state == T.BindingState.Terminated) {
-            // a terminated record cannot become Active again, but a standing stop recorded through it can be
-            // lifted, under the same rights as a resumption
-            requireResumeRight(s, bindingId, b);
-            bytes32 key = stopKeyOf(b, b.suspendedBy);
-            if (b.suspendedBy == b.adopter || s.stops[key].bindingId != bindingId) revert ASFErrors.InvalidState();
-            delete s.stops[key];
-            emit IASFBindingRegistry.StopLifted(bindingId, b.suspendedBy, msg.sender, reasonRef);
-            return;
-        }
         if (b.state != T.BindingState.Suspended) revert ASFErrors.InvalidState();
         requireResumeRight(s, bindingId, b);
-        if (b.suspendedBy != b.adopter) {
-            bytes32 key = stopKeyOf(b, b.suspendedBy);
-            if (s.stops[key].bindingId == bindingId) delete s.stops[key];
+        // the stop is the intervener's: a resumption lifts it only when the intervener itself, or the lifter it
+        // named, is the one resuming; another holder of the resume right reopens the record and nothing more
+        address by = b.suspendedBy;
+        if (by != b.adopter && (msg.sender == by || msg.sender == s.stopLifters[by])) {
+            bytes32 key = stopKeyOf(b, by);
+            if (s.stops[key].bindingId != bytes32(0)) lift(s, key, b, by, reasonRef);
         }
         b.state = T.BindingState.Active;
         b.restrictions = 0;
@@ -186,6 +195,34 @@ library ASFLifecycle {
         emit IASFBindingRegistry.BindingStateChanged(
             bindingId, T.BindingState.Suspended, T.BindingState.Active, 0, bytes32(0), msg.sender, reasonRef
         );
+    }
+
+    function liftStop(
+        T.Store storage s,
+        address adopter,
+        bytes32 subjectKey,
+        address specRegistry,
+        bytes32 specId,
+        address intervener,
+        bytes32 reasonRef
+    ) external {
+        if (msg.sender != intervener && msg.sender != s.stopLifters[intervener]) revert ASFErrors.NotAuthorized();
+        bytes32 key = T.stopKey(adopter, subjectKey, specRegistry, specId, intervener);
+        if (s.stops[key].bindingId == bytes32(0)) revert ASFErrors.InvalidState();
+        delete s.stops[key];
+        emit IASFBindingRegistry.StopLifted(adopter, subjectKey, specRegistry, specId, intervener, msg.sender, reasonRef);
+    }
+
+    function lift(T.Store storage s, bytes32 key, T.Binding storage b, address intervener, bytes32 reasonRef) internal {
+        delete s.stops[key];
+        emit IASFBindingRegistry.StopLifted(
+            b.adopter, b.subjectKey, b.specRegistry, b.specId, intervener, msg.sender, reasonRef
+        );
+    }
+
+    function setStopLifter(T.Store storage s, address lifter) external {
+        s.stopLifters[msg.sender] = lifter;
+        emit IASFBindingRegistry.StopLifterSet(msg.sender, lifter);
     }
 
     function terminate(T.Store storage s, bytes32 bindingId, bytes32 reasonRef) external {

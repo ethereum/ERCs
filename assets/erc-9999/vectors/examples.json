@@ -27,7 +27,7 @@
       "parentBindingId": "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
     "worker-self.binding.json": {
-      "paramsHash": "0x7789a9904ca808563c6cb003585846e591913cd71416c7ed1e9f5ef23ab70549",
+      "paramsHash": "0xe3d893e94b34f4e898e64b3102aa6be4ddb26b07f1a25a1507138ab87cc8ce37",
       "authorityRef": "0xf2ffa8a8e45408895b937e3b11fb04f483236cd0cd7e71e652e6c8d6d36a137b",
       "enforcement": 2,
       "bindingId": "0x0ce9a993e9d3719752d4d7d818c4303e4d666b8bc1448e18a999a87b892e83e7",
@@ -47,7 +47,7 @@
       "requirementId": "0xc32c3f461b38b1fd374328cd992203278a35cf18bfcda0cf15f84ffa5079f673"
     },
     "tender-admission.requirement.json": {
-      "documentHash": "0xb5fad4a0df38bc46509dcd1667d83e0e244a9e417e2fbd5e4302d76832cc3325",
+      "documentHash": "0xbf694963639ca3c3f6c33b54895453ad365c139ab5c926b3bc74b7ea4f2d54b7",
       "requirementId": null
     }
   },
@@ -66,7 +66,7 @@
     },
     "asf:profile:governance/intervention@1": {
       "profileId": "0x983ee76569373430ab86b01469d70568e95741b6d65f7f6ada9cf5354d0ec411",
-      "descriptorHash": "0x8914e6da87d1edc7e551872e178d1152bc47fa8a8b12e9eac10441b63833629d"
+      "descriptorHash": "0x915d5f27b11cc8397972d3453f8aa432a3003c0e0b986ec9e62fd69b41019f57"
     },
     "asf:profile:information/untrusted-input@1": {
       "profileId": "0x9c02cc65ebdc625053ca7360bd89818db2cb46960fdd7a094a02ff1d299674a9",

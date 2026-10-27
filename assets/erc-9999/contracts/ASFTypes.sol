@@ -105,19 +105,21 @@ library ASFTypes {
         uint64 createdAt;
         uint64 stateChangedAt;
         BindingState state;
-        uint8 restrictions;        // bit set of RESTRICT_* of the current or last suspension; cleared by resume
-        bytes32 responseRef;       // content hash of its response document; cleared by resume
+        uint8 restrictions;        // bit set of RESTRICT_* of the current or last suspension; cleared by resume, kept through termination
+        bytes32 responseRef;       // content hash of its response document; cleared by resume, kept through termination
         address suspendedBy;       // account that recorded it; cleared by resume, kept through termination
     }
 
-    /// @notice A standing stop: an intervener's suspension recorded against the adopter for the subject and the
-    ///         specification, independently of the binding it was recorded through. It outlives the termination
-    ///         of that binding and is lifted only by an account holding RIGHT_RESUME on it (Section 8.5).
+    /// @notice A standing stop: an intervener's suspensions recorded against the adopter for the subject and the
+    ///         specification, independently of the bindings they were recorded through. The stop is the
+    ///         intervener's: it outlives the termination of those bindings, grows by union when the intervener
+    ///         suspends another binding under the same key, and is lifted only by the intervener or by the lifter
+    ///         the intervener named (Section 8.5).
     struct Stop {
-        bytes32 bindingId;         // binding through which the stop was recorded; zero when no stop stands
-        uint8 restrictions;        // response set of the stop
-        bytes32 responseRef;
-        uint64 since;
+        bytes32 bindingId;         // binding of the latest suspension recorded into the stop; zero when none stands
+        uint8 restrictions;        // union of the response sets of the suspensions recorded into it
+        bytes32 responseRef;       // response document of the latest suspension that supplied one
+        uint64 since;              // when the stop was first recorded
     }
 
     /// @notice Storage of a binding registry, shared with the externally linked evaluation library.
@@ -126,6 +128,7 @@ library ASFTypes {
         mapping(bytes32 => Intervener[]) interveners;
         mapping(bytes32 => mapping(address => uint8)) rights;
         mapping(bytes32 => Stop) stops; // keyed by stopKey(adopter, subjectKey, specRegistry, specId, intervener)
+        mapping(address => address) stopLifters; // intervener -> the one account it named to lift its stops
         mapping(bytes32 => mapping(address => bytes32[])) bySubject; // (subjectKey, adopter) -> binding ids
         mapping(bytes32 => mapping(address => bytes32[])) byScope;   // (scopeKey, adopter) -> binding ids
     }

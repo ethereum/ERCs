@@ -14,7 +14,7 @@ import {IASFBindingRegistry} from "./interfaces/IASFBindingRegistry.sol";
 ///         resource (consumers verify that against the permission source named in `authorityRef`),
 ///         evaluate any policy, or enforce anything by itself.
 ///         The evaluation (`check`, `checkBinding`) lives in the externally linked `ASFEvaluation` library and the
-///         writes (`adopt`, `suspend`, `resume`, `terminate`) in `ASFLifecycle`; both run on this contract's
+///         writes (`adopt`, `suspend`, `resume`, `terminate`, `liftStop`, `setStopLifter`) in `ASFLifecycle`; both run on this contract's
 ///         storage through DELEGATECALL. The split keeps the registry's deployed code within the per-transaction
 ///         gas cap of networks that meter code deposit heavily and changes neither the ABI nor the behaviour.
 contract ASFBindingRegistry is IASFBindingRegistry {
@@ -50,6 +50,22 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         ASFLifecycle.terminate(_s, bindingId, reasonRef);
     }
 
+    /// @dev Standing stops (Section 8.5): lifted by the intervener or by the lifter it named.
+    function liftStop(
+        address adopter,
+        bytes32 subjectKey,
+        address specRegistry,
+        bytes32 specId,
+        address intervener,
+        bytes32 reasonRef
+    ) external {
+        ASFLifecycle.liftStop(_s, adopter, subjectKey, specRegistry, specId, intervener, reasonRef);
+    }
+
+    function setStopLifter(address lifter) external {
+        ASFLifecycle.setStopLifter(_s, lifter);
+    }
+
     function setParamsLocator(bytes32 bindingId, string calldata locator) external {
         T.Binding storage b = _existing(bindingId);
         if (b.adopter != msg.sender) revert ASFErrors.NotAdopter();
@@ -81,6 +97,10 @@ contract ASFBindingRegistry is IASFBindingRegistry {
         external view returns (T.Stop memory)
     {
         return _s.stops[T.stopKey(adopter, subjectKey, specRegistry, specId, intervener)];
+    }
+
+    function stopLifterOf(address intervener) external view returns (address) {
+        return _s.stopLifters[intervener];
     }
 
     function countBySubject(bytes32 subjectKey, address adopter) external view returns (uint256) {

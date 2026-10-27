@@ -32,8 +32,31 @@ interface IASFBindingRegistry /* is IERC165 */ {
         bytes32 reasonRef
     );
     event BindingParamsLocatorUpdated(bytes32 indexed bindingId, string locator);
-    /// @notice A standing stop recorded through a Terminated binding was lifted (the record stays Terminated).
-    event StopLifted(bytes32 indexed bindingId, address indexed intervener, address actor, bytes32 reasonRef);
+    /// @notice An intervener's suspension of `bindingId` was recorded into its standing stop against the adopter
+    ///         for the subject and the specification; `restrictions` and `responseRef` are the stop's after the
+    ///         recording (the union of the sets recorded into it, and the latest response document supplied).
+    event StopRecorded(
+        address indexed adopter,
+        bytes32 indexed subjectKey,
+        address specRegistry,
+        bytes32 specId,
+        address indexed intervener,
+        bytes32 bindingId,
+        uint8 restrictions,
+        bytes32 responseRef
+    );
+    /// @notice A standing stop was lifted by its intervener or by the lifter the intervener named (`actor`).
+    event StopLifted(
+        address indexed adopter,
+        bytes32 indexed subjectKey,
+        address specRegistry,
+        bytes32 specId,
+        address indexed intervener,
+        address actor,
+        bytes32 reasonRef
+    );
+    /// @notice `intervener` named `lifter` (zero: nobody besides itself) as the account that may lift its stops.
+    event StopLifterSet(address indexed intervener, address lifter);
 
     /// @notice Creates an Active binding adopted by `msg.sender`. Reverts when the id already exists
     ///         (in any state), when the pinned specification version does not exist or its content hash
@@ -45,20 +68,37 @@ interface IASFBindingRegistry /* is IERC165 */ {
     /// @notice Active -> Suspended under a non-empty set of response requirements, with the response document
     ///         reference (scope, parameters, in-flight handling, duration, who may resume) and the reason
     ///         reference (the evidence or decision behind the transition). Adopter or intervener with RIGHT_SUSPEND;
-    ///         the caller is recorded as `suspendedBy`. A suspension by an intervener also records a standing stop
-    ///         against the adopter for the binding's subject and specification, keyed by the intervener.
+    ///         the caller is recorded as `suspendedBy`. A suspension by an intervener is also recorded into the
+    ///         intervener's standing stop against the adopter for the binding's subject and specification: a new
+    ///         stop when none stands, otherwise the union of the response sets (Section 8.5).
     function suspend(bytes32 bindingId, uint8 restrictions, bytes32 responseRef, bytes32 reasonRef) external;
 
     /// @notice Suspended -> Active. Adopter or intervener with RIGHT_RESUME, except that a suspension recorded by
     ///         an intervener can only be lifted by an intervener holding RIGHT_RESUME, never by the adopter.
-    ///         Lifts the standing stop recorded through the binding. On a Terminated binding whose stop still
-    ///         stands, lifts that stop only (the record stays Terminated) under the same rights.
+    ///         Acts on the record; the standing stop of the account that suspended it is lifted as well only when
+    ///         the caller is that account or the lifter it named. Reverts on a Terminated binding.
     function resume(bytes32 bindingId, bytes32 reasonRef) external;
 
     /// @notice Active or Suspended -> Terminated (terminal). Adopter or intervener with RIGHT_TERMINATE. The
     ///         suspension fields of the record are kept, so that a terminated record shows the stop it carried,
     ///         and a standing stop recorded through the binding stands until lifted.
     function terminate(bytes32 bindingId, bytes32 reasonRef) external;
+
+    /// @notice Lifts the standing stop of `intervener` against `adopter` for the subject and the specification.
+    ///         Only the intervener itself or the lifter it named (`setStopLifter`) may call it; reverts with
+    ///         `InvalidState` when no stop stands.
+    function liftStop(
+        address adopter,
+        bytes32 subjectKey,
+        address specRegistry,
+        bytes32 specId,
+        address intervener,
+        bytes32 reasonRef
+    ) external;
+
+    /// @notice Names the one account that may lift the caller's standing stops besides the caller itself (zero
+    ///         revokes). Applies to the caller's stops against every adopter, standing and future.
+    function setStopLifter(address lifter) external;
 
     /// @notice Replaces the parameters locator; the parameters hash is untouched. Adopter only.
     function setParamsLocator(bytes32 bindingId, string calldata locator) external;
@@ -71,6 +111,8 @@ interface IASFBindingRegistry /* is IERC165 */ {
     ///         zero record when none stands.
     function stopOf(address adopter, bytes32 subjectKey, address specRegistry, bytes32 specId, address intervener)
         external view returns (ASFTypes.Stop memory);
+    /// @notice The account `intervener` named to lift its stops besides itself; zero when none.
+    function stopLifterOf(address intervener) external view returns (address);
 
     /// @notice Index by (subjectKey, adopter) and by (scopeKey, adopter). The adopter is part of every
     ///         index key so that a third party's adoption is never presented as the subject's own.

@@ -72,7 +72,7 @@
         "full-stop"
       ],
       "dispute": "the tender's acceptance authority",
-      "recovery": "the worker resumes its own suspensions after review; a suspension by the task publisher is lifted by the publisher or by termination and a fresh adoption"
+      "recovery": "the worker resumes its own suspensions after review; a suspension by the task publisher is reopened by the publisher, and the standing stop it records is lifted only by the publisher"
     }
   },
   "authorityBasis": [
@@ -105,6 +105,6 @@
   ],
   "metadata": {
     "salt": "0x0000000000000000000000000000000000000000000000000000000000000041",
-    "note": "The worker's own commitment that a tender's acceptance authority can require (adopter == subject). The task publisher is named as an intervener with the suspend and resume rights, as the tender admission requirement demands; the worker cannot lift the publisher's suspension, and that suspension stands against the worker for this subject and specification even if the worker terminates this binding and adopts another."
+    "note": "The worker's own commitment that a tender's acceptance authority can require (adopter == subject). The task publisher is named as an intervener with the suspend and resume rights, as the tender admission requirement demands; the worker cannot lift the publisher's suspension, and that suspension stands against the worker for this subject and specification, even if the worker terminates this binding and adopts another, until the publisher lifts it."
   }
 }
