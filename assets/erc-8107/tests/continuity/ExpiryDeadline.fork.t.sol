@@ -207,8 +207,9 @@ contract ExpiryDeadlineForkTest is BoundaryRecorder {
 
     function _check(uint64 head) internal view returns (RB.Result memory) {
         RB.NameProof[] memory p = new RB.NameProof[](3);
-        (p[0], p[1], p[2]) = (_proof(RB.ETH_NODE, G_LABEL), _proof(RB.ETH_NODE, X_LABEL), _proof(RB.ETH_NODE, M_LABEL));
-        return RB.evaluate(registry, address(BASE), _path(), bytes32(0), p, _history(firstBlock, head), head);
+        (p[0], p[1], p[2]) = (_proof(G_LABEL), _proof(X_LABEL), _proof(M_LABEL));
+        return
+            RB.evaluate(registry, address(BASE), NAME_WRAPPER, _path(), bytes32(0), p, _history(firstBlock, head), head);
     }
 
     function _pins() internal view returns (ExpiryPin[] memory p) {

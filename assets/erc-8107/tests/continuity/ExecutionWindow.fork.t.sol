@@ -216,15 +216,17 @@ contract ExecutionWindowForkTest is BoundaryRecorder {
     function _proofs(bytes32[] memory nodes) internal view returns (RB.NameProof[] memory p) {
         p = new RB.NameProof[](nodes.length);
         for (uint256 i = 0; i < nodes.length; i++) {
-            if (nodes[i] == G) p[i] = _proof(RB.ETH_NODE, G_LABEL);
-            else if (nodes[i] == X) p[i] = _proof(RB.ETH_NODE, X_LABEL);
-            else if (nodes[i] == M) p[i] = _proof(RB.ETH_NODE, M_LABEL);
+            if (nodes[i] == G) p[i] = _proof(G_LABEL);
+            else if (nodes[i] == X) p[i] = _proof(X_LABEL);
+            else if (nodes[i] == M) p[i] = _proof(M_LABEL);
         }
     }
 
     /// The off-chain registration-boundary check, over the complete history to `head`
     function _check(bytes32[] memory nodes, uint64 head) internal view returns (RB.Result memory) {
-        return RB.evaluate(registry, address(BASE), nodes, bytes32(0), _proofs(nodes), _history(firstBlock, head), head);
+        return RB.evaluate(
+            registry, address(BASE), NAME_WRAPPER, nodes, bytes32(0), _proofs(nodes), _history(firstBlock, head), head
+        );
     }
 
     /// What the coordinator pins at the block its check ran to: every .eth 2LD on the path
