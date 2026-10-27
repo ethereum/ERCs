@@ -28,6 +28,10 @@ contracts/
 circuits/
   compliance/                 COMPLIANCE (0x01) circuit (Noir)
   shared/                     shared Noir crate (hashing, Merkle, ECDSA, risk score)
+scripts/
+  generate-fixtures.sh        proves each circuit's Prover.toml into test/fixtures/
+  patch-pairing-yul.sh        EIP-170 size patch applied to each generated verifier
+test/fixtures/<circuit>/      proof + public_inputs for all nine proof types
 ```
 
 ### Where public-input validation lives
@@ -77,3 +81,19 @@ bb write_solidity_verifier -b ./target/compliance.json -o ./compliance_verifier.
 
 The `COMPLIANCE` witness in `circuits/compliance/Prover.toml` matches the
 Witness Annex in ERC-8262.
+
+## Fixtures
+
+`test/fixtures/` holds the binary `proof` and packed `public_inputs` for all
+nine proof types; the Test Cases section of ERC-8262 describes them, and its
+Witness Annex lists the inputs behind each one.
+
+```sh
+./scripts/generate-fixtures.sh compliance
+```
+
+re-proves the COMPLIANCE witness, verifies it with `bb`, writes the fixture,
+and leaves the named, patched verifier in `circuits/compliance/target/`. The
+other eight circuits are not shipped here; place them under `circuits/` to
+regenerate their fixtures. UltraHonk proofs are randomized, so a regenerated
+`proof` differs byte-for-byte while `public_inputs` stays identical.
