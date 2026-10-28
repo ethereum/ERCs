@@ -52,6 +52,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     error InvalidKey();
     error LaunchNotListed();
     error InvalidObservedBlock();
+    error InvalidObservedBlockHash();
     error StaleObservedBlock(uint64 latestObservedBlock);
     error InvalidReport();
     error TooManyFindings();
@@ -104,7 +105,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         (launchKey, chainId, token) = _resolveKey(input);
 
         if (input.observedBlock == 0) revert InvalidObservedBlock();
-        if (chainId == block.chainid && input.observedBlock >= block.number) revert InvalidObservedBlock();
+        if (chainId == block.chainid) _checkOwnChainBlock(input.observedBlock, input.observedBlockHash);
 
         uint256 uriLength = bytes(input.reportURI).length;
         if (input.reportHash == bytes32(0) || uriLength == 0 || uriLength > MAX_URI_LENGTH) revert InvalidReport();
@@ -113,7 +114,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
         observationId = ++_count;
         _store(observationId, launchKey, chainId, token, input);
-        _emitRecorded(observationId);
+        _emitRecorded(observationId, input.observedBlockHash);
         _storeFindings(observationId, findings);
     }
 
@@ -244,7 +245,17 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
     // ---------------------------------------------------------------- internal
 
-    function _emitRecorded(uint256 observationId) private {
+    /// @dev On the registry's own chain the block must exist and its hash must be given; within the 256 blocks
+    /// `blockhash` reaches, the hash must match. Older hashes are emitted unchecked for readers to compare.
+    function _checkOwnChainBlock(uint64 observedBlock, bytes32 observedBlockHash) private view {
+        if (observedBlock >= block.number) revert InvalidObservedBlock();
+        if (observedBlockHash == bytes32(0)) revert InvalidObservedBlockHash();
+        if (block.number - observedBlock <= 256 && blockhash(observedBlock) != observedBlockHash) {
+            revert InvalidObservedBlockHash();
+        }
+    }
+
+    function _emitRecorded(uint256 observationId, bytes32 observedBlockHash) private {
         Observation storage o = _observations[observationId];
         emit ObservationRecorded(
             observationId,
@@ -254,6 +265,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
             o.chainId,
             o.token,
             o.observedBlock,
+            observedBlockHash,
             o.supersedes,
             o.tally,
             o.reportHash,

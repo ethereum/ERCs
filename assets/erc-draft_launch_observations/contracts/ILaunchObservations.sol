@@ -27,6 +27,7 @@ interface ILaunchObservations {
         uint256 chainId;
         address token;
         uint64 observedBlock;
+        bytes32 observedBlockHash;
         Tally tally;
         bytes32 reportHash;
         string reportURI;
@@ -58,6 +59,7 @@ interface ILaunchObservations {
         uint256 chainId,
         address token,
         uint64 observedBlock,
+        bytes32 observedBlockHash,
         uint256 supersedes,
         Tally tally,
         bytes32 reportHash,

@@ -17,6 +17,7 @@ contract LaunchObservationsTest {
         uint256 chainId,
         address token,
         uint64 observedBlock,
+        bytes32 observedBlockHash,
         uint256 supersedes,
         ILaunchObservations.Tally tally,
         bytes32 reportHash,
@@ -70,11 +71,18 @@ contract LaunchObservationsTest {
         require(a == b, m);
     }
 
-    function _tokenInput(uint64 observedBlock) internal pure returns (ILaunchObservations.ObservationInput memory i) {
+    /// The hash a detector would read: the real one where blockhash reaches, else a stand-in for another chain's block.
+    function _bh(uint64 observedBlock) internal view returns (bytes32 h) {
+        h = blockhash(observedBlock);
+        if (h == bytes32(0)) h = keccak256(abi.encode("block", observedBlock));
+    }
+
+    function _tokenInput(uint64 observedBlock) internal view returns (ILaunchObservations.ObservationInput memory i) {
         i.kind = ILaunchObservations.KeyKind.Token;
         i.chainId = RH_CHAIN;
         i.token = TOKEN;
         i.observedBlock = observedBlock;
+        i.observedBlockHash = _bh(observedBlock);
         i.tally = ILaunchObservations.Tally(2, 1, 3);
         i.reportHash = keccak256("report");
         i.reportURI = "https://t0ll.xyz/r/0x7011";
@@ -280,6 +288,7 @@ contract LaunchObservationsTest {
             RH_CHAIN,
             TOKEN,
             900,
+            _bh(900),
             0,
             ILaunchObservations.Tally(2, 1, 3),
             keccak256("report"),
@@ -394,6 +403,66 @@ contract LaunchObservationsTest {
         reg.recordObservation(i, _none());
     }
 
+    function test_OwnChainBlockHashCheckedWithin256() public {
+        vm.chainId(RH_CHAIN); // the token's chain is now the registry's chain
+        ILaunchObservations.ObservationInput memory i = _tokenInput(900);
+        require(blockhash(900) != bytes32(0), "fixture: block 900 is within reach");
+
+        i.observedBlockHash = keccak256("a reorged-out block");
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(i, _none());
+
+        // The oldest block blockhash reaches (256 back) is still checked.
+        i = _tokenInput(uint64(block.number - 256));
+        i.observedBlockHash = keccak256("a reorged-out block");
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(i, _none());
+
+        // The right hash is accepted and emitted, not stored.
+        i = _tokenInput(900);
+        vm.recordLogs();
+        reg.recordObservation(i, _none());
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        (,,,, bytes32 emitted,,,,,) = abi.decode(
+            logs[0].data,
+            (uint8, uint256, address, uint64, bytes32, uint256, ILaunchObservations.Tally, bytes32, string, bytes32)
+        );
+        _eq(emitted, blockhash(900), "hash emitted");
+    }
+
+    function test_OwnChainBlockHashOlderThan256NotChecked() public {
+        vm.chainId(RH_CHAIN);
+        ILaunchObservations.ObservationInput memory i = _tokenInput(uint64(block.number - 257));
+        i.observedBlockHash = keccak256("cannot be checked on chain");
+        reg.recordObservation(i, _none()); // accepted: readers compare it with the canonical chain
+    }
+
+    function test_ZeroBlockHashOnlyForOtherChains() public {
+        // Same chain: the hash is required, inside or outside blockhash's reach.
+        vm.chainId(RH_CHAIN);
+        ILaunchObservations.ObservationInput memory i = _tokenInput(900);
+        i.observedBlockHash = bytes32(0);
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(i, _none());
+        i.observedBlock = uint64(block.number - 300);
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(i, _none());
+
+        // ERC-8376 keys are always on the registry's chain.
+        i = _erc8376Input(900);
+        i.observedBlockHash = bytes32(0);
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(i, _none());
+
+        // Another chain: zero is allowed, and a given hash is not checked.
+        vm.chainId(1);
+        i = _tokenInput(900);
+        i.observedBlockHash = bytes32(0);
+        reg.recordObservation(i, _none());
+        i.observedBlockHash = keccak256("any");
+        reg.recordObservation(i, _none());
+    }
+
     function test_PagingBounds() public {
         bytes32 key;
         for (uint256 k = 0; k < 5; k++) {
@@ -503,7 +572,7 @@ contract LaunchObservationsTest {
 
     // ---------------------------------------------------------------- reading by token
 
-    function _erc8376Input(uint64 observedBlock) internal pure returns (ILaunchObservations.ObservationInput memory i) {
+    function _erc8376Input(uint64 observedBlock) internal view returns (ILaunchObservations.ObservationInput memory i) {
         i = _tokenInput(observedBlock);
         i.kind = ILaunchObservations.KeyKind.Erc8376;
         i.launchId = LAUNCH_ID;
@@ -619,6 +688,6 @@ contract LaunchObservationsTest {
     }
 
     function test_InterfaceIdMatchesSpec() public pure {
-        require(type(ILaunchObservations).interfaceId == bytes4(0xe528752a), "interface id");
+        require(type(ILaunchObservations).interfaceId == bytes4(0x30ee02eb), "interface id");
     }
 }

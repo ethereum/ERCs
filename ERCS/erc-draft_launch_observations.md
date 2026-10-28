@@ -66,7 +66,7 @@ RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as de
 ### Interface
 
 An observations registry MUST implement `ILaunchObservations` and [ERC-165](./eip-165.md), returning `true` for the
-interface identifier of `ILaunchObservations`, `0xe528752a`, and for `0x01ffc9a7`.
+interface identifier of `ILaunchObservations`, `0x30ee02eb`, and for `0x01ffc9a7`.
 
 ```solidity
 interface ILaunchObservations {
@@ -93,6 +93,7 @@ interface ILaunchObservations {
         uint256 chainId;
         address token;
         uint64 observedBlock;
+        bytes32 observedBlockHash;
         Tally tally;
         bytes32 reportHash;
         string reportURI;
@@ -116,7 +117,7 @@ interface ILaunchObservations {
         string reportURI;
     }
 
-    event ObservationRecorded(uint256 indexed observationId, bytes32 indexed launchKey, address indexed detector, KeyKind kind, uint256 chainId, address token, uint64 observedBlock, uint256 supersedes, Tally tally, bytes32 reportHash, string reportURI, bytes32 evidenceRoot);
+    event ObservationRecorded(uint256 indexed observationId, bytes32 indexed launchKey, address indexed detector, KeyKind kind, uint256 chainId, address token, uint64 observedBlock, bytes32 observedBlockHash, uint256 supersedes, Tally tally, bytes32 reportHash, string reportURI, bytes32 evidenceRoot);
     event FindingObserved(uint256 indexed observationId, bytes32 indexed kind, uint256 value, uint64 param, Lean lean);
     event DetectorIdentitySet(address indexed detector, address indexed identityRegistry, uint256 indexed agentId);
 
@@ -144,7 +145,7 @@ interface ILaunchObservations {
 - An **observation** is one record by one detector about one launch key at one observed block.
 - A **finding** is one typed fact inside an observation.
 - The **observed block** is the block number, on the chain the launch is on, at which every finding of the observation
-  holds.
+  holds. The **observed block hash** is the hash of that block as the detector read it.
 - The **creator** is, for a launch the directory lists, the directory's `deployerOf(launchId)`; otherwise the party the
   detector attributes the launch to, as stated in its report.
 
@@ -180,6 +181,10 @@ chain MAY hold observations of launches on another.
 - It MUST resolve the launch key as above.
 - It MUST revert if `observedBlock` is zero, or if the launch is on the registry's chain and `observedBlock` is not
   lower than `block.number`.
+- When the launch is on the registry's chain, it MUST revert if `observedBlockHash` is zero, and, when
+  `block.number - observedBlock` is at most 256, if `observedBlockHash` is not `blockhash(observedBlock)`. An older
+  hash is not checked. When the launch is on another chain, `observedBlockHash` SHOULD be the hash of the observed
+  block on that chain and MAY be zero, meaning not given; the registry does not check it.
 - It MUST revert if `reportHash` is zero, if `reportURI` is empty, or if `reportURI` is longer than 512 bytes.
 - It MUST revert if `findings` holds more than 32 entries, if two findings share both `kind` and `param`, or if a
   finding is invalid as defined under [Findings](#findings).
@@ -191,7 +196,8 @@ chain MAY hold observations of launches on another.
 - It MUST assign an identifier one greater than the last one assigned, starting at 1, and MUST record the caller as
   `detector`, the caller's linked identity at that moment as `identityRegistry` and `agentId`, and the block timestamp as
   `recordedAt`.
-- It MUST emit `ObservationRecorded`, then `FindingObserved` once per finding in the order given.
+- It MUST emit `ObservationRecorded`, carrying `observedBlockHash` as given, then `FindingObserved` once per finding
+  in the order given. `observedBlockHash` is emitted only; it is not part of the stored `Observation`.
 
 ### Findings
 
@@ -264,7 +270,7 @@ required above, and MAY be higher where the report holds findings that have no t
 `reportURI` locates the detector's full report, and `reportHash` MUST be the `keccak256` of the exact bytes served at
 it. A detector SHOULD serve the report from content-addressed storage. The report SHOULD be a JSON object with at least:
 
-- `launchKey`, `kind`, `chainId`, `token` and `observedBlock`, as recorded;
+- `launchKey`, `kind`, `chainId`, `token`, `observedBlock` and `observedBlockHash`, as recorded;
 - `findings`: every finding, typed or not, each with its kind or name, `param`, `value`, `lean` and a one-line
   description of how it was read;
 - `tally`: the three counts;
@@ -397,6 +403,10 @@ them as clean. An off-chain agent makes the same reads with `eth_call` and follo
   a wrong finding demonstrably wrong, and lets a reader see whether an observation came before or after an event. The
   observed block is stated by the detector because the registry may sit on another chain; on its own chain the
   registry rejects a block that does not exist yet.
+- **The block hash is emitted, not stored.** A block number alone does not say which block a detector read if that
+  block was reorganized out. The hash names it at the cost of one word of calldata and log data. It is checked on chain
+  where `blockhash` reaches and otherwise left to readers, who can compare it with the canonical chain at no cost to
+  the registry; storing it would add a storage write to every record for a value contracts cannot use after 256 blocks.
 - **Observed blocks do not go backwards.** Without this, a detector could record an observation of an earlier block
   after a later one and make "latest" mean something other than "most recent state".
 - **A typed core and an off-chain report.** Contracts and wallets need a few comparable numbers they can read without
@@ -473,6 +483,9 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 - A tally lower than the leans of the typed findings reverts.
 - On the registry's own chain, an observed block of zero or of the current block reverts; on another chain a block
   number above the current one is accepted.
+- On the registry's own chain, a wrong observed block hash reverts for a block up to 256 blocks old, including exactly
+  256, and is accepted unchecked for a block 257 blocks old; a zero hash reverts, as it does under an ERC-8376 key. On
+  another chain a zero hash and an arbitrary hash are accepted. `ObservationRecorded` carries the hash given.
 - With five observations of a key, `observationsOf(key, 1, 2)` returns the second and third, a start at 5 returns an
   empty list, and a limit of `type(uint256).max` returns the rest.
 - The owner of an identity and its agent wallet can link it; another address, a registry without code, and a zero
@@ -484,7 +497,7 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 - `latestFinding` returns the identifier, observed block, `recordedAt`, value and lean of the finding asked for. With
   no observation it returns zeros, not read and `None`; for a kind or `param` the observation does not hold it returns
   the identifier and block with not read and `None`; a measured zero stays zero.
-- `supportsInterface` returns `true` for `0xe528752a` and `0x01ffc9a7`, and `false` for `0xffffffff`.
+- `supportsInterface` returns `true` for `0x30ee02eb` and `0x01ffc9a7`, and `false` for `0xffffffff`.
 
 ## Reference Implementation
 
@@ -515,9 +528,13 @@ ERC-721 identity registries, and need no external library.
   shows who recorded first. A creator watching the mempool can act on an adverse observation before it lands, so the
   observed block, not the time of recording, says when the facts held. Detectors SHOULD NOT rely on an observation
   staying private before it is mined.
-- **Reorganizations and finality.** A detector SHOULD observe only finalized blocks. Where a detector observed a block
-  later reorganized out, it SHOULD record a correction at a final block; the earlier observation stays, and readers see
-  both.
+- **Reorganizations and finality.** Finality is the main rule: a detector SHOULD observe only finalized blocks. On an
+  Arbitrum Orbit chain, such as Robinhood Chain, a block is final once the batch that holds it is final on the parent
+  chain, which is what the node's `finalized` block tag returns. The registry cannot enforce this, since `blockhash`
+  reaches only the last 256 blocks, so each observation emits the hash of its observed block: a reader or indexer
+  SHOULD compare it with the canonical block at that number and treat an observation whose hash differs, or is not
+  given, as unsupported for that block. Where a detector observed a block later reorganized out, it SHOULD record a
+  correction at a final block; the earlier observation stays, and readers see both.
 - **Other chains.** When the launch is on another chain, the registry cannot check that the observed block exists or
   what it held. The report and evidence root are the only means of checking such an observation.
 - **Report availability.** The hash binds the report, but the URI can stop resolving. Detectors SHOULD use
