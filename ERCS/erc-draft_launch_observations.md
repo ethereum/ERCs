@@ -193,7 +193,9 @@ detector passes a `launchId` or a token as the declaration identifier. The regis
 contract: ERC-8462 has no canonical deployment, and the declarations contract a reader trusts may be on another chain.
 A venue key is therefore verified by the reader, who calls `getDeclaration(declarationId)` on the declarations contract
 it trusts and SHOULD treat the observation as unsupported unless that returns kind `IdKind.Venue` and the
-observation's `token`. `declarationId` is zero for the other key kinds; for an ERC-8376 key the launch key is itself
+observation's `token`. A venue-scoped identifier only means something under the venue that wrote it, so a reader that
+trusts a set of launchpads SHOULD also check that the returned `venue` is one of them. Otherwise an observation could
+attach to a declaration that an untrusted venue opened for the same token. `declarationId` is zero for the other key kinds; for an ERC-8376 key the launch key is itself
 the identifier ERC-8462 declares under.
 
 A detector SHOULD observe a launch the directory lists under its `launchId`, and a launch declared under a venue-scoped
