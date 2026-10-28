@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-/// @title  ADRF — AI Dispute Resolution Framework: shared types (reference v0.1)
-/// @notice Four core objects (Dispute Policy, Dispute Binding, Case, Ruling) and two auxiliary records
-///         (Report, Enactment). Every parameter that the registries execute lives in `PolicySpec`;
+/// @title  ADRF — AI Dispute Resolution Framework: shared types (reference v0.2)
+/// @notice Disputes about AI systems, resources, services and the conduct, deliveries and declarations around
+///         them, between participants that may be people, organizations, agents or contracts. Four core objects
+///         (Dispute Policy, Dispute Binding, Case, Ruling) and two auxiliary records (Report, Enactment). Every parameter that the registries execute lives in `PolicySpec`;
 ///         `policyId = keccak256(abi.encode(PolicySpec))`, so the registered rule and the executed rule
 ///         are one object. Off-chain documents are referenced by hash and never influence execution.
 library ADRFTypes {
@@ -208,7 +209,8 @@ library ADRFTypes {
         bytes32           normRef;
         bytes32           clause;
         uint8             obligationKind;
-        address           respondent;
+        address           respondent;            // the party alleged to bear the obligation (the obligor)
+        bytes32           actorRef;              // optional reference to the actor that performed the conduct, when not the respondent
         bytes32[]         requestedEffects;      // substantive effects requested (Binding: subset of the authorized set)
         bytes32           effectOnSustained;     // one of requestedEffects, or 0
         bytes32           effectOnNotSustained;  // one of requestedEffects, or 0
@@ -273,7 +275,8 @@ library ADRFTypes {
         EffectClass    effectClass;
         ProcedureState state;
         address        claimant;
-        address        respondent;
+        address        respondent;       // the obligor: the party alleged to bear the obligation
+        bytes32        actorRef;         // the actor that performed the conduct (an account, service, model or tool reference); 0 = the respondent
         ObjectRef      object;
         bytes32        eventRef;
         bytes32        proposition;

@@ -6,7 +6,7 @@
       "chainId": 11155111,
       "target": "0x00000000000000000000000000000000000e5c20",
       "id": 17,
-      "versionHash": "0x803df172de351bd5a2aada3afdad56be67c9fc749e85257a9bba54fd2fed52ca"
+      "versionHash": "0x9856982c7581700f9dafd262324accb4a48263c20ccbfcdbfbddf522e117a5df"
     },
     "description": "service call 17 of the escrow, terms v1"
   },
@@ -30,11 +30,17 @@
       "code": 1,
       "label": "result"
     },
-    "policyId": "0x54023f33233bb11abac349a2117482508fa4df106f3753f136c26c93e6007574"
+    "policyId": "0x076505a99575bf1006c28609b6391f465246b7ded55d7a0d4eace05767a1b1b4"
   },
+  "aiRelation": "the output delivered for an inference request of a model API service",
   "subjects": {
     "claimant": "0x000000000000000000000000000000000000c11e",
     "respondent": "0x00000000000000000000000000000000000009a0",
+    "actor": {
+      "ref": "0x6fef1cfbf3f96c4e46c0438d4ccdc4ec015c5363f5aab9c3304db91fc041a84d",
+      "kind": "service",
+      "description": "the model API endpoint that produced the deliverable"
+    },
     "roles": [
       {
         "account": "0x000000000000000000000000000000000000c11e",
@@ -42,7 +48,7 @@
       },
       {
         "account": "0x00000000000000000000000000000000000009a0",
-        "role": "provider"
+        "role": "provider (obligor)"
       }
     ]
   },
@@ -58,6 +64,35 @@
     "verifiers": "the ERC-8436 roster",
     "retention": "until the hard deadline",
     "scopeHash": "0xaa5ad0a197a21ef520a68faefb09bb209a70bae0697e1d12728a6a2704fd7f70"
+  },
+  "context": {
+    "committed": [
+      "the deliverable conforms to the acceptance criteria of terms v1",
+      "model v2"
+    ],
+    "declared": [
+      "model v2 (provider declaration at delivery)"
+    ],
+    "toEstablish": [
+      "conformity of the deliverable (judged)"
+    ],
+    "unverifiedPremises": [
+      "the roster saw the deliverable and the criteria"
+    ]
+  },
+  "participants": {
+    "judgment": [
+      {
+        "role": "ERC-8436 roster (2 of 3)",
+        "basis": "the ERC-8436 policy named by the method binding"
+      }
+    ],
+    "executors": [
+      {
+        "account": "0x00000000000000000000000000000000000e5c20",
+        "authority": "holds the balances it moves"
+      }
+    ]
   },
   "effects": {
     "requested": [

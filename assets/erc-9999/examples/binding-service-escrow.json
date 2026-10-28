@@ -3,7 +3,7 @@
   "adrf": "0.1",
   "source": "0x00000000000000000000000000000000000e5c20",
   "sourceDescription": "ADRFServiceEscrow: obligation source and executor for its service calls",
-  "policyId": "0x54023f33233bb11abac349a2117482508fa4df106f3753f136c26c93e6007574",
+  "policyId": "0x076505a99575bf1006c28609b6391f465246b7ded55d7a0d4eace05767a1b1b4",
   "scope": {
     "kind": "any-object-of-source"
   },
@@ -37,6 +37,7 @@
       "executor": "0x00000000000000000000000000000000000e5c20"
     }
   ],
+  "identitiesNote": "the client and the provider are plain accounts; no agent identity, task token or swarm is required to open, deliver, charge or dispute a call",
   "clockRules": {
     "clock": "mode=timestamp (the registry clock)",
     "triggerEvents": [

@@ -1,8 +1,9 @@
 {
   "kind": "adrf-policy",
   "adrf": "0.1",
-  "name": "service-call disputes v1",
-  "description": "Disputes about service calls of a service escrow: payment (limit) obligations decided by a settlement verifier, result obligations decided by an ERC-8436 roster, external facts decided by an attestor panel.",
+  "name": "model API service disputes v1",
+  "description": "Disputes about calls of a model API service held in a service escrow between plain accounts: payment (limit) obligations decided by a settlement verifier, the declared-versus-committed version decided by a version verifier, result obligations decided by an ERC-8436 roster, external facts (such as the version actually used) decided by an attestor panel.",
+  "objectCategory": "ai-system-or-service",
   "family": "adrf.vectors.service",
   "version": 1,
   "previous": "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -76,6 +77,32 @@
         "the panel attests honestly what it observed"
       ],
       "onFailure": "UNDETERMINED below quorum"
+    },
+    {
+      "obligationKind": 1,
+      "qType": "FORMAL",
+      "method": "0x0000000000000000000000000000000000000f04",
+      "params": "0x00000000000000000000000000000000000000000000000000000000000e5c20",
+      "paramsMeaning": "the service whose committed and declared versions are compared",
+      "onUndetermined": "NOT_SUSTAINED",
+      "supports": [
+        "computed"
+      ],
+      "trustAssumptions": [
+        "the escrow records the committed and the declared version"
+      ],
+      "onFailure": "UNDETERMINED before delivery or for a proposition the verifier was not built to decide"
+    }
+  ],
+  "evaluationConfigs": [
+    {
+      "appliesTo": "statistical-quality obligations (kind 4)",
+      "unit": "the batch named by the terms",
+      "sampleSelection": "the sample fixed in the terms before the batch ran",
+      "versionScope": "the committed version only",
+      "metric": "the metric named in the terms",
+      "threshold": "the threshold named in the terms",
+      "uncertainty": "reported with the finding; a result inside the stated confidence band is UNDETERMINED"
     }
   ],
   "effects": [
@@ -133,6 +160,18 @@
     {
       "claimKind": "delivery (result)",
       "whoProves": "the roster forms a judgment",
+      "threshold": "2 of 3",
+      "onShortfall": "NO_DECISION"
+    },
+    {
+      "claimKind": "declared version (result, formal)",
+      "whoProves": "the claimant, by running the version verifier",
+      "threshold": "declared differs from committed",
+      "onShortfall": "NOT_SUSTAINED"
+    },
+    {
+      "claimKind": "version actually used (result, evidenced)",
+      "whoProves": "the attestor panel on the material provided",
       "threshold": "2 of 3",
       "onShortfall": "NO_DECISION"
     }

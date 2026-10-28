@@ -6,7 +6,7 @@
       "chainId": 11155111,
       "target": "0x00000000000000000000000000000000000e5c20",
       "id": 17,
-      "versionHash": "0x803df172de351bd5a2aada3afdad56be67c9fc749e85257a9bba54fd2fed52ca"
+      "versionHash": "0x9856982c7581700f9dafd262324accb4a48263c20ccbfcdbfbddf522e117a5df"
     },
     "description": "service call 17 of the escrow, terms v1"
   },
@@ -30,19 +30,25 @@
       "code": 3,
       "label": "limit"
     },
-    "policyId": "0x54023f33233bb11abac349a2117482508fa4df106f3753f136c26c93e6007574"
+    "policyId": "0x076505a99575bf1006c28609b6391f465246b7ded55d7a0d4eace05767a1b1b4"
   },
+  "aiRelation": "a billed inference request of a model API service",
   "subjects": {
     "claimant": "0x000000000000000000000000000000000000c11e",
     "respondent": "0x00000000000000000000000000000000000009a0",
+    "actor": {
+      "ref": "0x6fef1cfbf3f96c4e46c0438d4ccdc4ec015c5363f5aab9c3304db91fc041a84d",
+      "kind": "service",
+      "description": "the model API endpoint that charged the call"
+    },
     "roles": [
       {
         "account": "0x000000000000000000000000000000000000c11e",
-        "role": "client"
+        "role": "client (an enterprise account)"
       },
       {
         "account": "0x00000000000000000000000000000000000009a0",
-        "role": "provider"
+        "role": "provider (obligor of the service terms)"
       },
       {
         "account": "0x00000000000000000000000000000000000e5c20",
@@ -62,6 +68,33 @@
     "verifiers": "anyone, through the bound verifier",
     "retention": "permanent",
     "scopeHash": "0x9a1163611dc7983d1b2eb778f87c7e7614f44c5b28771177cf937aa526fb7d16"
+  },
+  "context": {
+    "committed": [
+      "one charge per call (terms v1)"
+    ],
+    "declared": [
+      "two settlements recorded by the escrow"
+    ],
+    "toEstablish": [],
+    "unverifiedPremises": [
+      "the escrow records every settlement of call 17"
+    ]
+  },
+  "participants": {
+    "judgment": [
+      {
+        "role": "verifier",
+        "basis": "bound by the policy for (limit, FORMAL)",
+        "account": "0x0000000000000000000000000000000000000f01"
+      }
+    ],
+    "executors": [
+      {
+        "account": "0x00000000000000000000000000000000000e5c20",
+        "authority": "holds the balances it moves"
+      }
+    ]
   },
   "effects": {
     "requested": [

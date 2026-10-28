@@ -249,6 +249,7 @@ library ADRFAdmission {
         c.policyId = policyId;
         c.claimant = sender;
         c.respondent = claim.respondent;
+        c.actorRef = claim.actorRef;
         c.object = claim.object;
         c.eventRef = claim.eventRef;
         c.proposition = claim.proposition;

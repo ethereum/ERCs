@@ -2,91 +2,314 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "case.schema.json",
   "title": "ADRF case document",
-  "description": "The eight elements a dispute must state, hashed into the on-chain claim's documentHash: object, event, claim, rules, subjects, authorization, evidence, effects; plus the typed sub-questions with their premises.",
+  "description": "The eight elements a dispute must state, hashed into the on-chain claim's documentHash: object, event, claim, rules, subjects (claimant, obligor, actor, optional identities), authorization, evidence, effects; plus the typed sub-questions with their premises, the running context and the participants.",
   "type": "object",
-  "required": ["kind", "adrf", "object", "event", "claim", "rules", "subjects", "authorization", "evidence", "effects", "subQuestions"],
+  "required": [
+    "kind",
+    "adrf",
+    "object",
+    "event",
+    "claim",
+    "rules",
+    "subjects",
+    "authorization",
+    "evidence",
+    "effects",
+    "subQuestions"
+  ],
   "properties": {
-    "kind": { "const": "adrf-case" },
-    "adrf": { "const": "0.1" },
+    "kind": {
+      "const": "adrf-case"
+    },
+    "adrf": {
+      "const": "0.1"
+    },
     "object": {
       "type": "object",
-      "required": ["ref", "description"],
-      "properties": { "ref": { "$ref": "common.schema.json#/$defs/objectRef" }, "description": { "type": "string" } },
+      "required": [
+        "ref",
+        "description"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "common.schema.json#/$defs/objectRef"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
       "additionalProperties": false
     },
     "event": {
       "type": "object",
-      "required": ["eventRef", "description"],
-      "properties": { "eventRef": { "$ref": "common.schema.json#/$defs/bytes32" }, "description": { "type": "string" }, "eventAt": { "$ref": "common.schema.json#/$defs/uint" } },
+      "required": [
+        "eventRef",
+        "description"
+      ],
+      "properties": {
+        "eventRef": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "description": {
+          "type": "string"
+        },
+        "eventAt": {
+          "$ref": "common.schema.json#/$defs/uint"
+        }
+      },
       "additionalProperties": false
     },
     "claim": {
       "type": "object",
-      "required": ["statement", "proposition", "decisive", "supportsWhen"],
+      "required": [
+        "statement",
+        "proposition",
+        "decisive",
+        "supportsWhen"
+      ],
       "properties": {
-        "statement": { "type": "string", "minLength": 1 },
-        "proposition": { "$ref": "common.schema.json#/$defs/bytes32" },
-        "decisive": { "$ref": "common.schema.json#/$defs/uint" },
-        "supportsWhen": { "type": "string", "enum": ["TRUE", "FALSE"] }
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposition": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "decisive": {
+          "$ref": "common.schema.json#/$defs/uint"
+        },
+        "supportsWhen": {
+          "type": "string",
+          "enum": [
+            "TRUE",
+            "FALSE"
+          ]
+        }
       },
       "additionalProperties": false
     },
     "rules": {
       "type": "object",
-      "required": ["normRef", "clause", "obligationKind", "policyId"],
+      "required": [
+        "normRef",
+        "clause",
+        "obligationKind",
+        "policyId"
+      ],
       "properties": {
-        "normRef": { "$ref": "common.schema.json#/$defs/bytes32" },
-        "normDescription": { "type": "string" },
-        "clause": { "$ref": "common.schema.json#/$defs/bytes32" },
-        "clauseText": { "type": "string" },
-        "obligationKind": { "$ref": "common.schema.json#/$defs/obligationKind" },
-        "policyId": { "$ref": "common.schema.json#/$defs/bytes32" }
+        "normRef": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "normDescription": {
+          "type": "string"
+        },
+        "clause": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "clauseText": {
+          "type": "string"
+        },
+        "obligationKind": {
+          "$ref": "common.schema.json#/$defs/obligationKind"
+        },
+        "policyId": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        }
       },
       "additionalProperties": false
     },
     "subjects": {
       "type": "object",
-      "required": ["claimant", "respondent"],
+      "required": [
+        "claimant",
+        "respondent"
+      ],
       "properties": {
-        "claimant": { "$ref": "common.schema.json#/$defs/address" },
-        "respondent": { "$ref": "common.schema.json#/$defs/address" },
-        "roles": { "type": "array", "items": { "type": "object", "required": ["account", "role"], "properties": { "account": { "$ref": "common.schema.json#/$defs/address" }, "role": { "type": "string" }, "identity": { "type": "string" } }, "additionalProperties": false } }
+        "claimant": {
+          "$ref": "common.schema.json#/$defs/address"
+        },
+        "respondent": {
+          "$ref": "common.schema.json#/$defs/address",
+          "description": "the obligor: the party alleged to bear the obligation"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "account",
+              "role"
+            ],
+            "properties": {
+              "account": {
+                "$ref": "common.schema.json#/$defs/address"
+              },
+              "role": {
+                "type": "string"
+              },
+              "identity": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "actor": {
+          "type": "object",
+          "required": [
+            "ref",
+            "kind"
+          ],
+          "properties": {
+            "ref": {
+              "$ref": "common.schema.json#/$defs/bytes32",
+              "description": "opaque reference recorded on chain as actorRef (0 when the respondent itself acted)"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "account",
+                "service",
+                "model",
+                "human",
+                "tool",
+                "contract"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "account": {
+              "$ref": "common.schema.json#/$defs/address"
+            }
+          },
+          "additionalProperties": false,
+          "description": "who performed the conduct, kept apart from who bears the obligation"
+        },
+        "identities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "account",
+              "scheme",
+              "ref"
+            ],
+            "properties": {
+              "account": {
+                "$ref": "common.schema.json#/$defs/address"
+              },
+              "scheme": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "optional identity, qualification or organizational references (never a prerequisite)"
+        }
       },
       "additionalProperties": false
     },
     "authorization": {
       "type": "object",
-      "required": ["effectClass"],
+      "required": [
+        "effectClass"
+      ],
       "properties": {
-        "effectClass": { "type": "string", "enum": ["Advisory", "Binding"] },
-        "bindingId": { "$ref": "common.schema.json#/$defs/bytes32" },
-        "acceptanceMode": { "$ref": "common.schema.json#/$defs/acceptanceMode" },
-        "acceptedBy": { "type": "string" }
+        "effectClass": {
+          "type": "string",
+          "enum": [
+            "Advisory",
+            "Binding"
+          ]
+        },
+        "bindingId": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "acceptanceMode": {
+          "$ref": "common.schema.json#/$defs/acceptanceMode"
+        },
+        "acceptedBy": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "evidence": {
       "type": "object",
-      "required": ["scope", "provision", "access", "retention"],
+      "required": [
+        "scope",
+        "provision",
+        "access",
+        "retention"
+      ],
       "properties": {
-        "scope": { "type": "string" },
-        "scopeHash": { "$ref": "common.schema.json#/$defs/bytes32" },
-        "provision": { "type": "string" },
-        "access": { "type": "string" },
-        "verifiers": { "type": "string" },
-        "retention": { "type": "string" }
+        "scope": {
+          "type": "string"
+        },
+        "scopeHash": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "provision": {
+          "type": "string"
+        },
+        "access": {
+          "type": "string"
+        },
+        "verifiers": {
+          "type": "string"
+        },
+        "retention": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
     "effects": {
       "type": "object",
-      "required": ["requested", "onSustained", "onNotSustained", "fallbackRef", "atMost"],
+      "required": [
+        "requested",
+        "onSustained",
+        "onNotSustained",
+        "fallbackRef",
+        "atMost"
+      ],
       "properties": {
-        "requested": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/bytes32" } },
-        "onSustained": { "oneOf": [{ "$ref": "common.schema.json#/$defs/bytes32" }, { "type": "null" }] },
-        "onNotSustained": { "oneOf": [{ "$ref": "common.schema.json#/$defs/bytes32" }, { "type": "null" }] },
-        "fallbackRef": { "$ref": "common.schema.json#/$defs/bytes32" },
-        "atMost": { "type": "string" }
+        "requested": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/bytes32"
+          }
+        },
+        "onSustained": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/bytes32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "onNotSustained": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/bytes32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fallbackRef": {
+          "$ref": "common.schema.json#/$defs/bytes32"
+        },
+        "atMost": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
@@ -96,19 +319,175 @@
       "maxItems": 16,
       "items": {
         "type": "object",
-        "required": ["index", "proposition", "statement", "qType", "obligationKind", "dependsOn"],
+        "required": [
+          "index",
+          "proposition",
+          "statement",
+          "qType",
+          "obligationKind",
+          "dependsOn"
+        ],
         "properties": {
-          "index": { "$ref": "common.schema.json#/$defs/uint" },
-          "proposition": { "$ref": "common.schema.json#/$defs/bytes32" },
-          "statement": { "type": "string" },
-          "qType": { "$ref": "common.schema.json#/$defs/questionType" },
-          "obligationKind": { "type": "integer", "minimum": 0, "maximum": 255 },
-          "inputs": { "type": "string" },
-          "inputsHash": { "$ref": "common.schema.json#/$defs/bytes32" },
-          "dependsOn": { "type": "array", "items": { "type": "object", "required": ["index", "requiredValue"], "properties": { "index": { "$ref": "common.schema.json#/$defs/uint" }, "requiredValue": { "type": "string", "enum": ["TRUE", "FALSE"] } }, "additionalProperties": false } }
+          "index": {
+            "$ref": "common.schema.json#/$defs/uint"
+          },
+          "proposition": {
+            "$ref": "common.schema.json#/$defs/bytes32"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "qType": {
+            "$ref": "common.schema.json#/$defs/questionType"
+          },
+          "obligationKind": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "inputs": {
+            "type": "string"
+          },
+          "inputsHash": {
+            "$ref": "common.schema.json#/$defs/bytes32"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "index",
+                "requiredValue"
+              ],
+              "properties": {
+                "index": {
+                  "$ref": "common.schema.json#/$defs/uint"
+                },
+                "requiredValue": {
+                  "type": "string",
+                  "enum": [
+                    "TRUE",
+                    "FALSE"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
         },
         "additionalProperties": false
       }
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "committed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "what the terms committed (for example the model version)"
+        },
+        "declared": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "what the actor or obligor declared on record"
+        },
+        "toEstablish": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "facts the procedure has to establish by evidence (for example the version actually used)"
+        },
+        "unverifiedPremises": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evaluation": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "type": "string"
+            },
+            "sampleSelection": {
+              "type": "string"
+            },
+            "versionScope": {
+              "type": "string"
+            },
+            "metric": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "string"
+            },
+            "uncertainty": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "for statistical quality claims"
+        }
+      },
+      "additionalProperties": false,
+      "description": "the running context: committed versus declared versus to-be-established, and the evaluation configuration of statistical claims"
+    },
+    "participants": {
+      "type": "object",
+      "properties": {
+        "judgment": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "role",
+              "basis"
+            ],
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              },
+              "account": {
+                "$ref": "common.schema.json#/$defs/address"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "executors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "account",
+              "authority"
+            ],
+            "properties": {
+              "account": {
+                "$ref": "common.schema.json#/$defs/address"
+              },
+              "authority": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "who takes part in judgment and who may enact, by which qualification or authority"
+    },
+    "aiRelation": {
+      "type": "string",
+      "description": "the case's relation to an AI system, resource, service or activity (names the domain; admission follows the five criteria)"
     }
   },
   "additionalProperties": false

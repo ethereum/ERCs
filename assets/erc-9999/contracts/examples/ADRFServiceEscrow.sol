@@ -8,14 +8,19 @@ import {IADRFExecutor} from "../interfaces/IADRFExecutor.sol";
 import {ISettlementLedger} from "./DuplicateSettlementVerifier.sol";
 
 /// @title  ADRFServiceEscrow — worked example of a bound business contract (obligation source + executor)
-/// @notice A toy service-call escrow: a client funds a balance, opens a call against a provider under agreed
-///         terms, the provider delivers and charges the call. Two events of a call are disputable: a settlement
-///         (payment obligation of kind LIMIT: charge at most once) and a delivery (result obligation: the
-///         deliverable conforms to the terms). The escrow attests event instants, its own adoption deadline
-///         (the dispute period of the call), the obligation each event belongs to, the norm (the terms hash,
-///         declared at call creation) and the parties. It binds itself to a dispute policy, and as executor it
-///         enacts a REFUND ruling within its own authority, idempotently, and reports the enactment.
-///         Its NoDecision disposition is the status quo: balances stay where the call left them.
+/// @notice A toy escrow for a model API service: a client (any account — an enterprise, a person, an agent)
+///         funds a balance and opens a call against a provider (any account that runs the service) under agreed
+///         terms that commit a model version; the provider delivers, declaring the version it used, and charges
+///         the call. No agent identity, task token or swarm is involved anywhere. Two events of a call are
+///         disputable: a settlement (payment obligation of kind LIMIT: charge at most once) and a delivery
+///         (result obligation: the deliverable conforms to the terms, including the committed version). The
+///         escrow attests event instants, its own adoption deadline (the dispute period of the call), the
+///         obligation each event belongs to, the norm (the terms hash, declared at call creation) and the
+///         parties. It binds itself to a dispute policy, and as executor it enacts a REFUND ruling within its own
+///         authority, idempotently, and reports the enactment. Its NoDecision disposition is the status quo:
+///         balances stay where the call left them. The committed version (part of the terms), the version the
+///         provider declared and the version actually used are three different things: the first two are on
+///         chain, the third is a fact a dispute may have to establish by evidence.
 contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementLedger {
     uint8 public constant KIND_RESULT = 1;
     uint8 public constant KIND_PROCESS = 2;
@@ -32,6 +37,8 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
         address provider;
         uint256 amount;
         bytes32 termsHash;
+        bytes32 committedVersion;  // the model version the terms commit the provider to
+        bytes32 declaredVersion;   // the version the provider declared at delivery (0 until delivered)
         uint64  createdAt;
         uint64  deliveredAt;
         uint64  lastSettledAt;
@@ -48,8 +55,8 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
     mapping(address => uint256) public balanceOf;
     mapping(bytes32 => bool) public refunded; // caseId => enacted
 
-    event CallOpened(uint256 indexed callId, address indexed client, address indexed provider, uint256 amount, bytes32 termsHash);
-    event Delivered(uint256 indexed callId, uint64 at);
+    event CallOpened(uint256 indexed callId, address indexed client, address indexed provider, uint256 amount, bytes32 termsHash, bytes32 committedVersion);
+    event Delivered(uint256 indexed callId, uint64 at, bytes32 declaredVersion);
     event Settled(uint256 indexed callId, uint32 count, uint64 at);
     event Refunded(bytes32 indexed caseId, uint256 indexed callId, uint256 amount);
 
@@ -82,21 +89,34 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
         require(ok, "transfer");
     }
 
-    function openCall(address provider, uint256 amount, bytes32 termsHash, uint64 disputePeriod) external returns (uint256 callId) {
+    /// Opens a call under the given terms. `committedVersion` is the model version the terms commit the provider
+    /// to (part of the norm, declared before any event of the call).
+    function openCall(address provider, uint256 amount, bytes32 termsHash, bytes32 committedVersion, uint64 disputePeriod)
+        external returns (uint256 callId)
+    {
         callId = nextCallId++;
         calls[callId] = Call({
             client: msg.sender, provider: provider, amount: amount, termsHash: termsHash,
+            committedVersion: committedVersion, declaredVersion: bytes32(0),
             createdAt: uint64(block.timestamp), deliveredAt: 0, lastSettledAt: 0,
             disputePeriod: disputePeriod, settlements: 0
         });
-        emit CallOpened(callId, msg.sender, provider, amount, termsHash);
+        emit CallOpened(callId, msg.sender, provider, amount, termsHash, committedVersion);
     }
 
-    function deliver(uint256 callId) external {
+    /// The provider delivers and declares the version it used. The declaration is the provider's statement, not
+    /// a fact: whether the service actually ran that version is what a dispute may have to establish.
+    function deliver(uint256 callId, bytes32 declaredVersion) external {
         Call storage c = _call(callId);
         if (msg.sender != c.provider) revert Escrow_NotProvider();
         c.deliveredAt = uint64(block.timestamp);
-        emit Delivered(callId, c.deliveredAt);
+        c.declaredVersion = declaredVersion;
+        emit Delivered(callId, c.deliveredAt, declaredVersion);
+    }
+
+    function versionsOf(uint256 callId) external view returns (bytes32 committed, bytes32 declared) {
+        Call storage c = calls[callId];
+        return (c.committedVersion, c.declaredVersion);
     }
 
     /// Charges the client's balance for the call. Nothing stops a provider from charging twice: that is the
@@ -133,14 +153,14 @@ contract ADRFServiceEscrow is IADRFObligationSource, IADRFExecutor, ISettlementL
 
     function objectOf(uint256 callId) public view returns (T.ObjectRef memory) {
         Call storage c = calls[callId];
-        return T.ObjectRef({chainId: block.chainid, target: address(this), id: callId, versionHash: keccak256(abi.encode(callId, c.termsHash))});
+        return T.ObjectRef({chainId: block.chainid, target: address(this), id: callId, versionHash: keccak256(abi.encode(callId, c.termsHash, c.committedVersion))});
     }
 
     function eventInfo(T.ObjectRef calldata object, bytes32 eventRef) external view returns (T.EventInfo memory info) {
         if (object.target != address(this) || object.chainId != block.chainid) return info;
         Call storage c = calls[object.id];
         if (c.client == address(0)) return info;
-        if (object.versionHash != keccak256(abi.encode(object.id, c.termsHash))) return info;
+        if (object.versionHash != keccak256(abi.encode(object.id, c.termsHash, c.committedVersion))) return info;
         info.normRef = c.termsHash;
         info.normDeclaredAt = c.createdAt;
         if (eventRef == EVENT_SETTLEMENT && c.lastSettledAt != 0) {
