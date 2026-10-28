@@ -206,6 +206,28 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         unfrozenBalance = balanceOf(account, tokenId) < getFrozenTokens(account, tokenId) ? 0 : balanceOf(account, tokenId) - getFrozenTokens(account, tokenId);
     }
 
+    /// @notice Sums the values of every entry up to and including `index` that share `ids[index]`.
+    /// @dev Guards batch operations against a repeated id being validated once per entry against the
+    /// same, not yet debited, balance. Quadratic in the batch length, which is acceptable for a reference.
+    /// @param ids The array of ids.
+    /// @param values The array of amounts.
+    /// @param index The entry to total up to.
+    /// @return total The running total for `ids[index]` up to `index`.
+    /// @return last True if no later entry repeats `ids[index]`.
+    function _batchTotal(uint256[] memory ids, uint256[] memory values, uint256 index) internal pure returns (uint256 total, bool last) {
+        uint256 id = ids[index];
+        for (uint256 k = 0; k <= index; ++k) {
+            if (ids[k] == id) total += values[k];
+        }
+        last = true;
+        for (uint256 k = index + 1; k < ids.length; ++k) {
+            if (ids[k] == id) {
+                last = false;
+                break;
+            }
+        }
+    }
+
     /// @notice Hook that is called during any token transfer, including minting and burning.
     /// @dev Overrides the ERC-1155 `_update` hook. Enforces transfer restrictions based on {canTransfer}, {canSend} and {canReceive} logic.
     /// Reverts with {ERC7943CannotSend} | {ERC7943CannotReceive} | {ERC7943InsufficientUnfrozenBalance} | {ERC1155InsufficientBalance}
@@ -224,7 +246,9 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
             require(canReceive(to), ERC7943CannotReceive(to));
             for (uint256 i = 0; i < ids.length; ++i) {
                 uint256 id = ids[i];
-                uint256 value = values[i];
+                // Balances are only debited after this loop, so a repeated `id` must be checked against the
+                // running total for that id, not each entry on its own.
+                (uint256 value, ) = _batchTotal(ids, values, i);
                 uint256 unfrozenBalance = _unfrozenBalance(from, id);
 
                 require(value <= balanceOf(from, id), ERC1155InsufficientBalance(from, balanceOf(from, id), value, id));
@@ -235,7 +259,9 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
         } else if (to == address(0)) { // Burn
             require(canSend(from), ERC7943CannotSend(from));
             for (uint256 j = 0; j < ids.length; ++j) {
-                _excessFrozenUpdate(from, ids[j], values[j]);
+                // Adjust the frozen amount once per id, using the total burned for that id.
+                (uint256 total, bool last) = _batchTotal(ids, values, j);
+                if (last) _excessFrozenUpdate(from, ids[j], total);
             }
         }
 

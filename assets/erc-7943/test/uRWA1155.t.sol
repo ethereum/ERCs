@@ -437,6 +437,27 @@ contract uRWA1155Test is Test {
         assertEq(token.getFrozenTokens(user1, TOKEN_ID_2), expectedNewFrozenAmount);
     }
 
+    function test_BurnBatch_Success_DuplicateIdReducesFrozenOnce() public {
+        vm.prank(admin);
+        token.grantRole(BURNER_ROLE, user1);
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, MINT_AMOUNT);
+
+        // Burning 30 + 30 of a fully frozen balance of 100 leaves 40, so 40 must stay frozen.
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 30;
+        amounts[1] = 30;
+
+        vm.prank(user1);
+        token.burnBatch(ids, amounts);
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT - 60);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), MINT_AMOUNT - 60);
+    }
+
     function test_Revert_BurnBatch_NotBurnerRole() public {
         uint256[] memory ids = new uint256[](2);
         ids[0] = TOKEN_ID_1;
@@ -811,6 +832,44 @@ contract uRWA1155Test is Test {
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, amounts[0], MINT_AMOUNT - FREEZE_AMOUNT));
         token.safeBatchTransferFrom(user1, user2, ids, amounts, "");
+    }
+
+    function test_Revert_SafeBatchTransfer_DuplicateIdExceedsUnfrozenBalance() public {
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, FREEZE_AMOUNT);
+
+        // Each entry fits in the unfrozen amount on its own and their total fits in the balance,
+        // but the total exceeds the unfrozen amount (40 + 40 > 60).
+        uint256 unfrozen = MINT_AMOUNT - FREEZE_AMOUNT;
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 40;
+        amounts[1] = 40;
+
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(IERC7943MultiToken.ERC7943InsufficientUnfrozenBalance.selector, user1, TOKEN_ID_1, 80, unfrozen));
+        token.safeBatchTransferFrom(user1, user2, ids, amounts, "");
+    }
+
+    function test_SafeBatchTransfer_Success_DuplicateIdWithinUnfrozenBalance() public {
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, FREEZE_AMOUNT);
+
+        uint256 unfrozen = MINT_AMOUNT - FREEZE_AMOUNT;
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = unfrozen / 2;
+        amounts[1] = unfrozen - unfrozen / 2;
+
+        vm.prank(user1);
+        token.safeBatchTransferFrom(user1, user2, ids, amounts, "");
+
+        assertEq(token.balanceOf(user2, TOKEN_ID_1), unfrozen);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), FREEZE_AMOUNT);
     }
 
     // --- Enhanced Freeze/Unfreeze Tests ---
