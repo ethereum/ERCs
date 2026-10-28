@@ -1,0 +1,40 @@
+{
+  "kind": "adrf-finding",
+  "adrf": "0.1",
+  "caseId": "0x1f9ad85f4505c476e711a49f2239e82aab78575e989dc2fc84a7ac10337403f0",
+  "subQuestion": 0,
+  "round": 1,
+  "proposition": "0x39a1be8a1d985cc0ed38e86c2d35396a2bd3506192c20a93f3b58333d27f499f",
+  "statement": "The deliverable conforms to the acceptance criteria.",
+  "value": "FALSE",
+  "method": {
+    "address": "0x0000000000000000000000000000000000000f02",
+    "qType": "JUDGED",
+    "version": "ADRFACDFBridge v0.1",
+    "params": "0x8789bdc4566a6c2682399f4f515d535cdff681b317a9b827abb91c999e26b581"
+  },
+  "inputs": {
+    "description": "the ERC-8436 issue of this sub-question",
+    "resultHash": "0xcc4fe0635821db43602fa71dabd458d30fa2d5aecb11dcf99701add857c52525"
+  },
+  "dependsOn": [],
+  "externalPremises": [
+    "the roster saw the deliverable and the criteria",
+    "the roster is independent as declared"
+  ],
+  "acceptedBy": "0x0000000000000000000000000000000000000f02",
+  "supportKinds": [
+    "judged"
+  ],
+  "reason": "NONE",
+  "source": {
+    "registry": "0x00000000000000000000000000000000000acdf0",
+    "issueId": "0x70284b67e4af2ce6cef105e7e216e8a357d868a555769f26d6e189d8da9ca702",
+    "policyId": "0x8789bdc4566a6c2682399f4f515d535cdff681b317a9b827abb91c999e26b581",
+    "sourceRound": 1,
+    "roundCount": 1,
+    "adoptedFromEarlierRound": false,
+    "reason": "NONE"
+  },
+  "at": 1770100000
+}

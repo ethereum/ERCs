@@ -1,0 +1,28 @@
+{
+  "kind": "adrf-ruling",
+  "adrf": "0.1",
+  "registry": "0x00000000000000000000000000000000000ad2f0",
+  "chainId": 11155111,
+  "caseId": "0x4f1690c036082cbbb0ee9dc1c4f7a5fb954c2d832cfd30103cf66baacaea13c8",
+  "state": "Final",
+  "result": "Sustained",
+  "effectClass": "Binding",
+  "reason": "NONE",
+  "closure": "REVIEW_LAPSED",
+  "decidedAt": 1770010800,
+  "finalAt": 1770183600,
+  "roundCount": 1,
+  "sourceRound": 1,
+  "adoptedFromEarlierRound": false,
+  "bySilence": false,
+  "supportKinds": [
+    "computed"
+  ],
+  "allowedEffect": "0xe074020771795b0306209d2eb94e35a28bef8f823d7e65825aa3c0757e4626a9",
+  "fallbackRef": null,
+  "policyId": "0x54023f33233bb11abac349a2117482508fa4df106f3753f136c26c93e6007574",
+  "bindingId": "0x55f920dd648084063777791428da35a70a84a55e24b942e65e7cdf853378d379",
+  "source": "0x00000000000000000000000000000000000e5c20",
+  "proposition": "0xddfeccf91df8f197c0f7a762c2e407e39b5482153a817a066da8fc6d42deb823",
+  "basis": "Sub-question 0 (computed, by the settlement verifier over call 17): the settlement count exceeds one. Nothing about the quality of the service is decided."
+}

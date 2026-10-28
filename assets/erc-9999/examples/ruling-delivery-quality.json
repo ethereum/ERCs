@@ -1,0 +1,37 @@
+{
+  "kind": "adrf-ruling",
+  "adrf": "0.1",
+  "registry": "0x00000000000000000000000000000000000ad2f0",
+  "chainId": 11155111,
+  "caseId": "0x1f9ad85f4505c476e711a49f2239e82aab78575e989dc2fc84a7ac10337403f0",
+  "state": "Final",
+  "result": "Sustained",
+  "effectClass": "Binding",
+  "reason": "NONE",
+  "closure": "REVIEW_LAPSED",
+  "decidedAt": 1770100000,
+  "finalAt": 1770272800,
+  "roundCount": 1,
+  "sourceRound": 1,
+  "adoptedFromEarlierRound": false,
+  "bySilence": false,
+  "supportKinds": [
+    "judged"
+  ],
+  "allowedEffect": "0xe074020771795b0306209d2eb94e35a28bef8f823d7e65825aa3c0757e4626a9",
+  "fallbackRef": null,
+  "policyId": "0x54023f33233bb11abac349a2117482508fa4df106f3753f136c26c93e6007574",
+  "bindingId": "0x55f920dd648084063777791428da35a70a84a55e24b942e65e7cdf853378d379",
+  "source": "0x00000000000000000000000000000000000e5c20",
+  "proposition": "0x34ef2302e89c2926600e86fbde7487199ae740d351c3c9d36c18e90bdfd4a3db",
+  "judgment": {
+    "registry": "0x00000000000000000000000000000000000acdf0",
+    "issueId": "0x70284b67e4af2ce6cef105e7e216e8a357d868a555769f26d6e189d8da9ca702",
+    "policyId": "0x8789bdc4566a6c2682399f4f515d535cdff681b317a9b827abb91c999e26b581",
+    "sourceRound": 1,
+    "roundCount": 1,
+    "adoptedFromEarlierRound": false,
+    "reason": "NONE"
+  },
+  "basis": "Sub-question 0 (judged, ERC-8436 issue of the 2-of-3 roster, round 1 of 1, not adopted from an earlier round): the proposition \"the deliverable conforms\" was blocked under the rule. A blocked proposition is FALSE for the sub-question; the claim named FALSE as its supporting value."
+}
