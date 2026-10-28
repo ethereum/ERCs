@@ -10,6 +10,7 @@ interface Vm {
     function warp(uint256) external;
     function chainId(uint256) external;
     function etch(address, bytes calldata) external;
+    function mockCall(address, bytes calldata, bytes calldata) external;
     function expectRevert() external;
     function expectRevert(bytes4) external;
     function expectRevert(bytes calldata) external;

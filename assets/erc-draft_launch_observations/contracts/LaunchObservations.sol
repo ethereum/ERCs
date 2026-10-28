@@ -287,7 +287,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         if (observedBlock >= current) revert InvalidObservedBlock();
         if (observedBlockHash == bytes32(0)) revert InvalidObservedBlockHash();
         uint256 age = current - observedBlock;
-        bytes32 known;
+        bytes32 known = bytes32(0);
         if (age <= HISTORY_WINDOW && HISTORY_STORAGE.code.length != 0) {
             (bool ok, bytes memory ret) = HISTORY_STORAGE.staticcall(abi.encode(uint256(observedBlock)));
             if (ok && ret.length >= 32) known = abi.decode(ret, (bytes32));

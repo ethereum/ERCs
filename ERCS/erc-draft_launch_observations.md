@@ -66,7 +66,7 @@ RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as de
 ### Interface
 
 An observations registry MUST implement `ILaunchObservations` and [ERC-165](./eip-165.md), returning `true` for the
-interface identifier of `ILaunchObservations`, `0x30ee02eb`, and for `0x01ffc9a7`.
+interface identifier of `ILaunchObservations`, `0x526791dc`, and for `0x01ffc9a7`.
 
 ```solidity
 interface ILaunchObservations {
@@ -130,6 +130,7 @@ interface ILaunchObservations {
     function latestOf(bytes32 launchKey, address detector) external view returns (uint256 observationId);
     function latestByToken(uint256 chainId, address token, address detector) external view returns (uint256 observationId);
     function latestFinding(uint256 chainId, address token, address detector, bytes32 kind, uint64 param) external view returns (uint256 observationId, uint64 observedBlock, uint64 recordedAt, uint256 value, Lean lean);
+    function latestFindingFrom(uint256 chainId, address token, address[] calldata detectors, bytes32 kind, uint64 param) external view returns (address detector, uint256 observationId, uint64 observedBlock, uint64 recordedAt, uint256 value, Lean lean);
     function observationsOf(bytes32 launchKey, uint256 start, uint256 limit) external view returns (uint256[] memory);
     function observationsBy(bytes32 launchKey, address detector, uint256 start, uint256 limit) external view returns (uint256[] memory);
     function detectorsOf(bytes32 launchKey, uint256 start, uint256 limit) external view returns (address[] memory);
@@ -146,6 +147,11 @@ interface ILaunchObservations {
 - A **finding** is one typed fact inside an observation.
 - The **observed block** is the block number, on the chain the launch is on, at which every finding of the observation
   holds. The **observed block hash** is the hash of that block as the detector read it.
+- A chain's **block number** is the number its own blocks carry, the number its nodes return for `eth_blockNumber`.
+  Every block number in this proposal, observed or current, is in that domain. On most chains it is `block.number`. On
+  an Arbitrum chain, such as Robinhood Chain, `block.number` inside the EVM returns a block number of the parent chain
+  and `blockhash` does not return the chain's own block hashes; the chain's block number is
+  `ArbSys(address(100)).arbBlockNumber()`.
 - The **creator** is, for a launch the directory lists, the directory's `deployerOf(launchId)`; otherwise the party the
   detector attributes the launch to, as stated in its report.
 
@@ -180,11 +186,14 @@ chain MAY hold observations of launches on another.
 - It MUST NOT restrict its caller. Any address MAY act as a detector.
 - It MUST resolve the launch key as above.
 - It MUST revert if `observedBlock` is zero, or if the launch is on the registry's chain and `observedBlock` is not
-  lower than `block.number`.
-- When the launch is on the registry's chain, it MUST revert if `observedBlockHash` is zero, and, when
-  `block.number - observedBlock` is at most 256, if `observedBlockHash` is not `blockhash(observedBlock)`. An older
-  hash is not checked. When the launch is on another chain, `observedBlockHash` SHOULD be the hash of the observed
-  block on that chain and MAY be zero, meaning not given; the registry does not check it.
+  lower than the chain's current block number.
+- When the launch is on the registry's chain, it MUST revert if `observedBlockHash` is zero, and if
+  `observedBlockHash` differs from the hash of block `observedBlock` where the registry can read that hash on chain:
+  from the [EIP-2935](./eip-2935.md) history contract at `0x0000F90827F1C53a10cb7A02335B175320002935` when it has
+  code and returns a hash for the block (it holds the last 8191 blocks), and otherwise, on a chain where `blockhash`
+  takes the chain's own block numbers, from `blockhash(observedBlock)` when the block is at most 256 blocks old. A
+  hash the registry cannot read is not checked. When the launch is on another chain, `observedBlockHash` SHOULD be the
+  hash of the observed block on that chain and MAY be zero, meaning not given; the registry does not check it.
 - It MUST revert if `reportHash` is zero, if `reportURI` is empty, or if `reportURI` is longer than 512 bytes.
 - It MUST revert if `findings` holds more than 32 entries, if two findings share both `kind` and `param`, or if a
   finding is invalid as defined under [Findings](#findings).
@@ -194,8 +203,9 @@ chain MAY hold observations of launches on another.
   observed block of the caller's latest observation of that key, and MUST set `supersedes` to that observation's
   identifier. Otherwise `supersedes` is zero.
 - It MUST assign an identifier one greater than the last one assigned, starting at 1, and MUST record the caller as
-  `detector`, the caller's linked identity at that moment as `identityRegistry` and `agentId`, and the block timestamp as
-  `recordedAt`.
+  `detector` and the block timestamp as `recordedAt`.
+- It MUST recheck the caller's linked identity as `setDetectorIdentity` checks it, and record it as `identityRegistry`
+  and `agentId` only if the caller still holds it. Otherwise it MUST record both as zero, and MUST NOT revert for it.
 - It MUST emit `ObservationRecorded`, carrying `observedBlockHash` as given, then `FindingObserved` once per finding
   in the order given. `observedBlockHash` is emitted only; it is not part of the stored `Observation`.
 
@@ -305,8 +315,9 @@ A detector MAY link an ERC-8004 identity, or another [ERC-721](./eip-721.md) ide
   `getAgentWallet(agentId)` where the registry provides that function.
 - It MUST emit `DetectorIdentitySet`. `detectorIdentity(detector)` MUST return the current link.
 
-The link held when an observation is recorded is copied into it, so a later change does not alter what an earlier
-observation records. Through the linked identity, readers can find the detector's ERC-8004 registration file and its
+The link held when an observation is recorded is copied into it, if the detector still holds the identity then, so a
+later change does not alter what an earlier observation records. A reader that trusts a detector by its `agentId`
+SHOULD recheck, when it reads, that the identity is still owned by the detector or names it as agent wallet. Through the linked identity, readers can find the detector's ERC-8004 registration file and its
 reputation, and can give feedback on the detector's observations in the ERC-8004 reputation registry.
 
 A detector that links an ERC-8004 identity SHOULD list each registry it records to in its registration file, as a
@@ -329,6 +340,11 @@ naming the registry and the `observationId`.
   When there is no such observation, the identifier, observed block and `recordedAt` MUST be zero. When there is no
   such observation or no such finding, `value` MUST be not read (`type(uint256).max`) and `lean` MUST be `None`, so
   that a missing reading never reads as a measured zero. It MUST NOT revert.
+- `latestFindingFrom(chainId, token, detectors, kind, param)` MUST try the detectors in the order given and return the
+  first one whose `latestFinding` for `kind` and `param` has a value other than not read, with that detector and the
+  results `latestFinding` gives for it. When no detector in the list has one, it MUST return the zero address, zero
+  identifier, observed block and `recordedAt`, not read and `None`. It MUST NOT revert. Its gas grows linearly with
+  the length of the list, so a reader SHOULD pass only the few detectors it trusts, in order of preference.
 - `observationsOf(launchKey, start, limit)` MUST return the identifiers of every observation of the key, by any
   detector, in the order recorded. `observationsBy(launchKey, detector, start, limit)` MUST do the same for one
   detector's observations of the key. `detectorsOf(launchKey, start, limit)` MUST return each detector that recorded
@@ -337,9 +353,20 @@ naming the registry and the `observationId`.
   or past its end.
 
 A reader acting on an observation SHOULD refuse one whose observed block is more than a bound of its own choosing
-below the current block of the launch's chain. The first-block and early-buyer shares do not change after their
+below the current block number of the launch's chain. The first-block and early-buyer shares do not change after their
 window; every other kind can. For an observation of another chain, the reader SHOULD bound `recordedAt` instead. The
 registry sets no bound: how fresh a reading must be depends on what the reader is about to do.
+
+### Arbitrum chains
+
+On an Arbitrum chain, `block.number` and `blockhash` inside the EVM refer to the parent chain, while observed blocks
+are the chain's own. A registry deployed there MUST take the current block number from
+`ArbSys(address(100)).arbBlockNumber()` and MUST NOT compare an observed block with `block.number` or check its hash
+with `blockhash`; it checks the hash through the EIP-2935 history contract where the chain deploys it. A reader or
+guard on an Arbitrum chain MUST take its current block number from the same source when it bounds the age of an
+observation, since `block.number` there is smaller than every observed block and the difference underflows or
+compares numbers of two chains. A registry or reader that runs on several chains MAY use ArbSys when code exists at
+`address(100)` and the call succeeds, and `block.number` otherwise, as the reference implementation does.
 
 ### Deployment
 
@@ -380,15 +407,19 @@ age bound below are the integrator's, not this proposal's.
 
 ```solidity
 // Inside a guard, wallet module or agent router, before the swap.
+// The chain's own block number: ArbSys on an Arbitrum chain, block.number elsewhere.
+uint256 current = ON_ARBITRUM ? IArbSys(address(100)).arbBlockNumber() : block.number;
 (uint256 id, uint64 at,, uint256 linked,) = obs.latestFinding(block.chainid, token, DETECTOR, FUNDING_LINKED_SHARE, 2);
-require(id != 0 && block.number - at <= MAX_AGE, "no fresh observation");
+require(id != 0 && at <= current && current - at <= MAX_AGE, "no fresh observation");
 require(linked != type(uint256).max && linked <= 1500, "funding-linked share");
 (,,, uint256 first,) = obs.latestFinding(block.chainid, token, DETECTOR, FIRST_BLOCK_SHARE, 0);
 require(first != type(uint256).max && first <= 2000, "first-block share");
 ```
 
 A missing observation and a missing finding both come back as not read, so the guard refuses them rather than passing
-them as clean. An off-chain agent makes the same reads with `eth_call` and follows `reportURI` for the detail.
+them as clean. A guard that trusts several detectors can read them in order of preference with `latestFindingFrom`
+and check which detector answered. An off-chain agent makes the same reads with `eth_call` and follows `reportURI`
+for the detail.
 
 ## Rationale
 
@@ -405,8 +436,18 @@ them as clean. An off-chain agent makes the same reads with `eth_call` and follo
   registry rejects a block that does not exist yet.
 - **The block hash is emitted, not stored.** A block number alone does not say which block a detector read if that
   block was reorganized out. The hash names it at the cost of one word of calldata and log data. It is checked on chain
-  where `blockhash` reaches and otherwise left to readers, who can compare it with the canonical chain at no cost to
-  the registry; storing it would add a storage write to every record for a value contracts cannot use after 256 blocks.
+  where the registry can read the block's hash, through EIP-2935 or `blockhash`, and otherwise left to readers, who
+  can compare it with the canonical chain at no cost to the registry; storing it would add a storage write to every
+  record for a value contracts can read back only for a bounded window.
+- **The chain's own block numbers.** Observed blocks are what a detector's node reports, so the registry compares them
+  with the same number. On an Arbitrum chain `block.number` is the parent chain's and would reject every same-chain
+  observation, so the registry reads ArbSys there.
+- **Identity rechecked at record time.** A link set once would let a detector keep showing an `agentId` it sold or
+  lost. Checking it at each record costs one or two static calls and keeps the copied identity true when it is made;
+  recording zero rather than reverting keeps a detector's observations flowing while its link is fixed.
+- **An ordered list of detectors.** A guard that trusts more than one detector wants the first that has read the
+  finding, without one call per detector. `latestFindingFrom` returns which detector answered, so the guard keeps
+  control of whom it trusts; it does not merge or count readings.
 - **Observed blocks do not go backwards.** Without this, a detector could record an observation of an earlier block
   after a later one and make "latest" mean something other than "most recent state".
 - **A typed core and an off-chain report.** Contracts and wallets need a few comparable numbers they can read without
@@ -483,9 +524,20 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 - A tally lower than the leans of the typed findings reverts.
 - On the registry's own chain, an observed block of zero or of the current block reverts; on another chain a block
   number above the current one is accepted.
-- On the registry's own chain, a wrong observed block hash reverts for a block up to 256 blocks old, including exactly
-  256, and is accepted unchecked for a block 257 blocks old; a zero hash reverts, as it does under an ERC-8376 key. On
-  another chain a zero hash and an arbitrary hash are accepted. `ObservationRecorded` carries the hash given.
+- On the registry's own chain, without an EIP-2935 history contract, a wrong observed block hash reverts for a block up
+  to 256 blocks old, including exactly 256, and is accepted unchecked for a block 257 blocks old; a zero hash reverts,
+  as it does under an ERC-8376 key. On another chain a zero hash and an arbitrary hash are accepted.
+  `ObservationRecorded` carries the hash given. With a history contract, a wrong hash for a block 1000 old reverts.
+- With ArbSys at `address(100)` returning a block number far above `block.number`, a same-chain observation at an
+  earlier ArbSys block is accepted, and one at or above the ArbSys block reverts. With an EIP-2935 history contract a
+  wrong hash reverts, at 100 blocks old and at exactly 8191; a block 8192 old, or one the history has no hash for, is
+  accepted unchecked, and `blockhash` is not used.
+- After the detector's identity is transferred away, its next observation records zero `identityRegistry` and
+  `agentId`; once the identity names the detector as agent wallet again, the link is recorded again.
+- `latestFindingFrom` returns not read and the zero address when no listed detector has observed the token; skips a
+  detector without an observation and one whose finding is not read; returns the first listed detector with a value
+  even when a later one observed a later block; and returns not read for a kind nobody holds, an empty list, and
+  another chain.
 - With five observations of a key, `observationsOf(key, 1, 2)` returns the second and third, a start at 5 returns an
   empty list, and a limit of `type(uint256).max` returns the rest.
 - The owner of an identity and its agent wallet can link it; another address, a registry without code, and a zero
@@ -497,7 +549,7 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 - `latestFinding` returns the identifier, observed block, `recordedAt`, value and lean of the finding asked for. With
   no observation it returns zeros, not read and `None`; for a kind or `param` the observation does not hold it returns
   the identifier and block with not read and `None`; a measured zero stays zero.
-- `supportsInterface` returns `true` for `0x30ee02eb` and `0x01ffc9a7`, and `false` for `0xffffffff`.
+- `supportsInterface` returns `true` for `0x526791dc` and `0x01ffc9a7`, and `false` for `0xffffffff`.
 
 ## Reference Implementation
 
@@ -530,8 +582,10 @@ ERC-721 identity registries, and need no external library.
   staying private before it is mined.
 - **Reorganizations and finality.** Finality is the main rule: a detector SHOULD observe only finalized blocks. On an
   Arbitrum Orbit chain, such as Robinhood Chain, a block is final once the batch that holds it is final on the parent
-  chain, which is what the node's `finalized` block tag returns. The registry cannot enforce this, since `blockhash`
-  reaches only the last 256 blocks, so each observation emits the hash of its observed block: a reader or indexer
+  chain, which is what the node's `finalized` block tag returns. The registry cannot enforce this, since it can read a
+  block's hash only for a bounded window: the last 256 blocks through `blockhash`, which on an Arbitrum chain does not
+  return the chain's own hashes at all, or the last 8191 blocks through the EIP-2935 history contract on chains that
+  deploy it, which gives a longer window. So each observation emits the hash of its observed block: a reader or indexer
   SHOULD compare it with the canonical block at that number and treat an observation whose hash differs, or is not
   given, as unsupported for that block. Where a detector observed a block later reorganized out, it SHOULD record a
   correction at a final block; the earlier observation stays, and readers see both.
@@ -541,7 +595,9 @@ ERC-721 identity registries, and need no external library.
   content-addressed storage, and readers SHOULD treat an observation whose report cannot be fetched or does not match
   its hash as unsupported.
 - **Identities change hands.** An ERC-8004 identity can be transferred. An observation records the identity linked when
-  it was recorded; whether a later owner answers for it is the reader's decision.
+  it was recorded, and only if the detector still held it then; whether a later owner answers for it is the reader's
+  decision. A reader that trusts an `agentId` SHOULD recheck the link when it reads, since a detector can lose the
+  identity after recording.
 - **Leans and tallies are readings.** Two detectors can read the same fact differently. Contracts that act
   automatically SHOULD act on typed values against thresholds they choose, not on another party's lean or tally.
 

@@ -3,7 +3,9 @@ pragma solidity ^0.8.20;
 
 import {LaunchObservations} from "../contracts/LaunchObservations.sol";
 import {ILaunchObservations} from "../contracts/ILaunchObservations.sol";
-import {Vm, MockDirectory, MockIdentityRegistry, MockPlainRegistry} from "./Mocks.sol";
+import {
+    Vm, MockDirectory, MockIdentityRegistry, MockPlainRegistry, MockArbSys, MockBlockHistory
+} from "./Mocks.sol";
 
 contract LaunchObservationsTest {
     Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -47,6 +49,9 @@ contract LaunchObservationsTest {
     bytes32 constant PRIVILEGED_POWERS = keccak256("erc.launch-observations.signal.privilegedPowers");
     bytes32 constant PRODUCT_LABEL = keccak256("erc.launch-observations.product-label");
     uint256 constant LABEL_PARTLY_FOUND = 2;
+    address constant ARB_SYS = address(100);
+    address constant HISTORY = 0x0000F90827F1C53a10cb7A02335B175320002935;
+    uint64 constant L2_NOW = 99_930_810; // Robinhood Chain's own block while block.number reads the parent chain's
 
     function setUp() public {
         dir = new MockDirectory();
@@ -660,7 +665,8 @@ contract LaunchObservationsTest {
         _record(DETECTOR_A, 900);
         vm.roll(1_100);
         (uint256 id, uint64 at,, uint256 linked,) = reg.latestFinding(block.chainid, TOKEN, DETECTOR_A, FUNDING_LINKED_SHARE, 2);
-        require(id != 0 && block.number - at <= maxAge, "no fresh observation");
+        uint256 current = _chainBlock();
+        require(id != 0 && at <= current && current - at <= maxAge, "no fresh observation");
         require(linked != type(uint256).max && linked <= 1500, "funding-linked share");
         (,,, uint256 first,) = reg.latestFinding(block.chainid, TOKEN, DETECTOR_A, FIRST_BLOCK_SHARE, 0);
         require(first != type(uint256).max, "first-block share read");
@@ -668,7 +674,23 @@ contract LaunchObservationsTest {
 
         vm.roll(1_201);
         (, at,,,) = reg.latestFinding(block.chainid, TOKEN, DETECTOR_A, FUNDING_LINKED_SHARE, 2);
-        require(block.number - at > maxAge, "stale after the bound");
+        require(_chainBlock() - at > maxAge, "stale after the bound");
+    }
+
+    /// The guard's block source, as the spec's example reads it.
+    function _chainBlock() internal view returns (uint256) {
+        if (ARB_SYS.code.length != 0) return MockArbSys(ARB_SYS).arbBlockNumber();
+        return block.number;
+    }
+
+    function test_GuardExampleOnArbitrum() public {
+        vm.chainId(RH_CHAIN);
+        _etchArbSys(L2_NOW);
+        _record(DETECTOR_A, L2_NOW - 50);
+        (uint256 id, uint64 at,,,) = reg.latestFinding(block.chainid, TOKEN, DETECTOR_A, FUNDING_LINKED_SHARE, 2);
+        uint256 current = _chainBlock();
+        require(at > block.number, "fixture: the L2 block is far above the parent block number");
+        require(id != 0 && at <= current && current - at <= 300, "fresh in the chain's own numbers");
     }
 
     function test_GasLatestFindingRead() public {
@@ -677,6 +699,187 @@ contract LaunchObservationsTest {
         reg.latestFinding(RH_CHAIN, TOKEN, DETECTOR_A, PRODUCT_LABEL, 0); // last of six: the worst case here
         uint256 used = before - gasleft();
         require(used < 40_000, "one-call read of the last of six findings stays under 40k gas");
+    }
+
+    // ---------------------------------------------------------------- Arbitrum block numbers and EIP-2935
+
+    function _etchArbSys(uint256 number) internal {
+        vm.etch(ARB_SYS, address(new MockArbSys()).code);
+        MockArbSys(ARB_SYS).setArbBlockNumber(number);
+        // Foundry answers ArbSys itself on chain ids it knows as Arbitrum (with block.number); pin the mock's answer.
+        vm.mockCall(ARB_SYS, abi.encodeWithSignature("arbBlockNumber()"), abi.encode(number));
+    }
+
+    function _etchHistory() internal {
+        vm.etch(HISTORY, address(new MockBlockHistory()).code);
+    }
+
+    function _ownChainInput(uint64 observedBlock, bytes32 hash)
+        internal
+        view
+        returns (ILaunchObservations.ObservationInput memory i)
+    {
+        i = _tokenInput(observedBlock);
+        i.observedBlockHash = hash;
+    }
+
+    function test_ArbitrumOwnChainRecordUsesL2Number() public {
+        vm.chainId(RH_CHAIN);
+        require(ARB_SYS.code.length == 0 && HISTORY.code.length == 0, "fixture: plain EVM to start");
+        // Without ArbSys, an L2 block number is in the future of block.number.
+        vm.expectRevert(LaunchObservations.InvalidObservedBlock.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW - 100, keccak256("l2 block")), _none());
+
+        _etchArbSys(L2_NOW);
+        (uint256 id,) = reg.recordObservation(_ownChainInput(L2_NOW - 100, keccak256("l2 block")), _none());
+        (ILaunchObservations.Observation memory o,) = reg.getObservation(id);
+        _eq(o.observedBlock, L2_NOW - 100, "L2 block recorded");
+        // No history contract and no usable blockhash on Arbitrum: the hash is emitted unchecked.
+    }
+
+    function test_ArbitrumFutureBlockRejected() public {
+        vm.chainId(RH_CHAIN);
+        _etchArbSys(L2_NOW);
+        vm.expectRevert(LaunchObservations.InvalidObservedBlock.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW, keccak256("x")), _none());
+        vm.expectRevert(LaunchObservations.InvalidObservedBlock.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW + 1_000, keccak256("x")), _none());
+        // Zero hash still reverts on the registry's own chain.
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW - 1, bytes32(0)), _none());
+    }
+
+    function test_ArbitrumHashCheckedThroughHistory() public {
+        vm.chainId(RH_CHAIN);
+        _etchArbSys(L2_NOW);
+        _etchHistory();
+        bytes32 real = keccak256("real L2 block");
+        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 100, real);
+        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 8_191, real);
+
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW - 100, keccak256("reorged out")), _none());
+        // The edge of the window is still checked.
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(_ownChainInput(L2_NOW - 8_191, keccak256("reorged out")), _none());
+
+        reg.recordObservation(_ownChainInput(L2_NOW - 100, real), _none());
+    }
+
+    function test_ArbitrumHashOutOfWindowNotChecked() public {
+        vm.chainId(RH_CHAIN);
+        _etchArbSys(L2_NOW);
+        _etchHistory();
+        // Past the 8191-block window the history is not asked, even if it would answer.
+        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 8_192, keccak256("real"));
+        reg.recordObservation(_ownChainInput(L2_NOW - 8_192, keccak256("unchecked")), _none());
+        // Inside the window, a block the history has no hash for (it reverts) is not checked, and Arbitrum
+        // gets no blockhash fallback.
+        reg.recordObservation(_ownChainInput(L2_NOW - 10, keccak256("unchecked")), _none());
+    }
+
+    function test_PlainEvmHistoryExtendsWindow() public {
+        vm.chainId(RH_CHAIN);
+        vm.roll(10_000);
+        _etchHistory();
+        bytes32 real = keccak256("real block 9000");
+        MockBlockHistory(payable(HISTORY)).setHash(9_000, real); // 1000 old: past blockhash, inside 2935
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(_ownChainInput(9_000, keccak256("wrong")), _none());
+        reg.recordObservation(_ownChainInput(9_000, real), _none());
+
+        // The history has nothing for 9900: blockhash is the fallback on a plain EVM chain.
+        vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
+        reg.recordObservation(_ownChainInput(9_900, keccak256("wrong")), _none());
+        reg.recordObservation(_ownChainInput(9_900, blockhash(9_900)), _none());
+    }
+
+    // ---------------------------------------------------------------- identity rechecked at record time
+
+    function test_TransferredIdentityNotClaimed() public {
+        ids.mint(7, DETECTOR_A);
+        vm.prank(DETECTOR_A);
+        reg.setDetectorIdentity(address(ids), 7);
+        (uint256 first,) = _record(DETECTOR_A, 900);
+
+        ids.transfer(7, DETECTOR_B); // owner and agent wallet are no longer the detector
+        (uint256 second,) = _record(DETECTOR_A, 901);
+
+        (ILaunchObservations.Observation memory o1,) = reg.getObservation(first);
+        (ILaunchObservations.Observation memory o2,) = reg.getObservation(second);
+        _eq(o1.agentId, 7, "first keeps its identity");
+        _eq(o2.agentId, 0, "no agentId once the link no longer holds");
+        _eq(o2.identityRegistry, address(0), "no registry either");
+
+        // An agent wallet still pointing at the detector keeps the link.
+        ids.setAgentWallet(7, DETECTOR_A);
+        (uint256 third,) = _record(DETECTOR_A, 902);
+        (ILaunchObservations.Observation memory o3,) = reg.getObservation(third);
+        _eq(o3.agentId, 7, "agent wallet holds the link");
+    }
+
+    // ---------------------------------------------------------------- latestFindingFrom
+
+    function test_LatestFindingFromOrderAndNotRead() public {
+        address[] memory list = new address[](3);
+        list[0] = DETECTOR_B;
+        list[1] = address(0xC0C);
+        list[2] = DETECTOR_A;
+
+        // Nobody has observed the token: not read.
+        (address d, uint256 oid, uint64 at, uint64 rec, uint256 value, ILaunchObservations.Lean lean) =
+            reg.latestFindingFrom(RH_CHAIN, TOKEN, list, FIRST_BLOCK_SHARE, 0);
+        _eq(d, address(0), "no detector");
+        _eq(oid, 0, "no id");
+        _eq(at, 0, "no block");
+        _eq(rec, 0, "no time");
+        _eq(value, type(uint256).max, "not read");
+        require(lean == ILaunchObservations.Lean.None, "no lean");
+
+        // Only the last detector in the list has it.
+        (uint256 idA,) = _record(DETECTOR_A, 900);
+        (d, oid, at,, value,) = reg.latestFindingFrom(RH_CHAIN, TOKEN, list, FIRST_BLOCK_SHARE, 0);
+        _eq(d, DETECTOR_A, "falls through to A");
+        _eq(oid, idA, "A's id");
+        _eq(at, 900, "A's block");
+        _eq(value, 3_400, "A's value");
+
+        // B, first in the list, records the finding as not read: skipped.
+        ILaunchObservations.Finding[] memory f = _findings();
+        f[0] = ILaunchObservations.Finding(FIRST_BLOCK_SHARE, type(uint256).max, 0, ILaunchObservations.Lean.None);
+        vm.prank(DETECTOR_B);
+        reg.recordObservation(_tokenInput(905), f);
+        (d,,,, value,) = reg.latestFindingFrom(RH_CHAIN, TOKEN, list, FIRST_BLOCK_SHARE, 0);
+        _eq(d, DETECTOR_A, "a not-read finding does not stop the search");
+
+        // B reads it: B wins by list order, even with A observing a later block.
+        f[0] = ILaunchObservations.Finding(FIRST_BLOCK_SHARE, 1_000, 0, ILaunchObservations.Lean.Against);
+        vm.prank(DETECTOR_B);
+        (uint256 idB,) = reg.recordObservation(_tokenInput(906), f);
+        _record(DETECTOR_A, 950);
+        (d, oid, at,, value, lean) = reg.latestFindingFrom(RH_CHAIN, TOKEN, list, FIRST_BLOCK_SHARE, 0);
+        _eq(d, DETECTOR_B, "list order wins");
+        _eq(oid, idB, "B's id");
+        _eq(at, 906, "B's block");
+        _eq(value, 1_000, "B's value");
+        require(lean == ILaunchObservations.Lean.Against, "B's lean");
+
+        // A kind nobody holds, an empty list, another chain: not read.
+        (d,,,, value,) = reg.latestFindingFrom(RH_CHAIN, TOKEN, list, LP_LOCK_REMAINING, 0);
+        _eq(d, address(0), "missing kind");
+        _eq(value, type(uint256).max, "missing kind not read");
+        (d,,,, value,) = reg.latestFindingFrom(RH_CHAIN, TOKEN, new address[](0), FIRST_BLOCK_SHARE, 0);
+        _eq(value, type(uint256).max, "empty list not read");
+        (d,,,, value,) = reg.latestFindingFrom(56, TOKEN, list, FIRST_BLOCK_SHARE, 0);
+        _eq(value, type(uint256).max, "other chain not read");
+    }
+
+    function test_GasOwnChainObservation() public {
+        vm.chainId(RH_CHAIN);
+        uint256 before = gasleft();
+        _record(DETECTOR_A, 900);
+        uint256 used = before - gasleft();
+        require(used < 850_000, "a first six-finding same-chain observation stays under 850k gas");
     }
 
     // ---------------------------------------------------------------- ERC-165
@@ -688,6 +891,6 @@ contract LaunchObservationsTest {
     }
 
     function test_InterfaceIdMatchesSpec() public pure {
-        require(type(ILaunchObservations).interfaceId == bytes4(0x30ee02eb), "interface id");
+        require(type(ILaunchObservations).interfaceId == bytes4(0x526791dc), "interface id");
     }
 }
