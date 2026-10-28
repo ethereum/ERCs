@@ -32,6 +32,7 @@ contract InvoiceCommitmentRegistry is EIP712 {
     );
 
     error InvalidSignature();
+    error UnauthorizedCaller(address caller);
     error NonceAlreadyUsed(address issuer, uint256 nonce);
     error InvoiceAlreadyCommitted(bytes32 invoiceHash);
     error EncryptedPayloadRequired();
@@ -40,6 +41,9 @@ contract InvoiceCommitmentRegistry is EIP712 {
     constructor() EIP712("VerifiableInvoiceCommitment", "1") {}
 
     /// @notice Commits an invoice after validating its EIP-712 signature.
+    /// @dev Only the issuer or the recipient may commit: the signature does not cover
+    ///      paymentTxRef, payloadMode, uri or encryptedPayload, so a third party holding
+    ///      a signed invoice must not be able to choose them.
     function commitInvoice(
         InvoiceCommitmentTypes.Invoice calldata invoice,
         bytes32 paymentTxRef,
@@ -48,6 +52,10 @@ contract InvoiceCommitmentRegistry is EIP712 {
         bytes calldata encryptedPayload,
         bytes calldata issuerSignature
     ) external returns (bytes32 invoiceHash) {
+        if (msg.sender != invoice.issuer && msg.sender != invoice.recipient) {
+            revert UnauthorizedCaller(msg.sender);
+        }
+
         invoiceHash = _hashTypedDataV4(InvoiceHasher.hashInvoiceStruct(invoice));
 
         if (_nonceUsed[invoice.issuer][invoice.nonce]) {
