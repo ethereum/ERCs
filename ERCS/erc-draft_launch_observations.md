@@ -554,7 +554,7 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 ## Reference Implementation
 
 A reference implementation, `LaunchObservations`, and its tests are in
-[`assets/erc-draft_launch_observations`](../assets/erc-draft_launch_observations/contracts/LaunchObservations.sol). It
+[`assets/erc-draft_launch_observations`](../assets/eip-draft_launch_observations/contracts/LaunchObservations.sol). It
 stores each observation and its findings, keeps per-key, per-detector and per-key detector lists, and validates the core
 kinds and ERC-8376 signals. The tests run under Foundry with mocks of an ERC-8376 directory and of ERC-8004 and plain
 ERC-721 identity registries, and need no external library.
