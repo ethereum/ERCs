@@ -81,6 +81,10 @@ interface ILaunchObservations {
         external
         view
         returns (uint256 observationId, uint64 observedBlock, uint64 recordedAt, uint256 value, Lean lean);
+    function latestFindingFrom(uint256 chainId, address token, address[] calldata detectors, bytes32 kind, uint64 param)
+        external
+        view
+        returns (address detector, uint256 observationId, uint64 observedBlock, uint64 recordedAt, uint256 value, Lean lean);
     function observationsOf(bytes32 launchKey, uint256 start, uint256 limit) external view returns (uint256[] memory);
     function observationsBy(bytes32 launchKey, address detector, uint256 start, uint256 limit) external view returns (uint256[] memory);
     function detectorsOf(bytes32 launchKey, uint256 start, uint256 limit) external view returns (address[] memory);

@@ -20,6 +20,13 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     uint256 public constant NOT_READ = type(uint256).max;
     uint256 public constant MAX_BPS = 10_000;
 
+    // Block history. On Arbitrum chains `block.number` is the parent chain's block, so the chain's own block number is
+    // read from ArbSys; past block hashes come from the EIP-2935 history contract where the chain deploys it.
+    address public constant ARB_SYS = address(100);
+    address public constant HISTORY_STORAGE = 0x0000F90827F1C53a10cb7A02335B175320002935;
+    uint256 public constant HISTORY_WINDOW = 8191;
+    uint256 public constant BLOCKHASH_WINDOW = 256;
+
     // Key derivation
     bytes32 public constant TOKEN_SCOPED = keccak256("erc.launch-observations.token-scoped");
 
@@ -140,15 +147,22 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
             byToken[msg.sender] = observationId;
         }
 
-        Identity storage id = _identity[msg.sender];
         Observation storage o = _observations[observationId];
+        // The link is copied only while it still holds: a transferred identity is not claimed for this observation.
+        Identity storage id = _identity[msg.sender];
+        address idRegistry = id.registry;
+        if (idRegistry != address(0)) {
+            uint256 agentId = id.agentId;
+            if (_holdsIdentity(idRegistry, agentId, msg.sender)) {
+                o.identityRegistry = idRegistry;
+                o.agentId = agentId;
+            }
+        }
         o.launchKey = key;
         o.kind = input.kind;
         o.chainId = chainId;
         o.token = token;
         o.detector = msg.sender;
-        o.identityRegistry = id.registry;
-        o.agentId = id.agentId;
         o.observedBlock = input.observedBlock;
         o.recordedAt = uint64(block.timestamp);
         o.supersedes = previous;
@@ -206,20 +220,30 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         view
         returns (uint256 observationId, uint64 observedBlock, uint64 recordedAt, uint256 value, Lean lean)
     {
-        value = NOT_READ;
         observationId = latestByToken(chainId, token, detector);
         if (observationId == 0) return (0, 0, 0, NOT_READ, Lean.None);
         Observation storage o = _observations[observationId];
-        observedBlock = o.observedBlock;
-        recordedAt = o.recordedAt;
-        Finding[] storage all = _findings[observationId];
-        uint256 n = all.length;
+        (value, lean) = _findingOf(observationId, kind, param);
+        return (observationId, o.observedBlock, o.recordedAt, value, lean);
+    }
+
+    /// @dev Gas is linear in the length of `detectors`: one by-token lookup and one findings scan per detector tried.
+    function latestFindingFrom(uint256 chainId, address token, address[] calldata detectors, bytes32 kind, uint64 param)
+        external
+        view
+        returns (address detector, uint256 observationId, uint64 observedBlock, uint64 recordedAt, uint256 value, Lean lean)
+    {
+        mapping(address => uint256) storage byToken = _latestByToken[tokenKey(chainId, token)];
+        uint256 n = detectors.length;
         for (uint256 i = 0; i < n; i++) {
-            Finding storage f = all[i];
-            if (f.kind == kind && f.param == param) {
-                return (observationId, observedBlock, recordedAt, f.value, f.lean);
-            }
+            uint256 id = byToken[detectors[i]];
+            if (id == 0) continue;
+            (value, lean) = _findingOf(id, kind, param);
+            if (value == NOT_READ) continue;
+            Observation storage o = _observations[id];
+            return (detectors[i], id, o.observedBlock, o.recordedAt, value, lean);
         }
+        return (address(0), 0, 0, 0, NOT_READ, Lean.None);
     }
 
     function observationsOf(bytes32 launchKey, uint256 start, uint256 limit) external view returns (uint256[] memory) {
@@ -245,14 +269,31 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
     // ---------------------------------------------------------------- internal
 
-    /// @dev On the registry's own chain the block must exist and its hash must be given; within the 256 blocks
-    /// `blockhash` reaches, the hash must match. Older hashes are emitted unchecked for readers to compare.
-    function _checkOwnChainBlock(uint64 observedBlock, bytes32 observedBlockHash) private view {
-        if (observedBlock >= block.number) revert InvalidObservedBlock();
-        if (observedBlockHash == bytes32(0)) revert InvalidObservedBlockHash();
-        if (block.number - observedBlock <= 256 && blockhash(observedBlock) != observedBlockHash) {
-            revert InvalidObservedBlockHash();
+    /// @dev The number the chain's own blocks carry, as `eth_blockNumber` returns it. On an Arbitrum chain
+    /// `block.number` is the parent chain's block, so the number is read from ArbSys at 0x64 when it answers.
+    function _chainBlockNumber() internal view returns (uint256 number, bool arbitrum) {
+        if (ARB_SYS.code.length != 0) {
+            (bool ok, bytes memory ret) = ARB_SYS.staticcall(abi.encodeWithSignature("arbBlockNumber()"));
+            if (ok && ret.length >= 32) return (abi.decode(ret, (uint256)), true);
         }
+        return (block.number, false);
+    }
+
+    /// @dev On the registry's own chain the block must exist and its hash must be given. The hash must match the
+    /// EIP-2935 history contract where it answers for the block (8191 blocks), else `blockhash` within 256 blocks on a
+    /// chain whose `blockhash` takes its own block numbers. Otherwise it is emitted unchecked for readers to compare.
+    function _checkOwnChainBlock(uint64 observedBlock, bytes32 observedBlockHash) private view {
+        (uint256 current, bool arbitrum) = _chainBlockNumber();
+        if (observedBlock >= current) revert InvalidObservedBlock();
+        if (observedBlockHash == bytes32(0)) revert InvalidObservedBlockHash();
+        uint256 age = current - observedBlock;
+        bytes32 known;
+        if (age <= HISTORY_WINDOW && HISTORY_STORAGE.code.length != 0) {
+            (bool ok, bytes memory ret) = HISTORY_STORAGE.staticcall(abi.encode(uint256(observedBlock)));
+            if (ok && ret.length >= 32) known = abi.decode(ret, (bytes32));
+        }
+        if (known == bytes32(0) && !arbitrum && age <= BLOCKHASH_WINDOW) known = blockhash(observedBlock);
+        if (known != bytes32(0) && known != observedBlockHash) revert InvalidObservedBlockHash();
     }
 
     function _emitRecorded(uint256 observationId, bytes32 observedBlockHash) private {
@@ -346,6 +387,17 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         if (k == PRIVILEGED_POWERS) return 0xff;
         if (k == PRIOR_UPHELD_CLAIMS) return type(uint16).max - 1;
         return 0;
+    }
+
+    /// @dev The value and lean of an observation's finding of `kind` and `param`, or not read and `None`.
+    function _findingOf(uint256 observationId, bytes32 kind, uint64 param) private view returns (uint256, Lean) {
+        Finding[] storage all = _findings[observationId];
+        uint256 n = all.length;
+        for (uint256 i = 0; i < n; i++) {
+            Finding storage f = all[i];
+            if (f.kind == kind && f.param == param) return (f.value, f.lean);
+        }
+        return (NOT_READ, Lean.None);
     }
 
     function _holdsIdentity(address registry, uint256 agentId, address account) private view returns (bool) {
