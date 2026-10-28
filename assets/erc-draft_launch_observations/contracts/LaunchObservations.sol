@@ -29,6 +29,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
     // Key derivation
     bytes32 public constant TOKEN_SCOPED = keccak256("erc.launch-observations.token-scoped");
+    bytes32 public constant VENUE_DECLARED = keccak256("erc.launch-observations.venue-declared");
 
     // Core finding kinds
     bytes32 public constant FIRST_BLOCK_SHARE = keccak256("erc.launch-observations.first-block-share");
@@ -101,6 +102,10 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         return keccak256(abi.encode(TOKEN_SCOPED, chainId, token));
     }
 
+    function declarationKey(uint256 chainId, bytes32 declarationId) public pure returns (bytes32) {
+        return keccak256(abi.encode(VENUE_DECLARED, chainId, declarationId));
+    }
+
     // ---------------------------------------------------------------- writing
 
     function recordObservation(ObservationInput calldata input, Finding[] calldata findings)
@@ -170,6 +175,8 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         o.reportHash = input.reportHash;
         o.reportURI = input.reportURI;
         o.evidenceRoot = input.evidenceRoot;
+        // An ERC-8462 venue-scoped declaration id is kept so a reader joins the observation to the declaration.
+        if (input.kind == KeyKind.Erc8462Venue) o.declarationId = input.launchId;
     }
 
     function _storeFindings(uint256 observationId, Finding[] calldata findings) private {
@@ -305,6 +312,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
             o.kind,
             o.chainId,
             o.token,
+            o.declarationId,
             o.observedBlock,
             observedBlockHash,
             o.supersedes,
@@ -329,6 +337,12 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         if (input.kind == KeyKind.Token) {
             if (input.launchId != bytes32(0) || input.chainId == 0 || input.token == address(0)) revert InvalidKey();
             return (tokenKey(input.chainId, input.token), input.chainId, input.token);
+        }
+        if (input.kind == KeyKind.Erc8462Venue) {
+            // `launchId` carries the ERC-8462 venue-scoped declaration id. It is not checked against a declarations
+            // contract here (ERC-8462 has no canonical deployment); readers check it with `getDeclaration`.
+            if (input.launchId == bytes32(0) || input.chainId == 0 || input.token == address(0)) revert InvalidKey();
+            return (declarationKey(input.chainId, input.launchId), input.chainId, input.token);
         }
         revert InvalidKey();
     }

@@ -18,6 +18,7 @@ contract LaunchObservationsTest {
         ILaunchObservations.KeyKind kind,
         uint256 chainId,
         address token,
+        bytes32 declarationId,
         uint64 observedBlock,
         bytes32 observedBlockHash,
         uint256 supersedes,
@@ -292,6 +293,7 @@ contract LaunchObservationsTest {
             ILaunchObservations.KeyKind.Token,
             RH_CHAIN,
             TOKEN,
+            bytes32(0),
             900,
             _bh(900),
             0,
@@ -428,9 +430,9 @@ contract LaunchObservationsTest {
         vm.recordLogs();
         reg.recordObservation(i, _none());
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (,,,, bytes32 emitted,,,,,) = abi.decode(
+        (,,,,, bytes32 emitted,,,,,) = abi.decode(
             logs[0].data,
-            (uint8, uint256, address, uint64, bytes32, uint256, ILaunchObservations.Tally, bytes32, string, bytes32)
+            (uint8, uint256, address, bytes32, uint64, bytes32, uint256, ILaunchObservations.Tally, bytes32, string, bytes32)
         );
         _eq(emitted, blockhash(900), "hash emitted");
     }
@@ -606,6 +608,149 @@ contract LaunchObservationsTest {
         _eq(reg.latestByToken(RH_CHAIN, TOKEN, DETECTOR_A), fourth, "tie: recorded last");
 
         _eq(reg.latestByToken(RH_CHAIN, TOKEN, DETECTOR_B), 0, "other detector");
+        _eq(reg.latestByToken(56, TOKEN, DETECTOR_A), 0, "other chain");
+    }
+
+    // ---------------------------------------------------------------- ERC-8462 venue-scoped keys
+
+    address constant VENUE = address(0x7E9E);
+    address constant CREATOR = address(0xC0FFEE);
+
+    /// An ERC-8462 venue-scoped declaration id, derived as ERC-8462 specifies.
+    function _venueDeclarationId(uint256 chainId, uint256 nonce) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(keccak256("erc.launch-declarations.venue-scoped"), chainId, VENUE, TOKEN, CREATOR, nonce)
+        );
+    }
+
+    function _venueInput(uint64 observedBlock, bytes32 declarationId)
+        internal
+        view
+        returns (ILaunchObservations.ObservationInput memory i)
+    {
+        i = _tokenInput(observedBlock);
+        i.kind = ILaunchObservations.KeyKind.Erc8462Venue;
+        i.launchId = declarationId;
+    }
+
+    function test_Erc8462VenueKeyDerivationAndRecord() public {
+        bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
+        bytes32 expected =
+            keccak256(abi.encode(keccak256("erc.launch-observations.venue-declared"), RH_CHAIN, declarationId));
+        _eq(reg.declarationKey(RH_CHAIN, declarationId), expected, "derivation");
+
+        vm.prank(DETECTOR_A);
+        (uint256 id, bytes32 key) = reg.recordObservation(_venueInput(900, declarationId), _findings());
+        _eq(key, expected, "key");
+        (ILaunchObservations.Observation memory o, ILaunchObservations.Finding[] memory f) = reg.getObservation(id);
+        require(o.kind == ILaunchObservations.KeyKind.Erc8462Venue, "kind");
+        _eq(o.launchKey, key, "launchKey");
+        _eq(o.declarationId, declarationId, "declaration id kept for the join");
+        _eq(o.chainId, RH_CHAIN, "chain");
+        _eq(o.token, TOKEN, "token");
+        _eq(f.length, 6, "findings");
+        _eq(reg.latestOf(key, DETECTOR_A), id, "latestOf");
+        _eq(reg.observationsOf(key, 0, 10).length, 1, "observationsOf");
+
+        // The other key kinds carry no declaration id.
+        (uint256 tokenId,) = _record(DETECTOR_B, 900);
+        (o,) = reg.getObservation(tokenId);
+        _eq(o.declarationId, bytes32(0), "token key: none");
+    }
+
+    function test_Erc8462VenueEventCarriesDeclarationId() public {
+        bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
+        bytes32 key = reg.declarationKey(RH_CHAIN, declarationId);
+        vm.expectEmit(true, true, true, true, address(reg));
+        emit ObservationRecorded(
+            1,
+            key,
+            DETECTOR_A,
+            ILaunchObservations.KeyKind.Erc8462Venue,
+            RH_CHAIN,
+            TOKEN,
+            declarationId,
+            900,
+            _bh(900),
+            0,
+            ILaunchObservations.Tally(2, 1, 3),
+            keccak256("report"),
+            "https://t0ll.xyz/r/0x7011",
+            bytes32(0)
+        );
+        vm.prank(DETECTOR_A);
+        reg.recordObservation(_venueInput(900, declarationId), _none());
+    }
+
+    function test_Erc8462VenueMalformedReverts() public {
+        bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
+        ILaunchObservations.ObservationInput memory i = _venueInput(900, bytes32(0));
+        vm.expectRevert(LaunchObservations.InvalidKey.selector);
+        reg.recordObservation(i, _none());
+
+        i = _venueInput(900, declarationId);
+        i.chainId = 0;
+        vm.expectRevert(LaunchObservations.InvalidKey.selector);
+        reg.recordObservation(i, _none());
+
+        i = _venueInput(900, declarationId);
+        i.token = address(0);
+        vm.expectRevert(LaunchObservations.InvalidKey.selector);
+        reg.recordObservation(i, _none());
+
+        // A registry without a directory still takes venue-scoped keys.
+        LaunchObservations noDir = new LaunchObservations(address(0));
+        noDir.recordObservation(_venueInput(900, declarationId), _none());
+    }
+
+    function test_Erc8462VenueKeyNeverCollides() public {
+        // Fed the same 32 bytes, each kind lands under its own key.
+        bytes32 venueKey = reg.declarationKey(RH_CHAIN, LAUNCH_ID);
+        require(venueKey != LAUNCH_ID, "not an ERC-8376 launchId");
+        require(venueKey != reg.tokenKey(RH_CHAIN, TOKEN), "not a token key");
+        require(venueKey != reg.declarationKey(56, LAUNCH_ID), "chain is part of the key");
+        require(
+            reg.declarationKey(RH_CHAIN, _venueDeclarationId(RH_CHAIN, 0))
+                != reg.declarationKey(RH_CHAIN, _venueDeclarationId(RH_CHAIN, 1)),
+            "each relaunch has its own key"
+        );
+        // The token address fed as a declaration id does not reproduce the token key: the tags differ.
+        require(
+            reg.declarationKey(RH_CHAIN, bytes32(uint256(uint160(TOKEN)))) != reg.tokenKey(RH_CHAIN, TOKEN), "tag"
+        );
+
+        // Recording a listed launchId as a venue declaration id does not join the ERC-8376 key's lists.
+        vm.prank(DETECTOR_A);
+        (, bytes32 k8376) = reg.recordObservation(_erc8376Input(900), _none());
+        vm.prank(DETECTOR_B);
+        (, bytes32 kVenue) = reg.recordObservation(_venueInput(900, LAUNCH_ID), _none());
+        require(k8376 != kVenue, "distinct keys");
+        _eq(reg.observationsOf(LAUNCH_ID, 0, 10).length, 1, "8376 list untouched");
+        _eq(reg.latestOf(LAUNCH_ID, DETECTOR_B), 0, "venue record not under the launchId");
+    }
+
+    function test_LatestByTokenIncludesErc8462Venue() public {
+        bytes32 declarationId = _venueDeclarationId(RH_CHAIN, 0);
+        _record(DETECTOR_A, 900); // token key
+        vm.prank(DETECTOR_A);
+        (uint256 second,) = reg.recordObservation(_venueInput(950, declarationId), _findings());
+        _eq(reg.latestByToken(RH_CHAIN, TOKEN, DETECTOR_A), second, "higher block under the venue key");
+        _record(DETECTOR_A, 920);
+        _eq(reg.latestByToken(RH_CHAIN, TOKEN, DETECTOR_A), second, "lower block does not win");
+
+        (uint256 oid, uint64 at,, uint256 value, ILaunchObservations.Lean lean) =
+            reg.latestFinding(RH_CHAIN, TOKEN, DETECTOR_A, EARLY_BUYER_SHARE, 30);
+        _eq(oid, second, "latestFinding reads the venue-keyed observation");
+        _eq(at, 950, "its block");
+        _eq(value, 5_100, "its value");
+        require(lean == ILaunchObservations.Lean.Against, "its lean");
+
+        address[] memory list = new address[](2);
+        list[0] = DETECTOR_B;
+        list[1] = DETECTOR_A;
+        (address d, uint256 fid,,,,) = reg.latestFindingFrom(RH_CHAIN, TOKEN, list, EARLY_BUYER_SHARE, 30);
+        _eq(d, DETECTOR_A, "latestFindingFrom finds it");
+        _eq(fid, second, "same observation");
         _eq(reg.latestByToken(56, TOKEN, DETECTOR_A), 0, "other chain");
     }
 
@@ -891,6 +1036,6 @@ contract LaunchObservationsTest {
     }
 
     function test_InterfaceIdMatchesSpec() public pure {
-        require(type(ILaunchObservations).interfaceId == bytes4(0x526791dc), "interface id");
+        require(type(ILaunchObservations).interfaceId == bytes4(0x125ee299), "interface id");
     }
 }

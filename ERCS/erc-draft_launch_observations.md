@@ -1,6 +1,6 @@
 ---
 title: Launch Observations
-description: Block-pinned facts an independent detector records about a token launch, keyed to ERC-8376 launch ids
+description: Block-pinned facts an independent detector records about a token launch, keyed like ERC-8376 and ERC-8462
 author: Toll (@soli0x)
 discussions-to: https://ethereum-magicians.org/t/pre-erc-launch-observations-the-check-an-agent-reads-before-it-buys-a-token/30112
 status: Draft
@@ -14,7 +14,8 @@ requires: 165, 721, 8004, 8376
 
 This proposal defines a registry in which any address, acting as a detector, records what it observed about a token
 launch at a given block. An observation is keyed to the launch's [ERC-8376](./eip-8376.md) `launchId` when an ERC-8376
-directory lists the launch, and otherwise to the chain id and token address. It carries a small set of typed findings,
+directory lists the launch, to its ERC-8462 venue-scoped declaration identifier when a launchpad
+declared it outside ERC-8376, and otherwise to the chain id and token address. It carries a small set of typed findings,
 such as the share of supply bought in the block of the first trade (the first-block share), the share bought by
 early buyers, the creator's prior launches,
 the share held by wallets linked through funding, and whether a product was found behind the token, together with
@@ -28,8 +29,9 @@ reads a trusted detector's latest typed finding for a token in one call before i
 ## Motivation
 
 A launch has two sides that a buyer, a wallet, a lender or an agent needs to compare: what the launchpad and the creator
-say, and what the chain shows. The declared side is being standardized separately (the Token Launch Declarations
-proposal, a separate draft, records the creator, allocations, liquidity locks and fee recipients a launchpad declares).
+say, and what the chain shows. The declared side is being standardized separately: ERC-8462 records the creator,
+allocations, liquidity locks and fee recipients a launchpad declares, and ERC-8463 gives every
+liquidity locker one interface.
 Its stated purpose is that "detectors, wallets and lenders can compare what a launchpad declared with what they
 observe". Nothing standardizes the observed side.
 
@@ -66,11 +68,11 @@ RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as de
 ### Interface
 
 An observations registry MUST implement `ILaunchObservations` and [ERC-165](./eip-165.md), returning `true` for the
-interface identifier of `ILaunchObservations`, `0x526791dc`, and for `0x01ffc9a7`.
+interface identifier of `ILaunchObservations`, `0x125ee299`, and for `0x01ffc9a7`.
 
 ```solidity
 interface ILaunchObservations {
-    enum KeyKind { None, Erc8376, Token }
+    enum KeyKind { None, Erc8376, Token, Erc8462Venue }
 
     enum Lean { None, Clear, Careful, Against }
 
@@ -114,15 +116,17 @@ interface ILaunchObservations {
         uint256 supersedes;
         bytes32 reportHash;
         bytes32 evidenceRoot;
+        bytes32 declarationId;
         string reportURI;
     }
 
-    event ObservationRecorded(uint256 indexed observationId, bytes32 indexed launchKey, address indexed detector, KeyKind kind, uint256 chainId, address token, uint64 observedBlock, bytes32 observedBlockHash, uint256 supersedes, Tally tally, bytes32 reportHash, string reportURI, bytes32 evidenceRoot);
+    event ObservationRecorded(uint256 indexed observationId, bytes32 indexed launchKey, address indexed detector, KeyKind kind, uint256 chainId, address token, bytes32 declarationId, uint64 observedBlock, bytes32 observedBlockHash, uint256 supersedes, Tally tally, bytes32 reportHash, string reportURI, bytes32 evidenceRoot);
     event FindingObserved(uint256 indexed observationId, bytes32 indexed kind, uint256 value, uint64 param, Lean lean);
     event DetectorIdentitySet(address indexed detector, address indexed identityRegistry, uint256 indexed agentId);
 
     function launchDirectory() external view returns (address);
     function tokenKey(uint256 chainId, address token) external pure returns (bytes32);
+    function declarationKey(uint256 chainId, bytes32 declarationId) external pure returns (bytes32);
     function recordObservation(ObservationInput calldata input, Finding[] calldata findings) external returns (uint256 observationId, bytes32 launchKey);
     function setDetectorIdentity(address identityRegistry, uint256 agentId) external;
     function detectorIdentity(address detector) external view returns (address identityRegistry, uint256 agentId);
@@ -157,7 +161,7 @@ interface ILaunchObservations {
 
 ### Launch keys
 
-An observation has one of two kinds of launch key.
+An observation has one of three kinds of launch key.
 
 - **ERC-8376 keys** (`KeyKind.Erc8376`). For a launch the directory lists, the launch key is its `launchId`. The
   registry MUST read the token from the directory's `tokenOf(launchId)` and MUST revert if it is the zero address, if
@@ -172,9 +176,30 @@ launchKey    = keccak256(abi.encode(TOKEN_SCOPED, chainId, token))
 TOKEN_SCOPED = keccak256("erc.launch-observations.token-scoped")
 ```
 
-A detector SHOULD observe a launch the directory lists under its `launchId`. A token key groups every launch of a token
-on a chain, including relaunches, and its observations describe the token at the observed block, whichever launch
-produced it. `KeyKind.None` is the kind of an observation that does not exist; recording with it MUST revert.
+- **ERC-8462 venue keys** (`KeyKind.Erc8462Venue`). For a launch an ERC-8462 declarations contract records under a
+  venue-scoped identifier (`IdKind.Venue`), the input's `launchId` carries that `declarationId`, derived as ERC-8462
+  specifies (`keccak256(abi.encode(VENUE_SCOPED, block.chainid, venue, token, creator, nonce))`), `chainId` is the chain
+  of the declarations contract, which is the chain the token is on, and `token` is the declared token. The launch key is
+  derived as below. The registry MUST revert if `launchId`, `chainId` or `token` is zero, MUST record `launchId` as the
+  observation's `declarationId`, and `declarationKey(chainId, declarationId)` MUST return the launch key.
+
+```
+launchKey      = keccak256(abi.encode(VENUE_DECLARED, chainId, declarationId))
+VENUE_DECLARED = keccak256("erc.launch-observations.venue-declared")
+```
+
+The domain tags keep the three kinds apart: a venue key never equals an ERC-8376 `launchId` or a token key, even when a
+detector passes a `launchId` or a token as the declaration identifier. The registry does not read the declarations
+contract: ERC-8462 has no canonical deployment, and the declarations contract a reader trusts may be on another chain.
+A venue key is therefore verified by the reader, who calls `getDeclaration(declarationId)` on the declarations contract
+it trusts and SHOULD treat the observation as unsupported unless that returns kind `IdKind.Venue` and the
+observation's `token`. `declarationId` is zero for the other key kinds; for an ERC-8376 key the launch key is itself
+the identifier ERC-8462 declares under.
+
+A detector SHOULD observe a launch the directory lists under its `launchId`, and a launch declared under a venue-scoped
+identifier under its venue key. A token key groups every launch of a token on a chain, including relaunches, and its
+observations describe the token at the observed block, whichever launch produced it. `KeyKind.None` is the kind of an
+observation that does not exist; recording with it MUST revert.
 
 The chain in a token key is the chain the token is on, which need not be the chain of the registry: a registry on one
 chain MAY hold observations of launches on another.
@@ -206,7 +231,8 @@ chain MAY hold observations of launches on another.
   `detector` and the block timestamp as `recordedAt`.
 - It MUST recheck the caller's linked identity as `setDetectorIdentity` checks it, and record it as `identityRegistry`
   and `agentId` only if the caller still holds it. Otherwise it MUST record both as zero, and MUST NOT revert for it.
-- It MUST emit `ObservationRecorded`, carrying `observedBlockHash` as given, then `FindingObserved` once per finding
+- It MUST emit `ObservationRecorded`, carrying the recorded `declarationId` and `observedBlockHash` as given, then
+  `FindingObserved` once per finding
   in the order given. `observedBlockHash` is emitted only; it is not part of the stored `Observation`.
 
 ### Findings
@@ -262,7 +288,13 @@ reporting a lock as unavailable once liquidity was demonstrably removed, apply u
 
 A detector SHOULD record a quantity that ERC-8376 defines under its signal kind rather than under a kind of its own,
 so that readers of both proposals read one definition. Liquidity in particular is read through the `lpLockedShare` and
-`lpLockRemaining` signals, not through a finding of this proposal.
+`lpLockRemaining` signals, not through a finding of this proposal. Where it counts liquidity that one account can
+remove, a detector that records these signals SHOULD compute them from ERC-8463 lockers, reading each locker's
+`lockedLiquidity(pool, poolId)` at the observed block as ERC-8463's detector inputs specify, with the observed block in
+place of the block that ends the window, and SHOULD count a locker's liquidity only if the locker holds it at the
+observed block, by ERC-8463's holding check (the position manager's `ownerOf(positionId)` is the locker and the
+position's liquidity is at least `amount`; for pool tokens, the locker's `balanceOf` is at least `permanent` plus
+`timed`), not because the locker is on a list of lockers of the detector's own.
 
 A detector MAY report kinds outside the core set, derived from a namespaced string under a prefix it controls, such as a
 domain it owns, and MUST NOT use the `erc.` prefix for them. The registry stores them without checking `param` or
@@ -280,7 +312,7 @@ required above, and MAY be higher where the report holds findings that have no t
 `reportURI` locates the detector's full report, and `reportHash` MUST be the `keccak256` of the exact bytes served at
 it. A detector SHOULD serve the report from content-addressed storage. The report SHOULD be a JSON object with at least:
 
-- `launchKey`, `kind`, `chainId`, `token`, `observedBlock` and `observedBlockHash`, as recorded;
+- `launchKey`, `kind`, `chainId`, `token`, `declarationId`, `observedBlock` and `observedBlockHash`, as recorded;
 - `findings`: every finding, typed or not, each with its kind or name, `param`, `value`, `lean` and a one-line
   description of how it was read;
 - `tally`: the three counts;
@@ -332,9 +364,10 @@ naming the registry and the `observationId`.
   with no observation it MUST return an observation whose kind is `KeyKind.None` and whose other fields are zero, and no
   findings. It MUST NOT revert.
 - `latestOf(launchKey, detector)` MUST return the identifier of the detector's latest observation of the key, or zero.
-- `latestByToken(chainId, token, detector)` MUST return the identifier of the detector's observation, under either key
+- `latestByToken(chainId, token, detector)` MUST return the identifier of the detector's observation, under any key
   kind, of `token` on chain `chainId` with the highest observed block (on a tie, the one recorded last), or zero. For
-  an ERC-8376 key, the chain is the registry's chain and the token is the one read from the directory.
+  an ERC-8376 key, the chain is the registry's chain and the token is the one read from the directory; for an ERC-8462
+  venue key, they are the ones the observation carries.
 - `latestFinding(chainId, token, detector, kind, param)` MUST return, for the observation `latestByToken` returns, its
   identifier, observed block and `recordedAt`, and the `value` and `lean` of its finding with that `kind` and `param`.
   When there is no such observation, the identifier, observed block and `recordedAt` MUST be zero. When there is no
@@ -392,10 +425,13 @@ This section is informative.
   those signals as ERC-8376 defines them records them under their signal kinds.
 - Against declarations: a declared allocation is compared with the funding-linked share at a block; a declared
   liquidity lock is compared with the `lpLockedShare` and `lpLockRemaining` signals at a block after the lock was
-  declared; a declared creator is compared with the creator the detector attributes the launch to. For a launch the
-  directory lists, both sides use the same `launchId`. A launch the directory does not list is declared under a
-  venue-scoped identifier, which includes the venue and so cannot equal a token key: a reader joins the two through
-  the token, reading the declarations of the observation's `token` with `declarationIdsOf`.
+  declared; a declared creator is compared with the creator the detector attributes the launch to. Both sides join
+  directly by key: for a launch the directory lists, both use the same `launchId`; for a launch declared under a
+  venue-scoped identifier, the observation carries that `declarationId` and its launch key is
+  `declarationKey(chainId, declarationId)`, so a reader goes from a declaration to its observations, and back, without
+  a lookup by token. An observation under a token key, of a launch declared under a venue-scoped identifier but
+  observed before the detector knew of it, is still joined through the token: a reader reads the declarations of the
+  observation's `token` with `declarationIdsOf`.
 
 ### Use before a trade
 
@@ -475,15 +511,21 @@ for the detail.
   observation's `reportURI`, `responseHash` its `reportHash`, `tag` `launch-observations:<observationId>`, and
   `response` the percentage of core kinds it read, which measures coverage, not safety.
 - **One call by token.** An agent holds a token address, not a launch key. `latestByToken` and `latestFinding` find a
-  trusted detector's newest reading of the token under either key kind without a directory lookup and without copying
+  trusted detector's newest reading of the token under any key kind without a directory lookup and without copying
   the report URI and every finding, so a guard can afford the read inside a trade. They return not read for anything
   missing, which makes absence fail closed.
 - **The reader sets the age.** A registry-wide limit on how old an observation may be would be a policy, and the right
   bound differs between a guard on a trade and a lender's daily check. The reader states its own bound.
-- **Keyed like declarations.** Using the ERC-8376 `launchId`, and reading the token from the directory as the
-  declarations proposal reads the creator, means declared and observed facts about a listed launch meet under one
-  identifier. The token key covers the many launches no directory lists, and its domain tag keeps it from matching a
-  `launchId` or a venue-scoped declaration identifier.
+- **Keyed like declarations.** Using the ERC-8376 `launchId`, and reading the token from the directory as ERC-8462
+  reads the creator, means declared and observed facts about a listed launch meet under one identifier. Accepting
+  ERC-8462's venue-scoped identifiers as well, which only the declaring venue can write under, means every declared
+  launch can be observed under its own key, as the ERC-8462 authors pointed out in review. The venue key is derived
+  under a domain tag of its own rather than used as is, so that an identifier the registry cannot verify on chain
+  can never land in the lists of an ERC-8376 launch or a token key. The token key covers launches nobody declared.
+- **Locks read, not listed.** If each detector counts the lockers on a list of its own, two detectors report different
+  `lpLockedShare` for the same pool and neither can show the other wrong. Reading `lockedLiquidity(pool, poolId)` from
+  ERC-8463 lockers, and counting a locker only where it holds the position, gives every detector the same figure from
+  the chain. This composition was suggested in review by the authors of ERC-8462 and ERC-8463.
 - **No bond.** A bond answers for a claim of abuse. Requiring one for facts would keep most detectors out, and the
   facts are checkable at their block without one. Readers decide which detectors to trust, by identity and by record.
 - **Optional identity, copied at record time.** An ERC-8004 identity lets a reader find a detector's reputation and
@@ -507,6 +549,11 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 - Under an ERC-8376 key, the registry records the token the directory names and the registry's chain id. An unlisted
   `launchId`, a non-zero input `chainId` or `token`, or a registry without a directory reverts.
 - A token key with a zero chain id, a zero token or a non-zero `launchId` reverts, as does `KeyKind.None`.
+- Under an ERC-8462 venue key, the launch key is `keccak256(abi.encode(VENUE_DECLARED, chainId, declarationId))`, the
+  observation records the declaration identifier, token and chain given, and `ObservationRecorded` carries the
+  identifier; the other key kinds record a zero `declarationId`. A zero identifier, chain id or token reverts; a
+  registry without a directory accepts the key. An ERC-8376 `launchId` passed as a declaration identifier lands under
+  its own venue key, not in the lists of the `launchId`.
 - No function changes or removes an observation; a second detector's observation leaves the first unchanged.
 - A detector's second observation of a key supersedes its first: `supersedes` names the first, `latestOf` returns the
   second, the first and its findings stay readable, and `observationsBy` lists both, oldest first. Another detector's
@@ -543,13 +590,13 @@ A conforming registry, next to an ERC-8376 directory that lists one launch, pass
 - The owner of an identity and its agent wallet can link it; another address, a registry without code, and a zero
   registry with a non-zero id cannot; a registry without `getAgentWallet` is read through `ownerOf`. An observation keeps
   the identity it was recorded under after the detector removes its link.
-- `latestByToken` finds a detector's observations of a token under both key kinds: a higher observed block under the
-  other key becomes the latest, a lower one does not, a tie goes to the one recorded last, and another detector or
-  another chain returns zero.
+- `latestByToken` finds a detector's observations of a token under every key kind: a higher observed block under
+  another key becomes the latest, a lower one does not, a tie goes to the one recorded last, and another detector or
+  another chain returns zero. `latestFinding` and `latestFindingFrom` read an observation under an ERC-8462 venue key.
 - `latestFinding` returns the identifier, observed block, `recordedAt`, value and lean of the finding asked for. With
   no observation it returns zeros, not read and `None`; for a kind or `param` the observation does not hold it returns
   the identifier and block with not read and `None`; a measured zero stays zero.
-- `supportsInterface` returns `true` for `0x526791dc` and `0x01ffc9a7`, and `false` for `0xffffffff`.
+- `supportsInterface` returns `true` for `0x125ee299` and `0x01ffc9a7`, and `false` for `0xffffffff`.
 
 ## Reference Implementation
 

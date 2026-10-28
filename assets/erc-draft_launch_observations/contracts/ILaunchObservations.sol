@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /// @title Launch Observations
 /// @notice Immutable, block-pinned facts an independent detector observed about a token launch.
 interface ILaunchObservations {
-    enum KeyKind { None, Erc8376, Token }
+    enum KeyKind { None, Erc8376, Token, Erc8462Venue }
 
     enum Lean { None, Clear, Careful, Against }
 
@@ -48,6 +48,7 @@ interface ILaunchObservations {
         uint256 supersedes;
         bytes32 reportHash;
         bytes32 evidenceRoot;
+        bytes32 declarationId;
         string reportURI;
     }
 
@@ -58,6 +59,7 @@ interface ILaunchObservations {
         KeyKind kind,
         uint256 chainId,
         address token,
+        bytes32 declarationId,
         uint64 observedBlock,
         bytes32 observedBlockHash,
         uint256 supersedes,
@@ -71,6 +73,7 @@ interface ILaunchObservations {
 
     function launchDirectory() external view returns (address);
     function tokenKey(uint256 chainId, address token) external pure returns (bytes32);
+    function declarationKey(uint256 chainId, bytes32 declarationId) external pure returns (bytes32);
     function recordObservation(ObservationInput calldata input, Finding[] calldata findings) external returns (uint256 observationId, bytes32 launchKey);
     function setDetectorIdentity(address identityRegistry, uint256 agentId) external;
     function detectorIdentity(address detector) external view returns (address identityRegistry, uint256 agentId);
