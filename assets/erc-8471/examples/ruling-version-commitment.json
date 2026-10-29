@@ -1,0 +1,29 @@
+{
+  "kind": "adrf-ruling",
+  "adrf": "0.1",
+  "registry": "0x00000000000000000000000000000000000ad2f0",
+  "chainId": 11155111,
+  "caseId": "0xfe27fb74fca28790944155a2143216f238bf10d75af90998a9ae8396eda74101",
+  "state": "Final",
+  "result": "Sustained",
+  "effectClass": "Binding",
+  "reason": "NONE",
+  "closure": "REVIEW_LAPSED",
+  "decidedAt": 1770090000,
+  "finalAt": 1770262800,
+  "roundCount": 1,
+  "sourceRound": 1,
+  "adoptedFromEarlierRound": false,
+  "bySilence": false,
+  "supportKinds": [
+    "signed",
+    "evidenced"
+  ],
+  "allowedEffect": "0xe074020771795b0306209d2eb94e35a28bef8f823d7e65825aa3c0757e4626a9",
+  "fallbackRef": null,
+  "policyId": "0x076505a99575bf1006c28609b6391f465246b7ded55d7a0d4eace05767a1b1b4",
+  "bindingId": "0x55f920dd648084063777791428da35a70a84a55e24b942e65e7cdf853378d379",
+  "source": "0x00000000000000000000000000000000000e5c20",
+  "proposition": "0x303ed8147bbd8b723fc71248571925479fc2363bac1b8bba54000d2ef99cb658",
+  "basis": "Sub-question 1 (evidenced, attestor panel 2 of 3, on the service log and response material of call 17): the version actually used did not match the committed one; the claim named FALSE as its supporting value. Sub-question 0 (computed): the declaration matched the commitment, which decides nothing about the version used. The ruling covers call 17 and the version obligation of its terms, nothing else about the provider or the model."
+}

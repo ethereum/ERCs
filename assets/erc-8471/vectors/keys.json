@@ -1,0 +1,29 @@
+{
+  "chainId": 11155111,
+  "object": {
+    "chainId": 11155111,
+    "target": "0x00000000000000000000000000000000000e5c20",
+    "id": 17,
+    "versionHash": "0xd7832517d2eafb927c2070f6b18d0414d6078433a7224b126568e33978f2cdc5"
+  },
+  "objectKey": "0xd13b621238beb05d7905add590cc8ae5ed58dcd910db86ba4fc8a047d4c8a61b",
+  "source": "0x00000000000000000000000000000000000e5c20",
+  "obligationRef": "0xe4299cd606e185c1a3e1647321d83d576cbad00ba1bda2b13cd8ace708a547a8",
+  "proposition": "0xddfeccf91df8f197c0f7a762c2e407e39b5482153a817a066da8fc6d42deb823",
+  "exclusivityKey": "0x0a41d4af19718df065c025a14ec014cb67e9f09631c55601437799c99784c248",
+  "registryId": {
+    "registry": "0x00000000000000000000000000000000000ad2f0",
+    "nonce": 1,
+    "id": "0x55f920dd648084063777791428da35a70a84a55e24b942e65e7cdf853378d379"
+  },
+  "bridge": {
+    "caseId": "0x55f920dd648084063777791428da35a70a84a55e24b942e65e7cdf853378d379",
+    "subQuestion": 0,
+    "obligationId": "0xb60baa62780dfa1d233b9a4faed02629b1249846d5d54906b541786f8a433f4a",
+    "question": "0xcd6728e2912f0c56310563c55757585b110ba7ec70bfeb3ccd567e0f37e5bccb",
+    "effectTrue": "0xb22ccd9787f60157dcf8f6a32eab5a454645a4830e80b34254ca2d07d2085841",
+    "effectFalse": "0x046e228493782e62fedebc450c0fe432b470bb972c39527db61a3abd833a8aef",
+    "disposition": "0xbeb05e221bdb799f2fa8788b5192ac86de01ea2aef7d37e528d2f4ab3196ddb7"
+  },
+  "note": "objectKey = keccak256(abi.encode(ObjectRef)); exclusivityKey = keccak256(abi.encode(source, obligationRef, proposition)); registry ids = keccak256(abi.encode(chainId, registry, nonce)); the bridge obligation id = keccak256(abi.encode(caseId, subQuestion)) and question = keccak256(abi.encode(keccak256(\"adrf:judgment/v1\"), subQuestion))."
+}
