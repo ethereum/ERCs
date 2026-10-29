@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ADRFTypes as T} from "../ADRFTypes.sol";
 
-/// @title  ADRFStore — storage layout of the dispute registry, shared with its externally linked libraries
+/// @title  ADRFStore — storage record of the dispute registry, shared with its modules (see ADRFStorage)
 library ADRFStore {
     struct Data {
         uint256 nonce;

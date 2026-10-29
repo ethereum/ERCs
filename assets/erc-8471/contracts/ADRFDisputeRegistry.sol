@@ -1,196 +1,112 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity ^0.8.24;
 
-import {ADRFTypes as T} from "./ADRFTypes.sol";
 import {ADRFErrors as E} from "./ADRFErrors.sol";
-import {ADRFStore as S} from "./libraries/ADRFStore.sol";
-import {ADRFAdmission} from "./libraries/ADRFAdmission.sol";
-import {ADRFLifecycle} from "./libraries/ADRFLifecycle.sol";
-import {IADRFDisputeRegistry} from "./interfaces/IADRFDisputeRegistry.sol";
+import {ADRFStorage, ADRFEvents, ADRFModule} from "./modules/ADRFModule.sol";
+import {IADRFDisputeRegistry as I} from "./interfaces/IADRFDisputeRegistry.sol";
 import {IADRFPolicyRegistry} from "./interfaces/IADRFPolicyRegistry.sol";
 
-/// @title  ADRFDisputeRegistry — AI Dispute Resolution Framework, dispute registry (reference kernel v0.1)
+/// @title  ADRFDisputeRegistry — AI Dispute Resolution Framework, dispute registry (reference kernel)
 /// @notice Non-upgradeable. Holds the normative record of bindings, cases, findings, round decisions,
-///         rulings, enactment reports and leads. Admission is an algorithmic check of the five criteria
-///         (identifiable object and event, accountable respondent, pre-declared norm, available method,
-///         open window) against what the obligation source attests; effect authority comes only from the
-///         binding; the registry never moves funds and never executes an effect. The admission and
-///         lifecycle logic lives in two externally linked libraries that share this contract's storage.
-contract ADRFDisputeRegistry is IADRFDisputeRegistry {
-    IADRFPolicyRegistry public immutable override policies;
+///         rulings, enactment reports and leads, and exposes the whole of IADRFDisputeRegistry at one address.
+///         Admission is an algorithmic check of the five criteria (identifiable object and event, accountable
+///         respondent, pre-declared norm, available method, open window) against what the obligation source
+///         attests; effect authority comes only from the binding; the registry never moves funds and never
+///         executes an effect.
+///
+///         The record is this contract's storage. Its functions are implemented by six modules that share the
+///         storage layout (`ADRFStorage`) and that this contract runs by delegatecall with the original calldata
+///         and sender, so that every entry is written and read under this one address: the binding module
+///         (bindings and their reads, acceptance, withdrawal), the filing module (filing and admission, Sections 5
+///         and 6 of the proposal), the resolution module (the answer, the resolution of sub-questions and reviews,
+///         Section 8), the decision module (round decisions and finality, Section 9), the record module (the case
+///         reads, the evidence commitments, the enactment log and the leads) and the outcome module (the reads of
+///         sub-questions, findings, round decisions, rulings and enactment reports). The modules are fixed at construction and
+///         cannot be replaced; a module refuses to run on its own storage and must have been built for this
+///         registry's policy registry. The split keeps every deployable unit well within the per-transaction gas
+///         limits of current networks and changes neither the interface, nor any identifier, nor the record;
+///         ERC-165, ERC-6372 and the interface identifier are answered here.
+contract ADRFDisputeRegistry is ADRFStorage, ADRFEvents {
+    IADRFPolicyRegistry public immutable policies;
+    address public immutable bindingModule;
+    address public immutable filingModule;
+    address public immutable resolutionModule;
+    address public immutable decisionModule;
+    address public immutable recordModule;
+    address public immutable outcomeModule;
 
-    S.Data private _s;
-
-    constructor(IADRFPolicyRegistry policies_) {
+    constructor(IADRFPolicyRegistry policies_, address binding_, address filing_, address resolution_, address decision_, address record_, address outcome_) {
         policies = policies_;
+        bindingModule = checkModule(binding_, policies_);
+        filingModule = checkModule(filing_, policies_);
+        resolutionModule = checkModule(resolution_, policies_);
+        decisionModule = checkModule(decision_, policies_);
+        recordModule = checkModule(record_, policies_);
+        outcomeModule = checkModule(outcome_, policies_);
     }
+
+    /// A module must exist and must have been built for this policy registry.
+    function checkModule(address module, IADRFPolicyRegistry policies_) private view returns (address) {
+        if (module.code.length == 0 || ADRFModule(module).policies() != policies_) revert E.ADRF_InvalidModule(module);
+        return module;
+    }
+
+    // ------------------------------------------------------------------ routing
+
+    /// Runs the function of IADRFDisputeRegistry named by the selector in the module that holds it, on this
+    /// contract's storage, with the original calldata and `msg.sender`; its return data or revert data is passed
+    /// back unchanged. Unknown selectors revert; no ether is accepted.
+    fallback() external {
+        address module = moduleOf(msg.sig);
+        assembly ("memory-safe") {
+            calldatacopy(0, 0, calldatasize())
+            let ok := delegatecall(gas(), module, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch ok
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+
+    /// The module that implements a function of IADRFDisputeRegistry; reverts for any other selector.
+    function moduleOf(bytes4 selector) public view returns (address) {
+        if (
+            selector == I.bind.selector || selector == I.revokeBinding.selector || selector == I.accept.selector
+                || selector == I.expireAcceptance.selector || selector == I.withdraw.selector || selector == I.getBinding.selector
+                || selector == I.isAuthorizedEffect.selector || selector == I.isExecutor.selector || selector == I.isBeneficiary.selector
+        ) return bindingModule;
+        if (selector == I.file.selector || selector == I.fileAdvisory.selector) return filingModule;
+        if (
+            selector == I.answer.selector || selector == I.resolveFormal.selector || selector == I.resolveEvidenced.selector
+                || selector == I.openJudgment.selector || selector == I.recordJudgedFinding.selector || selector == I.requestReview.selector
+        ) return resolutionModule;
+        if (
+            selector == I.applySilence.selector || selector == I.decide.selector || selector == I.expireDecision.selector
+                || selector == I.finalize.selector || selector == I.enforceDeadline.selector
+        ) return decisionModule;
+        if (
+            selector == I.submitEvidence.selector || selector == I.reportEnactment.selector || selector == I.reportLead.selector
+                || selector == I.getCase.selector || selector == I.getClock.selector || selector == I.activeCaseOf.selector
+                || selector == I.finalCaseOf.selector || selector == I.exclusivityKeyOf.selector || selector == I.objectKeyOf.selector
+        ) return recordModule;
+        if (
+            selector == I.getSubQuestion.selector || selector == I.getFinding.selector || selector == I.getRound.selector
+                || selector == I.getRuling.selector || selector == I.getEnactment.selector
+        ) return outcomeModule;
+        revert E.ADRF_UnknownFunction(selector);
+    }
+
+    // ------------------------------------------------------------------ ERC-165 and clock (ERC-6372)
 
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
-        return interfaceId == 0x01ffc9a7 || interfaceId == type(IADRFDisputeRegistry).interfaceId;
+        return interfaceId == 0x01ffc9a7 || interfaceId == type(I).interfaceId;
     }
 
-    // ------------------------------------------------------------------ clock (ERC-6372)
-
-    function clock() public view returns (uint48) {
+    function clock() external view returns (uint48) {
         return uint48(block.timestamp);
     }
 
     function CLOCK_MODE() external pure returns (string memory) {
         return "mode=timestamp";
-    }
-
-    // ------------------------------------------------------------------ bindings
-
-    function bind(T.BindingInput calldata input) external returns (bytes32 bindingId) {
-        return ADRFAdmission.bind(_s, policies, input, msg.sender);
-    }
-
-    function revokeBinding(bytes32 bindingId) external {
-        ADRFAdmission.revokeBinding(_s, bindingId, msg.sender);
-    }
-
-    // ------------------------------------------------------------------ filing and admission
-
-    function file(bytes32 bindingId, T.ClaimInput calldata claim) external returns (bytes32 caseId) {
-        return ADRFAdmission.file(_s, policies, bindingId, claim, msg.sender);
-    }
-
-    function fileAdvisory(bytes32 policyId, T.ClaimInput calldata claim, uint64 eventAt, uint64 normDeclaredAt)
-        external returns (bytes32 caseId)
-    {
-        return ADRFAdmission.fileAdvisory(_s, policies, policyId, claim, eventAt, normDeclaredAt, msg.sender);
-    }
-
-    function accept(bytes32 caseId) external {
-        ADRFAdmission.accept(_s, policies, caseId, msg.sender);
-    }
-
-    function expireAcceptance(bytes32 caseId) external {
-        ADRFAdmission.expireAcceptance(_s, policies, caseId);
-    }
-
-    function withdraw(bytes32 caseId) external {
-        ADRFAdmission.withdraw(_s, caseId, msg.sender);
-    }
-
-    // ------------------------------------------------------------------ evidence and resolution
-
-    function submitEvidence(bytes32 caseId, uint32 subQuestion, bytes32 commitment, string calldata uri) external {
-        T.CaseHeader storage c = _s.cases[caseId];
-        if (c.state != T.ProcedureState.Admitted && c.state != T.ProcedureState.Provisional) revert E.ADRF_WrongState(caseId, uint8(c.state));
-        if (subQuestion >= c.subQuestionCount) revert E.ADRF_BadSubQuestions("index");
-        if (uint64(block.timestamp) > _s.clocks[caseId].evidenceCloseAt) revert E.ADRF_WindowClosed("evidence");
-        emit EvidenceSubmitted(caseId, subQuestion, msg.sender, commitment, uri);
-    }
-
-    function answer(bytes32 caseId) external {
-        ADRFLifecycle.answer(_s, caseId, msg.sender);
-    }
-
-    function applySilence(bytes32 caseId) external {
-        ADRFLifecycle.applySilence(_s, policies, caseId);
-    }
-
-    function resolveFormal(bytes32 caseId, uint32 subQuestion, bytes calldata inputs) external {
-        ADRFLifecycle.resolveFormal(_s, caseId, subQuestion, inputs);
-    }
-
-    function resolveEvidenced(bytes32 caseId, uint32 subQuestion, bytes calldata bundle) external {
-        ADRFLifecycle.resolveEvidenced(_s, caseId, subQuestion, bundle);
-    }
-
-    function openJudgment(bytes32 caseId, uint32 subQuestion) external {
-        ADRFLifecycle.openJudgment(_s, caseId, subQuestion);
-    }
-
-    function recordJudgedFinding(bytes32 caseId, uint32 subQuestion, T.Value value, bytes32 resultHash, T.JudgmentSource calldata source) external {
-        ADRFLifecycle.recordJudgedFinding(_s, caseId, subQuestion, value, resultHash, source, msg.sender);
-    }
-
-    // ------------------------------------------------------------------ decision, review and finality
-
-    function decide(bytes32 caseId) external {
-        ADRFLifecycle.decide(_s, policies, caseId);
-    }
-
-    function expireDecision(bytes32 caseId) external {
-        ADRFLifecycle.expireDecision(_s, policies, caseId);
-    }
-
-    function requestReview(bytes32 caseId, uint8 reviewType, uint32[] calldata subQuestions) external {
-        ADRFLifecycle.requestReview(_s, policies, caseId, reviewType, subQuestions, msg.sender);
-    }
-
-    function finalize(bytes32 caseId) external {
-        ADRFLifecycle.finalize(_s, policies, caseId);
-    }
-
-    function enforceDeadline(bytes32 caseId) external {
-        ADRFLifecycle.enforceDeadline(_s, policies, caseId);
-    }
-
-    // ------------------------------------------------------------------ enactment log and leads
-
-    /// Informative log of what an authorized executor did with one effect. Only Final (or Expired) Binding
-    /// cases; only the source or an executor named by the binding; only the effect the ruling allows, or a
-    /// procedural/economic effect the binding authorized. Enacted is never overwritten; Unknown is not Failed.
-    function reportEnactment(bytes32 caseId, bytes32 effectId, T.EnactmentStatus status, bytes32 ref) external {
-        T.CaseHeader storage c = _s.cases[caseId];
-        if (c.state != T.ProcedureState.Final && c.state != T.ProcedureState.Expired) revert E.ADRF_WrongState(caseId, uint8(c.state));
-        if (c.effectClass != T.EffectClass.Binding) revert E.ADRF_AdvisoryNoEffect(caseId);
-        if (msg.sender != c.source && !_s.executor[c.bindingId][msg.sender]) revert E.ADRF_NotExecutor(msg.sender);
-        if (status == T.EnactmentStatus.NotRequested) revert E.ADRF_BadStatus();
-        if (effectId == bytes32(0)) revert E.ADRF_EffectNotAllowed(effectId);
-        if (effectId != _s.rulings[caseId].allowedEffect) {
-            (bool declared, T.EffectCategory cat) = policies.effectCategory(c.policyId, effectId);
-            if (!declared || cat != T.EffectCategory.PROCEDURAL_ECONOMIC || !_s.authorizedEffect[c.bindingId][effectId]) {
-                revert E.ADRF_EffectNotAllowed(effectId);
-            }
-        }
-        T.Enactment storage en = _s.enactments[caseId][effectId];
-        if (en.status == T.EnactmentStatus.Enacted) revert E.ADRF_EnactmentLocked(effectId);
-        en.status = status;
-        en.reporter = msg.sender;
-        en.ref = ref;
-        en.at = uint64(block.timestamp);
-        emit EnactmentReported(caseId, effectId, msg.sender, status, ref);
-    }
-
-    /// A lead is a record that someone reported something about an object. It opens no case and confers no
-    /// standing, no power and no presumption.
-    function reportLead(T.ObjectRef calldata object, bytes32 commitment, string calldata uri) external {
-        emit LeadReported(keccak256(abi.encode(object)), msg.sender, commitment, uri);
-    }
-
-    // ------------------------------------------------------------------ reads
-
-    function getBinding(bytes32 bindingId) external view returns (T.Binding memory) { return _s.bindings[bindingId]; }
-    function isAuthorizedEffect(bytes32 bindingId, bytes32 effectId) external view returns (bool) { return _s.authorizedEffect[bindingId][effectId]; }
-    function isExecutor(bytes32 bindingId, address account) external view returns (bool) {
-        return _s.executor[bindingId][account] || _s.bindings[bindingId].source == account;
-    }
-    function isBeneficiary(bytes32 bindingId, address account) external view returns (bool) { return _s.beneficiary[bindingId][account]; }
-    function getCase(bytes32 caseId) external view returns (T.CaseHeader memory) { return _s.cases[caseId]; }
-    function getClock(bytes32 caseId) external view returns (T.CaseClock memory) { return _s.clocks[caseId]; }
-    function getSubQuestion(bytes32 caseId, uint32 subQuestion) external view returns (T.SubQuestion memory) {
-        if (subQuestion >= _s.cases[caseId].subQuestionCount) revert E.ADRF_BadSubQuestions("index");
-        return _s.subs[caseId][subQuestion];
-    }
-    function getFinding(bytes32 caseId, uint32 subQuestion) external view returns (T.Finding memory) { return _s.findings[caseId][subQuestion]; }
-    function getRound(bytes32 caseId, uint32 round) external view returns (T.RoundRecord memory) { return _s.rounds[caseId][round]; }
-    function getRuling(bytes32 caseId) external view returns (T.Ruling memory u) {
-        u = _s.rulings[caseId];
-        if (u.state == T.ProcedureState.None) u.state = _s.cases[caseId].state;
-    }
-    function getEnactment(bytes32 caseId, bytes32 effectId) external view returns (T.Enactment memory) { return _s.enactments[caseId][effectId]; }
-    function activeCaseOf(bytes32 exclusivityKey) external view returns (bytes32) { return _s.activeCase[exclusivityKey]; }
-    function finalCaseOf(bytes32 exclusivityKey) external view returns (bytes32) { return _s.finalCase[exclusivityKey]; }
-
-    function exclusivityKeyOf(address source, bytes32 obligationRef, bytes32 proposition) external pure returns (bytes32) {
-        return keccak256(abi.encode(source, obligationRef, proposition));
-    }
-
-    function objectKeyOf(T.ObjectRef calldata object) external pure returns (bytes32) {
-        return keccak256(abi.encode(object));
     }
 }

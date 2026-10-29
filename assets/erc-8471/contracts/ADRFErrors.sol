@@ -54,4 +54,9 @@ library ADRFErrors {
     error ADRF_EffectNotAllowed(bytes32 effectId);
     error ADRF_EnactmentLocked(bytes32 effectId);
     error ADRF_BadStatus();
+
+    // registry modules
+    error ADRF_InvalidModule(address module);
+    error ADRF_UnknownFunction(bytes4 selector);
+    error ADRF_DirectCall();
 }
