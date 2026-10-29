@@ -1,0 +1,53 @@
+{
+    "$schema": "./erc7730-v3.0.0-next.schema.json",
+
+    "$comment": "This example ERC-7730 showcases usage of value boundaries to refuse signing implausible parameter values.",
+
+    "context": {
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0x00112233445566778899AABBCCDDEEFF00112233"
+                }
+            ]
+        }
+    },
+
+    "metadata": {
+        "owner": "Example",
+        "info": {
+            "url": "https://example.io/"
+        }
+    },
+
+    "display": {
+        "formats": {
+            "pauseAccount(uint256 time,uint8 mode)": {
+                "intent": "Pause account",
+                "fields": [
+                    {
+                        "$id": "Time must be a plausible freeze duration, at most 10 days",
+                        "path": "time",
+                        "label": "Freeze duration",
+                        "format": "duration",
+                        "boundaries": {
+                            "max": "864000",
+                            "errorMessage": "You are locking your account for {time} seconds — this may be a mistake."
+                        }
+                    },
+                    {
+                        "$id": "Mode must be one of the known pause modes, but is still shown to the user",
+                        "path": "mode",
+                        "label": "Pause mode",
+                        "format": "raw",
+                        "boundaries": {
+                            "mustMatch": [0, 1, 2],
+                            "errorMessage": "Unknown pause mode {mode} — refusing to sign."
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
