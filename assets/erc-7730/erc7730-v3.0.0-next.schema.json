@@ -904,7 +904,8 @@
                 {"not": { "required": ["callee", "calleePath"] }},
                 {"not": { "required": ["selector", "selectorPath"] }},
                 {"not": { "required": ["amount", "amountPath"] }},
-                {"not": { "required": ["spender", "spenderPath"] }}
+                {"not": { "required": ["spender", "spenderPath"] }},
+                {"not": { "required": ["chainId", "chainIdPath"] }}
             ],
             "additionalProperties": false
         },
