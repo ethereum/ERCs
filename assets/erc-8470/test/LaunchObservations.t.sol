@@ -922,13 +922,13 @@ contract LaunchObservationsTest {
         _etchHistory();
         bytes32 real = keccak256("real L2 block");
         MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 100, real);
-        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 8_191, real);
+        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 300_000, real);
 
         vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
         reg.recordObservation(_ownChainInput(L2_NOW - 100, keccak256("reorged out")), _none());
         // The edge of the window is still checked.
         vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
-        reg.recordObservation(_ownChainInput(L2_NOW - 8_191, keccak256("reorged out")), _none());
+        reg.recordObservation(_ownChainInput(L2_NOW - 300_000, keccak256("reorged out")), _none());
 
         reg.recordObservation(_ownChainInput(L2_NOW - 100, real), _none());
         require(_checked(1), "hashChecked true through EIP-2935");
@@ -938,13 +938,17 @@ contract LaunchObservationsTest {
         vm.chainId(RH_CHAIN);
         _etchArbSys(L2_NOW);
         _etchHistory();
-        // Past the 8191-block window the history is not asked, even if it would answer.
-        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 8_192, keccak256("real"));
-        reg.recordObservation(_ownChainInput(L2_NOW - 8_192, keccak256("unchecked")), _none());
-        // Inside the window, a block the history has no hash for (it reverts) is not checked, and Arbitrum
-        // gets no blockhash fallback.
+        // No window is assumed: a block far past 8191 that the history still holds is checked (Robinhood Chain's
+        // history held ~393k blocks, about 11 h, when measured on 2026-10-29) ...
+        // ... and a block the history has no hash for (it reverts) is not checked, with no blockhash fallback on
+        // Arbitrum, past the history's reach or near the head. (Oldest first: a detector's blocks only go forward.)
+        bytes32 real = keccak256("real");
+        MockBlockHistory(payable(HISTORY)).setHash(L2_NOW - 300_000, real);
+        reg.recordObservation(_ownChainInput(L2_NOW - 400_000, keccak256("unchecked")), _none());
+        reg.recordObservation(_ownChainInput(L2_NOW - 300_000, real), _none());
         reg.recordObservation(_ownChainInput(L2_NOW - 10, keccak256("unchecked")), _none());
-        require(!_checked(1) && !_checked(2), "hashChecked false out of the window and with no history hash");
+        require(_checked(2), "hashChecked true deep in the history");
+        require(!_checked(1) && !_checked(3), "hashChecked false where the history has no hash");
     }
 
     function test_PlainEvmHistoryExtendsWindow() public {

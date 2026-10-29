@@ -24,7 +24,6 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     // read from ArbSys; past block hashes come from the EIP-2935 history contract where the chain deploys it.
     address public constant ARB_SYS = address(100);
     address public constant HISTORY_STORAGE = 0x0000F90827F1C53a10cb7A02335B175320002935;
-    uint256 public constant HISTORY_WINDOW = 8191;
     uint256 public constant BLOCKHASH_WINDOW = 256;
 
     // Key derivation
@@ -294,7 +293,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     }
 
     /// @dev On the registry's own chain the block must exist and its hash must be given. The hash must match the
-    /// EIP-2935 history contract where it answers for the block (8191 blocks), else `blockhash` within 256 blocks on a
+    /// EIP-2935 history contract where it answers for the block (its window is the chain's), else `blockhash` within 256 blocks on a
     /// chain whose `blockhash` takes its own block numbers. Otherwise it is recorded unchecked for readers to compare.
     /// Returns true only when the hash was read on chain and matched.
     function _checkOwnChainBlock(uint64 observedBlock, bytes32 observedBlockHash) private view returns (bool) {
@@ -303,7 +302,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         if (observedBlockHash == bytes32(0)) revert InvalidObservedBlockHash();
         uint256 age = current - observedBlock;
         bytes32 known = bytes32(0);
-        if (age <= HISTORY_WINDOW && HISTORY_STORAGE.code.length != 0) {
+        // The history contract is asked for any block: how far back it answers depends on the chain (8191 blocks on
+        // Ethereum; on Arbitrum chains the blocks made while the parent chain builds 8192), and a refusal is "not read".
+        if (HISTORY_STORAGE.code.length != 0) {
             (bool ok, bytes memory ret) = HISTORY_STORAGE.staticcall(abi.encode(uint256(observedBlock)));
             if (ok && ret.length >= 32) known = abi.decode(ret, (bytes32));
         }
