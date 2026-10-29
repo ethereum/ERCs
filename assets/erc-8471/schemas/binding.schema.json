@@ -13,7 +13,8 @@
     "mode",
     "authorizedEffects",
     "executors",
-    "clockRules"
+    "clockRules",
+    "recognizedBreaches"
   ],
   "properties": {
     "kind": {
@@ -188,6 +189,39 @@
         }
       },
       "additionalProperties": false
+    },
+    "recognizedBreaches": {
+      "type": "array",
+      "description": "The breach predicates the source recognizes under its norm, per event: a Binding claim is admitted only if its decisive sub-question, in the claim's direction, is one of them (recognizesBreach of IADRFObligationSource).",
+      "items": {
+        "type": "object",
+        "required": [
+          "event",
+          "obligationKind",
+          "proposition",
+          "breachWhen"
+        ],
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "obligationKind": {
+            "type": "integer"
+          },
+          "proposition": {
+            "type": "string",
+            "description": "the proposition (its canonical statement or the rule that derives it)"
+          },
+          "breachWhen": {
+            "type": "string",
+            "enum": [
+              "TRUE",
+              "FALSE"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "noDecisionDisposition": {
       "type": "object",

@@ -4,19 +4,19 @@
   "caseId": "0x4f1690c036082cbbb0ee9dc1c4f7a5fb954c2d832cfd30103cf66baacaea13c8",
   "subQuestion": 0,
   "round": 1,
-  "proposition": "0xd4387ddd3935a55f519755985a76af50100bff40c7146c15562cf1935346b2b6",
-  "statement": "The settlement count of call 17 in the escrow exceeds one.",
+  "proposition": "0xfd722fd37302b6cb9257f5d2c9905ba4285366459d2d892ddbe450d1ca3b9bcf",
+  "statement": "Settlement 2 of call 17 in the escrow exceeds the limit of one charge.",
   "value": "TRUE",
   "method": {
     "address": "0x0000000000000000000000000000000000000f01",
     "qType": "FORMAL",
-    "version": "DuplicateSettlementVerifier v0.1",
+    "version": "DuplicateSettlementVerifier v0.2 (one proposition per settlement)",
     "params": "0x00000000000000000000000000000000000000000000000000000000000e5c20"
   },
   "inputs": {
-    "description": "abi.encode(uint256(17))",
-    "inputsHash": "0x31ecc21a745e3968a04e9570e4425bc18fa8019c68028196b546d1669c200c68",
-    "resultHash": "0x1732740f63142557d5f152f07ec4fb043d8b030869b80de5eab8ac199bf60633"
+    "description": "abi.encode(uint256(17), uint32(2))",
+    "inputsHash": "0xa4e0f4432e44d027a7b3f953940f096bca7a9bd910297cad2ba7c703c2b799d3",
+    "resultHash": "0x7d5476a895f80ec0c85711cd0a9ba9f6fc28d224fb0c0548ae516394ad7f3708"
   },
   "dependsOn": [],
   "externalPremises": [

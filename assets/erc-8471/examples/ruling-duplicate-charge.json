@@ -24,5 +24,5 @@
   "bindingId": "0x55f920dd648084063777791428da35a70a84a55e24b942e65e7cdf853378d379",
   "source": "0x00000000000000000000000000000000000e5c20",
   "proposition": "0xddfeccf91df8f197c0f7a762c2e407e39b5482153a817a066da8fc6d42deb823",
-  "basis": "Sub-question 0 (computed, by the settlement verifier over call 17): the settlement count exceeds one. Nothing about the quality of the service is decided."
+  "basis": "Sub-question 0 (computed, by the settlement verifier over call 17): settlement 2 exists and exceeds the limit of one charge. Nothing about the quality of the service is decided, and nothing about a later settlement."
 }

@@ -10,9 +10,10 @@ import {IADRFObligationSource} from "../interfaces/IADRFObligationSource.sol";
 
 /// @title  ADRFFilingModule — filing and admission (module of the dispute registry)
 /// @notice Admission is the algorithmic check of the five criteria against the obligation source's
-///         attestations: identifiable object and event, accountable respondent, pre-declared norm, available
-///         method for every sub-question, open window; plus standing, authorized effects, clock compatibility
-///         and exclusivity. It never pre-judges the merits.
+///         attestations: identifiable object and event, accountable respondent, pre-declared norm that
+///         recognizes the claim (the decisive sub-question, in the claim's direction, is a breach the source
+///         attests), available method for every sub-question, open window; plus standing, authorized effects,
+///         clock compatibility and exclusivity on the decisive proposition. It never pre-judges the merits.
 contract ADRFFilingModule is ADRFModule {
     constructor(IADRFPolicyRegistry policies_) ADRFModule(policies_) {}
 
@@ -37,6 +38,12 @@ contract ADRFFilingModule is ADRFModule {
         if (info.normRef != claim.normRef) revert E.ADRF_NormNotApplicable("norm not recognised by source");
         if (info.normDeclaredAt > info.eventAt) revert E.ADRF_NormNotApplicable("norm declared after event");
         if (info.obligationKind != 0 && info.obligationKind != claim.obligationKind) revert E.ADRF_NormNotApplicable("obligation kind");
+        // the contested point: the decisive sub-question, in the claim's direction, must be a breach the source
+        // recognizes under the norm it attested; the filer names the question and the sense, the source confirms both
+        T.SubQuestionInput calldata dq = claim.subQuestions[claim.decisive];
+        if (!src.recognizesBreach(claim.object, claim.eventRef, dq.obligationKind, dq.proposition, claim.supportsWhen)) {
+            revert E.ADRF_NormNotApplicable("claim not recognised by source");
+        }
         if (S.now64() > info.eventAt + track.filingWindow) revert E.ADRF_OutsideWindow("filing");
         if (claim.respondent != b.source && !src.isParty(claim.object, claim.eventRef, claim.respondent)) {
             revert E.ADRF_NotAccountable(claim.respondent);
@@ -67,7 +74,7 @@ contract ADRFFilingModule is ADRFModule {
         _s.clocks[caseId].filedAt = S.now64();
 
         if (effectClass == T.EffectClass.Binding) {
-            bytes32 key = S.exclusivityKey(b.source, info.obligationRef, claim.proposition);
+            bytes32 key = S.exclusivityKey(b.source, info.obligationRef, dq.proposition);
             if (_s.finalCase[key] != bytes32(0)) revert E.ADRF_Duplicate(key, _s.finalCase[key]);
             bytes32 active = _s.activeCase[key];
             if (active != bytes32(0)) {

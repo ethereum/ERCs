@@ -205,7 +205,7 @@ library ADRFTypes {
     struct ClaimInput {
         ObjectRef         object;
         bytes32           eventRef;
-        bytes32           proposition;           // the contested point (hash of the claim statement)
+        bytes32           proposition;           // the claim as stated (hash of the claim statement); the contested point is the decisive sub-question's proposition
         bytes32           normRef;
         bytes32           clause;
         uint8             obligationKind;
@@ -284,7 +284,7 @@ library ADRFTypes {
         bytes32        clause;
         uint8          obligationKind;
         bytes32        obligationRef;
-        bytes32        exclusivityKey;   // keccak256(abi.encode(source, obligationRef, proposition)) for Binding cases
+        bytes32        exclusivityKey;   // keccak256(abi.encode(source, obligationRef, decisive sub-question proposition)) for Binding cases
         bytes32        effectOnSustained;
         bytes32        effectOnNotSustained;
         bytes32        fallbackRef;

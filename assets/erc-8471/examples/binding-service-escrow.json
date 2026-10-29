@@ -42,8 +42,8 @@
     "clock": "mode=timestamp (the registry clock)",
     "triggerEvents": [
       {
-        "eventRef": "0x6522b1ac0c0c078f1fcc696b9cf72c59bb3624b7d2a9d82059b2f3832fd9973d",
-        "label": "settlement of the call (obligation: payment, kind limit)",
+        "eventRef": "0x9828b053839bbaeed1683f291fc6c99a48b8408fcc960f74f269d0092c0b6b69",
+        "label": "settlement n of the call, n >= 2, eventRef = keccak256(abi.encode(keccak256(\"settlement\"), n)) (obligation: payment, kind limit; each charge beyond the first is its own event); shown for n = 2",
         "obligationKind": 3
       },
       {
@@ -52,10 +52,42 @@
         "obligationKind": 1
       }
     ],
-    "adoptionDeadlineRule": "eventAt + the call dispute period; a case is admitted only if that deadline is at least maxTotalDuration + enactmentMargin away"
+    "adoptionDeadlineRule": "eventAt + the call dispute period; each settlement is held by the escrow until then and only released funds can be withdrawn; a case is admitted only if that deadline is at least maxTotalDuration + enactmentMargin away"
   },
   "noDecisionDisposition": {
     "ref": "0x59908be9e0c8081b785a87a2710908bb7da46e4e05ccc715447f3e81156b386e",
     "description": "balances stay where the call left them"
-  }
+  },
+  "recognizedBreaches": [
+    {
+      "event": "settlement n (n >= 2)",
+      "obligationKind": 3,
+      "proposition": "the duplicate-settlement verifier's proposition for (this escrow, the call, n)",
+      "breachWhen": "TRUE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the deliverable conforms to the acceptance criteria",
+      "breachWhen": "FALSE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the service was actually performed",
+      "breachWhen": "FALSE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the version actually used for the call matches the committed version",
+      "breachWhen": "FALSE"
+    },
+    {
+      "event": "delivery",
+      "obligationKind": 1,
+      "proposition": "the declared-version verifier's proposition for (this escrow, the call)",
+      "breachWhen": "TRUE"
+    }
+  ]
 }

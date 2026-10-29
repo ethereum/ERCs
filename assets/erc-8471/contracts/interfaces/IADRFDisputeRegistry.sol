@@ -81,6 +81,7 @@ interface IADRFDisputeRegistry {
     function getEnactment(bytes32 caseId, bytes32 effectId) external view returns (T.Enactment memory);
     function activeCaseOf(bytes32 exclusivityKey) external view returns (bytes32);
     function finalCaseOf(bytes32 exclusivityKey) external view returns (bytes32);
+    /// `proposition` is the decisive sub-question's proposition: the contested point of a Binding case.
     function exclusivityKeyOf(address source, bytes32 obligationRef, bytes32 proposition) external pure returns (bytes32);
     function objectKeyOf(T.ObjectRef calldata object) external pure returns (bytes32);
 

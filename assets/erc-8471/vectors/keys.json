@@ -9,8 +9,8 @@
   "objectKey": "0xd13b621238beb05d7905add590cc8ae5ed58dcd910db86ba4fc8a047d4c8a61b",
   "source": "0x00000000000000000000000000000000000e5c20",
   "obligationRef": "0xe4299cd606e185c1a3e1647321d83d576cbad00ba1bda2b13cd8ace708a547a8",
-  "proposition": "0xddfeccf91df8f197c0f7a762c2e407e39b5482153a817a066da8fc6d42deb823",
-  "exclusivityKey": "0x0a41d4af19718df065c025a14ec014cb67e9f09631c55601437799c99784c248",
+  "proposition": "0xfd722fd37302b6cb9257f5d2c9905ba4285366459d2d892ddbe450d1ca3b9bcf",
+  "exclusivityKey": "0x65a85b428060e55371f466914d88bdec6e35ac05fd6cfa215c75892f5f64c5c9",
   "registryId": {
     "registry": "0x00000000000000000000000000000000000ad2f0",
     "nonce": 1,
@@ -25,5 +25,5 @@
     "effectFalse": "0x046e228493782e62fedebc450c0fe432b470bb972c39527db61a3abd833a8aef",
     "disposition": "0xbeb05e221bdb799f2fa8788b5192ac86de01ea2aef7d37e528d2f4ab3196ddb7"
   },
-  "note": "objectKey = keccak256(abi.encode(ObjectRef)); exclusivityKey = keccak256(abi.encode(source, obligationRef, proposition)); registry ids = keccak256(abi.encode(chainId, registry, nonce)); the bridge obligation id = keccak256(abi.encode(caseId, subQuestion)) and question = keccak256(abi.encode(keccak256(\"adrf:judgment/v1\"), subQuestion))."
+  "note": "objectKey = keccak256(abi.encode(ObjectRef)); exclusivityKey = keccak256(abi.encode(source, obligationRef, proposition)) where proposition is the decisive sub-question's (here keccak256(abi.encode(keccak256(\"adrf:prop/duplicate-settlement/v2\"), ledger, callId, ordinal)) for settlement 2 of call 17); registry ids = keccak256(abi.encode(chainId, registry, nonce)); the bridge obligation id = keccak256(abi.encode(caseId, subQuestion)) and question = keccak256(abi.encode(keccak256(\"adrf:judgment/v1\"), subQuestion))."
 }
