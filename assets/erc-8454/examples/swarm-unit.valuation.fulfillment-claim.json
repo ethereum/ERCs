@@ -1,0 +1,80 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 4,
+    "version": 1,
+    "boundaryHash": "0xe02cd13e8d8509ed740198f9bd2094f4cd557cba9a9151a925c652cde5f7a423"
+  },
+  "assessmentBoundary": {
+    "hash": "0xe02cd13e8d8509ed740198f9bd2094f4cd557cba9a9151a925c652cde5f7a423"
+  },
+  "interest": {
+    "id": "auf:interest:fulfillment-claim@1",
+    "perspective": "executor",
+    "detail": "payout of task tender 17 on accepted delivery"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0xbd320bfd840b5c2342724cc3472c2c55d33ecc1f4e5c75704fdd4f20680b91fd"
+  },
+  "method": {
+    "id": "0x75c34f058eccff31530191dc7c5ab32bc9fe2c5e8377333cf23ca3c4d02f676f",
+    "name": "auf:method:conditional-payoff@1",
+    "params": {
+      "denomination": "USD",
+      "scenarios": [
+        {
+          "name": "accepted",
+          "probability": "0.6",
+          "payoff": "100"
+        },
+        {
+          "name": "rejected or late",
+          "probability": "0.4",
+          "payoff": "0"
+        }
+      ],
+      "rate": "0.1",
+      "periods": 1,
+      "probabilityBasis": "declared",
+      "costsIncluded": false
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0x7f20c153c6f7cfbaaaea42173b10f6ab6d53f30bc343f0485b4404100be1ddb1",
+        "source": "tender terms"
+      }
+    ],
+    "estimates": [
+      "acceptance probability declared by the evaluator"
+    ],
+    "coverage": "payout only; model and labour costs excluded"
+  },
+  "result": {
+    "kind": "scenario",
+    "denomination": "USD",
+    "decimals": 2,
+    "scenarios": [
+      {
+        "name": "accepted",
+        "probability": "0.6",
+        "value": "100"
+      },
+      {
+        "name": "rejected or late",
+        "probability": "0.4",
+        "value": "0"
+      }
+    ],
+    "value": "54.55"
+  },
+  "horizon": {
+    "to": "2026-12-01T00:00:00Z"
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Vector \"Conditional payoff\": (0.6 x 100 + 0.4 x 0) / 1.1 = 54.5454..., rounded to two decimals."
+}

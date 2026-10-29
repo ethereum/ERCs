@@ -1,0 +1,60 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 5,
+    "version": 1,
+    "boundaryHash": "0x1b0ae56ecffa30f6db1ac3d74d99e5dc40993d9e687ccaa58f407dc879f35728"
+  },
+  "assessmentBoundary": {
+    "hash": "0x1b0ae56ecffa30f6db1ac3d74d99e5dc40993d9e687ccaa58f407dc879f35728"
+  },
+  "interest": {
+    "id": "auf:interest:position@1",
+    "perspective": "funder",
+    "detail": "escrowed bounty balance"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0xb18de57df76d41416f96b5df20401986b111e4d8a68302c7ffd79c559da2c05c"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [
+        {
+          "element": "0xcd5cb00e788e869b9d22d63f40b2c9ede7c7af2f0ce4aff031d717f7317551b0",
+          "quantity": "100",
+          "price": "1",
+          "priceSource": "stable at par",
+          "priceAt": "2026-11-01T00:00:00Z",
+          "restrictions": [
+            "locked",
+            "contingent"
+          ]
+        }
+      ],
+      "liabilities": []
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0xcd5cb00e788e869b9d22d63f40b2c9ede7c7af2f0ce4aff031d717f7317551b0",
+        "source": "escrow balance"
+      }
+    ],
+    "coverage": "escrow balance only; the balance is locked and contingent"
+  },
+  "result": {
+    "kind": "monetary",
+    "value": "100.00",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "The bounty balance is a position, not the value of the task to anyone."
+}

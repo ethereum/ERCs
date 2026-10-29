@@ -1,0 +1,76 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 10,
+    "version": 1,
+    "boundaryHash": "0xb3ab97fe54b77bfa92256bd7ae1e947048a09df80fa888936ad3b5b6da6b4fc8"
+  },
+  "assessmentBoundary": {
+    "hash": "0xb3ab97fe54b77bfa92256bd7ae1e947048a09df80fa888936ad3b5b6da6b4fc8"
+  },
+  "interest": {
+    "id": "auf:interest:net-equity@1",
+    "perspective": "holder"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0x6078ac07eae219905ffa1b569a60b441e60ea998f593ef2cdc7a075522ec73f2"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [
+        {
+          "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ],
+      "liabilities": []
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+        "source": "RST balance of the fund"
+      },
+      {
+        "element": "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73",
+        "source": "assignment agreement"
+      },
+      {
+        "receipt": "0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232",
+        "use": "value of the whole fee stream"
+      }
+    ],
+    "overlaps": [
+      {
+        "elements": [
+          "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73"
+        ],
+        "treatment": "counted-once",
+        "basis": [
+          "urn:x:terms:rst-tokenization-2026"
+        ],
+        "notes": "declared same-claim in the definition of this Unit; the entitlement enters the sum once"
+      }
+    ],
+    "coverage": "the 40% entitlement only; no other assets or liabilities"
+  },
+  "result": {
+    "kind": "monetary",
+    "value": "45.12",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Exception vector \"Overlap under different references\", declared case: the two positions form one claim group and are counted once (0.4 x 112.81 = 45.12)."
+}

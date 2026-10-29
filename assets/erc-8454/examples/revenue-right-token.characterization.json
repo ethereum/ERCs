@@ -1,0 +1,27 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 8,
+    "version": 1,
+    "boundaryHash": "0x765530338e98914d55b2b2d6f58551e2bc8d223428dd0b173625f88491d6684b"
+  },
+  "roles": [
+    {
+      "role": "container",
+      "scope": {
+        "type": "element",
+        "id": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98"
+      },
+      "mechanism": "rights",
+      "conditions": "entitlement to 40% of the fee stream while the tokens are held"
+    }
+  ],
+  "structure": {
+    "profile": "auf:structure:simple@1"
+  },
+  "knowledge": {
+    "status": "classified"
+  }
+}
