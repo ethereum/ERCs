@@ -40,6 +40,7 @@ interface ILaunchObservations {
         address token;
         KeyKind kind;
         uint64 observedBlock;
+        bool hashChecked;
         address detector;
         uint64 recordedAt;
         address identityRegistry;
@@ -62,6 +63,7 @@ interface ILaunchObservations {
         bytes32 declarationId,
         uint64 observedBlock,
         bytes32 observedBlockHash,
+        bool hashChecked,
         uint256 supersedes,
         Tally tally,
         bytes32 reportHash,

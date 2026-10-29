@@ -117,7 +117,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         (launchKey, chainId, token) = _resolveKey(input);
 
         if (input.observedBlock == 0) revert InvalidObservedBlock();
-        if (chainId == block.chainid) _checkOwnChainBlock(input.observedBlock, input.observedBlockHash);
+        bool hashChecked = chainId == block.chainid && _checkOwnChainBlock(input.observedBlock, input.observedBlockHash);
 
         uint256 uriLength = bytes(input.reportURI).length;
         if (input.reportHash == bytes32(0) || uriLength == 0 || uriLength > MAX_URI_LENGTH) revert InvalidReport();
@@ -125,13 +125,19 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         _checkFindings(findings, input.tally);
 
         observationId = ++_count;
-        _store(observationId, launchKey, chainId, token, input);
+        _store(observationId, launchKey, chainId, token, input, hashChecked);
         _emitRecorded(observationId, input.observedBlockHash);
         _storeFindings(observationId, findings);
     }
 
-    function _store(uint256 observationId, bytes32 key, uint256 chainId, address token, ObservationInput calldata input)
-        private
+    function _store(
+        uint256 observationId,
+        bytes32 key,
+        uint256 chainId,
+        address token,
+        ObservationInput calldata input,
+        bool hashChecked
+    ) private
     {
         uint256[] storage history = _byKeyDetector[key][msg.sender];
         uint256 previous;
@@ -169,6 +175,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         o.token = token;
         o.detector = msg.sender;
         o.observedBlock = input.observedBlock;
+        o.hashChecked = hashChecked;
         o.recordedAt = uint64(block.timestamp);
         o.supersedes = previous;
         o.tally = input.tally;
@@ -288,8 +295,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
 
     /// @dev On the registry's own chain the block must exist and its hash must be given. The hash must match the
     /// EIP-2935 history contract where it answers for the block (8191 blocks), else `blockhash` within 256 blocks on a
-    /// chain whose `blockhash` takes its own block numbers. Otherwise it is emitted unchecked for readers to compare.
-    function _checkOwnChainBlock(uint64 observedBlock, bytes32 observedBlockHash) private view {
+    /// chain whose `blockhash` takes its own block numbers. Otherwise it is recorded unchecked for readers to compare.
+    /// Returns true only when the hash was read on chain and matched.
+    function _checkOwnChainBlock(uint64 observedBlock, bytes32 observedBlockHash) private view returns (bool) {
         (uint256 current, bool arbitrum) = _chainBlockNumber();
         if (observedBlock >= current) revert InvalidObservedBlock();
         if (observedBlockHash == bytes32(0)) revert InvalidObservedBlockHash();
@@ -300,7 +308,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
             if (ok && ret.length >= 32) known = abi.decode(ret, (bytes32));
         }
         if (known == bytes32(0) && !arbitrum && age <= BLOCKHASH_WINDOW) known = blockhash(observedBlock);
-        if (known != bytes32(0) && known != observedBlockHash) revert InvalidObservedBlockHash();
+        if (known == bytes32(0)) return false;
+        if (known != observedBlockHash) revert InvalidObservedBlockHash();
+        return true;
     }
 
     function _emitRecorded(uint256 observationId, bytes32 observedBlockHash) private {
@@ -315,6 +325,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
             o.declarationId,
             o.observedBlock,
             observedBlockHash,
+            o.hashChecked,
             o.supersedes,
             o.tally,
             o.reportHash,

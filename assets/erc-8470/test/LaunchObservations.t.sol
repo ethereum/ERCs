@@ -21,6 +21,7 @@ contract LaunchObservationsTest {
         bytes32 declarationId,
         uint64 observedBlock,
         bytes32 observedBlockHash,
+        bool hashChecked,
         uint256 supersedes,
         ILaunchObservations.Tally tally,
         bytes32 reportHash,
@@ -296,6 +297,7 @@ contract LaunchObservationsTest {
             bytes32(0),
             900,
             _bh(900),
+            false,
             0,
             ILaunchObservations.Tally(2, 1, 3),
             keccak256("report"),
@@ -430,11 +432,10 @@ contract LaunchObservationsTest {
         vm.recordLogs();
         reg.recordObservation(i, _none());
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        (,,,,, bytes32 emitted,,,,,) = abi.decode(
-            logs[0].data,
-            (uint8, uint256, address, bytes32, uint64, bytes32, uint256, ILaunchObservations.Tally, bytes32, string, bytes32)
-        );
-        _eq(emitted, blockhash(900), "hash emitted");
+        // data head: kind, chainId, token, declarationId, observedBlock, observedBlockHash (word 5), hashChecked (word 6)
+        _eq(_word(logs[0].data, 5), blockhash(900), "hash emitted");
+        require(_word(logs[0].data, 6) == bytes32(uint256(1)), "hashChecked emitted true: blockhash read it");
+        require(_checked(1), "hashChecked stored true");
     }
 
     function test_OwnChainBlockHashOlderThan256NotChecked() public {
@@ -442,6 +443,7 @@ contract LaunchObservationsTest {
         ILaunchObservations.ObservationInput memory i = _tokenInput(uint64(block.number - 257));
         i.observedBlockHash = keccak256("cannot be checked on chain");
         reg.recordObservation(i, _none()); // accepted: readers compare it with the canonical chain
+        require(!_checked(1), "hashChecked false past blockhash's reach: a strict reader rejects it");
     }
 
     function test_ZeroBlockHashOnlyForOtherChains() public {
@@ -672,6 +674,7 @@ contract LaunchObservationsTest {
             declarationId,
             900,
             _bh(900),
+            false,
             0,
             ILaunchObservations.Tally(2, 1, 3),
             keccak256("report"),
@@ -894,6 +897,25 @@ contract LaunchObservationsTest {
         reg.recordObservation(_ownChainInput(L2_NOW - 1, bytes32(0)), _none());
     }
 
+    /// word `i` of an event's data head
+    function _word(bytes memory data, uint256 i) internal pure returns (bytes32 w) {
+        assembly {
+            w := mload(add(data, add(32, mul(i, 32))))
+        }
+    }
+
+    /// hashChecked of a stored observation
+    function _checked(uint256 id) internal view returns (bool) {
+        (ILaunchObservations.Observation memory o,) = reg.getObservation(id);
+        return o.hashChecked;
+    }
+
+    function test_HashCheckedFalseForAnotherChain() public {
+        // the token is on RH_CHAIN, the registry is not: nothing is checked, even a right-looking hash
+        reg.recordObservation(_tokenInput(900), _none());
+        require(!_checked(1), "another chain: hashChecked false");
+    }
+
     function test_ArbitrumHashCheckedThroughHistory() public {
         vm.chainId(RH_CHAIN);
         _etchArbSys(L2_NOW);
@@ -909,6 +931,7 @@ contract LaunchObservationsTest {
         reg.recordObservation(_ownChainInput(L2_NOW - 8_191, keccak256("reorged out")), _none());
 
         reg.recordObservation(_ownChainInput(L2_NOW - 100, real), _none());
+        require(_checked(1), "hashChecked true through EIP-2935");
     }
 
     function test_ArbitrumHashOutOfWindowNotChecked() public {
@@ -921,6 +944,7 @@ contract LaunchObservationsTest {
         // Inside the window, a block the history has no hash for (it reverts) is not checked, and Arbitrum
         // gets no blockhash fallback.
         reg.recordObservation(_ownChainInput(L2_NOW - 10, keccak256("unchecked")), _none());
+        require(!_checked(1) && !_checked(2), "hashChecked false out of the window and with no history hash");
     }
 
     function test_PlainEvmHistoryExtendsWindow() public {
@@ -932,6 +956,7 @@ contract LaunchObservationsTest {
         vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
         reg.recordObservation(_ownChainInput(9_000, keccak256("wrong")), _none());
         reg.recordObservation(_ownChainInput(9_000, real), _none());
+        require(_checked(1), "hashChecked true through EIP-2935 past blockhash's reach");
 
         // The history has nothing for 9900: blockhash is the fallback on a plain EVM chain.
         vm.expectRevert(LaunchObservations.InvalidObservedBlockHash.selector);
