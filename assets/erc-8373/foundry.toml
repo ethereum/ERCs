@@ -1,0 +1,7 @@
+# The sibling assets need no build config; these tests do, because they read the
+# published conformance vectors from this directory rather than restating them.
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+fs_permissions = [{ access = "read", path = "./" }]
