@@ -50,6 +50,7 @@ contract LaunchObservationsTest {
     bytes32 constant LP_LOCK_REMAINING = keccak256("erc.launch-observations.signal.lpLockRemaining");
     bytes32 constant PRIVILEGED_POWERS = keccak256("erc.launch-observations.signal.privilegedPowers");
     bytes32 constant PRODUCT_LABEL = keccak256("erc.launch-observations.product-label");
+    bytes32 constant TEXT_FLAGS = keccak256("erc.launch-observations.text-flags");
     uint256 constant LABEL_PARTLY_FOUND = 2;
     address constant ARB_SYS = address(100);
     address constant HISTORY = 0x0000F90827F1C53a10cb7A02335B175320002935;
@@ -378,6 +379,39 @@ contract LaunchObservationsTest {
         reg.recordObservation(i, f);
         f[0] = ILaunchObservations.Finding(FIRST_BLOCK_SHARE, type(uint256).max, 0, ILaunchObservations.Lean.None);
         reg.recordObservation(i, f);
+    }
+
+    function test_TextFlagsDomain() public {
+        ILaunchObservations.Finding[] memory f = new ILaunchObservations.Finding[](4);
+        ILaunchObservations.ObservationInput memory i = _tokenInput(900);
+        i.tally = ILaunchObservations.Tally(2, 0, 1);
+        // Every field (param 0), the symbol (2) and the description (3); bit 4 bidi override, bit 7 homoglyph.
+        f[0] = ILaunchObservations.Finding(TEXT_FLAGS, 0x090, 0, ILaunchObservations.Lean.Against);
+        f[1] = ILaunchObservations.Finding(TEXT_FLAGS, 0x090, 2, ILaunchObservations.Lean.Against);
+        f[2] = ILaunchObservations.Finding(TEXT_FLAGS, 0, 3, ILaunchObservations.Lean.Clear); // read, nothing found
+        f[3] = ILaunchObservations.Finding(TEXT_FLAGS, type(uint256).max, 9, ILaunchObservations.Lean.None); // not read
+        vm.prank(DETECTOR_A);
+        (uint256 id,) = reg.recordObservation(i, f);
+        (, , , uint256 v, ILaunchObservations.Lean lean) = reg.latestFinding(RH_CHAIN, TOKEN, DETECTOR_A, TEXT_FLAGS, 2);
+        _eq(v, 0x090, "symbol flags");
+        require(lean == ILaunchObservations.Lean.Against, "lean");
+        (uint256 id2, , , uint256 none,) = reg.latestFinding(RH_CHAIN, TOKEN, DETECTOR_A, TEXT_FLAGS, 3);
+        _eq(id2, id, "same observation");
+        _eq(none, 0, "measured zero stays zero");
+
+        ILaunchObservations.Finding[] memory g = new ILaunchObservations.Finding[](1);
+        i.tally = ILaunchObservations.Tally(0, 0, 0);
+        g[0] = ILaunchObservations.Finding(TEXT_FLAGS, 0x1ff, 9, ILaunchObservations.Lean.None); // every reason, last field
+        reg.recordObservation(i, g);
+        g[0] = ILaunchObservations.Finding(TEXT_FLAGS, 0x200, 0, ILaunchObservations.Lean.None); // reserved bit
+        vm.expectRevert(abi.encodeWithSelector(LaunchObservations.InvalidFinding.selector, 0));
+        reg.recordObservation(i, g);
+        g[0] = ILaunchObservations.Finding(TEXT_FLAGS, 1, 10, ILaunchObservations.Lean.None); // no such field
+        vm.expectRevert(abi.encodeWithSelector(LaunchObservations.InvalidFinding.selector, 0));
+        reg.recordObservation(i, g);
+        g[0] = ILaunchObservations.Finding(TEXT_FLAGS, type(uint256).max - 1, 0, ILaunchObservations.Lean.None);
+        vm.expectRevert(abi.encodeWithSelector(LaunchObservations.InvalidFinding.selector, 0));
+        reg.recordObservation(i, g);
     }
 
     function test_DuplicateFindingReverts() public {

@@ -36,6 +36,7 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     bytes32 public constant CREATOR_PRIOR_LAUNCHES = keccak256("erc.launch-observations.creator-prior-launches");
     bytes32 public constant FUNDING_LINKED_SHARE = keccak256("erc.launch-observations.funding-linked-share");
     bytes32 public constant PRODUCT_LABEL = keccak256("erc.launch-observations.product-label");
+    bytes32 public constant TEXT_FLAGS = keccak256("erc.launch-observations.text-flags");
 
     // ERC-8376 base signals, measured from launch to the observed block
     bytes32 public constant DEPLOYER_SUPPLY_SHARE = keccak256("erc.launch-observations.signal.deployerSupplyShare");
@@ -55,6 +56,10 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
     uint256 public constant LABEL_FOUND = 1;
     uint256 public constant LABEL_PARTLY_FOUND = 2;
     uint256 public constant LABEL_NOT_FOUND = 3;
+
+    // Text flags: `param` names the field (0 = every field read), `value` is a bitmask of the reasons found
+    uint64 public constant TEXT_FIELD_MAX = 9;
+    uint256 public constant TEXT_REASONS_MASK = 0x1ff;
 
     error InvalidKey();
     error LaunchNotListed();
@@ -393,6 +398,9 @@ contract LaunchObservations is ILaunchObservations, IERC165 {
         }
         if (k == PRODUCT_LABEL) {
             return f.param == 0 && ((v >= LABEL_FOUND && v <= LABEL_NOT_FOUND) || v == NOT_READ);
+        }
+        if (k == TEXT_FLAGS) {
+            return f.param <= TEXT_FIELD_MAX && ((v & ~TEXT_REASONS_MASK) == 0 || v == NOT_READ);
         }
         uint256 max = _signalMax(k);
         if (max != 0) {
