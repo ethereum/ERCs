@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "type": "object",
     "description": "ERC7730 Clear Signing Specification Schema. Specification located at https://github.com/LedgerHQ/clear-signing-erc7730-registry/tree/master/specs",
 
@@ -872,6 +872,20 @@
                     "title": "Spender Path (Optional)",
                     "type": "string",
                     "description": "The path to the associated spender, if the calldata can be associated with a container value."
+                },
+                "chainId": {
+                    "title": "Chain ID",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "Optional. The chain ID of the called contract, if it differs from the current contract's chain."
+                },
+                "chainIdPath": {
+                    "title": "Chain ID Path",
+                    "type": "string",
+                    "description": "Optional. The path to the chain ID of the called contract, if it differs from the current contract's chain."
                 }
             },
             "anyOf": [

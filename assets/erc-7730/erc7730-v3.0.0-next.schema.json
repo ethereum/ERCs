@@ -880,6 +880,20 @@
                     "title": "Spender Path (Optional)",
                     "type": "string",
                     "description": "The path to the associated spender, if the calldata can be associated with a container value."
+                },
+                "chainId": {
+                    "title": "Chain ID",
+                    "type": ["integer", "object"],
+                    "anyOf": [
+                        { "type": "integer" },
+                        { "$ref": "#/$format/mapReference" }
+                    ],
+                    "description": "Optional. The chain ID of the called contract, if it differs from the current contract's chain."
+                },
+                "chainIdPath": {
+                    "title": "Chain ID Path",
+                    "type": "string",
+                    "description": "Optional. The path to the chain ID of the called contract, if it differs from the current contract's chain."
                 }
             },
             "anyOf": [
