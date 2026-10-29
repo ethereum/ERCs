@@ -123,7 +123,9 @@ contract SealedBidTender is ISealedBidTender {
         );
     }
 
-    function commitBid(bytes32 tenderId, bytes32 commitment) external payable exists(tenderId) nonReentrant {
+    /// @dev Public/virtual permits an optional admission extension to check its resource
+    ///      reservation before calling super. The standard ABI and default behavior are unchanged.
+    function commitBid(bytes32 tenderId, bytes32 commitment) public payable virtual exists(tenderId) nonReentrant {
         Tender storage t = _tenders[tenderId];
         require(t.phase == Phase.Commit, "not in commit phase");
         require(block.timestamp <= t.terms.commitDeadline, "commit window closed");
