@@ -1,0 +1,14 @@
+# machine-actionable task interface (profile: x-brief-request-v1)
+date: 2026-08-20
+instruments: 60
+sections:
+  - asset-dashboard
+  - top-10-headlines
+  - analysis
+analysis_max_words: 500
+output:
+  formats: [pdf, md]
+  naming: reportYYMMDD
+sources:
+  prices: any reproducible close-of-day feed
+  headlines: major wire services, cited

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/task-token/task-manifest.schema.json",
+  "title": "Task Manifest (TASK-KERNEL v1.0, normative minimal schema)",
+  "type": "object",
+  "required": ["schemaVersion", "name", "taskVersion", "summary", "specPath"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "name":          { "type": "string", "minLength": 1 },
+    "taskVersion":   { "type": "string", "minLength": 1 },
+    "summary":       { "type": "string", "minLength": 1 },
+    "specPath":      { "type": "string", "minLength": 1,
+                       "description": "MUST equal TaskRoot.spec.path" },
+    "taskType":      { "type": "string" },
+    "tags":          { "type": "array", "items": { "type": "string" },
+                       "description": "discovery/display only; on-chain semantics belong to companion standards" },
+    "standard":      { "type": "string" }
+  },
+  "additionalProperties": true,
+  "$comment": "Consumers MUST ignore unknown fields; extension fields SHOULD use namespaced keys (x-vendor/*)."
+}
