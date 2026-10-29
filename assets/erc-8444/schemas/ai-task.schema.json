@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/eip-8444/schemas/ai-task.schema.json",
+  "title": "application/ai-task+json (draft)",
+  "description": "Demand-side ARD entry payload: a tender describing a resource someone will pay for. Valid without any onchain field so that a purely off-chain RFP is a legal entry; onchain facets live in the value: namespace of the enclosing entry.",
+  "type": "object",
+  "required": ["wants", "bounty"],
+  "additionalProperties": true,
+  "properties": {
+    "wants": {
+      "description": "Payload media types the tender will accept as fulfilment.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "specDigest": {
+      "description": "Digest of the task specification package, e.g. sha256:<hex>.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-fA-F]+$"
+    },
+    "specURI": { "type": "string", "format": "uri" },
+    "bounty": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": true,
+      "properties": {
+        "amount": { "type": "string", "description": "Decimal string in display units." },
+        "currency": { "type": "string", "description": "Human-readable currency code, e.g. USDC, USD." },
+        "asset": { "type": "string", "description": "CAIP-19 asset identifier when the bounty is an onchain asset." }
+      }
+    },
+    "cadence": {
+      "description": "Present for standing (subscription-reverse) tenders paid per delivery per period.",
+      "type": "object",
+      "required": ["epoch"],
+      "properties": {
+        "epoch": { "type": "string", "description": "ISO 8601 duration, e.g. PT1H." },
+        "epochs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "cardinality": {
+      "type": "string",
+      "enum": ["single", "replicated", "collaborative"],
+      "default": "single"
+    },
+    "copies": { "type": "integer", "minimum": 1, "description": "For cardinality = replicated." },
+    "acceptance": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["verifier", "judge", "collective"] },
+        "ref": { "type": "string", "description": "CAIP-10 of the verifier contract, judge, or decision registry." },
+        "policyId": { "type": "string", "description": "Decision policy identifier when mode = collective." }
+      }
+    },
+    "deadlines": {
+      "type": "object",
+      "properties": {
+        "submitBy": { "type": "string", "format": "date-time" },
+        "settleBy": { "type": "string", "format": "date-time" },
+        "judgmentWindow": { "type": "string", "description": "ISO 8601 duration." }
+      }
+    },
+    "eligibility": {
+      "type": "object",
+      "properties": {
+        "credit": {
+          "type": "object",
+          "required": ["scheme", "minLevel"],
+          "properties": {
+            "scheme": { "type": "string" },
+            "minLevel": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "binding": { "type": "string", "enum": ["verified"] }
+      }
+    },
+    "subcontracting": { "type": "boolean", "default": true },
+    "splits": {
+      "description": "Allowed payout splitting for collaborative fulfilment.",
+      "type": "string",
+      "enum": ["none", "fixed", "negotiated"]
+    }
+  }
+}
