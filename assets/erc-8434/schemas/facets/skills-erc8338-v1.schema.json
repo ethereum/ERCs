@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/garyyang-finchip/aid-standard/schemas/facets/skills-erc8338-v1.schema.json",
+  "title": "aid:skills/erc8338/v1 — content document",
+  "description": "Skill-token interaction record of the anchor, derived from ERC-8338 contract events by role. Open window = currently listed / owned / executable; history window = past records within `historyWindow` seconds.",
+  "type": "object",
+  "required": ["facetType", "subject", "observedAt", "openWindow", "historyWindow", "records"],
+  "additionalProperties": false,
+  "properties": {
+    "facetType": { "const": "aid:skills/erc8338/v1" },
+    "subject": { "type": "string", "pattern": "^eip155:[0-9]+:0x[0-9a-fA-F]{40}$" },
+    "observedAt": { "type": "integer" },
+    "openWindow": { "type": "integer", "description": "seconds; default 0 = 'currently held/listed' has no expiry" },
+    "historyWindow": { "type": "integer", "description": "seconds; default 31536000 (365 days)" },
+    "summary": {
+      "type": "object", "additionalProperties": true,
+      "properties": {
+        "created": { "type": "integer" }, "owned": { "type": "integer" }, "executed": { "type": "integer" },
+        "genesisCreated": { "type": "integer" }, "distinctBuyers": { "type": "integer" }, "distinctSkills": { "type": "integer" }
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["chainId", "contract", "tokenId", "role", "at"], "additionalProperties": true,
+        "properties": {
+          "chainId": { "type": "integer" },
+          "contract": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+          "tokenId": { "type": "string", "description": "decimal string (uint256)" },
+          "role": { "enum": ["creator", "owner", "executor", "genesisCreator"] },
+          "at": { "type": "integer" },
+          "txHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$" },
+          "packageHash": { "type": "string", "pattern": "^0x[0-9a-fA-F]{64}$", "description": "ERC-8338 skill package hash at the time of the record" },
+          "status": { "enum": ["open", "history"] }
+        }
+      }
+    }
+  }
+}
