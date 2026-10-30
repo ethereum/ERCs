@@ -2,7 +2,7 @@
 title: x402 Payee Verification for ERC-8004 Agents
 description: How a paying agent proves an x402 payTo belongs to the ERC-8004 agent it means to pay, before it signs the payment
 author: Toll (@soli0x)
-discussions-to: https://ethereum-magicians.org/t/pre-erc-x402-payee-verification-for-erc-8004-agents/TBD
+discussions-to: https://ethereum-magicians.org/t/pre-erc-x402-payee-verification-for-erc-8004-agents/30137
 status: Draft
 type: Standards Track
 category: ERC
