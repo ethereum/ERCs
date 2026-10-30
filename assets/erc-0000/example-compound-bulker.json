@@ -1,0 +1,129 @@
+{
+    "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+    "context": {
+        "$id": "Compound III Bulker",
+        "contract": {
+            "deployments": [
+                {
+                    "chainId": 1,
+                    "address": "0xa397a8C2086C554B531c02E29f3291c9704B00c7"
+                }
+            ]
+        }
+    },
+    "metadata": {
+        "owner": "Compound",
+        "contractName": "Bulker",
+        "info": {
+            "url": "https://github.com/compound-finance/comet"
+        }
+    },
+    "display": {
+        "formats": {
+            "invoke(bytes32[] actions,bytes[] data)": {
+                "$id": "Compound III Bulk Actions",
+                "intent": "Execute batch",
+                "fields": [
+                    {
+                        "path": "data[]",
+                        "label": "Batched action",
+                        "switch": {
+                            "expression": {
+                                "path": "actions[$index]"
+                            },
+                            "cases": {
+                                "0x414354494f4e5f535550504c595f415353455400000000000000000000000000": {
+                                    "(address comet,address to,address asset,uint256 amount)": {
+                                        "intent": "Supply collateral",
+                                        "fields": [
+                                            { "path": "to", "label": "On behalf of", "format": "addressName" },
+                                            { "path": "asset", "label": "Asset", "format": "addressName" },
+                                            { "path": "amount", "label": "Amount", "format": "tokenAmount", "params": { "tokenPath": "asset" } },
+                                            {
+                                                "interaction": {
+                                                    "to": "comet",
+                                                    "signature": "supplyFrom(address,address,address,uint256)",
+                                                    "args": [
+                                                        { "path": "@.from" },
+                                                        { "path": "to" },
+                                                        { "path": "asset" },
+                                                        { "path": "amount" }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0x414354494f4e5f5452414e534645525f41535345540000000000000000000000": {
+                                    "(address comet,address to,address asset,uint256 amount)": {
+                                        "intent": "Transfer within Compound",
+                                        "fields": [
+                                            { "path": "to", "label": "Recipient", "format": "addressName" },
+                                            { "path": "asset", "label": "Asset", "format": "addressName" },
+                                            { "path": "amount", "label": "Amount", "format": "tokenAmount", "params": { "tokenPath": "asset" } },
+                                            {
+                                                "interaction": {
+                                                    "to": "comet",
+                                                    "signature": "transferAssetFrom(address,address,address,uint256)",
+                                                    "args": [
+                                                        { "path": "@.from" },
+                                                        { "path": "to" },
+                                                        { "path": "asset" },
+                                                        { "path": "amount" }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0x414354494f4e5f57495448445241575f41535345540000000000000000000000": {
+                                    "(address comet,address to,address asset,uint256 amount)": {
+                                        "intent": "Withdraw or borrow",
+                                        "fields": [
+                                            { "path": "to", "label": "Recipient", "format": "addressName" },
+                                            { "path": "asset", "label": "Asset", "format": "addressName" },
+                                            { "path": "amount", "label": "Amount", "format": "tokenAmount", "params": { "tokenPath": "asset" } },
+                                            {
+                                                "interaction": {
+                                                    "to": "comet",
+                                                    "signature": "withdrawFrom(address,address,address,uint256)",
+                                                    "args": [
+                                                        { "path": "@.from" },
+                                                        { "path": "to" },
+                                                        { "path": "asset" },
+                                                        { "path": "amount" }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "0x414354494f4e5f434c41494d5f52455741524400000000000000000000000000": {
+                                    "(address comet,address rewards,address src,bool shouldAccrue)": {
+                                        "intent": "Claim rewards",
+                                        "fields": [
+                                            { "path": "src", "label": "Claim for", "format": "addressName" },
+                                            { "path": "shouldAccrue", "label": "Accrue first", "format": "raw" },
+                                            {
+                                                "interaction": {
+                                                    "to": "rewards",
+                                                    "signature": "claim(address,address,bool)",
+                                                    "args": [
+                                                        { "path": "comet" },
+                                                        { "path": "src" },
+                                                        { "path": "shouldAccrue" }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                "$default": "reject"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
