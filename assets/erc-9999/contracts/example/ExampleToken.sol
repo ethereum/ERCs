@@ -66,7 +66,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     _unfreezeMoved(_from, _amount);
     _forcedPending = true;
     _transfer(_from, _to, _amount);
-    // Emitted after the policy's afterTransfer: `_update`'s guard blocks re-entry into any movement.
+    // Emitted after the policy's afterTransfer: `_move`'s guard blocks re-entry into any movement.
     // slither-disable-next-line reentrancy-events
     emit ForcedTransfer(_from, _to, _amount);
     _result = true;
@@ -108,7 +108,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
 
   /**
    * @inheritdoc IExampleToken
-   * @dev Shares `_update`'s guard, so `onInstall` can start neither a movement nor another installation
+   * @dev Shares `_move`'s guard, so `onInstall` can start neither a movement nor another installation
    */
   function setPolicy(
     address _newPolicy,
@@ -155,7 +155,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
 
   /**
    * @inheritdoc IERC7943Fungible
-   * @dev Evaluates exactly what `_update` evaluates for the TRANSFER, MINT or BURN its arguments describe, without
+   * @dev Evaluates exactly what `_move` evaluates for the TRANSFER, MINT or BURN its arguments describe, without
    *      reverting. The operator is `_from`, zero for a mint, so the context depends only on the arguments; these
    *      kinds' decisions cannot depend on it
    */
@@ -167,7 +167,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     if (_from == address(0) && _to == address(0)) return false;
     IERCXXXXPolicy.TransferKind _kind = _inferKind(_from, _to);
     if (_tokenCheck(_from, _amount, _kind) != TRANSFER_OK) return false;
-    _allowed = _permits(abi.encodeCall(IERCXXXXPolicy.checkTransfer, (_context(_from, _to, _amount, _from, _kind))));
+    _allowed = _permits(abi.encodeCall(IERCXXXXPolicy.checkTransfer, (_context(_from, _to, _amount, _from, _kind, ''))));
   }
 
   /// @inheritdoc IERC7943Fungible
@@ -195,8 +195,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice The single path every mint, burn, transfer and forced transfer takes
-   * @dev Guarded against reentrancy, so a policy's `afterTransfer` cannot start another movement
+   * @notice Gives every mint, burn, transfer and forced transfer its kind, and sends it down the single path
    * @param _from The sender, or address(0) on mint
    * @param _to The receiver, or address(0) on burn
    * @param _value The amount
@@ -205,10 +204,29 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _from,
     address _to,
     uint256 _value
-  ) internal override nonReentrant {
+  ) internal override {
     IERCXXXXPolicy.TransferKind _kind = _forcedPending ? IERCXXXXPolicy.TransferKind.FORCED : _inferKind(_from, _to);
     _forcedPending = false;
+    _move(_from, _to, _value, _kind, '');
+  }
 
+  /**
+   * @notice The single path every movement takes
+   * @dev Guarded against reentrancy, so a policy's `afterTransfer` cannot start another movement. `_update` passes empty
+   *      data, so only a token that adds an EXECUTED path can pass any
+   * @param _from The sender, or address(0) on mint
+   * @param _to The receiver, or address(0) on burn
+   * @param _value The amount
+   * @param _kind The kind
+   * @param _data The context's data
+   */
+  function _move(
+    address _from,
+    address _to,
+    uint256 _value,
+    IERCXXXXPolicy.TransferKind _kind,
+    bytes memory _data
+  ) internal nonReentrant {
     bytes32 _tokenReason = _tokenCheck(_from, _value, _kind);
     if (_tokenReason == _PAUSED) revert EnforcedPause();
     if (_tokenReason == _INSUFFICIENT_UNFROZEN) {
@@ -217,7 +235,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
       revert ERC7943InsufficientUnfrozenBalance(_from, _value, _unfrozen(_from));
     }
 
-    IERCXXXXPolicy.TransferContext memory _ctx = _context(_from, _to, _value, _msgSender(), _kind);
+    IERCXXXXPolicy.TransferContext memory _ctx = _context(_from, _to, _value, _msgSender(), _kind, _data);
     IERCXXXXPolicy _activePolicy = IERCXXXXPolicy(_policy); // read once for this movement
 
     // A revert, missing code or short return data reverts here too: the movement fails closed.
@@ -250,12 +268,13 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   }
 
   /**
-   * @notice Builds a movement's context; `data` is empty because this token has no EXECUTED path
+   * @notice Builds a movement's context
    * @param _from The sender, or address(0)
    * @param _to The receiver, or address(0)
    * @param _amount The amount
    * @param _operator The account that called the token
    * @param _kind The kind
+   * @param _data The data
    * @return _ctx The context
    */
   function _context(
@@ -263,7 +282,8 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _to,
     uint256 _amount,
     address _operator,
-    IERCXXXXPolicy.TransferKind _kind
+    IERCXXXXPolicy.TransferKind _kind,
+    bytes memory _data
   ) internal view returns (IERCXXXXPolicy.TransferContext memory _ctx) {
     _ctx = IERCXXXXPolicy.TransferContext({
       token: address(this),
@@ -273,13 +293,13 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
       amount: _amount,
       operator: _operator,
       kind: _kind,
-      data: ''
+      data: _data
     });
   }
 
   /**
    * @notice Calls the policy without reverting; permits only on at least 32 bytes whose first word is TRANSFER_OK
-   * @dev Matches what Solidity's decoder accepts in `_update`. Copies one word, and only once the answer is long enough,
+   * @dev Matches what Solidity's decoder accepts in `_move`. Copies one word, and only once the answer is long enough,
    *      so a short answer can never be completed by leftover memory. An address without code answers with no data, so
    *      it never permits
    * @param _payload The encoded check
@@ -300,7 +320,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   }
 
   /**
-   * @notice The token's own checks, shared by `_update` and `canTransfer`
+   * @notice The token's own checks, shared by `_move` and `canTransfer`
    * @dev Enforcement ignores the pause, and `forcedTransfer` has already unfrozen what it moves. As in ERC-7943, the
    *      unfrozen check applies only while the account has a frozen amount: a balance shortfall with nothing frozen
    *      is left to the base standard, which reverts with `ERC20InsufficientBalance`

@@ -7,6 +7,7 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
 import {IERCXXXX} from 'interfaces/IERCXXXX.sol';
 import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IExampleExecutorToken} from 'interfaces/IExampleExecutorToken.sol';
 import {IExampleToken} from 'interfaces/IExampleToken.sol';
 
 /// @notice Permits everything; the base of the faulty policies below
@@ -179,6 +180,44 @@ contract ReentrantInstallPolicy is PermissivePolicy {
     } else {
       IExampleToken(_token).setPolicy(NEXT, '');
     }
+  }
+}
+
+/// @notice Once given an instruction, tries to carry it out from inside `onInstall` and `afterTransfer`; needs the role
+contract ReentrantExecutorPolicy is PermissivePolicy {
+  IExampleExecutorToken.Instruction internal _instruction;
+  bytes internal _signature;
+
+  function arm(
+    IExampleExecutorToken.Instruction calldata _newInstruction,
+    bytes calldata _newSignature
+  ) external {
+    _instruction = _newInstruction;
+    _signature = _newSignature;
+  }
+
+  function wantsAfterTransfer() external pure override returns (bool _wantsAfter) {
+    _wantsAfter = true;
+  }
+
+  function afterTransfer(
+    TransferContext calldata _context
+  ) external override {
+    _reenter(_context.token);
+  }
+
+  function onInstall(
+    address _token,
+    address,
+    bytes calldata
+  ) external override {
+    _reenter(_token);
+  }
+
+  function _reenter(
+    address _token
+  ) private {
+    if (_signature.length > 0) IExampleExecutorToken(_token).executeInstruction(_instruction, _signature);
   }
 }
 
