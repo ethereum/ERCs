@@ -203,6 +203,27 @@ V.append(build("o4-at-least-k", "O4",
                mut_criteria=lambda c: c.update(decisionRule="ALL_REQUIRED_AND_AT_LEAST(1)"),
                expect_rules=["O4"]))
 
+
+def count_shortfall_criteria(c):
+    """Required MET/WAIVED, one optional MET, one optional NOT_APPLICABLE."""
+    c["decisionRule"] = "ALL_REQUIRED_AND_AT_LEAST(2)"
+    c["obligations"].append({
+        "index": 3, "type": "GPS_TRACE", "required": False, "waivable": False,
+        "constraints": {"captureMetadata": ["timestamp"], "sampleIntervalSeconds": 60},
+    })
+
+
+V.append(build(
+    "o4-not-satisfied-count-shortfall", "O4",
+    "ALL_REQUIRED_AND_AT_LEAST(2) with required obligations met and only one of two "
+    "optional obligations MET: NotSatisfied is the rule's result, carries no UNMET "
+    "obligation, and must not be rejected by E11.",
+    outcomes=("MET", "WAIVED", "MET", "NOT_APPLICABLE"),
+    verdict="NotSatisfied",
+    mut_criteria=count_shortfall_criteria,
+    expect_rules=[],
+))
+
 # ------------------------------------------------------------------ O5
 
 

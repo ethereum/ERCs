@@ -301,6 +301,7 @@ contract PreregisteredCriteria is IPreregisteredCriteria, IERC165 {
         Verdict verdict
     ) private pure {
         bool anyUnmet;
+        bool anyNegativeBasis;
         bool requiredShortfall;
         uint256 shortfallIndex;
         for (uint256 i = 0; i < n; i++) {
@@ -310,14 +311,19 @@ contract PreregisteredCriteria is IPreregisteredCriteria, IERC165 {
             if (out == NOT_APPLICABLE && required) revert E6_NotApplicableOnRequired(i);
             if (out == WAIVED && flag & WAIVABLE == 0) revert E5_NotWaivable(i);
             if (out == UNMET) anyUnmet = true;
+            if (out != MET && out != WAIVED) anyNegativeBasis = true;
             if (required && out != MET && out != WAIVED && !requiredShortfall) {
                 requiredShortfall = true;
                 shortfallIndex = i;
             }
         }
         if (verdict == Verdict.Satisfied && requiredShortfall) revert E4_RequiredNotMet(shortfallIndex);
-        if ((verdict == Verdict.NotSatisfied || verdict == Verdict.Indeterminate) && !anyUnmet) {
-            revert E11_NoUnmetObligation();
-        }
+        // E11: Indeterminate needs an UNMET obligation. NotSatisfied needs an
+        // obligation that is neither MET nor WAIVED (UNMET or NOT_APPLICABLE),
+        // so a claim on which everything was met or waived can never be failed.
+        // A NOT_APPLICABLE obligation may legitimately cause a count-rule
+        // shortfall with no UNMET obligation present.
+        if (verdict == Verdict.Indeterminate && !anyUnmet) revert E11_NoUnmetObligation();
+        if (verdict == Verdict.NotSatisfied && !anyNegativeBasis) revert E11_NoUnmetObligation();
     }
 }

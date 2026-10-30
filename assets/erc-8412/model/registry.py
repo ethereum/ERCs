@@ -141,7 +141,7 @@ class Registry:
         if self._on("E9") and verdict not in (SATISFIED, NOT_SATISFIED, INDETERMINATE):
             raise Revert("E9", "verdict must be Satisfied, NotSatisfied or Indeterminate")
         self._check_packed(outcomes, p.obligation_count)
-        any_unmet, required_ok = False, True
+        any_unmet, any_negative_basis, required_ok = False, False, True
         for i in range(p.obligation_count):
             flag, out = pair(p.obligation_flags, i), pair(outcomes, i)
             required, waivable = flag & 1, (flag >> 1) & 1
@@ -151,12 +151,16 @@ class Registry:
                 raise Revert("E5", f"WAIVED on non-waivable obligation {i}")
             if out == UNMET:
                 any_unmet = True
+            if out not in (MET, WAIVED):
+                any_negative_basis = True
             if required and out not in (MET, WAIVED):
                 required_ok = False
         if self._on("E4") and verdict == SATISFIED and not required_ok:
             raise Revert("E4", "Satisfied with a required obligation not MET/WAIVED")
-        if self._on("E11") and verdict in (NOT_SATISFIED, INDETERMINATE) and not any_unmet:
-            raise Revert("E11", "NotSatisfied/Indeterminate with no UNMET obligation")
+        if self._on("E11") and verdict == INDETERMINATE and not any_unmet:
+            raise Revert("E11", "Indeterminate with no UNMET obligation")
+        if self._on("E11") and verdict == NOT_SATISFIED and not any_negative_basis:
+            raise Revert("E11", "NotSatisfied while every obligation is MET or WAIVED")
         self.atts[pid] = Attestation(sender, bundle_digest, attestation_digest, verdict,
                                      bytes(outcomes), ts)
         self.events.append(("OutcomeAttested", pid))

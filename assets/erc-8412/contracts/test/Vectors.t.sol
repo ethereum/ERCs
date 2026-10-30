@@ -115,6 +115,21 @@ contract ERC8412VectorsTest is Test {
         reg.attestOutcome(p1, bytes32(0xa756cae0ef6a0b6531305b24d364448a4b2637b6bd5b8b1f918ce1cfaa11271c), bytes32(0xa2e73eb835e4b74aaee074442d0fc621373da297cecf0a7468eed5353d7f784b), IPreregisteredCriteria.Verdict.Indeterminate, hex"6c");
     }
 
+    /// E11 (MUST): NotSatisfied is admissible with no UNMET obligation when a NOT_APPLICABLE obligation causes a minimum-count shortfall.
+    function test_E11_not_satisfied_not_applicable() public {
+        bytes32 p1;
+        vm.warp(1000);
+        vm.prank(author);
+        p1 = reg.preregister(bytes32(0x731e64bc4d93f1e75ce274b180889ca06f8d6192022df8f63825fdb6f0438b29), bytes32(0xa48d4955fc8d2b9b4db01452af27d26bd30ca536fabafe34b0aeac4d32942f4f), 4, hex"70", 2000, verifier, bytes32(0));
+        vm.warp(1500);
+        vm.prank(verifier);
+        reg.attestOutcome(p1, bytes32(0xa756cae0ef6a0b6531305b24d364448a4b2637b6bd5b8b1f918ce1cfaa11271c), bytes32(0xa2e73eb835e4b74aaee074442d0fc621373da297cecf0a7468eed5353d7f784b), IPreregisteredCriteria.Verdict.NotSatisfied, hex"67");
+        {
+            (,,, IPreregisteredCriteria.Verdict v,,) = reg.getAttestation(p1);
+            assertEq(uint8(v), uint8(IPreregisteredCriteria.Verdict.NotSatisfied));
+        }
+    }
+
     /// E12 (MUST): Superseding an unknown preregistrationId reverts.
     function test_E12_supersede_unknown_prior() public {
         vm.warp(1000);

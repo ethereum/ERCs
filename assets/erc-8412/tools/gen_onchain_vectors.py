@@ -204,6 +204,12 @@ case("E11", "indeterminate-nothing-unmet",
      "Indeterminate needs at least one undecided (UNMET) obligation.",
      [prereg("p1"), attest("$p1", "Indeterminate", ["MET", "WAIVED", "NOT_APPLICABLE"],
                            expect=rev("E11"))])
+case("E11", "not-satisfied-not-applicable",
+     "NotSatisfied is admissible with no UNMET obligation when a NOT_APPLICABLE "
+     "obligation causes a minimum-count shortfall.",
+     [prereg("p1", count=4, flags="0x" + pack([1, 3, 0, 0]).hex()),
+      attest("$p1", "NotSatisfied", ["MET", "WAIVED", "MET", "NOT_APPLICABLE"]),
+      verdict_is("$p1", "NotSatisfied")])
 
 # ------------------------------------------------------------------ E12
 case("E12", "supersede-unknown-prior", "Superseding an unknown preregistrationId reverts.",
