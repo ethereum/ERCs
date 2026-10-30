@@ -1,0 +1,1 @@
+{"keyManagement":{"type":"pre-shared-demo-key"},"mode":"encrypted","objects":{"daily_finance_brief.py":{"ciphertext":"bafkreigzhl4oyyh62qqusk5xu6w3lii7u4gretau5bkkv26r5tb4wogx5u","plaintextHash":"0x444bc9e655d53e31b2da14c5ec2c91f66a5b939e987a91c17d523eaf455a952f"}},"profile":"x-test-sha256-xor-stream-v1","schemaVersion":"1.0"}
