@@ -59,8 +59,6 @@ contract uRWA721 is Context, ERC721, AccessControlEnumerable, IERC7943NonFungibl
 
     /// @inheritdoc IERC7943NonFungible
     function canTransfer(address from, address to, uint256 tokenId) public view virtual override returns (bool allowed) {
-        address owner = _ownerOf(tokenId);
-        if (owner != from || owner == address(0)) return allowed;
         if (getFrozenTokens(from, tokenId)) return allowed;
         if (!canSend(from) || !canReceive(to)) return allowed;
 
