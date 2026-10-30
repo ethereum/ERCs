@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 880" role="img" aria-labelledby="title desc">
+  <title id="title">Execution Hooks Fire Per Call Within a Batch</title>
+  <desc id="desc">Diagram showing an executeBatch with three calls. Active hooks fire beforeExecute and afterExecute around each individual call, not once for the entire batch. This allows hooks to track cumulative state such as running spending totals across calls.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#304254"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #52606d; }
+    .box { stroke: #304254; stroke-width: 2.4; rx: 22; ry: 22; }
+    .account { fill: #eaf7ef; }
+    .hook { fill: #f8f2ff; }
+    .call-group { fill: #f8faf9; stroke: #7fa18e; stroke-width: 2; rx: 16; ry: 16; }
+    .before { fill: #eef3ff; stroke: #6e8ab0; stroke-width: 2; rx: 14; ry: 14; }
+    .after { fill: #f3f7ff; stroke: #6e8ab0; stroke-width: 2; rx: 14; ry: 14; }
+    .call { fill: #fff3db; stroke: #c5963d; stroke-width: 2; rx: 14; ry: 14; }
+    .note { fill: #fffdf8; stroke: #c7d0d9; stroke-width: 2; rx: 18; ry: 18; }
+    .good { fill: #f5fbf7; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .warn { fill: #fff3ef; stroke: #cf8168; stroke-width: 2; rx: 18; ry: 18; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1c2733; }
+    .label { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #23313d; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #23313d; }
+    .edge { stroke: #304254; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="880"/>
+
+  <text class="title" x="720" y="48" text-anchor="middle">Execution Hooks: Per-Call Firing Within a Batch</text>
+  <text class="subtitle" x="720" y="80" text-anchor="middle">Hooks fire beforeExecute and afterExecute around each individual call, not once for the whole batch.</text>
+  <text class="subtitle" x="720" y="104" text-anchor="middle">This lets hooks track cumulative state (e.g. running spending totals) across calls.</text>
+
+  <!-- executeBatch entry -->
+  <rect class="box account" x="40" y="145" width="320" height="85"/>
+  <text class="title2" x="200" y="183" text-anchor="middle">Account (A)</text>
+  <text class="mono" x="200" y="208" text-anchor="middle">executeBatch([call1, call2, call3])</text>
+
+  <path class="edge" d="M 360 187 L 440 187"/>
+
+  <!-- Main batch frame -->
+  <rect class="call-group" x="440" y="135" width="960" height="320"/>
+  <text class="label" x="920" y="165" text-anchor="middle">Atomic batch — three calls, hooks fire per call</text>
+
+  <!--
+    Three-column layout inside frame, centered with equal gaps:
+    Before:  x=530, w=160  → ends at 690
+    Gap:     60px (690 → 750)
+    Call:    x=750, w=280  → ends at 1030
+    Gap:     60px (1030 → 1090)
+    After:   x=1090, w=160  → ends at 1250
+    Left pad: 530-440 = 90px.  Right pad: 1400-1250 = 150px.
+    Close enough for visual balance with the arrow entry on the left.
+  -->
+
+  <!-- ═══════ CALL 1 ═══════ -->
+  <rect class="before" x="500" y="195" width="160" height="40"/>
+  <text class="mono" x="580" y="220" text-anchor="middle">beforeExecute()</text>
+
+  <path class="edge" d="M 660 215 L 760 215"/>
+
+  <rect class="call" x="760" y="195" width="330" height="40"/>
+  <text class="mono" x="930" y="220" text-anchor="middle">CALL 1: approve(token, router, amt)</text>
+
+  <path class="edge" d="M 1090 215 L 1180 215"/>
+
+  <rect class="after" x="1180" y="195" width="160" height="40"/>
+  <text class="mono" x="1260" y="220" text-anchor="middle">afterExecute()</text>
+
+  <!-- ═══════ CALL 2 ═══════ -->
+  <rect class="before" x="500" y="275" width="160" height="40"/>
+  <text class="mono" x="580" y="300" text-anchor="middle">beforeExecute()</text>
+
+  <path class="edge" d="M 660 295 L 760 295"/>
+
+  <rect class="call" x="760" y="275" width="330" height="40"/>
+  <text class="mono" x="930" y="300" text-anchor="middle">CALL 2: swap(tokenIn, tokenOut, ...)</text>
+
+  <path class="edge" d="M 1090 295 L 1180 295"/>
+
+  <rect class="after" x="1180" y="275" width="160" height="40"/>
+  <text class="mono" x="1260" y="300" text-anchor="middle">afterExecute()</text>
+
+  <!-- ═══════ CALL 3 ═══════ -->
+  <rect class="before" x="500" y="355" width="160" height="40"/>
+  <text class="mono" x="580" y="380" text-anchor="middle">beforeExecute()</text>
+
+  <path class="edge" d="M 660 375 L 760 375"/>
+
+  <rect class="call" x="760" y="355" width="330" height="40"/>
+  <text class="mono" x="930" y="380" text-anchor="middle">CALL 3: transfer(recipient, amount)</text>
+
+  <path class="edge" d="M 1090 375 L 1180 375"/>
+
+  <rect class="after" x="1180" y="355" width="160" height="40"/>
+  <text class="mono" x="1260" y="380" text-anchor="middle">afterExecute()</text>
+
+  <!-- Legend -->
+  <rect class="before" x="65" y="280" width="26" height="22"/>
+  <text class="body" x="100" y="296" text-anchor="start">before hook</text>
+  <rect class="call" x="65" y="312" width="26" height="22"/>
+  <text class="body" x="100" y="328" text-anchor="start">target call</text>
+  <rect class="after" x="65" y="344" width="26" height="22"/>
+  <text class="body" x="100" y="360" text-anchor="start">after hook</text>
+
+  <!-- Hook detail box -->
+  <rect class="box hook" x="440" y="490" width="960" height="130"/>
+  <text class="title2" x="920" y="535" text-anchor="middle">Hook Contract (scope = Direct, Signed, or All)</text>
+  <text class="mono" x="920" y="562" text-anchor="middle">beforeExecute(caller, submitter, target, value, data)</text>
+  <text class="mono" x="920" y="586" text-anchor="middle">afterExecute(caller, submitter, target, value, data, result)</text>
+  <text class="body" x="920" y="606" text-anchor="middle">caller = authorized signer (owner or validator-approved); submitter = msg.sender on Account</text>
+
+  <!-- Revocation exemption note -->
+  <rect class="note" x="440" y="640" width="960" height="40"/>
+  <text class="body" x="920" y="666" text-anchor="middle">Hooks do NOT fire for approval revocation functions. Revocations are safe-by-construction and must remain callable during unlock freeze.</text>
+
+  <!-- Bottom panels -->
+  <rect class="good" x="70" y="720" width="420" height="130"/>
+  <text class="label" x="280" y="755" text-anchor="middle">Per-Call, Not Per-Batch</text>
+  <text class="body" x="280" y="783" text-anchor="middle">A spending-limit hook sees each call individually.</text>
+  <text class="body" x="280" y="805" text-anchor="middle">It can track a running total and revert when</text>
+  <text class="body" x="280" y="827" text-anchor="middle">the cumulative spend exceeds the budget.</text>
+
+  <rect class="note" x="530" y="720" width="380" height="130"/>
+  <text class="label" x="720" y="755" text-anchor="middle">Scope Controls Firing</text>
+  <text class="body" x="720" y="783" text-anchor="middle">Direct (1): fires on execute/executeBatch.</text>
+  <text class="body" x="720" y="805" text-anchor="middle">Signed (2): fires on signed execution only.</text>
+  <text class="body" x="720" y="827" text-anchor="middle">All (3): fires on both paths.</text>
+
+  <rect class="warn" x="950" y="720" width="420" height="130"/>
+  <text class="label" x="1160" y="755" text-anchor="middle">Hook Revert = Batch Revert</text>
+  <text class="body" x="1160" y="783" text-anchor="middle">If any hook reverts in beforeExecute or</text>
+  <text class="body" x="1160" y="805" text-anchor="middle">afterExecute, the entire batch reverts.</text>
+  <text class="body" x="1160" y="827" text-anchor="middle">Hooks are version-scoped like validators.</text>
+</svg>

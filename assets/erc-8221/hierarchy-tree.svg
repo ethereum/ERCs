@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1020" role="img" aria-labelledby="title desc">
+  <title id="title">Hierarchical Account Tree</title>
+  <desc id="desc">Tree diagram showing an owner account owning the parent controller token, the parent account holding child controller tokens, and a distinction between controller NFTs and regular assets.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#314153"/>
+    </marker>
+  </defs>
+  <style>
+    .bg { fill: #fbfaf6; }
+    .title { font: 700 30px 'Segoe UI', Arial, sans-serif; fill: #1d2733; }
+    .subtitle { font: 400 16px 'Segoe UI', Arial, sans-serif; fill: #556371; }
+    .box { stroke: #314153; stroke-width: 2.3; rx: 24; ry: 24; }
+    .owner { fill: #eef3ff; }
+    .token { fill: #fff3db; }
+    .account { fill: #eaf7ef; }
+    .asset-zone { fill: #f6faf8; stroke: #7fa18e; stroke-width: 2; rx: 18; ry: 18; }
+    .token-zone { fill: #fffaf0; stroke: #c5963d; stroke-width: 2; rx: 18; ry: 18; }
+    .asset-pill { fill: #d8eadf; stroke: #4f7a63; stroke-width: 1.4; rx: 15; ry: 15; }
+    .small-token { fill: #fff0cf; stroke: #b77f20; stroke-width: 1.8; rx: 18; ry: 18; }
+    .line { stroke: #314153; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .back { stroke: #314153; stroke-width: 3.2; fill: none; }
+    .drop { stroke: #314153; stroke-width: 3.2; fill: none; marker-end: url(#arrow); }
+    .dashed { stroke-dasharray: 8 7; }
+    .title2 { font: 700 22px 'Segoe UI', Arial, sans-serif; fill: #1d2733; }
+    .body { font: 400 15px 'Segoe UI', Arial, sans-serif; fill: #263442; }
+    .mono { font: 600 15px Consolas, 'Courier New', monospace; fill: #263442; }
+    .section { font: 700 17px 'Segoe UI', Arial, sans-serif; fill: #304254; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1440" height="1020"/>
+  <text class="title" x="720" y="46" text-anchor="middle">Hierarchical Account Tree</text>
+  <text class="subtitle" x="720" y="78" text-anchor="middle">The parent account can hold child controller NFTs while also holding ordinary assets.</text>
+
+  <rect class="box owner" x="540" y="110" width="360" height="110"/>
+  <text class="title2" x="720" y="150" text-anchor="middle">Owner Account (O)</text>
+  <text class="body" x="720" y="180" text-anchor="middle">EOA or multisig that owns the parent controller NFT</text>
+
+  <rect class="box token" x="580" y="270" width="280" height="110"/>
+  <text class="title2" x="720" y="310" text-anchor="middle">Controller NFT (T_P)</text>
+  <text class="mono" x="720" y="340" text-anchor="middle">ownerOf(T_P) = Owner Account</text>
+
+  <rect class="box account" x="370" y="435" width="700" height="210"/>
+  <text class="title2" x="720" y="475" text-anchor="middle">Parent Account (P)</text>
+  <text class="mono" x="720" y="505" text-anchor="middle">P = address(uint160(T_P.tokenId))</text>
+
+  <rect class="token-zone" x="405" y="530" width="315" height="85"/>
+  <text class="section" x="562" y="558" text-anchor="middle">P holds controller NFTs</text>
+  <rect class="small-token" x="440" y="570" width="105" height="28"/>
+  <rect class="small-token" x="580" y="570" width="105" height="28"/>
+  <text class="body" x="492" y="589" text-anchor="middle">T_C1</text>
+  <text class="body" x="632" y="589" text-anchor="middle">T_C2</text>
+
+  <rect class="asset-zone" x="745" y="530" width="290" height="85"/>
+  <text class="section" x="890" y="558" text-anchor="middle">P also holds regular assets</text>
+  <rect class="asset-pill" x="770" y="570" width="62" height="28"/>
+  <rect class="asset-pill" x="844" y="570" width="72" height="28"/>
+  <rect class="asset-pill" x="928" y="570" width="80" height="28"/>
+  <text class="body" x="801" y="589" text-anchor="middle">ETH</text>
+  <text class="body" x="880" y="589" text-anchor="middle">ERC-20</text>
+  <text class="body" x="968" y="589" text-anchor="middle">ERC-721</text>
+
+  <rect class="asset-zone" x="530" y="705" width="380" height="110"/>
+  <text class="section" x="720" y="743" text-anchor="middle">Account Nesting</text>
+  <text class="body" x="720" y="777" text-anchor="middle">Holding a child controller NFT gives P root control</text>
+  <text class="body" x="720" y="801" text-anchor="middle">over that child account, unlike ordinary assets.</text>
+
+  <path class="back dashed" d="M 492 598 C 370 700, 250 760, 250 840"/>
+  <path class="back dashed" d="M 632 598 C 900 750, 1200 700, 1190 840"/>
+
+  <rect class="box account" x="80" y="855" width="340" height="140"/>
+  <text class="title2" x="250" y="890" text-anchor="middle">Token Account (C1)</text>
+  <text class="mono" x="250" y="920" text-anchor="middle">ownerOf(T_C1) = P</text>
+  <rect class="asset-pill" x="145" y="952" width="62" height="26"/>
+  <rect class="asset-pill" x="220" y="952" width="72" height="26"/>
+  <text class="body" x="176" y="970" text-anchor="middle">ETH</text>
+  <text class="body" x="256" y="970" text-anchor="middle">ERC-20</text>
+
+  <rect class="box account" x="1020" y="855" width="340" height="140"/>
+  <text class="title2" x="1190" y="890" text-anchor="middle">NFT Account (C2)</text>
+  <text class="mono" x="1190" y="920" text-anchor="middle">ownerOf(T_C2) = P</text>
+  <rect class="asset-pill" x="1085" y="952" width="80" height="26"/>
+  <rect class="asset-pill" x="1178" y="952" width="92" height="26"/>
+  <text class="body" x="1125" y="970" text-anchor="middle">ERC-721</text>
+  <text class="body" x="1224" y="970" text-anchor="middle">ERC-1155</text>
+
+  <line class="drop" x1="250" y1="835" x2="250" y2="855"/>
+  <line class="drop" x1="1190" y1="835" x2="1190" y2="855"/>
+
+  <line class="line" x1="720" y1="220" x2="720" y2="270"/>
+  <text class="section" x="788" y="250">owns T_P</text>
+
+  <line class="line" x1="720" y1="380" x2="720" y2="435"/>
+  <text class="section" x="800" y="412">controls P</text>
+
+  <text class="section" x="115" y="820">T_C1 controls C1</text>
+
+  <text class="section" x="1085" y="820">T_C2 controls C2</text>
+</svg>
