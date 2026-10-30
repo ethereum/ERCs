@@ -7,10 +7,10 @@ import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 bytes32 constant TRANSFER_OK = keccak256('TRANSFER_OK');
 
 /**
- * @title IERCXXXXPolicy
+ * @title IERC8473Policy
  * @notice Decides whether an account may send or receive an ERC-7943 token, and whether a movement of it may happen
  */
-interface IERCXXXXPolicy is IERC165 {
+interface IERC8473Policy is IERC165 {
   /*///////////////////////////////////////////////////////////////
                             ENUMS
   //////////////////////////////////////////////////////////////*/

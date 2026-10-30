@@ -5,7 +5,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
-import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExamplePolicy} from 'interfaces/IExamplePolicy.sol';
 
 import {ExamplePolicy} from 'contracts/example/ExamplePolicy.sol';
@@ -47,9 +47,9 @@ contract ExamplePolicyUnitTest is Helpers {
     address _from,
     address _to,
     uint256 _amount,
-    IERCXXXXPolicy.TransferKind _kind
-  ) internal view returns (IERCXXXXPolicy.TransferContext memory _context) {
-    _context = IERCXXXXPolicy.TransferContext({
+    IERC8473Policy.TransferKind _kind
+  ) internal view returns (IERC8473Policy.TransferContext memory _context) {
+    _context = IERC8473Policy.TransferContext({
       token: _token,
       from: _from,
       to: _to,
@@ -68,18 +68,18 @@ contract ExamplePolicyUnitTest is Helpers {
   ) internal {
     _balance(_to, _amount);
     vm.prank(_token);
-    _policy.afterTransfer(_ctx(address(0), _to, _amount, IERCXXXXPolicy.TransferKind.MINT));
+    _policy.afterTransfer(_ctx(address(0), _to, _amount, IERC8473Policy.TransferKind.MINT));
   }
 
   /// @dev Maps a fuzzed seed onto a kind other than FORCED
   function _nonForcedKind(
     uint8 _seed
-  ) internal pure returns (IERCXXXXPolicy.TransferKind _kind) {
-    IERCXXXXPolicy.TransferKind[4] memory _kinds = [
-      IERCXXXXPolicy.TransferKind.TRANSFER,
-      IERCXXXXPolicy.TransferKind.EXECUTED,
-      IERCXXXXPolicy.TransferKind.MINT,
-      IERCXXXXPolicy.TransferKind.BURN
+  ) internal pure returns (IERC8473Policy.TransferKind _kind) {
+    IERC8473Policy.TransferKind[4] memory _kinds = [
+      IERC8473Policy.TransferKind.TRANSFER,
+      IERC8473Policy.TransferKind.EXECUTED,
+      IERC8473Policy.TransferKind.MINT,
+      IERC8473Policy.TransferKind.BURN
     ];
     _kind = _kinds[_seed % 4];
   }
@@ -283,7 +283,7 @@ contract ExamplePolicyUnitTest is Helpers {
   //////////////////////////////////////////////////////////////*/
 
   function test_CheckTransfer_WhenTheTokenIsUnknown_ItReturnsUnknownToken() public view {
-    IERCXXXXPolicy.TransferContext memory _context = _ctx(_alice, _bob, 1, IERCXXXXPolicy.TransferKind.TRANSFER);
+    IERC8473Policy.TransferContext memory _context = _ctx(_alice, _bob, 1, IERC8473Policy.TransferKind.TRANSFER);
     _context.token = _stranger;
     assertEq(_policy.checkTransfer(_context), _policy.UNKNOWN_TOKEN());
   }
@@ -294,9 +294,9 @@ contract ExamplePolicyUnitTest is Helpers {
     bool _fromAllowed,
     bool _toAllowed
   ) public {
-    IERCXXXXPolicy.TransferKind _kind = _nonForcedKind(_seed);
-    address _from = _kind == IERCXXXXPolicy.TransferKind.MINT ? address(0) : _alice;
-    address _to = _kind == IERCXXXXPolicy.TransferKind.BURN ? address(0) : _bob;
+    IERC8473Policy.TransferKind _kind = _nonForcedKind(_seed);
+    address _from = _kind == IERC8473Policy.TransferKind.MINT ? address(0) : _alice;
+    address _to = _kind == IERC8473Policy.TransferKind.BURN ? address(0) : _bob;
     vm.startPrank(_owner);
     _policy.setAllowlisted(_alice, _fromAllowed);
     _policy.setAllowlisted(_bob, _toAllowed);
@@ -312,12 +312,12 @@ contract ExamplePolicyUnitTest is Helpers {
     vm.prank(_owner);
     _policy.setCap(0);
     _balance(_stranger, 10);
-    assertEq(_policy.checkTransfer(_ctx(_stranger, _bob, 10, IERCXXXXPolicy.TransferKind.FORCED)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_stranger, _bob, 10, IERC8473Policy.TransferKind.FORCED)), TRANSFER_OK);
     assertEq(
-      _policy.checkTransfer(_ctx(_alice, _stranger, 10, IERCXXXXPolicy.TransferKind.FORCED)),
+      _policy.checkTransfer(_ctx(_alice, _stranger, 10, IERC8473Policy.TransferKind.FORCED)),
       _policy.RECEIVER_NOT_ELIGIBLE()
     );
-    assertEq(_policy.checkTransfer(_ctx(_stranger, address(0), 10, IERCXXXXPolicy.TransferKind.FORCED)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_stranger, address(0), 10, IERC8473Policy.TransferKind.FORCED)), TRANSFER_OK);
   }
 
   /// @notice TRANSFER, MINT and BURN decisions cannot depend on `operator`
@@ -325,11 +325,11 @@ contract ExamplePolicyUnitTest is Helpers {
     uint8 _seed,
     address _operator
   ) public {
-    IERCXXXXPolicy.TransferKind _kind = _nonForcedKind(_seed);
-    address _from = _kind == IERCXXXXPolicy.TransferKind.MINT ? address(0) : _alice;
-    address _to = _kind == IERCXXXXPolicy.TransferKind.BURN ? address(0) : _bob;
+    IERC8473Policy.TransferKind _kind = _nonForcedKind(_seed);
+    address _from = _kind == IERC8473Policy.TransferKind.MINT ? address(0) : _alice;
+    address _to = _kind == IERC8473Policy.TransferKind.BURN ? address(0) : _bob;
     _balance(_alice, 10);
-    IERCXXXXPolicy.TransferContext memory _context = _ctx(_from, _to, 1, _kind);
+    IERC8473Policy.TransferContext memory _context = _ctx(_from, _to, 1, _kind);
     bytes32 _reference = _policy.checkTransfer(_context);
     _context.operator = _operator;
     assertEq(_policy.checkTransfer(_context), _reference);
@@ -340,16 +340,16 @@ contract ExamplePolicyUnitTest is Helpers {
     _policy.setCap(0);
     _balance(_alice, 10);
     _balance(_bob, 5);
-    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 1, IERCXXXXPolicy.TransferKind.TRANSFER)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 1, IERC8473Policy.TransferKind.TRANSFER)), TRANSFER_OK);
   }
 
   function test_CheckTransfer_AtTheCap_ANewHolderIsRejectedUnlessTheSenderLeaves() public {
     vm.prank(_owner);
     _policy.setCap(1);
     _countNewHolder(_alice, 10);
-    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 9, IERCXXXXPolicy.TransferKind.TRANSFER)), _policy.MAX_HOLDERS());
-    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 10, IERCXXXXPolicy.TransferKind.TRANSFER)), TRANSFER_OK);
-    assertEq(_policy.checkTransfer(_ctx(address(0), _bob, 1, IERCXXXXPolicy.TransferKind.MINT)), _policy.MAX_HOLDERS());
+    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 9, IERC8473Policy.TransferKind.TRANSFER)), _policy.MAX_HOLDERS());
+    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 10, IERC8473Policy.TransferKind.TRANSFER)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(address(0), _bob, 1, IERC8473Policy.TransferKind.MINT)), _policy.MAX_HOLDERS());
   }
 
   function test_CheckTransfer_AboveALoweredCap_NoNewHolderIsAdmitted() public {
@@ -358,18 +358,18 @@ contract ExamplePolicyUnitTest is Helpers {
     vm.prank(_owner);
     _policy.setCap(1);
     assertEq(
-      _policy.checkTransfer(_ctx(_alice, _carol, 10, IERCXXXXPolicy.TransferKind.TRANSFER)), _policy.MAX_HOLDERS()
+      _policy.checkTransfer(_ctx(_alice, _carol, 10, IERC8473Policy.TransferKind.TRANSFER)), _policy.MAX_HOLDERS()
     );
-    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 10, IERCXXXXPolicy.TransferKind.TRANSFER)), TRANSFER_OK);
-    assertEq(_policy.checkTransfer(_ctx(_alice, address(0), 10, IERCXXXXPolicy.TransferKind.BURN)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 10, IERC8473Policy.TransferKind.TRANSFER)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_alice, address(0), 10, IERC8473Policy.TransferKind.BURN)), TRANSFER_OK);
   }
 
   function test_CheckTransfer_AtTheCap_AZeroAmountNeverCountsAsANewHolder() public {
     vm.prank(_owner);
     _policy.setCap(1);
     _countNewHolder(_alice, 10);
-    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 0, IERCXXXXPolicy.TransferKind.TRANSFER)), TRANSFER_OK);
-    assertEq(_policy.checkTransfer(_ctx(address(0), _bob, 0, IERCXXXXPolicy.TransferKind.MINT)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_alice, _bob, 0, IERC8473Policy.TransferKind.TRANSFER)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(address(0), _bob, 0, IERC8473Policy.TransferKind.MINT)), TRANSFER_OK);
   }
 
   function test_CheckTransfer_AtTheCap_ASelfTransferIsNeverCapped() public {
@@ -377,9 +377,9 @@ contract ExamplePolicyUnitTest is Helpers {
     _policy.setCap(1);
     _countNewHolder(_alice, 10);
     // A holder sending to itself passes through the existing-holder branch as well.
-    assertEq(_policy.checkTransfer(_ctx(_alice, _alice, 5, IERCXXXXPolicy.TransferKind.TRANSFER)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_alice, _alice, 5, IERC8473Policy.TransferKind.TRANSFER)), TRANSFER_OK);
     // Only this case depends on the self-transfer guard: with no balance, the movement could never execute.
-    assertEq(_policy.checkTransfer(_ctx(_carol, _carol, 5, IERCXXXXPolicy.TransferKind.TRANSFER)), TRANSFER_OK);
+    assertEq(_policy.checkTransfer(_ctx(_carol, _carol, 5, IERC8473Policy.TransferKind.TRANSFER)), TRANSFER_OK);
   }
 
   function test_CheckTransfer_WhenTheKindIsOutsideTheEnumeration_ItReverts() public view {
@@ -401,11 +401,11 @@ contract ExamplePolicyUnitTest is Helpers {
   function test_AfterTransfer_WhenTheCallerIsNotTheToken_ItReverts() public {
     vm.prank(_stranger);
     vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_OnlyToken.selector, _stranger));
-    _policy.afterTransfer(_ctx(address(0), _alice, 1, IERCXXXXPolicy.TransferKind.MINT));
+    _policy.afterTransfer(_ctx(address(0), _alice, 1, IERC8473Policy.TransferKind.MINT));
   }
 
   function test_AfterTransfer_WhenTheContextNamesAnotherToken_ItReverts() public {
-    IERCXXXXPolicy.TransferContext memory _context = _ctx(address(0), _alice, 1, IERCXXXXPolicy.TransferKind.MINT);
+    IERC8473Policy.TransferContext memory _context = _ctx(address(0), _alice, 1, IERC8473Policy.TransferKind.MINT);
     _context.token = _stranger;
     vm.prank(_token);
     vm.expectRevert(abi.encodeWithSelector(IExamplePolicy.ExamplePolicy_OnlyToken.selector, _token));
@@ -420,28 +420,28 @@ contract ExamplePolicyUnitTest is Helpers {
     _balance(_alice, 0);
     _balance(_bob, 10);
     vm.prank(_token);
-    _policy.afterTransfer(_ctx(_alice, _bob, 10, IERCXXXXPolicy.TransferKind.TRANSFER));
+    _policy.afterTransfer(_ctx(_alice, _bob, 10, IERC8473Policy.TransferKind.TRANSFER));
     assertEq(_policy.holderCount(), 1);
 
     // bob burns everything
     _balance(_bob, 0);
     vm.prank(_token);
-    _policy.afterTransfer(_ctx(_bob, address(0), 10, IERCXXXXPolicy.TransferKind.BURN));
+    _policy.afterTransfer(_ctx(_bob, address(0), 10, IERC8473Policy.TransferKind.BURN));
     assertEq(_policy.holderCount(), 0);
   }
 
   function test_AfterTransfer_ZeroAmountsAndSelfTransfersChangeNothing() public {
     _countNewHolder(_alice, 10);
     vm.startPrank(_token);
-    _policy.afterTransfer(_ctx(_alice, _bob, 0, IERCXXXXPolicy.TransferKind.TRANSFER));
-    _policy.afterTransfer(_ctx(_alice, _alice, 10, IERCXXXXPolicy.TransferKind.TRANSFER));
+    _policy.afterTransfer(_ctx(_alice, _bob, 0, IERC8473Policy.TransferKind.TRANSFER));
+    _policy.afterTransfer(_ctx(_alice, _alice, 10, IERC8473Policy.TransferKind.TRANSFER));
     vm.stopPrank();
     assertEq(_policy.holderCount(), 1);
   }
 
   function test_WantsAfterTransferAndSupportsInterface() public view {
     assertTrue(_policy.wantsAfterTransfer());
-    assertTrue(_policy.supportsInterface(type(IERCXXXXPolicy).interfaceId));
+    assertTrue(_policy.supportsInterface(type(IERC8473Policy).interfaceId));
     assertTrue(_policy.supportsInterface(type(IERC165).interfaceId));
     assertFalse(_policy.supportsInterface(0xffffffff));
   }

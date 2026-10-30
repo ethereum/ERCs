@@ -9,14 +9,14 @@ import {ERC165Checker} from '@openzeppelin/contracts/utils/introspection/ERC165C
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
 import {IERC7943Fungible} from 'interfaces/IERC7943Fungible.sol';
-import {IERCXXXX} from 'interfaces/IERCXXXX.sol';
-import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473} from 'interfaces/IERC8473.sol';
+import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExampleToken} from 'interfaces/IExampleToken.sol';
 
 /**
  * @title ExampleToken
- * @notice ERC-20 token that implements ERC-7943 through an ERC-XXXX policy, as specified in `IExampleToken`
- * @dev Non-normative and not audited. Shows the token side of ERC-XXXX: one check path shared by movements and
+ * @notice ERC-20 token that implements ERC-7943 through an ERC-8473 policy, as specified in `IExampleToken`
+ * @dev Non-normative and not audited. Shows the token side of ERC-8473: one check path shared by movements and
  *      pre-flights, the policy read once per movement, fail-closed policy calls, and FORCED for enforcement
  */
 contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransient, IExampleToken {
@@ -114,13 +114,13 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _newPolicy,
     bytes calldata _data
   ) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE) {
-    if (!ERC165Checker.supportsInterface(_newPolicy, type(IERCXXXXPolicy).interfaceId)) {
+    if (!ERC165Checker.supportsInterface(_newPolicy, type(IERC8473Policy).interfaceId)) {
       revert ExampleToken_PolicyNotSupported(_newPolicy);
     }
     address _previousPolicy = _policy;
     emit PolicyChanged(_previousPolicy, _newPolicy);
     _policy = _newPolicy;
-    IERCXXXXPolicy(_newPolicy).onInstall(address(this), _previousPolicy, _data);
+    IERC8473Policy(_newPolicy).onInstall(address(this), _previousPolicy, _data);
   }
 
   /// @inheritdoc IExampleToken
@@ -140,7 +140,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _account
   ) external view returns (bool _allowed) {
     _allowed =
-      _account == address(0) || _permits(abi.encodeCall(IERCXXXXPolicy.checkReceive, (address(this), _account)));
+      _account == address(0) || _permits(abi.encodeCall(IERC8473Policy.checkReceive, (address(this), _account)));
   }
 
   /**
@@ -150,7 +150,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   function canSend(
     address _account
   ) external view returns (bool _allowed) {
-    _allowed = _account == address(0) || _permits(abi.encodeCall(IERCXXXXPolicy.checkSend, (address(this), _account)));
+    _allowed = _account == address(0) || _permits(abi.encodeCall(IERC8473Policy.checkSend, (address(this), _account)));
   }
 
   /**
@@ -165,9 +165,9 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     uint256 _amount
   ) external view returns (bool _allowed) {
     if (_from == address(0) && _to == address(0)) return false;
-    IERCXXXXPolicy.TransferKind _kind = _inferKind(_from, _to);
+    IERC8473Policy.TransferKind _kind = _inferKind(_from, _to);
     if (_tokenCheck(_from, _amount, _kind) != TRANSFER_OK) return false;
-    _allowed = _permits(abi.encodeCall(IERCXXXXPolicy.checkTransfer, (_context(_from, _to, _amount, _from, _kind, ''))));
+    _allowed = _permits(abi.encodeCall(IERC8473Policy.checkTransfer, (_context(_from, _to, _amount, _from, _kind, ''))));
   }
 
   /// @inheritdoc IERC7943Fungible
@@ -177,7 +177,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     _amount = _frozen[_account];
   }
 
-  /// @inheritdoc IERCXXXX
+  /// @inheritdoc IERC8473
   function policy() external view returns (address _currentPolicy) {
     _currentPolicy = _policy;
   }
@@ -186,7 +186,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   function supportsInterface(
     bytes4 _interfaceId
   ) public view override(AccessControl, IERC165) returns (bool _supported) {
-    _supported = _interfaceId == type(IERC7943Fungible).interfaceId || _interfaceId == type(IERCXXXX).interfaceId
+    _supported = _interfaceId == type(IERC7943Fungible).interfaceId || _interfaceId == type(IERC8473).interfaceId
       || super.supportsInterface(_interfaceId);
   }
 
@@ -205,7 +205,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _to,
     uint256 _value
   ) internal override {
-    IERCXXXXPolicy.TransferKind _kind = _forcedPending ? IERCXXXXPolicy.TransferKind.FORCED : _inferKind(_from, _to);
+    IERC8473Policy.TransferKind _kind = _forcedPending ? IERC8473Policy.TransferKind.FORCED : _inferKind(_from, _to);
     _forcedPending = false;
     _move(_from, _to, _value, _kind, '');
   }
@@ -224,7 +224,7 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _from,
     address _to,
     uint256 _value,
-    IERCXXXXPolicy.TransferKind _kind,
+    IERC8473Policy.TransferKind _kind,
     bytes memory _data
   ) internal nonReentrant {
     bytes32 _tokenReason = _tokenCheck(_from, _value, _kind);
@@ -235,12 +235,12 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
       revert ERC7943InsufficientUnfrozenBalance(_from, _value, _unfrozen(_from));
     }
 
-    IERCXXXXPolicy.TransferContext memory _ctx = _context(_from, _to, _value, _msgSender(), _kind, _data);
-    IERCXXXXPolicy _activePolicy = IERCXXXXPolicy(_policy); // read once for this movement
+    IERC8473Policy.TransferContext memory _ctx = _context(_from, _to, _value, _msgSender(), _kind, _data);
+    IERC8473Policy _activePolicy = IERC8473Policy(_policy); // read once for this movement
 
     // A revert, missing code or short return data reverts here too: the movement fails closed.
     bytes32 _reason = _activePolicy.checkTransfer(_ctx);
-    if (_reason != TRANSFER_OK) revert ERCXXXXPolicyRejected(_reason);
+    if (_reason != TRANSFER_OK) revert ERC8473PolicyRejected(_reason);
 
     super._update(_from, _to, _value);
 
@@ -282,10 +282,10 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
     address _to,
     uint256 _amount,
     address _operator,
-    IERCXXXXPolicy.TransferKind _kind,
+    IERC8473Policy.TransferKind _kind,
     bytes memory _data
-  ) internal view returns (IERCXXXXPolicy.TransferContext memory _ctx) {
-    _ctx = IERCXXXXPolicy.TransferContext({
+  ) internal view returns (IERC8473Policy.TransferContext memory _ctx) {
+    _ctx = IERC8473Policy.TransferContext({
       token: address(this),
       from: _from,
       to: _to,
@@ -332,9 +332,9 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   function _tokenCheck(
     address _from,
     uint256 _amount,
-    IERCXXXXPolicy.TransferKind _kind
+    IERC8473Policy.TransferKind _kind
   ) internal view returns (bytes32 _reason) {
-    if (_kind == IERCXXXXPolicy.TransferKind.FORCED) return TRANSFER_OK;
+    if (_kind == IERC8473Policy.TransferKind.FORCED) return TRANSFER_OK;
     if (paused()) return _PAUSED;
     if (_from != address(0) && _frozen[_from] > 0 && _amount > _unfrozen(_from)) return _INSUFFICIENT_UNFROZEN;
     _reason = TRANSFER_OK;
@@ -362,9 +362,9 @@ contract ExampleToken is ERC20, AccessControl, Pausable, ReentrancyGuardTransien
   function _inferKind(
     address _from,
     address _to
-  ) internal pure returns (IERCXXXXPolicy.TransferKind _kind) {
-    if (_from == address(0)) return IERCXXXXPolicy.TransferKind.MINT;
-    if (_to == address(0)) return IERCXXXXPolicy.TransferKind.BURN;
-    _kind = IERCXXXXPolicy.TransferKind.TRANSFER;
+  ) internal pure returns (IERC8473Policy.TransferKind _kind) {
+    if (_from == address(0)) return IERC8473Policy.TransferKind.MINT;
+    if (_to == address(0)) return IERC8473Policy.TransferKind.BURN;
+    _kind = IERC8473Policy.TransferKind.TRANSFER;
   }
 }

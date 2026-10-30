@@ -5,13 +5,13 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC165} from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
-import {IERCXXXX} from 'interfaces/IERCXXXX.sol';
-import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473} from 'interfaces/IERC8473.sol';
+import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExampleExecutorToken} from 'interfaces/IExampleExecutorToken.sol';
 import {IExampleToken} from 'interfaces/IExampleToken.sol';
 
 /// @notice Permits everything; the base of the faulty policies below
-abstract contract PermissivePolicy is ERC165, IERCXXXXPolicy {
+abstract contract PermissivePolicy is ERC165, IERC8473Policy {
   function afterTransfer(
     TransferContext calldata
   ) external virtual {}
@@ -49,7 +49,7 @@ abstract contract PermissivePolicy is ERC165, IERCXXXXPolicy {
   function supportsInterface(
     bytes4 _interfaceId
   ) public view override(ERC165, IERC165) returns (bool _supported) {
-    _supported = _interfaceId == type(IERCXXXXPolicy).interfaceId || super.supportsInterface(_interfaceId);
+    _supported = _interfaceId == type(IERC8473Policy).interfaceId || super.supportsInterface(_interfaceId);
   }
 }
 
@@ -232,7 +232,7 @@ contract InstallRecorderPolicy is PermissivePolicy {
     address _previousPolicy,
     bytes calldata _data
   ) external override {
-    seenPolicy = IERCXXXX(_token).policy();
+    seenPolicy = IERC8473(_token).policy();
     seenPrevious = _previousPolicy;
     seenData = _data;
   }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {ReentrancyGuardTransient} from '@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol';
 
-import {IERCXXXX} from 'interfaces/IERCXXXX.sol';
+import {IERC8473} from 'interfaces/IERC8473.sol';
 import {IExampleExecutorToken} from 'interfaces/IExampleExecutorToken.sol';
 
 import {ExampleExecutorToken} from 'contracts/example/ExampleExecutorToken.sol';
@@ -12,8 +12,8 @@ import {ExecutedRulesPolicy} from 'contracts/test/ExecutedRulesPolicy.sol';
 import {GasBurningPolicy, ReentrantExecutorPolicy} from 'contracts/test/FaultyPolicies.sol';
 import {InstructionHelpers} from 'contracts/test/InstructionHelpers.sol';
 
-/// @notice ERC-XXXX conformance for EXECUTED movements: the executor token with real policies
-contract ERCXXXXExecutedIntegrationTest is InstructionHelpers {
+/// @notice ERC-8473 conformance for EXECUTED movements: the executor token with real policies
+contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
   uint256 internal constant _NOT_AN_EXECUTOR = 1;
   uint256 internal constant _EXPIRED = 2;
   uint256 internal constant _REFERENCE_USED = 3;
@@ -190,7 +190,7 @@ contract ERCXXXXExecutedIntegrationTest is InstructionHelpers {
     _policy.setAllowlisted(_actors[0], false);
     assertFalse(_token.canExecute(_built, _signature, _executor));
     vm.prank(_executor);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _senderReason));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _senderReason));
     _token.executeInstruction(_built, _signature);
 
     vm.startPrank(_admin);
@@ -199,7 +199,7 @@ contract ERCXXXXExecutedIntegrationTest is InstructionHelpers {
     vm.stopPrank();
     assertFalse(_token.canExecute(_built, _signature, _executor));
     vm.prank(_executor);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _receiverReason));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _receiverReason));
     _token.executeInstruction(_built, _signature);
   }
 
@@ -212,7 +212,7 @@ contract ERCXXXXExecutedIntegrationTest is InstructionHelpers {
     bytes memory _thirdSignature = _sign(_keys[0], address(_token), _third);
     assertFalse(_token.canExecute(_third, _thirdSignature, _executor));
     vm.prank(_executor);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _maxHolders));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _maxHolders));
     _token.executeInstruction(_third, _thirdSignature);
 
     // A full exit to a new holder leaves the count where it was, and `afterTransfer` follows it.
@@ -241,7 +241,7 @@ contract ERCXXXXExecutedIntegrationTest is InstructionHelpers {
 
     assertFalse(_token.canExecute(_built, _signature, _executor));
     vm.prank(_executor);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _windowClosed));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _windowClosed));
     _token.executeInstruction(_built, _signature);
 
     assertTrue(_token.canTransfer(_actors[0], _actors[1], 1));
@@ -259,7 +259,7 @@ contract ERCXXXXExecutedIntegrationTest is InstructionHelpers {
 
     assertFalse(_token.canTransfer(_actors[0], _actors[1], 1));
     vm.prank(_actors[0]);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _disabled));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _disabled));
     _token.transfer(_actors[1], 1);
 
     assertTrue(_token.canExecute(_built, _signature, _executor));

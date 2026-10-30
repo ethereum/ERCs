@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
 
-import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExampleExecutorToken} from 'interfaces/IExampleExecutorToken.sol';
 
 import {ExampleToken} from 'contracts/example/ExampleToken.sol';
@@ -12,7 +12,7 @@ import {ExampleToken} from 'contracts/example/ExampleToken.sol';
 /**
  * @title ExampleExecutorToken
  * @notice `ExampleToken` with a settlement channel for signed instructions, as specified in `IExampleExecutorToken`
- * @dev Non-normative and not audited. Shows the EXECUTED path of ERC-XXXX: the token verifies the holder's instruction
+ * @dev Non-normative and not audited. Shows the EXECUTED path of ERC-8473: the token verifies the holder's instruction
  *      itself, only accounts it granted the role can carry it out, the movement takes the same `_move` as every other
  *      kind, and the pre-flight builds the context the execution builds
  */
@@ -71,7 +71,7 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
       _instruction.from,
       _instruction.to,
       _instruction.amount,
-      IERCXXXXPolicy.TransferKind.EXECUTED,
+      IERC8473Policy.TransferKind.EXECUTED,
       _instructionData(_instruction)
     );
   }
@@ -93,11 +93,11 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
     if (!hasRole(EXECUTOR_ROLE, _executor)) return false;
     if (_instructionCheck(_instruction, _signature) != TRANSFER_OK) return false;
     if (_instruction.amount > balanceOf(_instruction.from)) return false;
-    IERCXXXXPolicy.TransferKind _kind = IERCXXXXPolicy.TransferKind.EXECUTED;
+    IERC8473Policy.TransferKind _kind = IERC8473Policy.TransferKind.EXECUTED;
     if (_tokenCheck(_instruction.from, _instruction.amount, _kind) != TRANSFER_OK) return false;
     _allowed = _permits(
       abi.encodeCall(
-        IERCXXXXPolicy.checkTransfer,
+        IERC8473Policy.checkTransfer,
         (_context(
             _instruction.from, _instruction.to, _instruction.amount, _executor, _kind, _instructionData(_instruction)
           ))

@@ -6,8 +6,8 @@ import {Pausable} from '@openzeppelin/contracts/utils/Pausable.sol';
 import {ReentrancyGuardTransient} from '@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol';
 
 import {IERC7943Fungible} from 'interfaces/IERC7943Fungible.sol';
-import {IERCXXXX} from 'interfaces/IERCXXXX.sol';
-import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473} from 'interfaces/IERC8473.sol';
+import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExamplePolicy} from 'interfaces/IExamplePolicy.sol';
 
 import {ExamplePolicy} from 'contracts/example/ExamplePolicy.sol';
@@ -33,8 +33,8 @@ interface IERC20Events {
   event Transfer(address indexed from, address indexed to, uint256 value);
 }
 
-/// @notice ERC-XXXX conformance: the example token and policy together, and the token against faulty policies
-contract ERCXXXXIntegrationTest is Helpers {
+/// @notice ERC-8473 conformance: the example token and policy together, and the token against faulty policies
+contract ERC8473IntegrationTest is Helpers {
   struct Scenario {
     uint8 allowMask;
     bool paused;
@@ -106,15 +106,15 @@ contract ERCXXXXIntegrationTest is Helpers {
     }
   }
 
-  function _transferContext() internal view returns (IERCXXXXPolicy.TransferContext memory _context) {
-    _context = IERCXXXXPolicy.TransferContext({
+  function _transferContext() internal view returns (IERC8473Policy.TransferContext memory _context) {
+    _context = IERC8473Policy.TransferContext({
       token: address(_token),
       from: _actors[0],
       to: _actors[1],
       tokenId: 0,
       amount: 1,
       operator: _actors[0],
-      kind: IERCXXXXPolicy.TransferKind.TRANSFER,
+      kind: IERC8473Policy.TransferKind.TRANSFER,
       data: ''
     });
   }
@@ -126,19 +126,20 @@ contract ERCXXXXIntegrationTest is Helpers {
   function test_SelectorsInterfaceIdsAndTheSuccessValue() public pure {
     assertEq(TRANSFER_OK, keccak256('TRANSFER_OK'));
     assertEq(TRANSFER_OK, 0xf059ed422c5a003e2d831cdef17f0af416cf22aae18c781d82aaacaa5c77fd3f);
-    assertEq(IERCXXXXPolicy.checkSend.selector, bytes4(0xec1cb5d7));
-    assertEq(IERCXXXXPolicy.checkReceive.selector, bytes4(0x8b203e96));
-    assertEq(IERCXXXXPolicy.checkTransfer.selector, bytes4(0x64a1a08e));
-    assertEq(IERCXXXXPolicy.wantsAfterTransfer.selector, bytes4(0x38bff1a5));
-    assertEq(IERCXXXXPolicy.afterTransfer.selector, bytes4(0x2595b359));
-    assertEq(IERCXXXXPolicy.onInstall.selector, bytes4(0x820203aa));
-    assertEq(IERCXXXX.policy.selector, bytes4(0x0505c8c9));
+    assertEq(IERC8473Policy.checkSend.selector, bytes4(0xec1cb5d7));
+    assertEq(IERC8473Policy.checkReceive.selector, bytes4(0x8b203e96));
+    assertEq(IERC8473Policy.checkTransfer.selector, bytes4(0x64a1a08e));
+    assertEq(IERC8473Policy.wantsAfterTransfer.selector, bytes4(0x38bff1a5));
+    assertEq(IERC8473Policy.afterTransfer.selector, bytes4(0x2595b359));
+    assertEq(IERC8473Policy.onInstall.selector, bytes4(0x820203aa));
+    assertEq(IERC8473.policy.selector, bytes4(0x0505c8c9));
+    assertEq(IERC8473.ERC8473PolicyRejected.selector, bytes4(0x295e60b5));
     assertEq(
-      IERCXXXXPolicy.checkTransfer.selector,
+      IERC8473Policy.checkTransfer.selector,
       bytes4(keccak256('checkTransfer((address,address,address,uint256,uint256,address,uint8,bytes))'))
     );
-    assertEq(type(IERCXXXXPolicy).interfaceId, bytes4(0x9cb56a99));
-    assertEq(type(IERCXXXX).interfaceId, bytes4(0x0505c8c9));
+    assertEq(type(IERC8473Policy).interfaceId, bytes4(0x9cb56a99));
+    assertEq(type(IERC8473).interfaceId, bytes4(0x0505c8c9));
     assertEq(type(IERC7943Fungible).interfaceId, bytes4(0x3edbb4c4)); // as stated in ERC-7943
   }
 
@@ -152,7 +153,7 @@ contract ERCXXXXIntegrationTest is Helpers {
 
     assertFalse(_token.canTransfer(address(0), _actors[2], 1));
     vm.prank(_minter);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, bytes32(0)));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, bytes32(0)));
     _token.mint(_actors[2], 1);
 
     assertTrue(_token.canTransfer(_actors[0], _actors[1], 1)); // the branch the author wrote still works
@@ -208,8 +209,8 @@ contract ERCXXXXIntegrationTest is Helpers {
   ///         because the first argument word of a call with one dynamic tuple is the offset 0x20
   function test_AnEchoingContractReturnsTheSelectorWord() public {
     EchoContract _echo = new EchoContract();
-    bytes32 _answer = IERCXXXXPolicy(address(_echo)).checkTransfer(_transferContext());
-    assertEq(_answer, bytes32(IERCXXXXPolicy.checkTransfer.selector));
+    bytes32 _answer = IERC8473Policy(address(_echo)).checkTransfer(_transferContext());
+    assertEq(_answer, bytes32(IERC8473Policy.checkTransfer.selector));
     assertTrue(_answer != TRANSFER_OK);
   }
 
@@ -498,7 +499,7 @@ contract ERCXXXXIntegrationTest is Helpers {
     vm.prank(_admin);
     _policy.setAllowlisted(_fifth, true);
     vm.prank(_minter);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _maxHolders));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _maxHolders));
     _token.mint(_fifth, 10);
 
     vm.prank(_actors[2]);
@@ -557,7 +558,7 @@ contract ERCXXXXIntegrationTest is Helpers {
 
     bytes32 _maxHolders = _b.MAX_HOLDERS();
     vm.prank(_minter);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _maxHolders));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _maxHolders));
     _token.mint(_actors[3], 10);
   }
 
@@ -619,7 +620,7 @@ contract ERCXXXXIntegrationTest is Helpers {
     _policy.setAllowlisted(_actors[2], false);
     bytes32 _reason = _policy.RECEIVER_NOT_ELIGIBLE(); // read before the prank, which the next call would consume
     vm.prank(_enforcer);
-    vm.expectRevert(abi.encodeWithSelector(IERCXXXX.ERCXXXXPolicyRejected.selector, _reason));
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _reason));
     _token.forcedTransfer(_actors[0], _actors[2], 100);
   }
 

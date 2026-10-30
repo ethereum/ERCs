@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IERCXXXXPolicy} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473Policy} from 'interfaces/IERC8473Policy.sol';
 
 /**
  * @title IExamplePolicy
- * @notice Example ERC-XXXX policy for one ERC-20 token: an allowlist and a holder cap
+ * @notice Example ERC-8473 policy for one ERC-20 token: an allowlist and a holder cap
  * @dev Non-normative and not audited. Holders are accounts with a non-zero balance. `onInstall` sets the count from a
  *      list of holders on every installation, and `afterTransfer` keeps it. A cap of zero admits no holder
  */
-interface IExamplePolicy is IERCXXXXPolicy {
+interface IExamplePolicy is IERC8473Policy {
   /*///////////////////////////////////////////////////////////////
                             EVENTS
   //////////////////////////////////////////////////////////////*/

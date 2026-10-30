@@ -6,13 +6,13 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {ERC165} from '@openzeppelin/contracts/utils/introspection/ERC165.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
-import {IERCXXXXPolicy, TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {IERC8473Policy, TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 import {IExamplePolicy} from 'interfaces/IExamplePolicy.sol';
 
 /**
  * @title ExamplePolicy
- * @notice ERC-XXXX policy for one ERC-20 token: an allowlist and a holder cap, as specified in `IExamplePolicy`
- * @dev Non-normative and not audited. Shows the policy side of ERC-XXXX: account checks that the transfer check stays
+ * @notice ERC-8473 policy for one ERC-20 token: an allowlist and a holder cap, as specified in `IExamplePolicy`
+ * @dev Non-normative and not audited. Shows the policy side of ERC-8473: account checks that the transfer check stays
  *      consistent with, decisions per kind, and an authenticated `afterTransfer`
  */
 contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
@@ -73,11 +73,11 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
   }
 
   /*///////////////////////////////////////////////////////////////
-                            ERC-XXXX
+                            ERC-8473
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @inheritdoc IERCXXXXPolicy
+   * @inheritdoc IERC8473Policy
    * @dev Only the token may report its movements, so the count only follows real balance changes
    */
   function afterTransfer(
@@ -93,7 +93,7 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
   }
 
   /**
-   * @inheritdoc IERCXXXXPolicy
+   * @inheritdoc IERC8473Policy
    * @dev `_data` is `abi.encode(address[])`: accounts in strictly ascending order whose balances add up to
    *      `totalSupply()`. Then no account outside the list holds tokens, so the count is exact when the call runs,
    *      however old the list is. Only non-zero balances count, so the list may name accounts that hold nothing. The
@@ -135,7 +135,7 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
   }
 
   /**
-   * @inheritdoc IERCXXXXPolicy
+   * @inheritdoc IERC8473Policy
    * @dev Never reads `operator` or `data`: no kind this policy decides on needs them
    */
   function checkTransfer(
@@ -160,12 +160,12 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
     _reason = _admitsHolder(_context) ? TRANSFER_OK : MAX_HOLDERS;
   }
 
-  /// @inheritdoc IERCXXXXPolicy
+  /// @inheritdoc IERC8473Policy
   function wantsAfterTransfer() external pure returns (bool _wantsAfter) {
     _wantsAfter = true;
   }
 
-  /// @inheritdoc IERCXXXXPolicy
+  /// @inheritdoc IERC8473Policy
   function checkReceive(
     address _token,
     address _account
@@ -174,7 +174,7 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
     _reason = allowlisted[_account] ? TRANSFER_OK : RECEIVER_NOT_ELIGIBLE;
   }
 
-  /// @inheritdoc IERCXXXXPolicy
+  /// @inheritdoc IERC8473Policy
   function checkSend(
     address _token,
     address _account
@@ -187,7 +187,7 @@ contract ExamplePolicy is ERC165, Ownable, IExamplePolicy {
   function supportsInterface(
     bytes4 _interfaceId
   ) public view override(ERC165, IERC165) returns (bool _supported) {
-    _supported = _interfaceId == type(IERCXXXXPolicy).interfaceId || super.supportsInterface(_interfaceId);
+    _supported = _interfaceId == type(IERC8473Policy).interfaceId || super.supportsInterface(_interfaceId);
   }
 
   /*///////////////////////////////////////////////////////////////

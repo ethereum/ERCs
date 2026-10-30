@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 
 /**
- * @title IERCXXXX
+ * @title IERC8473
  * @notice An ERC-7943 token governed by an external policy
  */
-interface IERCXXXX is IERC165 {
+interface IERC8473 is IERC165 {
   /*///////////////////////////////////////////////////////////////
                             EVENTS
   //////////////////////////////////////////////////////////////*/
@@ -27,7 +27,7 @@ interface IERCXXXX is IERC165 {
    * @notice Recommended error when the policy rejects a movement
    * @param _reason The policy's reason code
    */
-  error ERCXXXXPolicyRejected(bytes32 _reason);
+  error ERC8473PolicyRejected(bytes32 _reason);
 
   /*///////////////////////////////////////////////////////////////
                             VIEW

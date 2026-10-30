@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {TRANSFER_OK} from 'interfaces/IERCXXXXPolicy.sol';
+import {TRANSFER_OK} from 'interfaces/IERC8473Policy.sol';
 
 import {PermissivePolicy} from 'contracts/test/FaultyPolicies.sol';
 

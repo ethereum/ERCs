@@ -2,22 +2,22 @@
 pragma solidity ^0.8.28;
 
 import {IERC7943Fungible} from 'interfaces/IERC7943Fungible.sol';
-import {IERCXXXX} from 'interfaces/IERCXXXX.sol';
+import {IERC8473} from 'interfaces/IERC8473.sol';
 
 /**
  * @title IExampleToken
- * @notice Example ERC-20 token that implements ERC-7943 through an ERC-XXXX policy
+ * @notice Example ERC-20 token that implements ERC-7943 through an ERC-8473 policy
  * @dev Non-normative and not audited. Enforcement (`forcedTransfer`, `setFrozenTokens`) needs ENFORCER_ROLE, issuance
  *      MINTER_ROLE, pausing PAUSER_ROLE, and installing the policy DEFAULT_ADMIN_ROLE. The token starts without a
  *      policy and rejects every movement until one is installed
  */
-interface IExampleToken is IERC7943Fungible, IERCXXXX {
+interface IExampleToken is IERC7943Fungible, IERC8473 {
   /*///////////////////////////////////////////////////////////////
                             ERRORS
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Thrown when a policy does not advertise the ERC-XXXX policy interface through ERC-165
+   * @notice Thrown when a policy does not advertise the ERC-8473 policy interface through ERC-165
    * @param _policy The rejected policy
    */
   error ExampleToken_PolicyNotSupported(address _policy);
@@ -53,7 +53,7 @@ interface IExampleToken is IERC7943Fungible, IERCXXXX {
 
   /**
    * @notice Installs a policy, which may be the current one, and calls its `onInstall`
-   * @dev Only DEFAULT_ADMIN_ROLE. The policy must advertise the ERC-XXXX policy interface. Emits `PolicyChanged`, sets
+   * @dev Only DEFAULT_ADMIN_ROLE. The policy must advertise the ERC-8473 policy interface. Emits `PolicyChanged`, sets
    *      the policy, then calls `onInstall`; if that reverts, the installation reverts. No movement or installation can
    *      start while `onInstall` runs
    * @param _newPolicy The new policy
