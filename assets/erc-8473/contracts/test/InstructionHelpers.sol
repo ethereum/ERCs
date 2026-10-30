@@ -35,12 +35,15 @@ abstract contract InstructionHelpers is Helpers {
     );
     bytes32 _struct = keccak256(
       abi.encode(
-        keccak256('Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline)'),
+        keccak256(
+          'Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline,address executor)'
+        ),
         _instruction.from,
         _instruction.to,
         _instruction.amount,
         _instruction.instructionRef,
-        _instruction.deadline
+        _instruction.deadline,
+        _instruction.executor
       )
     );
     _hash = keccak256(abi.encodePacked(hex'1901', _domain, _struct));

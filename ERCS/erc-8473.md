@@ -251,7 +251,7 @@ The kind records the authority under which a movement happens, as determined fro
    - it goes through a path the token provides so that it can happen even when ERC-7943's account-level checks or the frozen amount would block it. ERC-7943 allows such bypasses for permissioned mints and burns.
 2. **`MINT`**: `from` is `address(0)`.
 3. **`BURN`**: `to` is `address(0)`.
-4. **`EXECUTED`**: the holder directed the movement by a signed instruction the token verified itself, such as an [EIP-712](./eip-712.md) signature, or an [ERC-1271](./eip-1271.md) answer from a holder that is a contract. The token carries the instruction out through a function it restricts to accounts it has granted that capability, independently of the instruction. A function that any account may call, or only an account the instruction names (such as the payee), does not qualify. A request the token records is not a signed instruction: carrying it out is never `EXECUTED`.
+4. **`EXECUTED`**: the holder directed the movement by a signed instruction the token verified itself, such as an [EIP-712](./eip-712.md) signature, or an [ERC-1271](./eip-1271.md) answer from a holder that is a contract. The token carries the instruction out through a function it restricts to accounts it has granted that capability, independently of the instruction. A function that any account may call, or that an account the instruction names may call without that capability (such as the payee), does not qualify. A request the token records is not a signed instruction: carrying it out is never `EXECUTED`.
 5. **`TRANSFER`**: any other movement. These include movements the holder directed:
    - directly;
    - through an allowance or operator approval;
@@ -404,7 +404,7 @@ The kind of the less obvious operations (non-normative):
 | Minting a fulfilled claim to a recovery account instead of the claimant | `FORCED` (`from` zero) |
 | Burning tokens without the holder's on-chain direction, or despite failed account checks or frozen tokens | `FORCED` (`to` zero) |
 
-`EXECUTED` is separate from `TRANSFER` even though the holder directs both. Its movements arrive through a settlement channel the token restricts, and policies commonly apply rules to that channel that they do not apply to a holder's own transfers, such as business-day windows and cut-off times. A signature that any account, or only the account it names, may submit, as in [ERC-3009](./eip-3009.md), stays a `TRANSFER`, so `canTransfer` can predict it.
+`EXECUTED` is separate from `TRANSFER` even though the holder directs both. Its movements arrive through a settlement channel the token restricts, and policies commonly apply rules to that channel that they do not apply to a holder's own transfers, such as business-day windows and cut-off times. A signature that any account may submit, or that the account it names may submit without a grant from the token, as in [ERC-3009](./eip-3009.md), stays a `TRANSFER`, so `canTransfer` can predict it.
 
 `MINT` and `BURN` come before `EXECUTED` to keep one kind for each economic event. A policy's rules on issuance and redemption, such as a holder cap, see a burn as `BURN` whether the holder or an executor submits it, and `canTransfer` predicts both. A token that needs a condition on instructed redemptions, such as a dealing cut-off, enforces it in the function that carries out instructions, as it enforces an instruction's deadline, and `canTransfer` reflects neither. Moving `EXECUTED` ahead of `MINT` would not reach signed subscription orders either: a mint has a holder only when it settles a claim the token records, so no holder directs it.
 
@@ -508,14 +508,14 @@ The executable tests in [`ERC8473.t.sol`](../assets/eip-8473/contracts/test/ERC8
 - **Rejections.** A policy rejection reverts with `ERC8473PolicyRejected` and the policy's reason. A frozen amount reverts with `ERC7943InsufficientUnfrozenBalance`, and an amount above the balance with the base standard's `ERC20InsufficientBalance`.
 - **Installation.** If `onInstall` reverts, the previous policy stays. A policy reinstalled after another sets its holder count again.
 - **Forced transfers.** A forced transfer succeeds while the token is paused and the holder cap is full, and still requires an eligible receiver. It unfreezes only the frozen part of what moves: with 1000 held and 950 frozen, moving 100 leaves 900 frozen.
-- **Executed movements.** The policy sees `EXECUTED`, the executor as `operator`, and the instruction's reference and deadline in `data`. A replayed, expired, altered or wrongly signed instruction reverts. `canExecute` equals the outcome of the execution, and builds the same context.
+- **Executed movements.** The policy sees `EXECUTED`, the executor as `operator`, and the instruction's reference and deadline in `data`. A replayed, cancelled, expired, altered or wrongly signed instruction reverts, and so does one that names another executor. `canExecute` equals the outcome of the execution, and builds the same context.
 
 ## Reference Implementation
 
 The assets folder contains:
 - [`IERC8473Policy.sol`](../assets/eip-8473/contracts/interfaces/IERC8473Policy.sol) and [`IERC8473.sol`](../assets/eip-8473/contracts/interfaces/IERC8473.sol): the interfaces above;
 - [`ExampleToken.sol`](../assets/eip-8473/contracts/example/ExampleToken.sol): an ERC-20 token that implements ERC-7943's fungible interface through this ERC;
-- [`ExampleExecutorToken.sol`](../assets/eip-8473/contracts/example/ExampleExecutorToken.sol): `ExampleToken` with a settlement channel. An account with `EXECUTOR_ROLE` carries out a holder's signed EIP-712 instruction as an `EXECUTED` movement, and `canExecute` is its pre-flight;
+- [`ExampleExecutorToken.sol`](../assets/eip-8473/contracts/example/ExampleExecutorToken.sol): `ExampleToken` with a settlement channel. An account with `EXECUTOR_ROLE` carries out a holder's signed EIP-712 instruction as an `EXECUTED` movement, and `canExecute` is its pre-flight. An instruction can name its executor, and the holder can cancel it;
 - [`ExamplePolicy.sol`](../assets/eip-8473/contracts/example/ExamplePolicy.sol): a policy that combines an allowlist with a holder cap. It sets its count in `onInstall` from a list of holders it checks against `totalSupply()`, and keeps it through `afterTransfer`.
 
 The examples are for illustration and are not audited. Imports use the remappings `interfaces/=contracts/interfaces/` and `contracts/=contracts/`.
@@ -594,8 +594,8 @@ The kind is the token's statement about authority, and policies have to trust it
 This ERC does not define the instruction behind an `EXECUTED` movement. A token that offers one decides how it protects the signature:
 
 - **One use.** Without a nonce, or a reference the token records as used, an executor can repeat a holder's instruction until the balance runs out. Because a rejected movement reverts, the record is undone with it, and the instruction stays usable until its deadline.
-- **Binding.** The signature should cover every value the movement takes from it: the accounts, the amount, and anything passed in `data`. An EIP-712 domain that names the chain and the token stops the signature being used elsewhere.
-- **Expiry.** The token enforces a deadline itself. If it offers no way to cancel, the deadline is the holder's only limit.
+- **Binding.** The signature should cover every value the movement takes from it: the accounts, the amount, and anything passed in `data`. Where a policy treats executors differently, the signature should also cover `operator`, or any executor can carry out the instruction first under its own rules. An EIP-712 domain that names the chain and the token stops the signature being used elsewhere.
+- **Expiry and cancelling.** The token enforces a deadline itself. An instruction a policy refused can still settle once the reason has gone, such as when a window opens or a receiver becomes eligible, at any time before the deadline. A contract holder can stop that by changing its ERC-1271 answer. An account without code cannot, unless the token offers a way to cancel, and a cancel can still lose a race with an execution already submitted.
 - **Contract holders.** A contract holder's ERC-1271 answer can change between a pre-flight and the execution.
 - **Who executes.** The capability extends to whoever can make the granted account call the token. Granting it to a contract that anyone can call opens the function in practice, which kind rule 4 excludes, and the token cannot detect this.
 

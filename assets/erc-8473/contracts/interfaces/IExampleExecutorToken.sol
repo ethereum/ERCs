@@ -9,7 +9,7 @@ import {IExampleToken} from 'interfaces/IExampleToken.sol';
  *         instruction as an EXECUTED movement
  * @dev Non-normative and not audited. The context's `data` for an EXECUTED movement is
  *      `abi.encode(bytes32 instructionRef, uint256 deadline)`, and the holder's signature covers both. The other kinds
- *      pass empty `data`. An instruction cannot be cancelled: its deadline is the holder's limit
+ *      pass empty `data`. An instruction can name the executor that carries it out, and the holder can cancel it
  */
 interface IExampleExecutorToken is IExampleToken {
   /*///////////////////////////////////////////////////////////////
@@ -23,6 +23,8 @@ interface IExampleExecutorToken is IExampleToken {
    * @param amount The amount
    * @param instructionRef The holder's reference. It can be used once per holder, in any order
    * @param deadline The last timestamp at which the instruction can be carried out
+   * @param executor The only account that can carry it out, which must also hold the role. Zero means any account with
+   *        the role
    */
   struct Instruction {
     address from;
@@ -30,6 +32,7 @@ interface IExampleExecutorToken is IExampleToken {
     uint256 amount;
     bytes32 instructionRef;
     uint256 deadline;
+    address executor;
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -44,6 +47,13 @@ interface IExampleExecutorToken is IExampleToken {
    */
   event InstructionExecuted(address indexed _holder, bytes32 indexed _instructionRef, address indexed _executor);
 
+  /**
+   * @notice Emitted when a holder cancels a reference
+   * @param _holder The holder
+   * @param _instructionRef The reference
+   */
+  event InstructionCancelled(address indexed _holder, bytes32 indexed _instructionRef);
+
   /*///////////////////////////////////////////////////////////////
                             ERRORS
   //////////////////////////////////////////////////////////////*/
@@ -55,11 +65,18 @@ interface IExampleExecutorToken is IExampleToken {
   error ExampleExecutorToken_InstructionExpired(uint256 _deadline);
 
   /**
-   * @notice Thrown when the holder's reference was already used
+   * @notice Thrown when the holder's reference was already used or cancelled
    * @param _holder The holder
    * @param _instructionRef The reference
    */
   error ExampleExecutorToken_InstructionUsed(address _holder, bytes32 _instructionRef);
+
+  /**
+   * @notice Thrown when the instruction names an executor other than the account carrying it out
+   * @param _named The executor the instruction names
+   * @param _executor The account carrying it out
+   */
+  error ExampleExecutorToken_WrongExecutor(address _named, address _executor);
 
   /**
    * @notice Thrown when the signature is not the holder's for this instruction
@@ -73,15 +90,27 @@ interface IExampleExecutorToken is IExampleToken {
 
   /**
    * @notice Carries out a holder's signed instruction as an EXECUTED movement
-   * @dev Only EXECUTOR_ROLE, so the holder and the payee cannot submit it unless they hold the role. A zero `to` reverts
-   *      with `ERC20InvalidReceiver`. A rejected movement reverts the record of the reference too, so the instruction
-   *      stays usable until its deadline
+   * @dev Only EXECUTOR_ROLE, so the holder and the payee cannot submit it unless they hold the role. An instruction that
+   *      names an executor can only be carried out by that account. A zero `to` reverts with `ERC20InvalidReceiver`. A
+   *      rejected movement reverts the record of the reference too, so the instruction stays usable until its
+   *      deadline, unless the holder cancels it
    * @param _instruction The instruction
    * @param _signature The holder's signature: ECDSA for an account without code, ERC-1271 for one with code
    */
   function executeInstruction(
     Instruction calldata _instruction,
     bytes calldata _signature
+  ) external;
+
+  /**
+   * @notice Cancels one of the caller's references, so that no instruction with it can be carried out
+   * @dev It is not a movement: it needs no role, does not ask the policy, and works while paused. It reverts with
+   *      `ExampleExecutorToken_InstructionUsed` if the reference was already used, so a holder whose cancel lost the
+   *      race with an execution learns that it did not cancel
+   * @param _instructionRef The reference
+   */
+  function cancelInstruction(
+    bytes32 _instructionRef
   ) external;
 
   /*///////////////////////////////////////////////////////////////
@@ -105,10 +134,10 @@ interface IExampleExecutorToken is IExampleToken {
   ) external view returns (bool _allowed);
 
   /**
-   * @notice Whether a holder's reference was used
+   * @notice Whether a holder's reference was used or cancelled
    * @param _holder The holder
    * @param _instructionRef The reference
-   * @return _used True if an instruction with this reference was carried out
+   * @return _used True if an instruction with this reference was carried out, or the holder cancelled the reference
    */
   function instructionUsed(
     address _holder,
@@ -125,7 +154,7 @@ interface IExampleExecutorToken is IExampleToken {
 
   /**
    * @notice The EIP-712 type hash of an instruction
-   * @return _typehash keccak256('Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline)')
+   * @return _typehash keccak256('Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline,address executor)')
    */
   // getter of an UPPER_SNAKE constant
   // solhint-disable-next-line style-guide-casing

@@ -18,6 +18,9 @@ contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
   uint256 internal constant _EXPIRED = 2;
   uint256 internal constant _REFERENCE_USED = 3;
   uint256 internal constant _WRONG_SIGNER = 4;
+  uint256 internal constant _WRONG_EXECUTOR = 5;
+  uint256 internal constant _CANCELLED = 6;
+  uint256 internal constant _NAMED_CALLER = 7; // not a fault: the instruction names the account that carries it out
 
   address internal _admin = makeAddr('admin');
   address internal _minter = makeAddr('minter');
@@ -68,7 +71,7 @@ contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
     uint256 _amount
   ) internal view returns (IExampleExecutorToken.Instruction memory _built) {
     _built = IExampleExecutorToken.Instruction({
-      from: _from, to: _to, amount: _amount, instructionRef: _REF, deadline: _deadline
+      from: _from, to: _to, amount: _amount, instructionRef: _REF, deadline: _deadline, executor: address(0)
     });
   }
 
@@ -123,12 +126,18 @@ contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
     uint256 _fromIndex = bound(_fromSeed, 0, 3);
     uint256 _toIndex = bound(_toSeed, 0, 4); // 4 is the zero address
     address _to = _toIndex == 4 ? address(0) : _actors[_toIndex];
-    uint256 _fault = bound(_faultSeed, 0, 9);
+    uint256 _fault = bound(_faultSeed, 0, 15);
 
     IExampleExecutorToken.Instruction memory _built = _instruction(_actors[_fromIndex], _to, bound(_amount, 0, 1200));
+    if (_fault == _WRONG_EXECUTOR) _built.executor = _secondExecutor;
+    if (_fault == _NAMED_CALLER) _built.executor = _executor;
     bytes memory _signature =
       _sign(_fault == _WRONG_SIGNER ? _keys[(_fromIndex + 1) % 4] : _keys[_fromIndex], address(_token), _built);
     if (_fault == _REFERENCE_USED) _useReference(_actors[_fromIndex], _fromIndex);
+    if (_fault == _CANCELLED) {
+      vm.prank(_actors[_fromIndex]);
+      _token.cancelInstruction(_REF);
+    }
     _applyScenario(_allowMask, _paused, _frozen, _cap, _actors[_fromIndex]);
     if (_fault == _EXPIRED) vm.warp(_deadline + 1);
     address _caller = _fault == _NOT_AN_EXECUTOR ? _stranger : _executor;
@@ -137,7 +146,7 @@ contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
     vm.prank(_caller);
     (bool _succeeded,) = address(_token).call(abi.encodeCall(_token.executeInstruction, (_built, _signature)));
     assertEq(_succeeded, _predicted);
-    if (_fault >= _NOT_AN_EXECUTOR && _fault <= _WRONG_SIGNER) assertFalse(_predicted);
+    if (_fault >= _NOT_AN_EXECUTOR && _fault <= _CANCELLED) assertFalse(_predicted);
   }
 
   /// @notice Carries out a zero-amount instruction with the reference `_REF`, while everything still permits it
@@ -265,6 +274,76 @@ contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
     assertTrue(_token.canExecute(_built, _signature, _executor));
     vm.prank(_executor);
     _token.executeInstruction(_built, _signature);
+    assertEq(_token.balanceOf(_actors[1]), 1001);
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                            THE HOLDER'S LIMITS
+  //////////////////////////////////////////////////////////////*/
+
+  /// @notice Both executors are permitted. Unnamed, the instruction settles through whichever arrives first
+  function test_ANamedExecutorStopsAnotherChannelSettlingFirst() public {
+    IExampleExecutorToken.Instruction memory _unnamed = _instruction(_actors[0], _actors[1], 1);
+    bytes memory _unnamedSignature = _sign(_keys[0], address(_token), _unnamed);
+    vm.prank(_secondExecutor);
+    _token.executeInstruction(_unnamed, _unnamedSignature);
+    vm.prank(_executor);
+    vm.expectRevert(
+      abi.encodeWithSelector(IExampleExecutorToken.ExampleExecutorToken_InstructionUsed.selector, _actors[0], _REF)
+    );
+    _token.executeInstruction(_unnamed, _unnamedSignature);
+
+    IExampleExecutorToken.Instruction memory _named = _instruction(_actors[0], _actors[1], 1);
+    _named.instructionRef = keccak256('REF-2');
+    _named.executor = _executor;
+    bytes memory _namedSignature = _sign(_keys[0], address(_token), _named);
+    vm.prank(_secondExecutor);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IExampleExecutorToken.ExampleExecutorToken_WrongExecutor.selector, _executor, _secondExecutor
+      )
+    );
+    _token.executeInstruction(_named, _namedSignature);
+    vm.prank(_executor);
+    _token.executeInstruction(_named, _namedSignature);
+    assertEq(_token.balanceOf(_actors[1]), 1002);
+  }
+
+  /// @notice A rejected instruction stays usable, so without the cancel it settles as soon as the window opens
+  function test_ARefusedInstructionCanBeCancelledBeforeTheWindowOpens() public {
+    ExecutedRulesPolicy _rules = _installRules();
+    _rules.setWindowClosed(true);
+    bytes32 _windowClosed = _rules.WINDOW_CLOSED();
+    bytes32 _cancelledRef = keccak256('REF-2');
+    IExampleExecutorToken.Instruction memory _kept = _instruction(_actors[0], _actors[1], 1);
+    IExampleExecutorToken.Instruction memory _cancelled = _instruction(_actors[0], _actors[1], 1);
+    _cancelled.instructionRef = _cancelledRef;
+    bytes memory _keptSignature = _sign(_keys[0], address(_token), _kept);
+    bytes memory _cancelledSignature = _sign(_keys[0], address(_token), _cancelled);
+
+    vm.startPrank(_executor);
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _windowClosed));
+    _token.executeInstruction(_kept, _keptSignature);
+    vm.expectRevert(abi.encodeWithSelector(IERC8473.ERC8473PolicyRejected.selector, _windowClosed));
+    _token.executeInstruction(_cancelled, _cancelledSignature);
+    vm.stopPrank();
+
+    vm.prank(_actors[0]);
+    _token.cancelInstruction(_cancelledRef);
+    _rules.setWindowClosed(false);
+
+    assertFalse(_token.canExecute(_cancelled, _cancelledSignature, _executor));
+    vm.prank(_executor);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IExampleExecutorToken.ExampleExecutorToken_InstructionUsed.selector, _actors[0], _cancelledRef
+      )
+    );
+    _token.executeInstruction(_cancelled, _cancelledSignature);
+
+    assertTrue(_token.canExecute(_kept, _keptSignature, _executor));
+    vm.prank(_executor);
+    _token.executeInstruction(_kept, _keptSignature);
     assertEq(_token.balanceOf(_actors[1]), 1001);
   }
 

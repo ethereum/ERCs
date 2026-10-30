@@ -28,6 +28,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
   address internal _enforcer = makeAddr('enforcer');
   address internal _pauser = makeAddr('pauser');
   address internal _executor = makeAddr('executor');
+  address internal _otherExecutor = makeAddr('otherExecutor');
   address internal _spender = makeAddr('spender');
   address internal _stranger = makeAddr('stranger');
   address internal _bob = makeAddr('bob');
@@ -47,6 +48,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
     _token.grantRole(_token.ENFORCER_ROLE(), _enforcer);
     _token.grantRole(_token.PAUSER_ROLE(), _pauser);
     _token.grantRole(_token.EXECUTOR_ROLE(), _executor);
+    _token.grantRole(_token.EXECUTOR_ROLE(), _otherExecutor);
     vm.stopPrank();
 
     vm.prank(_minter);
@@ -73,7 +75,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
   /// @notice The instruction most tests use: alice pays bob, with reference `_REF`
   function _instruction() internal view returns (IExampleExecutorToken.Instruction memory _built) {
     _built = IExampleExecutorToken.Instruction({
-      from: _alice, to: _bob, amount: _AMOUNT, instructionRef: _REF, deadline: _deadline
+      from: _alice, to: _bob, amount: _AMOUNT, instructionRef: _REF, deadline: _deadline, executor: address(0)
     });
   }
 
@@ -116,7 +118,9 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
     assertEq(_token.EXECUTOR_ROLE(), keccak256('EXECUTOR_ROLE'));
     assertEq(
       _token.INSTRUCTION_TYPEHASH(),
-      keccak256('Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline)')
+      keccak256(
+        'Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline,address executor)'
+      )
     );
     (, string memory _name, string memory _version, uint256 _chainId, address _verifyingContract,,) =
       _token.eip712Domain();
@@ -225,7 +229,7 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
                             WHO MAY CALL
   //////////////////////////////////////////////////////////////*/
 
-  /// @notice Kind rule 4: a function that any account, or only an account the instruction names, may call does not qualify
+  /// @notice Kind rule 4: a function that any account, or an account the instruction names without the role, may call does not qualify
   function test_WhenTheCallerIsNotAnExecutor_ItReverts() public {
     IExampleExecutorToken.Instruction memory _built = _instruction();
     bytes memory _signature = _sign(_aliceKey, address(_token), _built);
@@ -341,12 +345,13 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
   ) public {
     IExampleExecutorToken.Instruction memory _altered = _instruction();
     bytes memory _signature = _sign(_aliceKey, address(_token), _altered);
-    uint256 _field = bound(_fieldSeed, 0, 4);
+    uint256 _field = bound(_fieldSeed, 0, 5);
     if (_field == 0) _altered.from = _stranger;
     if (_field == 1) _altered.to = _stranger;
     if (_field == 2) _altered.amount = _AMOUNT + 1;
     if (_field == 3) _altered.instructionRef = keccak256('REF-2');
     if (_field == 4) _altered.deadline = _deadline + 1;
+    if (_field == 5) _altered.executor = _executor; // the caller, so only the signature can refuse it
 
     assertFalse(_token.canExecute(_altered, _signature, _executor));
     vm.prank(_executor);
@@ -459,6 +464,205 @@ contract ExampleExecutorTokenUnitTest is InstructionHelpers {
     vm.prank(_executor);
     vm.expectRevert(_invalid);
     _token.executeInstruction(_built, '');
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                            THE NAMED EXECUTOR
+  //////////////////////////////////////////////////////////////*/
+
+  function test_WhenTheInstructionNamesTheCaller_ItExecutes() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    _built.executor = _executor;
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+
+    vm.prank(_executor);
+    _token.executeInstruction(_built, _signature);
+    assertEq(_token.balanceOf(_bob), _AMOUNT);
+  }
+
+  /// @notice The revert leaves the reference free, so the wrong executor cannot use up the holder's instruction
+  function test_WhenTheInstructionNamesAnotherExecutor_ItRevertsAndStaysUsable() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    _built.executor = _executor;
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+
+    vm.prank(_otherExecutor);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IExampleExecutorToken.ExampleExecutorToken_WrongExecutor.selector, _executor, _otherExecutor
+      )
+    );
+    _token.executeInstruction(_built, _signature);
+    assertFalse(_token.instructionUsed(_alice, _REF));
+
+    vm.prank(_executor);
+    _token.executeInstruction(_built, _signature);
+    assertEq(_token.balanceOf(_bob), _AMOUNT);
+  }
+
+  /// @notice Kind rule 4: the name limits which granted account may call, and grants nothing
+  function test_WhenTheNamedAccountLacksTheRole_ItReverts() public {
+    bytes32 _executorRole = _token.EXECUTOR_ROLE();
+    address[3] memory _named = [_stranger, _alice, _bob];
+
+    for (uint256 _i; _i < _named.length; ++_i) {
+      IExampleExecutorToken.Instruction memory _built = _instruction();
+      _built.executor = _named[_i];
+      bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+
+      assertFalse(_token.canExecute(_built, _signature, _named[_i]));
+      vm.prank(_named[_i]);
+      vm.expectRevert(
+        abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, _named[_i], _executorRole)
+      );
+      _token.executeInstruction(_built, _signature);
+    }
+    assertEq(_token.balanceOf(_bob), 0);
+  }
+
+  /// @notice The signature covers the name, so another executor can neither clear it nor put itself there
+  function test_WhenAnExecutorClearsOrChangesTheName_ItReverts() public {
+    IExampleExecutorToken.Instruction memory _signed = _instruction();
+    _signed.executor = _executor;
+    bytes memory _signature = _sign(_aliceKey, address(_token), _signed);
+    IExampleExecutorToken.Instruction memory _cleared = _instruction();
+    IExampleExecutorToken.Instruction memory _changed = _instruction();
+    _changed.executor = _otherExecutor;
+    bytes memory _invalid =
+      abi.encodeWithSelector(IExampleExecutorToken.ExampleExecutorToken_InvalidSignature.selector, _alice);
+
+    vm.startPrank(_otherExecutor);
+    vm.expectRevert(_invalid);
+    _token.executeInstruction(_cleared, _signature);
+    vm.expectRevert(_invalid);
+    _token.executeInstruction(_changed, _signature);
+    vm.stopPrank();
+    assertEq(_token.balanceOf(_bob), 0);
+  }
+
+  /// @notice The answer follows the argument, whoever runs the simulation
+  function test_CanExecute_WhenAnotherExecutorIsNamed_ItIsFalseWithoutAsking() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    _built.executor = _executor;
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+    address[3] memory _callers = [_executor, _otherExecutor, _stranger];
+
+    vm.expectCall(_policy, abi.encodeWithSelector(IERC8473Policy.checkTransfer.selector), 0);
+    for (uint256 _i; _i < _callers.length; ++_i) {
+      vm.prank(_callers[_i]);
+      assertFalse(_token.canExecute(_built, _signature, _otherExecutor));
+    }
+  }
+
+  /// @notice The answer follows the argument, whoever runs the simulation
+  function test_CanExecute_WhenTheNamedExecutorIsAsked_ItIsTrueWhoeverRunsIt() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    _built.executor = _executor;
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+    address[3] memory _callers = [_executor, _otherExecutor, _stranger];
+
+    for (uint256 _i; _i < _callers.length; ++_i) {
+      vm.prank(_callers[_i]);
+      assertTrue(_token.canExecute(_built, _signature, _executor));
+    }
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                            CANCELLING
+  //////////////////////////////////////////////////////////////*/
+
+  function test_WhenTheHolderCancels_ItEmitsAndTheInstructionCannotExecute() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+    assertTrue(_token.canExecute(_built, _signature, _executor));
+
+    vm.expectEmit(address(_token));
+    emit IExampleExecutorToken.InstructionCancelled(_alice, _REF);
+    vm.prank(_alice);
+    _token.cancelInstruction(_REF);
+
+    assertTrue(_token.instructionUsed(_alice, _REF));
+    assertFalse(_token.canExecute(_built, _signature, _executor));
+    vm.prank(_executor);
+    vm.expectRevert(
+      abi.encodeWithSelector(IExampleExecutorToken.ExampleExecutorToken_InstructionUsed.selector, _alice, _REF)
+    );
+    _token.executeInstruction(_built, _signature);
+    assertEq(_token.balanceOf(_bob), 0);
+  }
+
+  /// @notice A holder whose cancel lost the race finds out, and one reference is never both executed and cancelled
+  function test_WhenTheReferenceWasUsedOrCancelled_CancelReverts() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+    bytes32 _otherRef = keccak256('REF-2');
+    vm.prank(_executor);
+    _token.executeInstruction(_built, _signature);
+
+    vm.startPrank(_alice);
+    vm.expectRevert(
+      abi.encodeWithSelector(IExampleExecutorToken.ExampleExecutorToken_InstructionUsed.selector, _alice, _REF)
+    );
+    _token.cancelInstruction(_REF);
+
+    _token.cancelInstruction(_otherRef);
+    vm.expectRevert(
+      abi.encodeWithSelector(IExampleExecutorToken.ExampleExecutorToken_InstructionUsed.selector, _alice, _otherRef)
+    );
+    _token.cancelInstruction(_otherRef);
+    vm.stopPrank();
+  }
+
+  /// @notice The record is the caller's own, so nobody else can stop a holder's instruction
+  function test_WhenAnotherAccountCancelsTheReference_TheHoldersIsUntouched() public {
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    bytes memory _signature = _sign(_aliceKey, address(_token), _built);
+    address[2] memory _callers = [_stranger, _executor];
+
+    for (uint256 _i; _i < _callers.length; ++_i) {
+      vm.prank(_callers[_i]);
+      _token.cancelInstruction(_REF);
+      assertTrue(_token.instructionUsed(_callers[_i], _REF));
+    }
+    assertFalse(_token.instructionUsed(_alice, _REF));
+
+    vm.prank(_executor);
+    _token.executeInstruction(_built, _signature);
+    assertEq(_token.balanceOf(_bob), _AMOUNT);
+  }
+
+  /// @notice The wallet still approves the digest, so only the record can refuse it
+  function test_WhenAContractHolderCancels_ItsRecordIsSet() public {
+    ContractHolder _wallet = new ContractHolder();
+    vm.prank(_minter);
+    _token.mint(address(_wallet), 100);
+    IExampleExecutorToken.Instruction memory _built = _instruction();
+    _built.from = address(_wallet);
+    _wallet.approve(_digest(address(_token), _built));
+    assertTrue(_token.canExecute(_built, hex'c0ffee', _executor));
+
+    vm.prank(address(_wallet));
+    _token.cancelInstruction(_REF);
+
+    assertFalse(_token.canExecute(_built, hex'c0ffee', _executor));
+    vm.prank(_executor);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IExampleExecutorToken.ExampleExecutorToken_InstructionUsed.selector, address(_wallet), _REF
+      )
+    );
+    _token.executeInstruction(_built, hex'c0ffee');
+  }
+
+  /// @notice It is not a movement: the pause does not apply and the policy is not asked
+  function test_WhenPaused_CancelStillWorksWithoutAskingThePolicy() public {
+    vm.prank(_pauser);
+    _token.pause();
+
+    vm.expectCall(_policy, abi.encodeWithSelector(IERC8473Policy.checkTransfer.selector), 0);
+    vm.prank(_alice);
+    _token.cancelInstruction(_REF);
+    assertTrue(_token.instructionUsed(_alice, _REF));
   }
 
   /*///////////////////////////////////////////////////////////////

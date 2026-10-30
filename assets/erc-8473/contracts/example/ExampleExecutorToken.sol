@@ -20,15 +20,18 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
   /// @inheritdoc IExampleExecutorToken
   bytes32 public constant EXECUTOR_ROLE = keccak256('EXECUTOR_ROLE');
   /// @inheritdoc IExampleExecutorToken
-  bytes32 public constant INSTRUCTION_TYPEHASH =
-    keccak256('Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline)');
+  bytes32 public constant INSTRUCTION_TYPEHASH = keccak256(
+    'Instruction(address from,address to,uint256 amount,bytes32 instructionRef,uint256 deadline,address executor)'
+  );
 
   /// @notice Instruction-side reason: the receiver is the zero address
   bytes32 private constant _ZERO_RECEIVER = keccak256('ZERO_RECEIVER');
   /// @notice Instruction-side reason: the deadline has passed
   bytes32 private constant _EXPIRED = keccak256('EXPIRED');
-  /// @notice Instruction-side reason: the holder's reference was already used
+  /// @notice Instruction-side reason: the holder's reference was already used or cancelled
   bytes32 private constant _USED = keccak256('USED');
+  /// @notice Instruction-side reason: the instruction names another executor
+  bytes32 private constant _WRONG_EXECUTOR = keccak256('WRONG_EXECUTOR');
   /// @notice Instruction-side reason: the signature is not the holder's for this instruction
   bytes32 private constant _BAD_SIGNATURE = keccak256('BAD_SIGNATURE');
 
@@ -59,10 +62,11 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
     Instruction calldata _instruction,
     bytes calldata _signature
   ) external onlyRole(EXECUTOR_ROLE) {
-    bytes32 _reason = _instructionCheck(_instruction, _signature);
+    bytes32 _reason = _instructionCheck(_instruction, _signature, _msgSender());
     if (_reason == _ZERO_RECEIVER) revert ERC20InvalidReceiver(address(0));
     if (_reason == _EXPIRED) revert ExampleExecutorToken_InstructionExpired(_instruction.deadline);
     if (_reason == _USED) revert ExampleExecutorToken_InstructionUsed(_instruction.from, _instruction.instructionRef);
+    if (_reason == _WRONG_EXECUTOR) revert ExampleExecutorToken_WrongExecutor(_instruction.executor, _msgSender());
     if (_reason == _BAD_SIGNATURE) revert ExampleExecutorToken_InvalidSignature(_instruction.from);
 
     instructionUsed[_instruction.from][_instruction.instructionRef] = true;
@@ -74,6 +78,18 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
       IERC8473Policy.TransferKind.EXECUTED,
       _instructionData(_instruction)
     );
+  }
+
+  /// @inheritdoc IExampleExecutorToken
+  function cancelInstruction(
+    bytes32 _instructionRef
+  ) external {
+    address _holder = _msgSender();
+    if (instructionUsed[_holder][_instructionRef]) {
+      revert ExampleExecutorToken_InstructionUsed(_holder, _instructionRef);
+    }
+    instructionUsed[_holder][_instructionRef] = true;
+    emit InstructionCancelled(_holder, _instructionRef);
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -91,7 +107,7 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
     address _executor
   ) external view returns (bool _allowed) {
     if (!hasRole(EXECUTOR_ROLE, _executor)) return false;
-    if (_instructionCheck(_instruction, _signature) != TRANSFER_OK) return false;
+    if (_instructionCheck(_instruction, _signature, _executor) != TRANSFER_OK) return false;
     if (_instruction.amount > balanceOf(_instruction.from)) return false;
     IERC8473Policy.TransferKind _kind = IERC8473Policy.TransferKind.EXECUTED;
     if (_tokenCheck(_instruction.from, _instruction.amount, _kind) != TRANSFER_OK) return false;
@@ -115,15 +131,18 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
    *      because `_move` does not have the check `_transfer` would have made, and the movement would burn
    * @param _instruction The instruction
    * @param _signature The holder's signature
-   * @return _reason TRANSFER_OK, `_ZERO_RECEIVER`, `_EXPIRED`, `_USED` or `_BAD_SIGNATURE`
+   * @param _executor The account carrying it out
+   * @return _reason TRANSFER_OK, `_ZERO_RECEIVER`, `_EXPIRED`, `_USED`, `_WRONG_EXECUTOR` or `_BAD_SIGNATURE`
    */
   function _instructionCheck(
     Instruction calldata _instruction,
-    bytes calldata _signature
+    bytes calldata _signature,
+    address _executor
   ) internal view returns (bytes32 _reason) {
     if (_instruction.to == address(0)) return _ZERO_RECEIVER;
     if (block.timestamp > _instruction.deadline) return _EXPIRED;
     if (instructionUsed[_instruction.from][_instruction.instructionRef]) return _USED;
+    if (_instruction.executor != address(0) && _instruction.executor != _executor) return _WRONG_EXECUTOR;
     bytes32 _digest = _hashTypedDataV4(
       keccak256(
         abi.encode(
@@ -132,7 +151,8 @@ contract ExampleExecutorToken is ExampleToken, EIP712, IExampleExecutorToken {
           _instruction.to,
           _instruction.amount,
           _instruction.instructionRef,
-          _instruction.deadline
+          _instruction.deadline,
+          _instruction.executor
         )
       )
     );
