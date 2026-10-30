@@ -1,0 +1,113 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "version": "3.0.0-next",
+    "type": "object",
+    "description": "ERC-8283 function index schema, paired with the ERC-7730 v3 draft. This is the mutable '-next' draft: it changes frequently and without notice, and consumers MUST NOT rely on its stability — see ERC-8283 'Index file schemas and versioning'.",
+    "required": ["$schema", "methods", "messages"],
+    "additionalProperties": false,
+
+    "$defs": {
+
+        "entry": {
+            "title": "Function index entry",
+            "type": "object",
+            "description": "One function's or message type's descriptor and attestations.",
+            "required": ["descriptorHash", "descriptorUris", "attestations"],
+            "additionalProperties": false,
+            "properties": {
+
+                "descriptorHash": {
+                    "title": "Function descriptor hash",
+                    "type": "string",
+                    "pattern": "^0x[0-9a-fA-F]{64}$",
+                    "description": "The ERC-8176 descriptor hash of the self-contained, flattened function descriptor this entry names."
+                },
+
+                "descriptorUris": {
+                    "title": "Function descriptor URIs",
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "Absolute URIs the function descriptor JSON file can be fetched from, using the identical scheme that was used to successfully fetch this function index itself — see 'Index file schemas and versioning' in ERC-8283.",
+                    "items": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+
+                "attestations": {
+                    "title": "Function attestations",
+                    "type": "array",
+                    "description": "Every attestation rendition of this function descriptor, at most one per attestationFormatId. MAY be empty while a corrected descriptor awaits attestation.",
+                    "items": {
+                        "title": "Function attestation",
+                        "type": "object",
+                        "required": ["attestationId", "attestationFormatId", "uris"],
+                        "additionalProperties": false,
+                        "properties": {
+
+                            "attestationId": {
+                                "title": "Attestation ID",
+                                "type": "string",
+                                "pattern": "^0x[0-9a-fA-F]{64}$",
+                                "description": "The attester-chosen identifier of this attestation. Not recorded by the registry — see ERC-8283 'Function Indexes'."
+                            },
+
+                            "attestationFormatId": {
+                                "title": "Attestation format ID",
+                                "type": "string",
+                                "pattern": "^0x[0-9a-fA-F]{64}$",
+                                "description": "keccak256(\"erc7730.attestation.<format>\"), namespacing the shape of this attestation artifact."
+                            },
+
+                            "uris": {
+                                "title": "Attestation blob URIs",
+                                "type": "array",
+                                "minItems": 1,
+                                "description": "Absolute URIs the signed attestation blob can be fetched from, using the identical scheme that was used to successfully fetch this function index itself.",
+                                "items": {
+                                    "type": "string",
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    "properties": {
+
+        "$schema": {
+            "title": "Schema",
+            "type": "string",
+            "format": "uri-reference",
+            "pattern": "(^|/)erc8283-function-index-v3\\.0\\.0-next\\.schema\\.json$",
+            "description": "The schema this function index conforms to, identified by a URI whose last path segment is this schema's file name. Its version is identical to the ERC-7730 descriptor schema version this function index is paired with. A consumer MUST treat a file naming a version it does not implement as invalid."
+        },
+
+        "methods": {
+            "title": "Contract-call entries",
+            "type": "object",
+            "description": "Maps each raw 4-byte ABI function selector to its function index entry. MAY be empty for a function index with no contract-call functions.",
+            "propertyNames": {
+                "pattern": "^0x[0-9a-fA-F]{8}$"
+            },
+            "additionalProperties": {
+                "$ref": "#/$defs/entry"
+            }
+        },
+
+        "messages": {
+            "title": "EIP-712 message entries",
+            "type": "object",
+            "description": "Maps each EIP-712 message type hash (the typeHash of its primary type) to its function index entry. MAY be empty for a function index with no EIP-712 messages.",
+            "propertyNames": {
+                "pattern": "^0x[0-9a-fA-F]{64}$"
+            },
+            "additionalProperties": {
+                "$ref": "#/$defs/entry"
+            }
+        }
+    }
+}
