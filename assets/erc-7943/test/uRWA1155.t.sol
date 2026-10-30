@@ -872,6 +872,39 @@ contract uRWA1155Test is Test {
         assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), FREEZE_AMOUNT);
     }
 
+    function test_SafeBatchTransfer_Success_SelfTransferDuplicateIdFullBalance() public {
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = MINT_AMOUNT;
+        amounts[1] = MINT_AMOUNT;
+
+        vm.prank(user1);
+        token.safeBatchTransferFrom(user1, user1, ids, amounts, "");
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT);
+    }
+
+    function test_SafeBatchTransfer_Success_SelfTransferDuplicateIdWithinUnfrozenBalance() public {
+        vm.prank(freezer);
+        token.setFrozenTokens(user1, TOKEN_ID_1, FREEZE_AMOUNT);
+
+        uint256 unfrozen = MINT_AMOUNT - FREEZE_AMOUNT;
+        uint256[] memory ids = new uint256[](2);
+        ids[0] = TOKEN_ID_1;
+        ids[1] = TOKEN_ID_1;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = unfrozen;
+        amounts[1] = unfrozen;
+
+        vm.prank(user1);
+        token.safeBatchTransferFrom(user1, user1, ids, amounts, "");
+
+        assertEq(token.balanceOf(user1, TOKEN_ID_1), MINT_AMOUNT);
+        assertEq(token.getFrozenTokens(user1, TOKEN_ID_1), FREEZE_AMOUNT);
+    }
+
     // --- Enhanced Freeze/Unfreeze Tests ---
 
     function test_SetFrozenTokens_Success_EmitsCorrectEvents() public {

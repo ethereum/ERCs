@@ -246,9 +246,9 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
             require(canReceive(to), ERC7943CannotReceive(to));
             for (uint256 i = 0; i < ids.length; ++i) {
                 uint256 id = ids[i];
-                // Balances are only debited after this loop, so a repeated `id` must be checked against the
-                // running total for that id, not each entry on its own.
-                (uint256 value, ) = _batchTotal(ids, values, i);
+                // A repeated `id` is checked against its running total, except in self-transfers.
+                uint256 value = values[i];
+                if (from != to) (value, ) = _batchTotal(ids, values, i);
                 uint256 unfrozenBalance = _unfrozenBalance(from, id);
 
                 require(value <= balanceOf(from, id), ERC1155InsufficientBalance(from, balanceOf(from, id), value, id));
