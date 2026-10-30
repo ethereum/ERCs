@@ -56,12 +56,14 @@ error GateNotFound(bytes32 coordinationType);
 error InvalidMaxPathLength(uint8 provided);
 error InvalidMinEdgeTrust(TrustLevel provided);
 error TooManyRequiredAnchors(uint256 provided);
+error UnsatisfiableAnchors(uint8 maxPathLength);
 error BatchLengthMismatch();
 error EmptyBatch();
 error BatchTrustorMismatch();
 error BatchNonceNotIncreasing();
 error EmptyScopeList();
 error NonceJumpTooLarge(uint64 provided, uint64 max);
+error NonceChanged(uint64 expected, uint64 current);
 
 /// @title ENS Trust Registry Interface
 /// @notice Web of trust validation using ENS names for ERC-8001 coordination
@@ -157,19 +159,42 @@ interface ITrustRegistry is IERC165 {
     function revokeTrustBatch(bytes32 trustorNode, bytes32 trusteeNode, bytes32[] calldata scopes, bytes32 reasonCode)
         external;
 
-    /// @notice Set or clear the trustor's denial of an agent in one scope
+    /// @notice Deny an agent within the trustor's own decisions in one scope
     /// @dev Caller MUST be the name controller (controllerOf); approved operators MUST
     ///      NOT call this. A denied agent fails every edge from the trustor, and every
     ///      path the trustor evaluates as validator, whatever its endorsements.
     ///      MUST NOT change the trust level, expiry or any other stored field.
-    ///      Setting the stored value again succeeds with no event.
+    ///      Denying an agent already denied in that scope succeeds with no event.
     /// @param trustorNode The trustor's ENS namehash
-    /// @param trusteeNode The agent to deny or reinstate
+    /// @param trusteeNode The agent to deny
     /// @param scope The scope of the denial; bytes32(0) applies in every scope
-    /// @param denied True to deny, false to clear
+    /// @param reasonCode Reason code for the denial
+    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode) external;
+
+    /// @notice Clear the trustor's denial of an agent in one scope, provided no
+    ///         attestation by the trustor has landed since the caller reviewed it
+    /// @dev Caller MUST be the name controller (controllerOf); approved operators MUST
+    ///      NOT call this. MUST revert with NonceChanged unless
+    ///      getNonce(trustorNode) == expectedNonce, so endorsements written after the
+    ///      caller's review cannot take effect through the clear.
+    ///      It cannot stop an attestation signed earlier from landing after the
+    ///      clear: callers SHOULD raise the floor with invalidateNonces before
+    ///      reading expectedNonce, and SHOULD pause signing until the clear
+    ///      has executed.
+    ///      MUST NOT change the trust level, expiry or any other stored field.
+    ///      Clearing a denial that is not set succeeds with no event.
+    /// @param trustorNode The trustor's ENS namehash
+    /// @param trusteeNode The agent to reinstate
+    /// @param scope The scope of the denial to clear
+    /// @param expectedNonce The trustor's nonce at the time of review
     /// @param reasonCode Reason code for the change
-    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bool denied, bytes32 reasonCode)
-        external;
+    function clearDenial(
+        bytes32 trustorNode,
+        bytes32 trusteeNode,
+        bytes32 scope,
+        uint64 expectedNonce,
+        bytes32 reasonCode
+    ) external;
 
     /// @notice Invalidate every outstanding attestation below a nonce
     /// @dev Caller MUST be the name controller; approved operators MUST NOT call this.
@@ -193,7 +218,8 @@ interface ITrustRegistry is IERC165 {
 
     /// @notice Get the denial flag stored for exactly one scope
     /// @dev Returns the stored flag, not the effective denial: a universal denial is
-    ///      not reflected in the result for a named scope
+    ///      not reflected in the result for a named scope. The effective denial is
+    ///      getDenial(A, B, bytes32(0)) || getDenial(A, B, scope)
     /// @param trustorNode The trusting agent
     /// @param trusteeNode The denied agent
     /// @param scope The scope (bytes32(0) for universal)
@@ -278,57 +304,5 @@ interface ITrustRegistry is IERC165 {
         bytes32 coordinationType,
         address participant,
         TrustPath calldata path
-    ) external view returns (bool isValid);
-}
-
-/// @title ENS Trust Registry - OPTIONAL Extensions
-/// @notice Convenience and on-chain-search functions. NOT required for ERC-8107 compliance.
-/// @dev On-chain graph traversal is expensive and DoS-prone; prefer off-chain path
-///      computation with `verifyPath`. Provided for completeness only.
-interface ITrustRegistryExtended is ITrustRegistry {
-    /// @notice Get agents trusted by a given agent (paginated)
-    /// @dev OPTIONAL - useful for indexing but not required
-    function getTrustees(bytes32 trustorNode, TrustLevel minLevel, bytes32 scope, uint256 offset, uint256 limit)
-        external
-        view
-        returns (bytes32[] memory trustees, uint256 total);
-
-    /// @notice Get agents that trust a given agent (paginated)
-    /// @dev OPTIONAL - useful for indexing but not required
-    function getTrustors(bytes32 trusteeNode, TrustLevel minLevel, bytes32 scope, uint256 offset, uint256 limit)
-        external
-        view
-        returns (bytes32[] memory trustors, uint256 total);
-
-    /// @notice Validate an agent through on-chain graph traversal
-    /// @dev OPTIONAL - expensive, prefer off-chain computation with verifyPath
-    /// @param validatorNode The validating agent's perspective
-    /// @param targetNode The agent to validate
-    /// @param params Validation parameters
-    /// @param marginalThreshold Number of marginal attestations required (for accumulation)
-    /// @param fullThreshold Number of full attestations required
-    function validateAgent(
-        bytes32 validatorNode,
-        bytes32 targetNode,
-        ValidationParams calldata params,
-        uint8 marginalThreshold,
-        uint8 fullThreshold
-    ) external view returns (bool isValid, uint8 pathLength, uint8 marginalCount, uint8 fullCount);
-
-    /// @notice Check if any trust path exists
-    /// @dev OPTIONAL - expensive, prefer off-chain computation
-    function pathExists(bytes32 fromNode, bytes32 toNode, uint8 maxDepth)
-        external
-        view
-        returns (bool exists, uint8 depth);
-
-    /// @notice Validate participant without pre-computed path
-    /// @dev OPTIONAL - expensive, prefer validateParticipantWithPath
-    function validateParticipant(
-        address coordinator,
-        bytes32 coordinationType,
-        bytes32 participantNode,
-        uint8 marginalThreshold,
-        uint8 fullThreshold
     ) external view returns (bool isValid);
 }
