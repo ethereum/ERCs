@@ -1,0 +1,9 @@
+{
+  "description": "ERC-165 interface identifiers: XOR of the selectors of every function declared in the interface (supportsInterface included for ISwarmRegistry), computed from the compiled ABIs and re-derived in Solidity with type(I).interfaceId.",
+  "interfaces": {
+    "ISwarmRegistry": "0x085203a4",
+    "IEligibility": "0xd0ede3d8",
+    "ISwarmAccount": "0x25e98353",
+    "IResourceAdapter": "0x8e20b298"
+  }
+}
