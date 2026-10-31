@@ -135,6 +135,7 @@
                                 },
                                 "chainId": {
                                     "type": "integer",
+                                    "minimum": 1,
                                     "format": "eip155"
                                 },
                                 "verifyingContract": {
@@ -169,6 +170,7 @@
                 "properties": {
                     "chainId": {
                         "type": "integer",
+                                    "minimum": 1,
                         "format": "eip155"
                     },
                     "address": {
@@ -885,7 +887,7 @@
                     "title": "Chain ID",
                     "type": ["integer", "object"],
                     "anyOf": [
-                        { "type": "integer" },
+                        { "type": "integer", "minimum": 1 },
                         { "$ref": "#/$format/mapReference" }
                     ],
                     "description": "Optional. The chain ID of the called contract, if it differs from the current contract's chain."
@@ -974,7 +976,7 @@
                     "title": "Chain ID",
                     "type": ["integer", "object"],
                     "anyOf": [
-                        { "type": "integer" },
+                        { "type": "integer", "minimum": 1 },
                         { "$ref": "#/$format/mapReference" }
                     ],
                     "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve token metadata (ticker, decimals) for this chain. Useful for cross-chain swap clear signing where the same token address may refer to different chains."
@@ -999,7 +1001,7 @@
                     "title": "Chain ID",
                     "type": ["integer", "object"],
                     "anyOf": [
-                        { "type": "integer" },
+                        { "type": "integer", "minimum": 1 },
                         { "$ref": "#/$format/mapReference" }
                     ],
                     "description": "Optional. The chain on which the token is deployed (constant, or a map reference). When present, the wallet SHOULD resolve the token ticker for this chain. Useful for cross-chain swap clear signing."
