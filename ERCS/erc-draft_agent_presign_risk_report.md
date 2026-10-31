@@ -257,7 +257,7 @@ informational.
 | Kind | `param` | `value` when read |
 | --- | --- | --- |
 | `erc.presign.token.observation` | `{ registry, kind, param }`: CAIP-10 of a Launch Observations registry, a finding kind (`bytes32` hex) and its `param` (decimal string) | `{ value, detector, observationId, observedBlock, recordedAt }`, all decimal strings except `detector` (CAIP-10) |
-| `erc.presign.token.issuer-listing` | `{ issuer, list }`: the issuer's name and the URI of the list it publishes (for example a list of tokenized stocks) | `"listed"` (the token's address is on the list), `"issuer-unlisted"` (the token is the issuer's own contract by an on-chain mark the source names in the evidence, such as its proxy's beacon or its factory, but is not on the list), or `"copy"` (it is not the issuer's contract but uses the name or symbol of one that is; the evidence names the listed token it copies) |
+| `erc.presign.token.issuer-listing` | `{ issuer, list }`: the issuer's name and the URI of the list it publishes (for example a list of tokenized stocks) | `"listed"` (the token's address is on the list), `"issuer-unlisted"` (the token is the issuer's own contract by an on-chain mark the source names in the evidence, such as its proxy's beacon or its factory, but is not on the list), `"copy"` (it is not the issuer's contract but uses the name or symbol of one that is; the evidence names the listed token it copies), or `"none"` (none of these: not on the list, not the issuer's contract, and using no listed token's name or symbol) |
 | `erc.presign.token.oracle-deviation` | `{ feed }`: CAIP-10 of a price feed for the token | `{ pool, price, oraclePrice, oracleAge, deviationBps }`: the pool the request trades in, the price it implies, the feed's latest answer and its age in seconds at the block, and the signed difference in basis points |
 
 A source reads it with the registry's `latestFinding(chainId, token, detector, kind, param)`, or with
@@ -336,7 +336,7 @@ The pairs are:
 
 | Kind | `param` | `value` when read |
 | --- | --- | --- |
-| `erc.presign.payment.payee-binding` | none | One outcome of the x402 Payee Verification proposal (a separate draft): `verified-wallet`, `verified-delegation`, `mismatch`, `invalid-delegation`, `endpoint-unlisted`, `no-agent-wallet` or `no-identity`; its `not-read` outcome is this proposal's not read |
+| `erc.presign.payment.payee-binding` | none | One outcome of the x402 Payee Verification proposal (a separate draft): `verified-wallet`, `verified-delegation`, `mismatch`, `invalid-delegation`, `endpoint-unlisted`, `owner-only`, `no-agent-wallet` or `no-identity`; its `not-read` outcome is this proposal's not read |
 
 A source that implements that proposal SHOULD report its outcome as this finding, beside the `payTo=agentWallet` pair,
 so a consumer reads one outcome instead of rebuilding it from pairs.
@@ -364,7 +364,7 @@ consumer supplied, there is no `at`, and the evidence is the text's `digest` in 
 
 ### Signature and source identity
 
-`reportHash` is `digest(r)`, where `r` is the report without its `signature` field. `signature` MUST be an EIP-712
+`reportHash` is `digest(r)`, where `r` is the report without its `signature` and `detail` fields. `signature` MUST be an EIP-712
 signature by `source.signer` over:
 
 ```
@@ -381,12 +381,23 @@ A consumer verifies a report by:
 1. recomputing `subjectDigest` and `contextDigest` from its own request, and `reportHash` from the report;
 2. verifying `signature` for `source.signer`, by `ecrecover` for an account without code and by ERC-1271
    `isValidSignature` otherwise; and
-3. reading, on `source.registry`, that `source.signer` is `getAgentWallet(agentId)` or `ownerOf(agentId)`.
+3. reading, on `source.registry`, that `source.signer` is `getAgentWallet(agentId)` or `ownerOf(agentId)`, or that it
+   is listed in `signers` of the `presign-risk-report` service in the registration file `tokenURI(agentId)` names, read
+   at the time of verification.
+
+A source SHOULD sign with a key other than its `agentWallet` and list that key in `signers`: a report service runs on
+an online server, and the `agentWallet` often receives the agent's payments. Removing a key from `signers` revokes it
+for every later verification.
 
 A report that fails any step MUST be treated as unsigned. A consumer MUST treat an unsigned report as absent.
 
 A source SHOULD list a service named `presign-risk-report` in its ERC-8004 registration file, with the URL of its
-endpoint. A consumer that acted on a source's report MAY give feedback to the source's `agentId` in the ERC-8004
+endpoint and, when it signs with a key other than its `agentWallet` or owner, a `signers` array of CAIP-10 accounts:
+
+```json
+{ "name": "presign-risk-report", "endpoint": "https://example.com/api/presign", "version": "erc-presign/1",
+  "signers": ["eip155:4663:0x02593abff31f4e8ec1d5c2f297a347c51ef06e5c"] }
+``` A consumer that acted on a source's report MAY give feedback to the source's `agentId` in the ERC-8004
 reputation registry with `tag1` `presign-risk-report`, `tag2` the finding kind it relied on, and a `feedbackURI` that
 names the `reportHash`.
 
@@ -578,11 +589,14 @@ A conforming source and consumer pass these cases.
 
 ## Reference Implementation
 
-Toll (ERC-8004 agent 20030 on Robinhood Chain) runs a pre-sign check that takes a prepared transaction, an EIP-712
-request or an x402 payment requirement and answers in the shape of the Prepared Transaction Envelope proposal's risk
-assessment, with typed warnings for approvals, recipients, tokens (including copies of an issuer's listed tokens and a
-pool's deviation from a price feed), x402 payees and text. The client package `@tollxyz/guard` puts it in front of an
-agent's wallet. A reference source emitting the reports of this proposal, a consumer-side verifier, an anchor contract
+Toll (ERC-8004 agent 20030 on Robinhood Chain) runs a source of this proposal on Robinhood Chain: `POST
+https://t0ll.xyz/api/presign` (the HTTP binding) and the Model Context Protocol tool `presign_risk_report` at
+`https://t0ll.xyz/api/mcp`. Every finding is read at one pinned block listed in `blocks`; kinds it does not read yet
+are reported as not read with reason `unsupported`. Token findings include `token.observation`, copied from a Launch
+Observations (ERC-8470) registry, and payment findings include `payment.payee-binding` from x402 Payee Verification
+(ERC-8478). Reports are signed by a key listed in `signers` of the source's registration file, not by its
+`agentWallet`. The same report rides in `reports` of the source's ERC-8265 risk assessment answer, and the client
+package `@tollxyz/guard` puts that answer in front of an agent's wallet. A consumer-side verifier, an anchor contract
 and test vectors will be added under `assets/erc-draft_agent_presign_risk_report`.
 
 ## Security Considerations
