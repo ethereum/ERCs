@@ -19,7 +19,7 @@ pub use constants::{
     JURISDICTION_EU, JURISDICTION_US, JURISDICTION_UK, JURISDICTION_SG, JURISDICTION_UAE,
 };
 pub use hash::{hash2, hash3, hash4, hash8, hash16, hash32};
-pub use merkle::{compute_merkle_root, internal_hash, leaf_hash_set, leaf_hash_subject, leaf_hash_value};
+pub use merkle::{compute_merkle_root, internal_hash, leaf_hash_set, leaf_hash_subject, leaf_hash_value, DOMAIN_SIGNED_SIGNALS, DOMAIN_RISK_SIGNED_SIGNALS};
 pub use risk::{MAX_WEIGHT, compute_risk_score, get_high_threshold, verify_weight_sum, weights_to_fields, compute_config_hash};
 pub use providers::compute_provider_set_hash;
 pub use sig::{compute_signed_payload_hash, compute_signer_pubkey_hash, verify_provider_signed_signals};
