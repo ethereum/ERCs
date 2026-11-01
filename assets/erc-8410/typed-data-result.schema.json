@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eips.ethereum.org/assets/erc-8410/typed-data-result.schema.json",
+  "title": "Typed-data signature result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "request_digest",
+    "signing_digest",
+    "signer",
+    "signature"
+  ],
+  "properties": {
+    "kind": {
+      "const": "typed_data_result"
+    },
+    "schema_version": {
+      "const": "1"
+    },
+    "request_digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "signing_digest": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "signer": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}(?![\\s\\S])"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x(?:[0-9a-f]{2})+(?![\\s\\S])"
+    }
+  },
+  "description": "Signature bytes are opaque. Verification, request binding, account compatibility, and application-specific size limits are required separately."
+}

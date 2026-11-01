@@ -3,21 +3,61 @@ pragma solidity ^0.8.20;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {ITrustRegistry, TrustLevel, TrustAttestation, ValidationParams} from "./ITrustRegistry.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {
+    ITrustRegistry,
+    TrustLevel,
+    TrustAttestation,
+    ValidationParams,
+    TrustPath,
+    SelfTrustProhibited,
+    NonceTooLow,
+    AttestationExpired,
+    InvalidSignature,
+    NotAuthorized,
+    ENSNameNotFound,
+    GateNotFound,
+    InvalidAttestationLevel,
+    InvalidMaxPathLength,
+    InvalidMinEdgeTrust,
+    TooManyRequiredAnchors,
+    UnsatisfiableAnchors,
+    BatchLengthMismatch,
+    EmptyBatch,
+    BatchTrustorMismatch,
+    BatchNonceNotIncreasing,
+    EmptyScopeList,
+    NonceJumpTooLarge,
+    NonceChanged
+} from "./ITrustRegistry.sol";
 
-/// @notice Minimal ENS interface
+/// @notice Minimal ENS registry interface (ERC-137)
 interface IENS {
     function owner(bytes32 node) external view returns (address);
+    function resolver(bytes32 node) external view returns (address);
     function isApprovedForAll(address owner, address operator) external view returns (bool);
 }
 
+/// @notice Minimal ENS NameWrapper interface
+/// @dev NameWrapper is an ERC-1155; the token holder is the real name controller
+interface INameWrapper {
+    function ownerOf(uint256 id) external view returns (address);
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+}
+
+/// @notice Minimal ERC-137 forward address resolver interface
+interface IAddrResolver {
+    function addr(bytes32 node) external view returns (address payable);
+}
+
 /// @title ENS Trust Registry
-/// @notice Web of trust validation using ENS names for ERC-8001 coordination
-/// @dev Reference implementation of ERC-XXXX
+/// @notice Reference implementation of ERC-8107
+/// @dev Implements `ITrustRegistry` and nothing beyond it. ERC-8107 defines no
+///      on-chain graph search or adjacency enumeration: it pushes path search to
+///      off-chain indexers and keeps on-chain cost at O(path length).
 /// @author Kwame Bryan (@KBryan)
 contract TrustRegistry is ITrustRegistry, EIP712 {
-    using ECDSA for bytes32;
-
     // ═══════════════════════════════════════════════════════════════════════════
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════════
@@ -26,57 +66,70 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         "TrustAttestation(bytes32 trustorNode,bytes32 trusteeNode,uint8 level,bytes32 scope,uint64 expiry,uint64 nonce)"
     );
 
+    /// @dev Upper bound on `ValidationParams.maxPathLength`
+    uint8 internal constant MAX_PATH_LENGTH = 10;
+
+    /// @dev Upper bound on `ValidationParams.requiredAnchors.length`
+    uint256 internal constant MAX_REQUIRED_ANCHORS = 10;
+
+    /// @dev Upper bound on how far one attestation or `invalidateNonces` call may
+    ///      raise the nonce floor
+    uint64 internal constant MAX_NONCE_JUMP = 2 ** 32;
+
+    /// @dev Gas forwarded to a node's resolver in `resolveAgent`
+    uint256 internal constant RESOLVE_GAS = 50_000;
+
     // ═══════════════════════════════════════════════════════════════════════════
     // STORAGE
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /// @notice ENS registry contract
-    IENS private immutable _ens;
+    /// @notice The ENS registry this instance validates against
+    IENS public immutable ens;
 
-    /// @notice Trust record storage
+    /// @notice The NameWrapper this instance unwraps against, or address(0) on
+    ///         networks with no deployment
+    address public immutable nameWrapper;
+
+    /// @dev One storage slot. Endorsement (level, expiry, setAt) and denial are
+    ///      independent: every write names its fields, so no operation on one
+    ///      overwrites the other.
     struct TrustRecord {
         TrustLevel level;
-        bytes32 scope;
         uint64 expiry;
         uint64 setAt;
+        bool denied;
     }
 
-    /// @notice Identity gate configuration
     struct IdentityGate {
         bytes32 gatekeeperNode;
         ValidationParams params;
         bool enabled;
     }
 
-    /// @dev trustorNode => trusteeNode => TrustRecord
-    mapping(bytes32 => mapping(bytes32 => TrustRecord)) private _trust;
+    /// @dev trustorNode => trusteeNode => scope => TrustRecord
+    mapping(bytes32 => mapping(bytes32 => mapping(bytes32 => TrustRecord))) private _trust;
 
-    /// @dev trustorNode => nonce
+    /// @dev trustorNode => monotonic nonce
     mapping(bytes32 => uint64) private _nonces;
 
-    /// @dev trustorNode => trustees list
-    mapping(bytes32 => bytes32[]) private _trustees;
+    /// @dev coordinator => coordinationType => IdentityGate
+    /// @dev Keying by caller address means no two coordinators can collide on a
+    ///      coordination type, so well-known constants cannot be squatted.
+    mapping(address => mapping(bytes32 => IdentityGate)) private _gates;
 
-    /// @dev trusteeNode => trustors list
-    mapping(bytes32 => bytes32[]) private _trustors;
+    /// @param ensRegistry The ENS registry for this network
+    /// @param nameWrapper_ The ENS NameWrapper, or address(0) where none is deployed.
+    ///        MUST be pinned at deployment: a hostile contract here could claim
+    ///        control of every wrapped name.
+    constructor(address ensRegistry, address nameWrapper_) EIP712("TrustRegistry", "1") {
+        ens = IENS(ensRegistry);
+        nameWrapper = nameWrapper_;
+    }
 
-    /// @dev trustorNode => trusteeNode => index in _trustees array (1-indexed, 0 = not present)
-    mapping(bytes32 => mapping(bytes32 => uint256)) private _trusteeIndex;
-
-    /// @dev trusteeNode => trustorNode => index in _trustors array (1-indexed, 0 = not present)
-    mapping(bytes32 => mapping(bytes32 => uint256)) private _trustorIndex;
-
-    /// @dev coordinationType => IdentityGate
-    mapping(bytes32 => IdentityGate) private _gates;
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CONSTRUCTOR
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// @notice Deploy the Trust Registry
-    /// @param ensRegistry Address of the ENS registry
-    constructor(address ensRegistry) EIP712("ERC-XXXX-Trust", "1") {
-        _ens = IENS(ensRegistry);
+    /// @inheritdoc IERC165
+    /// @dev Reports ITrustRegistry and IERC165 only
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(ITrustRegistry).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -90,50 +143,155 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
 
     /// @inheritdoc ITrustRegistry
     function setTrustBatch(TrustAttestation[] calldata attestations, bytes[] calldata signatures) external override {
-        if (attestations.length != signatures.length) revert ArrayLengthMismatch();
+        uint256 n = attestations.length;
+        if (n != signatures.length) revert BatchLengthMismatch();
+        if (n == 0) revert EmptyBatch();
 
-        for (uint256 i = 0; i < attestations.length; i++) {
+        // Batch-level checks run over the whole batch, in the specified order, before
+        // any item is applied
+        bytes32 trustor = attestations[0].trustorNode;
+        for (uint256 i = 1; i < n; i++) {
+            if (attestations[i].trustorNode != trustor) revert BatchTrustorMismatch();
+        }
+        for (uint256 i = 1; i < n; i++) {
+            if (attestations[i].nonce <= attestations[i - 1].nonce) revert BatchNonceNotIncreasing();
+        }
+
+        for (uint256 i = 0; i < n; i++) {
             _setTrust(attestations[i], signatures[i]);
         }
     }
 
     /// @inheritdoc ITrustRegistry
-    function revokeTrust(bytes32 trusteeNode, string calldata reason) external override {
-        // Derive trustor from msg.sender's ENS ownership
-        // Note: In production, you'd want a reverse resolution or explicit trustorNode parameter
-        // For simplicity, we require msg.sender to specify which trustor they control
-        revert("Use revokeTrustFor(trustorNode, trusteeNode, reason)");
-    }
+    /// @dev Revocation is caller-authorised (name controller or approved operator), not
+    ///      signature-authorised. Approvals may submit revocations but can never
+    ///      forge an attestation signature.
+    function revokeTrust(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode)
+        external
+        override
+    {
+        if (!canSubmitRevocation(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
 
-    /// @notice Revoke trust with explicit trustor specification
-    /// @param trustorNode The trustor's ENS namehash
-    /// @param trusteeNode The trustee's ENS namehash
-    /// @param reason Human-readable reason
-    function revokeTrustFor(bytes32 trustorNode, bytes32 trusteeNode, string calldata reason) external {
-        if (!_isAuthorized(trustorNode, msg.sender)) {
-            revert NotAuthorized(trustorNode, msg.sender);
-        }
-
-        TrustRecord storage record = _trust[trustorNode][trusteeNode];
-        if (record.level == TrustLevel.Unknown) {
-            revert TrustNotFound(trustorNode, trusteeNode);
-        }
-
-        record.level = TrustLevel.None;
-        record.setAt = uint64(block.timestamp);
-
-        emit TrustRevoked(trustorNode, trusteeNode, reason);
+        _revokeOne(trustorNode, trusteeNode, scope, reasonCode);
     }
 
     /// @inheritdoc ITrustRegistry
-    function getTrust(bytes32 trustorNode, bytes32 trusteeNode)
+    /// @dev Scopes are supplied by the caller. Enumerating a trustor's scopes on-chain
+    ///      would require adjacency storage this standard deliberately avoids; callers
+    ///      derive the list from TrustSet logs.
+    function revokeTrustBatch(bytes32 trustorNode, bytes32 trusteeNode, bytes32[] calldata scopes, bytes32 reasonCode)
+        external
+        override
+    {
+        if (!canSubmitRevocation(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
+        if (scopes.length == 0) revert EmptyScopeList();
+
+        for (uint256 i = 0; i < scopes.length; i++) {
+            _revokeOne(trustorNode, trusteeNode, scopes[i], reasonCode);
+        }
+    }
+
+    /// @inheritdoc ITrustRegistry
+    /// @dev Raising the floor invalidates the trustor's outstanding attestations for
+    ///      EVERY trustee and scope, not only a quarantined one. Deliberate: revocation
+    ///      cannot otherwise be ordered against a signature that carries no timestamp.
+    ///
+    ///      Controller-only. Unlike revocation, whose effect is bounded to one trustee,
+    ///      this is unbounded, and `isApprovedForAll` is a coarse approval granted for
+    ///      name management rather than for voiding an agent's attestation pipeline.
+    function invalidateNonces(bytes32 trustorNode, uint64 newNonce) external override {
+        if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
+
+        uint64 current = _nonces[trustorNode];
+        if (newNonce <= current) revert NonceTooLow(newNonce, _next(current));
+
+        uint64 max = _maxNonce(current);
+        if (newNonce > max) revert NonceJumpTooLarge(newNonce, max);
+
+        _nonces[trustorNode] = newNonce;
+        emit NoncesInvalidated(trustorNode, newNonce);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    /// @dev Controller-only. A denial overrides endorsements by other agents within
+    ///      the trustor's own decisions, so it carries the same authority as signing
+    ///      an attestation rather than the bounded authority of a withdrawal.
+    function setDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode) external override {
+        if (!_isController(trustorNode, msg.sender)) revert NotAuthorized(trustorNode, msg.sender);
+        if (trustorNode == trusteeNode) revert SelfTrustProhibited();
+
+        _writeDenial(trustorNode, trusteeNode, scope, true, reasonCode);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    /// @dev Every attestation that lands raises the trustor's nonce, so an unchanged
+    ///      nonce means the stored endorsements, in every scope, are those the caller
+    ///      reviewed. Withdrawals do not raise it, but can only reduce trust.
+    function clearDenial(
+        bytes32 trustorNode,
+        bytes32 trusteeNode,
+        bytes32 scope,
+        uint64 expectedNonce,
+        bytes32 reasonCode
+    ) external override {
+        if (!_isController(trustorNode, msg.sender)) {
+            revert NotAuthorized(trustorNode, msg.sender);
+        }
+        if (trustorNode == trusteeNode) revert SelfTrustProhibited();
+
+        uint64 current = _nonces[trustorNode];
+        if (current != expectedNonce) revert NonceChanged(expectedNonce, current);
+
+        _writeDenial(trustorNode, trusteeNode, scope, false, reasonCode);
+    }
+
+    /// @dev Emits only on a change, so the latest DenialSet reconstructs the flag
+    function _writeDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bool denied, bytes32 reasonCode)
+        internal
+    {
+        TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
+        if (record.denied == denied) return;
+
+        record.denied = denied;
+        emit DenialSet(trustorNode, trusteeNode, scope, denied, reasonCode);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    function getDenial(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope) external view override returns (bool) {
+        return _trust[trustorNode][trusteeNode][scope].denied;
+    }
+
+    /// @dev Prior trust is NOT required. Withdrawing in a scope that was never granted
+    ///      is meaningful: it blocks the universal fallback for that scope.
+    function _revokeOne(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope, bytes32 reasonCode) internal {
+        TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
+
+        record.level = TrustLevel.None;
+        // A withdrawal does not expire: getTrust returns (None, 0). The record is
+        // retained (not deleted) so the withdrawal remains observable.
+        record.expiry = 0;
+        record.setAt = uint64(block.timestamp);
+
+        emit TrustRevoked(trustorNode, trusteeNode, scope, reasonCode);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    function getTrust(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope)
         external
         view
         override
-        returns (TrustLevel level, bytes32 scope, uint64 expiry)
+        returns (TrustLevel level, uint64 expiry)
     {
-        TrustRecord storage record = _trust[trustorNode][trusteeNode];
-        return (record.level, record.scope, record.expiry);
+        return _getTrust(trustorNode, trusteeNode, scope);
+    }
+
+    function _getTrust(bytes32 trustorNode, bytes32 trusteeNode, bytes32 scope)
+        internal
+        view
+        returns (TrustLevel level, uint64 expiry)
+    {
+        TrustRecord storage record = _trust[trustorNode][trusteeNode][scope];
+        return (record.level, record.expiry);
     }
 
     /// @inheritdoc ITrustRegistry
@@ -141,111 +299,116 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         return _nonces[trustorNode];
     }
 
-    /// @inheritdoc ITrustRegistry
-    function getTrustees(bytes32 trustorNode, TrustLevel minLevel) external view override returns (bytes32[] memory) {
-        bytes32[] storage allTrustees = _trustees[trustorNode];
-
-        // Count qualifying trustees
-        uint256 count = 0;
-        for (uint256 i = 0; i < allTrustees.length; i++) {
-            TrustRecord storage record = _trust[trustorNode][allTrustees[i]];
-            if (record.level >= minLevel) count++;
-        }
-
-        // Build result array
-        bytes32[] memory result = new bytes32[](count);
-        uint256 j = 0;
-        for (uint256 i = 0; i < allTrustees.length; i++) {
-            TrustRecord storage record = _trust[trustorNode][allTrustees[i]];
-            if (record.level >= minLevel) {
-                result[j++] = allTrustees[i];
-            }
-        }
-
-        return result;
-    }
-
-    /// @inheritdoc ITrustRegistry
-    function getTrustors(bytes32 trusteeNode, TrustLevel minLevel) external view override returns (bytes32[] memory) {
-        bytes32[] storage allTrustors = _trustors[trusteeNode];
-
-        // Count qualifying trustors
-        uint256 count = 0;
-        for (uint256 i = 0; i < allTrustors.length; i++) {
-            TrustRecord storage record = _trust[allTrustors[i]][trusteeNode];
-            if (record.level >= minLevel) count++;
-        }
-
-        // Build result array
-        bytes32[] memory result = new bytes32[](count);
-        uint256 j = 0;
-        for (uint256 i = 0; i < allTrustors.length; i++) {
-            TrustRecord storage record = _trust[allTrustors[i]][trusteeNode];
-            if (record.level >= minLevel) {
-                result[j++] = allTrustors[i];
-            }
-        }
-
-        return result;
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
-    // WEB OF TRUST VALIDATION
+    // PATH VERIFICATION
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// @inheritdoc ITrustRegistry
-    function validateAgent(bytes32 validatorNode, bytes32 targetNode, ValidationParams calldata params)
-        public
+    function verifyPath(TrustPath calldata path, ValidationParams calldata params)
+        external
         view
         override
-        returns (bool isValid, uint8 pathLength, uint8 marginalCount, uint8 fullCount)
+        returns (bool valid)
     {
-        return _validateAgent(validatorNode, targetNode, params);
+        return _verifyPath(path, params, true);
     }
 
-    /// @dev Internal validation that accepts memory params
-    function _validateAgent(bytes32 validatorNode, bytes32 targetNode, ValidationParams memory params)
+    /// @dev Core path verification. Cost is O(path length x requiredAnchors).
+    ///      Besides the per-edge checks, the validator must not effectively deny any
+    ///      later node: its denial overrides any indirect endorsement within its own
+    ///      trust decision.
+    ///      `validateParams` is false only for parameters read from a stored gate,
+    ///      which `setIdentityGate` validated when it stored them.
+    function _verifyPath(TrustPath memory path, ValidationParams memory params, bool validateParams)
         internal
         view
-        returns (bool isValid, uint8 pathLength, uint8 marginalCount, uint8 fullCount)
+        returns (bool)
     {
-        // Self-validation always succeeds
-        if (validatorNode == targetNode) {
-            return (true, 0, 0, 0);
+        // Parameters are validated BEFORE they are used. Skipping this would let
+        // minEdgeTrust == Unknown make every edge comparison vacuously pass.
+        if (validateParams) requireValidParams(params);
+
+        // Path must have at least 2 nodes (validator and target)
+        if (path.nodes.length < 2) return false;
+
+        // Path length constraint (edges = nodes - 1)
+        if (path.nodes.length - 1 > params.maxPathLength) return false;
+
+        // Nodes MUST be distinct; a repeated node inflates length without adding trust.
+        // maxPathLength caps this at 11 nodes, so the quadratic scan is bounded.
+        for (uint256 i = 0; i < path.nodes.length; i++) {
+            for (uint256 j = i + 1; j < path.nodes.length; j++) {
+                if (path.nodes[i] == path.nodes[j]) return false;
+            }
         }
 
-        // Initialize visited set (using a simple array for reference impl)
-        bytes32[] memory visited = new bytes32[](params.maxPathLength + 1);
-
-        return _validate(validatorNode, targetNode, params, 0, visited, 0);
-    }
-
-    /// @inheritdoc ITrustRegistry
-    function validateAgentBatch(bytes32 validatorNode, bytes32[] calldata targetNodes, ValidationParams calldata params)
-        external
-        view
-        override
-        returns (bool[] memory results)
-    {
-        results = new bool[](targetNodes.length);
-
-        for (uint256 i = 0; i < targetNodes.length; i++) {
-            (results[i],,,) = validateAgent(validatorNode, targetNodes[i], params);
+        // The validator's denial overrides any indirect endorsement.
+        // k = 1 is already covered by the first edge check.
+        bytes32 validator = path.nodes[0];
+        for (uint256 k = 2; k < path.nodes.length; ++k) {
+            (,, bool validatorDenies) = _edgeTrust(validator, path.nodes[k], params.scope);
+            if (validatorDenies) return false;
         }
+
+        // Track anchor satisfaction
+        bool foundAnchor = params.requiredAnchors.length == 0;
+
+        // Verify each edge
+        for (uint256 i = 0; i < path.nodes.length - 1; i++) {
+            // Universal None, then a stored scoped record, then universal trust
+            (TrustLevel level, uint64 expiry, bool denied) = _edgeTrust(path.nodes[i], path.nodes[i + 1], params.scope);
+
+            // Denial voids the edge whatever its endorsement
+            if (denied) return false;
+
+            // Edge must meet minimum trust level
+            if (level < params.minEdgeTrust) return false;
+
+            // None explicitly voids (even if minEdgeTrust is somehow None)
+            if (level == TrustLevel.None) return false;
+
+            // Expiry check
+            if (params.enforceExpiry && expiry != 0 && expiry <= block.timestamp) {
+                return false;
+            }
+
+            // Anchor check (intermediate nodes only, not first or last)
+            if (!foundAnchor && i > 0) {
+                for (uint256 j = 0; j < params.requiredAnchors.length; j++) {
+                    if (path.nodes[i] == params.requiredAnchors[j]) {
+                        foundAnchor = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Anchors are part of the verdict, not a separate advisory signal
+        return foundAnchor;
     }
 
-    /// @inheritdoc ITrustRegistry
-    function pathExists(bytes32 fromNode, bytes32 toNode, uint8 maxDepth)
-        external
+    /// @dev The endorsement and the effective denial that apply to one edge when
+    ///      verifying in `scope`. Each record is one slot, so denial costs no extra read.
+    function _edgeTrust(bytes32 from, bytes32 to, bytes32 scope)
+        internal
         view
-        override
-        returns (bool exists, uint8 depth)
+        returns (TrustLevel level, uint64 expiry, bool denied)
     {
-        if (fromNode == toNode) return (true, 0);
+        TrustRecord storage u = _trust[from][to][bytes32(0)];
 
-        // Simple DFS for reference implementation
-        bytes32[] memory visited = new bytes32[](maxDepth + 1);
-        return _pathSearch(fromNode, toNode, maxDepth, 0, visited, 0);
+        // Universal denial holds in every scope, so no scoped record can lift it
+        if (scope == bytes32(0) || u.denied) return (u.level, u.expiry, u.denied);
+
+        TrustRecord storage s = _trust[from][to][scope];
+
+        // 1. Universal None voids the endorsement in every scope
+        if (u.level == TrustLevel.None) return (TrustLevel.None, u.expiry, s.denied);
+
+        // 2. Any stored scoped record is authoritative, expired or not
+        if (s.level != TrustLevel.Unknown) return (s.level, s.expiry, s.denied);
+
+        // 3. Otherwise universal applies
+        return (u.level, u.expiry, s.denied);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -253,165 +416,157 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// @inheritdoc ITrustRegistry
+    /// @dev Stored under `(msg.sender, coordinationType)`. The caller owns its own
+    ///      namespace, so no authorisation check is needed and no two coordinators can
+    ///      collide on a coordination type. Naming `gatekeeperNode` deliberately does
+    ///      NOT require controlling it: a gate only reads that agent's public
+    ///      attestations.
     function setIdentityGate(bytes32 coordinationType, bytes32 gatekeeperNode, ValidationParams calldata params)
         external
         override
     {
-        if (!_isAuthorized(gatekeeperNode, msg.sender)) {
-            revert NotAuthorized(gatekeeperNode, msg.sender);
+        requireValidParams(params);
+
+        // Only intermediary nodes satisfy an anchor, and a one-edge path has none, so
+        // such a gate could admit no participant. Gate-only: verifyPath returns false
+        // for these parameters rather than reverting.
+        if (params.requiredAnchors.length != 0 && params.maxPathLength < 2) {
+            revert UnsatisfiableAnchors(params.maxPathLength);
         }
 
-        if (params.maxPathLength == 0) revert InvalidValidationParams();
+        IdentityGate storage gate = _gates[msg.sender][coordinationType];
+        gate.gatekeeperNode = gatekeeperNode;
+        gate.params = params;
+        gate.enabled = true;
 
-        _gates[coordinationType] = IdentityGate({gatekeeperNode: gatekeeperNode, params: params, enabled: true});
-
-        emit IdentityGateSet(coordinationType, gatekeeperNode, params.maxPathLength, params.marginalThreshold);
+        emit IdentityGateSet(
+            msg.sender,
+            coordinationType,
+            gatekeeperNode,
+            params.maxPathLength,
+            params.minEdgeTrust,
+            params.scope,
+            params.enforceExpiry,
+            params.requiredAnchors
+        );
     }
 
     /// @inheritdoc ITrustRegistry
     function removeIdentityGate(bytes32 coordinationType) external override {
-        IdentityGate storage gate = _gates[coordinationType];
-        if (!gate.enabled) revert GateNotFound(coordinationType);
+        if (!_gates[msg.sender][coordinationType].enabled) revert GateNotFound(coordinationType);
 
-        if (!_isAuthorized(gate.gatekeeperNode, msg.sender)) {
-            revert NotAuthorized(gate.gatekeeperNode, msg.sender);
-        }
-
-        gate.enabled = false;
-        emit IdentityGateRemoved(coordinationType);
+        delete _gates[msg.sender][coordinationType];
+        emit IdentityGateRemoved(msg.sender, coordinationType);
     }
 
     /// @inheritdoc ITrustRegistry
-    function getIdentityGate(bytes32 coordinationType)
+    function getIdentityGate(address coordinator, bytes32 coordinationType)
         external
         view
         override
         returns (bytes32 gatekeeperNode, ValidationParams memory params, bool enabled)
     {
-        IdentityGate storage gate = _gates[coordinationType];
+        return _getIdentityGate(coordinator, coordinationType);
+    }
+
+    function _getIdentityGate(address coordinator, bytes32 coordinationType)
+        internal
+        view
+        returns (bytes32 gatekeeperNode, ValidationParams memory params, bool enabled)
+    {
+        IdentityGate storage gate = _gates[coordinator][coordinationType];
         return (gate.gatekeeperNode, gate.params, gate.enabled);
     }
 
     /// @inheritdoc ITrustRegistry
-    function validateParticipant(bytes32 coordinationType, bytes32 participantNode)
-        public
-        view
-        override
-        returns (bool isValid)
-    {
-        IdentityGate storage gate = _gates[coordinationType];
+    /// @dev Forward resolution per ERC-137. Returns address(0) when the node has no
+    ///      resolver, no addr record, or an off-chain (CCIP-Read) resolver.
+    function resolveAgent(bytes32 node) public view override returns (address) {
+        address resolver = ens.resolver(node);
+        if (resolver == address(0)) return address(0);
 
-        // No gate = open participation
-        if (!gate.enabled) return true;
-
-        (isValid,,,) = _validateAgent(gate.gatekeeperNode, participantNode, gate.params);
-    }
-
-    /// @inheritdoc ITrustRegistry
-    function validateParticipantBatch(bytes32 coordinationType, bytes32[] calldata participantNodes)
-        external
-        view
-        override
-        returns (bool[] memory results)
-    {
-        results = new bool[](participantNodes.length);
-
-        for (uint256 i = 0; i < participantNodes.length; i++) {
-            results[i] = validateParticipant(coordinationType, participantNodes[i]);
+        // Low-level, gas-capped, bounded-copy call. A participant controls its own
+        // resolver, so a high-level call would let it make validation REVERT (no code,
+        // short or dirty return data) or burn 63/64 of the caller's gas, either of
+        // which aborts a coordinator looping over every participant of an intent.
+        bytes memory data = abi.encodeWithSelector(IAddrResolver.addr.selector, node);
+        bool ok;
+        uint256 word;
+        uint256 size;
+        assembly ("memory-safe") {
+            ok := staticcall(RESOLVE_GAS, resolver, add(data, 0x20), mload(data), 0, 0x20)
+            size := returndatasize()
+            word := mload(0)
         }
+        if (!ok || size < 0x20 || word >> 160 != 0) return address(0);
+        return address(uint160(word));
+    }
+
+    /// @inheritdoc ITrustRegistry
+    /// @dev Reverts with GateNotFound when no gate is enabled, so a wrong coordinator
+    ///      address or mistyped coordination type fails loudly instead of admitting
+    ///      every participant.
+    function validateParticipantWithPath(
+        address coordinator,
+        bytes32 coordinationType,
+        bytes32 participantNode,
+        TrustPath calldata path
+    ) external view override returns (bool isValid) {
+        (bytes32 gatekeeperNode, ValidationParams memory params, bool enabled) =
+            _getIdentityGate(coordinator, coordinationType);
+
+        // No gate = misconfiguration, not open participation
+        if (!enabled) revert GateNotFound(coordinationType);
+
+        if (path.nodes.length < 2) return false;
+
+        // Path MUST start at the gatekeeper...
+        if (path.nodes[0] != gatekeeperNode) return false;
+
+        // ...and MUST terminate at the participant being gated
+        if (path.nodes[path.nodes.length - 1] != participantNode) return false;
+
+        return _verifyPath(path, params, false);
+    }
+
+    /// @inheritdoc ITrustRegistry
+    /// @dev The ERC-8001 hook. ERC-8001 lists participants by address, so the terminal
+    ///      node is bound to `participant` through its ERC-137 forward address record.
+    ///      Reverts with GateNotFound when no gate is enabled.
+    function validateParticipantAddress(
+        address coordinator,
+        bytes32 coordinationType,
+        address participant,
+        TrustPath calldata path
+    ) external view override returns (bool isValid) {
+        (bytes32 gatekeeperNode, ValidationParams memory params, bool enabled) =
+            _getIdentityGate(coordinator, coordinationType);
+
+        // No gate = misconfiguration, not open participation
+        if (!enabled) revert GateNotFound(coordinationType);
+
+        if (participant == address(0)) return false;
+        if (path.nodes.length < 2) return false;
+        if (path.nodes[0] != gatekeeperNode) return false;
+
+        // The terminal node MUST be bound to the participant address
+        if (resolveAgent(path.nodes[path.nodes.length - 1]) != participant) return false;
+
+        // A name nobody controls cannot vouch for its addr record, which may be stale
+        if (controllerOf(path.nodes[path.nodes.length - 1]) == address(0)) return false;
+
+        return _verifyPath(path, params, false);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // VIEW HELPERS
+    // EIP-712
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /// @inheritdoc ITrustRegistry
-    function defaultParams() external pure override returns (ValidationParams memory) {
-        return ValidationParams({
-            maxPathLength: 5, marginalThreshold: 3, fullThreshold: 1, scope: bytes32(0), enforceExpiry: true
-        });
-    }
-
-    /// @inheritdoc ITrustRegistry
-    function ens() external view override returns (address) {
-        return address(_ens);
-    }
-
-    /// @inheritdoc ITrustRegistry
-    function hashAttestation(TrustAttestation calldata attestation) public view override returns (bytes32) {
+    /// @notice EIP-712 digest for an attestation
+    function hashAttestation(TrustAttestation calldata attestation) public view returns (bytes32) {
         return _hashTypedDataV4(_structHash(attestation));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // INTERNAL FUNCTIONS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// @dev Internal trust setting logic
-    function _setTrust(TrustAttestation calldata attestation, bytes calldata signature) internal {
-        // Validate: no self-trust
-        if (attestation.trustorNode == attestation.trusteeNode) {
-            revert SelfTrustProhibited();
-        }
-
-        // Validate: nonce must be strictly increasing
-        uint64 currentNonce = _nonces[attestation.trustorNode];
-        if (attestation.nonce <= currentNonce) {
-            revert NonceTooLow(attestation.nonce, currentNonce + 1);
-        }
-
-        // Validate: not expired
-        if (attestation.expiry != 0 && attestation.expiry <= block.timestamp) {
-            revert AttestationExpired(attestation.expiry, uint64(block.timestamp));
-        }
-
-        // Validate: ENS name exists
-        address owner = _ens.owner(attestation.trustorNode);
-        if (owner == address(0)) {
-            revert ENSNameNotFound(attestation.trustorNode);
-        }
-
-        // Validate: signature
-        bytes32 digest = _hashTypedDataV4(_structHash(attestation));
-        address signer = _recoverSigner(digest, signature);
-
-        if (!_isAuthorizedSigner(owner, signer)) {
-            revert InvalidSignature();
-        }
-
-        // Store trust
-        TrustRecord storage record = _trust[attestation.trustorNode][attestation.trusteeNode];
-
-        // Track relationship if new
-        if (record.level == TrustLevel.Unknown && attestation.level != TrustLevel.Unknown) {
-            _addRelationship(attestation.trustorNode, attestation.trusteeNode);
-        }
-
-        record.level = attestation.level;
-        record.scope = attestation.scope;
-        record.expiry = attestation.expiry;
-        record.setAt = uint64(block.timestamp);
-
-        _nonces[attestation.trustorNode] = attestation.nonce;
-
-        emit TrustSet(
-            attestation.trustorNode, attestation.trusteeNode, attestation.level, attestation.scope, attestation.expiry
-        );
-    }
-
-    /// @dev Add relationship to tracking arrays
-    function _addRelationship(bytes32 trustorNode, bytes32 trusteeNode) internal {
-        if (_trusteeIndex[trustorNode][trusteeNode] == 0) {
-            _trustees[trustorNode].push(trusteeNode);
-            _trusteeIndex[trustorNode][trusteeNode] = _trustees[trustorNode].length;
-        }
-
-        if (_trustorIndex[trusteeNode][trustorNode] == 0) {
-            _trustors[trusteeNode].push(trustorNode);
-            _trustorIndex[trusteeNode][trustorNode] = _trustors[trusteeNode].length;
-        }
-    }
-
-    /// @dev Compute struct hash for EIP-712
     function _structHash(TrustAttestation calldata att) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -426,181 +581,134 @@ contract TrustRegistry is ITrustRegistry, EIP712 {
         );
     }
 
-    /// @dev Recover signer from signature (supports ERC-1271)
-    function _recoverSigner(bytes32 digest, bytes calldata signature) internal view returns (address) {
-        // Try ECDSA first
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTERNAL
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function _setTrust(TrustAttestation calldata attestation, bytes calldata signature) internal {
+        if (attestation.trustorNode == attestation.trusteeNode) revert SelfTrustProhibited();
+
+        // Attestations grant trust; withdrawal is expressed by revokeTrust. This keeps
+        // exactly one path, one event, and one authorisation rule per level.
+        if (attestation.level == TrustLevel.Unknown || attestation.level == TrustLevel.None) {
+            revert InvalidAttestationLevel(attestation.level);
+        }
+
+        if (attestation.expiry != 0 && attestation.expiry <= block.timestamp) {
+            revert AttestationExpired(attestation.expiry, uint64(block.timestamp));
+        }
+
+        if (ens.owner(attestation.trustorNode) == address(0)) revert ENSNameNotFound(attestation.trustorNode);
+
+        uint64 currentNonce = _nonces[attestation.trustorNode];
+        if (attestation.nonce <= currentNonce) revert NonceTooLow(attestation.nonce, _next(currentNonce));
+
+        uint64 maxNonce = _maxNonce(currentNonce);
+        if (attestation.nonce > maxNonce) revert NonceJumpTooLarge(attestation.nonce, maxNonce);
+
+        // Covers a name with no controller too, such as a wrapped .eth name past its
+        // grace period: controllerOf returns address(0)
+        if (!verifySignature(attestation.trustorNode, hashAttestation(attestation), signature)) {
+            revert InvalidSignature();
+        }
+
+        _nonces[attestation.trustorNode] = attestation.nonce;
+
+        TrustRecord storage record = _trust[attestation.trustorNode][attestation.trusteeNode][attestation.scope];
+        record.level = attestation.level;
+        record.expiry = attestation.expiry;
+        record.setAt = uint64(block.timestamp);
+
+        emit TrustSet(
+            attestation.trustorNode,
+            attestation.trusteeNode,
+            attestation.level,
+            attestation.scope,
+            attestation.expiry,
+            attestation.nonce
+        );
+    }
+
+    /// @dev Resolve the real controller of a name, unwrapping NameWrapper names.
+    ///      `ens.owner` returns the NameWrapper contract for wrapped names, and
+    ///      NameWrapper does not implement EIP-1271, so using it directly would leave
+    ///      every wrapped name unable to attest.
+    function controllerOf(bytes32 node) internal view returns (address) {
+        address owner = ens.owner(node);
+        if (owner == address(0)) return address(0);
+
+        // Wrapped name: the ERC-1155 holder is the real controller
+        if (nameWrapper != address(0) && owner == nameWrapper) {
+            try INameWrapper(nameWrapper).ownerOf(uint256(node)) returns (address wrapped) {
+                // address(0) once a name with PARENT_CANNOT_CONTROL burned passes its
+                // NameWrapper expiry; an unemancipated subname keeps its holder
+                return wrapped;
+            } catch {
+                return address(0);
+            }
+        }
+
+        return owner;
+    }
+
+    /// @dev Verify signature - signing authority is the name controller only
+    function verifySignature(bytes32 node, bytes32 digest, bytes calldata signature) internal view returns (bool) {
+        address controller = controllerOf(node);
+        if (controller == address(0)) return false;
+
+        // ECDSA first: covers plain EOAs and EIP-7702 delegated EOAs
         (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(digest, signature);
+        if (err == ECDSA.RecoverError.NoError && recovered == controller) return true;
 
-        if (err == ECDSA.RecoverError.NoError) {
-            return recovered;
-        }
-
-        // If signature is 65 bytes and ECDSA failed, it's invalid
-        // ERC-1271 contracts should be passed as signer address in a different flow
-        return address(0);
+        // ERC-1271 fallback for any controller with code
+        if (controller.code.length == 0) return false;
+        // Low-level call with a returndata length check: a high-level call would revert
+        // with empty data (not InvalidSignature) when the controller's code returns
+        // nothing, e.g. an EIP-7702 delegate with an empty fallback
+        return SignatureChecker.isValidERC1271SignatureNow(controller, digest, signature);
     }
 
-    /// @dev Check if signer is authorized for ENS node
-    function _isAuthorizedSigner(address owner, address signer) internal view returns (bool) {
-        if (signer == owner) return true;
-        if (_ens.isApprovedForAll(owner, signer)) return true;
-        return false;
+    /// @dev Check if caller can submit a revokeTrust transaction
+    function canSubmitRevocation(bytes32 node, address caller) internal view returns (bool) {
+        address controller = controllerOf(node);
+        if (controller == address(0)) return false;
+        if (caller == controller) return true;
+
+        // Approvals live on whichever contract actually holds the name
+        if (nameWrapper != address(0) && ens.owner(node) == nameWrapper) {
+            return INameWrapper(nameWrapper).isApprovedForAll(controller, caller);
+        }
+
+        return ens.isApprovedForAll(controller, caller);
     }
 
-    /// @dev Check if address is authorized for ENS node
-    function _isAuthorized(bytes32 node, address actor) internal view returns (bool) {
-        address owner = _ens.owner(node);
-        if (owner == address(0)) return false;
-        if (actor == owner) return true;
-        return _ens.isApprovedForAll(owner, actor);
+    /// @dev Highest nonce the floor may move to from `current` in one step. Bounded so
+    ///      no single signature or call can exhaust the nonce space; caps at
+    ///      type(uint64).max rather than wrapping.
+    function _maxNonce(uint64 current) internal pure returns (uint64) {
+        return current > type(uint64).max - MAX_NONCE_JUMP ? type(uint64).max : current + MAX_NONCE_JUMP;
     }
 
-    /// @dev Check if trust record is valid for validation
-    function _isTrustValid(TrustRecord storage record, ValidationParams memory params) internal view returns (bool) {
-        if (record.level == TrustLevel.Unknown) return false;
-        if (record.level == TrustLevel.None) return false;
-
-        // Check expiry
-        if (params.enforceExpiry && record.expiry != 0 && record.expiry <= block.timestamp) {
-            return false;
-        }
-
-        // Check scope
-        if (params.scope != bytes32(0) && record.scope != bytes32(0) && record.scope != params.scope) {
-            return false;
-        }
-
-        return true;
+    /// @dev Saturating successor, so NonceTooLow reports cleanly at type(uint64).max
+    function _next(uint64 current) internal pure returns (uint64) {
+        return current == type(uint64).max ? current : current + 1;
     }
 
-    /// @dev Recursive validation with visited tracking
-    function _validate(
-        bytes32 validatorNode,
-        bytes32 targetNode,
-        ValidationParams memory params,
-        uint8 depth,
-        bytes32[] memory visited,
-        uint8 visitedCount
-    ) internal view returns (bool isValid, uint8 pathLength, uint8 marginalCount, uint8 fullCount) {
-        // Check depth limit
-        if (depth > params.maxPathLength) {
-            return (false, 0, 0, 0);
-        }
-
-        // Check for cycles
-        for (uint8 i = 0; i < visitedCount; i++) {
-            if (visited[i] == validatorNode) {
-                return (false, 0, 0, 0);
-            }
-        }
-
-        // Add to visited
-        if (visitedCount < visited.length) {
-            visited[visitedCount] = validatorNode;
-            visitedCount++;
-        }
-
-        // Direct trust check
-        TrustRecord storage directRecord = _trust[validatorNode][targetNode];
-        if (_isTrustValid(directRecord, params)) {
-            if (directRecord.level == TrustLevel.Full) {
-                return (true, depth, 0, 1);
-            }
-            marginalCount = 1;
-            if (marginalCount >= params.marginalThreshold) {
-                return (true, depth, marginalCount, 0);
-            }
-        }
-
-        // Check through trustees (one level of indirection)
-        bytes32[] storage trustees = _trustees[validatorNode];
-        uint8 localMarginals = marginalCount;
-        uint8 localFulls = 0;
-
-        for (uint256 i = 0; i < trustees.length && i < 100; i++) { // Cap iterations
-            bytes32 intermediary = trustees[i];
-            TrustRecord storage interRecord = _trust[validatorNode][intermediary];
-
-            if (!_isTrustValid(interRecord, params)) continue;
-
-            // Check if intermediary vouches for target
-            TrustRecord storage vouchRecord = _trust[intermediary][targetNode];
-            if (!_isTrustValid(vouchRecord, params)) continue;
-
-            if (interRecord.level == TrustLevel.Full) {
-                localFulls++;
-                if (localFulls >= params.fullThreshold) {
-                    return (true, depth + 1, localMarginals, localFulls);
-                }
-            } else if (interRecord.level == TrustLevel.Marginal) {
-                localMarginals++;
-                if (localMarginals >= params.marginalThreshold) {
-                    return (true, depth + 1, localMarginals, localFulls);
-                }
-            }
-        }
-
-        // Recursive search through trusted intermediaries
-        if (depth + 1 < params.maxPathLength) {
-            for (uint256 i = 0; i < trustees.length && i < 50; i++) { // Cap iterations
-                bytes32 intermediary = trustees[i];
-                TrustRecord storage interRecord = _trust[validatorNode][intermediary];
-
-                if (!_isTrustValid(interRecord, params)) continue;
-                if (interRecord.level < TrustLevel.Marginal) continue;
-
-                (bool subValid, uint8 subPath, uint8 subMarg, uint8 subFull) =
-                    _validate(intermediary, targetNode, params, depth + 1, visited, visitedCount);
-
-                if (subValid) {
-                    return (true, subPath, subMarg, subFull);
-                }
-            }
-        }
-
-        return (false, 0, localMarginals, localFulls);
+    /// @dev Controller only - authority for trustor-wide operations
+    function _isController(bytes32 node, address caller) internal view returns (bool) {
+        address controller = controllerOf(node);
+        return controller != address(0) && caller == controller;
     }
 
-    /// @dev Simple path existence search
-    function _pathSearch(
-        bytes32 fromNode,
-        bytes32 toNode,
-        uint8 maxDepth,
-        uint8 currentDepth,
-        bytes32[] memory visited,
-        uint8 visitedCount
-    ) internal view returns (bool exists, uint8 depth) {
-        if (currentDepth > maxDepth) return (false, 0);
-
-        // Check for cycles
-        for (uint8 i = 0; i < visitedCount; i++) {
-            if (visited[i] == fromNode) return (false, 0);
+    function requireValidParams(ValidationParams memory params) internal pure {
+        if (params.maxPathLength == 0 || params.maxPathLength > MAX_PATH_LENGTH) {
+            revert InvalidMaxPathLength(params.maxPathLength);
         }
-
-        // Direct check
-        TrustRecord storage record = _trust[fromNode][toNode];
-        if (record.level >= TrustLevel.Marginal) {
-            return (true, currentDepth + 1);
+        if (params.minEdgeTrust == TrustLevel.Unknown || params.minEdgeTrust == TrustLevel.None) {
+            revert InvalidMinEdgeTrust(params.minEdgeTrust);
         }
-
-        // Add to visited
-        if (visitedCount < visited.length) {
-            visited[visitedCount] = fromNode;
-            visitedCount++;
+        if (params.requiredAnchors.length > MAX_REQUIRED_ANCHORS) {
+            revert TooManyRequiredAnchors(params.requiredAnchors.length);
         }
-
-        // Search through trustees
-        bytes32[] storage trustees = _trustees[fromNode];
-        for (uint256 i = 0; i < trustees.length && i < 50; i++) {
-            TrustRecord storage interRecord = _trust[fromNode][trustees[i]];
-            if (interRecord.level < TrustLevel.Marginal) continue;
-
-            (bool found, uint8 foundDepth) =
-                _pathSearch(trustees[i], toNode, maxDepth, currentDepth + 1, visited, visitedCount);
-
-            if (found) return (true, foundDepth);
-        }
-
-        return (false, 0);
     }
 }
