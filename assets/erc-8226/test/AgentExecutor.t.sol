@@ -4,13 +4,13 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC7943Fungible} from "../contracts/regulated-asset-mock/IERC7943.sol";
+import {IERC7943Fungible} from "../contracts/mocks/IERC7943.sol";
 
 import {AgentExecutor} from "../contracts/AgentExecutor.sol";
 import {AgentMandate} from "../contracts/AgentMandate.sol";
 import {ComplianceProvider} from "../contracts/ComplianceProvider.sol";
 import {IAgentMandate} from "../contracts/interfaces/IAgentMandate.sol";
-import {uRWA20} from "../contracts/regulated-asset-mock/uRWA20.sol";
+import {uRWA20} from "../contracts/mocks/uRWA20.sol";
 
 /// @notice Tests the executor venue against the real registry, compliance provider, and a uRWA-20 asset.
 contract AgentExecutorTest is Test {
@@ -34,6 +34,8 @@ contract AgentExecutorTest is Test {
     bytes4 constant APPROVE = IERC20.approve.selector;
     bytes4 constant SWAP = uRWA20.swap.selector;
 
+    event ActionConfigured(bytes4 indexed selector, bool supported, bool hasAmount, uint8 amountIndex);
+
     function setUp() public {
         compliance = new ComplianceProvider(complianceOwner);
         mandate = new AgentMandate(admin);
@@ -54,7 +56,7 @@ contract AgentExecutorTest is Test {
         actions[0] = bytes32(TRANSFER_FROM);
         actions[1] = bytes32(APPROVE);
         actions[2] = bytes32(SWAP);
-        IAgentMandate.GrantMandateParams memory p = IAgentMandate.GrantMandateParams({
+        IAgentMandate.GrantMandateParams memory params = IAgentMandate.GrantMandateParams({
             agent: agent,
             validFrom: 0,
             validUntil: uint48(block.timestamp + 1 days),
@@ -69,7 +71,7 @@ contract AgentExecutorTest is Test {
             deadline: 0
         });
         vm.prank(principal);
-        mandate.grantMandate(p, "");
+        mandate.grantMandate(params, "");
 
         vm.startPrank(admin);
         mandate.grantRole(mandate.RECORDER_ROLE(), address(executor));
@@ -87,7 +89,7 @@ contract AgentExecutorTest is Test {
     }
 
     function test_AmountArgReadByIndexWithDynamicArgBefore() public {
-        // swap(uint256 a, uint256[] t, uint256 amount): amount is arg index 2. The dynamic `t` at index 1
+        // swap(uint256 minimumOut, uint256[] path, uint256 amount): amount is arg index 2. The dynamic `path` at index 1
         // only stores an offset in its head slot, so amount still sits at 4 + 32*2 and must decode as 42.
         vm.prank(executorOwner);
         executor.setAction(SWAP, true, true, 2);
@@ -99,7 +101,7 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         executor.execute(address(token), abi.encodeWithSelector(SWAP, uint256(111), arr, uint256(42)));
 
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 42);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 42);
     }
 
     function test_ApproveWithAmountAtDifferentIndex() public {
@@ -111,7 +113,7 @@ contract AgentExecutorTest is Test {
         executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(400)));
 
         assertEq(token.allowance(address(executor), spender), 400);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 400);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 400);
     }
 
     function test_Misconfig_ValueBearingActionAsValueless_BypassesCap() public {
@@ -124,7 +126,16 @@ contract AgentExecutorTest is Test {
         executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(700)));
 
         assertEq(token.allowance(address(executor), spender), 700); // the forwarded call still ran
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 0); // but the cap was untouched
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 0); // but the cap was untouched
+    }
+
+    function test_RevertsAmountIndexOutOfRange() public {
+        vm.prank(executorOwner);
+        executor.setAction(APPROVE, true, true, 5);
+
+        vm.prank(agent);
+        vm.expectRevert(AgentExecutor.InvalidData.selector);
+        executor.execute(address(token), abi.encodeWithSelector(APPROVE, spender, uint256(1)));
     }
 
     function test_RevertsOverCumulativeCap() public {
@@ -132,7 +143,12 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(1000)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(1000),
+                IAgentMandate.MandateReason.OVER_CUMULATIVE_CAP
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1000)));
@@ -142,10 +158,21 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(1500)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(1500),
+                IAgentMandate.MandateReason.OVER_TX_CAP
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(1500)));
+    }
+
+    function test_RevertsShortCalldata() public {
+        vm.prank(agent);
+        vm.expectRevert(AgentExecutor.InvalidData.selector);
+        executor.execute(address(token), hex"001122");
     }
 
     function test_RevertsUnsupportedSelector() public {
@@ -165,7 +192,12 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(500)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(500),
+                IAgentMandate.MandateReason.AGENT_FROZEN
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));
@@ -173,11 +205,16 @@ contract AgentExecutorTest is Test {
 
     function test_RevertsWhenRevoked() public {
         vm.prank(principal);
-        mandate.revokeMandate(agent, principal, 0, "");
+        mandate.revokeMandate(agent, principal, address(token), 0, "");
         vm.prank(agent);
         vm.expectRevert(
             abi.encodeWithSelector(
-                AgentExecutor.CannotExecute.selector, agent, address(token), TRANSFER_FROM, uint256(500)
+                AgentExecutor.CannotExecute.selector,
+                agent,
+                address(token),
+                TRANSFER_FROM,
+                uint256(500),
+                IAgentMandate.MandateReason.REVOKED
             )
         );
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(500)));
@@ -193,6 +230,13 @@ contract AgentExecutorTest is Test {
         vm.prank(agent);
         vm.expectRevert(abi.encodeWithSelector(AgentExecutor.UnsupportedAction.selector, TRANSFER_FROM));
         executor.execute(address(token), abi.encodeWithSelector(TRANSFER_FROM, principal, recipient, uint256(100)));
+    }
+
+    function test_SetActionEmitsEvent() public {
+        vm.expectEmit(true, false, false, true, address(executor));
+        emit ActionConfigured(APPROVE, true, true, 1);
+        vm.prank(executorOwner);
+        executor.setAction(APPROVE, true, true, 1);
     }
 
     function test_SetActionOnlyOwner() public {
@@ -221,6 +265,6 @@ contract AgentExecutorTest is Test {
     function test_TransfersAndRecords() public {
         _transfer(recipient, 500);
         assertEq(token.balanceOf(recipient), 500);
-        assertEq(mandate.getMandate(agent, principal).cumulativeUsed, 500);
+        assertEq(mandate.getMandate(agent, principal, address(token)).cumulativeUsed, 500);
     }
 }
