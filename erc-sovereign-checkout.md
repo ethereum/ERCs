@@ -13,9 +13,10 @@ requires: 20
 
 ## Abstract
 
-This standard defines a trustless, non-custodial merchant settlement interface and architecture. Current cryptocurrency payment gateways (e.g., BVNK, BitPay) instruct payers to transfer ERC-20/TRC-20 tokens directly to raw unmonitored external addresses. When an underpayment or fee shortfall occurs, centralized sweepers absorb funds into proprietary corporate master vaults while backend webhooks flag orders as incomplete, trapping payer funds with zero protocol-level remediation. 
+This standard defines a trustless, non-custodial merchant settlement interface and architecture. Current cryptocurrency payment gateways (e.g., BVNK, BitPay) instruct payers to transfer ERC-20/TRC-20 tokens directly to raw unmonitored external addresses. When an underpayment or fee shortfall occurs, centralized sweepers absorb funds into proprietary corporate master vaults while backend webhooks flag orders as incomplete, trapping payer funds with zero protocol-level remediation.
 
 This ERC specifies an immutable escrow and checkout contract interface where:
+
 1. Invoices settle atomically upon exact or cumulative payment;
 2. Underpaid funds remain locked in smart contract escrow with zero merchant custody; and
 3. Payers can autonomously trigger a deterministic refund upon expiration without merchant consent or intermediary intervention.
@@ -23,6 +24,7 @@ This ERC specifies an immutable escrow and checkout contract interface where:
 ## Motivation
 
 Retail consumers and merchants are currently forced to rely on centralized payment processors that operate as opaque financial black boxes:
+
 - The Shortfall Trap: Network fee deductions often result in minor underpayments (e.g., 57.33 USDT received vs 64.66 USDT expected).
 - Unjust Enrichment: Centralized gateways sweep underpaid tokens into multi-million dollar master vaults to preserve liquidity, while flagging orders as unfulfilled.
 - Support Stonewalling: Merchants disclaim liability ("address not provided by us"), processors refuse retail consumers ("we only service B2B merchants"), and trapped funds become unallocated corporate float.
