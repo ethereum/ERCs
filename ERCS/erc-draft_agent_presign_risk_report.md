@@ -294,11 +294,20 @@ does not apply to an approval for all.
 | Kind | `param` | `value` when read |
 | --- | --- | --- |
 | `erc.presign.address.code` | none | `"none"`, `"contract"`, or `"delegated"` for an account whose code is an [EIP-7702](./eip-7702.md) delegation designator; for `"delegated"` the evidence MUST include the `eth_getCode` result |
+| `erc.presign.address.delegate-single-caller` | none | For a `"delegated"` address: `true` when every function of the delegate that can move value is callable by one fixed address (a constant, or one storage slot) and by no other caller, else `false` |
+| `erc.presign.address.delegate-unbounded-outflow` | none | For a `"delegated"` address: `true` when the delegate can send the account's whole balance of native value or a token to a recipient the caller chooses in one call, with no per-call limit, allowlist or delay, else `false` |
+| `erc.presign.address.delegate-authorizations` | `{ blocks }`, the number of blocks looked back | For a `"delegated"` address: `{ count, sameSigner, senderIsOnlyCaller }`: the number of [EIP-7702](./eip-7702.md) authorizations for the same delegate seen in the `blocks` blocks before the report's block, how many of them were carried by transactions from one sender, and whether that sender is the delegate's only allowed caller (`null` when `delegate-single-caller` is not read) |
 | `erc.presign.address.first-seen-block` | none | The first block in which the address sent a transaction, received native value or a token transfer, or had code deployed, as a decimal string |
 | `erc.presign.address.source-verified` | verifier name, such as `sourcify` | `"exact"`, `"partial"` or `"none"`; applies to addresses with code |
 | `erc.presign.address.prior-transfers` | none | The number of transactions and token transfers from the signer to the address before the block, as a decimal string |
 | `erc.presign.address.lookalike` | `{ prefix, suffix }`, hex digits compared | The addresses the signer sent to or received from before the block that share the first `prefix` and last `suffix` hex digits with this address, compared without case, and differ from it; `[]` when the source read the history and found none |
 | `erc.presign.address.on-list` | `{ uri, hash }` of a published list | `true` or `false` |
+
+The three `delegate-` kinds apply only to an address whose `code` is `"delegated"`, and describe the delegate at the
+report's block: `"delegated"` alone reads the same for a delegate with limits and for one that lets a single key empty
+the account. `delegate-single-caller` and `delegate-unbounded-outflow` need verified source or bytecode analysis; a
+source that did not complete it MUST report them not read (reason `unsupported` or `incomplete`), never `false`. The
+evidence for a read value SHOULD include the calls the source simulated and their results.
 
 For `first-seen-block`, a source whose scan of the address's history stopped before reaching its first appearance
 MUST report not read with reason `incomplete`. For `lookalike` and `prior-transfers`, a source that read only part of
