@@ -596,6 +596,25 @@ A conforming source and consumer pass these cases.
 - On an anchor contract, anchoring a zero hash or a 513-byte URI reverts; a second anchoring of the same report by the
   same caller leaves `anchoredAt` unchanged; another caller's anchoring is recorded under that caller.
 
+Delegate kinds, as (`delegate-single-caller`, `delegate-unbounded-outflow`), simulated against delegated code
+(`0xef0100 ‖ delegate`, 100 ETH on the account; each caller tries 1 wei and the whole balance to two recipients):
+
+| Case | Delegate | Expected |
+| --- | --- | --- |
+| V1 | callable only by the account itself | `false`, `false` |
+| V2 | accepts only a signature of the account (any caller bringing it) | `false`, `false` |
+| V3 | one hard-coded caller, no limits | `true`, `true` |
+| V4 | V3 plus a path for the account itself | `true`, `true` |
+| V5 | V3 with a 1 ether cap per call | `true`, `false` |
+| V6 | two hard-coded callers, no limits | `false`, `true` |
+| V7 | Ethereum delegate `0x63e842B054Bd624a465454D533C33F573e9c6fAe` (four value-moving functions, one hard-coded caller) | `true`, `true` |
+
+`delegate-authorizations` with `blocks` 1 at report block 26300754 on Ethereum (block 26300753 holds transaction
+`0xad99264d5532ae0dd04b2004eebda05f25657e70dacb764f7ac8d4ccd051298b` with 50 authorizations for the V7 delegate):
+`{ count: 50, sameSender: 50, distinctAuthorities: 1, senderIsOnlyCaller: true }`. A source whose analysis did not
+establish every caller reports the first two kinds not read, not `false`. These vectors were written and run by it44
+in the discussion thread.
+
 ## Reference Implementation
 
 Toll (ERC-8004 agent 20030 on Robinhood Chain) runs a source of this proposal on Robinhood Chain: `POST
