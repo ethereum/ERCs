@@ -1,0 +1,14 @@
+{
+  "description": "kindId = keccak256(\"ard-onchain.kind.<name>\"). Reserved names are listed but not defined.",
+  "kinds": {
+    "skill": "0x75357da1ea166b9845548f84f7855b7f122cfc7dc349e5edbdca01bd8ca7b0bb",
+    "task": "0x119c021f95332a1e2d06adbfe8e298dc2484ac0daa16e4cd837d8de82fbba87c",
+    "agent": "0x283cdd5ece2ad33dc6be3a32a7a140a653c611b0296c9b54878ae0439bbef3a2",
+    "registry": "0x455d1d9d2b151bdfaa173c1cee0ee26ece8e7bdb98830e8e3ca1e180989cf3c6"
+  },
+  "reserved": {
+    "assertion": "0xa356ffd92588da8d7fe91a0c312523bd9ded1143e551a60257310fbf89e261a5",
+    "policy": "0x212f12ea67d704f7720a9232b17ac39875756afb7d0df311a84698490dce848f",
+    "market": "0xd67bfc9c687573ca15ac95611e4a76956db3b5ce676efe50e7fa2b2fb8fc42d4"
+  }
+}
