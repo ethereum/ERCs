@@ -104,6 +104,10 @@ interface CallsSubject {
   from: string                  // CAIP-10 of the signer
   calls: { to: string; value: string; data: `0x${string}` }[]
   typedData?: object            // an EIP-712 signature request instead of, or besides, calls
+  authorizationList?: {         // the EIP-7702 authorization list of the transaction, in its order
+    chainId: string; address: string; nonce: string   // decimal strings, address 0x-hex
+    yParity: number; r: `0x${string}`; s: `0x${string}`
+  }[]
 }
 
 interface RequestContext {
@@ -215,8 +219,11 @@ The subject digest names the exact request the report was computed for.
 - For an `erc8265-envelope` subject, `subjectDigest` is `digest(e)`, where `e` is the envelope with its `risk` and
   `producer.signature` fields removed. These are the bytes the Prepared Transaction Envelope proposal defines as the pre-image of a producer signature
   with `coverage` `envelope`, so the report and the producer's signature cover the same content.
-- For a `calls` subject, `subjectDigest` is `digest({ chainId, from, calls, typedData })` with the fields as given in
-  the request, `typedData` omitted when absent.
+- For a `calls` subject, `subjectDigest` is `digest({ chainId, from, calls, typedData, authorizationList })` with the
+  fields as given in the request, `typedData` and `authorizationList` omitted when absent. The authorization list
+  keeps its order, since [EIP-7702](./eip-7702.md) applies it in order and a later tuple for the same authority
+  replaces an earlier one. A request that would install or replace a delegate therefore never shares a digest with
+  the same calls run against the code already in place.
 
 The consumer MUST compute both digests itself from the request it is about to sign and MUST NOT take them from the
 report. A report whose digests differ from the consumer's MUST be treated as about another request. When the request
@@ -237,7 +244,8 @@ fields of a Prepared Transaction Envelope, such as `description` or `metadata`, 
   per detail of a batch).
 - **Addresses**: the `to` of each call (`target`), the spender of each approval (`spender`), the receiver of native
   value or of each decoded ERC-20 `transfer` or `transferFrom` (`recipient`), the payment's `payTo` (`payTo`), the
-  quote's `issuer` (`quote-issuer`), and each listed token (`token`). An address with several roles is listed once per
+  quote's `issuer` (`quote-issuer`), each listed token (`token`), and the authority of each tuple of
+  `authorizationList`, recovered from its signature (`authority`). An address with several roles is listed once per
   role.
 - **Texts**: every entry of `context.texts`, and, for each token listed, its `name()` and `symbol()` as returned at the
   block the source read, with `field` `token.name` or `token.symbol` and `ref` the token. `digest` is `keccak256` of the
@@ -297,14 +305,24 @@ does not apply to an approval for all.
 | `erc.presign.address.delegate-single-caller` | none | For a `"delegated"` address: `true` when every function of the delegate that can move value is callable by one fixed address (a constant, or one storage slot) and by no other outside caller, else `false`. An outside caller is a caller other than the account itself and not authorized by a signature of the account: those two paths do not make it `false` |
 | `erc.presign.address.delegate-unbounded-outflow` | none | For a `"delegated"` address: `true` when an outside caller (as in `delegate-single-caller`) can send the account's whole balance of native value or a token to a recipient it chooses in one call, with no per-call limit, allowlist or delay, else `false`. The account spending its own balance, directly or by its signature, does not count |
 | `erc.presign.address.delegate-authorizations` | `{ blocks }`, the number of blocks looked back | For a `"delegated"` address: `{ count, sameSender, distinctAuthorities, senderIsOnlyCaller }`: the number of [EIP-7702](./eip-7702.md) authorizations for the same delegate seen in the `blocks` blocks before the report's block; how many of them were carried by transactions from the most frequent sender; the number of distinct accounts that signed them; and whether that sender is the delegate's only outside caller (`null` when `delegate-single-caller` is not read). One account signing many consecutive nonces and one sender carrying many accounts' authorizations (a sponsor sweeping many wallets) are different signals, so both are reported |
+| `erc.presign.address.delegation` | none | For an `authority`: `{ before, after }`, the delegate the account points to at the report's block and the one it would point to after the request's authorization list is applied, each an address or `null` for none. They are equal when the list leaves the account unchanged |
 | `erc.presign.address.first-seen-block` | none | The first block in which the address sent a transaction, received native value or a token transfer, or had code deployed, as a decimal string |
 | `erc.presign.address.source-verified` | verifier name, such as `sourcify` | `"exact"`, `"partial"` or `"none"`; applies to addresses with code |
 | `erc.presign.address.prior-transfers` | none | The number of transactions and token transfers from the signer to the address before the block, as a decimal string |
 | `erc.presign.address.lookalike` | `{ prefix, suffix }`, hex digits compared | The addresses the signer sent to or received from before the block that share the first `prefix` and last `suffix` hex digits with this address, compared without case, and differ from it; `[]` when the source read the history and found none |
 | `erc.presign.address.on-list` | `{ uri, hash }` of a published list | `true` or `false` |
 
+For a request with an `authorizationList`, a source MUST apply the list as [EIP-7702](./eip-7702.md) does before
+the calls run (in order, skipping a tuple that would be invalid at the report's block, a later valid tuple for an
+authority replacing an earlier one, the zero address clearing a delegation), and report `address.code` and the
+`delegate-` kinds for every listed address as the code would be after the list is applied. It MUST also report
+`address.delegation` for each `authority`. A source that cannot apply the list MUST report those findings not read
+with reason `unsupported`, never the code at the block, which describes another account. Authorizations are applied
+before execution and stay applied when execution reverts, so these findings MUST NOT depend on whether a simulation
+of the calls succeeded.
+
 The three `delegate-` kinds apply only to an address whose `code` is `"delegated"`, and describe the delegate at the
-report's block: `"delegated"` alone reads the same for a delegate with limits and for one that lets a single key empty
+report's block (after the request's authorization list, if it has one): `"delegated"` alone reads the same for a delegate with limits and for one that lets a single key empty
 the account. `delegate-single-caller` and `delegate-unbounded-outflow` need verified source or bytecode analysis; a
 source that did not complete it MUST report them not read (reason `unsupported` or `incomplete`), never `false`. The
 evidence for a read value SHOULD include the calls the source simulated and their results.
@@ -578,6 +596,14 @@ A conforming source and consumer pass these cases.
   `address.prior-transfers`.
 - An account whose code is `0xef0100` followed by an address yields `address.code` `"delegated"` with the code as
   evidence.
+- Two requests that differ only in the `address` of one `authorizationList` tuple have different `subjectDigest`s, and
+  a report for one is rejected for the other. Swapping the order of two tuples for the same authority also changes the
+  digest.
+- A request whose authorization list points `from` at a new delegate yields `address.delegation` `{ before, after }`
+  with the old and the new delegate, and the `delegate-` kinds for `from` describe the new one. When the calls revert
+  in simulation, `address.delegation` and the `delegate-` kinds are unchanged.
+- A source that does not apply authorization lists, given a request that has one, reports `address.delegation` and the
+  `delegate-` kinds for each authority not read with reason `unsupported`.
 - With x402 requirements whose `payTo` differs from the payee's `getAgentWallet(agentId)`, the
   `payTo=agentWallet` pair has `equal` `false` and both addresses; after the identity is transferred and the wallet is
   cleared, `right` is the zero address.
@@ -620,7 +646,8 @@ in the discussion thread.
 Toll (ERC-8004 agent 20030 on Robinhood Chain) runs a source of this proposal on Robinhood Chain: `POST
 https://t0ll.xyz/api/presign` (the HTTP binding) and the Model Context Protocol tool `presign_risk_report` at
 `https://t0ll.xyz/api/mcp`. Every finding is read at one pinned block listed in `blocks`; kinds it does not read yet
-are reported as not read with reason `unsupported`. Token findings include `token.observation`, copied from a Launch
+are reported as not read with reason `unsupported`. It does not apply EIP-7702 authorization lists yet and refuses a request that carries one, rather than
+report on code the transaction would replace. Token findings include `token.observation`, copied from a Launch
 Observations (ERC-8470) registry, and payment findings include `payment.payee-binding` from x402 Payee Verification
 (ERC-8478). Reports are signed by a key listed in `signers` of the source's registration file, not by its
 `agentWallet`. The same report rides in `reports` of the source's ERC-8265 risk assessment answer, and the client
@@ -646,7 +673,9 @@ and test vectors will be added under `assets/erc-draft_agent_presign_risk_report
   requests beyond what anchoring requires.
 - **Time of check and time of use.** Findings hold at their block. A spender's code, an allowance or a payee's
   `agentWallet` can change before inclusion. Consumers SHOULD check again where their policy depends on a value that
-  can change, and SHOULD prefer short validity windows on the request itself.
+  can change, and SHOULD prefer short validity windows on the request itself. An authorization tuple is valid only
+  while its nonce matches the authority's, so a tuple the source skipped as invalid at the block can become valid by
+  inclusion; a source SHOULD state in the evidence of `address.delegation` which tuples it applied.
 - **Reorganizations.** A finding read at a block later reorganized out may not hold. `blocks` carries hashes so
   consumers can detect this; sources SHOULD read finalized or recent canonical blocks and state which in `method`.
 - **Lists.** A list can be wrong or used to harm a named address. `on-list` names the list and its hash so that the
