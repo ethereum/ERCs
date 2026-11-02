@@ -3,7 +3,7 @@ eip: 8482
 title: Autonomous Self-Refunding Merchant Settlement
 description: A non-custodial smart contract checkout standard that enforces atomic settlement and autonomous self-refunds for underpaid or expired invoices.
 author: Lambert Van Sittert (@Lambertvs)
-discussions-to: https://ethereum-magicians.org/t/autonomous-self-refunding-merchant-settlement-standard-sovereign-checkout/30162
+discussions-to: https://ethereum-magicians.org/t/erc-8482-autonomous-self-refunding-merchant-settlement/30162
 status: Draft
 type: Standards Track
 category: ERC
