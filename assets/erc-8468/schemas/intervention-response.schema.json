@@ -157,6 +157,26 @@
         "additionalProperties": false
       }
     },
+    "supersedes": {
+      "type": "array",
+      "description": "Earlier response documents this one incorporates and replaces as the reference of a standing stop it widens (Section 8.5 of the ERC): each entry names the earlier document by its responseRef; `example` is the file name of the example document, used by the relinking tool.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "responseRef"
+        ],
+        "properties": {
+          "responseRef": {
+            "$ref": "common.schema.json#/$defs/bytes32"
+          },
+          "example": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "metadata": {
       "type": "object"
     }

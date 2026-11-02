@@ -82,6 +82,10 @@
       "restrictionsBits": 9,
       "responseRef": "0xda45ad5bf7b0b070d8e382ba213acf8a85c01612742d7cd8814853bfc12c8c1b"
     },
+    "guardian-full-stop-widening.response.json": {
+      "restrictionsBits": 25,
+      "responseRef": "0x9071360ff3fa4a3ad73e04fd71f2ee0aa0a7b44e628c24460da271e238727de4"
+    },
     "principal-full-stop.response.json": {
       "restrictionsBits": 16,
       "responseRef": "0xef4b6c4d2cf2337a49635367eeba29c7d35a65ebada8859594b68ea158825afa"

@@ -118,12 +118,11 @@ library ASFEvaluation {
         expired = b.validUntil != 0 && block.timestamp >= b.validUntil;
     }
 
-    /// @dev The response set in force for a binding: the union of the sets of every suspended record among the
-    ///      binding and its ancestors, or empty when any record in that chain is terminated or outside its window
-    ///      (a chain that is not in force keeps no path open). `broken` is true when some ancestor is not Active
-    ///      or outside its window.
-    function chainSets(T.Store storage s, T.Binding storage b) internal view returns (uint8 union, bool broken) {
-        bool dead;
+    /// @dev The chain's part of the response set in force (Section 10.1): the union of the sets of every suspended
+    ///      record among the binding and its ancestors. `broken` is true when some ancestor is not Active or outside
+    ///      its window; `dead` is true when the binding or an ancestor is terminated or outside its window, and the
+    ///      union is then empty (a chain that is not in force keeps no path open).
+    function chainSets(T.Store storage s, T.Binding storage b) internal view returns (uint8 union, bool broken, bool dead) {
         if (b.state == T.BindingState.Suspended) union = b.restrictions;
         if (b.state == T.BindingState.Terminated) dead = true;
         (bool notYet, bool expired) = inWindow(b);
@@ -146,6 +145,31 @@ library ASFEvaluation {
             pid = p.parentBindingId;
         }
         if (dead) union = 0;
+    }
+
+    /// @dev The standing stops the accounts the clause names hold against the binding's adopter for its subject and
+    ///      specification (Section 8.5): the union of their sets, and whether any stands. Zero and false when the
+    ///      clause names nobody or no stop stands.
+    function namedStops(T.Store storage s, T.Binding storage b, T.Clause memory clause)
+        internal view returns (uint8 union, bool standing)
+    {
+        for (uint256 i = 0; i < clause.interveners.length; i++) {
+            T.Stop storage stop =
+                s.stops[T.stopKey(b.adopter, b.subjectKey, b.specRegistry, b.specId, clause.interveners[i].account)];
+            if (stop.bindingId != bytes32(0)) {
+                union |= stop.restrictions;
+                standing = true;
+            }
+        }
+    }
+
+    /// @dev The response set in force for a clause's binding (Section 10.1): the chain's union and the named stops'
+    ///      union together, or empty when the chain is not in force.
+    function inForce(T.Store storage s, T.Binding storage b, T.Clause memory clause) internal view returns (uint8) {
+        (uint8 chain,, bool dead) = chainSets(s, b);
+        if (dead) return 0;
+        (uint8 stops,) = namedStops(s, b, clause);
+        return chain | stops;
     }
 
     /// @dev True when every intervener of the binding that holds RIGHT_RESUME is named by the clause.
@@ -171,8 +195,9 @@ library ASFEvaluation {
         if (b.state == T.BindingState.None) return (T.Verdict.NotSatisfied, T.Reason.NoBinding, 0);
         if (b.state == T.BindingState.Terminated) return (T.Verdict.NotSatisfied, T.Reason.Terminated, 0);
         if (b.state == T.BindingState.Suspended) {
-            (uint8 own,) = chainSets(s, b);
-            return (T.Verdict.NotSatisfied, T.Reason.Suspended, own);
+            // the set in force includes the standing stops of the accounts the clause names, so that a record the
+            // adopter suspended itself with a narrower set does not hide an intervener's wider stop (Section 10.1)
+            return (T.Verdict.NotSatisfied, T.Reason.Suspended, inForce(s, b, clause));
         }
         (bool notYet, bool expired) = inWindow(b);
         if (notYet) return (T.Verdict.NotSatisfied, T.Reason.NotYetValid, 0);
@@ -212,18 +237,13 @@ library ASFEvaluation {
             if (!resumeClosed(s, bindingId, clause)) return (T.Verdict.NotSatisfied, T.Reason.IntervenerMismatch, 0);
             // standing stops: a stop recorded by an account the clause names applies to the adopter for the
             // subject and the specification, through whichever binding it was recorded, so that holding a sibling
-            // binding or terminating and adopting afresh does not escape it
-            for (uint256 i = 0; i < clause.interveners.length; i++) {
-                T.Stop storage stop =
-                    s.stops[T.stopKey(b.adopter, b.subjectKey, b.specRegistry, b.specId, clause.interveners[i].account)];
-                if (stop.bindingId != bytes32(0)) {
-                    return (T.Verdict.NotSatisfied, T.Reason.StoppedByIntervener, stop.restrictions);
-                }
-            }
+            // binding or terminating and adopting afresh does not escape it; the set returned is the set in force
+            (, bool standing) = namedStops(s, b, clause);
+            if (standing) return (T.Verdict.NotSatisfied, T.Reason.StoppedByIntervener, inForce(s, b, clause));
         }
         // ancestors: every binding this one is derived from must itself be satisfied now
-        (uint8 sets, bool broken) = chainSets(s, b);
-        if (broken) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, sets);
+        (, bool broken,) = chainSets(s, b);
+        if (broken) return (T.Verdict.NotSatisfied, T.Reason.ParentNotSatisfied, inForce(s, b, clause));
         // the pinned specification registry must still be queryable; a dependency failure is Unknown, never a pass
         if (!supportsSpecRegistry(b.specRegistry)) {
             return (T.Verdict.Unknown, T.Reason.SpecRegistryUnavailable, 0);
