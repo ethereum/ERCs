@@ -1,5 +1,5 @@
 ---
-eip: 
+eip: 8482
 title: Autonomous Self-Refunding Merchant Settlement
 description: A non-custodial smart contract checkout standard that enforces atomic settlement and autonomous self-refunds for underpaid or expired invoices.
 author: Lambert Van Sittert (@Lambertvs)
