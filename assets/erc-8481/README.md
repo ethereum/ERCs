@@ -59,3 +59,9 @@ and historical content-addressed/mutable registration files are outside this har
 
 The pre-existing `PreSignDelegateVectors.t.sol` remains MIT-licensed by it44. New
 anchor and historical-signer assets are CC0-1.0. The delegate vectors are unchanged.
+
+## On-list list document vectors
+
+`on-list/` holds JSON vectors for the `address.on-list` list document: normalization, the list hash, matching,
+not-read reasons and diffs between list versions. Run `python3 on-list/onlist_vectors.py` (standard library only).
+They are CC0-1.0, by the RUNECLAW team.

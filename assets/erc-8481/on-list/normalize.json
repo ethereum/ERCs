@@ -1,0 +1,220 @@
+{
+  "description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written)",
+  "vectors": [
+    {
+      "id": "evm-eip55-to-lower",
+      "basis": "spec",
+      "note": "EIP-55 checksummed input, FBI alert address",
+      "input": "eip155:1:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": true,
+        "account": "eip155:1:0x8532fa14acaf483729c449b8458aeddb900543d4",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "evm-already-lower",
+      "basis": "spec",
+      "note": "already normalized",
+      "input": "eip155:1:0x8532fa14acaf483729c449b8458aeddb900543d4",
+      "expected": {
+        "ok": true,
+        "account": "eip155:1:0x8532fa14acaf483729c449b8458aeddb900543d4",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "evm-upper-hex",
+      "basis": "spec",
+      "note": "all upper-case hex digits",
+      "input": "eip155:1:0x8532FA14ACAF483729C449B8458AEDDB900543D4",
+      "expected": {
+        "ok": true,
+        "account": "eip155:1:0x8532fa14acaf483729c449b8458aeddb900543d4",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "evm-wildcard-chain",
+      "basis": "spec",
+      "note": "chain reference * kept, address lowercased",
+      "input": "eip155:*:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": true,
+        "account": "eip155:*:0x8532fa14acaf483729c449b8458aeddb900543d4",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "evm-synthetic-eip55",
+      "basis": "spec",
+      "note": "synthetic address, EIP-55 form",
+      "input": "eip155:8453:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+      "expected": {
+        "ok": true,
+        "account": "eip155:8453:0x2c2e544198a508710e011b9aa2a79e22f5cd3321",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "evm-synthetic-wildcard",
+      "basis": "spec",
+      "note": "synthetic address, wildcard",
+      "input": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba",
+      "expected": {
+        "ok": true,
+        "account": "eip155:*:0xd8aa20a53732765c3e88025b2f42a8413c047bba",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "bech32-upper-to-lower",
+      "basis": "spec",
+      "note": "bech32 upper-case, FBI alert address",
+      "input": "bip122:000000000019d6689c085ae165831e93:BC1QXRXUJWXFNVZ040JW76D26ZHJDG5JURA7HS968S",
+      "expected": {
+        "ok": true,
+        "account": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s",
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "bech32-lower",
+      "basis": "spec",
+      "note": "bech32 already lower",
+      "input": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s",
+      "expected": {
+        "ok": true,
+        "account": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s",
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "bech32m-taproot-upper",
+      "basis": "spec",
+      "note": "synthetic bech32m (witness v1)",
+      "input": "bip122:000000000019d6689c085ae165831e93:BC1PA5PWTH36SU8XGLXXQD6HV7K8RMPC03SG7ATD6WVKLWADPL4D793Q79T6HP",
+      "expected": {
+        "ok": true,
+        "account": "bip122:000000000019d6689c085ae165831e93:bc1pa5pwth36su8xglxxqd6hv7k8rmpc03sg7atd6wvklwadpl4d793q79t6hp",
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "base58-btc-legacy",
+      "basis": "spec",
+      "note": "base58check kept as written",
+      "input": "bip122:000000000019d6689c085ae165831e93:1F6wpG43n6Qn9AjrRaDpFhmvJrvcAhqg3g",
+      "expected": {
+        "ok": true,
+        "account": "bip122:000000000019d6689c085ae165831e93:1F6wpG43n6Qn9AjrRaDpFhmvJrvcAhqg3g",
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "base58-solana",
+      "basis": "spec",
+      "note": "Solana base58 kept as written, FBI alert address",
+      "input": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:AffzFDKZbyMiU11zmVBoAqD25ugpr7xoWWyRyGigBEaU",
+      "expected": {
+        "ok": true,
+        "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:AffzFDKZbyMiU11zmVBoAqD25ugpr7xoWWyRyGigBEaU",
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "base58-solana-synthetic",
+      "basis": "spec",
+      "note": "synthetic Solana address",
+      "input": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg",
+      "expected": {
+        "ok": true,
+        "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg",
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "reject-leading-space",
+      "basis": "spec",
+      "note": "CAIP-10 has no whitespace",
+      "input": " eip155:1:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-trailing-newline",
+      "basis": "spec",
+      "note": "CAIP-10 has no whitespace",
+      "input": "eip155:1:0x8532FA14ACAf483729C449b8458aedDb900543D4\n",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-upper-namespace",
+      "basis": "spec",
+      "note": "CAIP-2 namespace is [-a-z0-9]{3,8}",
+      "input": "EIP155:1:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-bare-address",
+      "basis": "spec",
+      "note": "entries are CAIP-10, not bare addresses",
+      "input": "0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-short-hex",
+      "basis": "reference",
+      "note": "39 hex digits",
+      "input": "eip155:1:0x8532FA14ACAf483729C449b8458aedDb900543D",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-mixed-case-bech32",
+      "basis": "reference",
+      "note": "BIP-173 forbids mixed case; the draft only says lowercase (Q3)",
+      "input": "bip122:000000000019d6689c085ae165831e93:Bc1QxRxUjWxFnVz040Jw76D26zHjDg5JuRa7Hs968S",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-bad-bech32-checksum",
+      "basis": "reference",
+      "note": "last character changed",
+      "input": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968q",
+      "expected": {
+        "ok": false
+      }
+    }
+  ],
+  "open": [
+    {
+      "id": "open-evm-bad-checksum",
+      "question": "Q2",
+      "input": "eip155:1:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "note": "mixed case that is not a valid EIP-55 checksum: lowercase it, or reject the entry?"
+    },
+    {
+      "id": "open-evm-0X-prefix",
+      "question": "Q2",
+      "input": "eip155:1:0X8532FA14ACAf483729C449b8458aedDb900543D4",
+      "note": "upper-case 0X prefix: is that lowercase hex, or not an address?"
+    },
+    {
+      "id": "open-chain-ref-leading-zero",
+      "question": "Q4",
+      "input": "eip155:01:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "note": "is eip155:01 the same chain as eip155:1 for matching?"
+    }
+  ]
+}
