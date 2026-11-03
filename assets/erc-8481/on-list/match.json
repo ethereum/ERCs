@@ -21,7 +21,22 @@
         }
       ]
     },
-    "L_hash": "0xc34f324c5b660ba0ac0740c22e0d75cb6443fd3f77d3135b6431ed5c71394bcc"
+    "L_hash": "0xc34f324c5b660ba0ac0740c22e0d75cb6443fd3f77d3135b6431ed5c71394bcc",
+    "L2": {
+      "version": "erc-presign-list/1",
+      "source": "https://example.org/upstream/synthetic-list",
+      "criteria": "Synthetic addresses for test vectors; not a real list.",
+      "attestation": "Synthetic attestation covering every entry.",
+      "entries": [
+        {
+          "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+        },
+        {
+          "account": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+        }
+      ]
+    },
+    "L2_hash": "0x6f211efaf69a8b0372ab5f82f955a5cc7337967c01781e3f63dbc757b241eb55"
   },
   "vectors": [
     {
@@ -122,6 +137,30 @@
       "candidate": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g",
       "expected": {
         "value": null
+      }
+    },
+    {
+      "id": "two-entries-exact-chain-wins",
+      "basis": "spec",
+      "note": "eip155:1:X and eip155:*:X both match: value is the exact chain reference entry (9abaacf; was open Q5)",
+      "list": "L2",
+      "candidate": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+      "expected": {
+        "value": {
+          "account": "eip155:1:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+        }
+      }
+    },
+    {
+      "id": "two-entries-other-chain-wildcard",
+      "basis": "spec",
+      "note": "only eip155:*:X matches on another chain",
+      "list": "L2",
+      "candidate": "eip155:10:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+      "expected": {
+        "value": {
+          "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+        }
       }
     }
   ],
@@ -358,6 +397,109 @@
           "reason": "unsupported"
         }
       ]
+    },
+    {
+      "id": "nonconforming-hash-match-unavailable",
+      "basis": "spec",
+      "note": "the normalized digest matches hash, but the list has no attestation and an entry without evidence: not read / unavailable (9abaacf; was open Q7)",
+      "scenario": {
+        "entities": [
+          "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+        ],
+        "params": [
+          {
+            "uri": "https://example.org/lists/no-attestation.json",
+            "hash": "0x97c423af3682674f5e2af4457295799ad54bc1e37ec7af6b654f3a17f2a77a17"
+          }
+        ],
+        "lists": {
+          "https://example.org/lists/no-attestation.json": {
+            "published": {
+              "version": "erc-presign-list/1",
+              "source": "https://example.org/upstream/synthetic-list",
+              "criteria": "Synthetic addresses for test vectors; not a real list.",
+              "entries": [
+                {
+                  "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": [
+        {
+          "kind": "erc.presign.address.on-list",
+          "entity": {
+            "address": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+            "role": "recipient"
+          },
+          "param": {
+            "uri": "https://example.org/lists/no-attestation.json",
+            "hash": "0x97c423af3682674f5e2af4457295799ad54bc1e37ec7af6b654f3a17f2a77a17"
+          },
+          "status": "not-read",
+          "reason": "unavailable"
+        }
+      ]
+    },
+    {
+      "id": "extra-top-level-field-ignored",
+      "basis": "spec",
+      "note": "an extra top-level field is hashed (h_extra differs from L_hash) and ignored: same value as L",
+      "scenario": {
+        "entities": [
+          "eip155:42161:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+        ],
+        "params": [
+          {
+            "uri": "https://example.org/lists/L-extra.json",
+            "hash": "0x0a9e72d3983f1afeef95371e9f38ac5ecde1b7070bc0416851c1249ba5416af3"
+          }
+        ],
+        "lists": {
+          "https://example.org/lists/L-extra.json": {
+            "published": {
+              "version": "erc-presign-list/1",
+              "source": "https://example.org/upstream/synthetic-list",
+              "criteria": "Synthetic addresses for test vectors; not a real list.",
+              "attestation": "Synthetic attestation covering every entry.",
+              "entries": [
+                {
+                  "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+                },
+                {
+                  "account": "eip155:1:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+                },
+                {
+                  "account": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s"
+                },
+                {
+                  "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg"
+                }
+              ],
+              "publisherNote": "extra top-level field"
+            }
+          }
+        }
+      },
+      "expected": [
+        {
+          "kind": "erc.presign.address.on-list",
+          "entity": {
+            "address": "eip155:42161:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+            "role": "recipient"
+          },
+          "param": {
+            "uri": "https://example.org/lists/L-extra.json",
+            "hash": "0x0a9e72d3983f1afeef95371e9f38ac5ecde1b7070bc0416851c1249ba5416af3"
+          },
+          "status": "read",
+          "value": {
+            "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+          }
+        }
+      ]
     }
   ],
   "conformance": [
@@ -425,6 +567,54 @@
       "expected": {
         "conforms": false
       }
+    },
+    {
+      "id": "extra-top-level-field-conforms",
+      "basis": "spec",
+      "note": "extra top-level fields are allowed (9abaacf)",
+      "document": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+          },
+          {
+            "account": "eip155:1:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+          },
+          {
+            "account": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s"
+          },
+          {
+            "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg"
+          }
+        ],
+        "publisherNote": "extra top-level field"
+      },
+      "expected": {
+        "conforms": true
+      }
+    },
+    {
+      "id": "bad-eip55-entry-fails",
+      "basis": "spec",
+      "note": "an entry with a mixed-case EVM address that is not a valid EIP-55 checksum (9abaacf)",
+      "document": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": [
+          {
+            "account": "eip155:*:0x2C2e544198A508710E011B9aA2a79e22F5CD3321"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false
+      }
     }
   ],
   "documentEvidence": {
@@ -444,44 +634,5 @@
       }
     ]
   },
-  "open": [
-    {
-      "id": "open-two-entries-match",
-      "question": "Q5",
-      "list": "L2",
-      "candidate": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
-      "lists": {
-        "L2": {
-          "version": "erc-presign-list/1",
-          "source": "https://example.org/upstream/synthetic-list",
-          "criteria": "Synthetic addresses for test vectors; not a real list.",
-          "attestation": "Synthetic attestation covering every entry.",
-          "entries": [
-            {
-              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
-            },
-            {
-              "account": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
-            }
-          ]
-        }
-      },
-      "note": "eip155:1:X and eip155:*:X both match: which entry is value?"
-    },
-    {
-      "id": "open-nonconforming-list-reason",
-      "question": "Q7",
-      "document": {
-        "version": "erc-presign-list/1",
-        "source": "https://example.org/upstream/synthetic-list",
-        "criteria": "Synthetic addresses for test vectors; not a real list.",
-        "entries": [
-          {
-            "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
-          }
-        ]
-      },
-      "note": "the bytes match hash but the list does not conform (no attestation, no evidence): which not-read reason?"
-    }
-  ]
+  "open": []
 }
