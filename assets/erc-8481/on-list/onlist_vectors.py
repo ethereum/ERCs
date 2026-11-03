@@ -1,0 +1,716 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: CC0-1.0
+"""Reference checker for the ERC-8481 `address.on-list` list document vectors.
+
+Python 3.9+, standard library only (keccak256, RFC 8785 JCS, bech32 and base58 are
+implemented below, so nothing needs installing).
+
+    python3 onlist_vectors.py           # check every vector file against this implementation
+    python3 onlist_vectors.py --write   # regenerate the vector files (deterministic)
+
+Cases marked "basis": "reference" are choices this implementation makes where the draft is
+silent; they are listed in README.md as open questions. Cases under "open" carry no expected
+result and are not checked.
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+# ---------------------------------------------------------------- keccak256 (original Keccak padding, not SHA3-256)
+_RC = [
+    0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
+    0x000000000000808B, 0x0000000080000001, 0x8000000080008081, 0x8000000000008009,
+    0x000000000000008A, 0x0000000000000088, 0x0000000080008009, 0x000000008000000A,
+    0x000000008000808B, 0x800000000000008B, 0x8000000000008089, 0x8000000000008003,
+    0x8000000000008002, 0x8000000000000080, 0x000000000000800A, 0x800000008000000A,
+    0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
+]
+_ROT = [[0, 36, 3, 41, 18], [1, 44, 10, 45, 2], [62, 6, 43, 15, 61], [28, 55, 25, 21, 56], [27, 20, 39, 8, 14]]
+_M = (1 << 64) - 1
+
+
+def _rol(x, n):
+    return ((x << n) | (x >> (64 - n))) & _M if n else x
+
+
+def _keccak_f(a):
+    for rc in _RC:
+        c = [a[x][0] ^ a[x][1] ^ a[x][2] ^ a[x][3] ^ a[x][4] for x in range(5)]
+        d = [c[(x - 1) % 5] ^ _rol(c[(x + 1) % 5], 1) for x in range(5)]
+        a = [[a[x][y] ^ d[x] for y in range(5)] for x in range(5)]
+        b = [[0] * 5 for _ in range(5)]
+        for x in range(5):
+            for y in range(5):
+                b[y][(2 * x + 3 * y) % 5] = _rol(a[x][y], _ROT[x][y])
+        a = [[b[x][y] ^ ((~b[(x + 1) % 5][y]) & b[(x + 2) % 5][y]) for y in range(5)] for x in range(5)]
+        a[0][0] ^= rc
+    return a
+
+
+def keccak256(data: bytes) -> bytes:
+    rate = 136
+    msg = bytearray(data) + b"\x01"
+    msg += b"\x00" * ((-len(msg)) % rate)
+    msg[-1] |= 0x80
+    a = [[0] * 5 for _ in range(5)]
+    for off in range(0, len(msg), rate):
+        block = msg[off:off + rate]
+        for i in range(rate // 8):
+            a[i % 5][i // 5] ^= int.from_bytes(block[8 * i:8 * i + 8], "little")
+        a = _keccak_f(a)
+    out = b"".join(a[i % 5][i // 5].to_bytes(8, "little") for i in range(4))
+    return out
+
+
+def hx(b: bytes) -> str:
+    return "0x" + b.hex()
+
+
+# ---------------------------------------------------------------- RFC 8785 JCS (subset: no floats)
+def jcs(v) -> str:
+    if v is None:
+        return "null"
+    if v is True:
+        return "true"
+    if v is False:
+        return "false"
+    if isinstance(v, int):
+        if abs(v) > 2 ** 53 - 1:
+            raise ValueError("integer outside the I-JSON range; the draft uses decimal strings")
+        return str(v)
+    if isinstance(v, float):
+        raise ValueError("floats are not used by these vectors")
+    if isinstance(v, str):
+        return json.dumps(v, ensure_ascii=False)  # same escapes as ECMAScript JSON.stringify
+    if isinstance(v, list):
+        return "[" + ",".join(jcs(x) for x in v) + "]"
+    if isinstance(v, dict):
+        keys = sorted(v.keys(), key=lambda k: k.encode("utf-16-be"))  # UTF-16 code unit order
+        return "{" + ",".join(jcs(k) + ":" + jcs(v[k]) for k in keys) + "}"
+    raise TypeError(type(v))
+
+
+def digest(v) -> str:
+    return hx(keccak256(jcs(v).encode("utf-8")))
+
+
+# ---------------------------------------------------------------- address encodings
+_B32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+_B32M = 0x2BC830A3
+
+
+def _polymod(values):
+    gen = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
+    chk = 1
+    for v in values:
+        top = chk >> 25
+        chk = (chk & 0x1FFFFFF) << 5 ^ v
+        for i in range(5):
+            chk ^= gen[i] if ((top >> i) & 1) else 0
+    return chk
+
+
+def _hrp_expand(hrp):
+    return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
+
+
+def _convertbits(data, frombits, tobits, pad):
+    acc, bits, ret, maxv = 0, 0, [], (1 << tobits) - 1
+    for v in data:
+        acc = (acc << frombits) | v
+        bits += frombits
+        while bits >= tobits:
+            bits -= tobits
+            ret.append((acc >> bits) & maxv)
+    if pad and bits:
+        ret.append((acc << (tobits - bits)) & maxv)
+    elif not pad and (bits >= frombits or ((acc << (tobits - bits)) & maxv)):
+        return None
+    return ret
+
+
+def segwit_encode(hrp, ver, prog):
+    data = [ver] + _convertbits(prog, 8, 5, True)
+    const = 1 if ver == 0 else _B32M
+    pm = _polymod(_hrp_expand(hrp) + data + [0] * 6) ^ const
+    return hrp + "1" + "".join(_B32[d] for d in data + [(pm >> 5 * (5 - i)) & 31 for i in range(6)])
+
+
+def segwit_valid(addr: str) -> bool:
+    """BIP-173 / BIP-350 segwit address check. Single case only, as BIP-173 requires."""
+    if addr != addr.lower() and addr != addr.upper():
+        return False
+    a = addr.lower()
+    pos = a.rfind("1")
+    if pos < 1 or pos + 7 > len(a) or len(a) > 90:
+        return False
+    hrp, rest = a[:pos], a[pos + 1:]
+    if any(c not in _B32 for c in rest):
+        return False
+    data = [_B32.find(c) for c in rest]
+    const = _polymod(_hrp_expand(hrp) + data)
+    if const not in (1, _B32M):
+        return False
+    ver, prog = data[0], _convertbits(data[1:-6], 5, 8, False)
+    if prog is None or ver > 16 or not 2 <= len(prog) <= 40:
+        return False
+    if ver == 0 and (len(prog) not in (20, 32) or const != 1):
+        return False
+    if ver != 0 and const != _B32M:
+        return False
+    return True
+
+
+_B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def b58encode(b: bytes) -> str:
+    n = int.from_bytes(b, "big")
+    s = ""
+    while n:
+        n, r = divmod(n, 58)
+        s = _B58[r] + s
+    return "1" * (len(b) - len(b.lstrip(b"\x00"))) + s
+
+
+def b58decode(s: str):
+    if not s or any(c not in _B58 for c in s):
+        return None
+    n = 0
+    for c in s:
+        n = n * 58 + _B58.index(c)
+    body = n.to_bytes((n.bit_length() + 7) // 8, "big") if n else b""
+    return b"\x00" * (len(s) - len(s.lstrip("1"))) + body
+
+
+def b58check_encode(payload: bytes) -> str:
+    return b58encode(payload + hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4])
+
+
+def b58check_valid(s: str) -> bool:
+    raw = b58decode(s)
+    if raw is None or len(raw) < 5:
+        return False
+    return hashlib.sha256(hashlib.sha256(raw[:-4]).digest()).digest()[:4] == raw[-4:]
+
+
+def eip55(addr: str) -> str:
+    a = addr.lower()[2:]
+    h = keccak256(a.encode()).hex()
+    return "0x" + "".join(c.upper() if int(h[i], 16) >= 8 else c for i, c in enumerate(a))
+
+
+# ---------------------------------------------------------------- CAIP-10 and the draft's normalization
+_CAIP10 = re.compile(r"([-a-z0-9]{3,8}):([-_a-zA-Z0-9]{1,32}|\*):([-.%a-zA-Z0-9]{1,128})")
+
+
+def normalize_account(account: str, allow_wildcard=True):
+    """Returns {"ok": True, "account", "encoding"} or {"ok": False, "error"}.
+
+    Spec: EVM (eip155) lowercase hex, bech32 lowercase, base58 as written.
+    Reference choices (README, open questions): how the encoding is told apart inside a
+    namespace, rejecting mixed-case bech32, and which namespaces are supported.
+    """
+    if not isinstance(account, str):
+        return {"ok": False, "error": "not a string"}
+    m = _CAIP10.fullmatch(account)
+    if not m:
+        return {"ok": False, "error": "not CAIP-10"}
+    ns, ref, addr = m.groups()
+    if ref == "*" and not allow_wildcard:
+        return {"ok": False, "error": "wildcard chain reference outside a list entry"}
+    if ns == "eip155":
+        if not re.fullmatch(r"0x[0-9a-fA-F]{40}", addr):
+            return {"ok": False, "error": "eip155 address is not 0x + 40 hex"}
+        return {"ok": True, "account": f"{ns}:{ref}:{addr.lower()}", "encoding": "hex"}
+    if ns == "bip122":
+        if segwit_valid(addr):
+            return {"ok": True, "account": f"{ns}:{ref}:{addr.lower()}", "encoding": "bech32"}
+        if addr != addr.lower() and addr != addr.upper() and segwit_valid(addr.lower()):
+            return {"ok": False, "error": "mixed-case bech32 (BIP-173 forbids it)"}
+        if b58check_valid(addr):
+            return {"ok": True, "account": account, "encoding": "base58"}
+        return {"ok": False, "error": "bip122 address is neither bech32 nor base58check"}
+    if ns == "solana":
+        raw = b58decode(addr)
+        if raw is None or len(raw) != 32:
+            return {"ok": False, "error": "solana address is not base58 of 32 bytes"}
+        return {"ok": True, "account": account, "encoding": "base58"}
+    return {"ok": False, "error": "namespace not covered by these vectors"}
+
+
+def canonical_list(doc):
+    """Normalize, sort and dedupe entries. Returns (document, None) or (None, error)."""
+    out = dict(doc)
+    by_acct = {}
+    for e in doc.get("entries", []):
+        n = normalize_account(e.get("account"))
+        if not n["ok"]:
+            return None, f"entry {e.get('account')!r}: {n['error']}"
+        ne = dict(e)
+        ne["account"] = n["account"]
+        prev = by_acct.get(ne["account"])
+        if prev is not None and jcs(prev) != jcs(ne):
+            return None, f"duplicate account {ne['account']} with different entry content"
+        by_acct[ne["account"]] = ne
+    out["entries"] = [by_acct[k] for k in sorted(by_acct)]  # Python str order = code point order
+    return out, None
+
+
+def list_hash(doc):
+    c, err = canonical_list(doc)
+    return (None, err) if err else (digest(c), None)
+
+
+def conforms(doc):
+    if doc.get("version") != "erc-presign-list/1":
+        return False, "version is not erc-presign-list/1"
+    for f in ("source", "criteria"):
+        if not isinstance(doc.get(f), str):
+            return False, f"missing {f}"
+    if "attestation" not in doc:
+        for e in doc.get("entries", []):
+            if not e.get("evidence"):
+                return False, f"entry {e['account']} has no evidence and the list has no attestation"
+    c, err = canonical_list(doc)
+    if err:
+        return False, err
+    return True, None
+
+
+def matches(doc, address):
+    """Entries of the canonical list that match a concrete CAIP-10 address."""
+    c, err = canonical_list(doc)
+    if err:
+        raise ValueError(err)
+    n = normalize_account(address, allow_wildcard=False)
+    if not n["ok"]:
+        raise ValueError(n["error"])
+    ns, ref, a = n["account"].split(":")
+    out = []
+    for e in c["entries"]:
+        ens, eref, ea = e["account"].split(":")
+        if ens == ns and (eref == ref or eref == "*") and ea == a:
+            out.append(e)
+    return out
+
+
+KIND = "erc.presign.address.on-list"
+
+
+def on_list_findings(scenario):
+    """Builds the on-list findings for one scenario (status, value or reason only; no evidence or `at`)."""
+    lists = scenario["lists"]  # uri -> {"published": doc} | {"fetch": "fails"} | {"source-reads": False}
+    out = []
+    for i, ent in enumerate(scenario["entities"]):
+        for p in scenario["params"]:
+            f = {"kind": KIND, "entity": {"address": ent, "role": "recipient"}, "param": p}
+            l = lists.get(p["uri"], {"source-reads": False})
+            if l.get("source-reads") is False:
+                f.update(status="not-read", reason="unsupported")
+            elif l.get("fetch") == "fails":
+                f.update(status="not-read", reason="unavailable")
+            else:
+                h, err = list_hash(l["published"])
+                if err or h != p["hash"]:
+                    f.update(status="not-read", reason="unavailable")
+                else:
+                    m = matches(l["published"], ent)
+                    if len(m) > 1:
+                        raise ValueError("several entries match; see open question Q5")
+                    f.update(status="read", value=m[0] if m else None)
+            out.append(f)
+    return out
+
+
+def diff(a, b):
+    ca, ea = canonical_list(a)
+    cb, eb = canonical_list(b)
+    if ea or eb:
+        raise ValueError(ea or eb)
+    ma = {e["account"]: e for e in ca["entries"]}
+    mb = {e["account"]: e for e in cb["entries"]}
+    meta = sorted(k for k in set(ca) | set(cb) if k != "entries" and jcs(ca.get(k)) != jcs(cb.get(k)))
+    return {
+        "fromHash": digest(ca),
+        "toHash": digest(cb),
+        "sameHash": digest(ca) == digest(cb),
+        "added": sorted(set(mb) - set(ma)),
+        "removed": sorted(set(ma) - set(mb)),
+        "changed": sorted(k for k in set(ma) & set(mb) if jcs(ma[k]) != jcs(mb[k])),
+        "metadataChanged": meta,
+    }
+
+
+# ---------------------------------------------------------------- fixtures
+FBI_URL = "https://www.fbi.gov/investigate/cyber/alerts/2026/north-korea-responsible-for-6-billion-binance-attack"
+FBI_CRITERIA = ("The following addresses are holding or have held assets from the theft, and are operated by or "
+                "closely connected to North Korean TraderTraitor actors")
+FBI_ATTESTATION = ("FBI, USSS, and IRS-CI are urging private sector entities including THORNode operators, RPC node "
+                   "operators, instant exchanges, DeFi services, blockchain analytics firms, and other virtual asset "
+                   "service providers to block transactions with or derived from addresses TraderTraitor actors are "
+                   "using to launder these stolen assets. See the full list of addresses below.")
+BTC = "bip122:000000000019d6689c085ae165831e93"      # CAIP-2 Bitcoin mainnet
+SOL = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"      # CAIP-2 Solana mainnet
+
+FBI_EVM = "0x8532FA14ACAf483729C449b8458aedDb900543D4"   # first ETH address of the FBI alert (EIP-55 as published)
+FBI_BTC = "bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s"
+FBI_SOL = "AffzFDKZbyMiU11zmVBoAqD25ugpr7xoWWyRyGigBEaU"
+
+
+def _seed(tag, n=32):
+    return keccak256(f"erc-8481 on-list vector {tag}".encode())[:n]
+
+
+def synth_evm(i):
+    return eip55(hx(_seed(f"evm {i}")[12:32]))
+
+
+def synth_p2wpkh(i):
+    return segwit_encode("bc", 0, _seed(f"p2wpkh {i}", 20))
+
+
+def synth_p2tr(i):
+    return segwit_encode("bc", 1, _seed(f"p2tr {i}", 32))
+
+
+def synth_p2pkh(i):
+    return b58check_encode(b"\x00" + _seed(f"p2pkh {i}", 20))
+
+
+def synth_sol(i):
+    return b58encode(_seed(f"sol {i}", 32))
+
+
+def swap_one_case(s):
+    """Swap the case of the first letter whose swapped form is still in the base58 alphabet."""
+    for i, c in enumerate(s):
+        if c.isalpha() and c.swapcase() in _B58 and c.swapcase() != c:
+            t = s[:i] + c.swapcase() + s[i + 1:]
+            if len(b58decode(t)) == len(b58decode(s)):  # still a valid address of the same length
+                return t
+    raise ValueError(s)
+
+
+def mixed_case(s):
+    """Upper-case every other letter after the prefix (an invalid mixed-case bech32 string)."""
+    out, flip = [], False
+    for c in s:
+        if c.isalpha():
+            flip = not flip
+            out.append(c.upper() if flip else c)
+        else:
+            out.append(c)
+    return "".join(out)
+
+
+def synth_list(accounts, **kw):
+    d = {"version": "erc-presign-list/1", "source": "https://example.org/upstream/synthetic-list",
+         "criteria": "Synthetic addresses for test vectors; not a real list.",
+         "attestation": "Synthetic attestation covering every entry.", "entries": [{"account": a} for a in accounts]}
+    d.update(kw)
+    return d
+
+
+def fbi_list():
+    """The FBI alert of 31 Oct 2026 as one attested list document, in the alert's own order and case."""
+    rows = open(os.path.join(HERE, "fbi-tradertraitor-2026-10-31.published.txt")).read().split("\n")
+    entries = []
+    for r in rows:
+        if not r.strip():
+            continue
+        chain, addr = r.split(" ")
+        pre = {"evm": "eip155:*", "btc": BTC, "sol": SOL}[chain]
+        entries.append({"account": f"{pre}:{addr}"})
+    return {"version": "erc-presign-list/1", "source": FBI_URL, "criteria": FBI_CRITERIA,
+            "attestation": FBI_ATTESTATION, "entries": entries}
+
+
+# ---------------------------------------------------------------- vector builders
+def build_normalize():
+    e1, e2 = synth_evm(1), synth_evm(2)
+    cases = [
+        ("evm-eip55-to-lower", f"eip155:1:{FBI_EVM}", "spec", "EIP-55 checksummed input, FBI alert address"),
+        ("evm-already-lower", f"eip155:1:{FBI_EVM.lower()}", "spec", "already normalized"),
+        ("evm-upper-hex", f"eip155:1:0x{FBI_EVM[2:].upper()}", "spec", "all upper-case hex digits"),
+        ("evm-wildcard-chain", f"eip155:*:{FBI_EVM}", "spec", "chain reference * kept, address lowercased"),
+        ("evm-synthetic-eip55", f"eip155:8453:{e1}", "spec", "synthetic address, EIP-55 form"),
+        ("evm-synthetic-wildcard", f"eip155:*:{e2}", "spec", "synthetic address, wildcard"),
+        ("bech32-upper-to-lower", f"{BTC}:{FBI_BTC.upper()}", "spec", "bech32 upper-case, FBI alert address"),
+        ("bech32-lower", f"{BTC}:{FBI_BTC}", "spec", "bech32 already lower"),
+        ("bech32m-taproot-upper", f"{BTC}:{synth_p2tr(1).upper()}", "spec", "synthetic bech32m (witness v1)"),
+        ("base58-btc-legacy", f"{BTC}:{synth_p2pkh(1)}", "spec", "base58check kept as written"),
+        ("base58-solana", f"{SOL}:{FBI_SOL}", "spec", "Solana base58 kept as written, FBI alert address"),
+        ("base58-solana-synthetic", f"{SOL}:{synth_sol(1)}", "spec", "synthetic Solana address"),
+        ("reject-leading-space", f" eip155:1:{FBI_EVM}", "spec", "CAIP-10 has no whitespace"),
+        ("reject-trailing-newline", f"eip155:1:{FBI_EVM}\n", "spec", "CAIP-10 has no whitespace"),
+        ("reject-upper-namespace", f"EIP155:1:{FBI_EVM}", "spec", "CAIP-2 namespace is [-a-z0-9]{3,8}"),
+        ("reject-bare-address", FBI_EVM, "spec", "entries are CAIP-10, not bare addresses"),
+        ("reject-short-hex", f"eip155:1:{FBI_EVM[:-1]}", "reference", "39 hex digits"),
+        ("reject-mixed-case-bech32", f"{BTC}:{mixed_case(FBI_BTC)}", "reference",
+         "BIP-173 forbids mixed case; the draft only says lowercase (Q3)"),
+        ("reject-bad-bech32-checksum", f"{BTC}:{FBI_BTC[:-1]}{'q' if FBI_BTC[-1] != 'q' else 'p'}", "reference",
+         "last character changed"),
+    ]
+    vec = []
+    for cid, inp, basis, note in cases:
+        r = normalize_account(inp)
+        exp = {"ok": True, "account": r["account"], "encoding": r["encoding"]} if r["ok"] else {"ok": False}
+        vec.append({"id": cid, "basis": basis, "note": note, "input": inp, "expected": exp})
+    open_cases = [
+        {"id": "open-evm-bad-checksum", "question": "Q2",
+         "input": f"eip155:1:{FBI_EVM[:2]}{FBI_EVM[2].lower()}{FBI_EVM[3:4].upper()}{FBI_EVM[4:]}",
+         "note": "mixed case that is not a valid EIP-55 checksum: lowercase it, or reject the entry?"},
+        {"id": "open-evm-0X-prefix", "question": "Q2", "input": f"eip155:1:0X{FBI_EVM[2:]}",
+         "note": "upper-case 0X prefix: is that lowercase hex, or not an address?"},
+        {"id": "open-chain-ref-leading-zero", "question": "Q4", "input": f"eip155:01:{FBI_EVM}",
+         "note": "is eip155:01 the same chain as eip155:1 for matching?"},
+    ]
+    return {"description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written)",
+            "vectors": vec, "open": open_cases}
+
+
+def build_list_hash():
+    e1, e2, e3 = synth_evm(1), synth_evm(2), synth_evm(3)
+    sol = synth_sol(1)
+    vec = []
+
+    def add(cid, basis, note, docs, same):
+        hashes, canon = [], []
+        for d in docs:
+            c, err = canonical_list(d)
+            hashes.append(digest(c))
+            canon.append(jcs(c))
+        assert (len(set(hashes)) == 1) == same, cid
+        v = {"id": cid, "basis": basis, "note": note, "documents": docs,
+             "expected": {"hashes": hashes, "sameHash": same}}
+        if all(len(x) < 2000 for x in canon):
+            v["expected"]["canonical"] = canon
+        vec.append(v)
+
+    # the draft's own test case (Test Cases: "eip155:*:0xAbC... and eip155:*:0xabc...")
+    add("spec-case-duplicate-case-variants", "spec", "two case variants of one address hash as the single lowercase entry",
+        [synth_list([f"eip155:*:{e1}", f"eip155:*:{e1.lower()}"]), synth_list([f"eip155:*:{e1.lower()}"])], True)
+    add("order-independent", "spec", "entries sorted by account (code points) before hashing",
+        [synth_list([f"eip155:*:{e1}", f"eip155:*:{e2}", f"eip155:*:{e3}"]),
+         synth_list([f"eip155:*:{e3}", f"eip155:*:{e1}", f"eip155:*:{e2}"])], True)
+    add("sort-wildcard-before-digits", "spec", "'*' (U+002A) sorts before '1' (U+0031); both entries are kept",
+        [synth_list([f"eip155:1:{e1}", f"eip155:*:{e1}"]), synth_list([f"eip155:*:{e1}", f"eip155:1:{e1}"])], True)
+    add("chain-scope-changes-hash", "spec", "eip155:1 and eip155:* are different accounts",
+        [synth_list([f"eip155:1:{e1}"]), synth_list([f"eip155:*:{e1}"])], False)
+    add("bech32-case-same-hash", "spec", "bech32 upper and lower hash the same",
+        [synth_list([f"{BTC}:{FBI_BTC.upper()}"]), synth_list([f"{BTC}:{FBI_BTC}"])], True)
+    add("base58-case-different-hash", "spec", "base58 is exact: one swapped letter is a different account",
+        [synth_list([f"{SOL}:{sol}"]), synth_list([f"{SOL}:{swap_one_case(sol)}"])], False)
+    add("attestation-is-hashed", "spec", "adding or removing attestation changes the hash",
+        [synth_list([f"eip155:*:{e1}"]),
+         {k: v for k, v in synth_list([f"eip155:*:{e1}"], entries=[{"account": f"eip155:*:{e1}", "evidence": [
+             {"type": "tx", "chainId": "eip155:1", "hash": hx(_seed("tx 1"))}]}]).items() if k != "attestation"}],
+        False)
+    add("two-sources-same-upstream", "spec",
+        "two sources pin the same upstream list at different times: retrieval time is not in the document, so the "
+        "hash is the same (retrievedAt goes in the finding's document evidence, see match.json)",
+        [synth_list([f"eip155:*:{e2}", f"eip155:*:{e1}"]), synth_list([f"eip155:*:{e1.lower()}", f"eip155:*:{e2}"])],
+        True)
+    add("retrieval-time-inside-document", "reference",
+        "a document that carries retrievedAt as a field hashes differently, which is why the draft keeps it out "
+        "(whether unknown fields are allowed at all is Q6)",
+        [synth_list([f"eip155:*:{e1}"]), synth_list([f"eip155:*:{e1}"], retrievedAt="2026-11-01T15:50:13Z")], False)
+
+    # published bytes vs canonical bytes (Q1)
+    d = synth_list([f"eip155:*:{e1.lower()}"])
+    pretty = json.dumps(d, indent=2)
+    compact = json.dumps(d, separators=(",", ":"))
+    vec.append({"id": "published-bytes-vs-jcs", "basis": "reference",
+                "note": "hash is digest() of the JSON value, so whitespace in the published bytes does not matter; "
+                        "keccak256 of the raw bytes differs (Q1)",
+                "publishedBytes": [pretty, compact],
+                "expected": {"digest": digest(json.loads(pretty)),
+                             "rawKeccak": [hx(keccak256(pretty.encode())), hx(keccak256(compact.encode()))]}})
+
+    fbi = fbi_list()
+    c, err = canonical_list(fbi)
+    assert not err, err
+    counts = {}
+    for e in c["entries"]:
+        counts[e["account"].split(":")[0]] = counts.get(e["account"].split(":")[0], 0) + 1
+    vec.append({"id": "fbi-tradertraitor-2026-10-31", "basis": "spec",
+                "note": "the FBI alert of 31 Oct 2026 as one attested list (ETH addresses as eip155:*). "
+                        "published order and case in fbi-tradertraitor-2026-10-31.published.txt; canonical document "
+                        "in fbi-tradertraitor-2026-10-31.list.json",
+                "expected": {"hash": digest(c), "entries": len(c["entries"]), "byNamespace": counts,
+                             "conforms": conforms(fbi)[0]}})
+    open_cases = [
+        {"id": "open-duplicate-different-evidence", "question": "Q5",
+         "documents": [synth_list([], entries=[
+             {"account": f"eip155:*:{e1}", "evidence": [{"type": "tx", "chainId": "eip155:1", "hash": hx(_seed('tx 1'))}]},
+             {"account": f"eip155:*:{e1.lower()}", "evidence": [{"type": "tx", "chainId": "eip155:1", "hash": hx(_seed('tx 2'))}]}])],
+         "note": "one account twice with different evidence: merge evidence, keep the first, or reject the list?"},
+        {"id": "open-empty-entries", "question": "Q7", "documents": [synth_list([])],
+         "note": "a list with no entries: conforming? (every on-list finding would read null)"},
+    ]
+    return {"description": "list document hash: hash = keccak256(JCS(document)) after entries are normalized, "
+                           "sorted by account and deduplicated", "vectors": vec, "open": open_cases}
+
+
+def build_match():
+    e1, e2 = synth_evm(1), synth_evm(2)
+    sol = synth_sol(1)
+    L = synth_list([f"eip155:*:{e1}", f"eip155:1:{e2}", f"{BTC}:{FBI_BTC}", f"{SOL}:{sol}"])
+    vec = []
+    cases = [
+        ("wildcard-matches-any-evm-chain", f"eip155:4663:{e1.upper().replace('0X', '0x')}", "spec",
+         "the draft's case: eip155:4663:0xABC... matches eip155:*:0xabc..."),
+        ("wildcard-matches-base", f"eip155:8453:{e1}", "spec", "EIP-55 candidate, wildcard entry"),
+        ("exact-chain-matches", f"eip155:1:{e2.lower()}", "spec", "same chain reference"),
+        ("other-chain-no-match", f"eip155:10:{e2}", "spec", "entry is eip155:1 only"),
+        ("bech32-upper-candidate", f"{BTC}:{FBI_BTC.upper()}", "spec", "bech32 compared lowercase"),
+        ("base58-exact", f"{SOL}:{sol}", "spec", "base58 exact"),
+        ("base58-case-swapped", f"{SOL}:{swap_one_case(sol)}", "spec", "one letter's case differs: no match"),
+        ("not-on-list", f"eip155:1:{synth_evm(9)}", "spec", "value is null, not false"),
+        ("namespace-must-equal", f"{BTC}:{synth_p2wpkh(1)}", "spec", "other bip122 address: null"),
+    ]
+    for cid, cand, basis, note in cases:
+        m = matches(L, cand)
+        vec.append({"id": cid, "basis": basis, "note": note, "list": "L", "candidate": cand,
+                    "expected": {"value": m[0] if m else None}})
+    h, _ = list_hash(L)
+    uri = "https://example.org/lists/L.json"
+    uri_x = "https://example.org/lists/consumer-choice.json"
+    bad = synth_list([f"eip155:*:{e1}"])
+    findings = [
+        {"id": "read-value-and-null", "basis": "spec",
+         "scenario": {"entities": [f"eip155:42161:{e1}", f"eip155:42161:{synth_evm(9)}"],
+                      "params": [{"uri": uri, "hash": h}], "lists": {uri: {"published": L}}}},
+        {"id": "hash-mismatch-unavailable", "basis": "spec",
+         "scenario": {"entities": [f"eip155:1:{e1}"], "params": [{"uri": uri, "hash": h}],
+                      "lists": {uri: {"published": bad}}}},
+        {"id": "fetch-failed-unavailable", "basis": "spec",
+         "scenario": {"entities": [f"eip155:1:{e1}"], "params": [{"uri": uri, "hash": h}],
+                      "lists": {uri: {"fetch": "fails"}}}},
+        {"id": "consumer-list-unsupported", "basis": "spec",
+         "note": "kinds holds { kind: on-list, param: { uri, hash } } for a list the source will not read: not read "
+                 "/ unsupported for each address, and no finding with a param of the source's own",
+         "request": {"kinds": [{"kind": KIND, "param": {"uri": uri_x, "hash": h}}]},
+         "scenario": {"entities": [f"eip155:1:{e1}", f"eip155:1:{e2}"], "params": [{"uri": uri_x, "hash": h}],
+                      "lists": {uri_x: {"source-reads": False}, uri: {"published": L}}}},
+    ]
+    for f in findings:
+        f["expected"] = on_list_findings(f["scenario"])
+    conf = []
+    noatt = {k: v for k, v in synth_list([f"eip155:*:{e1}"]).items() if k != "attestation"}
+    part = dict(noatt, entries=[{"account": f"eip155:*:{e1}", "evidence": [
+        {"type": "tx", "chainId": "eip155:1", "hash": hx(_seed("tx 1"))}]}, {"account": f"eip155:*:{e2}"}])
+    for cid, doc, note in [("attested-no-evidence-conforms", synth_list([f"eip155:*:{e1}"]), "draft test case"),
+                           ("no-attestation-no-evidence-fails", noatt, "draft test case"),
+                           ("no-attestation-partial-evidence-fails", part, "one entry without evidence")]:
+        ok, why = conforms(doc)
+        conf.append({"id": cid, "basis": "spec", "note": note, "document": doc, "expected": {"conforms": ok}})
+    document_evidence = {
+        "note": "the upstream publication goes in a document evidence entry of the finding, with retrievedAt. "
+                "Two sources' findings differ here and nowhere in the list hash. The hash of the page bytes is not "
+                "reproducible (the page re-renders on each fetch); see Q8.",
+        "examples": [{"type": "document", "uri": FBI_URL, "hash": "<keccak256 of the page bytes this source read>",
+                      "retrievedAt": t} for t in ("2026-11-01T15:50:13Z", "2026-11-03T09:00:00Z")]}
+    open_cases = [{"id": "open-two-entries-match", "question": "Q5", "list": "L2",
+                   "candidate": f"eip155:1:{e1}",
+                   "lists": {"L2": synth_list([f"eip155:*:{e1}", f"eip155:1:{e1}"])},
+                   "note": "eip155:1:X and eip155:*:X both match: which entry is value?"},
+                  {"id": "open-nonconforming-list-reason", "question": "Q7", "document": noatt,
+                   "note": "the bytes match hash but the list does not conform (no attestation, no evidence): "
+                           "which not-read reason?"}]
+    return {"description": "matching, value as the matching entry or null, not-read reasons, conformance",
+            "lists": {"L": L, "L_hash": h}, "vectors": vec, "findings": findings, "conformance": conf,
+            "documentEvidence": document_evidence, "open": open_cases}
+
+
+def build_diff():
+    E = [synth_evm(i) for i in range(1, 7)]
+    v1 = synth_list([f"eip155:*:{E[0]}", f"eip155:*:{E[1]}", f"eip155:*:{E[2]}", f"{BTC}:{synth_p2wpkh(1)}"])
+    cases = [
+        ("added", synth_list([f"eip155:*:{E[0]}", f"eip155:*:{E[1]}", f"eip155:*:{E[2]}", f"{BTC}:{synth_p2wpkh(1)}",
+                              f"eip155:*:{E[3]}", f"{SOL}:{synth_sol(2)}"]), "two entries added"),
+        ("removed", synth_list([f"eip155:*:{E[0]}", f"{BTC}:{synth_p2wpkh(1)}"]), "two entries removed"),
+        ("added-and-removed", synth_list([f"eip155:*:{E[0]}", f"eip155:*:{E[1]}", f"eip155:*:{E[4]}",
+                                          f"{BTC}:{synth_p2wpkh(1)}"]), "one swapped for another, same count"),
+        ("recase-and-reorder-only", synth_list([f"{BTC}:{synth_p2wpkh(1).upper()}", f"eip155:*:{E[2].lower()}",
+                                                f"eip155:*:{E[0].lower()}", f"eip155:*:{E[1]}"]),
+         "same list re-cased and reordered: same hash, empty diff"),
+        ("duplicate-added", synth_list([f"eip155:*:{E[0]}", f"eip155:*:{E[0].lower()}", f"eip155:*:{E[1]}",
+                                        f"eip155:*:{E[2]}", f"{BTC}:{synth_p2wpkh(1)}"]), "a duplicate is not an addition"),
+        ("scope-narrowed", synth_list([f"eip155:1:{E[0]}", f"eip155:*:{E[1]}", f"eip155:*:{E[2]}",
+                                       f"{BTC}:{synth_p2wpkh(1)}"]), "eip155:* to eip155:1 is a removal plus an addition"),
+        ("criteria-changed", dict(v1, criteria="Synthetic addresses for test vectors, second wording."),
+         "same entries, new criteria: hash changes, entry diff empty"),
+        ("evidence-added", dict(v1, entries=[{"account": f"eip155:*:{E[0]}", "evidence": [
+            {"type": "tx", "chainId": "eip155:1", "hash": hx(_seed("tx 3"))}]}] + v1["entries"][1:]),
+         "one entry gains evidence: changed, not added"),
+    ]
+    vec = []
+    for cid, v2, note in cases:
+        vec.append({"id": cid, "basis": "reference", "note": note, "from": "v1", "to": v2,
+                    "expected": diff(v1, v2)})
+    return {"description": "list version diffs: added / removed / changed by normalized account, and the hash "
+                           "change. The draft does not define a diff; this format is ours (Q9).",
+            "v1": v1, "vectors": vec, "open": []}
+
+
+def primitive_selftest():
+    assert hx(keccak256(b"")) == "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    assert hx(keccak256(b"abc")) == "0x4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45"
+    assert hx(keccak256(b"a" * 200)) == hx(keccak256(b"a" * 200))
+    for a in ("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed", "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+              "0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB", "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb"):
+        assert eip55(a) == a, a  # EIP-55 examples
+    assert segwit_valid(FBI_BTC) and segwit_valid(FBI_BTC.upper()) and not segwit_valid(mixed_case(FBI_BTC))
+    assert segwit_valid(synth_p2wpkh(1)) and segwit_valid(synth_p2tr(1)) and b58check_valid(synth_p2pkh(1))
+    assert len(b58decode(FBI_SOL)) == 32 and b58encode(b58decode(FBI_SOL)) == FBI_SOL
+    assert jcs({"b": 1, "a": [True, None, "\u20ac\n"]}) == '{"a":[true,null,"\u20ac\\n"],"b":1}'
+    # RFC 8785 3.2.3: keys in UTF-16 code unit order (U+1F600 before U+FB33, unlike code point order)
+    assert jcs({"\ufb33": 4, "\u20ac": 1, "\U0001F600": 2, "\r": 3}) == '{"\\r":3,"\u20ac":1,"\U0001F600":2,"\ufb33":4}'
+
+
+FILES = {"normalize.json": build_normalize, "list-hash.json": build_list_hash, "match.json": build_match,
+         "diff.json": build_diff}
+
+
+def dump(obj):
+    return json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
+
+
+def main():
+    write = "--write" in sys.argv[1:]
+    primitive_selftest()
+    ok = True
+    for name, fn in FILES.items():
+        text = dump(fn())
+        p = os.path.join(HERE, name)
+        if write:
+            open(p, "w", encoding="utf-8").write(text)
+        else:
+            cur = open(p, encoding="utf-8").read() if os.path.exists(p) else ""
+            if cur != text:
+                ok = False
+                print(f"FAIL {name}: differs from what this implementation computes")
+        d = json.loads(text)
+        print(f"{'wrote' if write else 'ok  '} {name}: {sum(len(d.get(k, [])) for k in ('vectors', 'findings', 'conformance'))}"
+              f" checked, {len(d.get('open', []))} open")
+    c, _ = canonical_list(fbi_list())
+    p = os.path.join(HERE, "fbi-tradertraitor-2026-10-31.list.json")
+    text = jcs(c) + "\n"
+    if write:
+        open(p, "w", encoding="utf-8").write(text)
+    elif open(p, encoding="utf-8").read() != text or digest(json.loads(text)) != digest(c):
+        ok = False
+        print("FAIL fbi-tradertraitor-2026-10-31.list.json")
+    print(("wrote" if write else "ok  ") + f" fbi-tradertraitor-2026-10-31.list.json: hash {digest(c)}")
+    if not ok:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,481 @@
+{
+  "description": "list document hash: hash = keccak256(JCS(document)) after entries are normalized, sorted by account and deduplicated",
+  "vectors": [
+    {
+      "id": "spec-case-duplicate-case-variants",
+      "basis": "spec",
+      "note": "two case variants of one address hash as the single lowercase entry",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            },
+            {
+              "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x5247ff76fbe41bcbd6163d70632bec319ba503e1b0b9d17663c9fe5e227f004c",
+          "0x5247ff76fbe41bcbd6163d70632bec319ba503e1b0b9d17663c9fe5e227f004c"
+        ],
+        "sameHash": true,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "order-independent",
+      "basis": "spec",
+      "note": "entries sorted by account (code points) before hashing",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            },
+            {
+              "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+            },
+            {
+              "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x93D27fC5e58806C54818ADe2c6D16d8fA7B9E616"
+            },
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            },
+            {
+              "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x0340a1ffa21f4daeba52a550ac711705437dcea2e295fdc834389d45592cc16a",
+          "0x0340a1ffa21f4daeba52a550ac711705437dcea2e295fdc834389d45592cc16a"
+        ],
+        "sameHash": true,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"},{\"account\":\"eip155:*:0x93d27fc5e58806c54818ade2c6d16d8fa7b9e616\"},{\"account\":\"eip155:*:0xd8aa20a53732765c3e88025b2f42a8413c047bba\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"},{\"account\":\"eip155:*:0x93d27fc5e58806c54818ade2c6d16d8fa7b9e616\"},{\"account\":\"eip155:*:0xd8aa20a53732765c3e88025b2f42a8413c047bba\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "sort-wildcard-before-digits",
+      "basis": "spec",
+      "note": "'*' (U+002A) sorts before '1' (U+0031); both entries are kept",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            },
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            },
+            {
+              "account": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x6f211efaf69a8b0372ab5f82f955a5cc7337967c01781e3f63dbc757b241eb55",
+          "0x6f211efaf69a8b0372ab5f82f955a5cc7337967c01781e3f63dbc757b241eb55"
+        ],
+        "sameHash": true,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"},{\"account\":\"eip155:1:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"},{\"account\":\"eip155:1:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "chain-scope-changes-hash",
+      "basis": "spec",
+      "note": "eip155:1 and eip155:* are different accounts",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x00747ec337f035ef4a1d1031da13a5b80569a02264791e32fa601e579a38c47b",
+          "0x5247ff76fbe41bcbd6163d70632bec319ba503e1b0b9d17663c9fe5e227f004c"
+        ],
+        "sameHash": false,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:1:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "bech32-case-same-hash",
+      "basis": "spec",
+      "note": "bech32 upper and lower hash the same",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "bip122:000000000019d6689c085ae165831e93:BC1QXRXUJWXFNVZ040JW76D26ZHJDG5JURA7HS968S"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x0e5c0628cd25758ee20254fa7237b9376120cdcac883e602bd5eb1129abd103a",
+          "0x0e5c0628cd25758ee20254fa7237b9376120cdcac883e602bd5eb1129abd103a"
+        ],
+        "sameHash": true,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "base58-case-different-hash",
+      "basis": "spec",
+      "note": "base58 is exact: one swapped letter is a different account",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAN4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0xd46beb4a0a5638fee689c4c9faa5e4c444a1ac1741b59816ecafcb4505540915",
+          "0x62ef72b6cdc628dc286190adc243d2c1417690be1befac036c1d94da1a492253"
+        ],
+        "sameHash": false,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAN4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "attestation-is-hashed",
+      "basis": "spec",
+      "note": "adding or removing attestation changes the hash",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+              "evidence": [
+                {
+                  "type": "tx",
+                  "chainId": "eip155:1",
+                  "hash": "0xc0665d3ddf5c1aac36d2d10f19503d1b33ceee7a6da9b0adc58cd39ed648d6bc"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x5247ff76fbe41bcbd6163d70632bec319ba503e1b0b9d17663c9fe5e227f004c",
+          "0x599ede70b5d19aade2e12d22a3aedc49a819905a1a65e1b34eac8c6feb7efddd"
+        ],
+        "sameHash": false,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\",\"evidence\":[{\"chainId\":\"eip155:1\",\"hash\":\"0xc0665d3ddf5c1aac36d2d10f19503d1b33ceee7a6da9b0adc58cd39ed648d6bc\",\"type\":\"tx\"}]}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "two-sources-same-upstream",
+      "basis": "spec",
+      "note": "two sources pin the same upstream list at different times: retrieval time is not in the document, so the hash is the same (retrievedAt goes in the finding's document evidence, see match.json)",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+            },
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321"
+            },
+            {
+              "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x27700d58dde1b112a52559b1363e3a68a69115a5d1e74bd77cc72d2799c743db",
+          "0x27700d58dde1b112a52559b1363e3a68a69115a5d1e74bd77cc72d2799c743db"
+        ],
+        "sameHash": true,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"},{\"account\":\"eip155:*:0xd8aa20a53732765c3e88025b2f42a8413c047bba\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"},{\"account\":\"eip155:*:0xd8aa20a53732765c3e88025b2f42a8413c047bba\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "retrieval-time-inside-document",
+      "basis": "reference",
+      "note": "a document that carries retrievedAt as a field hashes differently, which is why the draft keeps it out (whether unknown fields are allowed at all is Q6)",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+            }
+          ],
+          "retrievedAt": "2026-11-01T15:50:13Z"
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x5247ff76fbe41bcbd6163d70632bec319ba503e1b0b9d17663c9fe5e227f004c",
+          "0x17e42403c31d44dd4cefffad3dbc491d964cd2a7696704115b3bf6901c7a0d46"
+        ],
+        "sameHash": false,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}],\"retrievedAt\":\"2026-11-01T15:50:13Z\",\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "published-bytes-vs-jcs",
+      "basis": "reference",
+      "note": "hash is digest() of the JSON value, so whitespace in the published bytes does not matter; keccak256 of the raw bytes differs (Q1)",
+      "publishedBytes": [
+        "{\n  \"version\": \"erc-presign-list/1\",\n  \"source\": \"https://example.org/upstream/synthetic-list\",\n  \"criteria\": \"Synthetic addresses for test vectors; not a real list.\",\n  \"attestation\": \"Synthetic attestation covering every entry.\",\n  \"entries\": [\n    {\n      \"account\": \"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"\n    }\n  ]\n}",
+        "{\"version\":\"erc-presign-list/1\",\"source\":\"https://example.org/upstream/synthetic-list\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"attestation\":\"Synthetic attestation covering every entry.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}]}"
+      ],
+      "expected": {
+        "digest": "0x5247ff76fbe41bcbd6163d70632bec319ba503e1b0b9d17663c9fe5e227f004c",
+        "rawKeccak": [
+          "0xb6a253ae1b970cf4d97be6acb963a8dd4709b00e87b8d2918094c59eb75841d6",
+          "0xe943b0c28e06596b9787d0e98148ab71d2ff11e42ac01a7f307818fd5f659f5e"
+        ]
+      }
+    },
+    {
+      "id": "fbi-tradertraitor-2026-10-31",
+      "basis": "spec",
+      "note": "the FBI alert of 31 Oct 2026 as one attested list (ETH addresses as eip155:*). published order and case in fbi-tradertraitor-2026-10-31.published.txt; canonical document in fbi-tradertraitor-2026-10-31.list.json",
+      "expected": {
+        "hash": "0x7d7ec0b77a2a47b76dab2b4b6ba067aba76c9e3e60d86bde5676af609e068c98",
+        "entries": 628,
+        "byNamespace": {
+          "bip122": 19,
+          "eip155": 608,
+          "solana": 1
+        },
+        "conforms": true
+      }
+    }
+  ],
+  "open": [
+    {
+      "id": "open-duplicate-different-evidence",
+      "question": "Q5",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+              "evidence": [
+                {
+                  "type": "tx",
+                  "chainId": "eip155:1",
+                  "hash": "0xc0665d3ddf5c1aac36d2d10f19503d1b33ceee7a6da9b0adc58cd39ed648d6bc"
+                }
+              ]
+            },
+            {
+              "account": "eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321",
+              "evidence": [
+                {
+                  "type": "tx",
+                  "chainId": "eip155:1",
+                  "hash": "0xa0d756d74c82240391f8bf38bfd5e8a559d8cab17190c153845e7c6d499d9c04"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "note": "one account twice with different evidence: merge evidence, keep the first, or reject the list?"
+    },
+    {
+      "id": "open-empty-entries",
+      "question": "Q7",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": []
+        }
+      ],
+      "note": "a list with no entries: conforming? (every on-list finding would read null)"
+    }
+  ]
+}
