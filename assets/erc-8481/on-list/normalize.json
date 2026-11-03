@@ -180,8 +180,8 @@
     },
     {
       "id": "reject-mixed-case-bech32",
-      "basis": "reference",
-      "note": "BIP-173 forbids mixed case; the draft only says lowercase (Q3)",
+      "basis": "spec",
+      "note": "BIP-173 forbids mixed case; the list does not conform (9abaacf)",
       "input": "bip122:000000000019d6689c085ae165831e93:Bc1QxRxUjWxFnVz040Jw76D26zHjDg5JuRa7Hs968S",
       "expected": {
         "ok": false
@@ -195,26 +195,34 @@
       "expected": {
         "ok": false
       }
+    },
+    {
+      "id": "reject-evm-bad-checksum",
+      "basis": "spec",
+      "note": "mixed case that is not a valid EIP-55 checksum: the list does not conform (9abaacf; was open Q2)",
+      "input": "eip155:1:0x8532fA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-evm-0X-prefix",
+      "basis": "spec",
+      "note": "upper-case 0X prefix is not a valid CAIP-10 eip155 address (9abaacf; was open Q2)",
+      "input": "eip155:1:0X8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": false
+      }
+    },
+    {
+      "id": "reject-chain-ref-leading-zero",
+      "basis": "spec",
+      "note": "eip155 chain reference with a leading zero: the list does not conform (9abaacf; was open Q4)",
+      "input": "eip155:01:0x8532FA14ACAf483729C449b8458aedDb900543D4",
+      "expected": {
+        "ok": false
+      }
     }
   ],
-  "open": [
-    {
-      "id": "open-evm-bad-checksum",
-      "question": "Q2",
-      "input": "eip155:1:0x8532FA14ACAf483729C449b8458aedDb900543D4",
-      "note": "mixed case that is not a valid EIP-55 checksum: lowercase it, or reject the entry?"
-    },
-    {
-      "id": "open-evm-0X-prefix",
-      "question": "Q2",
-      "input": "eip155:1:0X8532FA14ACAf483729C449b8458aedDb900543D4",
-      "note": "upper-case 0X prefix: is that lowercase hex, or not an address?"
-    },
-    {
-      "id": "open-chain-ref-leading-zero",
-      "question": "Q4",
-      "input": "eip155:01:0x8532FA14ACAf483729C449b8458aedDb900543D4",
-      "note": "is eip155:01 the same chain as eip155:1 for matching?"
-    }
-  ]
+  "open": []
 }

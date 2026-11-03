@@ -356,8 +356,8 @@
     },
     {
       "id": "retrieval-time-inside-document",
-      "basis": "reference",
-      "note": "a document that carries retrievedAt as a field hashes differently, which is why the draft keeps it out (whether unknown fields are allowed at all is Q6)",
+      "basis": "spec",
+      "note": "extra top-level fields are allowed, are part of the hash and are ignored by readers (9abaacf), so a document that carries retrievedAt hashes differently, which is why the draft keeps it out",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -397,8 +397,8 @@
     },
     {
       "id": "published-bytes-vs-jcs",
-      "basis": "reference",
-      "note": "hash is digest() of the JSON value, so whitespace in the published bytes does not matter; keccak256 of the raw bytes differs (Q1)",
+      "basis": "spec",
+      "note": "hash is digest() of the normalized form over the parsed JSON value, so whitespace and key order in the published bytes do not matter; keccak256 of the raw bytes differs (9abaacf)",
       "publishedBytes": [
         "{\n  \"version\": \"erc-presign-list/1\",\n  \"source\": \"https://example.org/upstream/synthetic-list\",\n  \"criteria\": \"Synthetic addresses for test vectors; not a real list.\",\n  \"attestation\": \"Synthetic attestation covering every entry.\",\n  \"entries\": [\n    {\n      \"account\": \"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"\n    }\n  ]\n}",
         "{\"version\":\"erc-presign-list/1\",\"source\":\"https://example.org/upstream/synthetic-list\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"attestation\":\"Synthetic attestation covering every entry.\",\"entries\":[{\"account\":\"eip155:*:0x2c2e544198a508710e011b9aa2a79e22f5cd3321\"}]}"
@@ -425,12 +425,11 @@
         },
         "conforms": true
       }
-    }
-  ],
-  "open": [
+    },
     {
-      "id": "open-duplicate-different-evidence",
-      "question": "Q5",
+      "id": "duplicate-different-evidence-nonconforming",
+      "basis": "spec",
+      "note": "one account twice with different content: the list does not conform and has no hash a reader can use (9abaacf; was open Q5)",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -461,11 +460,15 @@
           ]
         }
       ],
-      "note": "one account twice with different evidence: merge evidence, keep the first, or reject the list?"
+      "expected": {
+        "conforms": false,
+        "hash": null
+      }
     },
     {
-      "id": "open-empty-entries",
-      "question": "Q7",
+      "id": "empty-entries",
+      "basis": "reference",
+      "note": "a list with no entries: the draft names no rule against it, so it conforms here and every on-list finding against it reads null (was open Q7)",
       "documents": [
         {
           "version": "erc-presign-list/1",
@@ -475,7 +478,11 @@
           "entries": []
         }
       ],
-      "note": "a list with no entries: conforming? (every on-list finding would read null)"
+      "expected": {
+        "conforms": true,
+        "hash": "0x30c892c635651fc353751c32a14f9147c22ceebaf1c07889ffcbdf4a90f755d2"
+      }
     }
-  ]
+  ],
+  "open": []
 }
