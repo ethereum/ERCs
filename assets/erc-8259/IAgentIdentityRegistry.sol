@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
  * @notice Standard interface for AI agent decentralized identity and reputation management.
  */
 interface IAgentIdentityRegistry {
-    
+
     struct AgentIdentity {
         string did;
         bytes32 publicKey;
