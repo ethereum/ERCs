@@ -32,7 +32,7 @@ and the Arbitrum clock. The contract records publication only: a consumer still 
 report content, signatures, identity binding, trusted history and chain canonicality.
 Neither contract has been deployed as part of this contribution.
 
-## Historical-signer vectors and an open interpretation
+## Historical-signer vectors
 
 The signer tests use real EIP-712 signatures, a rotating ERC-1271 test signer, the
 candidate anchor, and a small owner/wallet registry fixture. Foundry snapshot replay
@@ -49,12 +49,10 @@ The cases show:
   but today's `isValidSignature` rejects the old report. Replaying the signature
   check in the earlier state accepts it.
 
-The last case raises a specification question: the draft explicitly moves **step 3's
-binding lookup** to the historical registry block for auditing. Should **step 2's
-code lookup and ERC-1271 signature call** use that same block? Historical binding
-alone does not preserve a report when the contract signer's internal key changes.
-The test demonstrates that difference; it does not silently establish a new
-normative historical-signature rule. Current pre-sign checks still use current state.
+The last case is now normative: when auditing an anchored report, step 2 runs at the same
+historical block as step 3, both whether the signer has code (EIP-7702 can change it) and the
+ERC-1271 `isValidSignature` call. A verifier without archive state treats the report as not
+read, not as unsigned. Pre-sign checks still use current state.
 
 Cross-chain timestamp-to-block selection, reorg handling, archive unavailability,
 and historical content-addressed/mutable registration files are outside this harness.
