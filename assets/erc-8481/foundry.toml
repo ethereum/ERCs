@@ -1,0 +1,12 @@
+[profile.default]
+src = "."
+test = "."
+out = "out"
+libs = ["lib"]
+remappings = ["forge-std/=lib/forge-std/src/"]
+solc_version = "0.8.30"
+evm_version = "prague"
+optimizer = true
+
+[fmt]
+line_length = 120
