@@ -382,6 +382,13 @@ contract ScenariosTest is Test {
         }
 
         // Skip installments 4 and 5: advance well past their due date
+        // The index is re-attested weekly meanwhile, so it stays continuously
+        // fresh (tolerance 30 days) and the payment-path liveness grace does
+        // not apply: only the lessee's non-payment is in play.
+        for (uint256 cur = uint256(dueDates[2]) + 7 days; cur < uint256(dueDates[4]) + 5 days; cur += 7 days) {
+            vm.warp(cur);
+            oracle_.set(1e18);
+        }
         vm.warp(uint256(dueDates[4]) + 5 days); // ~65 days unpaid since installment 3
         oracle_.set(1e18);
 
