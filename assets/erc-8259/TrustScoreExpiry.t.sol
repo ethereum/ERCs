@@ -112,6 +112,68 @@ abstract contract TrustScoreExpiryChecks {
     }
 }
 
+/// Inactive-agent checks for the rules added in ethereum/ERCs#2142. Deactivation
+/// is implementation-specific; no deactivation method is added to the interface.
+abstract contract InactiveAgentChecks is TrustScoreExpiryChecks {
+    function deactivateForTest(address agent) internal virtual;
+
+    function assertInactive() internal view {
+        require(!registry.getAgentIdentity(VERIFIED).isActive, "adapter did not deactivate agent");
+        require(registry.getEffectiveTier(VERIFIED) == 0, "inactive tier must be zero");
+        require(!registry.isVerified(VERIFIED), "inactive agent must be unverified");
+        require(registry.calculateTrustScore(VERIFIED) == 0, "inactive score must be zero");
+    }
+
+    function test_inactiveAgentWithUnexpiredTierHasNoTrustScore() public {
+        setEqualReputation(750);
+        registry.updateVerificationTier(VERIFIED, 3, 1 days);
+        uint16 controlScore = registry.calculateTrustScore(CONTROL);
+        require(registry.isVerified(VERIFIED), "active verification missing");
+        deactivateForTest(VERIFIED);
+        assertInactive();
+        require(registry.getAgentIdentity(CONTROL).isActive, "control was deactivated");
+        require(registry.calculateTrustScore(CONTROL) == controlScore, "unrelated score changed");
+    }
+
+    function test_inactiveUnverifiedAgentLosesBaseReputationScore() public {
+        setEqualReputation(1000);
+        require(registry.getEffectiveTier(VERIFIED) == 0, "expected unverified agent");
+        deactivateForTest(VERIFIED);
+        assertInactive();
+    }
+
+    function test_inactivityOverridesExactExpiryBoundary() public {
+        setEqualReputation(500);
+        registry.updateVerificationTier(VERIFIED, 2, 10);
+        uint256 end = expiry();
+        vm.warp(end);
+        require(registry.getEffectiveTier(VERIFIED) == 2 && registry.isVerified(VERIFIED), "expired too early");
+        deactivateForTest(VERIFIED);
+        assertInactive();
+        vm.warp(end + 1);
+        assertInactive();
+    }
+
+    function test_deactivationAfterExpiryRemovesRemainingBaseScore() public {
+        setEqualReputation(750);
+        registry.updateVerificationTier(VERIFIED, 4, 10);
+        uint256 end = expiry();
+        vm.warp(end + 1);
+        assertExpired(750, end);
+        deactivateForTest(VERIFIED);
+        assertInactive();
+    }
+
+    function testFuzz_inactiveAgentNeverKeepsTierOrScore(uint16 score, uint8 tier, uint8 elapsed) public {
+        setEqualReputation(score % 1001);
+        registry.updateVerificationTier(VERIFIED, tier % 5, 10);
+        // Exercise deactivation before, exactly at and after the expiry boundary.
+        vm.warp(block.timestamp + elapsed % 12);
+        deactivateForTest(VERIFIED);
+        assertInactive();
+    }
+}
+
 /// Minimal test double, NOT a full ERC-8259 implementation. Its scoring formula is
 /// illustrative only. An adapter can run the same checks against another registry.
 contract ExpiryRegistryFixture {
@@ -158,8 +220,13 @@ contract ExpiryRegistryFixture {
         return identities[agent];
     }
 
+    function deactivateForTest(address agent) external authorized {
+        identities[agent].isActive = false;
+    }
+
     function getEffectiveTier(address agent) public view returns (uint8) {
-        return block.timestamp > identities[agent].verificationExpiry ? 0 : identities[agent].verificationTier;
+        if (!identities[agent].isActive || block.timestamp > identities[agent].verificationExpiry) return 0;
+        return identities[agent].verificationTier;
     }
 
     function isVerified(address agent) external view returns (bool) {
@@ -167,14 +234,30 @@ contract ExpiryRegistryFixture {
     }
 
     function calculateTrustScore(address agent) external view returns (uint16) {
+        if (!identities[agent].isActive) return 0;
         uint256 score = uint256(identities[agent].reputationScore) + uint256(getEffectiveTier(agent)) * 100;
         return uint16(score > 1000 ? 1000 : score);
     }
 }
 
-contract TrustScoreExpiryFixtureTest is TrustScoreExpiryChecks {
+contract TrustScoreExpiryFixtureTest is InactiveAgentChecks {
     function deployRegistry() internal override returns (IAgentIdentityRegistry) {
         return IAgentIdentityRegistry(address(new ExpiryRegistryFixture()));
+    }
+
+    function deactivateForTest(address agent) internal override {
+        ExpiryRegistryFixture(address(registry)).deactivateForTest(agent);
+    }
+
+    function test_fixtureRetainsHistoryWhileInactiveViewsReturnZero() public {
+        setEqualReputation(1000);
+        registry.updateVerificationTier(VERIFIED, 4, 10);
+        uint256 end = expiry();
+        deactivateForTest(VERIFIED);
+        IAgentIdentityRegistry.AgentIdentity memory record = registry.getAgentIdentity(VERIFIED);
+        require(record.verificationTier == 4 && record.reputationScore == 1000, "fixture erased history");
+        require(record.verificationExpiry == end, "fixture changed expiry");
+        assertInactive();
     }
 
     function test_fixtureKeepsStoredTierButDropsItsContribution() public {
