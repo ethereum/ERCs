@@ -36,7 +36,22 @@
         }
       ]
     },
-    "L2_hash": "0x6f211efaf69a8b0372ab5f82f955a5cc7337967c01781e3f63dbc757b241eb55"
+    "L2_hash": "0x6f211efaf69a8b0372ab5f82f955a5cc7337967c01781e3f63dbc757b241eb55",
+    "L3": {
+      "version": "erc-presign-list/1",
+      "source": "https://example.org/upstream/synthetic-list",
+      "criteria": "Synthetic addresses for test vectors; not a real list.",
+      "attestation": "Synthetic attestation covering every entry.",
+      "entries": [
+        {
+          "account": "xmpl:testnet:AbCdEf0123XyZ"
+        },
+        {
+          "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+        }
+      ]
+    },
+    "L3_hash": "0xf969f6061d5ce7e565a2af302fa962ff99916c41eb19213c03c0569c5cc0e0c1"
   },
   "vectors": [
     {
@@ -135,6 +150,48 @@
       "note": "other bip122 address: null",
       "list": "L",
       "candidate": "bip122:000000000019d6689c085ae165831e93:bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g",
+      "expected": {
+        "value": null
+      }
+    },
+    {
+      "id": "other-namespace-exact",
+      "basis": "spec",
+      "note": "a namespace other than eip155, bip122 and solana, same string: match (d21f46e)",
+      "list": "L3",
+      "candidate": "xmpl:testnet:AbCdEf0123XyZ",
+      "expected": {
+        "value": {
+          "account": "xmpl:testnet:AbCdEf0123XyZ"
+        }
+      }
+    },
+    {
+      "id": "other-namespace-case-differs",
+      "basis": "spec",
+      "note": "same namespace, case differs: compared exactly as written, no match (d21f46e)",
+      "list": "L3",
+      "candidate": "xmpl:testnet:abcdef0123xyz",
+      "expected": {
+        "value": null
+      }
+    },
+    {
+      "id": "other-namespace-upper-differs",
+      "basis": "spec",
+      "note": "all upper case: also no match, there is no case folding outside eip155 and bech32 (d21f46e)",
+      "list": "L3",
+      "candidate": "xmpl:testnet:ABCDEF0123XYZ",
+      "expected": {
+        "value": null
+      }
+    },
+    {
+      "id": "other-namespace-other-chain",
+      "basis": "spec",
+      "note": "same address, other chain reference, entry is not *: no match",
+      "list": "L3",
+      "candidate": "xmpl:mainnet:AbCdEf0123XyZ",
       "expected": {
         "value": null
       }
@@ -500,6 +557,90 @@
           }
         }
       ]
+    },
+    {
+      "id": "empty-list-reads-null",
+      "basis": "spec",
+      "note": "a list with no entries conforms; on-list against it reads null for every address (d21f46e)",
+      "scenario": {
+        "entities": [
+          "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+          "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s",
+          "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg",
+          "xmpl:testnet:AbCdEf0123XyZ"
+        ],
+        "params": [
+          {
+            "uri": "https://example.org/lists/empty.json",
+            "hash": "0x30c892c635651fc353751c32a14f9147c22ceebaf1c07889ffcbdf4a90f755d2"
+          }
+        ],
+        "lists": {
+          "https://example.org/lists/empty.json": {
+            "published": {
+              "version": "erc-presign-list/1",
+              "source": "https://example.org/upstream/synthetic-list",
+              "criteria": "Synthetic addresses for test vectors; not a real list.",
+              "attestation": "Synthetic attestation covering every entry.",
+              "entries": []
+            }
+          }
+        }
+      },
+      "expected": [
+        {
+          "kind": "erc.presign.address.on-list",
+          "entity": {
+            "address": "eip155:1:0x2c2e544198A508710E011B9aA2a79e22F5CD3321",
+            "role": "recipient"
+          },
+          "param": {
+            "uri": "https://example.org/lists/empty.json",
+            "hash": "0x30c892c635651fc353751c32a14f9147c22ceebaf1c07889ffcbdf4a90f755d2"
+          },
+          "status": "read",
+          "value": null
+        },
+        {
+          "kind": "erc.presign.address.on-list",
+          "entity": {
+            "address": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s",
+            "role": "recipient"
+          },
+          "param": {
+            "uri": "https://example.org/lists/empty.json",
+            "hash": "0x30c892c635651fc353751c32a14f9147c22ceebaf1c07889ffcbdf4a90f755d2"
+          },
+          "status": "read",
+          "value": null
+        },
+        {
+          "kind": "erc.presign.address.on-list",
+          "entity": {
+            "address": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:JAn4gikJtFrF236mE9rBpZSEw9JStJj2D5Ub4GtYGJeg",
+            "role": "recipient"
+          },
+          "param": {
+            "uri": "https://example.org/lists/empty.json",
+            "hash": "0x30c892c635651fc353751c32a14f9147c22ceebaf1c07889ffcbdf4a90f755d2"
+          },
+          "status": "read",
+          "value": null
+        },
+        {
+          "kind": "erc.presign.address.on-list",
+          "entity": {
+            "address": "xmpl:testnet:AbCdEf0123XyZ",
+            "role": "recipient"
+          },
+          "param": {
+            "uri": "https://example.org/lists/empty.json",
+            "hash": "0x30c892c635651fc353751c32a14f9147c22ceebaf1c07889ffcbdf4a90f755d2"
+          },
+          "status": "read",
+          "value": null
+        }
+      ]
     }
   ],
   "conformance": [
@@ -598,6 +739,35 @@
       }
     },
     {
+      "id": "empty-list-conforms",
+      "basis": "spec",
+      "note": "a list with no entries conforms (d21f46e)",
+      "document": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "attestation": "Synthetic attestation covering every entry.",
+        "entries": []
+      },
+      "expected": {
+        "conforms": true
+      }
+    },
+    {
+      "id": "empty-list-without-attestation-conforms",
+      "basis": "spec",
+      "note": "no entries, so no entry lacks evidence; conforms (d21f46e)",
+      "document": {
+        "version": "erc-presign-list/1",
+        "source": "https://example.org/upstream/synthetic-list",
+        "criteria": "Synthetic addresses for test vectors; not a real list.",
+        "entries": []
+      },
+      "expected": {
+        "conforms": true
+      }
+    },
+    {
       "id": "bad-eip55-entry-fails",
       "basis": "spec",
       "note": "an entry with a mixed-case EVM address that is not a valid EIP-55 checksum (9abaacf)",
@@ -618,19 +788,63 @@
     }
   ],
   "documentEvidence": {
-    "note": "the upstream publication goes in a document evidence entry of the finding, with retrievedAt. Two sources' findings differ here and nowhere in the list hash. The hash of the page bytes is not reproducible (the page re-renders on each fetch); see Q8.",
-    "examples": [
+    "note": "the upstream publication goes in a document evidence entry of the finding, with retrievedAt. Its hash is keccak256 of the bytes the source read and records what was read; a page that re-renders on each fetch gives a different hash each time and a third party cannot recompute it, which is why the list (one hash for both fetches) is the pinned document (d21f46e).",
+    "list": {
+      "version": "erc-presign-list/1",
+      "source": "https://example.org/upstream/synthetic-advisory",
+      "criteria": "Synthetic addresses for test vectors; not a real list.",
+      "attestation": "Synthetic attestation covering every entry.",
+      "entries": [
+        {
+          "account": "eip155:*:0x2c2e544198A508710E011B9aA2a79e22F5CD3321"
+        },
+        {
+          "account": "eip155:*:0xd8Aa20a53732765c3E88025B2F42A8413c047bba"
+        }
+      ]
+    },
+    "listHash": "0x9f17a6f555db1303cb5632391444d91587a7bdf222dcc37902da1d52887d4fbe",
+    "vectors": [
       {
-        "type": "document",
-        "uri": "https://www.fbi.gov/investigate/cyber/alerts/2026/north-korea-responsible-for-6-billion-binance-attack",
-        "hash": "<keccak256 of the page bytes this source read>",
-        "retrievedAt": "2026-11-01T15:50:13Z"
+        "id": "fetch1",
+        "basis": "spec",
+        "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding (d21f46e)",
+        "fixture": "upstream-page.fetch1.html",
+        "bytesLength": 362,
+        "expected": {
+          "evidence": {
+            "type": "document",
+            "uri": "https://example.org/upstream/synthetic-advisory",
+            "hash": "0xffd09bb5e3681e165a226a58953c6334a3ce0ec126306d6c2f5609f6b0063266",
+            "retrievedAt": "2026-11-01T15:50:13Z"
+          },
+          "notSha3_256": "0x36186b8817de8a921a03a0760d141a2c9ae323539264f212a6a406d7a8ca6011"
+        }
       },
       {
-        "type": "document",
-        "uri": "https://www.fbi.gov/investigate/cyber/alerts/2026/north-korea-responsible-for-6-billion-binance-attack",
-        "hash": "<keccak256 of the page bytes this source read>",
-        "retrievedAt": "2026-11-03T09:00:00Z"
+        "id": "fetch2",
+        "basis": "spec",
+        "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding (d21f46e)",
+        "fixture": "upstream-page.fetch2.html",
+        "bytesLength": 362,
+        "expected": {
+          "evidence": {
+            "type": "document",
+            "uri": "https://example.org/upstream/synthetic-advisory",
+            "hash": "0xa77c87d7fa4f0525596eb5e5a9f958b979f55ee1b5bc2736d9f863441295db30",
+            "retrievedAt": "2026-11-03T09:00:00Z"
+          },
+          "notSha3_256": "0xecc92c1ae8ef0ea6b9a74ad63b22b2adb6f44859a9487dd98217027821eb7dd2"
+        }
+      },
+      {
+        "id": "same-text-crlf-different-hash",
+        "basis": "spec",
+        "note": "fetch1 with CRLF line endings: the same text, other bytes, so another hash; the hash is over bytes as read (d21f46e)",
+        "bytesHex": "3c21646f63747970652068746d6c3e0d0a3c68746d6c3e3c686561643e3c6d65746120636861727365743d227574662d38223e3c7469746c653e53796e7468657469632061647669736f72793c2f7469746c653e3c6d657461206e616d653d2272656e6465722d6e6f6e63652220636f6e74656e743d2261316633223e3c2f686561643e0d0a3c626f64793e0d0a3c703e52656e646572656420323032362d31312d30315431353a35303a31335a2e2053796e7468657469632061646472657373657320666f72207465737420766563746f72733b206e6f742061207265616c206c6973742e3c2f703e0d0a3c756c3e0d0a3c6c693e3078326332653534343139384135303837313045303131423961413261373965323246354344333332313c2f6c693e0d0a3c6c693e3078643841613230613533373332373635633345383830323542324634324138343133633034376262613c2f6c693e0d0a3c2f756c3e0d0a3c2f626f64793e3c2f68746d6c3e0d0a",
+        "expected": {
+          "hash": "0x9fcf0c900903534398efa2cf0f96b56c019d4c7227c1e8533b63a9cd35b60103"
+        }
       }
     ]
   },
