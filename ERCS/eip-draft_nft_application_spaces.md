@@ -1,0 +1,260 @@
+---
+title: NFT Controlled Application Spaces
+description: NFT-linked application runtimes with independent publishers, fixed native tolls, and atomic payment routing.
+author: 0xddneto (@0xddneto)
+discussions-to: https://ethereum-magicians.org/t/erc-idea-nft-controlled-application-spaces-from-voiddeeds/30258
+status: Draft
+type: Standards Track
+category: ERC
+created: 2026-11-02
+requires: 165, 721
+---
+
+## Abstract
+
+This proposal defines an application execution space whose economic configuration is controlled by an [ERC-721](./eip-721.md) NFT. Independent publishers create application gateways within the space, and users execute operations through its Runtime with a configuration revision, maximum native-asset toll, explicit application value, and deadline. The toll is configured directly in native base units and stays fixed until an authorized economic change. It defines discovery from a known Runtime, publisher and caller identity, transfer semantics, native payout allocation, and atomic execution events. The initial scope is same-chain execution. It does not assign ownership of consensus, block production, physical property, or all application assets to the NFT holder.
+
+## Motivation
+
+NFT ownership alone does not tell an integration how to discover a linked application's execution context, distinguish its publisher from the NFT holder, quote an execution toll, limit a user's payment, or interpret a transfer's effect on payouts. Project-specific assumptions can misidentify who controls an app, cause a stale configuration to be accepted, or confuse the toll with application purchases and network gas.
+
+An application-space interface lets tools integrate with independent implementations from a known Runtime address. It gives the NFT a defined economic-control role without turning every application into an asset administrated by the NFT holder. The concrete target is interoperability between Runtime clients and application spaces; automatic discovery of every Runtime associated with an arbitrary NFT is not claimed by this version.
+
+## Specification
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+### Definitions and scope
+
+- Canonical NFT: the ERC-721 token identifying economic control of a space.
+- Space: a protocol-defined execution and economic domain, not reserved consensus blockspace or a global EVM storage partition.
+- Runtime: a contract that registers gateways, validates execution requests, exposes caller context, and settles tolls.
+- Publisher: the address recorded for a gateway's publication.
+- Gateway: a distinct application instance whose execution address and storage are separate from other instances and from Runtime storage.
+- Owner: the canonical NFT holder as read at request validation.
+- Toll: the native-asset charge for one successful integrated execution, excluding `appValue` and network gas.
+- Revision: a monotonically increasing integer identifying relevant economic configuration and ownership changes.
+
+The base profile MUST run on the canonical NFT's chain. A Runtime MUST NOT claim this base profile alone for a remote snapshot that can differ from canonical ownership. Cross-chain profiles are outside this version.
+
+### Interfaces
+
+The complete interfaces are defined below.
+
+```solidity
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity ^0.8.28;
+
+/// @notice Proposed same-chain interfaces. No official ERC number has been assigned.
+interface IERC165 {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+/// @notice A same-chain application execution space economically controlled by an NFT.
+interface INFTApplicationSpace is IERC165 {
+    struct Recipient {
+        address wallet;
+        uint16 bps;
+    }
+
+    struct Configuration {
+        address owner;
+        uint256 revision;
+        uint256 nativeToll;
+        address treasury;
+        uint16 protocolBps;
+        Recipient[] recipients;
+    }
+
+    struct Execution {
+        address app;
+        bytes data;
+        uint256 revision;
+        uint256 maxToll;
+        uint256 appValue;
+        uint256 appGas;
+        uint256 deadline;
+    }
+
+    event Published(uint256 indexed tokenId, address indexed gateway, address indexed publisher, address implementation);
+    event Removed(address indexed gateway);
+    event Executed(uint256 indexed tokenId, address indexed gateway, address indexed user, uint256 toll, uint256 revision);
+    event Paid(uint256 indexed tokenId, address indexed recipient, uint256 amount);
+    event Redirected(uint256 indexed tokenId, address indexed rejectedRecipient, uint256 amount);
+    event TreasuryPaid(uint256 indexed tokenId, uint256 amount);
+
+    function spaceIdentity() external view returns (uint256 chainId, address tokenContract, uint256 tokenId);
+    function configuration() external view returns (Configuration memory);
+    function applications(address gateway) external view returns (
+        address publisher, address implementation, uint64 publishedBlock, bool registered
+    );
+    function appCount() external view returns (uint256);
+    function appAt(uint256 index) external view returns (address);
+    function publish(address implementation, bytes calldata initialization, bytes32 salt) external returns (address gateway);
+    function remove(address gateway) external;
+    function payoutGasLimit() external view returns (uint256);
+    function quote() external view returns (uint256 toll, uint256 revision);
+    function execute(Execution calldata request) external payable;
+    function executingUser() external view returns (address);
+    function executingApp() external view returns (address);
+}
+
+interface INFTApplicationGateway is IERC165 {
+    function runtime() external view returns (address);
+    function implementation() external view returns (address);
+    function implementationCodehash() external view returns (bytes32);
+    function query(bytes calldata data) external view returns (bytes memory);
+}
+```
+
+The Runtime MUST implement `INFTApplicationSpace`, and each gateway MUST implement `INFTApplicationGateway`. Both MUST implement [ERC-165](./eip-165.md). Interface identifiers MUST be computed from the functions declared by each interface, excluding inherited `supportsInterface`.
+
+The execution request separates the native toll ceiling from the application value, gas budget and deadline.
+
+`spaceIdentity()` returns `(chainId, tokenContract, tokenId)`. These values MUST remain constant for that Runtime. `chainId` MUST equal the executing chain ID for this base profile. `tokenContract` MUST implement ERC-721, and `configuration()` MUST revert if the token does not exist.
+
+`configuration()` returns the current owner, economic revision, `nativeToll`, treasury, protocol basis points, and ordered owner-recipient list. `nativeToll` MUST be a nonnegative integer in the executing chain's native base units. It MUST remain constant until an authorized economic configuration change increases the revision. The returned configuration MUST be consistent with the state used to validate a request. A successful ordinary read MUST NOT require a toll payment. `quote()` MUST return this `nativeToll` and the same revision. It MUST NOT depend on an external currency price feed or reprice the toll due to market-price movements.
+
+The initial version settles in the executing chain's native asset, denominated in native base units. A native stable asset is still native settlement and does not imply token allowance use. This profile does not convert a USD-denominated toll into native units during quotation or execution. No native asset ticker, mint configuration, supply, or toll cap is prescribed. Implementations MAY enforce a documented immutable native-unit ceiling. A client MAY display an approximate fiat equivalent, but that estimate MUST NOT affect the on-chain toll or execution validation.
+
+### Economic authority and revisions
+
+Only the current canonical NFT owner MAY change the owner-controlled toll policy and recipients. ERC-721 transfer approval alone MUST NOT grant those configuration rights. `treasury` and `protocolBps` MUST remain constant for the lifetime of the Runtime. Owning the NFT MUST NOT grant control over those parameters. No protocol administrator or upgrade MAY override the owner-controlled toll policy or recipients through another authorization path.
+
+Descriptive metadata changes that leave ownership and economic policy unchanged MUST NOT increase the economic revision.
+
+Each accepted owner-controlled economic change MUST increase the revision. Each actual ownership change MUST increase the revision and clear the prior owner's custom recipients. A transfer to the same owner MAY leave the revision and recipients unchanged. Revisions MUST NOT wrap or be reused. A new owner MAY install a new recipient list through an authorized configuration operation.
+
+The configuration mutation ABI and NFT mint mechanism are outside this version. An authorized change to `nativeToll` or owner recipients MUST increase the economic revision. External exchange rates MUST NOT change `nativeToll`. Execution MUST read the configured amount at validation time and enforce `maxToll`.
+
+The NFT holder's economic rights MUST NOT, by themselves, change publisher authority, application administration, token approvals, stored assets, or application state. Implementations MUST NOT offer a generic NFT-owner withdrawal path into independent app custody as a consequence of this interface.
+
+### Publication and gateway identity
+
+`publish(implementation, initialization, salt)` MUST be available to any caller for an existing initialized base-profile space. The direct caller MUST be recorded as publisher. A factory-assisted route MAY preserve an original publisher only through an authenticated factory path; an arbitrary caller MUST NOT forge that field.
+
+Publication MUST reject an implementation without code. It MUST create a distinct gateway, record its publisher and implementation, append it to enumeration, and emit `Published`. For the motivating storage-isolation profile, initialization executes once during construction against the gateway's storage. Applications MUST guard their own initializer against later invocation. This interface does not grant arbitrary code a secure initializer automatically.
+
+The gateway's Runtime and implementation addresses MUST be fixed for its lifetime. The application MUST NOT be able to overwrite Runtime storage by execution. Fixed addresses do not establish that all application behavior is immutable or safe.
+
+`applications(gateway)` MUST expose publisher, implementation, publication block, and registration state. `appCount` and `appAt` MUST enumerate successful publications in order, including removed registrations. An out-of-bounds `appAt` MUST revert. Only the recorded publisher MAY successfully `remove` its registered gateway; removal MUST emit `Removed`, prohibit further execution, and be irreversible for that gateway. It MUST NOT silently move balances or application storage.
+
+The publisher and salt pair MUST NOT be reusable within that Runtime to revive a removed instance. First execution MUST occur in a strictly later EVM block than publication. This is an EVM `block.number` condition; RPC height on an L2 must not be treated as a substitute.
+
+`runtime()` and `implementation()` on a gateway MUST report its fixed bindings. `query(data)` MUST run the requested application read under static EVM semantics and revert if it fails. `implementationCodehash()` MUST return the current EVM code hash of `implementation()`, using the same semantics as Solidity `address.codehash`. This is the immediate target's code hash at read time, not the hash of all code the application may execute and not a guarantee of immutable behavior.
+
+Ordinary state-changing gateway entry MUST be restricted to the bound Runtime. An independently deployed implementation contract outside the gateway remains outside toll enforcement and can be used separately if its own logic allows it; the standard does not create a fee on all blockchain activity.
+
+### Execution validation
+
+`execute(request)` MUST validate the following before dispatch:
+
+1. The gateway is registered, has code, belongs to the Runtime, and is ready for execution.
+2. The recorded implementation has code.
+3. The deadline has not passed; equality with the current block timestamp is allowed.
+4. The submitted revision equals the current configuration revision.
+5. The configured `nativeToll` is at most `maxToll`.
+6. `msg.value` equals that toll plus `appValue` exactly.
+7. The requested data and application gas satisfy documented implementation resource limits.
+8. Sufficient gas remains for bounded application dispatch and settlement.
+
+Overlapping/reentrant `execute` calls MUST revert. Native value supplied for the application MUST be forwarded as application value and MUST NOT be included in the space toll split. `maxToll` MUST NOT be presented as a bound on application prices, approved token spending, or network gas. No maximum payment budget is held for an automatic refund: excess value MUST revert.
+
+The Runtime MUST snapshot the validated configuration for that request. If the NFT transfers during application execution, that request settles using its entry snapshot; subsequent requests MUST use the newer revision. This explicitly defines when the economic owner is sampled.
+
+### Caller context
+
+During application dispatch, `executingUser()` MUST equal the direct `execute` caller and `executingApp()` MUST equal the dispatched gateway. Both MUST be zero outside application dispatch, including during payment callbacks. A failed transaction reverts context writes with the rest of the transaction.
+
+The context supplies identity, not a user's spending grant. Integrations MUST authenticate the expected Runtime and gateway and enforce explicit user/application/action authorization before spending assets. Applications MUST NOT infer the execution user from `tx.origin` or an unvalidated calldata parameter. Forwarding through an unrelated adapter changes `msg.sender`; an adapter cannot claim to preserve user identity without an authenticated mechanism designed for that purpose.
+
+### Native payout semantics
+
+For the initial settlement profile:
+
+- The treasury MUST be nonzero and `protocolBps` MUST be between 0 and 10,000 inclusive.
+- Recipients MUST be nonzero and unique, with positive basis points summing to 10,000 when the list is nonempty. Empty recipients means the owner receives the entire owner share.
+- `protocol = floor(toll * protocolBps / 10000)` and `ownerShare = toll - protocol`.
+- For a custom list, each recipient except the last receives the floor of its share; the last receives the unallocated remainder of `ownerShare`. The order is the published configuration order.
+- `payoutGasLimit()` MUST return a positive native-payment gas allowance fixed for the lifetime of the Runtime. Native settlement calls MUST use that bounded allowance; for a nonzero payment the EVM value-transfer stipend is additional to the call gas argument. A recipient can still receive less gas when the EVM call gas cap applies, and implementations MUST reserve enough gas for settlement. The exact limit is implementation-specific and MUST be discoverable without a toll.
+- Successful nonzero recipient payments MUST emit `Paid`.
+- A rejected recipient's allocation MUST emit `Redirected` and be added to that request's treasury payment. No claimable credit is created for that rejected allocation.
+- A nonzero successful treasury payment MUST emit `TreasuryPaid`. Treasury rejection MUST revert the whole request.
+- Every successful request MUST emit one `Executed`, naming token ID, gateway, caller, toll, and the entry revision.
+
+Application failure, failed validation, or failed mandatory treasury settlement MUST revert application effects and toll payments atomically. Network gas is still consumed. `Paid` reports delivered native value, `Redirected` reports an allocation rejected by its intended recipient, and `TreasuryPaid` reports the actual treasury payment including redirected allocations. These events MUST NOT represent a claimable credit. Zero tolls MUST be supported and MUST NOT require zero-value payout events. Application returndata is not required by this version; callers must use application reads or events where needed.
+
+### Extensions and excluded policies
+
+Factory discovery may reuse an existing contract-linking scheme. This proposal does not duplicate factory bytecode or declare that an arbitrary factory is compliant with a separate linking standard. A universally queryable NFT-to-Runtime directory remains a separate design decision.
+
+Cross-chain state transport requires a separate profile with source identity, authenticated verification, replay prevention, finality policy, and visible effective-state freshness. The existing trusted testnet activation scheme MUST NOT be described as trustless by virtue of this proposal.
+
+Metadata names, artwork, collection royalties, legal licences, app website listings, agent APIs, mint proceeds, and protocol-specific price caps remain outside this interface.
+
+## Rationale
+
+The owner, publisher and user roles serve different purposes. The NFT transfers authority over future toll configuration, while application administration and custody remain with the publisher's application. An integration can distinguish those roles from a known Runtime address without implementing a project-specific indexer.
+
+### Fixed native pricing and exact funding
+
+The toll is priced directly in the chain's native asset. An exchange-rate change cannot change the transaction value required for the same economic revision. An owner price change is an explicit economic change and invalidates requests carrying the previous revision. This removes the quote-conversion race identified during discussion without introducing a refund callback.
+
+Exact funding requires the configured native toll plus application value to equal the transaction value. The maximum toll is still an explicit rejection bound, not a funded budget or tolerance for changing economic revisions. A maximum-budget alternative could return unused value, but would add a refund recipient, callback and failure policy. This profile instead rejects excess funding and creates no refund credit. Application value is independent of the toll and is never part of its split.
+
+Removing USD conversion does not stabilize the fiat value of a toll. Owners can change the native amount through their authorized configuration path, which increases the economic revision. A fiat equivalent displayed by a client is informational only. A fixed native-unit ceiling, if configured by an implementation, is not a guarantee of a fixed USD ceiling.
+
+### Publication, removal and application responsibility
+
+The profile combines open publication, publisher identity and publisher-only removal so clients can determine whether an application can execute and who may stop it. The publication list is not an endorsement from the NFT owner. Client-side filtering does not grant the owner removal authority. Removal stops execution and has no general post-removal withdrawal path. The publisher needs application-specific withdrawal or migration mechanisms and shutdown planning before removal; assigning that responsibility does not make a malicious shutdown safe or recover assets afterward. A generic exit that ignores the Runtime toll or economic revision is outside this profile.
+
+### Payout policy and scope
+
+The native push-settlement profile exposes its configuration and payment gas allowance. It does not prescribe a collection size, mint price, USD toll cap or fixed percentage split. The motivating implementation uses a 40,000 call-gas argument; the proposal makes that parameter discoverable instead of requiring every implementation to use the same value. Publication, discovery or alternative settlement profiles can be separated in future proposals with distinct interface identifiers; they are not silently interchangeable under the interface defined here.
+
+The interface describes actual native payments, not a transferable accrued-fee stream. Economic authority follows the NFT, including transfers performed by an approved token operator. A recipient-controlled fee-stream model, as compared in the discussion, has different recipient authority and accounting. Similar economic terminology does not imply compatible interfaces.
+
+[ERC-6551](./eip-6551.md) defines NFT-bound accounts. [ERC-7656](./eip-7656.md) provides generalized contract-linked service deployment, which can supply a linking layer without replacing this execution and toll interface. This proposal starts with a known Runtime address and does not define a competing universal NFT-to-Runtime directory. The proposed contribution is the shared execution, economic-state and publisher semantics. Its usefulness depends on independent implementations and integrations, not on the novelty of linking a contract to an NFT.
+
+Cross-network activation is intentionally outside the same-chain profile. A remote registry may lag canonical ownership and has transport, finality and liveness assumptions that a local owner getter does not have. Neither a messaging provider nor a number of confirmations is required by this interface.
+
+## Backwards Compatibility
+
+ERC-721 ownership and transfers remain unchanged. [ERC-2981](./eip-2981.md) royalties, if implemented by a collection, remain independent. The motivating testnet implementation converts a USD-denominated toll through an oracle. That pricing behavior does not conform to this fixed-native profile. Its deployed contracts expose several execution/publication functions but do not implement `spaceIdentity`, the proposed `configuration`, the proposed payout gas getter and gateway code-hash getter, or these ERC-165 interface claims. Their immutable deployments are not retroactively compliant. A future implementation is needed for full conformance; no migration or deployment is authorized by this draft.
+
+## Test Cases
+
+Proposed conformance vectors, not tests claimed to have passed on deployed contracts:
+
+1. A missing NFT rejects configuration and publication.
+2. A non-owner cannot change the owner-controlled configuration; transfer operators get no extra economic authority.
+3. Transfer clears custom recipients and invalidates old request revisions.
+4. Wrong revision, expired deadline, too-small maximum toll, and under/overpayment each revert without app effects or payouts.
+5. The app receives exactly `appValue`; the split applies only to the toll.
+6. App failure and treasury rejection each revert app effects and payouts.
+7. Recipient rejection produces a redirection and an increased treasury payment, without a later credit.
+8. Rounding preserves `toll = successful owner payouts + treasury payment`.
+9. User/app context exists only during dispatch; an unauthorized adapter cannot use it as a spending grant.
+10. Removed gateways cannot execute or be revived with the same publisher/salt pair.
+11. Two gateways sharing implementation and NFT retain independent storage.
+12. A transfer during app execution affects subsequent requests; the current request settles its entry snapshot.
+13. Zero toll works without unnecessary zero-value recipient calls.
+14. ERC-165 reports the exact proposed interfaces and rejects `0xffffffff`.
+
+These cases describe conformance requirements. They do not claim that an implementation of the complete proposed interface has been deployed. Exchange-rate changes must leave the native quote and required funding unchanged for the same economic revision. An authorized native-price change must increase the revision and invalidate the previous request. A metadata-only change must leave the economic revision unchanged. Code-hash inspection identifies only the immediate implementation target.
+
+## Security Considerations
+
+Registration does not certify application safety. Delegatecall must target gateway storage rather than Runtime storage. Apps may retain approved assets, expose unsafe initializers, or call external contracts. A fixed implementation address alone does not prove immutable downstream behavior. Gateway removal can disable withdrawals and requires application-specific planning before removal.
+
+Receivers can reject native value or exceed the payout allowance. Redirection changes the amount actually received by the treasury and must not be reported as owner income. A treasury that cannot accept settlement blocks successful execution. Fiat-price movement changes the economic value of a fixed native toll. Clients must distinguish the configured native amount from an indicative fiat display. Native caps, if any, do not enforce USD caps. The absence of toll conversion does not establish the correctness of application pricing or external services.
+
+Anyone observing context during callbacks must not treat it as a permission grant. Reentrancy protection, isolated storage, explicit spending grants, and bounded external execution remain necessary. NFT transfer and configuration changes are sampled at the defined validation boundary; buyers must review the configured toll and independent app risks.
+
+Signature-based configuration or meta-transaction extensions, if introduced, require domain separation, nonce/replay controls, contract-wallet support, expiry, and explicit user identity semantics. They are not silently supplied by the base direct-caller interface.
+
+This document is neither a security audit nor a claim of mainnet readiness. A community standard also cannot guarantee independent adoption, transaction volume, or economic return.
+
+## Copyright
+
+Copyright and related rights waived via [CC0](../LICENSE.md).
