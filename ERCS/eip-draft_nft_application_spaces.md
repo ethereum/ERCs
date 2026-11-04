@@ -125,6 +125,14 @@ Descriptive metadata changes that leave ownership and economic policy unchanged 
 
 Each accepted owner-controlled economic change MUST increase the revision. Each actual ownership change MUST increase the revision and clear the prior owner's custom recipients. A transfer to the same owner MAY leave the revision and recipients unchanged. Revisions MUST NOT wrap or be reused. A new owner MAY install a new recipient list through an authorized configuration operation.
 
+### Transfer integration
+
+ERC-721 compliance alone is insufficient for this profile. The canonical collection MUST integrate every actual ownership change with the economic state read by the Runtime. That integration MUST update the economic owner, increase the revision, and clear the previous owner's custom recipients atomically with the ownership change, before any external transfer-receiver callback or other external interaction that can observe the new ownership. If the required economic-state update fails, the ownership change MUST revert. The integration MUST cover every ownership-changing path, including transfers by approved operators, rather than only `safeTransferFrom`.
+
+The collection MAY maintain this state internally or synchronously update a bound economic-state contract. An external transfer-notification entry point, if used, MUST accept notifications only from the canonical collection and MUST NOT let another caller forge an ownership change. The integration mechanism and its internal ABI are implementation-specific and MUST be documented. Clients read the resulting state through the Runtime's `configuration()` and `quote()` interfaces; this proposal does not require a new callback from an arbitrary ERC-721 collection.
+
+Comparing the current `ownerOf` result with a previously observed owner, reading off-chain transfer logs, or waiting for a later synchronization transaction MUST NOT substitute for this integration. After A transfers to B and B transfers back to A, even without an intervening Runtime call, the revision MUST have increased for both changes and A's earlier custom recipients MUST remain cleared unless reinstalled through a new authorized configuration operation. A collection without a compatible transfer integration MUST NOT be represented as satisfying this base profile. Burning and later reminting the same token ID, if supported, MUST NOT reuse an earlier revision or restore an earlier recipient list.
+
 The configuration mutation ABI and NFT mint mechanism are outside this version. An authorized change to `nativeToll` or owner recipients MUST increase the economic revision. External exchange rates MUST NOT change `nativeToll`. Execution MUST read the configured amount at validation time and enforce `maxToll`.
 
 The NFT holder's economic rights MUST NOT, by themselves, change publisher authority, application administration, token approvals, stored assets, or application state. Implementations MUST NOT offer a generic NFT-owner withdrawal path into independent app custody as a consequence of this interface.
@@ -208,6 +216,10 @@ Removing USD conversion does not stabilize the fiat value of a toll. Owners can 
 
 The profile combines open publication, publisher identity and publisher-only removal so clients can determine whether an application can execute and who may stop it. The publication list is not an endorsement from the NFT owner. Client-side filtering does not grant the owner removal authority. Removal stops execution and has no general post-removal withdrawal path. The publisher needs application-specific withdrawal or migration mechanisms and shutdown planning before removal; assigning that responsibility does not make a malicious shutdown safe or recover assets afterward. A generic exit that ignores the Runtime toll or economic revision is outside this profile.
 
+### Transfer integration and compatibility
+
+An owner getter reports the current owner, not the number of intervening transfers. ERC-721 transfer events do not themselves notify a Runtime during on-chain execution, and the receiver callback of a safe transfer addresses the recipient rather than an arbitrary linked Runtime. Requiring collection-integrated economic state preserves the revision guarantee for consecutive transfers without introducing a keeper, attestor, or delayed synchronization dependency. The public Runtime interface remains the interoperability boundary; collection integration is an explicit prerequisite rather than an assumption about every existing ERC-721.
+
 ### Payout policy and scope
 
 The native push-settlement profile exposes its configuration and payment gas allowance. It does not prescribe a collection size, mint price, USD toll cap or fixed percentage split. The motivating implementation uses a 40,000 call-gas argument; the proposal makes that parameter discoverable instead of requiring every implementation to use the same value. Publication, discovery or alternative settlement profiles can be separated in future proposals with distinct interface identifiers; they are not silently interchangeable under the interface defined here.
@@ -220,7 +232,7 @@ Cross-network activation is intentionally outside the same-chain profile. A remo
 
 ## Backwards Compatibility
 
-ERC-721 ownership and transfers remain unchanged. [ERC-2981](./eip-2981.md) royalties, if implemented by a collection, remain independent. The motivating testnet implementation converts a USD-denominated toll through an oracle. That pricing behavior does not conform to this fixed-native profile. Its deployed contracts expose several execution/publication functions but do not implement `spaceIdentity`, the proposed `configuration`, the proposed payout gas getter and gateway code-hash getter, or these ERC-165 interface claims. Their immutable deployments are not retroactively compliant. A future implementation is needed for full conformance; no migration or deployment is authorized by this draft.
+ERC-721 ownership and transfer authorization remain unchanged, but this profile additionally requires the collection's transfer integration defined above. An existing ERC-721 collection without that integration is not automatically compatible; adding an owner getter, event indexer, or polling adapter alone is insufficient. [ERC-2981](./eip-2981.md) royalties, if implemented by a collection, remain independent. The motivating testnet implementation converts a USD-denominated toll through an oracle. That pricing behavior does not conform to this fixed-native profile. Its deployed contracts expose several execution/publication functions but do not implement `spaceIdentity`, the proposed `configuration`, the proposed payout gas getter and gateway code-hash getter, or these ERC-165 interface claims. Their immutable deployments are not retroactively compliant. A future implementation is needed for full conformance; no migration or deployment is authorized by this draft.
 
 ## Test Cases
 
@@ -240,6 +252,10 @@ Proposed conformance vectors, not tests claimed to have passed on deployed contr
 12. A transfer during app execution affects subsequent requests; the current request settles its entry snapshot.
 13. Zero toll works without unnecessary zero-value recipient calls.
 14. ERC-165 reports the exact proposed interfaces and rejects `0xffffffff`.
+15. Starting with owner A, revision 20 and custom recipients, A transfers to B and B transfers back to A without a Runtime call between transfers. The final revision is at least 22, the prior recipients remain cleared, and a request carrying revision 20 reverts without app effects or payouts.
+16. Both `transferFrom` and each `safeTransferFrom` overload, including approved-operator transfers, update economic state. A transfer-receiver callback observes the new economic owner, an increased revision, and no previous-owner custom recipients.
+17. Failure of a required economic-state update reverts the transfer and preserves the previous ownership and configuration. If an external transfer-notification entry point exists, a caller other than the canonical collection cannot change economic state through it.
+18. A collection that only exposes the current owner, or relies on a later synchronization transaction, cannot satisfy the transfer-integration requirements. If burn and remint of the same token ID are supported, they cannot restore an earlier revision or recipient list.
 
 These cases describe conformance requirements. They do not claim that an implementation of the complete proposed interface has been deployed. Exchange-rate changes must leave the native quote and required funding unchanged for the same economic revision. An authorized native-price change must increase the revision and invalidate the previous request. A metadata-only change must leave the economic revision unchanged. Code-hash inspection identifies only the immediate implementation target.
 
@@ -250,6 +266,8 @@ Registration does not certify application safety. Delegatecall must target gatew
 Receivers can reject native value or exceed the payout allowance. Redirection changes the amount actually received by the treasury and must not be reported as owner income. A treasury that cannot accept settlement blocks successful execution. Fiat-price movement changes the economic value of a fixed native toll. Clients must distinguish the configured native amount from an indicative fiat display. Native caps, if any, do not enforce USD caps. The absence of toll conversion does not establish the correctness of application pricing or external services.
 
 Anyone observing context during callbacks must not treat it as a permission grant. Reentrancy protection, isolated storage, explicit spending grants, and bounded external execution remain necessary. NFT transfer and configuration changes are sampled at the defined validation boundary; buyers must review the configured toll and independent app risks.
+
+Transfer integration must complete before control reaches external receiver code. An unauthenticated notification can forge economic state, while an omitted transfer path or delayed update can accept stale revisions even when `ownerOf` again reports the earlier owner. Implementations must preserve the validated entry snapshot of an execution if a transfer occurs during application dispatch; transfer integration must not overwrite that in-flight settlement snapshot.
 
 Signature-based configuration or meta-transaction extensions, if introduced, require domain separation, nonce/replay controls, contract-wallet support, expiry, and explicit user identity semantics. They are not silently supplied by the base direct-caller interface.
 
