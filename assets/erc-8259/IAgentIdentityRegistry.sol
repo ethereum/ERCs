@@ -101,8 +101,8 @@ interface IAgentIdentityRegistry {
     ) external payable;
 
     /**
-     * @notice Returns the effective verification tier of an agent, accounting for expiry.
-     * @dev MUST return 0 if block.timestamp > verificationExpiry.
+     * @notice Returns the effective verification tier of an agent, accounting for active status and expiry.
+     * @dev MUST return 0 if the agent is inactive (!isActive) OR if block.timestamp > verificationExpiry.
      * @param agentAddress Address of the agent.
      * @return Effective verification tier level (0-4).
      */
@@ -132,9 +132,10 @@ interface IAgentIdentityRegistry {
         returns (address);
 
     /**
-     * @notice Queries whether an agent has active, unexpired verification (getEffectiveTier > 0).
+     * @notice Queries whether an agent has active, unexpired verification.
+     * @dev MUST return false if the agent is inactive (!isActive) or if getEffectiveTier <= 0.
      * @param agentAddress Address of the agent.
-     * @return True if the agent holds an unexpired verification tier above 0.
+     * @return True if the agent is active and holds an unexpired verification tier above 0.
      */
     function isVerified(address agentAddress)
         external
@@ -143,11 +144,12 @@ interface IAgentIdentityRegistry {
 
     /**
      * @notice Computes an effective trust score for an agent combining reputation and tier.
-     * @dev MUST use getEffectiveTier(agentAddress) — not the stored verificationTier field — for
+     * @dev MUST return 0 if the agent is inactive (!isActive).
+     *      MUST use getEffectiveTier(agentAddress) — not the stored verificationTier field — for
      *      any tier-based weighting or multiplier. An expired verification MUST contribute zero
      *      tier boost to the returned score even if the stored verificationTier field is non-zero.
      * @param agentAddress Address of the agent.
-     * @return Effective score between 0 and 1000.
+     * @return Effective score between 0 and 1000 (0 for inactive agents).
      */
     function calculateTrustScore(address agentAddress)
         external
