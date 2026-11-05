@@ -809,7 +809,7 @@
         "id": "fetch1",
         "basis": "spec",
         "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding (d21f46e)",
-        "fixture": "upstream-page.fetch1.html",
+        "fixture": "upstream-page.fetch1.html.txt",
         "bytesLength": 362,
         "expected": {
           "evidence": {
@@ -825,7 +825,7 @@
         "id": "fetch2",
         "basis": "spec",
         "note": "hash = keccak256 of the raw bytes in the fixture file, as read; no parsing, no re-encoding (d21f46e)",
-        "fixture": "upstream-page.fetch2.html",
+        "fixture": "upstream-page.fetch2.html.txt",
         "bytesLength": 362,
         "expected": {
           "evidence": {

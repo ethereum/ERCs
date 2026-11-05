@@ -772,7 +772,7 @@ def upstream_page(retrieved_at, nonce):
 
 
 def upstream_fixture_name(i):
-    return f"upstream-page.fetch{i + 1}.html"
+    return f"upstream-page.fetch{i + 1}.html.txt"
 
 
 def build_document_evidence():
