@@ -102,6 +102,36 @@ def eip712_digest(report):
     return hx(keccak256(b"\x19\x01" + domain + struct))
 
 
+def path_error(path, request):
+    """None, or the error code for a path that does not parse or names a part the request does not have."""
+    s = request["subject"]
+    m = PATH_RE.match(path) if isinstance(path, str) else None
+    if not m:
+        return "path-syntax"
+    if path == "typedData" and "typedData" not in s:
+        return "path-out-of-range"
+    if m.group(1) is not None and int(m.group(1)) >= len(s.get("calls", [])):
+        return "path-out-of-range"
+    return None
+
+
+def approval_errors(report, request):
+    """Error codes for the optional `path` (and its agreement with `callIndex`) of each approval entity."""
+    errs = []
+    for a in report["entities"]["approvals"]:
+        if "path" in a:
+            e = path_error(a["path"], request)
+            if e:
+                errs.append("approval-" + e)
+            elif "callIndex" in a and a["path"] != f"tx.calls[{a['callIndex']}]":
+                errs.append("approval-path-disagrees-with-callIndex")
+    return errs
+
+
+def report_errors(report, request):
+    return coverage_errors(report, request) + approval_errors(report, request)
+
+
 def coverage_errors(report, request):
     """Error codes for the report's `coverage`; [] means it conforms."""
     if "coverage" not in report:
@@ -120,13 +150,9 @@ def coverage_errors(report, request):
         if not isinstance(g, dict) or set(g) != {"path", "reason", "nested"}:
             errs.append("gap-malformed")
             continue
-        m = PATH_RE.match(g["path"]) if isinstance(g["path"], str) else None
-        if not m:
-            errs.append("path-syntax")
-        elif g["path"] == "typedData" and "typedData" not in s:
-            errs.append("path-out-of-range")
-        elif m.group(1) is not None and int(m.group(1)) >= len(s.get("calls", [])):
-            errs.append("path-out-of-range")
+        e = path_error(g["path"], request)
+        if e:
+            errs.append(e)
         if g["path"] in seen:
             errs.append("path-duplicate")
         seen.add(g["path"])
@@ -216,8 +242,28 @@ def direct_case():
     return req, report(req, entities, findings, {"status": "complete", "gaps": []})
 
 
+def decoded_case():
+    """The same batch sent to a source that decodes ERC-7821 and knows the account implements it."""
+    inner = [(TOKEN, 0, approve_data(SPENDER, MAX))]
+    req = request([(ACCOUNT, 0, erc7821_batch(inner))])
+    entities = {"tokens": [caip10(TOKEN)],
+                "approvals": [{"token": caip10(TOKEN), "spender": caip10(SPENDER), "form": "erc20-approve",
+                               "path": "tx.calls[0].inner[0]"}],
+                "addresses": [{"address": caip10(ACCOUNT), "role": "target"},
+                              {"address": caip10(SPENDER), "role": "spender"},
+                              {"address": caip10(TOKEN), "role": "token"}],
+                "payment": False, "texts": []}
+    findings = [
+        {"kind": "erc.presign.approval.amount", "entity": {"approval": 0}, "status": "read", "value": str(MAX),
+         "evidence": []},
+        {"kind": "erc.presign.approval.unlimited", "entity": {"approval": 0}, "status": "read", "value": True,
+         "evidence": []},
+    ] + address_findings(ACCOUNT, "target") + address_findings(SPENDER, "spender") + address_findings(TOKEN, "token")
+    return req, report(req, entities, findings, {"status": "complete", "gaps": []})
+
+
 def expected(req, rep):
-    errs = coverage_errors(rep, req)
+    errs = report_errors(rep, req)
     out = {"conforms": not errs, "errors": errs, "subjectDigest": subject_digest(req)}
     if not errs:
         out.update({"coverageStatus": rep["coverage"]["status"], "gaps": rep["coverage"]["gaps"],
@@ -241,6 +287,7 @@ def mutate(rep, coverage=..., drop=False):
 def build():
     wreq, wrep, inner = wrapped_case()
     dreq, drep = direct_case()
+    breq, brep = decoded_case()
     vectors = [
         {"id": "wrapped-approve-unsupported-batch", "basis": "spec",
          "note": "The reviewer's case: approve(spender, 2^256 - 1) to the token inside an ERC-7821 batch "
@@ -254,6 +301,11 @@ def build():
                  "Complete says the request was decoded, not that the approval is safe.",
          "request": dreq, "report": drep, "expected": expected(dreq, drep)},
     ]
+    vectors.append(
+        {"id": "wrapped-approve-decoded-batch", "basis": "spec",
+         "note": "The same batch sent to a source that decodes ERC-7821 and knows the account implements it: coverage "
+                 "complete, and the approval entity is located by path tx.calls[0].inner[0], with no callIndex.",
+         "request": breq, "report": brep, "expected": expected(breq, brep)})
     lie = mutate(wrep, {"status": "complete", "gaps": []})
     signed = {"id": "coverage-is-signed", "basis": "spec",
               "note": "The wrapped report with its coverage rewritten to complete conforms on its own but has another "
@@ -306,8 +358,26 @@ def build():
         assert not coverage_errors(r, wreq), cid
         conformance.append({"id": cid, "basis": "spec", "note": note, "coverage": cov,
                             "expected": {"conforms": True, "errors": []}})
-    return {"description": "report coverage: status, gaps, path syntax, signing; conformance cases are checked against "
-                           "the request of wrapped-approve-unsupported-batch",
+    approval_cases = [
+        ("approval-path-syntax", "an approval path uses the gap path syntax", {"path": "calls[0].inner[0]"}, False),
+        ("approval-path-out-of-range", "the request has one call", {"path": "tx.calls[1].inner[0]"}, False),
+        ("approval-path-disagrees-with-callIndex", "a top-level approval's path is tx.calls[callIndex]",
+         {"callIndex": 0, "path": "tx.calls[0].inner[0]"}, False),
+        ("approval-top-level-both", "a top-level approval may carry callIndex and path together",
+         {"callIndex": 0, "path": "tx.calls[0]"}, True),
+    ]
+    for cid, note, fields, ok in approval_cases:
+        r = json.loads(json.dumps(brep))
+        a = {k: v for k, v in r["entities"]["approvals"][0].items() if k not in ("path", "callIndex")}
+        a.update(fields)
+        r["entities"]["approvals"][0] = a
+        e = report_errors(r, breq)
+        assert (not e) == ok, cid
+        conformance.append({"id": cid, "basis": "spec", "note": note, "approval": a,
+                            "expected": {"conforms": ok, "errors": e}})
+    return {"description": "report coverage and approval paths: status, gaps, path syntax, signing; coverage "
+                           "conformance cases are checked against the request of wrapped-approve-unsupported-batch, "
+                           "approval cases against the report of wrapped-approve-decoded-batch",
             "pathGrammar": "path = \"typedData\" / \"tx\" [ \".calls[\" index \"]\" *( \".inner[\" index \"]\" ) "
                            "[ \".inner\" ] ]; index = \"0\" / %x31-39 *DIGIT",
             "vectors": vectors, "conformance": conformance, "open": []}
@@ -341,7 +411,7 @@ def main():
         else:  # also re-validate what is on disk, not only what was rebuilt
             d = json.loads(cur)
             for v in d["vectors"]:
-                if coverage_errors(v["report"], v["request"]) != v["expected"]["errors"]:
+                if report_errors(v["report"], v["request"]) != v["expected"]["errors"]:
                     ok = False
                     print(f"FAIL {v['id']}")
     print(f"{'wrote' if write else 'ok  '} coverage.json: {len(data['vectors']) + len(data['conformance'])}"
