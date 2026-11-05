@@ -466,9 +466,76 @@
       }
     },
     {
+      "id": "other-namespace-case-different-hash",
+      "basis": "spec",
+      "note": "a namespace other than eip155, bip122 and solana is compared as written: a case variant is a different account (d21f46e)",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "xmpl:testnet:AbCdEf0123XyZ"
+            }
+          ]
+        },
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "xmpl:testnet:abcdef0123xyz"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "hashes": [
+          "0x4d2cbb5a618fb5ad6eb227da6223e44736d65c363c7d5b7de2f1428b8310f8c7",
+          "0x5afc1d69d2066f43c6e1a3620d6794be475f9789721d74597df1685419a202c2"
+        ],
+        "sameHash": false,
+        "canonical": [
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"xmpl:testnet:AbCdEf0123XyZ\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}",
+          "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"xmpl:testnet:abcdef0123xyz\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+        ]
+      }
+    },
+    {
+      "id": "other-namespace-case-variants-both-kept",
+      "basis": "spec",
+      "note": "both case variants are kept as two entries, not merged, and the list conforms (d21f46e)",
+      "documents": [
+        {
+          "version": "erc-presign-list/1",
+          "source": "https://example.org/upstream/synthetic-list",
+          "criteria": "Synthetic addresses for test vectors; not a real list.",
+          "attestation": "Synthetic attestation covering every entry.",
+          "entries": [
+            {
+              "account": "xmpl:testnet:abcdef0123xyz"
+            },
+            {
+              "account": "xmpl:testnet:AbCdEf0123XyZ"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "conforms": true,
+        "entries": 2,
+        "hash": "0x02d9d72b65bd46861faf3a26879410814c685aa0417832bce74fb30752854c04",
+        "canonical": "{\"attestation\":\"Synthetic attestation covering every entry.\",\"criteria\":\"Synthetic addresses for test vectors; not a real list.\",\"entries\":[{\"account\":\"xmpl:testnet:AbCdEf0123XyZ\"},{\"account\":\"xmpl:testnet:abcdef0123xyz\"}],\"source\":\"https://example.org/upstream/synthetic-list\",\"version\":\"erc-presign-list/1\"}"
+      }
+    },
+    {
       "id": "empty-entries",
-      "basis": "reference",
-      "note": "a list with no entries: the draft names no rule against it, so it conforms here and every on-list finding against it reads null (was open Q7)",
+      "basis": "spec",
+      "note": "a list with no entries conforms; on-list against it reads null for every address (d21f46e; was open Q7, see match.json empty-list-reads-null)",
       "documents": [
         {
           "version": "erc-presign-list/1",

@@ -1,5 +1,5 @@
 {
-  "description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written)",
+  "description": "account normalization (draft: EVM lowercase hex, bech32 lowercase, base58 as written, other namespaces as written) and the bip122 encoding rule of d21f46e",
   "vectors": [
     {
       "id": "evm-eip55-to-lower",
@@ -190,7 +190,7 @@
     {
       "id": "reject-bad-bech32-checksum",
       "basis": "reference",
-      "note": "last character changed",
+      "note": "last character changed: base58 by the d21f46e rule, but not valid base58check, so treated as not valid (our call, see README open question)",
       "input": "bip122:000000000019d6689c085ae165831e93:bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968q",
       "expected": {
         "ok": false
@@ -221,6 +221,141 @@
       "input": "eip155:01:0x8532FA14ACAf483729C449b8458aedDb900543D4",
       "expected": {
         "ok": false
+      }
+    },
+    {
+      "id": "base58-btc-p2sh",
+      "basis": "spec",
+      "note": "not a valid BIP-173/350 address, so base58, kept as written (d21f46e)",
+      "input": "bip122:000000000019d6689c085ae165831e93:34ZzsFipeK2C6YiYAPCMspm7A4zPUedpid",
+      "expected": {
+        "ok": true,
+        "account": "bip122:000000000019d6689c085ae165831e93:34ZzsFipeK2C6YiYAPCMspm7A4zPUedpid",
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "other-namespace-as-written",
+      "basis": "spec",
+      "note": "a namespace other than eip155, bip122 and solana: kept exactly as written, case included (d21f46e)",
+      "input": "xmpl:testnet:AbCdEf0123XyZ",
+      "expected": {
+        "ok": true,
+        "account": "xmpl:testnet:AbCdEf0123XyZ",
+        "encoding": "as-written"
+      }
+    },
+    {
+      "id": "other-namespace-lower-variant",
+      "basis": "spec",
+      "note": "the lowercase variant is also kept as written: a different account (d21f46e)",
+      "input": "xmpl:testnet:abcdef0123xyz",
+      "expected": {
+        "ok": true,
+        "account": "xmpl:testnet:abcdef0123xyz",
+        "encoding": "as-written"
+      }
+    }
+  ],
+  "classification": [
+    {
+      "id": "bech32-p2wpkh-lower",
+      "basis": "spec",
+      "note": "valid BIP-173 (witness v0, bech32 checksum)",
+      "namespace": "bip122",
+      "address": "bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968s",
+      "expected": {
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "bech32-p2wpkh-upper",
+      "basis": "spec",
+      "note": "all upper case is valid BIP-173, so bech32 (normalized to lowercase)",
+      "namespace": "bip122",
+      "address": "BC1QXRXUJWXFNVZ040JW76D26ZHJDG5JURA7HS968S",
+      "expected": {
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "bech32-synthetic-p2wpkh",
+      "basis": "spec",
+      "note": "valid BIP-173",
+      "namespace": "bip122",
+      "address": "bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wynqtvx8g",
+      "expected": {
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "bech32m-p2tr",
+      "basis": "spec",
+      "note": "valid BIP-350 (witness v1, bech32m checksum)",
+      "namespace": "bip122",
+      "address": "bc1pa5pwth36su8xglxxqd6hv7k8rmpc03sg7atd6wvklwadpl4d793q79t6hp",
+      "expected": {
+        "encoding": "bech32"
+      }
+    },
+    {
+      "id": "base58-p2pkh",
+      "basis": "spec",
+      "note": "not BIP-173/350: base58",
+      "namespace": "bip122",
+      "address": "1F6wpG43n6Qn9AjrRaDpFhmvJrvcAhqg3g",
+      "expected": {
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "base58-p2sh",
+      "basis": "spec",
+      "note": "not BIP-173/350: base58",
+      "namespace": "bip122",
+      "address": "34ZzsFipeK2C6YiYAPCMspm7A4zPUedpid",
+      "expected": {
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "bad-bech32-checksum-is-base58",
+      "basis": "spec",
+      "note": "last character changed: not a valid BIP-173 address, so base58 by the text. It is not valid base58check either; whether the list conforms is a reference choice (normalize.json reject-bad-bech32-checksum)",
+      "namespace": "bip122",
+      "address": "bc1qxrxujwxfnvz040jw76d26zhjdg5jura7hs968q",
+      "expected": {
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "v1-with-bech32-checksum-is-base58",
+      "basis": "spec",
+      "note": "witness v1 with the BIP-173 checksum: BIP-350 makes it invalid, so base58 by the text",
+      "namespace": "bip122",
+      "address": "bc1pa5pwth36su8xglxxqd6hv7k8rmpc03sg7atd6wvklwadpl4d793qtemkjr",
+      "expected": {
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "v0-with-bech32m-checksum-is-base58",
+      "basis": "spec",
+      "note": "witness v0 with the BIP-350 checksum: invalid, so base58 by the text",
+      "namespace": "bip122",
+      "address": "bc1qzuu4ds2gcyyvk4xrwgtut2pmswxz0wyn4hu2z2",
+      "expected": {
+        "encoding": "base58"
+      }
+    },
+    {
+      "id": "mixed-case-bech32-is-base58",
+      "basis": "spec",
+      "note": "mixed case is not valid BIP-173, so the encoding rule gives base58; the list still does not conform, since a mixed-case bech32 account is named as invalid (9abaacf, normalize.json reject-mixed-case-bech32)",
+      "namespace": "bip122",
+      "address": "Bc1QxRxUjWxFnVz040Jw76D26zHjDg5JuRa7Hs968S",
+      "expected": {
+        "encoding": "base58"
       }
     }
   ],
