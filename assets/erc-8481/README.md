@@ -65,3 +65,20 @@ anchor and historical-signer assets are CC0-1.0. The delegate vectors are unchan
 `on-list/` holds JSON vectors for the `address.on-list` list document: normalization, the list hash, matching,
 not-read reasons and diffs between list versions. Run `python3 on-list/onlist_vectors.py` (standard library only).
 They are CC0-1.0, by the RUNECLAW team.
+
+## Coverage vectors
+
+`coverage/` holds JSON vectors for the report's `coverage` object, the answer to the case where a source cannot decode
+part of a request (review: Revinand). Run `python3 coverage/coverage_vectors.py` (standard library only; it reuses
+keccak256 and RFC 8785 from `on-list/onlist_vectors.py`); `--write` regenerates `coverage.json` deterministically.
+
+- `wrapped-approve-unsupported-batch`: `approve(spender, 2^256 - 1)` inside an ERC-7821 batch `execute(bytes32,bytes)`
+  the source does not decode. Only the outer target is listed, every finding is read, and `coverage` is `partial`
+  with a gap at `tx.calls[0]` (`unsupported-selector`, `not-inspected`). The hidden call is given under `hidden`.
+- `direct-approve-complete`: the same approval as a direct call, `coverage` `complete`, one approval entity.
+- `coverage-is-signed`: the first report with `coverage` rewritten to `complete` has another `reportHash`.
+- `conformance`: 16 malformed `coverage` values (absent, status and gaps disagreeing, values outside the enums, bad
+  or out-of-range paths, a duplicate path, `nested` disagreeing with `reason`, an extra member) and 3 valid ones.
+
+Each vector carries the subject digest, `reportHash` and the EIP-712 digest the source would sign; `signature` is a
+placeholder. The batch calldata and one EIP-712 digest were also recomputed with Foundry's `cast`, and agree. CC0-1.0.
