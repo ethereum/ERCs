@@ -262,7 +262,7 @@ contract ERC8473ExecutedIntegrationTest is InstructionHelpers {
   function test_APolicyCanDisableDirectTransfersWhileExecutorsSettle() public {
     ExecutedRulesPolicy _rules = _installRules();
     _rules.setDirectTransfersDisabled(true);
-    bytes32 _disabled = _rules.DIRECT_TRANSFERS_DISABLED();
+    bytes32 _disabled = _rules.KIND_NOT_ALLOWED();
     IExampleExecutorToken.Instruction memory _built = _instruction(_actors[0], _actors[1], 1);
     bytes memory _signature = _sign(_keys[0], address(_token), _built);
 

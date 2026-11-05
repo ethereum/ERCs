@@ -241,6 +241,18 @@ A check permits if and only if it returns `TRANSFER_OK`. Every other value is a 
 
 Policies SHOULD derive each rejection reason as the `keccak256` of an upper-case name, for example `keccak256("RECEIVER_NOT_ELIGIBLE")`. They SHOULD document the reasons they return. Integrators MUST NOT treat an unrecognised value as permission.
 
+When a policy rejects for one of these reasons, it SHOULD use the name listed for it. A policy names any other reason itself.
+
+| Name | The policy rejects because |
+|---|---|
+| `SENDER_NOT_ELIGIBLE` | `from`, or the account `checkSend` is asked about, may not send, for example because it is not verified or is in an excluded jurisdiction |
+| `RECEIVER_NOT_ELIGIBLE` | `to`, or the account `checkReceive` is asked about, may not receive, for the same kinds of reason |
+| `LOCKED_UP` | the tokens that would move are still in a lock-up or holding period |
+| `MAX_HOLDERS` | the movement would take the number of holders above a cap |
+| `WINDOW_CLOSED` | the movement falls outside the hours or dates the policy allows |
+| `KIND_NOT_ALLOWED` | the policy does not allow this kind of movement, such as a `TRANSFER` when holders may move tokens only through an executor |
+| `OPERATOR_NOT_ALLOWED` | the movement is `EXECUTED` or `FORCED`, and the policy does not accept `operator` as the account carrying it out |
+
 ### Transfer kinds
 
 The kind records the authority under which a movement happens, as determined from on-chain facts. It is not the name of the function or business process that caused the movement. The token MUST give each movement the first kind in this list whose condition holds:
@@ -444,7 +456,7 @@ Zero is what Solidity returns from a function whose named return value is never 
 
 [ERC-1271](./eip-1271.md) and ERC-721's receiver hook use a function selector as their magic success value. That would be unsafe here: `checkTransfer` takes one dynamic argument, so a contract that echoes its calldata returns exactly `bytes32(checkTransfer.selector)`. A string hash cannot be produced by accident that way.
 
-Decisions are `bytes32`, not `bool`, because operators and integrators need to know why a movement was rejected. Hashing a name lets every policy define its own reasons without a central registry.
+Decisions are `bytes32`, not `bool`, because operators and integrators need to know why a movement was rejected. Hashing a name lets every policy define its own reasons without a central registry. The names listed in the Specification give the most common rejections the same value in every policy, so a wallet can explain them without knowing which policy it is talking to. The list covers the rules the Motivation names, plus two that come from this ERC's kinds and `operator`. It is not a registry: any other reason still gets its own name.
 
 Decisions are returned, not reverted, because a pre-flight cannot tell a revert that expresses a decision from a bug or an out-of-gas condition. For the same reason, a policy may not turn a failed internal call into a permission (policy requirement 8), or a caller could choose a gas limit that makes one rule run out of gas while the policy still permits.
 

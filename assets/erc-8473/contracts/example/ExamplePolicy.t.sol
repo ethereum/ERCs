@@ -266,6 +266,13 @@ contract ExamplePolicyUnitTest is Helpers {
                             ACCOUNT CHECKS
   //////////////////////////////////////////////////////////////*/
 
+  /// @notice "Decisions and reason codes": a reason in the draft's list is the hash of the name the list gives it
+  function test_WhenRejectingForAListedReason_ItUsesTheListedName() public view {
+    assertEq(_policy.SENDER_NOT_ELIGIBLE(), keccak256('SENDER_NOT_ELIGIBLE'));
+    assertEq(_policy.RECEIVER_NOT_ELIGIBLE(), keccak256('RECEIVER_NOT_ELIGIBLE'));
+    assertEq(_policy.MAX_HOLDERS(), keccak256('MAX_HOLDERS'));
+  }
+
   function test_AccountChecks_FollowTheAllowlist() public view {
     assertEq(_policy.checkSend(_token, _alice), TRANSFER_OK);
     assertEq(_policy.checkReceive(_token, _alice), TRANSFER_OK);

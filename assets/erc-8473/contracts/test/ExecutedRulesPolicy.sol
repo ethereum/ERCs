@@ -13,7 +13,7 @@ import {PermissivePolicy} from 'contracts/test/FaultyPolicies.sol';
  */
 contract ExecutedRulesPolicy is PermissivePolicy {
   bytes32 public constant DEADLINE_TOO_FAR = keccak256('DEADLINE_TOO_FAR');
-  bytes32 public constant DIRECT_TRANSFERS_DISABLED = keccak256('DIRECT_TRANSFERS_DISABLED');
+  bytes32 public constant KIND_NOT_ALLOWED = keccak256('KIND_NOT_ALLOWED');
   bytes32 public constant MALFORMED_DATA = keccak256('MALFORMED_DATA');
   bytes32 public constant OPERATOR_NOT_ALLOWED = keccak256('OPERATOR_NOT_ALLOWED');
   bytes32 public constant REFERENCE_BLOCKED = keccak256('REFERENCE_BLOCKED');
@@ -51,7 +51,7 @@ contract ExecutedRulesPolicy is PermissivePolicy {
     TransferContext calldata _context
   ) external view override returns (bytes32 _reason) {
     if (_context.kind == TransferKind.TRANSFER) {
-      return directTransfersDisabled ? DIRECT_TRANSFERS_DISABLED : TRANSFER_OK;
+      return directTransfersDisabled ? KIND_NOT_ALLOWED : TRANSFER_OK;
     }
     if (_context.kind != TransferKind.EXECUTED) return TRANSFER_OK;
     if (windowClosed) return WINDOW_CLOSED;
