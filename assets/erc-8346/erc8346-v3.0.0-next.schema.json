@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "3.0.0-next",
+  "type": "object",
+  "description": "ERC-8346 Translation File Schema. A translation file provides a flat map of translation keys to translated values for a specific locale, bound to the ERC-7730 descriptor it translates via 'descriptorHash'. Shared packages referenced from 'includes' use this same schema, but carry no 'descriptorHash' and no 'includes' of their own.",
+  "properties": {
+    "$schema": {
+      "title": "Schema",
+      "type": "string",
+      "format": "uri-reference",
+      "description": "The schema this translation file conforms to."
+    },
+    "$locale": {
+      "title": "Locale",
+      "type": "string",
+      "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+      "description": "The BCP-47 language tag for this translation (e.g. 'fr', 'zh-Hant', 'pt-BR'). MUST use canonical BCP-47 casing."
+    },
+    "descriptorHash": {
+      "title": "Descriptor hash",
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "description": "Keccak-256 hash of the JCS-canonicalized ERC-7730 descriptor this file translates, computed with the descriptor's top-level '$localization' member removed. Required on a descriptor's translation resource; absent on shared packages."
+    },
+    "includes": {
+      "title": "Shared package includes",
+      "type": "object",
+      "description": "Map from a namespace (the leading dot-segment of translation keys) to candidate references to a shared translation package serving that namespace. A wallet uses the first candidate it is able to resolve. Included packages MUST have the same '$locale', MUST NOT contain 'includes' of their own, and are subject to the same attestation requirements.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$",
+        "description": "Namespace delegated to the shared package."
+      },
+      "additionalProperties": {
+        "title": "Candidate references",
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "type": "string",
+              "format": "uri-reference",
+              "description": "A URI reference to the shared translation package."
+            }
+          },
+          "required": ["uri"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "translations": {
+      "title": "Translations",
+      "type": "object",
+      "description": "Flat map from translation key to the translated value in the target locale. Values are strings, except for object-form intents (mapping each English intent key to a translated {label, value} pair) and enumerations (mapping each raw enumeration value to its translated display string). Placeholders in interpolated strings (e.g. '{value}', '{to}') MUST be preserved verbatim, and the placeholder set MUST exactly equal the English source's.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+        "description": "Dot-namespaced, snake_case translation key."
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Translated string."
+          },
+          {
+            "type": "object",
+            "description": "Object-valued translation: for object-form intents, maps each English intent key to a translated {label, value} pair; for enumerations, maps each raw enumeration value to its translated display string.",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": { "type": "string" },
+                    "value": { "type": "string" }
+                  },
+                  "required": ["label", "value"],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "required": ["$schema", "$locale", "translations"],
+  "additionalProperties": false
+}
