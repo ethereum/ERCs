@@ -1,0 +1,13 @@
+{
+  "description": "paths that MUST be rejected per TASK-KERNEL v1.0 path rules",
+  "reject": [
+    "/abs/path",
+    "a\\b",
+    "a//b",
+    "a/../b",
+    "./x",
+    "",
+    "a/./b",
+    ".."
+  ]
+}
