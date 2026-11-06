@@ -175,8 +175,8 @@ There are already plenty of ERC20-compliant tokens deployed on the Ethereum netw
 Different implementations have been written by various teams that have different trade-offs: from gas saving to improved security.
 
 #### Example implementations are available at
-- [OpenZeppelin implementation](../assets/eip-20/OpenZeppelin-ERC20.sol)
-- [ConsenSys implementation](../assets/eip-20/Consensys-EIP20.sol)
+- [OpenZeppelin implementation](../assets/erc-20/OpenZeppelin-ERC20.sol)
+- [ConsenSys implementation](../assets/erc-20/Consensys-EIP20.sol)
 
 
 ## History
