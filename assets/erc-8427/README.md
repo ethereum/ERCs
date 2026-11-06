@@ -1,0 +1,9 @@
+# Assets for Portable Spend Grants
+
+- `vectors/v1.json` — golden domain separator, struct hash, digest (the `grantId`), and canonical rendering of each grant
+- `vectors/authorization-v1.json` — golden digest and signature for the reference executor's SpendAuthorization
+- `clear-signing/spend-grant.json` — non-normative ERC-7730 calldata descriptor for the registry's `register` and `update`; it lists the Arc testnet registry
+- `src/` — compact Solidity reference (CC0): SpendGrantAuthorizationExecutor.sol, SpendGrantExecutor.sol, SpendGrantHash.sol, SpendGrantRedemptionEnforcer.sol, SpendGrantRedemptionExecutor.sol, SpendGrantRegistry.sol, SpendGrantSignature.sol, SpendGrantTypes.sol
+- `test/` — Foundry tests for the reference (HashHarness.sol, Inheritance.t.sol, MockERC20.sol, OldRingOracle.sol, SpendGrantAuthReplay.t.sol, SpendGrantAuthorization.t.sol, SpendGrantCheck.t.sol, SpendGrantExecutorSmoke.t.sol, SpendGrantHash.t.sol, SpendGrantInterleavings.t.sol, SpendGrantInvariant.t.sol, SpendGrantLifecycle.t.sol, SpendGrantMoneyPath.t.sol, SpendGrantRedemption.t.sol, SpendGrantRegistry.t.sol, SpendGrantRing.t.sol, SpendGrantRingHand.t.sol, SpendGrantRingOracle.t.sol, SpendGrantSemantics.t.sol, SpendGrantSignature.t.sol, SpendGrantState.t.sol, SpendGrantStateGas.t.sol, SpendGrantTokenBehavior.t.sol, SpendGrantUpdate.t.sol). They import `../src/` and read vectors at `assets/erc-8427/vectors/v1.json` when run from a Foundry project that has this directory at that path, with the reference's compiler settings: solc 0.8.28, `via_ir = true`, the optimizer at 200 runs, `evm_version = "cancun"`, and read access to `./assets` in `fs_permissions`. Without via-IR some tests do not compile.
+
+The full reference repository, with the TypeScript package, Halmos properties, deploy script, and Arc testnet deployment record, is https://github.com/tankcdr/erc-spend-grants.
