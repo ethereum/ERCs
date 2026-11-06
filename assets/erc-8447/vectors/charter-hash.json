@@ -1,0 +1,30 @@
+{
+  "description": "charterHash = SHA-256 over the RFC 8785 (JCS) canonical form of the Swarm Pack root; objectiveHash = SHA-256 over the canonical form of the `objective` member; commitmentHash = SHA-256 over the canonical form of the `commitment` member (zero when absent); a phase's descriptorHash = SHA-256 over the canonical form of the matching `mode.phases` member. Computed from the example packs under assets/erc-8447/examples.",
+  "vectors": [
+    {
+      "file": "swarm-pack-cooperative-tender.json",
+      "canonicalLength": 6414,
+      "canonicalSha256": "0xe1521d9ba6ac2c832024e2cc5133d0837406ca83158291c1a1e8e4e823de0f07",
+      "charterHash": "0xe1521d9ba6ac2c832024e2cc5133d0837406ca83158291c1a1e8e4e823de0f07",
+      "objectiveHash": "0xcd3c6cd602e91dc5aa86a65760ce4ac8deeea9c5bc7ac65f04da72134d3554ac",
+      "commitmentHash": "0x8959f292051a58d13ff630a9de72d22ba4be64b078b2498ff39b9b7e2b422b49",
+      "phaseDescriptorHashes": [
+        "0x57dfb221f10bef26c482ffc8fb87cfef28e86756c1f29ce50cff8d1120c7011e"
+      ],
+      "canonicalPrefix": "{\"charter\":{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"path\":\"charter.md\"},\"com"
+    },
+    {
+      "file": "swarm-pack-two-phase-tender.json",
+      "canonicalLength": 5517,
+      "canonicalSha256": "0x7726c87a0b747b03f7514a41b269c1a15ba43d51a8b4b9341f6c10c39bd6c435",
+      "charterHash": "0x7726c87a0b747b03f7514a41b269c1a15ba43d51a8b4b9341f6c10c39bd6c435",
+      "objectiveHash": "0x5c1d87d09ca4df58fd98731e967891c4d47716da575034ba7037c784e26dd849",
+      "commitmentHash": "0x3ff5ac7d889fa781d8b412e7bb7359aa55f911c44c4c19974164cd718c4fd801",
+      "phaseDescriptorHashes": [
+        "0x30254ee3dc5baab969119bd7ec551fde1f0f6016195486265e68b873cfad6596",
+        "0xbe5994ce2e38dc6a3bd06d37b7010f9a30620a5faf2fc46043a396c0d7092aed"
+      ],
+      "canonicalPrefix": "{\"charter\":{\"digest\":\"sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"path\":\"charter.md\"},\"com"
+    }
+  ]
+}
