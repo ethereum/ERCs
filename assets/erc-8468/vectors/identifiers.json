@@ -1,0 +1,73 @@
+{
+  "profileIds": {
+    "asf:profile:authority/bounded-spend@1": "0x82e3c00ebe2b864dc4f00560de6bc16054210defc587a87ff63d08ba16f384a0",
+    "asf:profile:behavior/monitoring-integrity@1": "0x22ee508727490b4de840d7dd3f92246f1146451e00dacc386c40499b387fdd7e",
+    "asf:profile:economic/shared-budget@1": "0xfdbf28e78d1daf54c98785838cc5a5493d9585816ceb7a89148512ea3742c44f",
+    "asf:profile:governance/intervention@1": "0x983ee76569373430ab86b01469d70568e95741b6d65f7f6ada9cf5354d0ec411",
+    "asf:profile:information/untrusted-input@1": "0x9c02cc65ebdc625053ca7360bd89818db2cb46960fdd7a094a02ff1d299674a9",
+    "asf:profile:supply-chain/pinned-dependencies@1": "0xf3ee542de406f218ec9afdf9aaad2d99364116413e232f53ce289806c957be93"
+  },
+  "familyIds": {
+    "asf:family:identity-authority": "0x119a028a95617b5a3df9e90e392f2f8cb8d36c85f0a20cdac24ad1c0549fa0a4",
+    "asf:family:information-privacy": "0x33f5ac0e9476fd4b48012e6d05bce242fb158a9287c11dc5addb62902352d4df",
+    "asf:family:execution-supply-chain": "0x2cada4ecd71e01b88c0b10f1c4970136a2140142906ad52bb5933e7ce16c55cc",
+    "asf:family:behavior-goals": "0x713884bca853d0c059cab40894a44158ac4e32bd28fbf1dd93ecd21a53c0743e",
+    "asf:family:assets-economic": "0x81b7305ff3cd8d8e672749eb85dc2496d4c6c2349bf7bdfd7e26e182fd8ea636",
+    "asf:family:multi-agent-system": "0xdf53e28b47e499ff7d8f25dfd7baddf1fd8ba5d67d33051e81e4c1cc5254f545",
+    "asf:family:human-public": "0x05a891b3d677c2df15c4a04d2343b8344bc8d80d928d505170ca0f78a5e76869",
+    "asf:family:governance-accountability": "0xdf93af05c6316264c1fc2cf0b4127a0c8f5cb5cdcf56eb384473c841b1795529"
+  },
+  "enforcementBits": {
+    "self": 1,
+    "account": 2,
+    "runtime": 4,
+    "custodian": 8,
+    "contract": 16,
+    "collective": 32
+  },
+  "rightsBits": {
+    "suspend": 1,
+    "resume": 2,
+    "terminate": 4
+  },
+  "restrictionBits": {
+    "no-new-risk": 1,
+    "shrink": 2,
+    "essential-only": 4,
+    "derisk-only": 8,
+    "full-stop": 16
+  },
+  "combinator": {
+    "all": 0,
+    "any": 1,
+    "k-of": 2
+  },
+  "bindingState": {
+    "none": 0,
+    "active": 1,
+    "suspended": 2,
+    "terminated": 3
+  },
+  "verdict": {
+    "unknown": 0,
+    "satisfied": 1,
+    "not-satisfied": 2
+  },
+  "reason": {
+    "none": 0,
+    "no-binding": 1,
+    "terminated": 2,
+    "suspended": 3,
+    "not-yet-valid": 4,
+    "expired": 5,
+    "spec-mismatch": 6,
+    "version-mismatch": 7,
+    "adopter-mismatch": 8,
+    "subject-mismatch": 9,
+    "scope-mismatch": 10,
+    "enforcement-mismatch": 11,
+    "parent-not-satisfied": 12,
+    "spec-registry-unavailable": 13
+  },
+  "note": "profileId / familyId = keccak256(UTF-8(identifier)). Bit sets and enumerations as in ASFTypes.sol."
+}

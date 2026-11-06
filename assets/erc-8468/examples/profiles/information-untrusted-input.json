@@ -1,0 +1,43 @@
+{
+  "asf": "1.0",
+  "kind": "profile-descriptor",
+  "identifier": "asf:profile:information/untrusted-input@1",
+  "family": "information-privacy",
+  "summary": "Content that enters the subject from listed sources is data, never instruction: it cannot create, widen or redirect authority. Disclosure of data read under the binding is limited to listed recipients and purposes.",
+  "evaluatesOver": ["action", "relation"],
+  "parameterSchema": {
+    "type": "object",
+    "required": ["untrustedSources", "instructionAuthority", "disclosure"],
+    "properties": {
+      "untrustedSources": { "type": "array", "items": { "type": "string" } },
+      "instructionAuthority": { "type": "string", "enum": ["authorization-records-only"] },
+      "disclosure": {
+        "type": "object",
+        "required": ["allowedRecipients", "allowedPurposes"],
+        "properties": {
+          "allowedRecipients": { "type": "array", "items": { "type": "string" } },
+          "allowedPurposes": { "type": "array", "items": { "type": "string" } },
+          "retention": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
+  "partialOrder": {
+    "defined": true,
+    "rule": "B is not wider than A when B.untrustedSources is a superset of A.untrustedSources and B.disclosure.allowedRecipients and allowedPurposes are subsets of A's."
+  },
+  "verification": [
+    {
+      "method": "runtime-monitoring",
+      "location": "runtime",
+      "inputs": ["labelled input stream", "outbound messages"],
+      "resultMeaning": "no outbound disclosure outside the allow lists and no authority change traced to untrusted content",
+      "trustAssumptions": ["input provenance labels are applied before the content reaches the model"]
+    }
+  ],
+  "limitations": [
+    "Whether a secret was disclosed indirectly (through timing, ordering or aggregate behaviour) is a relation between trajectories and is only approximated by stream monitoring."
+  ]
+}
