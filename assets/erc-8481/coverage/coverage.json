@@ -1,0 +1,1143 @@
+{
+  "description": "report coverage and approval paths: status, gaps, path syntax, signing; coverage conformance cases are checked against the request of wrapped-approve-unsupported-batch, approval cases against the report of wrapped-approve-decoded-batch",
+  "pathGrammar": "path = \"typedData\" / \"tx\" [ \".calls[\" index \"]\" *( \".inner[\" index \"]\" ) [ \".inner\" ] ]; index = \"0\" / %x31-39 *DIGIT",
+  "vectors": [
+    {
+      "id": "wrapped-approve-unsupported-batch",
+      "basis": "spec",
+      "note": "The reviewer's case: approve(spender, 2^256 - 1) to the token inside an ERC-7821 batch execute(bytes32,bytes) that this source does not decode. The source lists only the outer target, every finding for it is read, and coverage names the gap; the report must not read as no findings.",
+      "hidden": {
+        "path": "tx.calls[0].inner[0]",
+        "to": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+        "data": "0x095ea7b30000000000000000000000000c87dcc4169fd529f19e485ee8d4dc7f9638345effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "decoded": {
+          "function": "approve(address,uint256)",
+          "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+          "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+        }
+      },
+      "request": {
+        "version": "erc-presign/1",
+        "subject": {
+          "type": "calls",
+          "chainId": "eip155:4663",
+          "from": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+          "calls": [
+            {
+              "to": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "value": "0",
+              "data": "0xe9ae5c53010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000c1fd9a31a809b97d9839271db786b467c9841d02000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000c87dcc4169fd529f19e485ee8d4dc7f9638345effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000"
+            }
+          ]
+        },
+        "kinds": [
+          "erc.presign.address.code",
+          "erc.presign.address.first-seen-block",
+          "erc.presign.approval.amount",
+          "erc.presign.approval.unlimited"
+        ]
+      },
+      "report": {
+        "version": "erc-presign/1",
+        "subjectDigest": "0x3c22fa067e135dd41304937c6bf2a8ae2676af3bf269a70259834d16ff415dab",
+        "contextDigest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "chainId": "eip155:4663",
+        "signer": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+        "source": {
+          "registry": "eip155:4663:0x6Aa7cE98514a7952E5249D3f54Bb765a672d8D45",
+          "agentId": "20030",
+          "signer": "eip155:4663:0x28cCB37DF3f57F5af56F6E0E914467b2a7F26Aaf"
+        },
+        "issuedAt": "2026-11-05T12:00:00Z",
+        "blocks": [
+          {
+            "chainId": "eip155:4663",
+            "block": "100007973",
+            "hash": "0x6978ada0f5326082fef1d237c92c0b3aea9a1d136ff152e4dec3ceca62a0db10"
+          }
+        ],
+        "entities": {
+          "tokens": [],
+          "approvals": [],
+          "addresses": [
+            {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            }
+          ],
+          "payment": false,
+          "texts": []
+        },
+        "coverage": {
+          "status": "partial",
+          "gaps": [
+            {
+              "path": "tx.calls[0]",
+              "reason": "unsupported-selector",
+              "nested": "not-inspected"
+            }
+          ]
+        },
+        "findings": [
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "99000001",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          }
+        ],
+        "method": "coverage-vectors/1",
+        "signature": "0x"
+      },
+      "expected": {
+        "conforms": true,
+        "errors": [],
+        "subjectDigest": "0x3c22fa067e135dd41304937c6bf2a8ae2676af3bf269a70259834d16ff415dab",
+        "coverageStatus": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ],
+        "allListedFindingsRead": true,
+        "readsAsNoFindings": false,
+        "reportHash": "0x1ffa8368e8333859b12c9b199a20998c3575b9e555afb9fb1dba5ba9146ba6d9",
+        "eip712Digest": "0x7c6a0fce832a78b42c35cd31546656a58bf0f4ea3d56f10bc57a7963e4f6554f"
+      }
+    },
+    {
+      "id": "direct-approve-complete",
+      "basis": "spec",
+      "note": "The same approval as a direct call: every call decoded, coverage complete, one approval entity. Complete says the request was decoded, not that the approval is safe.",
+      "request": {
+        "version": "erc-presign/1",
+        "subject": {
+          "type": "calls",
+          "chainId": "eip155:4663",
+          "from": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+          "calls": [
+            {
+              "to": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "value": "0",
+              "data": "0x095ea7b30000000000000000000000000c87dcc4169fd529f19e485ee8d4dc7f9638345effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            }
+          ]
+        },
+        "kinds": [
+          "erc.presign.address.code",
+          "erc.presign.address.first-seen-block",
+          "erc.presign.approval.amount",
+          "erc.presign.approval.unlimited"
+        ]
+      },
+      "report": {
+        "version": "erc-presign/1",
+        "subjectDigest": "0xd2327fb89e38f4297edc22d15c31ae1d2631c115654b9b5775cb7261386406cb",
+        "contextDigest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "chainId": "eip155:4663",
+        "signer": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+        "source": {
+          "registry": "eip155:4663:0x6Aa7cE98514a7952E5249D3f54Bb765a672d8D45",
+          "agentId": "20030",
+          "signer": "eip155:4663:0x28cCB37DF3f57F5af56F6E0E914467b2a7F26Aaf"
+        },
+        "issuedAt": "2026-11-05T12:00:00Z",
+        "blocks": [
+          {
+            "chainId": "eip155:4663",
+            "block": "100007973",
+            "hash": "0x6978ada0f5326082fef1d237c92c0b3aea9a1d136ff152e4dec3ceca62a0db10"
+          }
+        ],
+        "entities": {
+          "tokens": [
+            "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02"
+          ],
+          "approvals": [
+            {
+              "token": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "form": "erc20-approve",
+              "callIndex": 0
+            }
+          ],
+          "addresses": [
+            {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "target"
+            },
+            {
+              "address": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "role": "spender"
+            },
+            {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "token"
+            }
+          ],
+          "payment": false,
+          "texts": []
+        },
+        "coverage": {
+          "status": "complete",
+          "gaps": []
+        },
+        "findings": [
+          {
+            "kind": "erc.presign.approval.amount",
+            "entity": {
+              "approval": 0
+            },
+            "status": "read",
+            "value": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.approval.unlimited",
+            "entity": {
+              "approval": 0
+            },
+            "status": "read",
+            "value": true,
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "98000002",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "role": "spender"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "role": "spender"
+            },
+            "status": "read",
+            "value": "100007933",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "token"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "token"
+            },
+            "status": "read",
+            "value": "98000002",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          }
+        ],
+        "method": "coverage-vectors/1",
+        "signature": "0x"
+      },
+      "expected": {
+        "conforms": true,
+        "errors": [],
+        "subjectDigest": "0xd2327fb89e38f4297edc22d15c31ae1d2631c115654b9b5775cb7261386406cb",
+        "coverageStatus": "complete",
+        "gaps": [],
+        "allListedFindingsRead": true,
+        "reportHash": "0x36d82db7bcb9f2ab674dcb30e05a4a452c44bbd16834c08d85604cc39db0d860",
+        "eip712Digest": "0x9b3ae480033a7cadbf6e90aaab3c3a478c43be5b716b47784113a00c18124026"
+      }
+    },
+    {
+      "id": "wrapped-approve-decoded-batch",
+      "basis": "spec",
+      "note": "The same batch sent to a source that decodes ERC-7821 and knows the account implements it: coverage complete, and the approval entity is located by path tx.calls[0].inner[0], with no callIndex.",
+      "request": {
+        "version": "erc-presign/1",
+        "subject": {
+          "type": "calls",
+          "chainId": "eip155:4663",
+          "from": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+          "calls": [
+            {
+              "to": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "value": "0",
+              "data": "0xe9ae5c53010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000c1fd9a31a809b97d9839271db786b467c9841d02000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000c87dcc4169fd529f19e485ee8d4dc7f9638345effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000"
+            }
+          ]
+        },
+        "kinds": [
+          "erc.presign.address.code",
+          "erc.presign.address.first-seen-block",
+          "erc.presign.approval.amount",
+          "erc.presign.approval.unlimited"
+        ]
+      },
+      "report": {
+        "version": "erc-presign/1",
+        "subjectDigest": "0x3c22fa067e135dd41304937c6bf2a8ae2676af3bf269a70259834d16ff415dab",
+        "contextDigest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "chainId": "eip155:4663",
+        "signer": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+        "source": {
+          "registry": "eip155:4663:0x6Aa7cE98514a7952E5249D3f54Bb765a672d8D45",
+          "agentId": "20030",
+          "signer": "eip155:4663:0x28cCB37DF3f57F5af56F6E0E914467b2a7F26Aaf"
+        },
+        "issuedAt": "2026-11-05T12:00:00Z",
+        "blocks": [
+          {
+            "chainId": "eip155:4663",
+            "block": "100007973",
+            "hash": "0x6978ada0f5326082fef1d237c92c0b3aea9a1d136ff152e4dec3ceca62a0db10"
+          }
+        ],
+        "entities": {
+          "tokens": [
+            "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02"
+          ],
+          "approvals": [
+            {
+              "token": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "form": "erc20-approve",
+              "path": "tx.calls[0].inner[0]"
+            }
+          ],
+          "addresses": [
+            {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            {
+              "address": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "role": "spender"
+            },
+            {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "token"
+            }
+          ],
+          "payment": false,
+          "texts": []
+        },
+        "coverage": {
+          "status": "complete",
+          "gaps": []
+        },
+        "findings": [
+          {
+            "kind": "erc.presign.approval.amount",
+            "entity": {
+              "approval": 0
+            },
+            "status": "read",
+            "value": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.approval.unlimited",
+            "entity": {
+              "approval": 0
+            },
+            "status": "read",
+            "value": true,
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "99000001",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "role": "spender"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+              "role": "spender"
+            },
+            "status": "read",
+            "value": "100007933",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          },
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "token"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+              "role": "token"
+            },
+            "status": "read",
+            "value": "98000002",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          }
+        ],
+        "method": "coverage-vectors/1",
+        "signature": "0x"
+      },
+      "expected": {
+        "conforms": true,
+        "errors": [],
+        "subjectDigest": "0x3c22fa067e135dd41304937c6bf2a8ae2676af3bf269a70259834d16ff415dab",
+        "coverageStatus": "complete",
+        "gaps": [],
+        "allListedFindingsRead": true,
+        "reportHash": "0x36ad672a6d9517c7d970d6b1710ad8b27bf4093cddaa3dcfbfbe0de07a44d813",
+        "eip712Digest": "0x18047bc8bd7ae4d9ddb54881cdd356f72cbfde7a752f4985565c5ade6a43bc19"
+      }
+    },
+    {
+      "id": "coverage-is-signed",
+      "basis": "spec",
+      "note": "The wrapped report with its coverage rewritten to complete conforms on its own but has another reportHash, so the source's signature over the partial report does not verify for it.",
+      "request": {
+        "version": "erc-presign/1",
+        "subject": {
+          "type": "calls",
+          "chainId": "eip155:4663",
+          "from": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+          "calls": [
+            {
+              "to": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "value": "0",
+              "data": "0xe9ae5c53010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000c1fd9a31a809b97d9839271db786b467c9841d02000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044095ea7b30000000000000000000000000c87dcc4169fd529f19e485ee8d4dc7f9638345effffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000"
+            }
+          ]
+        },
+        "kinds": [
+          "erc.presign.address.code",
+          "erc.presign.address.first-seen-block",
+          "erc.presign.approval.amount",
+          "erc.presign.approval.unlimited"
+        ]
+      },
+      "report": {
+        "version": "erc-presign/1",
+        "subjectDigest": "0x3c22fa067e135dd41304937c6bf2a8ae2676af3bf269a70259834d16ff415dab",
+        "contextDigest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "chainId": "eip155:4663",
+        "signer": "eip155:4663:0xA52B54245c31bbA6a66ad239212D13e4939b6dF1",
+        "source": {
+          "registry": "eip155:4663:0x6Aa7cE98514a7952E5249D3f54Bb765a672d8D45",
+          "agentId": "20030",
+          "signer": "eip155:4663:0x28cCB37DF3f57F5af56F6E0E914467b2a7F26Aaf"
+        },
+        "issuedAt": "2026-11-05T12:00:00Z",
+        "blocks": [
+          {
+            "chainId": "eip155:4663",
+            "block": "100007973",
+            "hash": "0x6978ada0f5326082fef1d237c92c0b3aea9a1d136ff152e4dec3ceca62a0db10"
+          }
+        ],
+        "entities": {
+          "tokens": [],
+          "approvals": [],
+          "addresses": [
+            {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            }
+          ],
+          "payment": false,
+          "texts": []
+        },
+        "coverage": {
+          "status": "complete",
+          "gaps": []
+        },
+        "findings": [
+          {
+            "kind": "erc.presign.address.code",
+            "entity": {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "contract",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": [
+              {
+                "type": "call",
+                "chainId": "eip155:4663",
+                "block": "100007973",
+                "to": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+                "data": "0x",
+                "result": "0x6080"
+              }
+            ]
+          },
+          {
+            "kind": "erc.presign.address.first-seen-block",
+            "entity": {
+              "address": "eip155:4663:0x93D2a67B302f4CFE620A2A3485bA41B82505F620",
+              "role": "target"
+            },
+            "status": "read",
+            "value": "99000001",
+            "at": {
+              "chainId": "eip155:4663",
+              "block": "100007973"
+            },
+            "evidence": []
+          }
+        ],
+        "method": "coverage-vectors/1",
+        "signature": "0x"
+      },
+      "expected": {
+        "conforms": true,
+        "errors": [],
+        "subjectDigest": "0x3c22fa067e135dd41304937c6bf2a8ae2676af3bf269a70259834d16ff415dab",
+        "coverageStatus": "complete",
+        "gaps": [],
+        "allListedFindingsRead": true,
+        "reportHash": "0x2bd8891890a7eddd5c7b7b7d67e6d1eb4db5a513c94f4ffef3ebe1fdbc143a89",
+        "eip712Digest": "0xa991091a5c85411d7e3563908a80a82e1afc731ef3b76837756c63820c760e30",
+        "differsFrom": {
+          "id": "wrapped-approve-unsupported-batch",
+          "reportHash": "0x1ffa8368e8333859b12c9b199a20998c3575b9e555afb9fb1dba5ba9146ba6d9"
+        }
+      }
+    }
+  ],
+  "conformance": [
+    {
+      "id": "coverage-absent",
+      "basis": "spec",
+      "note": "a report without coverage does not conform",
+      "coverage": "<absent>",
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "coverage-absent"
+        ]
+      }
+    },
+    {
+      "id": "coverage-null",
+      "basis": "spec",
+      "note": "coverage must be an object",
+      "coverage": null,
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "coverage-malformed"
+        ]
+      }
+    },
+    {
+      "id": "complete-with-gaps",
+      "basis": "spec",
+      "note": "status complete with a gap",
+      "coverage": {
+        "status": "complete",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "status-gaps-disagree"
+        ]
+      }
+    },
+    {
+      "id": "partial-without-gaps",
+      "basis": "spec",
+      "note": "status partial with no gap",
+      "coverage": {
+        "status": "partial",
+        "gaps": []
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "status-gaps-disagree"
+        ]
+      }
+    },
+    {
+      "id": "status-unknown",
+      "basis": "spec",
+      "note": "status outside the enum",
+      "coverage": {
+        "status": "full",
+        "gaps": []
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "status-unknown"
+        ]
+      }
+    },
+    {
+      "id": "reason-unknown",
+      "basis": "spec",
+      "note": "reason outside the enum",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unknown-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "reason-unknown"
+        ]
+      }
+    },
+    {
+      "id": "nested-unknown",
+      "basis": "spec",
+      "note": "nested outside the enum",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "partly"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "nested-unknown"
+        ]
+      }
+    },
+    {
+      "id": "path-no-root",
+      "basis": "spec",
+      "note": "a path starts at tx or typedData",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-syntax"
+        ]
+      }
+    },
+    {
+      "id": "path-leading-zero",
+      "basis": "spec",
+      "note": "indexes have no leading zero",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[00]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-syntax"
+        ]
+      }
+    },
+    {
+      "id": "path-out-of-range",
+      "basis": "spec",
+      "note": "the request has one call",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[1]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-out-of-range"
+        ]
+      }
+    },
+    {
+      "id": "path-typeddata-absent",
+      "basis": "spec",
+      "note": "the request has no typed data",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "typedData",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-out-of-range"
+        ]
+      }
+    },
+    {
+      "id": "path-duplicate",
+      "basis": "spec",
+      "note": "two gaps with one path",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected"
+          },
+          {
+            "path": "tx.calls[0]",
+            "reason": "undecodable-data",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "path-duplicate"
+        ]
+      }
+    },
+    {
+      "id": "depth-limit-inspected",
+      "basis": "spec",
+      "note": "depth-limit means the nested calls were not inspected",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0].inner[0]",
+            "reason": "depth-limit",
+            "nested": "inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "nested-disagrees-with-reason"
+        ]
+      }
+    },
+    {
+      "id": "not-inspected-inspected",
+      "basis": "spec",
+      "note": "a part not inspected has no inspected nested calls",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "not-inspected",
+            "nested": "inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "nested-disagrees-with-reason"
+        ]
+      }
+    },
+    {
+      "id": "wrapper-not-inspected",
+      "basis": "spec",
+      "note": "unverified-wrapper means the nested calls were decoded",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unverified-wrapper",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "nested-disagrees-with-reason"
+        ]
+      }
+    },
+    {
+      "id": "gap-extra-member",
+      "basis": "spec",
+      "note": "a gap has exactly path, reason and nested",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unsupported-selector",
+            "nested": "not-inspected",
+            "severity": "high"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "gap-malformed"
+        ]
+      }
+    },
+    {
+      "id": "inner-path-depth-limit",
+      "basis": "spec",
+      "note": "a gap below the top-level call",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0].inner[0].inner",
+            "reason": "depth-limit",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "unverified-wrapper-inspected",
+      "basis": "spec",
+      "note": "nested calls decoded, wrapper semantics not established",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx.calls[0]",
+            "reason": "unverified-wrapper",
+            "nested": "inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "whole-transaction",
+      "basis": "spec",
+      "note": "the source could not take the transaction apart at all",
+      "coverage": {
+        "status": "partial",
+        "gaps": [
+          {
+            "path": "tx",
+            "reason": "undecodable-data",
+            "nested": "not-inspected"
+          }
+        ]
+      },
+      "expected": {
+        "conforms": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "approval-path-syntax",
+      "basis": "spec",
+      "note": "an approval path uses the gap path syntax",
+      "approval": {
+        "token": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+        "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+        "form": "erc20-approve",
+        "path": "calls[0].inner[0]"
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "approval-path-syntax"
+        ]
+      }
+    },
+    {
+      "id": "approval-path-out-of-range",
+      "basis": "spec",
+      "note": "the request has one call",
+      "approval": {
+        "token": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+        "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+        "form": "erc20-approve",
+        "path": "tx.calls[1].inner[0]"
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "approval-path-out-of-range"
+        ]
+      }
+    },
+    {
+      "id": "approval-path-disagrees-with-callIndex",
+      "basis": "spec",
+      "note": "a top-level approval's path is tx.calls[callIndex]",
+      "approval": {
+        "token": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+        "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+        "form": "erc20-approve",
+        "callIndex": 0,
+        "path": "tx.calls[0].inner[0]"
+      },
+      "expected": {
+        "conforms": false,
+        "errors": [
+          "approval-path-disagrees-with-callIndex"
+        ]
+      }
+    },
+    {
+      "id": "approval-top-level-both",
+      "basis": "spec",
+      "note": "a top-level approval may carry callIndex and path together",
+      "approval": {
+        "token": "eip155:4663:0xC1fD9a31A809B97D9839271db786b467C9841d02",
+        "spender": "eip155:4663:0x0C87Dcc4169fD529f19E485ee8d4DC7F9638345E",
+        "form": "erc20-approve",
+        "callIndex": 0,
+        "path": "tx.calls[0]"
+      },
+      "expected": {
+        "conforms": true,
+        "errors": []
+      }
+    }
+  ],
+  "open": []
+}
