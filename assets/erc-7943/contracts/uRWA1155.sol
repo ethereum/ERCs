@@ -225,17 +225,36 @@ contract uRWA1155 is Context, ERC1155, AccessControlEnumerable, IERC7943MultiTok
             for (uint256 i = 0; i < ids.length; ++i) {
                 uint256 id = ids[i];
                 uint256 value = values[i];
+                // Accumulate repeated ids: the balance is only debited once, in
+                // super._update after this loop, so validating each element in
+                // isolation against the pre-transfer balance lets a batch that
+                // repeats an id move more than the unfrozen balance.
+                uint256 cumulativeValue = value;
+                for (uint256 j = 0; j < i; ++j) {
+                    if (ids[j] == id) {
+                        cumulativeValue += values[j];
+                    }
+                }
                 uint256 unfrozenBalance = _unfrozenBalance(from, id);
 
-                require(value <= balanceOf(from, id), ERC1155InsufficientBalance(from, balanceOf(from, id), value, id));
-                require(value <= unfrozenBalance, ERC7943InsufficientUnfrozenBalance(from, id, value, unfrozenBalance));
+                require(cumulativeValue <= balanceOf(from, id), ERC1155InsufficientBalance(from, balanceOf(from, id), cumulativeValue, id));
+                require(cumulativeValue <= unfrozenBalance, ERC7943InsufficientUnfrozenBalance(from, id, cumulativeValue, unfrozenBalance));
             }
         } else if (from == address(0) && to != address(0)) { // Mint
             require(canReceive(to), ERC7943CannotReceive(to));
         } else if (to == address(0)) { // Burn
             require(canSend(from), ERC7943CannotSend(from));
             for (uint256 j = 0; j < ids.length; ++j) {
-                _excessFrozenUpdate(from, ids[j], values[j]);
+                // Pass the cumulative amount for repeated ids: balances are
+                // debited only in super._update after this loop, so per-element
+                // amounts would under-adjust the frozen balance for duplicates.
+                uint256 cumulativeValue = values[j];
+                for (uint256 k = 0; k < j; ++k) {
+                    if (ids[k] == ids[j]) {
+                        cumulativeValue += values[k];
+                    }
+                }
+                _excessFrozenUpdate(from, ids[j], cumulativeValue);
             }
         }
 
