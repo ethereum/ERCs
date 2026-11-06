@@ -11,3 +11,4 @@ vendor
 
 # Secrets
 .vercel
+__pycache__/

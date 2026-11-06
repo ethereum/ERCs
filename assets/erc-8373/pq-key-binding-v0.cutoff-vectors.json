@@ -1,0 +1,62 @@
+{
+  "profile": "pq_key_binding.v0/cutoff-enforcement",
+  "description": "Cutoff enforcement — the rule that makes the PQ companion load-bearing. Admit an artifact iff PROVEN ANCHORED BEFORE the consumer cutoff, OR it carries a VALID PQ companion under the pq_pubkey of the binding IN FORCE at the artifact's anchor time (cutoff by ANCHOR TIME, consumer policy). Each case asserts the RESOLUTION step (which binding governs, by which reason) AND the decision+rule, not just admit/reject (predicate-not-number). The in-force resolution is generic over chain length (1..n) and carries a revocation slot from the start, so exercised rotation (#133) and the revocation lane (#134) extend this predicate rather than rewrite it. Signature validity (SLH-DSA/ML-DSA) is the deep lane, supplied here as evidence (pq_companion.valid) so the policy is recomputable independent of any crypto lib.",
+  "bindings": [
+    {
+      "name": "kya-l4-genesis",
+      "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14",
+      "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa",
+      "binding_anchor_time": 1785423299,
+      "note": "The live production KYA-L4 binding — anchor time = TruthAnchor record() block 25646404 timestamp (0x6a6b65c3 = 1785423299, +1262s after bound_at). Chain has length one today; the enforcer resolves it from the chain regardless."
+    }
+  ],
+  "consumer_cutoff": 1790000000,
+  "cases": [
+    {
+      "name": "pre-cutoff anchored, no companion",
+      "artifact": { "anchor_time": 1785500000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "post-cutoff, valid companion under in-force key",
+      "artifact": { "anchor_time": 1790500000, "anchored": true, "pq_companion": { "present": true, "valid": true, "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa" } },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "valid_pq_companion", "decision": "ADMIT" }
+    },
+    {
+      "name": "post-cutoff, no companion",
+      "artifact": { "anchor_time": 1790500000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "post_cutoff_no_valid_companion", "decision": "REJECT" }
+    },
+    {
+      "name": "post-cutoff, companion present but invalid",
+      "artifact": { "anchor_time": 1790500000, "anchored": true, "pq_companion": { "present": true, "valid": false, "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa" } },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "post_cutoff_no_valid_companion", "decision": "REJECT" }
+    },
+    {
+      "name": "post-cutoff, valid companion but under a NON-in-force key",
+      "artifact": { "anchor_time": 1790500000, "anchored": true, "pq_companion": { "present": true, "valid": true, "pq_pubkey": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000dead" } },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "post_cutoff_no_valid_companion", "decision": "REJECT" }
+    },
+    {
+      "name": "artifact anchored before any binding existed",
+      "artifact": { "anchor_time": 1785000000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "revocation slot — artifact anchored BEFORE revocation still governed (stays valid)",
+      "bindings": [
+        { "name": "kya-l4-genesis", "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14", "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa", "binding_anchor_time": 1785423299, "revoked_at": 1786000000 }
+      ],
+      "artifact": { "anchor_time": 1785500000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": "kya-l4-genesis", "resolution_reason": "resolved_at_anchor_time", "rule": "anchored_before_cutoff", "decision": "ADMIT" }
+    },
+    {
+      "name": "revocation slot — artifact anchored AT/AFTER revocation no longer governed",
+      "bindings": [
+        { "name": "kya-l4-genesis", "secp256k1_pubkey": "0xFf9a176577Fb42b6bc9c19fd05a241e8fCd0ca14", "pq_pubkey": "638c79a2210c85e8cb349fc72a6583b7ff82e003ff02117f8f7f9d8cc3fb92a33e7496d987beb05f22bf12ecf34bc7aa", "binding_anchor_time": 1785423299, "revoked_at": 1786000000 }
+      ],
+      "artifact": { "anchor_time": 1786500000, "anchored": true, "pq_companion": null },
+      "expected": { "resolved": null, "resolution_reason": "no_in_force_binding", "rule": "no_in_force_binding", "decision": "REJECT" }
+    }
+  ]
+}
