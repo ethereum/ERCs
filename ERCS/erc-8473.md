@@ -252,6 +252,7 @@ When a policy rejects for one of these reasons, it SHOULD use the name listed fo
 | `WINDOW_CLOSED` | the movement falls outside the hours or dates the policy allows |
 | `KIND_NOT_ALLOWED` | the policy does not allow this kind of movement, such as a `TRANSFER` when holders may move tokens only through an executor |
 | `OPERATOR_NOT_ALLOWED` | the movement is `EXECUTED` or `FORCED`, and the policy does not accept `operator` as the account carrying it out |
+| `CHECK_UNAVAILABLE` | a call the policy makes in reaching the decision reverted or ran out of gas, so the policy could not decide (policy requirement 8) |
 
 ### Transfer kinds
 
@@ -363,7 +364,7 @@ These rules, together with the policy requirements below, have the following con
 ### Policy requirements
 
 1. `checkSend`, `checkReceive`, `checkTransfer` and `wantsAfterTransfer` MUST NOT modify state. They MUST NOT revert to express a decision. They reject by returning a value other than `TRANSFER_OK`.
-2. Their results MAY depend on their arguments, on persistent contract storage, and on the block's timestamp, number and chain identifier. They MUST NOT depend on `msg.sender`, `tx.origin`, the remaining gas or any other transaction context. This deliberately narrows ERC-7943, which allows its checks to depend on `msg.sender`.
+2. Their results MAY depend on their arguments, on persistent contract storage, and on the block's timestamp, number and chain identifier. They MUST NOT depend on `msg.sender`, `tx.origin`, the remaining gas or any other transaction context. The one exception is a call the policy makes that runs out of gas: the policy then rejects (requirement 8), so the remaining gas can make it reject, never permit. This deliberately narrows ERC-7943, which allows its checks to depend on `msg.sender`.
 3. `checkSend` and `checkReceive` MUST NOT encode transfer-specific or quantitative rules, such as balance checks or amount limits. ERC-7943 requires this of `canSend` and `canReceive`.
 4. For every kind except `FORCED`, `checkTransfer` MUST NOT return `TRANSFER_OK` if either of these holds:
    - `from` is non-zero and `checkSend(_context.token, _context.from)` does not return `TRANSFER_OK`;
@@ -456,7 +457,7 @@ Zero is what Solidity returns from a function whose named return value is never 
 
 [ERC-1271](./eip-1271.md) and ERC-721's receiver hook use a function selector as their magic success value. That would be unsafe here: `checkTransfer` takes one dynamic argument, so a contract that echoes its calldata returns exactly `bytes32(checkTransfer.selector)`. A string hash cannot be produced by accident that way.
 
-Decisions are `bytes32`, not `bool`, because operators and integrators need to know why a movement was rejected. Hashing a name lets every policy define its own reasons without a central registry. The names listed in the Specification give the most common rejections the same value in every policy, so a wallet can explain them without knowing which policy it is talking to. The list covers the rules the Motivation names, plus two that come from this ERC's kinds and `operator`. It is not a registry: any other reason still gets its own name.
+Decisions are `bytes32`, not `bool`, because operators and integrators need to know why a movement was rejected. Hashing a name lets every policy define its own reasons without a central registry. The names listed in the Specification give the most common rejections the same value in every policy, so a wallet can explain them without knowing which policy it is talking to. The list covers the rules the Motivation names, plus three that come from this ERC: two from its kinds and `operator`, and `CHECK_UNAVAILABLE` for the rejection policy requirement 8 forces when a call fails. That name lets a wallet suggest trying again, and tells an executor that a signed instruction may still settle before its deadline. It promises nothing about the next attempt. It also covers only failures the policy catches: a check that itself reverts or runs out of gas returns no value, so the movement reverts without a reason and the pre-flight is false. It is not a registry: any other reason still gets its own name.
 
 Decisions are returned, not reverted, because a pre-flight cannot tell a revert that expresses a decision from a bug or an out-of-gas condition. For the same reason, a policy may not turn a failed internal call into a permission (policy requirement 8), or a caller could choose a gas limit that makes one rule run out of gas while the policy still permits.
 
