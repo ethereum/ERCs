@@ -1,0 +1,112 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 15,
+    "version": 1,
+    "boundaryHash": "0x87306b067acd757f8499c0933c27f2fda3320d7a9209f0ed670339db8e92d443"
+  },
+  "assessmentBoundary": {
+    "hash": "0x87306b067acd757f8499c0933c27f2fda3320d7a9209f0ed670339db8e92d443"
+  },
+  "interest": {
+    "id": "auf:interest:net-equity@1",
+    "perspective": "analyst"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0x3d680913e783622548bec545be4d174499cbfa2a01ee0f61c34f84924526da81"
+  },
+  "method": {
+    "id": "0x8da6d9f12fdcbd5651f304c51b4f5b96987f8cd55b7178844f5e0f55085bd007",
+    "name": "auf:method:net-equity@1",
+    "params": {
+      "denomination": "USD",
+      "assets": [
+        {
+          "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        },
+        {
+          "element": "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2",
+          "quantity": "1",
+          "price": "45.12",
+          "priceSource": "0.4 x the revenue-right DCF receipt of Unit 1 (0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232)",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ],
+      "liabilities": [
+        {
+          "element": "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+          "quantity": "100",
+          "price": "1",
+          "priceSource": "face value, due within the window",
+          "priceAt": "2026-11-01T00:00:00Z"
+        },
+        {
+          "element": "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040",
+          "quantity": "100",
+          "price": "1",
+          "priceSource": "face value, due within the window",
+          "priceAt": "2026-11-01T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "element": "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+        "source": "RST balance"
+      },
+      {
+        "element": "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2",
+        "source": "assignment agreement (URL)"
+      },
+      {
+        "element": "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+        "source": "invoice"
+      },
+      {
+        "element": "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040",
+        "source": "payables ledger"
+      },
+      {
+        "receipt": "0xdb21b2e4c769f946e74f9f1a282acb3c24c2cfa55b24d5b7abef94f53c6a4232",
+        "use": "value of the whole fee stream"
+      }
+    ],
+    "overlaps": [
+      {
+        "elements": [
+          "0x939f67d10f7eefbbfa2bc23def330905a144b5127fe2164fa86e5e771e805a98",
+          "0xa902da2bd2f2875cb2d924771caf8bc8f96925c397bd01a04fc16aa09888dbb2"
+        ],
+        "treatment": "unresolved",
+        "notes": "held pair: 45.12 read as one claim, 90.24 read as two"
+      },
+      {
+        "elements": [
+          "0xa78c71d0d2ce36e34a253544caa0b0b9f7f1f3109b3de3347ca0225b2cbb5104",
+          "0xbe5d8ed4ae6e2f868ea79169538ecf7fcbba0fca3ff699c612485a5bb8cd0040"
+        ],
+        "treatment": "unresolved",
+        "notes": "owed pair: -100 read as one obligation, -200 read as two"
+      }
+    ],
+    "coverage": "the four positions only"
+  },
+  "result": {
+    "kind": "interval",
+    "low": "-154.88",
+    "high": "-9.76",
+    "denomination": "USD",
+    "decimals": 2
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Exception vector \"Interval over liabilities\", mixed case: the two unresolved pairs share no position, so low = 45.12 - 200.00 and high = 90.24 - 100.00; no single reading (all once or all separately) gives either bound."
+}

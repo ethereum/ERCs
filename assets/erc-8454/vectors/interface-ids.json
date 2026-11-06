@@ -1,0 +1,6 @@
+{
+  "IAUFUnitRegistry": "0x7128ef29",
+  "IAUFAssertionRegistry": "0x46ae6e24",
+  "IERC165": "0x01ffc9a7",
+  "note": "XOR of the selectors of all functions declared in the interface (ERC-165), excluding supportsInterface."
+}

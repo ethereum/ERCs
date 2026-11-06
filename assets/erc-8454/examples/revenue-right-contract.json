@@ -1,0 +1,60 @@
+{
+  "auf": "1.0",
+  "kind": "unit-definition",
+  "unit": {
+    "name": "Revenue right on the Summarizer business, contractual form",
+    "summary": "Fund F is the assignee under an agreement that assigns 40% of the license fee stream of the Summarizer Skill Business. The position declares the same underlying as the token form: Unit 1, port fees-in, share 0.4.",
+    "tags": [
+      "revenue-right",
+      "position",
+      "overlap-vector"
+    ]
+  },
+  "elements": [
+    {
+      "kind": "financial-position",
+      "ref": "urn:x:agreement:summarizer-fee-assignment-2026",
+      "label": "Assigned right to 40% of the license fee stream of Unit 1 (assignment agreement)",
+      "underlying": {
+        "ref": "auf:eip155:11155111:0x00000000000000000000000000000000000000f0:1@1",
+        "port": "fees-in",
+        "share": "0.4",
+        "basis": [
+          "urn:x:agreement:summarizer-fee-assignment-2026"
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "type": "holds",
+      "from": "unit",
+      "to": "0x32573b0492417af1f1a8ef59c1fea70f30a4cb06ea4e46ca500c00f913c56b73",
+      "share": "0.4",
+      "counterparty": "eip155:11155111:0x00000000000000000000000000000000000000f1",
+      "basis": [
+        "urn:x:agreement:summarizer-fee-assignment-2026"
+      ]
+    }
+  ],
+  "ports": [
+    {
+      "id": "distributions-in",
+      "direction": "in",
+      "class": "funds",
+      "template": "auf:port:funds-in@1",
+      "asset": "eip155:11155111/erc20:0x00000000000000000000000000000000000000cc",
+      "account": "eip155:11155111:0x00000000000000000000000000000000000000e8",
+      "conditions": "monthly payments under the assignment"
+    }
+  ],
+  "authorities": {
+    "definitionController": "eip155:11155111:0x00000000000000000000000000000000000000f9",
+    "settlementAccounts": [
+      "eip155:11155111:0x00000000000000000000000000000000000000e8"
+    ]
+  },
+  "scale": {
+    "window": "P30D"
+  }
+}

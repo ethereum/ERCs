@@ -1,0 +1,17 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 15,
+    "version": 1,
+    "boundaryHash": "0x87306b067acd757f8499c0933c27f2fda3320d7a9209f0ed670339db8e92d443"
+  },
+  "structure": {
+    "profile": "auf:structure:composite@1"
+  },
+  "knowledge": {
+    "status": "insufficient-evidence",
+    "notes": "Two unresolved pairs, one among the held positions and one among the owed positions; a held and an owed position are never one claim."
+  }
+}

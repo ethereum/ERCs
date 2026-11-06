@@ -1,0 +1,27 @@
+{
+  "auf": "1.0",
+  "kind": "characterization",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 10,
+    "version": 1,
+    "boundaryHash": "0xb3ab97fe54b77bfa92256bd7ae1e947048a09df80fa888936ad3b5b6da6b4fc8"
+  },
+  "roles": [
+    {
+      "role": "container",
+      "scope": {
+        "type": "unit"
+      },
+      "mechanism": "rights",
+      "conditions": "one 40% entitlement held through two wrappers"
+    }
+  ],
+  "structure": {
+    "profile": "auf:structure:composite@1"
+  },
+  "knowledge": {
+    "status": "classified",
+    "notes": "The same-claim relation between the two positions is declared by the fund with the tokenization terms as basis."
+  }
+}

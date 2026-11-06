@@ -1,0 +1,65 @@
+{
+  "auf": "1.0",
+  "kind": "valuation",
+  "subject": {
+    "registry": "eip155:11155111:0x00000000000000000000000000000000000000f0",
+    "unitId": 1,
+    "version": 1,
+    "boundaryHash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1"
+  },
+  "assessmentBoundary": {
+    "hash": "0xc40a52fa746780d73fdb2e55cca604746ea4f8d324ca3f53891f198efda44bb1"
+  },
+  "interest": {
+    "id": "auf:interest:revenue-right@1",
+    "perspective": "holder",
+    "detail": "license fee stream of the three licenses, net of hosting and fees"
+  },
+  "snapshot": {
+    "asOf": "2026-11-01T00:00:00Z",
+    "hash": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b"
+  },
+  "method": {
+    "id": "0xc87ccdce9b29353f5516392f5dd0d505b373965910baa6e7e95b49431cf22d22",
+    "name": "auf:method:finite-horizon-dcf@1",
+    "params": {
+      "denomination": "USD",
+      "cashflows": [
+        "65",
+        "65"
+      ],
+      "rate": "0.1",
+      "terminalValue": "0",
+      "periodLength": "P30D",
+      "attribution": "net license revenue to the owner",
+      "scenario": "base"
+    }
+  },
+  "inputs": {
+    "data": [
+      {
+        "observation": "0xd97a46ecf9fc92b8b6d0ef9afb9966f91d31785707c2d15eb2ff7452448b049b",
+        "use": "October realized net cash flow as the base of the two-period forecast"
+      }
+    ],
+    "estimates": [
+      "the two forecast periods repeat the October realized net cash flow"
+    ],
+    "coverage": "two periods, no terminal value"
+  },
+  "result": {
+    "kind": "monetary",
+    "value": "112.81",
+    "denomination": "USD",
+    "decimals": 2,
+    "uncertainty": {
+      "type": "none-stated"
+    }
+  },
+  "horizon": {
+    "from": "2026-11-01T00:00:00Z",
+    "to": "2026-12-31T23:59:59Z"
+  },
+  "evaluator": "eip155:11155111:0x00000000000000000000000000000000000000ef",
+  "notes": "Vector \"Finite-horizon DCF\": 65/1.1 + 65/1.21 = 112.8099..., rounded to two decimals."
+}
