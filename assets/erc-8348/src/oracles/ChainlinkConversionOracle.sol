@@ -4,11 +4,17 @@ pragma solidity ^0.8.24;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IConversionOracle} from "../IConversionOracle.sol";
+import {IConversionOracleHistory} from "../IConversionOracleHistory.sol";
+import {FreshnessHistory} from "./FreshnessHistory.sol";
 
 /// @notice Minimal subset of AggregatorV3Interface (declared
 ///         locally to avoid depending on the Chainlink package).
 interface AggregatorV3Interface {
     function decimals() external view returns (uint8);
+    function getRoundData(uint80 roundId)
+        external
+        view
+        returns (uint80 roundId_, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
     function latestRoundData()
         external
         view
@@ -20,7 +26,7 @@ interface AggregatorV3Interface {
 ///      units of account: rate = answer * 10^payDecimals / 10^feedDecimals.
 ///      Does not enforce staleness: that policy lives in the lease
 ///      (maxOracleStaleness), not in the adapter.
-contract ChainlinkConversionOracle is IConversionOracle {
+contract ChainlinkConversionOracle is IConversionOracle, IConversionOracleHistory {
     using Math for uint256;
 
     // S1-02: defensive bound on feedDecimals — well above
@@ -45,6 +51,7 @@ contract ChainlinkConversionOracle is IConversionOracle {
         if (fd > MAX_SANE_DECIMALS) revert DecimalsOutOfRange(); // S1-02
         feedDecimals = fd;
         paymentAssetDecimals = paymentAssetDecimals_;
+        FreshnessHistory.requireRoundHistory(feed); // liveness rule needs round history
     }
 
     function latestRate() external view returns (uint256 rate, uint64 asOf) {
@@ -63,5 +70,11 @@ contract ChainlinkConversionOracle is IConversionOracle {
 
         rate = uint256(answer).mulDiv(10 ** paymentAssetDecimals, 10 ** feedDecimals);
         asOf = uint64(updatedAt);
+    }
+
+    /// @inheritdoc IConversionOracleHistory
+    /// @dev Walks the feed's rounds backwards through getRoundData.
+    function continuouslyFresh(uint64 from, uint64 to, uint64 tolerance) external view returns (bool) {
+        return FreshnessHistory.walkFeed(feed, from, to, tolerance);
     }
 }

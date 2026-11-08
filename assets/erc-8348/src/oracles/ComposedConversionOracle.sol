@@ -5,13 +5,15 @@ pragma solidity ^0.8.24;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IConversionOracle} from "../IConversionOracle.sol";
 import {AggregatorV3Interface} from "./ChainlinkConversionOracle.sol";
+import {IConversionOracleHistory} from "../IConversionOracleHistory.sol";
+import {FreshnessHistory} from "./FreshnessHistory.sol";
 
 /// @notice Composes two Chainlink-compatible feeds into a single
 ///         IConversionOracle (e.g. UVA/ARS x ARS/USD to settle a
 ///         UVA-indexed lease in USDC).
 /// @dev asOf = min(asOf of both feeds): the freshness of a composition is
 ///      that of its oldest input, never better than its worst component.
-contract ComposedConversionOracle is IConversionOracle {
+contract ComposedConversionOracle is IConversionOracle, IConversionOracleHistory {
     using Math for uint256;
 
     // S1-02: same defensive bound as ChainlinkConversionOracle, applied
@@ -40,6 +42,8 @@ contract ComposedConversionOracle is IConversionOracle {
         feedBDecimals = fdB;
         invertB = invertB_;
         paymentAssetDecimals = paymentAssetDecimals_;
+        FreshnessHistory.requireRoundHistory(feedA); // liveness rule needs round history
+        FreshnessHistory.requireRoundHistory(feedB); // liveness rule needs round history
     }
 
     function latestRate() external view returns (uint256 rate, uint64 asOf) {
@@ -78,5 +82,14 @@ contract ComposedConversionOracle is IConversionOracle {
         if (updatedAt_ == 0) revert IncompleteRound();
         norm = uint256(answer).mulDiv(1e18, 10 ** feedDecimals_);
         updatedAt = updatedAt_;
+    }
+
+    /// @inheritdoc IConversionOracleHistory
+    /// @dev asOf of the composition is min(asOf A, asOf B), so the composition
+    ///      is stale at an instant iff either feed is: it was continuously
+    ///      fresh over the window iff both feeds were.
+    function continuouslyFresh(uint64 from, uint64 to, uint64 tolerance) external view returns (bool) {
+        return FreshnessHistory.walkFeed(feedA, from, to, tolerance)
+            && FreshnessHistory.walkFeed(feedB, from, to, tolerance);
     }
 }
