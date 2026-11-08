@@ -1,12 +1,11 @@
 # AIFP assets index
 
-Reference material for the Agent Information Flow Paradigm - the paradigm layer of agent communication.
-AIFP describes, for any context in which agents exchange information, who may observe, contribute and
-redistribute, under which version of the rules; the agent communication protocols that carry the messages
-attach to a channel as transport bindings. Every interface, schema and example here therefore has a direct
-agent-communication reading: a paradigm is a communication pattern, a channel is a communication context, a
-role binding is a listener, speaker, forwarder or moderator permission, and a predicate is the admission check
-an agent passes before it may take part.
+Reference material for the Agent Information Flow Paradigm. Read in agent-communication terms (a reading
+aid, not a redefinition), AIFP records, for any context in which agents exchange information, who may observe,
+contribute and redistribute, under which version of the rules; the protocols that carry the messages attach to
+a channel as transport bindings. In that reading a paradigm is a communication pattern, a channel is a
+communication context, a role binding is a listener, speaker, forwarder or moderator permission, and a predicate
+is the admission check an agent passes before it may take part.
 
 | Path | Contents |
 | --- | --- |
