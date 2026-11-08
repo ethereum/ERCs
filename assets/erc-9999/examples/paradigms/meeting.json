@@ -1,0 +1,108 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.meeting",
+  "version": "1.0.0",
+  "title": "Meeting: observation and contribution closed on the same roster",
+  "labels": [
+    "aifp:paradigm/meeting/v1"
+  ],
+  "carriers": [
+    "delivery",
+    "shared-object"
+  ],
+  "operators": [
+    "n-party"
+  ],
+  "cardinality": {
+    "contributors": "roster",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "undiscoverable",
+    "observation": {
+      "readScope": "members",
+      "submissionVisibility": "all",
+      "payloadProtection": "e2ee",
+      "metadataProtection": "partial"
+    },
+    "contribution": {
+      "actions": [
+        "publish",
+        "respond",
+        "modify"
+      ],
+      "acquisition": "manager",
+      "transferable": false,
+      "expiry": "none"
+    },
+    "management": {
+      "admission": [
+        "moderator"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "moderator"
+      ],
+      "rules": [
+        "moderator"
+      ],
+      "disclosure": [
+        "decision-body"
+      ]
+    },
+    "redistribution": {
+      "forward": false,
+      "quote": false,
+      "derive": false,
+      "publishElsewhere": false
+    },
+    "history": {
+      "lateJoiner": "since-join",
+      "retention": "bounded",
+      "mutable": false
+    },
+    "time": {
+      "realtime": true,
+      "correlation": "none",
+      "delivery": [
+        "stream",
+        "pull"
+      ],
+      "batching": "none",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "prior-link",
+      "referral"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "payload-protection",
+      "metadata-protection",
+      "membership-privacy",
+      "history-retention"
+    ]
+  }
+}

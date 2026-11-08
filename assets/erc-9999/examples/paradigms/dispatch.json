@@ -1,0 +1,112 @@
+{
+  "aifp": "1",
+  "family": "aifp.examples.dispatch",
+  "version": "1.0.0",
+  "title": "Dispatch: a rule selects the actual recipients from a candidate set",
+  "labels": [
+    "aifp:paradigm/dispatch/v1"
+  ],
+  "carriers": [
+    "delivery"
+  ],
+  "operators": [
+    "select",
+    "feedback"
+  ],
+  "cardinality": {
+    "contributors": "qualified",
+    "pairwise": false
+  },
+  "dimensions": {
+    "discovery": "directed",
+    "observation": {
+      "readScope": "predicate",
+      "submissionVisibility": "collector-only",
+      "payloadProtection": "none",
+      "metadataProtection": "none"
+    },
+    "contribution": {
+      "actions": [
+        "submit",
+        "respond"
+      ],
+      "acquisition": "predicate",
+      "transferable": false,
+      "expiry": "fixed"
+    },
+    "management": {
+      "admission": [
+        "protocol"
+      ],
+      "ordering": [
+        "protocol"
+      ],
+      "removal": [
+        "protocol"
+      ],
+      "rules": [
+        "source"
+      ],
+      "disclosure": [
+        "source"
+      ]
+    },
+    "redistribution": {
+      "forward": true,
+      "quote": true,
+      "derive": true,
+      "publishElsewhere": true
+    },
+    "history": {
+      "lateJoiner": "all",
+      "retention": "indefinite",
+      "mutable": false
+    },
+    "time": {
+      "realtime": false,
+      "correlation": "request-response",
+      "delivery": [
+        "push"
+      ],
+      "batching": "epoch",
+      "clock": "registry",
+      "absence": "none"
+    },
+    "disclosureTiming": "immediate",
+    "contributorVisibility": "identified",
+    "admissionBasis": [
+      "open-discovery"
+    ],
+    "representation": "allowed",
+    "objectRelations": [
+      "replyTo",
+      "forwards",
+      "derivesFrom",
+      "synthesizes",
+      "references",
+      "supersedes",
+      "retracts"
+    ],
+    "ordering": {
+      "sequencer": "protocol",
+      "order": "total",
+      "observable": true
+    }
+  },
+  "predicates": {
+    "respond": {
+      "member": {
+        "verifier": "0x0000000000000000000000000000000000000004",
+        "group": "0x1111111111111111111111111111111111111111111111111111111111111111"
+      }
+    }
+  },
+  "requiredBindings": {
+    "capabilities": [
+      "identity",
+      "rule-association",
+      "push",
+      "delivery-records"
+    ]
+  }
+}

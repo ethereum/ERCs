@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finchip.ai/schemas/aifp/binding-capabilities.schema.json",
+  "title": "AIFP Binding Declaration v1",
+  "description": "Off-chain form of IAIFPChannelRegistry.BindingDecl. Capability names map to bits in the fixed order below (bit = 1 << index); governance effects and adoption modes use the listed codes. The on-chain declaration is the bitmask; this document is the readable form a binding publishes about itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "target", "version"],
+  "properties": {
+    "kind": {
+      "description": "transport = 0, governance-rules = 1, governance-dispute = 2, governance-safety = 3, economic = 4",
+      "enum": ["transport", "governance-rules", "governance-dispute", "governance-safety", "economic"]
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "description": "Transport endpoint identifier, or the governance contract address left-padded to 32 bytes."
+    },
+    "version": { "type": "string", "pattern": "^0x[0-9a-f]{64}$", "description": "Version identifier of the target protocol or policy (bytes32)." },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Transport capabilities. Bit order: identity 1<<0, rule-association 1<<1, push 1<<2, pull 1<<3, stream 1<<4, batch 1<<5, delivery-records 1<<6, history-retention 1<<7, late-join-history 1<<8, payload-protection 1<<9, metadata-protection 1<<10, membership-privacy 1<<11, total-order 1<<12, absence-detection 1<<13.",
+      "items": {
+        "enum": [
+          "identity",
+          "rule-association",
+          "push",
+          "pull",
+          "stream",
+          "batch",
+          "delivery-records",
+          "history-retention",
+          "late-join-history",
+          "payload-protection",
+          "metadata-protection",
+          "membership-privacy",
+          "total-order",
+          "absence-detection"
+        ]
+      }
+    },
+    "effectScope": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Governance effects. Codes: rules = 1, participation = 2, disclosure = 4 (bitmask).",
+      "items": { "enum": ["rules", "participation", "disclosure"] }
+    },
+    "adoptionMode": {
+      "description": "automatic = 0 (the target executes directly), confirmed = 1 (the channel authority confirms each result)",
+      "enum": ["automatic", "confirmed"]
+    },
+    "authorizationRef": { "type": "string", "pattern": "^0x[0-9a-f]{64}$", "description": "Reference to the evidence authorizing the binding; confers nothing by itself." }
+  },
+  "$defs": {
+    "capabilityBits": {
+      "identity": 1,
+      "rule-association": 2,
+      "push": 4,
+      "pull": 8,
+      "stream": 16,
+      "batch": 32,
+      "delivery-records": 64,
+      "history-retention": 128,
+      "late-join-history": 256,
+      "payload-protection": 512,
+      "metadata-protection": 1024,
+      "membership-privacy": 2048,
+      "total-order": 4096,
+      "absence-detection": 8192
+    },
+    "kindCodes": { "transport": 0, "governance-rules": 1, "governance-dispute": 2, "governance-safety": 3, "economic": 4 },
+    "effectCodes": { "rules": 1, "participation": 2, "disclosure": 4 },
+    "adoptionModeCodes": { "automatic": 0, "confirmed": 1 }
+  }
+}

@@ -1,0 +1,380 @@
+{
+  "description": "allOf precedence NOT_SATISFIED > UNDETERMINABLE > VERIFIER_ERROR > SATISFIED; anyOf precedence SATISFIED > UNDETERMINABLE > VERIFIER_ERROR > NOT_SATISFIED; values above 3 normalize to VERIFIER_ERROR; empty lists are rejected.",
+  "outcomes": {
+    "SATISFIED": 0,
+    "NOT_SATISFIED": 1,
+    "UNDETERMINABLE": 2,
+    "VERIFIER_ERROR": 3
+  },
+  "count": 25,
+  "vectors": [
+    {
+      "inputs": [
+        0,
+        0
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "SATISFIED"
+      ],
+      "allOf": 0,
+      "anyOf": 0,
+      "allOfName": "SATISFIED",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        0,
+        1
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "NOT_SATISFIED"
+      ],
+      "allOf": 1,
+      "anyOf": 0,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        0,
+        2
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "UNDETERMINABLE"
+      ],
+      "allOf": 2,
+      "anyOf": 0,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        0,
+        3
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 3,
+      "anyOf": 0,
+      "allOfName": "VERIFIER_ERROR",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        1,
+        0
+      ],
+      "inputNames": [
+        "NOT_SATISFIED",
+        "SATISFIED"
+      ],
+      "allOf": 1,
+      "anyOf": 0,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        1,
+        1
+      ],
+      "inputNames": [
+        "NOT_SATISFIED",
+        "NOT_SATISFIED"
+      ],
+      "allOf": 1,
+      "anyOf": 1,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "NOT_SATISFIED"
+    },
+    {
+      "inputs": [
+        1,
+        2
+      ],
+      "inputNames": [
+        "NOT_SATISFIED",
+        "UNDETERMINABLE"
+      ],
+      "allOf": 1,
+      "anyOf": 2,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        1,
+        3
+      ],
+      "inputNames": [
+        "NOT_SATISFIED",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 1,
+      "anyOf": 3,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "VERIFIER_ERROR"
+    },
+    {
+      "inputs": [
+        2,
+        0
+      ],
+      "inputNames": [
+        "UNDETERMINABLE",
+        "SATISFIED"
+      ],
+      "allOf": 2,
+      "anyOf": 0,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        2,
+        1
+      ],
+      "inputNames": [
+        "UNDETERMINABLE",
+        "NOT_SATISFIED"
+      ],
+      "allOf": 1,
+      "anyOf": 2,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        2,
+        2
+      ],
+      "inputNames": [
+        "UNDETERMINABLE",
+        "UNDETERMINABLE"
+      ],
+      "allOf": 2,
+      "anyOf": 2,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        2,
+        3
+      ],
+      "inputNames": [
+        "UNDETERMINABLE",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 2,
+      "anyOf": 2,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        3,
+        0
+      ],
+      "inputNames": [
+        "VERIFIER_ERROR",
+        "SATISFIED"
+      ],
+      "allOf": 3,
+      "anyOf": 0,
+      "allOfName": "VERIFIER_ERROR",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        3,
+        1
+      ],
+      "inputNames": [
+        "VERIFIER_ERROR",
+        "NOT_SATISFIED"
+      ],
+      "allOf": 1,
+      "anyOf": 3,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "VERIFIER_ERROR"
+    },
+    {
+      "inputs": [
+        3,
+        2
+      ],
+      "inputNames": [
+        "VERIFIER_ERROR",
+        "UNDETERMINABLE"
+      ],
+      "allOf": 2,
+      "anyOf": 2,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        3,
+        3
+      ],
+      "inputNames": [
+        "VERIFIER_ERROR",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 3,
+      "anyOf": 3,
+      "allOfName": "VERIFIER_ERROR",
+      "anyOfName": "VERIFIER_ERROR"
+    },
+    {
+      "inputs": [
+        0,
+        0,
+        0
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "SATISFIED",
+        "SATISFIED"
+      ],
+      "allOf": 0,
+      "anyOf": 0,
+      "allOfName": "SATISFIED",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        1,
+        2,
+        3
+      ],
+      "inputNames": [
+        "NOT_SATISFIED",
+        "UNDETERMINABLE",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 1,
+      "anyOf": 2,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        3,
+        2,
+        1
+      ],
+      "inputNames": [
+        "VERIFIER_ERROR",
+        "UNDETERMINABLE",
+        "NOT_SATISFIED"
+      ],
+      "allOf": 1,
+      "anyOf": 2,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        0,
+        2,
+        3
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "UNDETERMINABLE",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 2,
+      "anyOf": 0,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        2,
+        3,
+        0
+      ],
+      "inputNames": [
+        "UNDETERMINABLE",
+        "VERIFIER_ERROR",
+        "SATISFIED"
+      ],
+      "allOf": 2,
+      "anyOf": 0,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "SATISFIED"
+    },
+    {
+      "inputs": [
+        1,
+        1,
+        3
+      ],
+      "inputNames": [
+        "NOT_SATISFIED",
+        "NOT_SATISFIED",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 1,
+      "anyOf": 3,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "VERIFIER_ERROR"
+    },
+    {
+      "inputs": [
+        3,
+        3,
+        3
+      ],
+      "inputNames": [
+        "VERIFIER_ERROR",
+        "VERIFIER_ERROR",
+        "VERIFIER_ERROR"
+      ],
+      "allOf": 3,
+      "anyOf": 3,
+      "allOfName": "VERIFIER_ERROR",
+      "anyOfName": "VERIFIER_ERROR"
+    },
+    {
+      "inputs": [
+        2,
+        2,
+        2
+      ],
+      "inputNames": [
+        "UNDETERMINABLE",
+        "UNDETERMINABLE",
+        "UNDETERMINABLE"
+      ],
+      "allOf": 2,
+      "anyOf": 2,
+      "allOfName": "UNDETERMINABLE",
+      "anyOfName": "UNDETERMINABLE"
+    },
+    {
+      "inputs": [
+        0,
+        1,
+        2
+      ],
+      "inputNames": [
+        "SATISFIED",
+        "NOT_SATISFIED",
+        "UNDETERMINABLE"
+      ],
+      "allOf": 1,
+      "anyOf": 0,
+      "allOfName": "NOT_SATISFIED",
+      "anyOfName": "SATISFIED"
+    }
+  ]
+}
