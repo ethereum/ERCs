@@ -3,7 +3,7 @@ eip: 9999
 title: Agent Meditation Mechanism
 description: Attributable, versioned self-maintenance records of an AI agent across runtime, memory and skills, tasks and roles, and cognition
 author: Gary Yang (@garyyang-finchip)
-discussions-to: https://ethereum-magicians.org/t/placeholder
+discussions-to: https://ethereum-magicians.org/t/draft-erc-agent-meditation-mechanism-attributable-versioned-self-maintenance-records-of-an-agent-across-runtime-memory-and-skills-tasks-and-roles-and-cognition/30304
 status: Draft
 type: Standards Track
 category: ERC
