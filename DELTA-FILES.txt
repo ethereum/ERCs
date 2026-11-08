@@ -1,2 +1,0 @@
-MODIFIED ERCS/erc-9999.md
-MODIFIED assets/erc-9999/README.md
