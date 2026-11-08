@@ -1,0 +1,1335 @@
+[
+  {
+    "type": "function",
+    "name": "checkpointOf",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "layer",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.LayerCheckpoint",
+        "components": [
+          {
+            "name": "commitment",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "lastCompletedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "lastCompletedRecordedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "completedUnderPolicy",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "lastChangedVersion",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "computeLayerCommitment",
+    "inputs": [
+      {
+        "name": "layer",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "schemaHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "contentHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "salt",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "computeRoot",
+    "inputs": [
+      {
+        "name": "commitments",
+        "type": "bytes32[4]",
+        "internalType": "bytes32[4]"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "demand",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "layerMask",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "dueBy",
+        "type": "uint48",
+        "internalType": "uint48"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "demandOf",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "layer",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Demand",
+        "components": [
+          {
+            "name": "demandedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "dueBy",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "enroll",
+    "inputs": [
+      {
+        "name": "baseline",
+        "type": "bytes32[4]",
+        "internalType": "bytes32[4]"
+      },
+      {
+        "name": "policy",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Policy",
+        "components": [
+          {
+            "name": "policyHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "policyURI",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "supportedLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "requiredLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "allowedTriggers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "disclosure",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "dueWindow",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "pulseInterval",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "maxInterval",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          }
+        ]
+      },
+      {
+        "name": "controller",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "controllerRights",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "floorOf",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Floor",
+        "components": [
+          {
+            "name": "requiredLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "pulseInterval",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "maxInterval",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "headOf",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Head",
+        "components": [
+          {
+            "name": "enrolled",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "controller",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "controllerRights",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "policyVersion",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "floorVersion",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "stateVersion",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "recordCount",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "root",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "enrolledAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "lastSignalAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "nextPlannedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "layerStatus",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "layer",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum IAgentMeditation.MaintenanceStatus"
+      },
+      {
+        "name": "deadline",
+        "type": "uint48",
+        "internalType": "uint48"
+      },
+      {
+        "name": "neverCompleted",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "operatorPermissions",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "policyEffectiveFrom",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "version",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint48",
+        "internalType": "uint48"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "policyOf",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "version",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Policy",
+        "components": [
+          {
+            "name": "policyHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "policyURI",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "supportedLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "requiredLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "allowedTriggers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "disclosure",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "dueWindow",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "pulseInterval",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "maxInterval",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pulse",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "nextPlannedAt",
+        "type": "uint48",
+        "internalType": "uint48"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "seq",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "report",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "r",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.CycleReport",
+        "components": [
+          {
+            "name": "baseVersion",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "preRoot",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "postCommitments",
+            "type": "bytes32[4]",
+            "internalType": "bytes32[4]"
+          },
+          {
+            "name": "layerMask",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "completedLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "opsMask",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "outcome",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "trigger",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "policyVersion",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "reportedStartedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "reportedEndedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "nextPlannedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "restoresVersion",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "recordHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "recordURI",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "name": "seq",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "requirementsOf",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Requirements",
+        "components": [
+          {
+            "name": "supportedLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "requiredLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "dueWindow",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "pulseInterval",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "maxInterval",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "revokeOperator",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "rootAt",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "stateVersion",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setController",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "newController",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "rights",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setFloor",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "floor",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Floor",
+        "components": [
+          {
+            "name": "requiredLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "pulseInterval",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "maxInterval",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setOperator",
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "permissions",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setPolicy",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "policy",
+        "type": "tuple",
+        "internalType": "struct IAgentMeditation.Policy",
+        "components": [
+          {
+            "name": "policyHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "policyURI",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "supportedLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "requiredLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "allowedTriggers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "disclosure",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "dueWindow",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "pulseInterval",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "maxInterval",
+            "type": "uint48[4]",
+            "internalType": "uint48[4]"
+          }
+        ]
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "signalStatus",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum IAgentMeditation.SignalStatus"
+      },
+      {
+        "name": "lastSignalAt",
+        "type": "uint48",
+        "internalType": "uint48"
+      },
+      {
+        "name": "silentSince",
+        "type": "uint48",
+        "internalType": "uint48"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawDemand",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "layerMask",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "ControllerChanged",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "previousController",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newController",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "rights",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CycleRecorded",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "seq",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "baseVersion",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "newVersion",
+        "type": "uint64",
+        "indexed": false,
+        "internalType": "uint64"
+      },
+      {
+        "name": "report",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct IAgentMeditation.CycleReport",
+        "components": [
+          {
+            "name": "baseVersion",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "preRoot",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "postCommitments",
+            "type": "bytes32[4]",
+            "internalType": "bytes32[4]"
+          },
+          {
+            "name": "layerMask",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "completedLayers",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "opsMask",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "outcome",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "trigger",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "policyVersion",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "reportedStartedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "reportedEndedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "nextPlannedAt",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "restoresVersion",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "recordHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "recordURI",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      },
+      {
+        "name": "changedLayers",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "recordedAt",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      },
+      {
+        "name": "submitter",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DemandWithdrawn",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "layerMask",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "by",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Demanded",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "layerMask",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "dueBy",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      },
+      {
+        "name": "by",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Enrolled",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "controller",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "controllerRights",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "root",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "enrolledAt",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FloorUpdated",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "version",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "effectiveFrom",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      },
+      {
+        "name": "by",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LayerCommitmentChanged",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "layer",
+        "type": "uint8",
+        "indexed": true,
+        "internalType": "uint8"
+      },
+      {
+        "name": "version",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "previousCommitment",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "newCommitment",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OperatorSet",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "permissions",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "by",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PolicyUpdated",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "version",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "policyHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "effectiveFrom",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      },
+      {
+        "name": "by",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Pulsed",
+    "inputs": [
+      {
+        "name": "subject",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "seq",
+        "type": "uint64",
+        "indexed": true,
+        "internalType": "uint64"
+      },
+      {
+        "name": "recordedAt",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      },
+      {
+        "name": "nextPlannedAt",
+        "type": "uint48",
+        "indexed": false,
+        "internalType": "uint48"
+      },
+      {
+        "name": "submitter",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  }
+]

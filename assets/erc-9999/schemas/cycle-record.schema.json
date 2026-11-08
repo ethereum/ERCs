@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "amm.cycle-record/1",
+  "title": "Cycle record document",
+  "description": "Off-chain record of one maintenance cycle; its canonical hash is registered as recordHash. The on-chain CycleReport is derived from it: layerMask from the scoped layers, completedLayers from the completed flags, opsMask from the change operations, outcome and trigger from the named values.",
+  "type": "object",
+  "required": ["schema", "subject", "policyVersion", "baseVersion", "trigger", "reportedStartedAt", "reportedEndedAt", "layers", "outcome"],
+  "properties": {
+    "schema": {"const": "amm.cycle-record/1"},
+    "subject": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+    "policyVersion": {"type": "integer", "minimum": 1},
+    "baseVersion": {"type": "integer", "minimum": 1},
+    "trigger": {"type": "string", "enum": ["scheduled", "event", "commanded", "self"]},
+    "triggerDetail": {"type": "string"},
+    "reportedStartedAt": {"type": "integer", "minimum": 0},
+    "reportedEndedAt": {"type": "integer", "minimum": 0},
+    "budgetsUsed": {"type": "object"},
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["layer", "scope", "completed", "adoption"],
+        "properties": {
+          "layer": {"type": "integer", "minimum": 0, "maximum": 3},
+          "scope": {"type": "boolean", "description": "Whether the layer was in scope of this cycle."},
+          "completed": {"type": "boolean", "description": "Whether the layer's routine, as defined by the governing policy, was completed."},
+          "checks": {
+            "type": "array",
+            "items": {"type": "object", "required": ["name", "result"], "properties": {"name": {"type": "string"}, "result": {"type": "string", "enum": ["pass", "fail", "finding", "skipped"]}, "details": {"type": "string"}}}
+          },
+          "observations": {"type": "object", "description": "Timed observations taken during the cycle (balances, reachability, resource usage). Not part of the state commitment."},
+          "candidates": {"type": "array", "items": {"type": "object"}, "description": "Candidate changes that were formed and evaluated but not adopted."},
+          "changes": {
+            "type": "array",
+            "items": {"type": "object", "required": ["op", "description"], "properties": {"op": {"type": "string", "enum": ["clean", "repair", "update", "iterate"]}, "description": {"type": "string"}}}
+          },
+          "evaluation": {"type": "object", "properties": {"method": {"type": "string"}, "result": {"type": "string"}, "details": {"type": "string"}}},
+          "adoption": {"type": "string", "enum": ["adopted", "kept", "candidate", "failed", "restored"], "description": "adopted: the layer registers a new state; kept: checked, state unchanged; candidate: a change was formed but not adopted; failed: the routine failed; restored: the layer returns to an earlier registered state."}
+        }
+      }
+    },
+    "outcome": {"type": "string", "enum": ["completed", "partial", "aborted", "failed"]},
+    "nextPlannedAt": {"type": "integer", "minimum": 0},
+    "restoresVersion": {"type": "integer", "minimum": 0}
+  }
+}

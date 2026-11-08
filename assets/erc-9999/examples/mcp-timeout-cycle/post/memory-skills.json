@@ -1,0 +1,19 @@
+{
+  "schema": "amm.layer.memory-skills/1",
+  "layer": 1,
+  "revision": "2026-11-09",
+  "memory": {
+    "store": "sqlite",
+    "organization": "daily-notes+recall-index+conditional-experiences",
+    "digest": "0x7f9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c7e9b",
+    "entries": 1441
+  },
+  "skills": [
+    {"id": "tender-worker", "version": "1.4.0", "packageHash": "0x11a1b1c1d1e1f10111213141516171819101a1b1c1d1e1f10111213141516171", "source": "erc-8338-package"},
+    {"id": "rpc-observer", "version": "0.9.2", "packageHash": "0x22a2b2c2d2e2f20222324252627282920a2b2c2d2e2f202223242526272829202", "source": "local"}
+  ],
+  "harness": {
+    "configHash": "0x33a3b3c3d3e3f30333435363738393a303b3c3d3e3f3033343536373839303a3b",
+    "retrieval": {"method": "hybrid", "topK": 8}
+  }
+}

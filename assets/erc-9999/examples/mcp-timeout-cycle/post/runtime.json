@@ -1,0 +1,27 @@
+{
+  "schema": "amm.layer.runtime/1",
+  "layer": 0,
+  "revision": "2026-11-09",
+  "runtime": {
+    "name": "example-cell",
+    "version": "0.6.3",
+    "platform": "node22/linux-x64"
+  },
+  "code": [
+    {"component": "cell-kernel", "version": "0.6.3", "hash": "0x6d1f3c5f0a3f4b7d9c2e1a0b8f7e6d5c4b3a29181716151413121110f0e0d0c0"},
+    {"component": "meditation-runner", "version": "0.1.0", "hash": "0x0a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9"}
+  ],
+  "dependencies": [
+    {"name": "ethers", "version": "6.13.4"},
+    {"name": "mcp-client", "version": "1.2.1"}
+  ],
+  "adapters": [
+    {"kind": "mcp", "name": "tooling.example/mcp", "version": "1.2.1", "schemaHash": "0x91d2b4f6a8c0e2f4061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7", "requestIds": "idempotent"},
+    {"kind": "rpc", "name": "eip155:11155111", "version": "1", "schemaHash": "0x3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3c5e7b9d1f3a5c"}
+  ],
+  "authorization": {
+    "operators": [{"address": "0x000000000000000000000000000000000000000b", "permissions": 3}],
+    "keyFingerprints": ["0x7c2a9e4d6b8f1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c"]
+  },
+  "selfCheckSuite": {"name": "doctor", "version": "0.6.3", "layersCovered": [1, 2, 3, 4, 5]}
+}

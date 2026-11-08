@@ -1,0 +1,81 @@
+{
+  "schema": "amm.cycle-record/1",
+  "subject": "0x000000000000000000000000000000000000a6e7",
+  "policyVersion": 1,
+  "baseVersion": 1,
+  "trigger": "event",
+  "triggerDetail": "three consecutive MCP request timeouts against tooling.example/mcp during the 02:00-03:00 UTC window",
+  "reportedStartedAt": 1762653600,
+  "reportedEndedAt": 1762654500,
+  "budgetsUsed": {"duration": 900, "modelCalls": 17},
+  "layers": [
+    {
+      "layer": 0,
+      "scope": true,
+      "completed": true,
+      "checks": [
+        {"name": "doctor", "result": "pass"},
+        {"name": "adapter-schema-walk", "result": "pass", "details": "2 adapters checked, schemas unchanged"},
+        {"name": "mcp-client-timeout-handling", "result": "fail", "details": "timed-out requests were resubmitted without idempotent request ids"}
+      ],
+      "observations": {"nativeBalanceWei": "48213000000000000", "endpoints": {"tooling.example/mcp": "reachable", "eip155:11155111": "reachable"}},
+      "changes": [
+        {"op": "repair", "description": "mcp-client 1.2.0 -> 1.2.1: idempotent request ids, result query on timeout"},
+        {"op": "update", "description": "adapter tooling.example/mcp pinned to 1.2.1"}
+      ],
+      "evaluation": {"method": "self-check suite against the candidate runtime", "result": "pass"},
+      "adoption": "adopted"
+    },
+    {
+      "layer": 1,
+      "scope": true,
+      "completed": true,
+      "checks": [
+        {"name": "memory-dedup", "result": "pass", "details": "47 near-duplicate timeout entries merged into 3, sources kept"},
+        {"name": "skill-package-hashes", "result": "pass"}
+      ],
+      "changes": [
+        {"op": "clean", "description": "merged 47 duplicate error memories into 3 entries with source references"},
+        {"op": "update", "description": "added conditional experience: MCP timeouts in the 02:00-03:00 UTC window correlate with provider maintenance; outcome unknown until queried"}
+      ],
+      "evaluation": {"method": "no referenced source lost", "result": "pass"},
+      "adoption": "adopted"
+    },
+    {
+      "layer": 2,
+      "scope": true,
+      "completed": true,
+      "checks": [
+        {"name": "in-flight-tasks", "result": "pass", "details": "2 tasks reviewed, bindings verified against tender-worker 1.4.0"},
+        {"name": "interrupted-work", "result": "finding", "details": "tender 17 submission interrupted by a timeout; result not yet queried"}
+      ],
+      "changes": [
+        {"op": "update", "description": "plan-adapter-hardening activated at priority 2; plan-recover-tender-17 added (query result before retry)"}
+      ],
+      "evaluation": {"method": "external commitments unchanged", "result": "pass", "details": "deadlines, prices and acceptance terms of tenders 17 and 21 untouched"},
+      "adoption": "adopted"
+    },
+    {
+      "layer": 3,
+      "scope": true,
+      "completed": true,
+      "checks": [
+        {"name": "assumption-review", "result": "finding", "details": "timeout-means-failure contradicted by 11 of 12 replayed cases"}
+      ],
+      "candidates": [
+        {
+          "id": "verify-before-retry",
+          "statement": "a timeout means the result is unknown; query the execution result before deciding to retry",
+          "evaluation": {"method": "case-replay", "cases": 12, "improved": 11, "undetermined": 1, "regressed": 0},
+          "decision": "candidate kept; adoption requires at least 20 cases or a second evaluation window (policy layer 3)"
+        }
+      ],
+      "changes": [],
+      "evaluation": {"method": "case-replay", "result": "insufficient-evidence"},
+      "adoption": "candidate"
+    }
+  ],
+  "outcome": "completed",
+  "nextPlannedAt": 1762740000,
+  "restoresVersion": 0
+}
