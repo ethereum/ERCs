@@ -112,7 +112,7 @@ An application that needs its own secret derives it as:
 secret = TH("HBKD/app/v1", R || be32(account) || keccak256(utf8(label)))
 ```
 
-where `label` is a string the application chooses and `utf8` its UTF-8 encoding. Labels SHOULD be namespaced with a domain or project name the application controls. An application secret MUST NOT be used as the seed of a key type; stateless and stateful keys have their own derivations above.
+where `label` is a string the application chooses and `utf8` its UTF-8 encoding. Labels SHOULD be namespaced with a domain or project name the application controls. An application secret MUST NOT be used as the seed of a key type; stateless and stateful keys have their own derivations above. It MAY be used as other key material, for example as the private key of an ECDSA account that pays an application's gas. A quantum adversary who breaks such a key learns that secret only, not `R`.
 
 ### Restoring
 
@@ -245,7 +245,7 @@ def app_secret(root: bytes, app_label: str, account: int = 0) -> bytes:
 
 **The phrase holds every key.** Whoever learns the phrase, and the passphrase if there is one, holds every stateless key and application secret of every account it derives. Stateful instances also depend on `instance`, but an adversary with the phrase can use the stateless keys instead.
 
-**Sharing a phrase with ECDSA wallets.** The derivation keeps hash-based keys safe from a quantum adversary who breaks the phrase's ECDSA keys. It does not protect a phrase that a compromised hot wallet has seen. Users SHOULD consider a separate phrase for high-value hash-based accounts.
+**Sharing a phrase with ECDSA wallets.** The derivation keeps hash-based keys safe from a quantum adversary who breaks the phrase's ECDSA keys. It does not keep them safe from the phrase itself: every wallet that has seen the phrase can derive them, including a hot wallet that was compromised years ago. Hash-based keys from a shared phrase are only as safe as the weakest wallet that ever held it. Wallets SHOULD create a new phrase for a new hash-based account, and SHOULD warn the user before deriving hash-based keys from an existing phrase.
 
 **Stateful keys.** Signing twice at one index of a one-time key reveals enough to forge. Wallets MUST save an instance's state before releasing a signature, MUST NOT restore an instance from stale state, and MUST create new instances after a restore. Applications SHOULD bind each instance to its use through `context`.
 
