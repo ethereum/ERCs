@@ -12,7 +12,7 @@ created: 2026-11-08
 
 ## Abstract
 
-This ERC specifies how a wallet derives the secret seeds of hash-based post-quantum keys, such as leanSPHINCS, from a BIP-39 recovery phrase. The derivation uses one primitive, HMAC-SHA512: in BIP-39's own PBKDF2, and then in HKDF. It never passes through BIP-32 or any elliptic-curve operation, so a quantum adversary who breaks every ECDSA key made from the same phrase learns nothing about the hash-based keys.
+This ERC specifies how a wallet derives the secret seeds of hash-based post-quantum keys, such as leanSPHINCS, from a BIP-39 recovery phrase. Every secret is derived with HMAC-SHA512: in BIP-39's own PBKDF2, and then in HKDF. It never passes through BIP-32 or any elliptic-curve operation, so a quantum adversary who breaks every ECDSA key made from the same phrase learns nothing about the hash-based keys.
 
 The core of the ERC is small: a root secret from the phrase, and a seed for each stateless key, named by an account and a key type. A key type string names the signature scheme, its parameter set and its key generation, so a new parameter set gives a new key from the same phrase. The ERC defines the key types of SLH-DSA, the stateless hash-based signature that NIST standardized in FIPS 205. Two wallets that implement the core derive the same SLH-DSA key pairs from the same phrase.
 
@@ -99,6 +99,7 @@ A key type is a string of 1 to 255 printable ASCII characters other than the spa
 
 - the signature scheme;
 - its parameter set and hash function;
+- whether its keys are stateless or stateful;
 - the length `L` of its seed, at least 32 bytes;
 - the deterministic procedure that makes a key pair from that seed, including every option that changes the public key, such as pruning the key's top tree.
 
@@ -118,7 +119,7 @@ A key type whose secret key changes with use, such as a one-time key, a few-time
 
 #### SLH-DSA key types
 
-The key types of SLH-DSA are the names of its parameter sets as FIPS 205 writes them. They are stateless key types. With `n` the parameter set's hash length in bytes:
+The key types of SLH-DSA are the names of its parameter sets as FIPS 205 writes them. They are stateless key types: a wallet MUST NOT derive a stateful seed under these names. With `n` the parameter set's hash length in bytes:
 
 | Key types | `n` | `L` |
 |---|---|---|
@@ -192,7 +193,7 @@ Every derivation of this ERC applies to such a root unchanged. A random root has
 
 **Finding accounts after a restore.** BIP-44 wallets find their accounts by scanning in order and stopping at a gap. The same works here if wallets use accounts in order. What "in use" means depends on the account contract, which this ERC does not define, so the ERC fixes only the order.
 
-**HKDF-SHA512.** HKDF is the standard way to turn one secret into many, and reviewers and libraries know it. With SHA-512 it runs on HMAC-SHA512, which every BIP-39 wallet and hardware wallet already has for PBKDF2 and BIP-32, so the whole derivation needs one primitive. The derivation's hash is independent of the signature scheme's hash, so a scheme that settles on another hash still uses this derivation.
+**HKDF-SHA512.** HKDF is the standard way to turn one secret into many, and reviewers and libraries know it. With SHA-512 it runs on HMAC-SHA512, which every BIP-39 wallet and hardware wallet already has for PBKDF2 and BIP-32, so the derivation adds no primitive to a BIP-39 wallet. The derivation's hash is independent of the signature scheme's hash, so a scheme that settles on another hash still uses this derivation.
 
 **Extract under a fixed salt.** `HKDF-Extract` is `HMAC-SHA512(key = salt, message = IKM)`. BIP-32 makes its master key the same way under the key `"Bitcoin seed"`, and SLIP-0010 separates curves by changing that string. The salt `"HBKD/v1"` separates this ERC's root from all of them. The version sits in the salt and nowhere else, so a later version changes every derived value at once. Random input takes the same step, so a device key without a phrase is made the same way as a phrase key.
 
@@ -206,7 +207,7 @@ Every derivation of this ERC applies to such a root unchanged. A random root has
 
 **Seed lengths per key type.** Schemes need different amounts of secret input. SLH-DSA takes three values of 16 to 32 bytes each. With one fixed seed length, every such scheme would have to invent its own expansion. Here the key type asks for the bytes it needs. The floor of 32 bytes keeps a careless key type from deriving a short seed.
 
-**SLH-DSA key types.** Without one fully specified key type, two conforming wallets would agree on a seed and still make different keys. SLH-DSA is the hash-based signature with a published standard and independent libraries, so it is the one this ERC specifies itself. The seed is cut in the order in which FIPS 205 lays out the private key, `SK.seed || SK.prf || PK.seed`, which is also the order in which existing libraries take a seed for deterministic key generation. `PK.seed` becomes public. Taking it from the same output is safe, since revealing part of an HKDF output says nothing about the rest. The same rule can name parameter sets that NIST adds later.
+**SLH-DSA key types.** Without one fully specified key type, two conforming wallets would agree on a seed and still make different keys. SLH-DSA is the hash-based signature with a published standard and independent libraries, so it is the one this ERC specifies itself. The seed is cut in the order in which FIPS 205 lays out the private key, `SK.seed || SK.prf || PK.seed`, which is also the order in which at least one widely used library takes a seed for deterministic key generation. `PK.seed` becomes public. Taking it from the same output is safe, since revealing part of an HKDF output says nothing about the rest. The same rule can name parameter sets that NIST adds later.
 
 **The key type in every seed.** A seed is never shared between two parameter sets or key-generation procedures, so a weakness in one cannot carry over to the other through a shared seed. When a protocol upgrade fixes a new parameter set, the wallet derives a new key from the same phrase under the new key type. An application can then link the new key to the old one by signing it with the old key, without a new backup.
 
@@ -222,7 +223,7 @@ The BIP-39 seed this ERC uses is the same one BIP-32 wallets use, so a phrase ca
 
 ## Test Cases
 
-Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example of a key type that an application defines, with a 32-byte seed. It names leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. The vectors use it only as a string and do not depend on its key generation.
+Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example of a key type that an application defines, with a 32-byte seed. It names leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. The stateful seeds use the key type `example/one-time/v1`, a made-up name for a one-time key with a 32-byte seed. The vectors use both only as strings and do not depend on any key generation.
 
 The stateless seeds and the SLH-DSA keys test the core. The stateful seeds, the application secrets and the random root test the optional derivations.
 
@@ -237,10 +238,10 @@ R                        31a48aa502c800ed2e98d6ea19e8121861876ac755601b53f3772c4
                          e8f1650268f6df3f7b7f030536b6b4e55a13b0d673b24e7e6a8fdecb9c5854ed
 stateless, account 0     fe1de5038bcc56fc434f8cba07eb53ab972de18ec0779c7465fd0d789a966879
 stateless, account 1     dae839ce92eb35bdd99718114d73d0b1ef6a2c66ad0bdd41b1fc7e99ee36ff82
-stateless, L = 48        da22b68be432f40bc516b7f4633ac9238970b93fe22e198438f32750cb42c45a
-                         7eaa9c32c1bc6a3fb120d9d3e3cd9d51
-stateful, account 0      675a2390347bd7f57af7086cd3596929701d22f554100304555a946403542c9f
+stateful, account 0      e09f687949d34fe3700c4cc043fe4bbb9cc1747df356030f1660628bd17e3c35
 app secret, account 0    4a50286a3a17be26017002484f0e99f10b6a19bc6202fbc3f079760fd9b1c000
+app secret, L = 48       12e34297e10e77196669049b009d5979ea993bd5f5bbc94fcf3f1fc9ed5b82ee
+                         625c3c751825ca788a9ccb7fc31422ea
 
 mnemonic                 abandon (23 times) art
 passphrase               TREZOR
@@ -250,7 +251,7 @@ R                        36115dbd5c9909f705901905fdfcd5b59af8a03773b107a4cbc01de
                          edabf87db6ceaebf3684dbfaf5ea46ec34d2b91a0d7661310b03b4ec1b5202bf
 stateless, account 0     3d5ad9f82a782c1578db5b40443cfba75c151167312a133d4c90457f6a98179d
 stateless, account 1     e5fa8baf57d6a7fecf5cdd9b7e1d1714cfbbdd4c86e7de882d4494d02fe65433
-stateful, account 0      20023fe84a406e7f050108053e586d5741db708b721554c6a9e1e1cb16bd6b6b
+stateful, account 0      876af17dd4ee96eb01a062b1416ad826079c788902bab2a8f9a1dad694f70bf7
 app secret, account 0    63cf757802534428b39551535e5560831be70a5996f1eab6240d399a0798c151
 
 mnemonic                 legal winner thank year wave sausage worth useful legal winner thank yellow
@@ -261,18 +262,18 @@ R                        c9f92a198541dcb5caf89f801827ef3baa8aafadcd3cee67d973ddb
                          30dd8e77b5d30e60650c5d6ac22328a701b0e87ef959ea6a78c7e170354c3fbf
 stateless, account 0     601ae30e33d5058eed33e0cc0ec25cb5bf8659481104a7bd0f10c0ebdd30b967
 stateless, account 1     7d3b358bf3d671dc6eb66dcfc58f7d91e6bb06bfe4cf92da9c19051a44516943
-stateful, account 0      52f7f43010563686fa971066e92e0e389d1caddf2c14a1dbb27f589a5f90dfee
+stateful, account 0      d3f9ac5b6a707b567dd6d3e4ceb54671e463f3a0b9a1419b6cfcb7ce715a0025
 app secret, account 0    27ed4acb2aed9f052692619b763f96da377a3f96f2b242d8d636d19e1d06a3be
 
 random input             202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
 R                        719bbea6f6e3bec595afff3dccc8558972a4aa4893a654ce6b793616eab6f3d5
                          c18887c81e3a4009c5488c1070b86a65e6bb32279473b8d8a21548e8d02fc07a
 stateless, max account   6a0989ffde23947e80f0dfe22f5c9f7df46b79403db776b90fdd127b84f76ceb
-stateful, max account    0faee1dc2f4f8cdb4cd3fb634429c53d2305644fcc3903f5507ce05a64c6f5e8
+stateful, max account    428e830b9fe051934bdcb8d5f10d16e4bf48bc1b2d7bdfcf56094e97d1a5a374
 app secret, max account  dadb75da4b8194cfac6575b65705b93e5343172e4c2ed271e2e3627ffadfa950
 ```
 
-The two values of `S` with passphrase `TREZOR` are BIP-39's published test vectors. The line with `L = 48` shows that a longer seed does not start with the shorter one.
+The two values of `S` with passphrase `TREZOR` are BIP-39's published test vectors. The application secret with `L = 48` shows that a longer output does not start with the shorter one.
 
 The `info` of the first stateless seed (account 0, `L = 32`) is these 47 bytes:
 
@@ -281,7 +282,7 @@ The `info` of the first stateless seed (account 0, `L = 32`) is these 47 bytes:
 6c65616e537068696e63732d6b656363616b2f77616d627367616e732d6b656363616b2f623130
 ```
 
-SLH-DSA key types, for the first mnemonic with the empty passphrase and account 0. The seed is `SK.seed || SK.prf || PK.seed`, and the public key is `PK.seed || PK.root`:
+SLH-DSA key types, for the first mnemonic with the empty passphrase and account 0. `L` is `3n`: 48, 72 and 96 bytes. The seed is `SK.seed || SK.prf || PK.seed`, and the public key is `PK.seed || PK.root`:
 
 ```
 key type                 SLH-DSA-SHA2-128s
@@ -304,7 +305,16 @@ public key               be4e3fe70e626bafe1538ed6c50cdffe7918192469ce47798357d6c
                          7a7fd9278d47cc69476b93a1b22fe671b4c1c102e5dddaf05870138189dc068e
 ```
 
-An implementation rejects each of these inputs: the mnemonic `abandon` repeated 24 times, whose checksum fails; the key types `""` and `leanSphincs keccak`, one empty and one with a space; a key type of 256 bytes; account `2^32`; the lengths 31 and 16321; and the key type `SLH-DSA-SHA2-128s` with a length other than 48, or as a stateful key.
+An implementation rejects each of these inputs:
+
+- the mnemonic `abandon` repeated 24 times, whose checksum fails;
+- input key material of fewer than 32 bytes;
+- the key types `""` and `leanSphincs keccak`, one empty and one with a space, and a key type of 256 bytes;
+- an empty label, and a label of 256 bytes;
+- account `2^32`;
+- the lengths 31 and 16321;
+- a root that is not 64 bytes, and a `context` or `instance` that is not 32 bytes;
+- the key type `SLH-DSA-SHA2-128s` with a length other than 48, or as a stateful key.
 
 ## Reference Implementation
 
