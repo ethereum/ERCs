@@ -1,4 +1,4 @@
-# ERC-8376 Conformance Test Cases v0.2
+# ERC-8376 Conformance Test Cases v0.1
 
 The cases a conformant implementation MUST cover at minimum, referenced from the
 Test Cases section of ERC-8376.
