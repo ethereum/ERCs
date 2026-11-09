@@ -1,0 +1,148 @@
+{
+  "description": "Worked example: an MCP-timeout event cycle. Layers 0-2 adopt new states, layer 3 forms a candidate and keeps its state.",
+  "tags": {
+    "layerCommitment": "0xc76b0a7a69207b3cf002d75e6493bc9fe99e8d75b5096ead1276bc4339b69d85",
+    "stateRoot": "0xe2251470d039826c2565c6e003924bb890e07cd981b370528c245e47f1c3e7c6"
+  },
+  "subject": "0x000000000000000000000000000000000000a6e7",
+  "policy": {
+    "document": "examples/mcp-timeout-cycle/policy.json",
+    "policyHash": "0x5dfdd440a0eced1f62839fa0281f21cadacfa0f527642ea586b5f5c1ce5e41d9",
+    "struct": [
+      "0x5dfdd440a0eced1f62839fa0281f21cadacfa0f527642ea586b5f5c1ce5e41d9",
+      "",
+      15,
+      15,
+      15,
+      1,
+      3600,
+      21600,
+      [
+        86400,
+        604800,
+        2592000,
+        7776000
+      ]
+    ]
+  },
+  "pre": {
+    "layers": [
+      {
+        "layer": 0,
+        "schemaId": "amm.layer.runtime/1",
+        "schemaHash": "0x6a00023d50bfe315bf6650953a4bb81910aef335c63ee465d2f52937b860790b",
+        "contentHash": "0xa25eae406d69cd3802dbb588487f486e5b5e006b7ef521303ea24406979a4731",
+        "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "commitment": "0x053bdcecda479dd30b5bfd7a02661df67b79e978fea6888245df8aa167d6d282",
+        "document": "examples/mcp-timeout-cycle/<set>/runtime.json"
+      },
+      {
+        "layer": 1,
+        "schemaId": "amm.layer.memory-skills/1",
+        "schemaHash": "0x2862ecb7722af301f96bf7b7127d96568563c9c6cd281308f315e97b433d2055",
+        "contentHash": "0xf3640f14c472bf43b5e89ea5a0a7d1e3681f47c81a7cf1a0d3f41cc685ed1701",
+        "salt": "0x9b1e4c7a2d5f8b0c3e6a9d1f4b7e0a3c6f9b2e5d8a1c4f7b0e3a6d9c2f5b8e1a",
+        "commitment": "0x3a8a0162793df87f7094634e37d9e5d3d8470bd43cc7fee5669f609d922ee9c3",
+        "document": "examples/mcp-timeout-cycle/<set>/memory-skills.json"
+      },
+      {
+        "layer": 2,
+        "schemaId": "amm.layer.tasks-roles/1",
+        "schemaHash": "0x739b5fc9aa474200ce364ed1db095acd99a4407eb27e258f294f3e65ffff40ad",
+        "contentHash": "0x1cefdfbcd841dc162bea189aa25d1e3e2a031d5805901a407db4003706cafdd5",
+        "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "commitment": "0x3d3356ae1bc86136718f1ecd7f42d8a0570db2d21116c886cab291a789010585",
+        "document": "examples/mcp-timeout-cycle/<set>/tasks-roles.json"
+      },
+      {
+        "layer": 3,
+        "schemaId": "amm.layer.cognition/1",
+        "schemaHash": "0x086a5b8a0101b4013c63de2d7392ddb4ae22c61e33afd0eaef58387952c1f468",
+        "contentHash": "0xc6e5d3da30fc9d27be29773df620dbed9a359d6bba795d93bafcdb5963e9ede8",
+        "salt": "0x4d7a0c3f6b9e2d5a8c1f4b7e0a3d6c9f2b5e8a1d4c7f0b3e6a9d2c5f8b1e4a7d",
+        "commitment": "0xbe9a1abba6f84ec051c3eb91bb19e2d3504d773da883b94aece5ee9e37c79e8e",
+        "document": "examples/mcp-timeout-cycle/<set>/cognition.json"
+      }
+    ],
+    "root": "0x090e63d66e6cdb08331fece350bd0320551287d53d6644d5af158b04d94d149f"
+  },
+  "post": {
+    "layers": [
+      {
+        "layer": 0,
+        "schemaId": "amm.layer.runtime/1",
+        "schemaHash": "0x6a00023d50bfe315bf6650953a4bb81910aef335c63ee465d2f52937b860790b",
+        "contentHash": "0xacd47bc6d2511898088ea3f2b561707ff0f23f434385f4fee7fd53991e50b881",
+        "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "commitment": "0xb5a33b6d3732e664a08a19ed068432a6ab1085bf7013b3ffce1ff88ec7dd8519",
+        "document": "examples/mcp-timeout-cycle/<set>/runtime.json"
+      },
+      {
+        "layer": 1,
+        "schemaId": "amm.layer.memory-skills/1",
+        "schemaHash": "0x2862ecb7722af301f96bf7b7127d96568563c9c6cd281308f315e97b433d2055",
+        "contentHash": "0x205d5acb2bec31ae30aeaad85e5761ff592b1d50011138dc0d5cd2f38fcfb607",
+        "salt": "0xc3f6a9d2e5b8c1f4a7d0e3b6c9f2a5d8e1b4c7f0a3d6e9b2c5f8a1d4e7b0c3f6",
+        "commitment": "0xd24fedfca7a64b7596414751a6d4a1ed7a89bf906bce4b453453a7b086d26641",
+        "document": "examples/mcp-timeout-cycle/<set>/memory-skills.json"
+      },
+      {
+        "layer": 2,
+        "schemaId": "amm.layer.tasks-roles/1",
+        "schemaHash": "0x739b5fc9aa474200ce364ed1db095acd99a4407eb27e258f294f3e65ffff40ad",
+        "contentHash": "0x8c008b3acd189eea792a1c56b70020fef36a2ed9bb75cfa07944bfdeac6115cd",
+        "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "commitment": "0x8f03de4a144d8d453c84d2d4546fb0f01af23bd6f7ba31d18dac0c6dd1a942f0",
+        "document": "examples/mcp-timeout-cycle/<set>/tasks-roles.json"
+      },
+      {
+        "layer": 3,
+        "schemaId": "amm.layer.cognition/1",
+        "schemaHash": "0x086a5b8a0101b4013c63de2d7392ddb4ae22c61e33afd0eaef58387952c1f468",
+        "contentHash": "0xc6e5d3da30fc9d27be29773df620dbed9a359d6bba795d93bafcdb5963e9ede8",
+        "salt": "0x4d7a0c3f6b9e2d5a8c1f4b7e0a3d6c9f2b5e8a1d4c7f0b3e6a9d2c5f8b1e4a7d",
+        "commitment": "0xbe9a1abba6f84ec051c3eb91bb19e2d3504d773da883b94aece5ee9e37c79e8e",
+        "document": "examples/mcp-timeout-cycle/<set>/cognition.json"
+      }
+    ],
+    "root": "0x9918ebff7f3bc97ca08580033da3aa99b27871d8d57b2b8c9845221fa3dec3de"
+  },
+  "record": {
+    "document": "examples/mcp-timeout-cycle/cycle-record.json",
+    "recordHash": "0xdcbc7047b5bf0d600b98d7829fc37757bdac9406ec992128cc90e910e9645088",
+    "canonicalLength": 3056
+  },
+  "report": [
+    "1",
+    "0x090e63d66e6cdb08331fece350bd0320551287d53d6644d5af158b04d94d149f",
+    [
+      "0xb5a33b6d3732e664a08a19ed068432a6ab1085bf7013b3ffce1ff88ec7dd8519",
+      "0xd24fedfca7a64b7596414751a6d4a1ed7a89bf906bce4b453453a7b086d26641",
+      "0x8f03de4a144d8d453c84d2d4546fb0f01af23bd6f7ba31d18dac0c6dd1a942f0",
+      "0xbe9a1abba6f84ec051c3eb91bb19e2d3504d773da883b94aece5ee9e37c79e8e"
+    ],
+    15,
+    15,
+    1110,
+    0,
+    1,
+    1,
+    1762653600,
+    1762654500,
+    1762740000,
+    "0",
+    "0xdcbc7047b5bf0d600b98d7829fc37757bdac9406ec992128cc90e910e9645088",
+    "ipfs://example/mcp-timeout-cycle/cycle-record.json"
+  ],
+  "summary": {
+    "layerMask": 15,
+    "completedLayers": 15,
+    "opsMask": 1110,
+    "changedLayers": 7,
+    "outcome": 0,
+    "trigger": 1,
+    "recordHash": "0xdcbc7047b5bf0d600b98d7829fc37757bdac9406ec992128cc90e910e9645088",
+    "postRoot": "0x9918ebff7f3bc97ca08580033da3aa99b27871d8d57b2b8c9845221fa3dec3de"
+  },
+  "calldata": "0xb18c937f000000000000000000000000000000000000000000000000000000000000a6e700000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001090e63d66e6cdb08331fece350bd0320551287d53d6644d5af158b04d94d149fb5a33b6d3732e664a08a19ed068432a6ab1085bf7013b3ffce1ff88ec7dd8519d24fedfca7a64b7596414751a6d4a1ed7a89bf906bce4b453453a7b086d266418f03de4a144d8d453c84d2d4546fb0f01af23bd6f7ba31d18dac0c6dd1a942f0be9a1abba6f84ec051c3eb91bb19e2d3504d773da883b94aece5ee9e37c79e8e000000000000000000000000000000000000000000000000000000000000000f000000000000000000000000000000000000000000000000000000000000000f000000000000000000000000000000000000000000000000000000000000045600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000690ff5a000000000000000000000000000000000000000000000000000000000690ff92400000000000000000000000000000000000000000000000000000000691147200000000000000000000000000000000000000000000000000000000000000000dcbc7047b5bf0d600b98d7829fc37757bdac9406ec992128cc90e910e964508800000000000000000000000000000000000000000000000000000000000002400000000000000000000000000000000000000000000000000000000000000032697066733a2f2f6578616d706c652f6d63702d74696d656f75742d6379636c652f6379636c652d7265636f72642e6a736f6e0000000000000000000000000000"
+}

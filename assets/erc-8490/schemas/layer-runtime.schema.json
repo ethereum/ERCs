@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "amm.layer.runtime/1",
+  "title": "Layer 0 state document: runtime",
+  "description": "Stable description of an agent's runtime: code, dependencies, adapters (API/MCP bindings), authorization configuration and self-check suite. Timed observations (balances, reachability, resource usage) do not belong here; they go into the cycle record.",
+  "type": "object",
+  "required": ["schema", "layer", "runtime"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "amm.layer.runtime/1"},
+    "layer": {"const": 0},
+    "revision": {"type": "string", "description": "Implementation-defined label of this state revision; changes only when the content changes."},
+    "runtime": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "platform": {"type": "string"}
+      }
+    },
+    "code": {"type": "array", "items": {"$ref": "#/$defs/component"}},
+    "dependencies": {"type": "array", "items": {"$ref": "#/$defs/component"}},
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "name", "version"],
+        "properties": {
+          "kind": {"type": "string", "description": "e.g. mcp, api, rpc, a2a"},
+          "name": {"type": "string"},
+          "version": {"type": "string"},
+          "schemaHash": {"$ref": "#/$defs/bytes32"}
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "properties": {
+        "operators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["address", "permissions"],
+            "properties": {"address": {"$ref": "#/$defs/address"}, "permissions": {"type": "integer", "minimum": 0, "maximum": 7}}
+          }
+        },
+        "keyFingerprints": {"type": "array", "items": {"$ref": "#/$defs/bytes32"}, "description": "Fingerprints of keys in use; never key material."}
+      }
+    },
+    "selfCheckSuite": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "hash": {"$ref": "#/$defs/bytes32"}, "layersCovered": {"type": "array", "items": {"type": "integer"}}}
+    }
+  },
+  "$defs": {
+    "bytes32": {"type": "string", "pattern": "^0x[0-9a-fA-F]{64}$"},
+    "address": {"type": "string", "pattern": "^0x[0-9a-fA-F]{40}$"},
+    "component": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {"component": {"type": "string"}, "name": {"type": "string"}, "version": {"type": "string"}, "hash": {"type": "string"}}
+    }
+  }
+}

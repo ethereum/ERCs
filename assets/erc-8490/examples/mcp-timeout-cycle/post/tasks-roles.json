@@ -1,0 +1,21 @@
+{
+  "schema": "amm.layer.tasks-roles/1",
+  "layer": 2,
+  "revision": "2026-11-09",
+  "roles": [
+    {"id": "tender-worker", "description": "fulfils task tenders it has reserved", "since": "2026-10-20"},
+    {"id": "rpc-observer", "description": "publishes periodic observations", "since": "2026-10-25"}
+  ],
+  "plans": [
+    {"id": "plan-q4-observations", "horizon": "30d", "priority": 1, "status": "active"},
+    {"id": "plan-adapter-hardening", "horizon": "7d", "priority": 2, "status": "active"},
+    {"id": "plan-recover-tender-17", "horizon": "2d", "priority": 1, "status": "active", "method": "query-result-before-retry"}
+  ],
+  "tasks": [
+    {"ref": "eip155:11155111/erc8414:0x0000000000000000000000000000000000008414/17", "version": 2, "status": "in-progress", "binding": {"skill": "tender-worker", "version": "1.4.0"}},
+    {"ref": "eip155:11155111/erc8414:0x0000000000000000000000000000000000008414/21", "version": 1, "status": "reserved", "binding": {"skill": "tender-worker", "version": "1.4.0"}}
+  ],
+  "services": [
+    {"name": "observe.rpc", "version": "0.9.2", "catalogHash": "0x44a4b4c4d4e4f40444546474849404a4b4c4d4e4f4044454647484940a4b4c4d4"}
+  ]
+}

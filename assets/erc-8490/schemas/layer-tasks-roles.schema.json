@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "amm.layer.tasks-roles/1",
+  "title": "Layer 2 state document: tasks and roles",
+  "description": "How the agent deploys its capabilities: current roles, short- and mid-term plans, the tasks it has taken on with their version bindings to skills and services, and the services it offers. Commitments made to counterparties are referenced here; changing them is governed by the mechanism that created them, not by this document.",
+  "type": "object",
+  "required": ["schema", "layer"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"const": "amm.layer.tasks-roles/1"},
+    "layer": {"const": 2},
+    "revision": {"type": "string"},
+    "roles": {"type": "array", "items": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}, "description": {"type": "string"}, "since": {"type": "string"}}}},
+    "plans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": {"type": "string"},
+          "horizon": {"type": "string"},
+          "priority": {"type": "integer"},
+          "status": {"type": "string", "enum": ["proposed", "active", "paused", "done", "dropped"]},
+          "method": {"type": "string"}
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ref", "status"],
+        "properties": {
+          "ref": {"type": "string", "description": "Stable reference of the task, for example a CAIP-style identifier of an on-chain task record."},
+          "version": {"type": "integer"},
+          "status": {"type": "string"},
+          "binding": {"type": "object", "properties": {"skill": {"type": "string"}, "version": {"type": "string"}, "service": {"type": "string"}}}
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "items": {"type": "object", "required": ["name", "version"], "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "endpoint": {"type": "string"}, "catalogHash": {"type": "string"}}}
+    }
+  }
+}

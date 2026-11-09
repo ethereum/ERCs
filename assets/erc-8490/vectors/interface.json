@@ -1,0 +1,98 @@
+{
+  "description": "ERC-165 interface identifier of IAgentMeditation (XOR of all function selectors).",
+  "interfaceId": "0x9c81b550",
+  "functions": [
+    {
+      "signature": "checkpointOf(address,uint8)",
+      "selector": "0x11fe675a"
+    },
+    {
+      "signature": "computeLayerCommitment(uint8,bytes32,bytes32,bytes32)",
+      "selector": "0xacb21439"
+    },
+    {
+      "signature": "computeRoot(bytes32[4])",
+      "selector": "0x8a851e4b"
+    },
+    {
+      "signature": "demand(address,uint8,uint48)",
+      "selector": "0xcc15bae6"
+    },
+    {
+      "signature": "demandOf(address,uint8)",
+      "selector": "0xfce13f17"
+    },
+    {
+      "signature": "enroll(bytes32[4],(bytes32,string,uint8,uint8,uint8,uint8,uint48,uint48,uint48[4]),address,uint8)",
+      "selector": "0x9873d15a"
+    },
+    {
+      "signature": "floorOf(address)",
+      "selector": "0xc2bc92b9"
+    },
+    {
+      "signature": "headOf(address)",
+      "selector": "0x1db0e136"
+    },
+    {
+      "signature": "layerStatus(address,uint8)",
+      "selector": "0xbae6d93a"
+    },
+    {
+      "signature": "operatorPermissions(address,address)",
+      "selector": "0x7c478caa"
+    },
+    {
+      "signature": "policyEffectiveFrom(address,uint32)",
+      "selector": "0x0b919289"
+    },
+    {
+      "signature": "policyOf(address,uint32)",
+      "selector": "0x3616242e"
+    },
+    {
+      "signature": "pulse(address,uint48)",
+      "selector": "0xb699ed0f"
+    },
+    {
+      "signature": "report(address,(uint64,bytes32,bytes32[4],uint8,uint8,uint16,uint8,uint8,uint32,uint48,uint48,uint48,uint64,bytes32,string))",
+      "selector": "0xb18c937f"
+    },
+    {
+      "signature": "requirementsOf(address)",
+      "selector": "0xc70428fc"
+    },
+    {
+      "signature": "revokeOperator(address,address)",
+      "selector": "0xc79eb9bd"
+    },
+    {
+      "signature": "rootAt(address,uint64)",
+      "selector": "0x899314ce"
+    },
+    {
+      "signature": "setController(address,address,uint8)",
+      "selector": "0x4ef98a45"
+    },
+    {
+      "signature": "setFloor(address,(uint8,uint48,uint48[4]))",
+      "selector": "0xe68d834c"
+    },
+    {
+      "signature": "setOperator(address,uint8)",
+      "selector": "0xc9e9e221"
+    },
+    {
+      "signature": "setPolicy(address,(bytes32,string,uint8,uint8,uint8,uint8,uint48,uint48,uint48[4]))",
+      "selector": "0x996f71da"
+    },
+    {
+      "signature": "signalStatus(address)",
+      "selector": "0xacd645fe"
+    },
+    {
+      "signature": "withdrawDemand(address,uint8)",
+      "selector": "0xfddd3898"
+    }
+  ]
+}
