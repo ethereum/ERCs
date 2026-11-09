@@ -1,0 +1,247 @@
+{
+  "description": "ERC-165 interface id = XOR of the function selectors of the interface (ethers Interface over the compiled ABI).",
+  "count": 7,
+  "vectors": [
+    {
+      "name": "IAIFPParadigmRegistry",
+      "interfaceId": "0xa30ca0da",
+      "functionCount": 8,
+      "functions": [
+        {
+          "signature": "exists(bytes32)",
+          "selector": "0x38a699a4"
+        },
+        {
+          "signature": "familyController(bytes32)",
+          "selector": "0xb0665f10"
+        },
+        {
+          "signature": "hasLabel(bytes32,bytes32)",
+          "selector": "0xf3e36461"
+        },
+        {
+          "signature": "labelsOf(bytes32)",
+          "selector": "0xe3a87968"
+        },
+        {
+          "signature": "paradigm(bytes32)",
+          "selector": "0xe4130ce3"
+        },
+        {
+          "signature": "registerParadigm(bytes,bytes32,bytes32,bytes32[],(uint16,bytes32)[],string)",
+          "selector": "0xe4bdd0f0"
+        },
+        {
+          "signature": "rolePredicateHash(bytes32,uint16)",
+          "selector": "0xc82a7db4"
+        },
+        {
+          "signature": "transferFamily(bytes32,address)",
+          "selector": "0xf303dac0"
+        }
+      ]
+    },
+    {
+      "name": "IAIFPChannelRegistry",
+      "interfaceId": "0x94dbe6d5",
+      "functionCount": 18,
+      "functions": [
+        {
+          "signature": "adoptionAt(bytes32,uint256)",
+          "selector": "0x0d4b1fbe"
+        },
+        {
+          "signature": "adoptionCount(bytes32)",
+          "selector": "0x70eff46d"
+        },
+        {
+          "signature": "adoptParadigm(bytes32,bytes32,uint48,bool,bytes32)",
+          "selector": "0xc94f7cbe"
+        },
+        {
+          "signature": "binding(bytes32,bytes32)",
+          "selector": "0x259c7cbe"
+        },
+        {
+          "signature": "bindingIds(bytes32)",
+          "selector": "0x4244f7de"
+        },
+        {
+          "signature": "channel(bytes32)",
+          "selector": "0xb7d9c80e"
+        },
+        {
+          "signature": "currentParadigm(bytes32)",
+          "selector": "0x5d2ded96"
+        },
+        {
+          "signature": "declareBinding(bytes32,(uint8,bytes32,bytes32,uint32,uint32,uint8,bytes32,bool))",
+          "selector": "0x7f56ecf5"
+        },
+        {
+          "signature": "disclosureAt(bytes32,uint256)",
+          "selector": "0xa7219ff4"
+        },
+        {
+          "signature": "disclosureCount(bytes32)",
+          "selector": "0xd2669481"
+        },
+        {
+          "signature": "isGovernanceExecutor(bytes32,address,uint32)",
+          "selector": "0x81bcb4fc"
+        },
+        {
+          "signature": "openChannel(bytes32,address,bytes32,string,(uint8,bytes32,bytes32,uint32,uint32,uint8,bytes32,bool)[])",
+          "selector": "0x9634fe06"
+        },
+        {
+          "signature": "paradigmAt(bytes32,uint48)",
+          "selector": "0xd5c62b8a"
+        },
+        {
+          "signature": "readmissionEpochAt(bytes32,uint48)",
+          "selector": "0x02473d00"
+        },
+        {
+          "signature": "recordDisclosure(bytes32,uint8,bytes32,bytes32,bytes32)",
+          "selector": "0x521adce9"
+        },
+        {
+          "signature": "revokeBinding(bytes32,bytes32)",
+          "selector": "0x266cb7cd"
+        },
+        {
+          "signature": "setState(bytes32,uint8)",
+          "selector": "0x1d13434d"
+        },
+        {
+          "signature": "transferAuthority(bytes32,address)",
+          "selector": "0x0e614cd9"
+        }
+      ]
+    },
+    {
+      "name": "IAIFPParticipationRegistry",
+      "interfaceId": "0x14c97260",
+      "functionCount": 14,
+      "functions": [
+        {
+          "signature": "admit(bytes32,uint16,bytes32,bytes,bytes[],uint48)",
+          "selector": "0x8754384c"
+        },
+        {
+          "signature": "bindingIdsOf(bytes32,bytes32)",
+          "selector": "0x50fceca0"
+        },
+        {
+          "signature": "bindingOf(bytes32)",
+          "selector": "0x17530ef1"
+        },
+        {
+          "signature": "confirmReadmission(bytes32)",
+          "selector": "0x53bb06f2"
+        },
+        {
+          "signature": "evaluate(bytes32,bytes32,uint16,bytes32,uint48)",
+          "selector": "0x53319c63"
+        },
+        {
+          "signature": "evaluateNow(bytes32,bytes32,uint16,bytes32)",
+          "selector": "0x9535dbba"
+        },
+        {
+          "signature": "grant(bytes32,bytes32,bytes32,uint16,bytes32,uint8,bytes32,uint48,uint48)",
+          "selector": "0x0f9d78e8"
+        },
+        {
+          "signature": "isPending(bytes32,uint48)",
+          "selector": "0x876fa930"
+        },
+        {
+          "signature": "previewAdmission(bytes32,bytes32,uint16,bytes32,bytes,bytes[])",
+          "selector": "0x5783edd6"
+        },
+        {
+          "signature": "readmit(bytes32,bytes,bytes[])",
+          "selector": "0x0a041f93"
+        },
+        {
+          "signature": "reinstate(bytes32)",
+          "selector": "0x89099a63"
+        },
+        {
+          "signature": "revoke(bytes32,bytes32)",
+          "selector": "0xc2664610"
+        },
+        {
+          "signature": "rolesOf(bytes32,bytes32,bytes32,uint48)",
+          "selector": "0x9ca7dccb"
+        },
+        {
+          "signature": "suspend(bytes32,bytes32)",
+          "selector": "0x4330ca73"
+        }
+      ]
+    },
+    {
+      "name": "IAIFPCompositeVerifier",
+      "interfaceId": "0xa5913d6e",
+      "functionCount": 2,
+      "functions": [
+        {
+          "signature": "evaluate(bytes32,bytes32,uint16,bytes32,bytes,bytes[])",
+          "selector": "0xd9a84f23"
+        },
+        {
+          "signature": "supportsKind(uint8)",
+          "selector": "0x7c39724d"
+        }
+      ]
+    },
+    {
+      "name": "IAIFPPredicateVerifier",
+      "interfaceId": "0xe7a501b7",
+      "functionCount": 1,
+      "functions": [
+        {
+          "signature": "verify(bytes32,bytes32,uint16,bytes32,uint8,bytes32,bytes,bytes)",
+          "selector": "0xe7a501b7"
+        }
+      ]
+    },
+    {
+      "name": "IAIFPSubjectSet",
+      "interfaceId": "0x1d1a696d",
+      "functionCount": 1,
+      "functions": [
+        {
+          "signature": "contains(bytes32)",
+          "selector": "0x1d1a696d"
+        }
+      ]
+    },
+    {
+      "name": "IAIFPEventAnchor",
+      "interfaceId": "0x62b24396",
+      "functionCount": 4,
+      "functions": [
+        {
+          "signature": "anchor(bytes32,uint8,bytes32,(uint8,bytes32)[])",
+          "selector": "0x4b121fa2"
+        },
+        {
+          "signature": "anchoredBy(bytes32)",
+          "selector": "0x95b29602"
+        },
+        {
+          "signature": "record(uint256)",
+          "selector": "0x2c16cd8a"
+        },
+        {
+          "signature": "recordCount()",
+          "selector": "0x900407bc"
+        }
+      ]
+    }
+  ]
+}

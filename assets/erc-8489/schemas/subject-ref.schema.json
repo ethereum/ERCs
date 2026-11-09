@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finchip.ai/schemas/aifp/subject-ref.schema.json",
+  "title": "AIFP Canonical Subject Reference v1",
+  "description": "The canonical string of a subject reference is <scheme>:<domain>:<identifier>; subjectRef = keccak256(utf8(canonical)). Scheme and domain never contain ':', so the string parses left to right. Addresses are lowercase hex, integers are decimal without leading zeros. An address is never left-padded into bytes32: there is exactly one encoding.",
+  "type": "string",
+  "oneOf": [
+    {
+      "title": "eip155-address",
+      "description": "eip155-address:<chainId>:<0x + 40 lowercase hex>",
+      "pattern": "^eip155-address:(0|[1-9][0-9]*):0x[0-9a-f]{40}$"
+    },
+    {
+      "title": "erc8004",
+      "description": "erc8004:<chainId>:<0x + 40 lowercase hex identity registry>:<agentId>",
+      "pattern": "^erc8004:(0|[1-9][0-9]*):0x[0-9a-f]{40}:(0|[1-9][0-9]*)$"
+    },
+    {
+      "title": "did",
+      "description": "did:<method>:<method-specific-id as given, case preserved>; the canonical string equals the DID",
+      "pattern": "^did:[a-z0-9]+:.+$"
+    },
+    {
+      "title": "ext",
+      "description": "ext:<namespace lowercase>:<opaque identifier>",
+      "pattern": "^ext:[a-z0-9][a-z0-9.-]*:.+$"
+    }
+  ],
+  "examples": [
+    "eip155-address:11155111:0xabcdef0123456789abcdef0123456789abcdef01",
+    "erc8004:11155111:0x8004a818bfb912233c491871b3d84c89a494bd9e:10387",
+    "did:aid:example-7",
+    "ext:finchip.ai:foga-cell-7"
+  ]
+}
