@@ -14,9 +14,9 @@ created: 2026-11-08
 
 This ERC specifies how a wallet derives the secret seeds of hash-based post-quantum keys, such as leanSPHINCS, from a BIP-39 recovery phrase. The derivation uses one primitive, HMAC-SHA512: in BIP-39's own PBKDF2, and then in HKDF. It never passes through BIP-32 or any elliptic-curve operation, so a quantum adversary who breaks every ECDSA key made from the same phrase learns nothing about the hash-based keys.
 
-The ERC defines a root secret, a seed for each stateless key, a seed for each instance of a stateful key, and a secret for each application. Stateless keys are restored from the phrase. Stateful keys never are: each instance takes fresh randomness, so a restored wallet cannot reuse one-time keys.
+The core of the ERC is small: a root secret from the phrase, and a seed for each stateless key, named by an account and a key type. A key type string names the signature scheme, its parameter set and its key generation, so a new parameter set gives a new key from the same phrase. The ERC defines the key types of SLH-DSA, the stateless hash-based signature that NIST standardized in FIPS 205. Two wallets that implement the core derive the same SLH-DSA key pairs from the same phrase.
 
-The ERC is independent of the signature scheme and its parameters. A key type string names the scheme, its parameter set and its key generation, so a new parameter set gives a new key from the same phrase. The ERC defines the key types of SLH-DSA, the stateless hash-based signature that NIST standardized in FIPS 205, so that conforming wallets derive the same SLH-DSA key pair from a phrase.
+Three optional derivations cover what one wallet never restores from another: seeds for stateful keys, which take fresh randomness so that a restored wallet cannot reuse a one-time key; secrets for applications; and roots for devices that hold no phrase.
 
 ## Motivation
 
@@ -28,7 +28,7 @@ Implementations have diverged:
 - Another derives them through hardened [BIP-32](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0032.mediawiki) paths under `m/44'/60'/a'`.
 - A third runs BIP-39's PBKDF2 over the phrase a second time, with its own salt in place of `"mnemonic"`.
 
-The same phrase therefore gives different keys in different wallets, and a phrase restored elsewhere does not restore the account.
+The same phrase therefore gives different keys in different wallets, and a phrase restored elsewhere does not restore the keys.
 
 A standard derivation lets a user:
 
@@ -42,6 +42,15 @@ Derivations through BIP-32 have a further problem. Every BIP-32 node has an elli
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
 
+### Conformance
+
+This ERC has a core and three optional derivations.
+
+- A wallet conforms to this ERC if it implements the core: the root secret of a BIP-39 phrase, accounts, key types, the seeds of stateless keys, and the key types of SLH-DSA. Two conforming wallets derive the same stateless key pairs from the same phrase.
+- A wallet MAY implement any of the optional derivations: stateful keys, application secrets and random roots. A wallet that implements one MUST follow its section.
+
+A wallet MUST NOT derive any value of this ERC through BIP-32 or any other step that involves elliptic-curve arithmetic.
+
 ### Notation
 
 - `||` is byte concatenation.
@@ -50,29 +59,20 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 - `ascii(s)` and `utf8(s)` are the ASCII and UTF-8 encodings of a string `s`, without terminator or length prefix.
 - `HKDF-Extract(salt, IKM)` and `HKDF-Expand(PRK, info, L)` are the two steps of HKDF as [RFC 5869](https://www.rfc-editor.org/rfc/rfc5869) defines them, with SHA-512 as the hash. `HKDF-Extract` returns 64 bytes, and `HKDF-Expand` returns `L` bytes.
 
-### Root secret
+### Core derivation
 
-A root secret `R` is 64 bytes:
+#### Root secret
 
-```
-R = HKDF-Extract(salt = ascii("HBKD/v1"), IKM)
-```
-
-The input key material `IKM` comes from one of two sources.
-
-**From a BIP-39 phrase.** With mnemonic sentence `M` and BIP-39 passphrase `P` (the empty string if the user sets none):
+A root secret `R` is 64 bytes. With mnemonic sentence `M` and BIP-39 passphrase `P` (the empty string if the user sets none):
 
 ```
-IKM = S = BIP39-Seed(M, P)          64 bytes: PBKDF2-HMAC-SHA512, 2048 iterations, as BIP-39 specifies
+S = BIP39-Seed(M, P)                                 64 bytes: PBKDF2-HMAC-SHA512, 2048 iterations, as BIP-39 specifies
+R = HKDF-Extract(salt = ascii("HBKD/v1"), IKM = S)
 ```
 
 `M` is the phrase's words exactly as they appear in the BIP-39 wordlist it was made with, separated by single spaces. Wallets MAY support only the English wordlist. A wallet MUST bring what the user types (other letter case, other spacing, abbreviated words) into this form. It MUST reject a mnemonic with a word outside the wordlist or a failed BIP-39 checksum. BIP-39 only asks for a warning, but a mistyped word that passes would restore different keys.
 
-**Random.** For a key holder without a phrase, such as a device that a phrase-derived key certifies, `IKM` is at least 32 bytes from a cryptographically secure random number generator.
-
-A wallet MUST NOT derive `R`, or any value in this ERC, through BIP-32 or any other step that involves elliptic-curve arithmetic.
-
-### Derived values
+#### Derived values
 
 Every seed and secret of this ERC is an output of `HKDF-Expand(R, info, L)`:
 
@@ -82,18 +82,18 @@ info = purpose || be32(account) || be16(L) || len8(name) || name || tail
 
 | Field | Bytes | Value |
 |---|---|---|
-| `purpose` | 1 | `0x01` for a stateless key, `0x02` for a stateful key, `0x03` for an application secret |
+| `purpose` | 1 | `0x01` for a stateless key; in the optional derivations, `0x02` for a stateful key and `0x03` for an application secret |
 | `account` | 4 | the account, below |
 | `L` | 2 | the number of bytes derived, `32 <= L <= 16320` |
 | `len8(name)` | 1 | the length of `name`, from 1 to 255 |
 | `name` | 1 to 255 | the key type, or the application's label |
 | `tail` | 0 or 64 | empty, or `context \|\| instance` for a stateful key |
 
-### Accounts
+#### Accounts
 
-`account` is an integer `0 <= account < 2^32`. Different values give independent sets of keys from one root, like the account level of [BIP-44](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0044.mediawiki). Wallets SHOULD use `account = 0` unless the user creates more.
+`account` is an integer `0 <= account < 2^32`. Different values give independent sets of keys from one root, like the account level of [BIP-44](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0044.mediawiki). Wallets SHOULD use accounts in order from 0, without gaps.
 
-### Key types
+#### Key types
 
 A key type is a string of 1 to 255 printable ASCII characters other than the space, that is of bytes `0x21` to `0x7e`. It identifies:
 
@@ -104,7 +104,7 @@ A key type is a string of 1 to 255 printable ASCII characters other than the spa
 
 This ERC defines the key types of SLH-DSA, below. The specification of another scheme or of an application defines its own. A key type string MUST change whenever the map from seed to public key changes. Two different procedures MUST NOT share a key type string. A scheme whose key generation takes several secret values, or more than 32 bytes, sets `L` to what it needs and says how the seed is cut up.
 
-### Stateless keys
+#### Stateless keys
 
 The seed of the stateless key of type `t` for `account` is:
 
@@ -114,7 +114,9 @@ seed = HKDF-Expand(R, 0x01 || be32(account) || be16(L) || len8(ascii(t)) || asci
 
 The key pair is the key type's key generation applied to `seed`. Restoring `R` MUST restore the same key pair.
 
-### SLH-DSA key types
+A key type whose secret key changes with use, such as a one-time key, a few-time key or a key with an index, MUST NOT be derived as a stateless key. A restore would bring back keys that have already signed.
+
+#### SLH-DSA key types
 
 The key types of SLH-DSA are the names of its parameter sets as FIPS 205 writes them. They are stateless key types. With `n` the parameter set's hash length in bytes:
 
@@ -135,9 +137,17 @@ PK.seed = seed[2n : 3n]
 
 The public key is `PK.seed || PK.root`, of `2n` bytes. A wallet MUST NOT derive an SLH-DSA key pair of these key types in any other way from `R`.
 
-### Stateful keys
+#### Restoring
 
-A stateful key (one-time, few-time or many-time with an index, such as WOTS, FORS or XMSS) MUST NOT be reproducible from the root alone. Each instance has:
+After restoring `R` from a phrase, a wallet SHOULD show a fingerprint of a stateless public key, or an address derived from it, before the user relies on the keys. A mistyped BIP-39 passphrase gives a valid but different root, and comparing the fingerprint with a known one is how the user notices.
+
+A phrase does not record which accounts and key types were in use. A restoring wallet SHOULD try the accounts in order from 0, with each key type it supports, and stop at the first account for which it finds no key in use. How a wallet finds that a key is in use, for example through an account contract that names the public key, is outside this ERC. A wallet or application that uses accounts out of order MUST record which ones it uses, since a restore will not find them.
+
+### Optional derivations
+
+#### Stateful keys
+
+A stateful key is one whose secret key changes with use: a one-time or few-time key, or a many-time key with an index, such as WOTS, FORS or XMSS. It MUST NOT be reproducible from the root alone. Each instance has:
 
 - `context`: 32 bytes the application defines, for example a hash of the chain, the account and the purpose;
 - `instance`: 32 bytes from a cryptographically secure random number generator, generated when the instance is created.
@@ -148,7 +158,7 @@ seed = HKDF-Expand(R, 0x02 || be32(account) || be16(L) || len8(ascii(t)) || asci
 
 The wallet MUST store `instance` with the instance's state, such as which indices have signed, and MUST NOT derive `instance` deterministically. A wallet restored from its root MUST create new instances. It MUST NOT recreate an instance from a backup of `instance` unless that backup also restores the instance's state, and the state is the latest.
 
-### Application secrets
+#### Application secrets
 
 An application that needs its own secret derives it as:
 
@@ -158,9 +168,15 @@ secret = HKDF-Expand(R, 0x03 || be32(account) || be16(L) || len8(utf8(label)) ||
 
 where `label` is a string the application chooses, of 1 to 255 bytes in UTF-8 without Unicode normalization, and `L` is the length the application needs, 32 unless it says otherwise. Labels SHOULD be ASCII, and SHOULD be namespaced with a domain or project name the application controls. An application secret MUST NOT be used as the seed of a key type; stateless and stateful keys have their own derivations above. It MAY be used as other key material, for example as the private key of an ECDSA account that pays an application's gas. A quantum adversary who breaks such a key learns that secret only, not `R`.
 
-### Restoring
+#### Random roots
 
-After restoring `R` from a phrase, a wallet SHOULD show a fingerprint of a stateless public key, or an address derived from it, before the user relies on the keys. A mistyped BIP-39 passphrase gives a valid but different root, and comparing the fingerprint with a known one is how the user notices.
+A key holder without a phrase, such as a device or an automated signer that a phrase-derived key certifies, makes its root from random input:
+
+```
+R = HKDF-Extract(salt = ascii("HBKD/v1"), IKM)       IKM: at least 32 bytes from a cryptographically secure random number generator
+```
+
+Every derivation of this ERC applies to such a root unchanged. A random root has no backup.
 
 ## Rationale
 
@@ -171,6 +187,10 @@ After restoring `R` from a phrase, a wallet SHOULD show a fingerprint of a state
 **One PBKDF2, not two.** A second PBKDF2 over the phrase with its own salt also gives a secret independent of the BIP-32 tree, but it needs the words themselves: a wallet that keeps only the BIP-39 seed cannot compute it. It adds no protection against a quantum adversary either, since the BIP-32 tree already sits behind HMAC-SHA512, which hides the seed.
 
 **Other derivations.** [ERC-2333](./eip-2333.md) also routes derivation through hashes, so that a broken curve does not expose child keys, but it derives BLS12-381 keys and ties its tree to that curve. BIP-85 and SLIP-0010 derive through BIP-32-style trees, whose nodes have elliptic-curve public keys.
+
+**A small core.** A standard has to fix only what two implementations must agree on. For key derivation that is the path from a phrase to a key pair: the root, the account, the key type and the stateless seed. A hardware wallet can implement that much and restore the keys of any other wallet. Stateful instances are never restored, application secrets matter to one application, and a random root never leaves its holder, so no two wallets need to agree on them. They are optional, and specified here so that wallets which need them do not each invent a variant. One rule about them is part of the core, because breaking it is unsafe: a stateful key type never takes the stateless derivation.
+
+**Finding accounts after a restore.** BIP-44 wallets find their accounts by scanning in order and stopping at a gap. The same works here if wallets use accounts in order. What "in use" means depends on the account contract, which this ERC does not define, so the ERC fixes only the order.
 
 **HKDF-SHA512.** HKDF is the standard way to turn one secret into many, and reviewers and libraries know it. With SHA-512 it runs on HMAC-SHA512, which every BIP-39 wallet and hardware wallet already has for PBKDF2 and BIP-32, so the whole derivation needs one primitive. The derivation's hash is independent of the signature scheme's hash, so a scheme that settles on another hash still uses this derivation.
 
@@ -192,7 +212,7 @@ After restoring `R` from a phrase, a wallet SHOULD show a fingerprint of a state
 
 **Random instances for stateful keys.** Stateful keys fail when an index signs twice. A deterministic stream of keys indexed by a counter repeats keys whenever a wallet is restored from an old backup, copied, or run on two devices. A per-device identifier only moves the problem: the same device restored twice repeats its stream. A phrase backs up an identity, not state, so this ERC restores stateless keys and makes fresh stateful instances. `context` binds an instance to its use, and an application can certify a new instance with its stateless key. Because the seed also depends on `R`, a stored `instance` and its state are not secret: whoever copies them still cannot sign without the root.
 
-**Random roots for devices.** A device key derived from the phrase would require the phrase on the device. A device with its own random root holds no phrase, and the phrase's stateless key can certify and revoke its keys.
+**Random roots.** A device key derived from the phrase would require the phrase on the device. A device or automated signer with its own random root holds no phrase, and the phrase's stateless key can certify and revoke its keys.
 
 ## Backwards Compatibility
 
@@ -203,6 +223,8 @@ The BIP-39 seed this ERC uses is the same one BIP-32 wallets use, so a phrase ca
 ## Test Cases
 
 Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example of a key type that an application defines, with a 32-byte seed. It names leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. The vectors use it only as a string and do not depend on its key generation.
+
+The stateless seeds and the SLH-DSA keys test the core. The stateful seeds, the application secrets and the random root test the optional derivations.
 
 Unless a line says otherwise, `L` is 32, `context` is the bytes `0x00` to `0x1f`, `instance` is 32 bytes of `0xa5`, and the application label is `example.app.gas`. "max account" is account `2^32 - 1`.
 
@@ -396,6 +418,10 @@ def slh_dsa_seeds(root: bytes, key_type: str, account: int = 0) -> tuple:
 **Sharing a phrase with ECDSA wallets.** The derivation keeps hash-based keys safe from a quantum adversary who breaks the phrase's ECDSA keys. It does not keep them safe from the phrase itself: every wallet that has seen the phrase can derive them, including a hot wallet that was compromised years ago. Hash-based keys from a shared phrase are only as safe as the weakest wallet that ever held it. Wallets SHOULD create a new phrase for a new hash-based account, and SHOULD warn the user before deriving hash-based keys from an existing phrase.
 
 **Stateful keys.** Signing twice at one index of a one-time key reveals enough to forge. Wallets MUST save an instance's state before releasing a signature, MUST NOT restore an instance from stale state, and MUST create new instances after a restore. Applications SHOULD bind each instance to its use through `context`.
+
+**Copied signers.** A stateful instance is safe only while exactly one signer holds it. A signer whose memory or storage can be copied while it runs carries the same instance, and the same record of used keys, into every copy. Two copies then sign different messages with the same one-time key, and anyone who sees both signatures can forge. No attack is needed for this: a virtual machine snapshot, replicas behind a load balancer, a restored backup, or an automated agent started several times from one image all make copies. A contract that refuses the second use of a key does not help, because both signatures are public before either is mined. A signer that can be copied MUST NOT hold a stateful instance. It uses stateless keys, or asks a single signer that holds the instance.
+
+**Automated signers.** Software that signs without a person, such as a service or an agent, SHOULD NOT hold a phrase or a phrase's root, which give every key of every account. It SHOULD hold its own random root, which a phrase-derived key certifies and can revoke. If it holds the seed of a single phrase-derived key instead, a leak exposes only that key, but restoring the phrase brings the leaked key back, so its account has to be given up. Such signers sign often. Wallets SHOULD give them key types whose signature limit they cannot reach, such as the FIPS 205 parameter sets of SLH-DSA.
 
 **Phrase length.** A 12-word phrase has 128 bits of entropy, and a 24-word phrase 256. Grover's algorithm searches 128 bits in about 2^64 sequential steps, each a PBKDF2 of 2048 iterations and a check against a known public key or address of the phrase, which matches parameter sets with 16-byte hashes. Wallets SHOULD use 24-word phrases for key types that target a higher level.
 
