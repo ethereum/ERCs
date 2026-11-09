@@ -1,9 +1,9 @@
 ---
-eip: 0
+eip: 8486
 title: Flash Loan Proxy
 description: A proxy for coordinating execution sessions using transiently cached programs and calldata, with configurable reentrant invocation dispatch
 author: Helkomine (@Helkomine)
-discussions-to: placeholder
+discussions-to: https://ethereum-magicians.org/t/erc-8486-flash-loan-proxy/30289
 status: Draft
 type: Standards Track
 category: ERC
