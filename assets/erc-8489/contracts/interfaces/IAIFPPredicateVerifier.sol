@@ -2,8 +2,9 @@
 pragma solidity ^0.8.20;
 
 /// @title IAIFPPredicateVerifier
-/// @notice A leaf verifier. It answers one of the four outcomes and never reverts on a negative answer;
-///         a revert or an out-of-range value is recorded by the caller as VERIFIER_ERROR.
+/// @notice A leaf verifier. It answers one of the four outcomes and never reverts on a negative answer.
+///         A revert, running out of the gas the caller forwards, return data that is not exactly one
+///         32-byte word, or a word above 3 is recorded by the caller as VERIFIER_ERROR for that leaf.
 interface IAIFPPredicateVerifier {
     /// @param channelId  the channel the subject is being evaluated for
     /// @param subject    canonical subject reference
@@ -42,7 +43,8 @@ interface IAIFPCompositeVerifier {
 }
 
 /// @title IAIFPSubjectSet
-/// @notice A set of subject references used by ALLOWLIST leaves.
+/// @notice A set of subject references used by ALLOWLIST leaves. `contains` MUST return exactly one word
+///         equal to 0 or 1; anything else is recorded by the caller as VERIFIER_ERROR for that leaf.
 interface IAIFPSubjectSet {
     function contains(bytes32 subject) external view returns (bool);
 }
