@@ -16,7 +16,7 @@ This ERC specifies how a wallet derives the secret seeds of hash-based post-quan
 
 The ERC defines a root secret, a seed for each stateless key, a seed for each instance of a stateful key, and a secret for each application. Stateless keys are restored from the phrase. Stateful keys never are: each instance takes fresh randomness, so a restored wallet cannot reuse one-time keys.
 
-The ERC is independent of the signature scheme and its parameters. A key type string names the scheme, its parameter set and its key generation, so a new parameter set gives a new key from the same phrase.
+The ERC is independent of the signature scheme and its parameters. A key type string names the scheme, its parameter set and its key generation, so a new parameter set gives a new key from the same phrase. The ERC defines the key types of SLH-DSA, the stateless hash-based signature that NIST standardized in FIPS 205, so that conforming wallets derive the same SLH-DSA key pair from a phrase.
 
 ## Motivation
 
@@ -102,7 +102,7 @@ A key type is a string of 1 to 255 printable ASCII characters other than the spa
 - the length `L` of its seed, at least 32 bytes;
 - the deterministic procedure that makes a key pair from that seed, including every option that changes the public key, such as pruning the key's top tree.
 
-The specification of a scheme or of an application defines its key types. A key type string MUST change whenever the map from seed to public key changes. Two different procedures MUST NOT share a key type string. A scheme whose key generation takes several secret values, or more than 32 bytes, sets `L` to what it needs and says how the seed is cut up.
+This ERC defines the key types of SLH-DSA, below. The specification of another scheme or of an application defines its own. A key type string MUST change whenever the map from seed to public key changes. Two different procedures MUST NOT share a key type string. A scheme whose key generation takes several secret values, or more than 32 bytes, sets `L` to what it needs and says how the seed is cut up.
 
 ### Stateless keys
 
@@ -113,6 +113,27 @@ seed = HKDF-Expand(R, 0x01 || be32(account) || be16(L) || len8(ascii(t)) || asci
 ```
 
 The key pair is the key type's key generation applied to `seed`. Restoring `R` MUST restore the same key pair.
+
+### SLH-DSA key types
+
+The key types of SLH-DSA are the names of its parameter sets as FIPS 205 writes them. They are stateless key types. With `n` the parameter set's hash length in bytes:
+
+| Key types | `n` | `L` |
+|---|---|---|
+| `SLH-DSA-SHA2-128s`, `SLH-DSA-SHA2-128f`, `SLH-DSA-SHAKE-128s`, `SLH-DSA-SHAKE-128f` | 16 | 48 |
+| `SLH-DSA-SHA2-192s`, `SLH-DSA-SHA2-192f`, `SLH-DSA-SHAKE-192s`, `SLH-DSA-SHAKE-192f` | 24 | 72 |
+| `SLH-DSA-SHA2-256s`, `SLH-DSA-SHA2-256f`, `SLH-DSA-SHAKE-256s`, `SLH-DSA-SHAKE-256f` | 32 | 96 |
+
+The seed has `L = 3n` bytes and is cut into the three inputs of FIPS 205's key generation, in this order:
+
+```
+SK.seed = seed[0 : n]
+SK.prf  = seed[n : 2n]
+PK.seed = seed[2n : 3n]
+(SK, PK) = slh_keygen_internal(SK.seed, SK.prf, PK.seed)          FIPS 205, Algorithm 18
+```
+
+The public key is `PK.seed || PK.root`, of `2n` bytes. A wallet MUST NOT derive an SLH-DSA key pair of these key types in any other way from `R`.
 
 ### Stateful keys
 
@@ -165,6 +186,8 @@ After restoring `R` from a phrase, a wallet SHOULD show a fingerprint of a state
 
 **Seed lengths per key type.** Schemes need different amounts of secret input. SLH-DSA takes three values of 16 to 32 bytes each. With one fixed seed length, every such scheme would have to invent its own expansion. Here the key type asks for the bytes it needs. The floor of 32 bytes keeps a careless key type from deriving a short seed.
 
+**SLH-DSA key types.** Without one fully specified key type, two conforming wallets would agree on a seed and still make different keys. SLH-DSA is the hash-based signature with a published standard and independent libraries, so it is the one this ERC specifies itself. The seed is cut in the order in which FIPS 205 lays out the private key, `SK.seed || SK.prf || PK.seed`, which is also the order in which existing libraries take a seed for deterministic key generation. `PK.seed` becomes public. Taking it from the same output is safe, since revealing part of an HKDF output says nothing about the rest. The same rule can name parameter sets that NIST adds later.
+
 **The key type in every seed.** A seed is never shared between two parameter sets or key-generation procedures, so a weakness in one cannot carry over to the other through a shared seed. When a protocol upgrade fixes a new parameter set, the wallet derives a new key from the same phrase under the new key type. An application can then link the new key to the old one by signing it with the old key, without a new backup.
 
 **Random instances for stateful keys.** Stateful keys fail when an index signs twice. A deterministic stream of keys indexed by a counter repeats keys whenever a wallet is restored from an old backup, copied, or run on two devices. A per-device identifier only moves the problem: the same device restored twice repeats its stream. A phrase backs up an identity, not state, so this ERC restores stateless keys and makes fresh stateful instances. `context` binds an instance to its use, and an application can certify a new instance with its stateless key. Because the seed also depends on `R`, a stored `instance` and its state are not secret: whoever copies them still cannot sign without the root.
@@ -179,7 +202,7 @@ The BIP-39 seed this ERC uses is the same one BIP-32 wallets use, so a phrase ca
 
 ## Test Cases
 
-Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example with a 32-byte seed. It names leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. The vectors use it only as a string and do not depend on its key generation.
+Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example of a key type that an application defines, with a 32-byte seed. It names leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. The vectors use it only as a string and do not depend on its key generation.
 
 Unless a line says otherwise, `L` is 32, `context` is the bytes `0x00` to `0x1f`, `instance` is 32 bytes of `0xa5`, and the application label is `example.app.gas`. "max account" is account `2^32 - 1`.
 
@@ -236,7 +259,30 @@ The `info` of the first stateless seed (account 0, `L = 32`) is these 47 bytes:
 6c65616e537068696e63732d6b656363616b2f77616d627367616e732d6b656363616b2f623130
 ```
 
-An implementation rejects each of these inputs: the mnemonic `abandon` repeated 24 times, whose checksum fails; the key types `""` and `leanSphincs keccak`, one empty and one with a space; a key type of 256 bytes; account `2^32`; and the lengths 31 and 16321.
+SLH-DSA key types, for the first mnemonic with the empty passphrase and account 0. The seed is `SK.seed || SK.prf || PK.seed`, and the public key is `PK.seed || PK.root`:
+
+```
+key type                 SLH-DSA-SHA2-128s
+seed                     9a4f5ec07d81f8f9b5ad67afe96d81793158212491f532a49a3139ac24e97105
+                         9feb56347e8b95e5c18e1879d3ecf3bd
+public key               9feb56347e8b95e5c18e1879d3ecf3bd8aa1a5ce8e63e5240b7521b3648b8298
+
+key type                 SLH-DSA-SHA2-192s
+seed                     dd0257c7e6c82971da01e82c2e100827025e587bf4beb0837771faee59e9da38
+                         3041f5ef899c5c7af8527461fb5922b0b2ee3215b5859539d83576885c3ec291
+                         35f3878148585575
+public key               b2ee3215b5859539d83576885c3ec29135f387814858557560f7ac4140534ed3
+                         55a93fffba557aeb7a425407ff4bdd96
+
+key type                 SLH-DSA-SHAKE-256s
+seed                     0771852b79bc31a74ed79f000965b5c36263e098f19def34204fdcefad597187
+                         e11fbe0ccf0aa665307ab0becd1d7183af5c2a3f8c136e6976161b6d6fe9e4ac
+                         be4e3fe70e626bafe1538ed6c50cdffe7918192469ce47798357d6ca901f3d78
+public key               be4e3fe70e626bafe1538ed6c50cdffe7918192469ce47798357d6ca901f3d78
+                         7a7fd9278d47cc69476b93a1b22fe671b4c1c102e5dddaf05870138189dc068e
+```
+
+An implementation rejects each of these inputs: the mnemonic `abandon` repeated 24 times, whose checksum fails; the key types `""` and `leanSphincs keccak`, one empty and one with a space; a key type of 256 bytes; account `2^32`; the lengths 31 and 16321; and the key type `SLH-DSA-SHA2-128s` with a length other than 48, or as a stateful key.
 
 ## Reference Implementation
 
@@ -251,6 +297,8 @@ ENGLISH = Mnemonic("english")
 ENGLISH_WORDS = frozenset(ENGLISH.wordlist)
 SALT = b"HBKD/v1"
 STATELESS, STATEFUL, APPLICATION = 1, 2, 3
+# the hash length n of each SLH-DSA parameter set, by its name in FIPS 205
+SLH_DSA_N = {f"SLH-DSA-{h}-{bits}{v}": bits // 8 for h in ("SHA2", "SHAKE") for bits in (128, 192, 256) for v in "sf"}
 
 
 def _require(ok: bool, what: str) -> None:
@@ -311,11 +359,13 @@ def _key_type(key_type: str) -> bytes:
 
 def stateless_seed(root: bytes, key_type: str, length: int, account: int = 0) -> bytes:
     # length: the seed length that the key type defines
+    _require(key_type not in SLH_DSA_N or length == 3 * SLH_DSA_N[key_type], "length: 3n for an SLH-DSA key type")
     return hkdf_expand(_root(root), _info(STATELESS, account, length, _key_type(key_type)), length)
 
 
 def stateful_seed(root: bytes, key_type: str, length: int, context: bytes, instance: bytes, account: int = 0) -> bytes:
     # instance: 32 fresh random bytes, stored with the instance's state
+    _require(key_type not in SLH_DSA_N, "key type: SLH-DSA key types are stateless")
     tail = _bytes32(context, "context") + _bytes32(instance, "instance")
     return hkdf_expand(_root(root), _info(STATEFUL, account, length, _key_type(key_type), tail), length)
 
@@ -323,6 +373,14 @@ def stateful_seed(root: bytes, key_type: str, length: int, context: bytes, insta
 def app_secret(root: bytes, label: str, length: int = 32, account: int = 0) -> bytes:
     _require(isinstance(label, str), "label: a string")
     return hkdf_expand(_root(root), _info(APPLICATION, account, length, label.encode("utf-8")), length)
+
+
+def slh_dsa_seeds(root: bytes, key_type: str, account: int = 0) -> tuple:
+    # (SK.seed, SK.prf, PK.seed), the inputs of slh_keygen_internal, FIPS 205's Algorithm 18
+    _require(key_type in SLH_DSA_N, "key type: an SLH-DSA parameter set's name")
+    n = SLH_DSA_N[key_type]
+    seed = stateless_seed(root, key_type, 3 * n, account)
+    return seed[:n], seed[n:2 * n], seed[2 * n:]
 ```
 
 ## Security Considerations
@@ -330,6 +388,10 @@ def app_secret(root: bytes, label: str, length: int = 32, account: int = 0) -> b
 **The phrase holds every key.** Whoever learns the phrase, and the passphrase if there is one, holds every stateless key and application secret of every account it derives. Stateful instances also depend on `instance`, but an adversary with the phrase can use the stateless keys instead.
 
 **The root.** `R` is as secret as the phrase: whoever holds it can derive every key without the phrase. A wallet that stores `R` instead of the phrase protects it the same way.
+
+**FIPS 205 key generation.** A key pair of an SLH-DSA key type is a valid FIPS 205 key pair, and its signatures verify like any other. Its generation is not the one FIPS 205 approves: the standard requires `SK.seed`, `SK.prf` and `PK.seed` to come from an approved random bit generator inside the cryptographic module, and reserves `slh_keygen_internal` for testing. A wallet that must generate its keys in a validated module cannot derive them from a phrase. A phrase-derived key can still certify the module's key.
+
+**Signing variants.** This ERC says how a key is made, not how it signs. Whether signing is hedged or deterministic, pure or pre-hashed, and with which context string, is for the standard that verifies the signature. FIPS 205 says a key should be used with only one of hedged and deterministic signing.
 
 **Sharing a phrase with ECDSA wallets.** The derivation keeps hash-based keys safe from a quantum adversary who breaks the phrase's ECDSA keys. It does not keep them safe from the phrase itself: every wallet that has seen the phrase can derive them, including a hot wallet that was compromised years ago. Hash-based keys from a shared phrase are only as safe as the weakest wallet that ever held it. Wallets SHOULD create a new phrase for a new hash-based account, and SHOULD warn the user before deriving hash-based keys from an existing phrase.
 
