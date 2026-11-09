@@ -54,12 +54,14 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 A root secret `R` is 32 bytes. It comes from one of two sources.
 
-**From a BIP-39 phrase.** With mnemonic `M` and BIP-39 passphrase `P` (the empty string if the user sets none):
+**From a BIP-39 phrase.** With mnemonic sentence `M` and BIP-39 passphrase `P` (the empty string if the user sets none):
 
 ```
 S = BIP39-Seed(M, P)          64 bytes: PBKDF2-HMAC-SHA512, 2048 iterations, as BIP-39 specifies
 R = TH("HBKD/root/v1", S)
 ```
+
+`M` is the phrase's words exactly as they appear in the BIP-39 wordlist, separated by single spaces. A wallet MUST bring what the user types (other letter case, other spacing, abbreviated words) into this form. It MUST reject a mnemonic with a word outside the wordlist or a failed BIP-39 checksum. BIP-39 only asks for a warning, but a mistyped word that passes would restore different keys.
 
 **Random.** For a key holder without a phrase, such as a device that a phrase-derived key certifies, `R` is 32 bytes from a cryptographically secure random number generator.
 
@@ -71,7 +73,7 @@ A wallet MUST NOT derive `R`, or any value in this ERC, through BIP-32 or any ot
 
 ### Key types
 
-A key type is a non-empty string of printable ASCII characters. It identifies:
+A key type is a non-empty string of printable ASCII characters other than the space, that is of bytes `0x21` to `0x7e`. It identifies:
 
 - the signature scheme;
 - its parameter set and hash function;
@@ -112,7 +114,7 @@ An application that needs its own secret derives it as:
 secret = TH("HBKD/app/v1", R || be32(account) || keccak256(utf8(label)))
 ```
 
-where `label` is a string the application chooses and `utf8` its UTF-8 encoding. Labels SHOULD be namespaced with a domain or project name the application controls. An application secret MUST NOT be used as the seed of a key type; stateless and stateful keys have their own derivations above. It MAY be used as other key material, for example as the private key of an ECDSA account that pays an application's gas. A quantum adversary who breaks such a key learns that secret only, not `R`.
+where `label` is a string the application chooses and `utf8` its UTF-8 encoding, without Unicode normalization. Labels SHOULD be ASCII, and SHOULD be namespaced with a domain or project name the application controls. An application secret MUST NOT be used as the seed of a key type; stateless and stateful keys have their own derivations above. It MAY be used as other key material, for example as the private key of an ECDSA account that pays an application's gas. A quantum adversary who breaks such a key learns that secret only, not `R`.
 
 ### Restoring
 
@@ -146,9 +148,7 @@ The BIP-39 seed this ERC uses is the same one BIP-32 wallets use, so a phrase ca
 
 ## Test Cases
 
-Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example: leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. `context` is the bytes `0x00` to `0x1f`, and `instance` is 32 bytes of `0xa5`. The application label is `example.app.gas`.
-
-The seeds and the application secret are this ERC's test vectors. The public key is informative: it lets an implementation of that key type check its key generation.
+Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example. It names leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. The vectors use it only as a string and do not depend on its key generation. `context` is the bytes `0x00` to `0x1f`, and `instance` is 32 bytes of `0xa5`. The application label is `example.app.gas`.
 
 ```
 mnemonic   abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon
@@ -161,8 +161,6 @@ stateless, account 0  373d01c6fca9738080cf1f4186fd517ad450d134d31bcb3aecb3bb4dd3
 stateless, account 1  8fc21bcff345bc88b412b2d4a3a8c2a0637d3ea05e187969d3ce0aa195ca2e7b
 stateful, account 0   e8e1e2bc45a1a0785011021d34b601833c4e1f0fcfabb19daa53d0ffd1a47939
 app secret            fcec37951685415d996fb166633bce4891ffb650ef121354129c1fe8b6d850c7
-public key of the stateless key, account 0 (root || public parameter)
-                      14ea1515b0bb93f5bf7151fbad2800ca37389f2020209a2d0e55ed7fd6b2977e
 
 mnemonic   (as above)
 passphrase TREZOR
@@ -183,9 +181,16 @@ stateless, account 0  55b86642971ca5d137f1ce48ad68d0c79310aff96ae70b5b061dc696e5
 stateless, account 1  3347fbb9f4f0adaf77a518ccd4ff34d47247120a8b32ecf7d13b5b5575170d7e
 stateful, account 0   37306d29c12f6f5490989ce516eada140d00038ec48979584aaec7a42c00b37a
 app secret            85c53633bb07dddb69b8cabe0f883410574b5db9bf90775b93b45620120227b4
+
+R (random)                      202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+stateless, account 4294967295   08ab99f47191e6cda022959b2081b705c6c8ad7c621bbf5dc2dc3eb25d1f8618
+stateful, account 4294967295    6f7916cfa6ddcc290922eb98746847c8b9b3eb863df42715a28e5e0432371ef4
+app secret, account 4294967295  3f19d5ebb8a58e748762da7038cf705835fd88b62b7c2b93aa9cacb3e3223529
 ```
 
 The two values of `S` with passphrase `TREZOR` are BIP-39's published test vectors.
+
+An implementation rejects each of these inputs: the mnemonic `abandon` repeated 24 times, whose checksum fails; the key types `""` and `leanSphincs keccak`, one empty and one with a space; and account `2^32`.
 
 ## Reference Implementation
 
@@ -194,6 +199,9 @@ import hashlib
 import unicodedata
 
 from Crypto.Hash import keccak  # pycryptodome
+from mnemonic import Mnemonic  # the BIP-39 reference implementation
+
+ENGLISH = Mnemonic("english")
 
 
 def keccak256(data: bytes) -> bytes:
@@ -204,41 +212,54 @@ def tagged_hash(tag: str, data: bytes) -> bytes:
     return keccak256(keccak256(tag.encode("ascii")) + data)
 
 
-def bip39_seed(mnemonic: str, passphrase: str = "") -> bytes:
-    m = unicodedata.normalize("NFKD", mnemonic).encode("utf-8")
+def _require(ok: bool, what: str) -> None:
+    if not ok:
+        raise ValueError(what)
+
+
+def bip39_seed(words: list, passphrase: str = "") -> bytes:
+    # words: the mnemonic's words as they appear in the wordlist, here the English one
+    sentence = " ".join(words)
+    _require(ENGLISH.check(sentence), "mnemonic: a word outside the wordlist, or a failed checksum")
+    m = unicodedata.normalize("NFKD", sentence).encode("utf-8")
     salt = unicodedata.normalize("NFKD", "mnemonic" + passphrase).encode("utf-8")
     return hashlib.pbkdf2_hmac("sha512", m, salt, 2048)
 
 
 def root_from_seed(seed: bytes) -> bytes:
-    assert len(seed) == 64
+    _require(isinstance(seed, bytes) and len(seed) == 64, "seed: 64 bytes")
     return tagged_hash("HBKD/root/v1", seed)
 
 
+def _bytes32(value: bytes, what: str) -> bytes:
+    _require(isinstance(value, bytes) and len(value) == 32, what + ": 32 bytes")
+    return value
+
+
 def _account(account: int) -> bytes:
-    assert 0 <= account < 2**32
+    _require(type(account) is int and 0 <= account < 2**32, "account: an integer from 0 to 2^32 - 1")
     return account.to_bytes(4, "big")
 
 
 def _key_type(key_type: str) -> bytes:
-    assert key_type and key_type.isascii() and key_type.isprintable()
+    _require(isinstance(key_type, str) and key_type != "" and all("!" <= c <= "~" for c in key_type),
+             "key type: a non-empty string of bytes 0x21 to 0x7e")
     return keccak256(key_type.encode("ascii"))
 
 
 def stateless_seed(root: bytes, key_type: str, account: int = 0) -> bytes:
-    assert len(root) == 32
-    return tagged_hash("HBKD/stateless/v1", root + _account(account) + _key_type(key_type))
+    return tagged_hash("HBKD/stateless/v1", _bytes32(root, "root") + _account(account) + _key_type(key_type))
 
 
 def stateful_seed(root: bytes, key_type: str, context: bytes, instance: bytes, account: int = 0) -> bytes:
     # instance: 32 fresh random bytes, stored with the instance's state
-    assert len(root) == len(context) == len(instance) == 32
-    return tagged_hash("HBKD/stateful/v1", root + _account(account) + _key_type(key_type) + context + instance)
+    return tagged_hash("HBKD/stateful/v1", _bytes32(root, "root") + _account(account) + _key_type(key_type)
+                       + _bytes32(context, "context") + _bytes32(instance, "instance"))
 
 
-def app_secret(root: bytes, app_label: str, account: int = 0) -> bytes:
-    assert len(root) == 32
-    return tagged_hash("HBKD/app/v1", root + _account(account) + keccak256(app_label.encode("utf-8")))
+def app_secret(root: bytes, label: str, account: int = 0) -> bytes:
+    _require(isinstance(label, str), "label: a string")
+    return tagged_hash("HBKD/app/v1", _bytes32(root, "root") + _account(account) + keccak256(label.encode("utf-8")))
 ```
 
 ## Security Considerations
