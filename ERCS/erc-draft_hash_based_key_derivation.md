@@ -20,15 +20,18 @@ The ERC is independent of the signature scheme and its parameters. A key type st
 
 ## Motivation
 
-Hash-based signatures are the most conservative post-quantum option for Ethereum accounts. Accounts can already verify them in contracts through [ERC-1271](./eip-1271.md) and account abstraction, and protocol proposals would aggregate them. Users, however, back up their accounts with BIP-39 phrases, and no standard says how a phrase becomes a hash-based key.
+Hash-based signatures are the most conservative post-quantum option for Ethereum accounts. Accounts can already verify them in contracts through [ERC-1271](./eip-1271.md) and account abstraction, and protocol proposals would aggregate them. Users, however, back up their accounts with [BIP-39](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0039.mediawiki) phrases, and no standard says how a phrase becomes a hash-based key.
 
 Implementations have diverged:
+
 - One derives keys from the phrase's BIP-39 entropy, with Keccak-256 over application-specific labels.
-- Another derives them through hardened BIP-32 paths under `m/44'/60'/a'`.
+- Another derives them through hardened [BIP-32](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0032.mediawiki) paths under `m/44'/60'/a'`.
+- A third runs BIP-39's PBKDF2 over the phrase a second time, with its own salt in place of `"mnemonic"`.
 
 The same phrase therefore gives different keys in different wallets, and a phrase restored elsewhere does not restore the account.
 
 A standard derivation lets a user:
+
 - restore hash-based keys in any conforming wallet, hardware wallet or recovery tool;
 - add hash-based keys to an existing phrase without a new backup;
 - move to a new parameter set, for example the one a future protocol upgrade fixes, by deriving a new key from the same phrase.
@@ -64,11 +67,12 @@ A wallet MUST NOT derive `R`, or any value in this ERC, through BIP-32 or any ot
 
 ### Accounts
 
-`account` is an integer `0 <= account < 2^32`. Different values give independent sets of keys from one root, like BIP-44's account level. Wallets SHOULD use `account = 0` unless the user creates more.
+`account` is an integer `0 <= account < 2^32`. Different values give independent sets of keys from one root, like the account level of [BIP-44](https://github.com/bitcoin/bips/blob/a34f044bb8d5cd684d7a742d2f6483c14b719046/bip-0044.mediawiki). Wallets SHOULD use `account = 0` unless the user creates more.
 
 ### Key types
 
 A key type is a non-empty string of printable ASCII characters. It identifies:
+
 - the signature scheme;
 - its parameter set and hash function;
 - the deterministic procedure that makes a key pair from a 32-byte seed, including every option that changes the public key, such as pruning the key's top tree.
@@ -90,6 +94,7 @@ The key pair is the key type's key generation applied to `seed`. Restoring `R` M
 ### Stateful keys
 
 A stateful key (one-time, few-time or many-time with an index, such as WOTS, FORS or XMSS) MUST NOT be reproducible from the root alone. Each instance has:
+
 - `context`: 32 bytes the application defines, for example a hash of the chain, the account and the purpose;
 - `instance`: 32 bytes from a cryptographically secure random number generator, generated when the instance is created.
 
@@ -119,13 +124,17 @@ After restoring `R` from a phrase, a wallet SHOULD show a fingerprint of a state
 
 **The BIP-39 seed, not the entropy.** Deriving from the seed keeps BIP-39 passphrases meaningful: each passphrase, including a hidden-wallet passphrase, gets its own hash-based keys. It also works for hardware wallets and libraries that keep only the seed. Deriving from the entropy avoids a second secret whose typos give valid keys, and at least one implementation chose it for that reason. This ERC keeps passphrases because users with existing phrases rely on them, and asks wallets to show a fingerprint after a restore instead.
 
+**One PBKDF2, not two.** A second PBKDF2 over the phrase with its own salt also gives a secret independent of the BIP-32 tree, but it needs the words themselves: a wallet that keeps only the BIP-39 seed cannot compute it. It adds no protection against a quantum adversary either, since the BIP-32 tree already sits behind HMAC-SHA512, which hides the seed.
+
+**Other derivations.** [ERC-2333](./eip-2333.md) also routes derivation through hashes, so that a broken curve does not expose child keys, but it derives BLS12-381 keys and ties its tree to that curve. BIP-85 and SLIP-0010 derive through BIP-32-style trees, whose nodes have elliptic-curve public keys.
+
 **A tagged root.** `R` compresses the 64-byte seed to 32 bytes under a fixed tag. A random 32-byte root fits the same derivations, so a device key without a phrase is made the same way as a phrase key.
 
 **Keccak-256.** Every Ethereum wallet already has it, and contracts can recompute it. The derivation hash is independent of the signature scheme's hash, so a scheme that settles on another hash still uses this derivation.
 
 **The key type in every seed.** A seed is never shared between two parameter sets or key-generation procedures, so a weakness in one cannot carry over to the other through a shared seed. When a protocol upgrade fixes a new parameter set, the wallet derives a new key from the same phrase under the new key type. An application can then link the new key to the old one by signing it with the old key, without a new backup.
 
-**Random instances for stateful keys.** Stateful keys fail when an index signs twice. A deterministic stream of keys indexed by a counter repeats keys whenever a wallet is restored from an old backup, copied, or run on two devices. A per-device identifier only moves the problem: the same device restored twice repeats its stream. A phrase backs up an identity, not state, so this ERC restores stateless keys and makes fresh stateful instances. `context` binds an instance to its use, and an application can certify a new instance with its stateless key.
+**Random instances for stateful keys.** Stateful keys fail when an index signs twice. A deterministic stream of keys indexed by a counter repeats keys whenever a wallet is restored from an old backup, copied, or run on two devices. A per-device identifier only moves the problem: the same device restored twice repeats its stream. A phrase backs up an identity, not state, so this ERC restores stateless keys and makes fresh stateful instances. `context` binds an instance to its use, and an application can certify a new instance with its stateless key. Because the seed also depends on `R`, a stored `instance` and its state are not secret: whoever copies them still cannot sign without the root.
 
 **Random roots for devices.** A device key derived from the phrase would require the phrase on the device. A device with its own random root holds no phrase, and the phrase's stateless key can certify and revoke its keys.
 
@@ -137,7 +146,9 @@ The BIP-39 seed this ERC uses is the same one BIP-32 wallets use, so a phrase ca
 
 ## Test Cases
 
-Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example: leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate, with a pruned top tree that keeps a subtree of height 10. `context` is the bytes `0x00` to `0x1f`, and `instance` is 32 bytes of `0xa5`. The application label is `example.app.gas`.
+Key type `leanSphincs-keccak/wambsgans-keccak/b10` is an example: leanSPHINCS over Keccak-256 at the parameters of the `keccak` branch of the leanSphincs reference crate (16-byte hashes, one XMSS layer of height 26, FORS with 24 trees of 1,024 leaves, WOTS+C with 64 chains of `w = 4` and target sum 120), with a pruned top tree that keeps a subtree of height 10. `context` is the bytes `0x00` to `0x1f`, and `instance` is 32 bytes of `0xa5`. The application label is `example.app.gas`.
+
+The seeds and the application secret are this ERC's test vectors. The public key is informative: it lets an implementation of that key type check its key generation.
 
 ```
 mnemonic   abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon
@@ -237,6 +248,8 @@ def app_secret(root: bytes, app_label: str, account: int = 0) -> bytes:
 **Sharing a phrase with ECDSA wallets.** The derivation keeps hash-based keys safe from a quantum adversary who breaks the phrase's ECDSA keys. It does not protect a phrase that a compromised hot wallet has seen. Users SHOULD consider a separate phrase for high-value hash-based accounts.
 
 **Stateful keys.** Signing twice at one index of a one-time key reveals enough to forge. Wallets MUST save an instance's state before releasing a signature, MUST NOT restore an instance from stale state, and MUST create new instances after a restore. Applications SHOULD bind each instance to its use through `context`.
+
+**Phrase length.** A 12-word phrase has 128 bits of entropy, and a 24-word phrase 256. Grover's algorithm searches 128 bits in about 2^64 sequential steps, each a PBKDF2 of 2048 iterations and a check against a known public key or address of the phrase, which matches parameter sets with 16-byte hashes. Wallets SHOULD use 24-word phrases for key types that target a higher level.
 
 **Signature budgets.** A stateless key is secure only up to the number of signatures its parameter set allows. Wallets SHOULD count signatures per key, and move to a new `account` or key type before the budget runs out.
 
