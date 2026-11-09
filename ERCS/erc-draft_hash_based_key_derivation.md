@@ -61,7 +61,7 @@ S = BIP39-Seed(M, P)          64 bytes: PBKDF2-HMAC-SHA512, 2048 iterations, as 
 R = TH("HBKD/root/v1", S)
 ```
 
-`M` is the phrase's words exactly as they appear in the BIP-39 wordlist, separated by single spaces. A wallet MUST bring what the user types (other letter case, other spacing, abbreviated words) into this form. It MUST reject a mnemonic with a word outside the wordlist or a failed BIP-39 checksum. BIP-39 only asks for a warning, but a mistyped word that passes would restore different keys.
+`M` is the phrase's words exactly as they appear in the BIP-39 wordlist it was made with, separated by single spaces. Wallets MAY support only the English wordlist. A wallet MUST bring what the user types (other letter case, other spacing, abbreviated words) into this form. It MUST reject a mnemonic with a word outside the wordlist or a failed BIP-39 checksum. BIP-39 only asks for a warning, but a mistyped word that passes would restore different keys.
 
 **Random.** For a key holder without a phrase, such as a device that a phrase-derived key certifies, `R` is 32 bytes from a cryptographically secure random number generator.
 
@@ -202,6 +202,7 @@ from Crypto.Hash import keccak  # pycryptodome
 from mnemonic import Mnemonic  # the BIP-39 reference implementation
 
 ENGLISH = Mnemonic("english")
+ENGLISH_WORDS = frozenset(ENGLISH.wordlist)
 
 
 def keccak256(data: bytes) -> bytes:
@@ -219,8 +220,9 @@ def _require(ok: bool, what: str) -> None:
 
 def bip39_seed(words: list, passphrase: str = "") -> bytes:
     # words: the mnemonic's words as they appear in the wordlist, here the English one
+    _require(all(w in ENGLISH_WORDS for w in words), "mnemonic: a word outside the wordlist")
     sentence = " ".join(words)
-    _require(ENGLISH.check(sentence), "mnemonic: a word outside the wordlist, or a failed checksum")
+    _require(ENGLISH.check(sentence), "mnemonic: a wrong number of words, or a failed checksum")
     m = unicodedata.normalize("NFKD", sentence).encode("utf-8")
     salt = unicodedata.normalize("NFKD", "mnemonic" + passphrase).encode("utf-8")
     return hashlib.pbkdf2_hmac("sha512", m, salt, 2048)
